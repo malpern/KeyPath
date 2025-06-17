@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+import Observation
 
 struct RuleHistoryItem: Codable, Identifiable {
     let id: UUID
@@ -15,8 +15,9 @@ struct RuleHistoryItem: Codable, Identifiable {
     }
 }
 
-class RuleHistory: ObservableObject {
-    @Published var items: [RuleHistoryItem] = []
+@Observable
+class RuleHistory {
+    var items: [RuleHistoryItem] = []
     
     private let storageKey = "KeyPath.RuleHistory"
     private let maxHistoryItems = 20

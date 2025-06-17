@@ -1,11 +1,12 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 
-class SecurityManager: ObservableObject {
-    @Published var isKanataInstalled = false
-    @Published var hasConfigAccess = false
-    @Published var needsSudoPermission = false
+@Observable
+class SecurityManager {
+    var isKanataInstalled = false
+    var hasConfigAccess = false
+    var needsSudoPermission = false
     
     private let kanataInstaller = KanataInstaller()
     
