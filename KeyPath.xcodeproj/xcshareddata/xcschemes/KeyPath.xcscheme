@@ -53,7 +53,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "ANTHROPIC_API_KEY"
-            value = ""
+            value = "$(ANTHROPIC_API_KEY)"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

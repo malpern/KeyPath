@@ -39,10 +39,35 @@ struct SettingsView: View {
     @AppStorage("temperature") private var temperature = AppSettings.temperature
     @AppStorage("systemInstructions") private var systemInstructions = AppSettings.systemInstructions
     @AppStorage("chatProvider") private var chatProvider = AppSettings.chatProvider
+    @AppStorage("anthropicAPIKey") private var anthropicAPIKey = ""
+    @State private var showAPIKey = false
     
     var body: some View {
         NavigationStack {
             Form {
+                Section("API Configuration") {
+                    HStack {
+                        if showAPIKey {
+                            TextField("sk-ant-api...", text: $anthropicAPIKey)
+                                .textFieldStyle(.roundedBorder)
+                        } else {
+                            SecureField("sk-ant-api...", text: $anthropicAPIKey)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        Button(action: { showAPIKey.toggle() }) {
+                            Image(systemName: showAPIKey ? "eye.slash" : "eye")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .help("Your Anthropic API key. Get one at https://console.anthropic.com/")
+                    
+                    if anthropicAPIKey.isEmpty {
+                        Label("API key required for KeyPath to work", systemImage: "exclamationmark.triangle")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                    }
+                }
+                
                 Section("Generation") {
                     Toggle("Stream Responses", isOn: $useStreaming)
                     VStack(alignment: .leading) {

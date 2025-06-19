@@ -10,10 +10,19 @@ class AnthropicModelProvider: ChatModelProvider {
     init(systemInstructions: String, temperature: Double) {
         self.systemInstructions = systemInstructions
         self.temperature = temperature
-        guard let key = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] else {
-            fatalError("ANTHROPIC_API_KEY environment variable not set.")
+        
+        // First check environment variable
+        if let key = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] {
+            self.apiKey = key
+        } 
+        // Then check UserDefaults (from Settings)
+        else if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
+            self.apiKey = key
         }
-        self.apiKey = key
+        // Use empty string to allow graceful error handling
+        else {
+            self.apiKey = ""
+        }
     }
     
     func sendMessage(_ prompt: String) async throws -> String {

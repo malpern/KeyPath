@@ -240,8 +240,13 @@ struct KeyPathContentView: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.showError(message: "An error occurred: \(error.localizedDescription)")
+                    let userFriendlyMessage = self.getUserFriendlyErrorMessage(from: error)
+                    self.showError(message: userFriendlyMessage)
                     self.isResponding = false
+                    // Remove the empty message we added
+                    if self.messages.last?.displayText.isEmpty == true {
+                        self.messages.removeLast()
+                    }
                 }
             }
         }
@@ -321,6 +326,58 @@ struct KeyPathContentView: View {
         self.errorMessage = message
         self.showErrorAlert = true
         self.isResponding = false
+    }
+    
+    private func getUserFriendlyErrorMessage(from error: Error) -> String {
+        let errorString = error.localizedDescription.lowercased()
+        
+        // Check for specific error patterns and provide helpful messages
+        if errorString.contains("x-api-key") || errorString.contains("authentication") {
+            return """
+            API Key Missing or Invalid
+            
+            To use KeyPath, you need to add your Anthropic API key:
+            
+            1. Open Settings (⌘,)
+            2. Enter your Anthropic API key
+            3. If you don't have one, get it at:
+               https://console.anthropic.com/
+            
+            Your API key should start with 'sk-ant-api...'
+            """
+        } else if errorString.contains("network") || errorString.contains("connection") {
+            return """
+            Network Connection Error
+            
+            Please check your internet connection and try again.
+            If the problem persists, the Anthropic API may be temporarily unavailable.
+            """
+        } else if errorString.contains("rate limit") {
+            return """
+            Rate Limit Exceeded
+            
+            You've made too many requests. Please wait a moment and try again.
+            Consider upgrading your Anthropic plan for higher limits.
+            """
+        } else if errorString.contains("invalid request") || errorString.contains("bad request") {
+            return """
+            Invalid Request
+            
+            There was a problem with your request. Please try rephrasing your keyboard remapping description.
+            """
+        } else {
+            // Generic error with the actual error for debugging
+            return """
+            An error occurred while processing your request.
+            
+            Error details: \(error.localizedDescription)
+            
+            If this continues, please check:
+            - Your API key in Settings (⌘,)
+            - Your internet connection
+            - The Anthropic API status
+            """
+        }
     }
 }
 
