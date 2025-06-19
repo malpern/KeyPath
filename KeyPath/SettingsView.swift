@@ -39,9 +39,10 @@ struct SettingsView: View {
     @AppStorage("temperature") private var temperature = AppSettings.temperature
     @AppStorage("systemInstructions") private var systemInstructions = AppSettings.systemInstructions
     @AppStorage("chatProvider") private var chatProvider = AppSettings.chatProvider
-    @AppStorage("anthropicAPIKey") private var anthropicAPIKey = ""
+    @State private var anthropicAPIKey = ""
     @State private var showAPIKey = false
     @State private var usingOverride = false
+    @State private var saveError: String? = nil
     
     private var environmentAPIKey: String? {
         ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]
@@ -51,7 +52,10 @@ struct SettingsView: View {
         if !anthropicAPIKey.isEmpty {
             return anthropicAPIKey
         }
-        return environmentAPIKey ?? ""
+        if let envKey = environmentAPIKey {
+            return envKey
+        }
+        return KeychainManager.shared.apiKey ?? ""
     }
     
     var body: some View {
@@ -94,9 +98,16 @@ struct SettingsView: View {
                             Button("Clear override (use environment variable)") {
                                 anthropicAPIKey = ""
                                 usingOverride = false
+                                KeychainManager.shared.apiKey = nil
                             }
                             .buttonStyle(.link)
                             .font(.caption)
+                        }
+                        
+                        if let error = saveError {
+                            Label(error, systemImage: "exclamationmark.triangle")
+                                .foregroundColor(.red)
+                                .font(.caption)
                         }
                     }
                     
@@ -135,6 +146,23 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                }
+            }
+        }
+        .onAppear {
+            // Load API key from Keychain if available
+            if let keychainKey = KeychainManager.shared.apiKey, !keychainKey.isEmpty {
+                anthropicAPIKey = keychainKey
+            }
+        }
+        .onChange(of: anthropicAPIKey) { oldValue, newValue in
+            // Save to Keychain when API key changes
+            if !newValue.isEmpty {
+                do {
+                    try KeychainManager.shared.setAPIKey(newValue)
+                    saveError = nil
+                } catch {
+                    saveError = "Failed to save API key securely: \(error.localizedDescription)"
                 }
             }
         }

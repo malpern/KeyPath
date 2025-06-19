@@ -15,9 +15,16 @@ class AnthropicModelProvider: ChatModelProvider {
         if let key = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] {
             self.apiKey = key
         } 
-        // Then check UserDefaults (from Settings)
+        // Then check Keychain (most secure)
+        else if let key = KeychainManager.shared.apiKey, !key.isEmpty {
+            self.apiKey = key
+        }
+        // Finally check UserDefaults for backwards compatibility
         else if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
             self.apiKey = key
+            // Migrate to Keychain
+            KeychainManager.shared.apiKey = key
+            UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
         }
         // Use empty string to allow graceful error handling
         else {

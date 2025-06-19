@@ -5,7 +5,7 @@ struct OnboardingView: View {
     @Binding var showOnboarding: Bool
     @State private var currentStep = 0
     @Environment(\.colorScheme) var colorScheme
-    @AppStorage("anthropicAPIKey") private var anthropicAPIKey = ""
+    @State private var anthropicAPIKey = ""
     @State private var tempAPIKey = ""
     @State private var showAPIKey = false
     
@@ -96,7 +96,12 @@ struct OnboardingView: View {
                     Button("Get Started") {
                         // Save the API key if entered
                         if !tempAPIKey.isEmpty {
-                            anthropicAPIKey = tempAPIKey
+                            do {
+                                try KeychainManager.shared.setAPIKey(tempAPIKey)
+                            } catch {
+                                // Log error but don't block onboarding
+                                print("Failed to save API key: \(error)")
+                            }
                         }
                         showOnboarding = false
                     }
@@ -191,7 +196,8 @@ struct APIKeyStep: View {
     @Binding var tempAPIKey: String
     @Binding var showAPIKey: Bool
     @State private var isValidating = false
-    @AppStorage("anthropicAPIKey") private var savedAPIKey = ""
+    @State private var savedAPIKey = ""
+    @State private var saveError: String? = nil
     
     var body: some View {
         VStack(spacing: 24) {
@@ -250,11 +256,24 @@ struct APIKeyStep: View {
                 
                 if !tempAPIKey.isEmpty {
                     Button("Save API Key") {
-                        savedAPIKey = tempAPIKey
+                        do {
+                            try KeychainManager.shared.setAPIKey(tempAPIKey)
+                            savedAPIKey = tempAPIKey
+                            saveError = nil
+                        } catch {
+                            saveError = "Failed to save API key: \(error.localizedDescription)"
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 40)
+                }
+                
+                if let error = saveError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .padding(.horizontal, 40)
                 }
                 
                 Text("You can skip this step and add your API key later in Settings.")
@@ -269,9 +288,10 @@ struct APIKeyStep: View {
         }
         .padding(.vertical, 20)
         .onAppear {
-            // Pre-fill with existing key if available
-            if !savedAPIKey.isEmpty {
-                tempAPIKey = savedAPIKey
+            // Pre-fill with existing key if available from Keychain
+            if let keychainKey = KeychainManager.shared.apiKey, !keychainKey.isEmpty {
+                tempAPIKey = keychainKey
+                savedAPIKey = keychainKey
             }
         }
     }
