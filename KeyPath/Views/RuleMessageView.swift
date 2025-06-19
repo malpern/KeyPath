@@ -5,28 +5,30 @@ struct RuleMessageView: View {
     let onInstall: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Visual representation
-            EnhancedRemapVisualizer(behavior: rule.visualization.behavior)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.accentColor.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
-                        )
+        VStack(alignment: .leading, spacing: 20) {
+            // Compact visual representation like in settings
+            VStack(alignment: .leading, spacing: 12) {
+                CompactRuleVisualizer(
+                    behavior: rule.visualization.behavior,
+                    explanation: rule.explanation
                 )
-            
-            // Kanata code with syntax highlighting
-            KanataSyntaxHighlightedView(code: rule.kanataRule)
-                .frame(maxWidth: .infinity)
+                
+                // Kanata code on its own line
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Kanata rule:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    KanataSyntaxHighlightedView(code: rule.kanataRule)
+                        .frame(maxWidth: .infinity)
+                }
+            }
             
             // Install button
             Button(action: onInstall) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
-                    Text("Install Rule")
+                    Text("Add Rule")
                 }
                 .font(.callout)
                 .fontWeight(.medium)
