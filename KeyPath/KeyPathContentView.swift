@@ -8,7 +8,6 @@ struct KeyPathContentView: View {
     @State private var messages: [KeyPathMessage] = []
     @State private var inputText: String = ""
     @State private var isResponding = false
-    @State private var showSettings = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
     
@@ -54,11 +53,6 @@ struct KeyPathContentView: View {
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
-            .sheet(isPresented: $showSettings) {
-                SettingsView {
-                    provider = makeProvider()
-                }
-            }
             .sheet(isPresented: $showOnboarding) {
                 OnboardingView(
                     securityManager: securityManager,
@@ -216,6 +210,9 @@ struct KeyPathContentView: View {
         messages.append(userMessage)
         inputText = ""
         messages.append(KeyPathMessage(role: .assistant, text: ""))
+        
+        // Always create a fresh provider to ensure we have the latest API key
+        provider = makeProvider()
         
         guard let anthropicProvider = provider as? AnthropicModelProvider else {
             showError(message: "KeyPath requires Anthropic Claude")
