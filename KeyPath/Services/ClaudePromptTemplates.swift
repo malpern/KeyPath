@@ -70,10 +70,10 @@ struct ClaudePromptTemplates {
     For the kanata_rule:
     - Generate valid Kanata syntax
     - For simple remaps use: (defalias from_key to_key)
-    - For tap-hold use: (defalias key (tap-hold 200 tap_action hold_action))
+    - For tap-hold use: (defalias key (tap-hold 200 200 tap_action hold_action))
     - For tap-dance use: (defalias key (tap-dance 200 action1 action2 action3))
     - For sequences use: (defalias key (macro key1 key2 key3))
-    - For combos use: (defchorded combo_name (key1 key2) result)
+    - For combos use: (defchords base 50 (key1 key2) result)
     - Ensure the syntax is correct and will pass kanata-check
     
     Example user requests and appropriate behaviors:
@@ -83,6 +83,8 @@ struct ClaudePromptTemplates {
     - "type my email when I press ctrl+e" → sequence
     - "ctrl+alt together for delete" → combo
     - "fn key switches to number layer" → layer
+    
+    REMEMBER: Respond with ONLY the JSON code block. No text before or after.
     
     User request: {USER_INPUT}
     """
