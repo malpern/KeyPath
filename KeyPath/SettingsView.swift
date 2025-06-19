@@ -62,7 +62,8 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("API Configuration") {
-                    if environmentAPIKey != nil && anthropicAPIKey.isEmpty {
+                    // Show status if environment key is detected
+                    if environmentAPIKey != nil && anthropicAPIKey.isEmpty && !usingOverride {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
@@ -78,7 +79,8 @@ struct SettingsView: View {
                         }
                     }
                     
-                    if environmentAPIKey == nil || !anthropicAPIKey.isEmpty || usingOverride {
+                    // Always show input field if no effective key exists
+                    if effectiveAPIKey.isEmpty || (environmentAPIKey == nil || !anthropicAPIKey.isEmpty || usingOverride) {
                         HStack {
                             if showAPIKey {
                                 TextField("sk-ant-api...", text: $anthropicAPIKey)

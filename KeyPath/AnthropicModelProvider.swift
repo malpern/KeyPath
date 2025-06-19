@@ -12,23 +12,31 @@ class AnthropicModelProvider: ChatModelProvider {
         self.temperature = temperature
         
         // First check environment variable
-        if let key = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] {
+        if let key = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !key.isEmpty {
             self.apiKey = key
+            print("[AnthropicModelProvider] Using environment variable API key")
         } 
         // Then check Keychain (most secure)
         else if let key = KeychainManager.shared.apiKey, !key.isEmpty {
             self.apiKey = key
+            print("[AnthropicModelProvider] Using Keychain API key")
         }
         // Finally check UserDefaults for backwards compatibility
         else if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
             self.apiKey = key
+            print("[AnthropicModelProvider] Migrating UserDefaults API key to Keychain")
             // Migrate to Keychain
-            KeychainManager.shared.apiKey = key
-            UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
+            do {
+                try KeychainManager.shared.setAPIKey(key)
+                UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
+            } catch {
+                print("[AnthropicModelProvider] Failed to migrate to Keychain: \(error)")
+            }
         }
         // Use empty string to allow graceful error handling
         else {
             self.apiKey = ""
+            print("[AnthropicModelProvider] No API key found in any source")
         }
     }
     
