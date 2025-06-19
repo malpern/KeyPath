@@ -8,10 +8,10 @@ struct CompactRuleVisualizer: View {
         HStack(spacing: 16) {
             // Rule type badge
             Text(behavior.behaviorType)
-                .font(.callout)
+                .font(.caption)
                 .fontWeight(.medium)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
                 .background(ruleTypeColor.opacity(0.2))
                 .foregroundColor(ruleTypeColor)
                 .clipShape(Capsule())
@@ -71,10 +71,10 @@ struct CompactSimpleRemapView: View {
     let toKey: String
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             CompactKeycap(label: from, style: .source)
             Image(systemName: "arrow.right")
-                .font(.caption)
+                .font(.title3)
                 .foregroundColor(.secondary)
             CompactKeycap(label: toKey, style: .target)
         }
@@ -87,18 +87,18 @@ struct CompactTapHoldView: View {
     let hold: String
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             CompactKeycap(label: key, style: .primary)
             
-            VStack(spacing: 4) {
-                HStack(spacing: 6) {
+            VStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text("TAP")
                         .font(.caption2)
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
                     CompactKeycap(label: tap, style: .mini)
                 }
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text("HOLD")
                         .font(.caption2)
                         .fontWeight(.bold)
@@ -115,12 +115,12 @@ struct CompactTapDanceView: View {
     let actions: [TapDanceAction]
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             CompactKeycap(label: key, style: .primary)
             
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(Array(actions.prefix(3).enumerated()), id: \.offset) { _, action in
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Text("\(action.tapCount)×")
                             .font(.caption2)
                             .fontWeight(.bold)
@@ -143,13 +143,13 @@ struct CompactSequenceView: View {
     let sequence: [String]
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             CompactKeycap(label: trigger, style: .primary)
             Image(systemName: "arrow.right")
-                .font(.caption2)
+                .font(.title3)
                 .foregroundColor(.secondary)
             
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 ForEach(Array(sequence.prefix(4).enumerated()), id: \.offset) { _, key in
                     CompactKeycap(label: key, style: .mini)
                 }
@@ -168,12 +168,12 @@ struct CompactComboView: View {
     let result: String
     
     var body: some View {
-        HStack(spacing: 6) {
-            HStack(spacing: 3) {
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
                 ForEach(Array(keys.prefix(3).enumerated()), id: \.offset) { index, key in
                     if index > 0 {
                         Text("+")
-                            .font(.caption2)
+                            .font(.title3)
                             .foregroundColor(.secondary)
                     }
                     CompactKeycap(label: key, style: .source)
@@ -186,7 +186,7 @@ struct CompactComboView: View {
             }
             
             Image(systemName: "arrow.right")
-                .font(.caption2)
+                .font(.title3)
                 .foregroundColor(.secondary)
             
             CompactKeycap(label: result, style: .target)
@@ -200,21 +200,21 @@ struct CompactLayerView: View {
     let mappings: [String: String]
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             CompactKeycap(label: key, style: .primary)
             
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(layerName)
                     .font(.caption2)
                     .fontWeight(.bold)
                     .foregroundColor(.cyan)
                 
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     ForEach(Array(mappings.prefix(2)), id: \.key) { key, value in
-                        HStack(spacing: 2) {
+                        HStack(spacing: 4) {
                             CompactKeycap(label: key, style: .mini)
                             Text("→")
-                                .font(.caption2)
+                                .font(.callout)
                                 .foregroundColor(.secondary)
                             CompactKeycap(label: value, style: .mini)
                         }
@@ -252,25 +252,25 @@ struct CompactKeycap: View {
     
     private var systemFont: Font {
         switch style {
-        case .mini: return .caption
-        case .source, .target: return .callout
-        case .primary: return .body
+        case .mini: return .callout
+        case .source, .target: return .title3
+        case .primary: return .title2
         }
     }
     
     private var horizontalPadding: CGFloat {
         switch style {
-        case .mini: return 8
-        case .source, .target: return 12
-        case .primary: return 16
+        case .mini: return 12
+        case .source, .target: return 20
+        case .primary: return 24
         }
     }
     
     private var verticalPadding: CGFloat {
         switch style {
-        case .mini: return 4
-        case .source, .target: return 6
-        case .primary: return 8
+        case .mini: return 6
+        case .source, .target: return 10
+        case .primary: return 12
         }
     }
     
