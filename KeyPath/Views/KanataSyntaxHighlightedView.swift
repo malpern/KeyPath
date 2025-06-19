@@ -7,19 +7,19 @@ struct KanataSyntaxHighlightedView: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             highlightedCode
-                .font(.system(.caption, design: .monospaced))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .font(.system(.body, design: .monospaced))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(colorScheme == .dark ? 
                       Color(NSColor.textBackgroundColor) : 
                       Color.gray.opacity(0.05))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 8)
                 .stroke(colorScheme == .dark ?
                        Color.white.opacity(0.15) :
                        Color.black.opacity(0.15), lineWidth: 1)

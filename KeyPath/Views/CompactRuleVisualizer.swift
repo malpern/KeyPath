@@ -5,13 +5,13 @@ struct CompactRuleVisualizer: View {
     let explanation: String
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 16) {
             // Rule type badge
             Text(behavior.behaviorType)
-                .font(.caption)
+                .font(.callout)
                 .fontWeight(.medium)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 .background(ruleTypeColor.opacity(0.2))
                 .foregroundColor(ruleTypeColor)
                 .clipShape(Capsule())
@@ -41,13 +41,13 @@ struct CompactRuleVisualizer: View {
             
             // Explanation text (truncated)
             Text(explanation)
-                .font(.caption)
+                .font(.callout)
                 .foregroundColor(.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.trailing)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .background(Color(NSColor.controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -90,16 +90,18 @@ struct CompactTapHoldView: View {
         HStack(spacing: 8) {
             CompactKeycap(label: key, style: .primary)
             
-            VStack(spacing: 2) {
-                HStack(spacing: 4) {
+            VStack(spacing: 4) {
+                HStack(spacing: 6) {
                     Text("TAP")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.caption2)
+                        .fontWeight(.bold)
                         .foregroundColor(.blue)
                     CompactKeycap(label: tap, style: .mini)
                 }
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     Text("HOLD")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.caption2)
+                        .fontWeight(.bold)
                         .foregroundColor(.orange)
                     CompactKeycap(label: hold, style: .mini)
                 }
@@ -118,9 +120,10 @@ struct CompactTapDanceView: View {
             
             HStack(spacing: 6) {
                 ForEach(Array(actions.prefix(3).enumerated()), id: \.offset) { _, action in
-                    HStack(spacing: 2) {
+                    HStack(spacing: 4) {
                         Text("\(action.tapCount)×")
-                            .font(.system(size: 8, weight: .bold))
+                            .font(.caption2)
+                            .fontWeight(.bold)
                             .foregroundColor(.purple)
                         CompactKeycap(label: action.action, style: .mini)
                     }
@@ -202,7 +205,8 @@ struct CompactLayerView: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(layerName)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.caption2)
+                    .fontWeight(.bold)
                     .foregroundColor(.cyan)
                 
                 HStack(spacing: 4) {
@@ -210,14 +214,14 @@ struct CompactLayerView: View {
                         HStack(spacing: 2) {
                             CompactKeycap(label: key, style: .mini)
                             Text("→")
-                                .font(.system(size: 8))
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                             CompactKeycap(label: value, style: .mini)
                         }
                     }
                     if mappings.count > 2 {
                         Text("+\(mappings.count - 2)")
-                            .font(.system(size: 8))
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                 }
@@ -234,39 +238,39 @@ struct CompactKeycap: View {
     
     var body: some View {
         Text(formatKeyLabel(label))
-            .font(.system(size: fontSize, weight: .medium, design: .rounded))
+            .font(systemFont)
             .foregroundColor(.white)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
             .background(keyColor)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
             )
     }
     
-    private var fontSize: CGFloat {
+    private var systemFont: Font {
         switch style {
-        case .mini: return 8
-        case .source, .target: return 10
-        case .primary: return 12
+        case .mini: return .caption
+        case .source, .target: return .callout
+        case .primary: return .body
         }
     }
     
     private var horizontalPadding: CGFloat {
         switch style {
-        case .mini: return 4
-        case .source, .target: return 6
-        case .primary: return 8
+        case .mini: return 8
+        case .source, .target: return 12
+        case .primary: return 16
         }
     }
     
     private var verticalPadding: CGFloat {
         switch style {
-        case .mini: return 2
-        case .source, .target: return 3
-        case .primary: return 4
+        case .mini: return 4
+        case .source, .target: return 6
+        case .primary: return 8
         }
     }
     

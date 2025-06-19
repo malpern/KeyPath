@@ -5,18 +5,18 @@ struct RuleMessageView: View {
     let onInstall: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 24) {
             // Compact visual representation like in settings
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 CompactRuleVisualizer(
                     behavior: rule.visualization.behavior,
                     explanation: rule.explanation
                 )
                 
                 // Kanata code on its own line
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Kanata rule:")
-                        .font(.caption)
+                        .font(.callout)
                         .foregroundColor(.secondary)
                     
                     KanataSyntaxHighlightedView(code: rule.kanataRule)
@@ -30,16 +30,16 @@ struct RuleMessageView: View {
                     Image(systemName: "plus.circle.fill")
                     Text("Add Rule")
                 }
-                .font(.callout)
+                .font(.body)
                 .fontWeight(.medium)
                 .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
                 .background(Color.green)
                 .clipShape(Capsule())
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
     }
 }
