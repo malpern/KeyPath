@@ -17,14 +17,10 @@ extension AnthropicModelProvider {
         let prompt = ClaudePromptTemplates.directGenerationPrompt.replacingOccurrences(of: "{USER_INPUT}", with: userText)
         let response = try await sendMessage(prompt)
         
-        print("[DEBUG] AI Response: \(response)")
-        
         // Try to parse as KanataRule first
         if let kanataRule = KanataRule.parse(from: response) {
-            print("[DEBUG] Successfully parsed rule")
             return .rule(kanataRule)
         } else {
-            print("[DEBUG] Failed to parse rule, treating as clarification")
             // Otherwise it's a clarifying question
             return .clarification(response)
         }
