@@ -99,7 +99,7 @@ struct SettingsWindowView: View {
 struct RulesSettingsView: View {
     @State private var mockRules = MockRuleData.sampleRules
     @State private var selectedRule: MockRule?
-    @StateObject private var ruleHistory = RuleHistory()
+    @State private var ruleHistory = RuleHistory()
     
     var body: some View {
         if let selectedRule = selectedRule {
@@ -336,7 +336,7 @@ struct RuleRowView: View {
 }
 
 struct GeneralSettingsView: View {
-    @StateObject private var securityManager = SecurityManager()
+    @State private var securityManager = SecurityManager()
     @State private var showOnboarding = false
     
     var body: some View {

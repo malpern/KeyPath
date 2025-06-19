@@ -103,3 +103,25 @@ struct KeyPathMessageView: View {
         .padding(.vertical, message.role == .assistant ? 2 : 6)
     }
 }
+
+/// Animated loading indicator shown while AI is generating a response
+struct PulsingDotView: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<3) { index in
+                Circle()
+                    .frame(width: 8, height: 8)
+                    .foregroundStyle(.primary.opacity(0.5))
+                    .scaleEffect(isAnimating ? 1.0 : 0.5)
+                    .opacity(isAnimating ? 1.0 : 0.3)
+                    .animation(
+                        .easeInOut(duration: 0.6).repeatForever().delay(Double(index) * 0.2),
+                        value: isAnimating
+                    )
+            }
+        }
+        .onAppear { isAnimating = true }
+    }
+}

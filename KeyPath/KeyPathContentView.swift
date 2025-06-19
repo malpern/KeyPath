@@ -17,8 +17,8 @@ struct KeyPathContentView: View {
     @State private var showRulePreview = false
     @State private var generatedRule: KanataRule?
     @State private var showOnboarding = false
-    @StateObject private var securityManager = SecurityManager()
-    @StateObject private var ruleHistory = RuleHistory()
+    @State private var securityManager = SecurityManager()
+    @State private var ruleHistory = RuleHistory()
     
     // Settings
     @AppStorage("useStreaming") private var useStreaming = AppSettings.useStreaming
@@ -31,27 +31,24 @@ struct KeyPathContentView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                VStack {
-                    // System Status (only show if there are issues)
-                    if !securityManager.canInstallRules() {
-                        SystemStatusView(securityManager: securityManager)
-                            .padding()
-                    }
-                    
-                    KeyPathChatMessagesView(
-                        messages: messages,
-                        isResponding: isResponding,
-                        onInstallRule: handleInstallRule
-                    )
+            VStack(spacing: 0) {
+                // System Status (only show if there are issues)
+                if !securityManager.canInstallRules() {
+                    SystemStatusView(securityManager: securityManager)
+                        .padding()
                 }
                 
-                // Floating Input Field
-                VStack {
-                    Spacer()
-                    inputField
-                        .padding(20)
-                }
+                // Messages area
+                KeyPathChatMessagesView(
+                    messages: messages,
+                    isResponding: isResponding,
+                    onInstallRule: handleInstallRule
+                )
+                
+                // Input field at bottom
+                inputField
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
             }
             .navigationTitle("KeyPath")
 #if os(iOS)
@@ -111,32 +108,47 @@ struct KeyPathContentView: View {
     // MARK: - Subviews
     
     private var inputField: some View {
-        ZStack {
+        HStack(spacing: 12) {
             TextField("Describe your keyboard remapping...", text: $inputText, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...5)
-                .frame(minHeight: 22)
+                .frame(minHeight: 20)
                 .disabled(isResponding)
                 .onSubmit {
                     if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         handleSendOrStop()
                     }
                 }
-                .padding(16)
             
-            HStack {
-                Spacer()
-                Button(action: handleSendOrStop) {
-                    Image(systemName: isResponding ? "stop.circle.fill" : "arrow.up.circle.fill")
-                        .font(.system(size: 30, weight: .bold))
-                        .foregroundStyle(isSendButtonDisabled ? Color.gray.opacity(0.6) : .primary)
-                }
-                .disabled(isSendButtonDisabled)
-                .animation(.easeInOut(duration: 0.2), value: isResponding)
-                                .padding(.trailing, 8)
+            Button(action: handleSendOrStop) {
+                Image(systemName: isResponding ? "stop.circle.fill" : "arrow.up.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(isSendButtonDisabled ? Color.gray : Color.blue)
+                    .symbolRenderingMode(.hierarchical)
             }
+            .disabled(isSendButtonDisabled)
+            .buttonStyle(.plain)
         }
-            }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.thickMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.3),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .center
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+    }
     
     private var isSendButtonDisabled: Bool {
         return inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isResponding
@@ -331,7 +343,7 @@ struct KeyPathChatMessagesView: View {
                     }
                 }
                 .padding()
-                .padding(.bottom, 90) // Space for floating input field
+                // No bottom padding needed since input field is in VStack
             }
             .onChange(of: messages.last?.displayText) {
                 if let lastMessage = messages.last {

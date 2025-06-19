@@ -8,12 +8,12 @@ struct WelcomeLogoView: View {
     @State private var glowOpacity = 0.0
     
     var body: some View {
-        VStack(spacing: 20) {
+        HStack(spacing: 16) {
             // Animated keyboard icon with glow effect
             ZStack {
                 // Glow effect
                 Image(systemName: "keyboard.fill")
-                    .font(.system(size: 64, weight: .medium))
+                    .font(.system(size: 48, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [.blue, .purple],
@@ -21,13 +21,13 @@ struct WelcomeLogoView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .blur(radius: 8)
+                    .blur(radius: 6)
                     .opacity(glowOpacity)
                     .scaleEffect(1.2)
                 
                 // Main keyboard icon
                 Image(systemName: "keyboard.fill")
-                    .font(.system(size: 64, weight: .medium))
+                    .font(.system(size: 48, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [.blue, .purple],
@@ -36,18 +36,18 @@ struct WelcomeLogoView: View {
                         )
                     )
                     .scaleEffect(keyboardScale)
-                    .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                    .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
             }
             .animation(.spring(response: 0.8, dampingFraction: 0.6), value: keyboardScale)
             .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: glowOpacity)
             
-            // Animated title
+            // Animated title and tagline
             if showTitle {
-                VStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 0) {
                         ForEach(Array("KeyPath".enumerated()), id: \.offset) { index, character in
                             Text(String(character))
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundStyle(
                                     LinearGradient(
                                         colors: [.blue, .purple],
@@ -58,21 +58,23 @@ struct WelcomeLogoView: View {
                                 .opacity(titleOpacity)
                                 .animation(
                                     .spring(response: 0.5, dampingFraction: 0.8)
-                                    .delay(Double(index) * 0.1),
+                                    .delay(Double(index) * 0.05),
                                     value: titleOpacity
                                 )
                         }
                     }
                     
                     Text("Keyboard Remapping Made Simple")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.secondary)
                         .opacity(titleOpacity * 0.8)
-                        .animation(.easeInOut(duration: 0.8).delay(0.8), value: titleOpacity)
+                        .animation(.easeInOut(duration: 0.8).delay(0.6), value: titleOpacity)
                 }
             }
+            
+            Spacer()
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
         .onAppear {
             // Start animations sequence
             withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {

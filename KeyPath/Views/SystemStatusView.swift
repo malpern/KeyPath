@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SystemStatusView: View {
-    @ObservedObject var securityManager: SecurityManager
+    var securityManager: SecurityManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

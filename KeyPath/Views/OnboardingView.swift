@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    @ObservedObject var securityManager: SecurityManager
+    var securityManager: SecurityManager
     @Binding var showOnboarding: Bool
     @State private var currentStep = 0
     @Environment(\.colorScheme) var colorScheme
