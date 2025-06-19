@@ -1,0 +1,30 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="keyboardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#007AFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5856D6;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="55" fill="white" filter="url(#shadow)"/>
+  
+  <!-- Keyboard base -->
+  <rect x="25" y="45" width="70" height="30" rx="5" fill="url(#keyboardGradient)"/>
+  
+  <!-- Key rows -->
+  <!-- Top row -->
+  <rect x="30" y="50" width="8" height="8" rx="1" fill="white" opacity="0.9"/>
+  <rect x="42" y="50" width="8" height="8" rx="1" fill="white" opacity="0.9"/>
+  <rect x="54" y="50" width="8" height="8" rx="1" fill="white" opacity="0.9"/>
+  <rect x="66" y="50" width="8" height="8" rx="1" fill="white" opacity="0.9"/>
+  <rect x="78" y="50" width="12" height="8" rx="1" fill="white" opacity="0.9"/>
+  
+  <!-- Bottom row -->
+  <rect x="30" y="62" width="12" height="8" rx="1" fill="white" opacity="0.9"/>
+  <rect x="46" y="62" width="28" height="8" rx="1" fill="white" opacity="0.9"/>
+  <rect x="78" y="62" width="12" height="8" rx="1" fill="white" opacity="0.9"/>
+</svg>
