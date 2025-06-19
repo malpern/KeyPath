@@ -9,10 +9,6 @@ struct OnboardingView: View {
     @State private var tempAPIKey = ""
     @State private var showAPIKey = false
     
-    private var hasEnvironmentAPIKey: Bool {
-        ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] != nil
-    }
-    
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -59,12 +55,7 @@ struct OnboardingView: View {
                 if currentStep > 0 {
                     Button("Previous") {
                         withAnimation {
-                            if currentStep == 2 && hasEnvironmentAPIKey {
-                                // Skip back over API key step if env var is set
-                                currentStep = 0
-                            } else {
-                                currentStep -= 1
-                            }
+                            currentStep -= 1
                         }
                     }
                     .buttonStyle(.plain)
@@ -83,12 +74,7 @@ struct OnboardingView: View {
                 if currentStep < 3 {
                     Button("Next") {
                         withAnimation {
-                            if currentStep == 0 && hasEnvironmentAPIKey {
-                                // Skip API key step if env var is set
-                                currentStep = 2
-                            } else {
-                                currentStep += 1
-                            }
+                            currentStep += 1
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -288,7 +274,7 @@ struct APIKeyStep: View {
         }
         .padding(.vertical, 20)
         .onAppear {
-            // Pre-fill with existing key if available from Keychain
+            // Check for existing API key from Keychain
             if let keychainKey = KeychainManager.shared.apiKey, !keychainKey.isEmpty {
                 tempAPIKey = keychainKey
                 savedAPIKey = keychainKey
