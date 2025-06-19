@@ -18,26 +18,9 @@ struct RuleMessageView: View {
                         )
                 )
             
-            // Explanation
-            Text(rule.explanation)
-                .font(.callout)
-                .foregroundColor(.secondary)
-            
-            // Confidence indicator (if not high)
-            if rule.confidence != .high {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.yellow)
-                        .font(.caption)
-                    Text("Confidence: \(rule.confidence.rawValue)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.yellow.opacity(0.1))
-                .cornerRadius(6)
-            }
+            // Kanata code with syntax highlighting
+            KanataSyntaxHighlightedView(code: rule.kanataRule)
+                .frame(maxWidth: .infinity)
             
             // Install button
             Button(action: onInstall) {
