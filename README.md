@@ -85,6 +85,7 @@ This project is available under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
+- Chat interface based on [Apple Intelligence Chat](https://github.com/PallavAg/Apple-Intelligence-Chat) by Pallav Agarwal
 - Built with [Kanata](https://github.com/jtroo/kanata) by jtroo
 - AI powered by [Anthropic Claude](https://www.anthropic.com/)
 - Liquid Glass UI design inspired by Apple's WWDC 2024 guidelines
