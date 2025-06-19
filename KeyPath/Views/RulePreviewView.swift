@@ -8,13 +8,18 @@ struct RulePreviewView: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 24) {
             // Visual Preview
             EnhancedRemapVisualizer(behavior: rule.visualization.behavior)
                 .padding()
                 .scaleEffect(appearAnimation ? 1.0 : 0.8)
                 .opacity(appearAnimation ? 1.0 : 0.0)
                 .animation(.spring(response: 0.5, dampingFraction: 0.7), value: appearAnimation)
+            
+            // Kanata Code with Syntax Highlighting
+            KanataSyntaxHighlightedView(code: rule.kanataRule)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal)
             
             // Add Rule Button
             Button("Add Rule") {
@@ -25,7 +30,7 @@ struct RulePreviewView: View {
             .tint(.green)
         }
         .padding(40)
-        .frame(width: 400, height: 300)
+        .frame(width: 500, height: 400)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(colorScheme == .dark ?
