@@ -5,6 +5,9 @@ struct OnboardingView: View {
     @Binding var showOnboarding: Bool
     @State private var currentStep = 0
     @Environment(\.colorScheme) var colorScheme
+    @AppStorage("anthropicAPIKey") private var anthropicAPIKey = ""
+    @State private var tempAPIKey = ""
+    @State private var showAPIKey = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -22,7 +25,7 @@ struct OnboardingView: View {
             .padding()
             
             // Progress indicator
-            ProgressView(value: Double(currentStep + 1), total: 3)
+            ProgressView(value: Double(currentStep + 1), total: 4)
                 .padding(.horizontal)
             
             // Content
@@ -32,9 +35,12 @@ struct OnboardingView: View {
                     WelcomeStep()
                         .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
                 case 1:
-                    KanataInstallStep(isInstalled: securityManager.isKanataInstalled)
+                    APIKeyStep(tempAPIKey: $tempAPIKey, showAPIKey: $showAPIKey)
                         .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
                 case 2:
+                    KanataInstallStep(isInstalled: securityManager.isKanataInstalled)
+                        .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                case 3:
                     ConfigurationStep(hasAccess: securityManager.hasConfigAccess)
                         .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
                 default:
@@ -65,7 +71,7 @@ struct OnboardingView: View {
                 
                 Spacer()
                 
-                if currentStep < 2 {
+                if currentStep < 3 {
                     Button("Next") {
                         withAnimation {
                             currentStep += 1
@@ -74,6 +80,10 @@ struct OnboardingView: View {
                     .buttonStyle(.borderedProminent)
                 } else {
                     Button("Get Started") {
+                        // Save the API key if entered
+                        if !tempAPIKey.isEmpty {
+                            anthropicAPIKey = tempAPIKey
+                        }
                         showOnboarding = false
                     }
                     .buttonStyle(.borderedProminent)
@@ -158,6 +168,96 @@ struct FeatureRow: View {
                 Text(description)
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+struct APIKeyStep: View {
+    @Binding var tempAPIKey: String
+    @Binding var showAPIKey: Bool
+    @State private var isValidating = false
+    @AppStorage("anthropicAPIKey") private var savedAPIKey = ""
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "key.fill")
+                .font(.system(size: 80))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            
+            Text("Connect to Claude AI")
+                .font(.title)
+                .fontWeight(.semibold)
+            
+            VStack(alignment: .leading, spacing: 16) {
+                Text("KeyPath uses Claude AI to translate your natural language into keyboard remapping rules.")
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Your Anthropic API Key:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        if showAPIKey {
+                            TextField("sk-ant-api...", text: $tempAPIKey)
+                                .textFieldStyle(.roundedBorder)
+                        } else {
+                            SecureField("sk-ant-api...", text: $tempAPIKey)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        
+                        Button(action: { showAPIKey.toggle() }) {
+                            Image(systemName: showAPIKey ? "eye.slash" : "eye")
+                                .foregroundColor(.gray)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .frame(maxWidth: 400)
+                    
+                    HStack(spacing: 4) {
+                        Text("Don't have an API key?")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Link("Get one at console.anthropic.com", 
+                             destination: URL(string: "https://console.anthropic.com/")!)
+                            .font(.caption)
+                    }
+                }
+                .padding(.horizontal, 40)
+                
+                if !tempAPIKey.isEmpty {
+                    Button("Save API Key") {
+                        savedAPIKey = tempAPIKey
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 40)
+                }
+                
+                Text("You can skip this step and add your API key later in Settings.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                    .padding(.top, 8)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 20)
+        .onAppear {
+            // Pre-fill with existing key if available
+            if !savedAPIKey.isEmpty {
+                tempAPIKey = savedAPIKey
             }
         }
     }
