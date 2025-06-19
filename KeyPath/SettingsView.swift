@@ -41,27 +41,66 @@ struct SettingsView: View {
     @AppStorage("chatProvider") private var chatProvider = AppSettings.chatProvider
     @AppStorage("anthropicAPIKey") private var anthropicAPIKey = ""
     @State private var showAPIKey = false
+    @State private var usingOverride = false
+    
+    private var environmentAPIKey: String? {
+        ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]
+    }
+    
+    private var effectiveAPIKey: String {
+        if !anthropicAPIKey.isEmpty {
+            return anthropicAPIKey
+        }
+        return environmentAPIKey ?? ""
+    }
     
     var body: some View {
         NavigationStack {
             Form {
                 Section("API Configuration") {
-                    HStack {
-                        if showAPIKey {
-                            TextField("sk-ant-api...", text: $anthropicAPIKey)
-                                .textFieldStyle(.roundedBorder)
-                        } else {
-                            SecureField("sk-ant-api...", text: $anthropicAPIKey)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                        Button(action: { showAPIKey.toggle() }) {
-                            Image(systemName: showAPIKey ? "eye.slash" : "eye")
-                                .foregroundColor(.gray)
+                    if environmentAPIKey != nil && anthropicAPIKey.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Using API key from environment variable")
+                                    .font(.caption)
+                            }
+                            
+                            Button("Override with custom key") {
+                                usingOverride = true
+                            }
+                            .buttonStyle(.link)
                         }
                     }
-                    .help("Your Anthropic API key. Get one at https://console.anthropic.com/")
                     
-                    if anthropicAPIKey.isEmpty {
+                    if environmentAPIKey == nil || !anthropicAPIKey.isEmpty || usingOverride {
+                        HStack {
+                            if showAPIKey {
+                                TextField("sk-ant-api...", text: $anthropicAPIKey)
+                                    .textFieldStyle(.roundedBorder)
+                            } else {
+                                SecureField("sk-ant-api...", text: $anthropicAPIKey)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+                            Button(action: { showAPIKey.toggle() }) {
+                                Image(systemName: showAPIKey ? "eye.slash" : "eye")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        .help("Your Anthropic API key. Get one at https://console.anthropic.com/")
+                        
+                        if !anthropicAPIKey.isEmpty && environmentAPIKey != nil {
+                            Button("Clear override (use environment variable)") {
+                                anthropicAPIKey = ""
+                                usingOverride = false
+                            }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                        }
+                    }
+                    
+                    if effectiveAPIKey.isEmpty {
                         Label("API key required for KeyPath to work", systemImage: "exclamationmark.triangle")
                             .foregroundColor(.orange)
                             .font(.caption)

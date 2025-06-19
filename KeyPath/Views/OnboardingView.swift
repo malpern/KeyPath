@@ -9,6 +9,10 @@ struct OnboardingView: View {
     @State private var tempAPIKey = ""
     @State private var showAPIKey = false
     
+    private var hasEnvironmentAPIKey: Bool {
+        ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] != nil
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -55,7 +59,12 @@ struct OnboardingView: View {
                 if currentStep > 0 {
                     Button("Previous") {
                         withAnimation {
-                            currentStep -= 1
+                            if currentStep == 2 && hasEnvironmentAPIKey {
+                                // Skip back over API key step if env var is set
+                                currentStep = 0
+                            } else {
+                                currentStep -= 1
+                            }
                         }
                     }
                     .buttonStyle(.plain)
@@ -74,7 +83,12 @@ struct OnboardingView: View {
                 if currentStep < 3 {
                     Button("Next") {
                         withAnimation {
-                            currentStep += 1
+                            if currentStep == 0 && hasEnvironmentAPIKey {
+                                // Skip API key step if env var is set
+                                currentStep = 2
+                            } else {
+                                currentStep += 1
+                            }
                         }
                     }
                     .buttonStyle(.borderedProminent)
