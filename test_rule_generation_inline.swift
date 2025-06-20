@@ -25,55 +25,55 @@ class KanataRuleGenerator {
         case .simpleRemap(let from, let toKey):
             let fromKey = normalizeKeyName(from)
             let toKeyNorm = normalizeKeyName(toKey)
-            
+
             return """
             (defsrc
               \(fromKey)
             )
-            
+
             (deflayer default
               \(toKeyNorm)
             )
             """
-            
+
         case .tapHold(let key, let tap, let hold):
             let keyName = normalizeKeyName(key)
             let tapKey = normalizeKeyName(tap)
             let holdKey = normalizeKeyName(hold)
-            
+
             return """
             (defalias
               th_\(keyName) (tap-hold 200 200 \(tapKey) \(holdKey))
             )
-            
+
             (defsrc
               \(keyName)
             )
-            
+
             (deflayer default
               @th_\(keyName)
             )
             """
-            
+
         default:
             return "// Not implemented yet"
         }
     }
-    
+
     static func normalizeKeyName(_ name: String) -> String {
         let normalized = name.lowercased()
-        
+
         let keyMappings: [String: String] = [
             "space": "spc",
             "shift": "lsft",
             "escape": "esc",
             "caps lock": "caps"
         ]
-        
+
         if let kanataKey = keyMappings[normalized] {
             return kanataKey
         }
-        
+
         return normalized
     }
 }

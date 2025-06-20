@@ -11,11 +11,11 @@ extension Tag {
 
 @Suite("View Component Tests", .tags(.ui, .viewModels))
 struct ViewComponentSwiftTests {
-    
+
     @Suite("KanataBehavior Tests", .tags(.behavior))
     struct KanataBehaviorTests {
-        
-        @Test("Behavior primary key extraction", 
+
+        @Test("Behavior primary key extraction",
               arguments: [
                 (KanataBehavior.simpleRemap(from: "caps", toKey: "esc"), "caps"),
                 (KanataBehavior.tapHold(key: "fn", tap: "f1", hold: "brightness_up"), "fn"),
@@ -27,12 +27,12 @@ struct ViewComponentSwiftTests {
         func behaviorPrimaryKey(behavior: KanataBehavior, expectedKey: String) {
             #expect(behavior.primaryKey == expectedKey)
         }
-        
+
         @Test("Behavior description generation")
         func behaviorDescription() {
             let simpleRemap = KanataBehavior.simpleRemap(from: "caps", toKey: "esc")
             let tapHold = KanataBehavior.tapHold(key: "fn", tap: "f1", hold: "brightness_up")
-            
+
             #expect(simpleRemap.description.contains("caps"))
             #expect(simpleRemap.description.contains("esc"))
             #expect(tapHold.description.contains("fn"))
@@ -40,10 +40,10 @@ struct ViewComponentSwiftTests {
             #expect(tapHold.description.contains("hold"))
         }
     }
-    
+
     @Suite("EnhancedRemapVisualization Tests")
     struct VisualizationTests {
-        
+
         @Test("Enhanced visualization creation")
         func enhancedVisualizationCreation() {
             let behavior = KanataBehavior.simpleRemap(from: "a", toKey: "b")
@@ -52,12 +52,12 @@ struct ViewComponentSwiftTests {
                 title: "Test Remap",
                 description: "Maps a to b"
             )
-            
+
             #expect(visualization.title == "Test Remap")
             #expect(visualization.description == "Maps a to b")
             #expect(visualization.behavior.primaryKey == "a")
         }
-        
+
         @Test("Visualization behavior consistency")
         func visualizationBehaviorConsistency() {
             let behaviors: [KanataBehavior] = [
@@ -65,24 +65,24 @@ struct ViewComponentSwiftTests {
                 .tapHold(key: "fn", tap: "f1", hold: "brightness_up"),
                 .combo(keys: ["cmd", "space"], result: "spotlight")
             ]
-            
+
             for behavior in behaviors {
                 let visualization = EnhancedRemapVisualization(
                     behavior: behavior,
                     title: "Test",
                     description: "Test description"
                 )
-                
+
                 // The visualization should maintain the same behavior
                 #expect(visualization.behavior.primaryKey == behavior.primaryKey)
             }
         }
     }
-    
+
     @Suite("KanataRule Tests", .tags(.viewModels))
     struct KanataRuleTests {
-        
-        @Test("Rule creation with confidence levels", 
+
+        @Test("Rule creation with confidence levels",
               arguments: [
                 KanataRule.Confidence.high,
                 KanataRule.Confidence.medium,
@@ -94,19 +94,19 @@ struct ViewComponentSwiftTests {
                 title: "Test",
                 description: "Test rule"
             )
-            
+
             let rule = KanataRule(
                 visualization: visualization,
                 kanataRule: "(defalias a b)",
                 confidence: confidence,
                 explanation: "Maps a to b"
             )
-            
+
             #expect(rule.confidence == confidence)
             #expect(rule.kanataRule == "(defalias a b)")
             #expect(rule.explanation == "Maps a to b")
         }
-        
+
         @Test("Rule validation requirements")
         func ruleValidationRequirements() {
             let visualization = EnhancedRemapVisualization(
@@ -114,24 +114,24 @@ struct ViewComponentSwiftTests {
                 title: "Caps to Escape",
                 description: "Maps Caps Lock to Escape"
             )
-            
+
             let rule = KanataRule(
                 visualization: visualization,
                 kanataRule: "(defalias caps esc)",
                 confidence: .high,
                 explanation: "Standard caps lock to escape mapping"
             )
-            
+
             // Basic validation checks
             #expect(!rule.kanataRule.isEmpty)
             #expect(!rule.explanation.isEmpty)
             #expect(rule.kanataRule.contains("defalias"))
         }
     }
-    
+
     @Suite("TapDanceAction Tests")
     struct TapDanceActionTests {
-        
+
         @Test("Tap dance action creation")
         func tapDanceActionCreation() {
             let action = TapDanceAction(
@@ -139,13 +139,13 @@ struct ViewComponentSwiftTests {
                 action: "esc",
                 description: "Double tap for escape"
             )
-            
+
             #expect(action.tapCount == 2)
             #expect(action.action == "esc")
             #expect(action.description == "Double tap for escape")
         }
-        
-        @Test("Multiple tap dance actions", 
+
+        @Test("Multiple tap dance actions",
               arguments: zip([1, 2, 3], ["a", "b", "c"]))
         func multipleTapDanceActions(tapCount: Int, action: String) {
             let tapAction = TapDanceAction(
@@ -153,7 +153,7 @@ struct ViewComponentSwiftTests {
                 action: action,
                 description: "Tap \(tapCount) times for \(action)"
             )
-            
+
             #expect(tapAction.tapCount == tapCount)
             #expect(tapAction.action == action)
             #expect(tapAction.description.contains("\(tapCount)"))
@@ -165,15 +165,15 @@ struct ViewComponentSwiftTests {
 // MARK: - Legacy XCTest Behavior Validation
 @Suite("Legacy Behavior Validation")
 struct LegacyBehaviorValidation {
-    
+
     @Test("Backward compatibility with RemapVisualization")
     func backwardCompatibilityRemapVisualization() {
         let oldVisualization = RemapVisualization(from: "a", toKey: "b")
         let enhanced = oldVisualization.enhanced
-        
+
         #expect(enhanced.title == "Simple Remap")
         #expect(enhanced.description == "Maps a to b")
-        
+
         if case .simpleRemap(let from, let toKey) = enhanced.behavior {
             #expect(from == "a")
             #expect(toKey == "b")

@@ -4,73 +4,73 @@ import XCTest
 final class AnthropicModelProviderTests: XCTestCase {
     var provider: AnthropicModelProvider!
     var mockURLSession: MockURLSession!
-    
+
     override func setUp() {
         super.setUp()
-        
+
         // Set up a mock API key for testing
         setenv("ANTHROPIC_API_KEY", "test-api-key", 1)
-        
+
         provider = AnthropicModelProvider(
             systemInstructions: "You are a helpful assistant.",
             temperature: 0.7
         )
-        
+
         mockURLSession = MockURLSession()
     }
-    
+
     override func tearDown() {
         unsetenv("ANTHROPIC_API_KEY")
         super.tearDown()
     }
-    
+
     // MARK: - Initialization Tests
-    
+
     func testInitializationWithValidAPIKey() {
         setenv("ANTHROPIC_API_KEY", "test-key", 1)
-        
+
         let testProvider = AnthropicModelProvider(
             systemInstructions: "Test instructions",
             temperature: 0.5
         )
-        
+
         XCTAssertNotNil(testProvider)
     }
-    
+
     func testInitializationWithoutAPIKey() {
         unsetenv("ANTHROPIC_API_KEY")
-        
+
         // This should cause a fatal error, but we can't easily test that
         // In a real test environment, we'd use dependency injection
         // For now, we'll just verify the behavior when key is present
         setenv("ANTHROPIC_API_KEY", "test-key", 1)
-        
+
         let testProvider = AnthropicModelProvider(
             systemInstructions: "Test",
             temperature: 0.0
         )
-        
+
         XCTAssertNotNil(testProvider)
     }
-    
+
     // MARK: - Request Creation Tests
-    
+
     func testCreateRequestWithValidPrompt() throws {
         let prompt = "Hello, how are you?"
-        
+
         // Use reflection to test the private method
         let request = try invokePrivateMethod(
             target: provider,
             methodName: "createRequest",
             args: [prompt, false]
         ) as! URLRequest
-        
+
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.url?.absoluteString, "https://api.anthropic.com/v1/messages")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
         XCTAssertEqual(request.value(forHTTPHeaderField: "x-api-key"), "test-api-key")
         XCTAssertEqual(request.value(forHTTPHeaderField: "anthropic-version"), "2023-06-01")
-        
+
         // Test request body
         XCTAssertNotNil(request.httpBody)
         let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
@@ -78,31 +78,31 @@ final class AnthropicModelProviderTests: XCTestCase {
         XCTAssertEqual(body["max_tokens"] as? Int, 1024)
         XCTAssertEqual(body["temperature"] as? Double, 0.7)
         XCTAssertEqual(body["system"] as? String, "You are a helpful assistant.")
-        
+
         let messages = body["messages"] as! [[String: Any]]
         XCTAssertEqual(messages.count, 1)
         XCTAssertEqual(messages[0]["role"] as? String, "user")
         XCTAssertEqual(messages[0]["content"] as? String, prompt)
     }
-    
+
     func testCreateRequestWithStreaming() throws {
         let prompt = "Test streaming"
-        
+
         let request = try invokePrivateMethod(
             target: provider,
             methodName: "createRequest",
             args: [prompt, true]
         ) as! URLRequest
-        
+
         XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "text/event-stream")
-        
+
         let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
         XCTAssertEqual(body["stream"] as? Bool, true)
     }
-    
+
     func testCreateConversationRequest() throws {
         let textMessage = KeyPathMessage(role: .user, text: "Hello")
-        
+
         let behavior = KanataBehavior.simpleRemap(from: "caps", toKey: "esc")
         let visualization = EnhancedRemapVisualization(
             behavior: behavior,
@@ -116,39 +116,39 @@ final class AnthropicModelProviderTests: XCTestCase {
             explanation: "Test rule"
         )
         let ruleMessage = KeyPathMessage(role: .assistant, rule: rule)
-        
+
         let messages = [textMessage, ruleMessage]
-        
+
         let request = try invokePrivateMethod(
             target: provider,
             methodName: "createConversationRequest",
             args: [messages, false]
         ) as! URLRequest
-        
+
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertNotNil(request.httpBody)
-        
+
         let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
         let anthropicMessages = body["messages"] as! [[String: Any]]
-        
+
         XCTAssertEqual(anthropicMessages.count, 2)
-        
+
         // Check user message
         XCTAssertEqual(anthropicMessages[0]["role"] as? String, "user")
         XCTAssertEqual(anthropicMessages[0]["content"] as? String, "Hello")
-        
+
         // Check rule message
         XCTAssertEqual(anthropicMessages[1]["role"] as? String, "assistant")
         let ruleContent = anthropicMessages[1]["content"] as! String
         XCTAssertTrue(ruleContent.contains("Test rule"))
         XCTAssertTrue(ruleContent.contains("(defalias caps esc)"))
     }
-    
+
     // MARK: - Response Parsing Tests
-    
+
     func testSendMessageSuccess() {
         let expectation = self.expectation(description: "Message sent successfully")
-        
+
         // Mock successful response
         let mockResponse = """
         {
@@ -160,97 +160,97 @@ final class AnthropicModelProviderTests: XCTestCase {
             ]
         }
         """
-        
+
         // Create mock data
         let data = mockResponse.data(using: .utf8)!
-        
+
         // We can't easily mock URLSession in this test structure
         // Instead, we'll test the response parsing logic
-        
+
         do {
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             let contentArr = json?["content"] as? [[String: Any]]
             let text = contentArr?.first?["text"] as? String
-            
+
             XCTAssertEqual(text, "Hello! I'm doing well, thank you for asking.")
             expectation.fulfill()
         } catch {
             XCTFail("Failed to parse mock response: \(error)")
         }
-        
+
         waitForExpectations(timeout: 1.0, handler: nil)
     }
-    
+
     func testSendMessageWithInvalidResponse() {
         let invalidResponse = """
         {
             "error": "Invalid request"
         }
         """
-        
+
         let data = invalidResponse.data(using: .utf8)!
-        
+
         do {
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             let contentArr = json?["content"] as? [[String: Any]]
             let text = contentArr?.first?["text"] as? String
-            
+
             XCTAssertNil(text, "Should not extract text from invalid response")
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
     }
-    
+
     // MARK: - Error Handling Tests
-    
+
     func testErrorDescriptions() {
         let errors: [AnthropicModelProvider.Errors] = [
             .invalidURL,
             .noDataReceived,
             .unexpectedResponse("test response")
         ]
-        
+
         for error in errors {
             XCTAssertNotNil(error.localizedDescription)
             XCTAssertFalse(error.localizedDescription.isEmpty)
         }
-        
+
         // Test specific error messages
         XCTAssertEqual(AnthropicModelProvider.Errors.invalidURL.localizedDescription, "Invalid endpoint URL.")
         XCTAssertEqual(AnthropicModelProvider.Errors.noDataReceived.localizedDescription, "No data received.")
         XCTAssertTrue(AnthropicModelProvider.Errors.unexpectedResponse("test").localizedDescription.contains("test"))
     }
-    
+
     // MARK: - Integration Tests
-    
+
     func testSendMessageIntegration() {
         // This test would normally make a real API call
         // For testing purposes, we'll simulate the expected behavior
         let expectation = self.expectation(description: "Integration test")
-        
+
         // Simulate what would happen in a real scenario
         let prompt = "Generate a simple kanata rule"
-        
+
         // Mock the completion handler behavior
         DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
             // Simulate successful response
             let mockResponse = "Here's a simple rule: (defalias caps esc)"
-            
+
             // In a real scenario, this would be called by the completion handler
             XCTAssertFalse(mockResponse.isEmpty)
             expectation.fulfill()
         }
-        
+
         waitForExpectations(timeout: 1.0, handler: nil)
     }
-    
+
     func testConversationMessageTypes() {
         // Test KeyPathMessage type handling
         let textMessage = KeyPathMessage(role: .user, text: "Hello")
         XCTAssertEqual(textMessage.displayText, "Hello")
         XCTAssertFalse(textMessage.isRule)
         XCTAssertNil(textMessage.rule)
-        
+
         let behavior = KanataBehavior.simpleRemap(from: "a", toKey: "b")
         let visualization = EnhancedRemapVisualization(
             behavior: behavior,
@@ -264,30 +264,30 @@ final class AnthropicModelProviderTests: XCTestCase {
             explanation: "Test explanation"
         )
         let ruleMessage = KeyPathMessage(role: .assistant, rule: rule)
-        
+
         XCTAssertEqual(ruleMessage.displayText, "Test explanation")
         XCTAssertTrue(ruleMessage.isRule)
         XCTAssertNotNil(ruleMessage.rule)
         XCTAssertEqual(ruleMessage.rule?.kanataRule, "(defalias a b)")
     }
-    
+
     // MARK: - Streaming Tests
-    
+
     func testStreamingMessageSuccess() {
         let expectation = self.expectation(description: "Streaming completion")
-        
+
         // Mock SSE data
         let sseData = """
         data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello"}}
-        
+
         data: {"type":"content_block_delta","delta":{"type":"text_delta","text":" world"}}
-        
+
         data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}
-        
+
         data: [DONE]
-        
+
         """.data(using: .utf8)!
-        
+
         mockURLSession.data = sseData
         mockURLSession.response = HTTPURLResponse(
             url: URL(string: "https://api.anthropic.com/v1/messages")!,
@@ -295,7 +295,7 @@ final class AnthropicModelProviderTests: XCTestCase {
             httpVersion: nil,
             headerFields: ["Content-Type": "text/event-stream"]
         )
-        
+
         var streamedContent = ""
         let task = Task {
             do {
@@ -308,18 +308,18 @@ final class AnthropicModelProviderTests: XCTestCase {
                 expectation.fulfill()
             }
         }
-        
+
         waitForExpectations(timeout: 5.0) { _ in
             task.cancel()
             XCTAssertEqual(streamedContent, "Hello world")
         }
     }
-    
+
     func testStreamingNetworkError() {
         let expectation = self.expectation(description: "Network error handling")
-        
+
         mockURLSession.error = URLError(.networkConnectionLost)
-        
+
         let task = Task {
             do {
                 try await provider.streamMessage("Test prompt") { _ in }
@@ -329,37 +329,37 @@ final class AnthropicModelProviderTests: XCTestCase {
                 expectation.fulfill()
             }
         }
-        
+
         waitForExpectations(timeout: 2.0) { _ in
             task.cancel()
         }
     }
-    
+
     // MARK: - Conversation Flow Tests
-    
+
     func testSendConversationMultipleMessages() {
         let expectation = self.expectation(description: "Conversation completion")
-        
+
         let messages = [
             KeyPathMessage(role: .user, text: "Hello"),
             KeyPathMessage(role: .assistant, text: "Hi there!"),
             KeyPathMessage(role: .user, text: "Create a rule")
         ]
-        
+
         mockURLSession.data = """
         {
             "content": [{"text": "Generated rule response"}],
             "role": "assistant"
         }
         """.data(using: .utf8)!
-        
+
         mockURLSession.response = HTTPURLResponse(
             url: URL(string: "https://api.anthropic.com/v1/messages")!,
             statusCode: 200,
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]
         )
-        
+
         let task = Task {
             do {
                 let response = try await provider.sendConversation(messages)
@@ -370,18 +370,18 @@ final class AnthropicModelProviderTests: XCTestCase {
                 expectation.fulfill()
             }
         }
-        
+
         waitForExpectations(timeout: 2.0) { _ in
             task.cancel()
         }
     }
-    
+
     // MARK: - Error Handling Tests
-    
+
     func testAPIKeyValidationError() {
         // Create provider without API key
         let noKeyProvider = AnthropicModelProvider(systemInstructions: "test", temperature: 0.7)
-        
+
         mockURLSession.data = """
         {
             "type": "error",
@@ -391,35 +391,35 @@ final class AnthropicModelProviderTests: XCTestCase {
             }
         }
         """.data(using: .utf8)!
-        
+
         mockURLSession.response = HTTPURLResponse(
             url: URL(string: "https://api.anthropic.com/v1/messages")!,
             statusCode: 401,
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]
         )
-        
+
         let expectation = self.expectation(description: "API key error")
-        
+
         let task = Task {
             do {
                 _ = try await noKeyProvider.sendMessage("Test")
                 XCTFail("Should have thrown authentication error")
             } catch {
-                XCTAssertTrue(error.localizedDescription.contains("authentication") || 
+                XCTAssertTrue(error.localizedDescription.contains("authentication") ||
                             error.localizedDescription.contains("API key"))
                 expectation.fulfill()
             }
         }
-        
+
         waitForExpectations(timeout: 2.0) { _ in
             task.cancel()
         }
     }
-    
+
     func testRateLimitHandling() {
         let expectation = self.expectation(description: "Rate limit handling")
-        
+
         mockURLSession.data = """
         {
             "type": "error",
@@ -429,14 +429,14 @@ final class AnthropicModelProviderTests: XCTestCase {
             }
         }
         """.data(using: .utf8)!
-        
+
         mockURLSession.response = HTTPURLResponse(
             url: URL(string: "https://api.anthropic.com/v1/messages")!,
             statusCode: 429,
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json", "Retry-After": "60"]
         )
-        
+
         let task = Task {
             do {
                 _ = try await provider.sendMessage("Test")
@@ -447,15 +447,15 @@ final class AnthropicModelProviderTests: XCTestCase {
                 expectation.fulfill()
             }
         }
-        
+
         waitForExpectations(timeout: 2.0) { _ in
             task.cancel()
         }
     }
-    
+
     func testMalformedJSONResponse() {
         let expectation = self.expectation(description: "Malformed JSON handling")
-        
+
         mockURLSession.data = "Invalid JSON response".data(using: .utf8)!
         mockURLSession.response = HTTPURLResponse(
             url: URL(string: "https://api.anthropic.com/v1/messages")!,
@@ -463,7 +463,7 @@ final class AnthropicModelProviderTests: XCTestCase {
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]
         )
-        
+
         let task = Task {
             do {
                 _ = try await provider.sendMessage("Test")
@@ -473,17 +473,17 @@ final class AnthropicModelProviderTests: XCTestCase {
                 expectation.fulfill()
             }
         }
-        
+
         waitForExpectations(timeout: 2.0) { _ in
             task.cancel()
         }
     }
-    
+
     func testRequestTimeoutHandling() {
         let expectation = self.expectation(description: "Timeout handling")
-        
+
         mockURLSession.error = URLError(.timedOut)
-        
+
         let task = Task {
             do {
                 _ = try await provider.sendMessage("Test")
@@ -493,36 +493,36 @@ final class AnthropicModelProviderTests: XCTestCase {
                 expectation.fulfill()
             }
         }
-        
+
         waitForExpectations(timeout: 2.0) { _ in
             task.cancel()
         }
     }
-    
+
     func testLargePayloadHandling() {
         let expectation = self.expectation(description: "Large payload handling")
-        
+
         // Create a large conversation history
         var messages: [KeyPathMessage] = []
         for i in 0..<100 {
             messages.append(KeyPathMessage(role: .user, text: "Message \(i) with some content"))
             messages.append(KeyPathMessage(role: .assistant, text: "Response \(i) with detailed explanation"))
         }
-        
+
         mockURLSession.data = """
         {
             "content": [{"text": "Handled large payload successfully"}],
             "role": "assistant"
         }
         """.data(using: .utf8)!
-        
+
         mockURLSession.response = HTTPURLResponse(
             url: URL(string: "https://api.anthropic.com/v1/messages")!,
             statusCode: 200,
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]
         )
-        
+
         let task = Task {
             do {
                 let response = try await provider.sendConversation(messages)
@@ -533,21 +533,21 @@ final class AnthropicModelProviderTests: XCTestCase {
                 expectation.fulfill()
             }
         }
-        
+
         waitForExpectations(timeout: 5.0) { _ in
             task.cancel()
         }
     }
-    
+
     // MARK: - Private Helper Methods
-    
+
     private func invokePrivateMethod(target: Any, methodName: String, args: [Any]) throws -> Any {
         let mirror = Mirror(reflecting: target)
         let targetType = type(of: target)
-        
+
         // This is a simplified approach for testing private methods
         // In a real test environment, you'd use @testable import or refactor for dependency injection
-        
+
         switch methodName {
         case "createRequest":
             let prompt = args[0] as! String
@@ -561,10 +561,10 @@ final class AnthropicModelProviderTests: XCTestCase {
             throw NSError(domain: "TestError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Method not found"])
         }
     }
-    
+
     private func createMockRequest(prompt: String, streaming: Bool) throws -> URLRequest {
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
-        
+
         var requestBody: [String: Any] = [
             "model": "claude-3-5-sonnet-20241022",
             "max_tokens": 1024,
@@ -577,7 +577,7 @@ final class AnthropicModelProviderTests: XCTestCase {
         if streaming {
             requestBody["stream"] = true
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -587,12 +587,12 @@ final class AnthropicModelProviderTests: XCTestCase {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         return request
     }
-    
+
     private func createMockConversationRequest(messages: [KeyPathMessage], streaming: Bool) throws -> URLRequest {
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
-        
+
         var anthropicMessages: [[String: Any]] = []
-        
+
         for message in messages {
             switch message.type {
             case .text(let text):
@@ -603,9 +603,9 @@ final class AnthropicModelProviderTests: XCTestCase {
             case .rule(let rule):
                 let ruleText = """
                 I created this rule for you:
-                
+
                 **\(rule.explanation)**
-                
+
                 ```kanata
                 \(rule.kanataRule)
                 ```
@@ -616,7 +616,7 @@ final class AnthropicModelProviderTests: XCTestCase {
                 ])
             }
         }
-        
+
         var requestBody: [String: Any] = [
             "model": "claude-3-5-sonnet-20241022",
             "max_tokens": 1024,
@@ -627,7 +627,7 @@ final class AnthropicModelProviderTests: XCTestCase {
         if streaming {
             requestBody["stream"] = true
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -645,7 +645,7 @@ class MockURLSession: URLSession {
     var data: Data?
     var response: URLResponse?
     var error: Error?
-    
+
     override func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
         return MockURLSessionDataTask {
             completionHandler(self.data, self.response, self.error)
@@ -655,11 +655,11 @@ class MockURLSession: URLSession {
 
 class MockURLSessionDataTask: URLSessionDataTask {
     private let closure: () -> Void
-    
+
     init(closure: @escaping () -> Void) {
         self.closure = closure
     }
-    
+
     override func resume() {
         closure()
     }

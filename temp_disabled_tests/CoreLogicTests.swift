@@ -2,9 +2,9 @@ import XCTest
 @testable import KeyPath
 
 final class CoreLogicTests: XCTestCase {
-    
+
     // MARK: - KanataRuleParser Tests
-    
+
     func testParseEnhancedSimpleRemap() {
         let json = """
         ```json
@@ -26,15 +26,15 @@ final class CoreLogicTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .simpleRemap(let from, let toKey) = rule?.visualization.behavior else {
             XCTFail("Expected simpleRemap behavior")
             return
         }
-        
+
         XCTAssertEqual(from, "a")
         XCTAssertEqual(toKey, "b")
         XCTAssertEqual(rule?.kanataRule, "(defalias a b)")
@@ -43,7 +43,7 @@ final class CoreLogicTests: XCTestCase {
         XCTAssertEqual(rule?.visualization.title, "Simple Remap")
         XCTAssertEqual(rule?.visualization.description, "Maps a to b")
     }
-    
+
     func testParseEnhancedTapHold() {
         let json = """
         ```json
@@ -66,21 +66,21 @@ final class CoreLogicTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .tapHold(let key, let tap, let hold) = rule?.visualization.behavior else {
             XCTFail("Expected tapHold behavior")
             return
         }
-        
+
         XCTAssertEqual(key, "caps")
         XCTAssertEqual(tap, "esc")
         XCTAssertEqual(hold, "ctrl")
         XCTAssertEqual(rule?.confidence, .medium)
     }
-    
+
     func testParseOldFormat() {
         let json = """
         ```json
@@ -95,15 +95,15 @@ final class CoreLogicTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .simpleRemap(let from, let toKey) = rule?.visualization.behavior else {
             XCTFail("Expected simpleRemap behavior from old format")
             return
         }
-        
+
         XCTAssertEqual(from, "caps")
         XCTAssertEqual(toKey, "esc")
         XCTAssertEqual(rule?.kanataRule, "(defalias caps esc)")
@@ -111,7 +111,7 @@ final class CoreLogicTests: XCTestCase {
         XCTAssertEqual(rule?.visualization.title, "Simple Remap")
         XCTAssertEqual(rule?.visualization.description, "Maps caps to esc")
     }
-    
+
     func testParseInvalidJSON() {
         let invalidJson = """
         ```json
@@ -121,13 +121,13 @@ final class CoreLogicTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: invalidJson)
         XCTAssertNil(rule)
     }
-    
+
     // MARK: - KanataBehavior Tests
-    
+
     func testKanataBehaviorPrimaryKey() {
         let behaviors: [KanataBehavior] = [
             .simpleRemap(from: "caps", toKey: "esc"),
@@ -137,21 +137,21 @@ final class CoreLogicTests: XCTestCase {
             .combo(keys: ["a", "s"], result: "esc"),
             .layer(key: "fn", layerName: "function", mappings: [:])
         ]
-        
+
         let expectedKeys = [
             "caps",
-            "fn", 
+            "fn",
             "a",
             "jk",
             "a + s",
             "fn"
         ]
-        
+
         for (behavior, expectedKey) in zip(behaviors, expectedKeys) {
             XCTAssertEqual(behavior.primaryKey, expectedKey)
         }
     }
-    
+
     func testKanataBehaviorBehaviorType() {
         let behaviors: [KanataBehavior] = [
             .simpleRemap(from: "caps", toKey: "esc"),
@@ -161,7 +161,7 @@ final class CoreLogicTests: XCTestCase {
             .combo(keys: ["a", "s"], result: "esc"),
             .layer(key: "fn", layerName: "function", mappings: [:])
         ]
-        
+
         let expectedTypes = [
             "Simple Remap",
             "Tap-Hold",
@@ -170,14 +170,14 @@ final class CoreLogicTests: XCTestCase {
             "Combo",
             "Layer"
         ]
-        
+
         for (behavior, expectedType) in zip(behaviors, expectedTypes) {
             XCTAssertEqual(behavior.behaviorType, expectedType)
         }
     }
-    
+
     // MARK: - KanataRule Tests
-    
+
     func testKanataRuleCreation() {
         let behavior = KanataBehavior.tapHold(key: "caps", tap: "esc", hold: "ctrl")
         let visualization = EnhancedRemapVisualization(
@@ -185,23 +185,23 @@ final class CoreLogicTests: XCTestCase {
             title: "Caps Lock Enhancement",
             description: "Tap for Escape, hold for Control"
         )
-        
+
         let rule = KanataRule(
             visualization: visualization,
             kanataRule: "(defalias caps (tap-hold 200 200 esc lctrl))",
             confidence: .high,
             explanation: "Enhanced Caps Lock functionality"
         )
-        
+
         XCTAssertEqual(rule.confidence, .high)
         XCTAssertEqual(rule.kanataRule, "(defalias caps (tap-hold 200 200 esc lctrl))")
         XCTAssertEqual(rule.explanation, "Enhanced Caps Lock functionality")
         XCTAssertEqual(rule.visualization.title, "Caps Lock Enhancement")
     }
-    
+
     func testKanataRuleConfidenceLevels() {
         let confidenceLevels: [KanataRule.Confidence] = [.high, .medium, .low]
-        
+
         for confidence in confidenceLevels {
             let behavior = KanataBehavior.simpleRemap(from: "a", toKey: "b")
             let visualization = EnhancedRemapVisualization(
@@ -209,39 +209,39 @@ final class CoreLogicTests: XCTestCase {
                 title: "Test",
                 description: "Test confidence \(confidence)"
             )
-            
+
             let rule = KanataRule(
                 visualization: visualization,
                 kanataRule: "(test)",
                 confidence: confidence,
                 explanation: "Test rule"
             )
-            
+
             XCTAssertEqual(rule.confidence, confidence)
         }
     }
-    
+
     // MARK: - TapDanceAction Tests
-    
+
     func testTapDanceActionCreation() {
         let action = TapDanceAction(
             tapCount: 2,
             action: "A",
             description: "Double tap for uppercase A"
         )
-        
+
         XCTAssertEqual(action.tapCount, 2)
         XCTAssertEqual(action.action, "A")
         XCTAssertEqual(action.description, "Double tap for uppercase A")
     }
-    
+
     // MARK: - KanataInstaller Tests
-    
+
     func testKanataInstallerCreation() {
         let installer = KanataInstaller()
         XCTAssertNotNil(installer)
     }
-    
+
     func testInstallErrorDescriptions() {
         let errors: [KanataValidationError] = [
             .configDirectoryNotFound,
@@ -251,12 +251,12 @@ final class CoreLogicTests: XCTestCase {
             .writeFailed("write error"),
             .reloadFailed("reload error")
         ]
-        
+
         for error in errors {
             XCTAssertNotNil(error.localizedDescription)
             XCTAssertFalse(error.localizedDescription.isEmpty)
         }
-        
+
         // Test specific error messages
         XCTAssertTrue(KanataValidationError.configDirectoryNotFound.localizedDescription.contains("configuration directory"))
         XCTAssertTrue(KanataValidationError.configFileNotFound.localizedDescription.contains("configuration file"))
@@ -265,9 +265,9 @@ final class CoreLogicTests: XCTestCase {
         XCTAssertTrue(KanataValidationError.writeFailed("test").localizedDescription.contains("write configuration"))
         XCTAssertTrue(KanataValidationError.reloadFailed("test").localizedDescription.contains("reload Kanata"))
     }
-    
+
     // MARK: - Integration Tests
-    
+
     func testCompleteRuleWorkflow() {
         // Test creating a complete rule workflow
         let tapDanceActions = [
@@ -275,25 +275,25 @@ final class CoreLogicTests: XCTestCase {
             TapDanceAction(tapCount: 2, action: "A", description: "Double tap"),
             TapDanceAction(tapCount: 3, action: "@", description: "Triple tap")
         ]
-        
+
         let behavior = KanataBehavior.tapDance(key: "a", actions: tapDanceActions)
         let visualization = EnhancedRemapVisualization(
             behavior: behavior,
             title: "Advanced A Key",
             description: "Multi-function A key with tap dance"
         )
-        
+
         let rule = KanataRule(
             visualization: visualization,
             kanataRule: "(defalias a (tap-dance 200 (a A @)))",
             confidence: .high,
             explanation: "Advanced A key functionality with multiple tap options"
         )
-        
+
         // Verify the complete workflow
         XCTAssertEqual(rule.visualization.behavior.primaryKey, "a")
         XCTAssertEqual(rule.visualization.behavior.behaviorType, "Tap Dance")
-        
+
         if case .tapDance(let key, let actions) = rule.visualization.behavior {
             XCTAssertEqual(key, "a")
             XCTAssertEqual(actions.count, 3)

@@ -39,7 +39,10 @@ struct KanataRuleParserSwiftTests {
             ```
             """
 
-            let rule = try #require(KanataRule.parseEnhanced(from: json))
+            guard let rule = KanataRule.parseEnhanced(from: json) else {
+                Issue.record("Failed to parse rule")
+                return
+            }
             #expect(rule.confidence == .high)
             #expect(rule.kanataRule == "(defalias a b)")
             #expect(rule.explanation == "This remaps 'a' to 'b'")
@@ -76,7 +79,10 @@ struct KanataRuleParserSwiftTests {
             ```
             """
 
-            let rule = try #require(KanataRule.parseEnhanced(from: json))
+            guard let rule = KanataRule.parseEnhanced(from: json) else {
+                Issue.record("Failed to parse rule")
+                return
+            }
             #expect(rule.confidence == .medium)
             #expect(rule.kanataRule.contains("tap-hold"))
 
@@ -112,7 +118,10 @@ struct KanataRuleParserSwiftTests {
             ```
             """
 
-            let rule = try #require(KanataRule.parseEnhanced(from: json))
+            guard let rule = KanataRule.parseEnhanced(from: json) else {
+                Issue.record("Failed to parse rule")
+                return
+            }
             #expect(rule.confidence == .high)
             #expect(rule.kanataRule.contains("defchordsv2"))
 
@@ -152,7 +161,10 @@ struct KanataRuleParserSwiftTests {
             ```
             """
 
-            let rule = try #require(KanataRule.parseEnhanced(from: json))
+            guard let rule = KanataRule.parseEnhanced(from: json) else {
+                Issue.record("Failed to parse rule")
+                return
+            }
             #expect(rule.confidence == expectedConfidence)
         }
     }
@@ -216,7 +228,10 @@ struct KanataRuleParserSwiftTests {
             }
             """
 
-            let rule = try #require(KanataRule.parseEnhanced(from: jsonWithoutMarkers))
+            guard let rule = KanataRule.parseEnhanced(from: jsonWithoutMarkers) else {
+                Issue.record("Failed to parse rule without markers")
+                return
+            }
             #expect(rule.confidence == .high)
         }
     }
@@ -258,7 +273,10 @@ struct KanataRuleParserSwiftTests {
             ```
             """
 
-            let rule = try #require(KanataRule.parseEnhanced(from: json))
+            guard let rule = KanataRule.parseEnhanced(from: json) else {
+                Issue.record("Failed to parse rule")
+                return
+            }
 
             if case .tapDance(let key, let actions) = rule.visualization.behavior {
                 #expect(key == "a")
@@ -295,7 +313,10 @@ struct KanataRuleParserSwiftTests {
             ```
             """
 
-            let rule = try #require(KanataRule.parseEnhanced(from: json))
+            guard let rule = KanataRule.parseEnhanced(from: json) else {
+                Issue.record("Failed to parse rule")
+                return
+            }
 
             if case .sequence(let trigger, let sequence) = rule.visualization.behavior {
                 #expect(trigger == "jk")
@@ -332,7 +353,10 @@ struct KanataRuleParserSwiftTests {
             ```
             """
 
-            let rule = try #require(KanataRule.parseEnhanced(from: json))
+            guard let rule = KanataRule.parseEnhanced(from: json) else {
+                Issue.record("Failed to parse rule")
+                return
+            }
 
             if case .layer(let key, let layerName, let mappings) = rule.visualization.behavior {
                 #expect(key == "fn")
@@ -353,11 +377,9 @@ struct KanataRuleParserSwiftTests {
             let legacyInput = "Map caps lock to escape"
 
             // Test the legacy parsing path if it exists
-            // This would depend on your actual legacy parsing implementation
-            let result = KanataRule.parseSimple(from: legacyInput)
+            let result = KanataRule.parse(from: legacyInput)
 
-            // Basic validation that it doesn't crash
-            // Actual assertions would depend on implementation
+            // Basic validation that it doesn't crash - may return nil for plain text
             #expect(result != nil || result == nil) // Always passes, just testing for crashes
         }
     }

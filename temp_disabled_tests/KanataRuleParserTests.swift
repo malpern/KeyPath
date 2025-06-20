@@ -2,9 +2,9 @@ import XCTest
 @testable import KeyPath
 
 final class KanataRuleParserTests: XCTestCase {
-    
+
     // MARK: - Enhanced Format Tests
-    
+
     func testParseEnhancedSimpleRemap() {
         let json = """
         ```json
@@ -26,15 +26,15 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .simpleRemap(let from, let toKey) = rule?.visualization.behavior else {
             XCTFail("Expected simpleRemap behavior")
             return
         }
-        
+
         XCTAssertEqual(from, "a")
         XCTAssertEqual(toKey, "b")
         XCTAssertEqual(rule?.kanataRule, "(defalias a b)")
@@ -43,7 +43,7 @@ final class KanataRuleParserTests: XCTestCase {
         XCTAssertEqual(rule?.visualization.title, "Simple Remap")
         XCTAssertEqual(rule?.visualization.description, "Maps a to b")
     }
-    
+
     func testParseEnhancedTapHold() {
         let json = """
         ```json
@@ -66,21 +66,21 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .tapHold(let key, let tap, let hold) = rule?.visualization.behavior else {
             XCTFail("Expected tapHold behavior")
             return
         }
-        
+
         XCTAssertEqual(key, "caps")
         XCTAssertEqual(tap, "esc")
         XCTAssertEqual(hold, "ctrl")
         XCTAssertEqual(rule?.confidence, .medium)
     }
-    
+
     func testParseEnhancedTapHoldWithAlternativeKeys() {
         let json = """
         ```json
@@ -103,20 +103,20 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .tapHold(let key, let tap, let hold) = rule?.visualization.behavior else {
             XCTFail("Expected tapHold behavior")
             return
         }
-        
+
         XCTAssertEqual(key, "caps")
         XCTAssertEqual(tap, "esc")
         XCTAssertEqual(hold, "ctrl")
     }
-    
+
     func testParseEnhancedTapDance() {
         let json = """
         ```json
@@ -154,31 +154,31 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .tapDance(let key, let actions) = rule?.visualization.behavior else {
             XCTFail("Expected tapDance behavior")
             return
         }
-        
+
         XCTAssertEqual(key, "a")
         XCTAssertEqual(actions.count, 3)
-        
+
         XCTAssertEqual(actions[0].tapCount, 1)
         XCTAssertEqual(actions[0].action, "a")
         XCTAssertEqual(actions[0].description, "Single tap: 'a'")
-        
+
         XCTAssertEqual(actions[1].tapCount, 2)
         XCTAssertEqual(actions[1].action, "A")
         XCTAssertEqual(actions[1].description, "Double tap: 'A'")
-        
+
         XCTAssertEqual(actions[2].tapCount, 3)
         XCTAssertEqual(actions[2].action, "@")
         XCTAssertEqual(actions[2].description, "Triple tap: '@'")
     }
-    
+
     func testParseEnhancedSequence() {
         let json = """
         ```json
@@ -200,19 +200,19 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .sequence(let trigger, let sequence) = rule?.visualization.behavior else {
             XCTFail("Expected sequence behavior")
             return
         }
-        
+
         XCTAssertEqual(trigger, "j")
         XCTAssertEqual(sequence, ["j", "k"])
     }
-    
+
     func testParseEnhancedCombo() {
         let json = """
         ```json
@@ -234,19 +234,19 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .combo(let keys, let result) = rule?.visualization.behavior else {
             XCTFail("Expected combo behavior")
             return
         }
-        
+
         XCTAssertEqual(keys, ["a", "s"])
         XCTAssertEqual(result, "esc")
     }
-    
+
     func testParseEnhancedLayer() {
         let json = """
         ```json
@@ -273,24 +273,24 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .layer(let key, let layerName, let mappings) = rule?.visualization.behavior else {
             XCTFail("Expected layer behavior")
             return
         }
-        
+
         XCTAssertEqual(key, "fn")
         XCTAssertEqual(layerName, "function")
         XCTAssertEqual(mappings["1"], "f1")
         XCTAssertEqual(mappings["2"], "f2")
         XCTAssertEqual(mappings["3"], "f3")
     }
-    
+
     // MARK: - Old Format Tests
-    
+
     func testParseOldFormat() {
         let json = """
         ```json
@@ -305,15 +305,15 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .simpleRemap(let from, let toKey) = rule?.visualization.behavior else {
             XCTFail("Expected simpleRemap behavior from old format")
             return
         }
-        
+
         XCTAssertEqual(from, "caps")
         XCTAssertEqual(toKey, "esc")
         XCTAssertEqual(rule?.kanataRule, "(defalias caps esc)")
@@ -321,9 +321,9 @@ final class KanataRuleParserTests: XCTestCase {
         XCTAssertEqual(rule?.visualization.title, "Simple Remap")
         XCTAssertEqual(rule?.visualization.description, "Maps caps to esc")
     }
-    
+
     // MARK: - Error Cases
-    
+
     func testParseInvalidJSON() {
         let invalidJson = """
         ```json
@@ -333,28 +333,28 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: invalidJson)
         XCTAssertNil(rule)
     }
-    
+
     func testParseNoCodeBlock() {
         let text = "This is just plain text without any JSON code block"
-        
+
         let rule = KanataRule.parseEnhanced(from: text)
         XCTAssertNil(rule)
     }
-    
+
     func testParseEmptyCodeBlock() {
         let json = """
         ```json
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNil(rule)
     }
-    
+
     func testParseUnknownBehaviorType() {
         let json = """
         ```json
@@ -375,19 +375,19 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .simpleRemap(let from, let toKey) = rule?.visualization.behavior else {
             XCTFail("Expected fallback to simpleRemap for unknown type")
             return
         }
-        
+
         XCTAssertEqual(from, "Unknown")
         XCTAssertEqual(toKey, "Unknown")
     }
-    
+
     func testParseAlternativeToKeyName() {
         let json = """
         ```json
@@ -409,21 +409,21 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .simpleRemap(let from, let toKey) = rule?.visualization.behavior else {
             XCTFail("Expected simpleRemap behavior")
             return
         }
-        
+
         XCTAssertEqual(from, "a")
         XCTAssertEqual(toKey, "b")
     }
-    
+
     // MARK: - Edge Cases
-    
+
     func testParseMissingRequiredFields() {
         let json = """
         ```json
@@ -442,26 +442,26 @@ final class KanataRuleParserTests: XCTestCase {
         }
         ```
         """
-        
+
         let rule = KanataRule.parseEnhanced(from: json)
         XCTAssertNotNil(rule)
-        
+
         guard case .simpleRemap(let from, let toKey) = rule?.visualization.behavior else {
             XCTFail("Expected simpleRemap behavior")
             return
         }
-        
+
         XCTAssertEqual(from, "")
         XCTAssertEqual(toKey, "")
     }
-    
+
     func testParseConfidenceLevels() {
         let confidenceLevels: [(String, KanataRule.Confidence)] = [
             ("high", .high),
             ("medium", .medium),
             ("low", .low)
         ]
-        
+
         for (jsonConfidence, expectedConfidence) in confidenceLevels {
             let json = """
             ```json
@@ -483,7 +483,7 @@ final class KanataRuleParserTests: XCTestCase {
             }
             ```
             """
-            
+
             let rule = KanataRule.parseEnhanced(from: json)
             XCTAssertNotNil(rule)
             XCTAssertEqual(rule?.confidence, expectedConfidence)
