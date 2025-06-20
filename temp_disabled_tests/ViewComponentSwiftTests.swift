@@ -4,12 +4,12 @@ import SwiftUI
 
 // MARK: - Test Tags
 extension Tag {
-    @Tag static var models: Self
+    @Tag static var viewModels: Self
     @Tag static var behavior: Self
     @Tag static var ui: Self
 }
 
-@Suite("View Component Tests", .tags(.ui, .models))
+@Suite("View Component Tests", .tags(.ui, .viewModels))
 struct ViewComponentSwiftTests {
     
     @Suite("KanataBehavior Tests", .tags(.behavior))
@@ -79,7 +79,7 @@ struct ViewComponentSwiftTests {
         }
     }
     
-    @Suite("KanataRule Tests", .tags(.models))
+    @Suite("KanataRule Tests", .tags(.viewModels))
     struct KanataRuleTests {
         
         @Test("Rule creation with confidence levels", 

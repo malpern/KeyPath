@@ -25,12 +25,19 @@ extension AnthropicModelProvider {
         // Use conversation method to include full context
         let response = try await sendConversation(contextMessages)
 
+        // Debug: Always log the response to understand what we're getting
+        print("🔧 DEBUG: Claude response received:")
+        print("Response: \(response)")
+        print("🔧 DEBUG: End of response")
+
         // Try to parse as KanataRule first
         if let kanataRule = KanataRule.parse(from: response) {
-            // Validate the rule before returning
+            print("🔧 DEBUG: Successfully parsed KanataRule")
             let validatedRule = try await validateAndFixRule(kanataRule, userInput: userText, maxRetries: 3)
+            print("🔧 DEBUG: Validation completed successfully")
             return .rule(validatedRule)
         } else {
+            print("🔧 DEBUG: Failed to parse as KanataRule, treating as clarification")
             // Otherwise it's a clarifying question or educational response
             return .clarification(response)
         }
@@ -41,12 +48,19 @@ extension AnthropicModelProvider {
 
         let response = try await sendMessage(prompt)
 
+        // Debug: Always log the response to understand what we're getting
+        print("🔧 DEBUG: Claude response received (direct):")
+        print("Response: \(response)")
+        print("🔧 DEBUG: End of response")
+
         // Try to parse as KanataRule first
         if let kanataRule = KanataRule.parse(from: response) {
-            // Validate the rule before returning
+            print("🔧 DEBUG: Successfully parsed KanataRule (direct)")
             let validatedRule = try await validateAndFixRule(kanataRule, userInput: userInput, maxRetries: 3)
+            print("🔧 DEBUG: Validation completed successfully (direct)")
             return .rule(validatedRule)
         } else {
+            print("🔧 DEBUG: Failed to parse as KanataRule (direct), treating as clarification")
             // Otherwise it's a clarifying question
             return .clarification(response)
         }
@@ -83,10 +97,10 @@ extension AnthropicModelProvider {
         var retryCount = 0
         
         while retryCount < maxRetries {
-            // Validate the current rule using the KanataConfigValidator
-            let validator = KanataConfigValidator()
+            // Validate the complete config using SimpleKanataConfigManager
+            let configManager = SimpleKanataConfigManager()
             let validationResult = await withCheckedContinuation { continuation in
-                validator.validateRule(currentRule.kanataRule) { result in
+                configManager.validateConfig(currentRule.completeKanataConfig) { result in
                     continuation.resume(returning: result)
                 }
             }
@@ -105,20 +119,21 @@ extension AnthropicModelProvider {
                 
                 // Ask LLM to fix the invalid rule
                 let fixPrompt = """
-                The Kanata rule you generated is invalid. Here's the error:
+                The Kanata configuration you generated is invalid. Here's the error:
                 
                 Error: \(error.localizedDescription)
                 
-                Invalid rule: \(currentRule.kanataRule)
+                Invalid configuration:
+                \(currentRule.completeKanataConfig)
                 
-                Please fix this rule. Remember:
-                - For simple key remapping, use the format "a -> b"
-                - Numbers cannot be used as alias names in defalias
-                - If remapping number keys, use simple format like "5 -> 7"
+                Please fix this configuration. Remember to generate a complete, self-contained Kanata configuration block that includes:
+                - (defsrc) section with the source key(s)
+                - (deflayer) section with the target mapping
+                - Valid Kanata syntax
                 
                 User's original request: "\(userInput)"
                 
-                Please generate a corrected version of this rule following the same JSON format.
+                Please generate a corrected version following the same JSON format.
                 """
                 
                 let fixResponse = try await sendMessage(fixPrompt)

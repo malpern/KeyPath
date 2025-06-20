@@ -55,4 +55,23 @@ extension KanataBehavior {
             return "Layer"
         }
     }
+    
+    var description: String {
+        switch self {
+        case .simpleRemap(let from, let toKey):
+            return "Maps '\(from)' key to '\(toKey)'"
+        case .tapHold(let key, let tap, let hold):
+            return "'\(key)' key: tap for '\(tap)', hold for '\(hold)'"
+        case .tapDance(let key, let actions):
+            let actionDescriptions = actions.map { "\($0.tapCount)x: \($0.action)" }
+            return "'\(key)' key tap dance: \(actionDescriptions.joined(separator: ", "))"
+        case .sequence(let trigger, let sequence):
+            return "Type '\(trigger)' to output sequence: \(sequence.joined(separator: " → "))"
+        case .combo(let keys, let result):
+            return "Press \(keys.joined(separator: " + ")) together to output '\(result)'"
+        case .layer(let key, let layerName, let mappings):
+            let mappingCount = mappings.count
+            return "'\(key)' activates '\(layerName)' layer with \(mappingCount) mapping\(mappingCount == 1 ? "" : "s")"
+        }
+    }
 }

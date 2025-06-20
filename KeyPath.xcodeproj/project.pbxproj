@@ -6,11 +6,27 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		865F04352E057D9500361626 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8CB59C0C2DF7A31C00F9A0BE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8CB59C132DF7A31C00F9A0BE;
+			remoteInfo = KeyPath;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		865F04312E057D9500361626 /* KeyPathTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KeyPathTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8CB59C142DF7A31C00F9A0BE /* KeyPath.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KeyPath.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		865F04322E057D9500361626 /* KeyPathTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = KeyPathTests;
+			sourceTree = "<group>";
+		};
 		8CB59C162DF7A31C00F9A0BE /* KeyPath */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = KeyPath;
@@ -19,6 +35,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		865F042E2E057D9500361626 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8CB59C112DF7A31C00F9A0BE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				8CB59C162DF7A31C00F9A0BE /* KeyPath */,
+				865F04322E057D9500361626 /* KeyPathTests */,
 				8CB59C152DF7A31C00F9A0BE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				8CB59C142DF7A31C00F9A0BE /* KeyPath.app */,
+				865F04312E057D9500361626 /* KeyPathTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +73,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		865F04302E057D9500361626 /* KeyPathTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 865F04372E057D9500361626 /* Build configuration list for PBXNativeTarget "KeyPathTests" */;
+			buildPhases = (
+				865F042D2E057D9500361626 /* Sources */,
+				865F042E2E057D9500361626 /* Frameworks */,
+				865F042F2E057D9500361626 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				865F04362E057D9500361626 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				865F04322E057D9500361626 /* KeyPathTests */,
+			);
+			name = KeyPathTests;
+			packageProductDependencies = (
+			);
+			productName = KeyPathTests;
+			productReference = 865F04312E057D9500361626 /* KeyPathTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		8CB59C132DF7A31C00F9A0BE /* KeyPath */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8CB59C1F2DF7A31D00F9A0BE /* Build configuration list for PBXNativeTarget "KeyPath" */;
@@ -80,6 +128,10 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					865F04302E057D9500361626 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 8CB59C132DF7A31C00F9A0BE;
+					};
 					8CB59C132DF7A31C00F9A0BE = {
 						CreatedOnToolsVersion = 26.0;
 					};
@@ -100,11 +152,19 @@
 			projectRoot = "";
 			targets = (
 				8CB59C132DF7A31C00F9A0BE /* KeyPath */,
+				865F04302E057D9500361626 /* KeyPathTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		865F042F2E057D9500361626 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8CB59C122DF7A31C00F9A0BE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +175,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		865F042D2E057D9500361626 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8CB59C102DF7A31C00F9A0BE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +191,57 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		865F04362E057D9500361626 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8CB59C132DF7A31C00F9A0BE /* KeyPath */;
+			targetProxy = 865F04352E057D9500361626 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		865F04382E057D9500361626 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X2RKZ5TG99;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = malpern.KeyPathTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KeyPath.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KeyPath";
+			};
+			name = Debug;
+		};
+		865F04392E057D9500361626 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X2RKZ5TG99;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = malpern.KeyPathTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KeyPath.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KeyPath";
+			};
+			name = Release;
+		};
 		8CB59C1D2DF7A31D00F9A0BE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -348,6 +465,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		865F04372E057D9500361626 /* Build configuration list for PBXNativeTarget "KeyPathTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				865F04382E057D9500361626 /* Debug */,
+				865F04392E057D9500361626 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		8CB59C0F2DF7A31C00F9A0BE /* Build configuration list for PBXProject "KeyPath" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
