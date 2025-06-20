@@ -230,7 +230,7 @@ final class KeyPathChatControllerTests: XCTestCase {
         let expectation = self.expectation(description: "Validation failure")
         
         mockSecurityManager.canInstallRulesReturn = true
-        mockKanataInstaller.validateResult = .failure(KanataInstaller.InstallError.validationFailed("Invalid syntax"))
+        mockKanataInstaller.validateResult = .failure(KanataValidationError.validationFailed("Invalid syntax"))
         
         let rule = createTestRule()
         controller.installRule(rule)
@@ -250,7 +250,7 @@ final class KeyPathChatControllerTests: XCTestCase {
         
         mockSecurityManager.canInstallRulesReturn = true
         mockKanataInstaller.validateResult = .success(true)
-        mockKanataInstaller.installResult = .failure(KanataInstaller.InstallError.writeFailed("Write failed"))
+        mockKanataInstaller.installResult = .failure(KanataValidationError.writeFailed("Write failed"))
         
         let rule = createTestRule()
         controller.installRule(rule)
@@ -308,7 +308,7 @@ final class KeyPathChatControllerTests: XCTestCase {
             backupPath: "/path/to/backup"
         )
         mockRuleHistory.lastRule = ruleEntry
-        mockKanataInstaller.undoResult = .failure(KanataInstaller.InstallError.writeFailed("Restore failed"))
+        mockKanataInstaller.undoResult = .failure(KanataValidationError.writeFailed("Restore failed"))
         
         controller.undoLastRule()
         
@@ -507,21 +507,21 @@ class MockKanataInstaller: KanataInstaller {
     var installCalled = false
     var undoCalled = false
     
-    var validateResult: Result<Bool, InstallError> = .success(true)
-    var installResult: Result<String, InstallError> = .success("/mock/backup/path")
-    var undoResult: Result<Bool, InstallError> = .success(true)
+    var validateResult: Result<Bool, KanataValidationError> = .success(true)
+    var installResult: Result<String, KanataValidationError> = .success("/mock/backup/path")
+    var undoResult: Result<Bool, KanataValidationError> = .success(true)
     
-    override func validateRule(_ rule: String, completion: @escaping (Result<Bool, InstallError>) -> Void) {
+    override func validateRule(_ rule: String, completion: @escaping (Result<Bool, KanataValidationError>) -> Void) {
         validateCalled = true
         completion(validateResult)
     }
     
-    override func installRule(_ rule: KanataRule, completion: @escaping (Result<String, InstallError>) -> Void) {
+    override func installRule(_ rule: KanataRule, completion: @escaping (Result<String, KanataValidationError>) -> Void) {
         installCalled = true
         completion(installResult)
     }
     
-    override func undoLastRule(backupPath: String, completion: @escaping (Result<Bool, InstallError>) -> Void) {
+    override func undoLastRule(backupPath: String, completion: @escaping (Result<Bool, KanataValidationError>) -> Void) {
         undoCalled = true
         completion(undoResult)
     }

@@ -3,6 +3,20 @@
 ## Overview
 Create a seamless installation and service management system for Kanata that works for non-technical macOS users without requiring Homebrew or manual terminal setup.
 
+## Key Challenges & Resolutions
+
+1.  **Virtual Keyboard Driver Dependency**: The plan's biggest risk is managing the `Karabiner-DriverKit-VirtualHIDDevice`. This is a system extension requiring a complex, multi-step manual user approval process that cannot be automated.
+    *   **Resolution**: We will bundle the driver but must create a dedicated, multi-step UI guide to walk the user through the macOS System Settings approval flow. We cannot achieve a "one-click" install for this component.
+
+2.  **Service Architecture (`LaunchDaemon` vs. `LaunchAgent`)**: The initial plan proposed a `LaunchDaemon`, which runs as root and is system-global. A keyboard remapper is user-specific.
+    *   **Resolution**: The architecture will be changed to use a `LaunchAgent`, which runs as the logged-in user. This is more secure, simpler, and correctly aligns with the tool's purpose, giving it natural access to the user's configuration files without permission issues.
+
+3.  **Privileged Helper Tool Security**: The `SMJobBless` helper tool will run as root, making it a security-sensitive component.
+    *   **Resolution**: The helper's scope will be strictly limited to installing, starting, and stopping the `LaunchAgent`. All communication will occur over a minimal, hardened XPC interface, and the main app will validate the helper's code signature before interacting with it.
+
+4.  **Reliable Window Presentation from Menu Bar**: Guiding the user requires opening System Settings panes and ensuring they appear in the foreground. As highlighted in [this article](https://steipete.me/posts/2025/showing-settings-from-macos-menu-bar-items), menu bar apps cannot do this reliably without special workarounds.
+    *   **Resolution**: We will implement the robust strategy of temporarily changing the app's activation policy from `.accessory` (menu bar only) to `.regular` (shows Dock icon) before programmatically opening a System Settings pane. This ensures the window gains focus. The policy will be reverted once the user flow is complete.
+
 ## Current State
 - KeyPath generates Kanata rules but requires manual Kanata setup
 - Current implementation assumes Homebrew is available
@@ -10,19 +24,20 @@ Create a seamless installation and service management system for Kanata that wor
 - Poor user experience for non-technical users
 
 ## Target User Experience
-1. User clicks "Install Kanata" in KeyPath onboarding
-2. Single admin password prompt for all installation steps
-3. Automatic permission request guidance with clear UI
-4. Background service runs seamlessly
-5. No terminal or command line knowledge required
+1.  User clicks "Install Kanata & Driver" in KeyPath onboarding.
+2.  The app guides the user through two distinct manual approval steps:
+    *   One administrator password prompt to authorize the service installation.
+    *   A step-by-step guide to approve the virtual keyboard driver and Input Monitoring in System Settings.
+3.  The background service runs seamlessly post-installation.
+4.  No terminal or command line knowledge is required.
 
 ## Technical Implementation Plan
 
-### Phase 1: Direct Binary Installation
-- **Download kanata binary** directly from GitHub releases API
-- **Install to app bundle** or `/usr/local/bin/` with proper permissions
-- **Include Karabiner-DriverKit-VirtualHIDDevice** or bundle equivalent functionality
-- **Create default config structure** at `~/.config/kanata/`
+### Phase 1: Pre-flight Checks & Direct Binary Installation
+- **Download kanata binary** directly from GitHub releases API and bundle it within `KeyPath.app/Contents/Resources/`.
+- **Bundle the Karabiner VirtualHIDDevice** system extension.
+- **Develop a robust UI guide** for the manual driver and permission approval process.
+- **Create default config structure** at `~/.config/kanata/`.
 
 ### Phase 2: Service Management Framework
 ```swift
@@ -51,6 +66,25 @@ class KanataServiceManager {
 - **Permission Validation**: Verify permissions are working correctly
 - **Fallback Handling**: Clear error messages and recovery options
 
+#### Refined Permission & Driver Installation Flow
+
+This flow combines the `SystemExtensions` framework with robust UI/UX best practices to guide the user through the complex, manual approval process.
+
+1.  **Bundle the Driver**: The `Karabiner-DriverKit-VirtualHIDDevice.dext` must be located within the app bundle at `Contents/Library/SystemExtensions/`.
+2.  **Check Status First**: On initiating the flow, the app will programmatically check the driver's status using the `SystemExtensions` framework.
+    *   If **active**, the installation step is skipped.
+    *   If **installed but pending approval**, the UI will jump directly to the guidance step.
+    *   If **not installed**, proceed to the next step.
+3.  **Request Activation**:
+    *   The app will make an `OSSystemExtensionRequest` to ask macOS to install the bundled driver.
+    *   Crucially, before making the request, the app will temporarily change its activation policy to `.regular` to ensure all system dialogs appear in the foreground.
+4.  **Guide User Through Manual Approval**:
+    *   The UI must now display a clear, visual guide (using screenshots or animations) showing the user exactly where to click in `System Settings > Privacy & Security` to find and approve the request.
+    *   The app will listen for the result of the activation request and must handle all possible outcomes, including: `success`, `failure`, `reboot required`, and `pending user action`.
+5.  **Confirm and Cleanup**:
+    *   Upon detecting a successful activation, the UI will update to a success state.
+    *   The app's activation policy will be reverted to `.accessory` to hide the Dock icon and restore normal behavior.
+
 ### Phase 4: Configuration Management
 - **Real-time Config Updates**: Seamlessly update kanata.kbd when rules change
 - **Config Validation**: Validate before applying to prevent breaking changes
@@ -60,6 +94,8 @@ class KanataServiceManager {
 ## Implementation Components
 
 ### 1. Privileged Helper Tool
+- The helper tool must be minimal and hardened.
+- Exposes a narrow, secure XPC interface for service management only.
 ```xml
 <!-- /Library/PrivilegedHelperTools/com.keypath.kanata-helper -->
 <plist version="1.0">
@@ -75,18 +111,19 @@ class KanataServiceManager {
 </plist>
 ```
 
-### 2. LaunchDaemon Configuration
+### 2. LaunchAgent Configuration (Corrected)
+- The service will run as a `LaunchAgent` in the user context, not a system-wide `LaunchDaemon`. This is more secure and appropriate.
 ```xml
-<!-- /Library/LaunchDaemons/com.keypath.kanata.plist -->
+<!-- /Library/LaunchAgents/com.keypath.kanata.plist -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>com.keypath.kanata</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/kanata</string>
+        <string>/Applications/KeyPath.app/Contents/Resources/kanata</string>
         <string>--cfg</string>
-        <string>/Users/{USERNAME}/.config/kanata/kanata.kbd</string>
+        <string>~/.config/kanata/kanata.kbd</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -119,12 +156,12 @@ let authRights = AuthorizationRights(
 
 ### System Dependencies
 - **macOS 11.0+** (Big Sur) for modern ServiceManagement APIs
-- **Admin privileges** for initial installation only
-- **Input Monitoring permission** (user must approve manually)
-- **Karabiner VirtualHIDDevice** or equivalent for keyboard interception
+- **Admin privileges** (user must provide password once)
+- **Input Monitoring & System Extension approval** (user must approve manually via UI)
+- **Bundled Karabiner VirtualHIDDevice** for keyboard interception
 
 ### Bundled Components
-- **Kanata binary** (downloaded or bundled)
+- **Kanata binary** (self-contained in app bundle)
 - **Default configuration templates**
 - **Privileged helper tool executable**
 - **Service management UI components**
@@ -132,10 +169,10 @@ let authRights = AuthorizationRights(
 ## Security Considerations
 
 ### Principle of Least Privilege
-- Helper tool only has permissions needed for service management
-- Kanata runs with minimal required privileges
-- Config files owned by user, not root
-- Service limited to keyboard remapping functionality
+- Helper tool only has permissions needed for installing and managing the LaunchAgent.
+- Kanata LaunchAgent runs with user-level privileges.
+- Config files are owned and managed by the user.
+- The app must validate the helper tool's signature before connecting.
 
 ### Code Signing Requirements
 - Main app must be signed and notarized
@@ -178,13 +215,35 @@ let authRights = AuthorizationRights(
 - **Service Reliability**: >99.9% uptime for background service
 - **Permission Success**: >90% users successfully enable Input Monitoring
 
-## Timeline Estimate
-- **Phase 1 (Direct Installation)**: 3-4 days
-- **Phase 2 (Service Management)**: 4-5 days  
+## Timeline Estimate (Revised)
+- **Phase 1 (Installation & Driver UI)**: 5-6 days
+- **Phase 2 (Service Management)**: 4-5 days
 - **Phase 3 (Permission Management)**: 2-3 days
 - **Phase 4 (Configuration Management)**: 2-3 days
-- **Testing and Polish**: 3-4 days
-- **Total**: ~2-3 weeks
+- **Testing and Polish**: 4-5 days
+- **Total**: ~3-4 weeks
+
+## Automated vs. Manual Tasks
+
+This section clarifies the division of labor between automated development (tasks an AI assistant can perform) and the manual actions required by the end-user during installation.
+
+### 🤖 Automated Development (AI-Assisted)
+- **Code Generation**:
+    - Write the Swift code for the `KanataServiceManager` to handle XPC communication and calls to `ServiceManagement`.
+    - Generate the boilerplate for the privileged helper tool.
+    - Create the `LaunchAgent` and helper tool `.plist` files.
+- **Binary & Asset Management**:
+    - Write scripts/code to download the Kanata binary and bundle it within the app.
+    - Write code to create the `~/.config/kanata` directory and place a default configuration file.
+- **Configuration Logic**:
+    - Implement the file I/O for reading, writing, and backing up `kanata.kbd` files.
+    - Write the logic to trigger a `launchctl` reload of the service when the configuration changes.
+
+### 🧑‍💻 Manual User Actions (During Installation)
+- **Administrator Authentication**: The user **must** manually enter their password when prompted by macOS to authorize the installation of the privileged helper tool. This is a non-bypassable system security feature.
+- **System Settings Approval**: The user **must** manually navigate System Settings to grant two separate permissions:
+    1.  **System Extension**: Approve the `Karabiner-DriverKit-VirtualHIDDevice`. This involves clicking "Allow" and may require a system restart.
+    2.  **Input Monitoring**: Add the `KeyPath` application to the approved list to allow it to capture keyboard events.
 
 ## Future Enhancements
 - **Automatic updates** for Kanata binary

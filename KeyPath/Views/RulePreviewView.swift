@@ -17,7 +17,7 @@ struct RulePreviewView: View {
                 .animation(.spring(response: 0.5, dampingFraction: 0.7), value: appearAnimation)
 
             // Kanata Code with Syntax Highlighting
-            KanataSyntaxHighlightedView(code: rule.kanataRule)
+            KanataSyntaxHighlightedView(code: rule.completeKanataConfig)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal)
 

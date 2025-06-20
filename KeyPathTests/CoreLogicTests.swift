@@ -243,7 +243,7 @@ final class CoreLogicTests: XCTestCase {
     }
     
     func testInstallErrorDescriptions() {
-        let errors: [KanataInstaller.InstallError] = [
+        let errors: [KanataValidationError] = [
             .configDirectoryNotFound,
             .configFileNotFound,
             .kanataNotFound,
@@ -258,12 +258,12 @@ final class CoreLogicTests: XCTestCase {
         }
         
         // Test specific error messages
-        XCTAssertTrue(KanataInstaller.InstallError.configDirectoryNotFound.localizedDescription.contains("configuration directory"))
-        XCTAssertTrue(KanataInstaller.InstallError.configFileNotFound.localizedDescription.contains("configuration file"))
-        XCTAssertTrue(KanataInstaller.InstallError.kanataNotFound.localizedDescription.contains("executable not found"))
-        XCTAssertTrue(KanataInstaller.InstallError.validationFailed("test").localizedDescription.contains("validation failed"))
-        XCTAssertTrue(KanataInstaller.InstallError.writeFailed("test").localizedDescription.contains("write configuration"))
-        XCTAssertTrue(KanataInstaller.InstallError.reloadFailed("test").localizedDescription.contains("reload Kanata"))
+        XCTAssertTrue(KanataValidationError.configDirectoryNotFound.localizedDescription.contains("configuration directory"))
+        XCTAssertTrue(KanataValidationError.configFileNotFound.localizedDescription.contains("configuration file"))
+        XCTAssertTrue(KanataValidationError.kanataNotFound.localizedDescription.contains("executable not found"))
+        XCTAssertTrue(KanataValidationError.validationFailed("test").localizedDescription.contains("validation failed"))
+        XCTAssertTrue(KanataValidationError.writeFailed("test").localizedDescription.contains("write configuration"))
+        XCTAssertTrue(KanataValidationError.reloadFailed("test").localizedDescription.contains("reload Kanata"))
     }
     
     // MARK: - Integration Tests

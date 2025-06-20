@@ -13,15 +13,23 @@ extension AnthropicModelProvider {
             throw StructuredResponseError.parsingFailed
         }
 
-        // Use the direct generation prompt
-        let prompt = ClaudePromptTemplates.directGenerationPrompt.replacingOccurrences(of: "{USER_INPUT}", with: userText)
-        let response = try await sendMessage(prompt)
+        // Create a modified version of messages with the prompt as system instruction
+        var contextMessages = messages
+        
+        // Replace the last user message with the prompt-enhanced version
+        if let lastIndex = contextMessages.lastIndex(where: { $0.role == .user }) {
+            let enhancedPrompt = ClaudePromptTemplates.directGenerationPrompt.replacingOccurrences(of: "{USER_INPUT}", with: userText)
+            contextMessages[lastIndex] = KeyPathMessage(role: .user, text: enhancedPrompt)
+        }
+        
+        // Use conversation method to include full context
+        let response = try await sendConversation(contextMessages)
 
         // Try to parse as KanataRule first
         if let kanataRule = KanataRule.parse(from: response) {
             return .rule(kanataRule)
         } else {
-            // Otherwise it's a clarifying question
+            // Otherwise it's a clarifying question or educational response
             return .clarification(response)
         }
     }

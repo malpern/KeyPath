@@ -27,14 +27,22 @@ struct KanataSyntaxHighlightedView: View {
     }
 
     private var highlightedCode: some View {
+        // Create attributed string for better text selection
+        Text(createAttributedText())
+            .textSelection(.enabled)
+    }
+    
+    private func createAttributedText() -> AttributedString {
         let tokens = tokenize(code)
-
-        return HStack(spacing: 0) {
-            ForEach(Array(tokens.enumerated()), id: \.offset) { _, token in
-                Text(token.text)
-                    .foregroundColor(color(for: token.type))
-            }
+        var attributedString = AttributedString()
+        
+        for token in tokens {
+            var tokenText = AttributedString(token.text)
+            tokenText.foregroundColor = color(for: token.type)
+            attributedString.append(tokenText)
         }
+        
+        return attributedString
     }
 
     private func tokenize(_ code: String) -> [Token] {

@@ -18,6 +18,7 @@ struct KeyPathContentView: View {
     @State private var showOnboarding = false
     @State private var securityManager = SecurityManager()
     @State private var ruleHistory = RuleHistory()
+    @State private var showTitleInHeader = false
 
     // Settings
     @AppStorage("useStreaming") private var useStreaming = AppSettings.useStreaming
@@ -41,6 +42,7 @@ struct KeyPathContentView: View {
                 KeyPathChatMessagesView(
                     messages: messages,
                     isResponding: isResponding,
+                    showTitleInHeader: $showTitleInHeader,
                     onInstallRule: handleInstallRule
                 )
 
@@ -49,7 +51,7 @@ struct KeyPathContentView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
             }
-            .navigationTitle("KeyPath")
+            .navigationTitle(showTitleInHeader ? "KeyPath" : "")
             .toolbarTitleDisplayMode(.inline)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -185,22 +187,14 @@ struct KeyPathContentView: View {
                                 SoundManager.shared.playSound(.success)
                             case .failure(let error):
                                 print("🔧 DEBUG: Installation failed: \(error)")
-                                if let installError = error as? KanataInstaller.InstallError {
-                                    self.updateLastMessage(with: installError.userFriendlyMessage)
-                                } else {
-                                    self.updateLastMessage(with: "❌ Installation failed: \(error.localizedDescription)")
-                                }
+                                self.updateLastMessage(with: error.userFriendlyMessage)
                             }
                         }
                     }
 
                 case .failure(let error):
                     print("🔧 DEBUG: Validation failed: \(error)")
-                    if let installError = error as? KanataInstaller.InstallError {
-                        self.handleValidationError(installError)
-                    } else {
-                        self.updateLastMessage(with: "❌ Validation failed: \(error.localizedDescription)")
-                    }
+                    self.handleValidationError(error)
                 }
             }
         }
@@ -274,7 +268,7 @@ struct KeyPathContentView: View {
 
     // MARK: - Error Recovery
 
-    private func handleValidationError(_ error: KanataInstaller.InstallError) {
+    private func handleValidationError(_ error: KanataValidationError) {
         let userMessage = error.userFriendlyMessage
 
         if error.isRecoverable {
@@ -465,15 +459,35 @@ struct KeyPathContentView: View {
     }
 }
 
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct KeyPathChatMessagesView: View {
     let messages: [KeyPathMessage]
     let isResponding: Bool
+    @Binding var showTitleInHeader: Bool
     let onInstallRule: (KanataRule) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack {
+                    Text("KeyPath")
+                        .font(.largeTitle.bold())
+                        .padding(.top, 20)
+                        .padding(.bottom, 10)
+                        .opacity(showTitleInHeader ? 0 : 1)
+                        .background(GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ScrollOffsetPreferenceKey.self,
+                                value: geometry.frame(in: .named("scroll")).minY
+                            )
+                        })
+
                     ForEach(messages) { message in
                         KeyPathMessageView(
                             message: message,
@@ -484,7 +498,14 @@ struct KeyPathChatMessagesView: View {
                     }
                 }
                 .padding()
-                // No bottom padding needed since input field is in VStack
+            }
+            .coordinateSpace(name: "scroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    // Threshold can be adjusted.
+                    // When the top of the title is scrolled above this point, show header title.
+                    showTitleInHeader = value < 40
+                }
             }
             .onChange(of: messages.last?.displayText) {
                 if let lastMessage = messages.last {

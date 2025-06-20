@@ -148,7 +148,7 @@ class AnthropicModelProvider: ChatModelProvider {
                 **\(rule.explanation)**
 
                 ```kanata
-                \(rule.kanataRule)
+                \(rule.completeKanataConfig)
                 ```
                 """
                 anthropicMessages.append([

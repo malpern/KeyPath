@@ -4,22 +4,29 @@ import SwiftUI
 func formatKeyLabel(_ key: String) -> String {
     let lowercased = key.lowercased()
 
-    // Mac modifier symbols
+    // Mac modifier symbols with both symbol and name
     if lowercased.contains("cmd") || lowercased.contains("command") {
-        return key.replacingOccurrences(of: "cmd", with: "⌘", options: .caseInsensitive)
-                  .replacingOccurrences(of: "command", with: "⌘", options: .caseInsensitive)
+        return "⌘ Command"
     }
     if lowercased.contains("opt") || lowercased.contains("option") || lowercased.contains("alt") {
-        return key.replacingOccurrences(of: "opt", with: "⌥", options: .caseInsensitive)
-                  .replacingOccurrences(of: "option", with: "⌥", options: .caseInsensitive)
-                  .replacingOccurrences(of: "alt", with: "⌥", options: .caseInsensitive)
+        return "⌥ Option"
     }
     if lowercased.contains("ctrl") || lowercased.contains("control") {
-        return key.replacingOccurrences(of: "ctrl", with: "⌃", options: .caseInsensitive)
-                  .replacingOccurrences(of: "control", with: "⌃", options: .caseInsensitive)
+        return "⌃ Control"
     }
     if lowercased.contains("shift") {
-        return key.replacingOccurrences(of: "shift", with: "⇧", options: .caseInsensitive)
+        return "⇧ Shift"
+    }
+    if lowercased.contains("fn") || lowercased.contains("function") {
+        return "🌐 Function"
+    }
+    
+    // Handle common key truncation issues
+    if lowercased == "f" {
+        return "F"
+    }
+    if lowercased == "j" {
+        return "J"
     }
 
     return key

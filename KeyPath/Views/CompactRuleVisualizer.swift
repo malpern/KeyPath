@@ -47,7 +47,23 @@ struct CompactRuleVisualizer: View {
                 .foregroundColor(ruleTypeColor)
                 .clipShape(Capsule())
 
-            // Code toggle button (if enabled)
+            Spacer()
+
+            // Explanation text (truncated) - clickable to toggle code panel
+            HoverableExplanationButton(
+                text: explanation,
+                isEnabled: showCodeToggle,
+                action: {
+                    if showCodeToggle {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showKanataCode.toggle()
+                            onCodeToggle?()
+                        }
+                    }
+                }
+            )
+
+            // Code toggle button (if enabled) - moved to far right
             if showCodeToggle {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -79,15 +95,6 @@ struct CompactRuleVisualizer: View {
                         .shadow(color: showKanataCode ? Color.blue.opacity(0.3) : Color.clear, radius: 8, x: 0, y: 4)
                 )
             }
-
-            Spacer()
-
-            // Explanation text (truncated)
-            Text(explanation)
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.trailing)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
@@ -294,19 +301,39 @@ struct CompactKeycap: View {
     }
 
     private var systemFont: Font {
+        let baseFont: Font
         switch style {
-        case .mini: return .callout
-        case .source, .target: return .title3
-        case .primary: return .title2
+        case .mini: baseFont = .callout
+        case .source, .target: baseFont = .title3
+        case .primary: baseFont = .title2
         }
+        
+        // Use smaller font for modifier keys with symbols + names
+        if label.contains("⌘") || label.contains("⌥") || label.contains("⌃") || label.contains("⇧") || label.contains("🌐") {
+            switch style {
+            case .mini: return .caption
+            case .source, .target: return .callout
+            case .primary: return .title3
+            }
+        }
+        
+        return baseFont
     }
 
     private var horizontalPadding: CGFloat {
+        let baseValue: CGFloat
         switch style {
-        case .mini: return 12
-        case .source, .target: return 20
-        case .primary: return 24
+        case .mini: baseValue = 12
+        case .source, .target: baseValue = 20
+        case .primary: baseValue = 24
         }
+        
+        // Add extra padding for modifier keys with symbols + names
+        if label.contains("⌘") || label.contains("⌥") || label.contains("⌃") || label.contains("⇧") || label.contains("🌐") {
+            return baseValue + 8
+        }
+        
+        return baseValue
     }
 
     private var verticalPadding: CGFloat {
@@ -333,6 +360,35 @@ struct CompactKeycap: View {
 
 enum CompactKeycapStyle {
     case source, target, primary, mini
+}
+
+// MARK: - Hoverable Explanation Button
+
+struct HoverableExplanationButton: View {
+    let text: String
+    let isEnabled: Bool
+    let action: () -> Void
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button(action: action) {
+            Text(text)
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.trailing)
+                .textSelection(.enabled)
+                .underline(isHovering && isEnabled, color: .gray)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .help(isEnabled ? "Click to show Kanata code explanation" : "")
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovering = hovering
+            }
+        }
+    }
 }
 
 #Preview {

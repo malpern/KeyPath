@@ -1,0 +1,19 @@
+;; Example of a complete Kanata configuration file
+;; This is what KeyPath will generate
+
+(defcfg
+  process-unmapped-keys yes
+)
+
+;; Simple remap: A -> B
+(defsrc
+  a
+)
+
+(deflayer default
+  b
+)
+
+;; This would NOT work by itself:
+;; (defalias a b)
+;; It needs the defsrc and deflayer sections!

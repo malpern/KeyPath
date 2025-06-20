@@ -39,4 +39,34 @@ extension KanataRule {
     static func parse(from text: String) -> KanataRule? {
         return parseEnhanced(from: text)
     }
+    
+    /// Returns the complete Kanata configuration for this rule
+    var completeKanataConfig: String {
+        // If the rule already contains complete config (defsrc/deflayer), return as-is
+        if kanataRule.contains("(defsrc") && kanataRule.contains("(deflayer") {
+            return kanataRule
+        }
+        
+        // Otherwise, generate complete configuration from the behavior
+        return KanataRuleGenerator.generateCompleteRule(from: visualization.behavior)
+    }
+    
+    /// Returns a simplified display version of the rule (for UI display)
+    var displayRule: String {
+        // If it's a simple "a -> b" format, return as-is
+        if kanataRule.contains(" -> ") {
+            return kanataRule
+        }
+        
+        // If it's a complete config, try to extract just the core rule
+        if kanataRule.contains("(defalias") {
+            // Extract just the defalias line
+            if let defaliasRange = kanataRule.range(of: #"\(defalias[^\)]+\)"#, options: .regularExpression) {
+                return String(kanataRule[defaliasRange])
+            }
+        }
+        
+        // Otherwise return the raw rule
+        return kanataRule
+    }
 }

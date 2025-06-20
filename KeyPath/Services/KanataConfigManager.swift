@@ -55,6 +55,9 @@ class KanataConfigManager {
             } else if currentSection != nil {
                 // Add content to current section
                 sectionContent.append(trimmed)
+            } else if trimmed.hasPrefix("(defalias") || trimmed.hasPrefix("(defchords") {
+                // Handle standalone sections like defalias
+                config.additionalSections.append(trimmed)
             }
         }
 
@@ -98,8 +101,49 @@ class KanataConfigManager {
         let cleanRule = rule.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanRule.isEmpty { return }
 
-        // Check if this is a defalias rule that we need to integrate properly
-        if cleanRule.hasPrefix("(defalias ") {
+        // Check if this is a complete configuration with defsrc and deflayer
+        if cleanRule.contains("(defsrc") && cleanRule.contains("(deflayer") {
+            // Parse the complete configuration
+            let tempConfig = parseConfig(cleanRule)
+            
+            // Merge defsrc keys
+            for key in tempConfig.defsrc {
+                if !config.defsrc.contains(key) {
+                    config.defsrc.append(key)
+                }
+            }
+            
+            // Merge deflayers
+            for (layerName, keys) in tempConfig.deflayer {
+                if layerName == "default" {
+                    // For default layer, we need to merge carefully
+                    if var defaultLayer = config.deflayer["default"] {
+                        // Ensure we have enough slots
+                        while defaultLayer.count < config.defsrc.count {
+                            defaultLayer.append("_")
+                        }
+                        
+                        // Update keys based on defsrc positions
+                        for (i, srcKey) in tempConfig.defsrc.enumerated() {
+                            if let targetIndex = config.defsrc.firstIndex(of: srcKey),
+                               i < keys.count {
+                                if targetIndex < defaultLayer.count {
+                                    defaultLayer[targetIndex] = keys[i]
+                                }
+                            }
+                        }
+                        config.deflayer["default"] = defaultLayer
+                    }
+                } else {
+                    // For other layers, just add them
+                    config.deflayer[layerName] = keys
+                }
+            }
+            
+            // Add any defalias or other sections
+            config.additionalSections.append(contentsOf: tempConfig.additionalSections)
+            
+        } else if cleanRule.hasPrefix("(defalias ") {
             // Parse the defalias to extract the key being remapped
             let components = cleanRule.dropFirst(1).dropLast(1).components(separatedBy: " ")
             if components.count >= 3 && components[0] == "defalias" {
