@@ -75,6 +75,12 @@ playground.xcworkspace
 
 .build/
 
+# Swift Package Manager build artifacts that might escape .build/
+*-2.d
+*-2.dia
+*-2.swiftdeps
+*-2.swiftmodule
+
 # CocoaPods
 #
 # We recommend against adding the Pods directory to your .gitignore. However
