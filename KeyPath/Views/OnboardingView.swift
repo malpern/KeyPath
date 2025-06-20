@@ -119,7 +119,6 @@ struct OnboardingView: View {
     }
 }
 
-
 struct KanataInstallStep: View {
     let isInstalled: Bool
     @State private var showInstallCommands = false
@@ -349,4 +348,3 @@ struct CodeBlock: View {
             .textSelection(.enabled)
     }
 }
-

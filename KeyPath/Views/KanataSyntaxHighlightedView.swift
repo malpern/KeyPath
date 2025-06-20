@@ -31,17 +31,17 @@ struct KanataSyntaxHighlightedView: View {
         Text(createAttributedText())
             .textSelection(.enabled)
     }
-    
+
     private func createAttributedText() -> AttributedString {
         let tokens = tokenize(code)
         var attributedString = AttributedString()
-        
+
         for token in tokens {
             var tokenText = AttributedString(token.text)
             tokenText.foregroundColor = color(for: token.type)
             attributedString.append(tokenText)
         }
-        
+
         return attributedString
     }
 

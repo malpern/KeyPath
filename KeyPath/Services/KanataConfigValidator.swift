@@ -2,7 +2,7 @@ import Foundation
 
 class KanataConfigValidator {
     private let executableFinder = KanataExecutableFinder()
-    
+
     func validateRule(_ rule: String, completion: @escaping (Result<Bool, KanataValidationError>) -> Void) {
         print("🔧 DEBUG: Starting validation for rule: \(rule)")
 
@@ -38,7 +38,7 @@ class KanataConfigValidator {
         // Step 4: Generate and validate full config
         validateFullConfig(withRule: rule, completion: completion)
     }
-    
+
     private func validateRuleSemantically(_ rule: String) -> Result<Bool, KanataValidationError> {
         let cleanRule = rule.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -125,7 +125,7 @@ class KanataConfigValidator {
             suggestedFix: suggestion
         ))
     }
-    
+
     private func validateFullConfig(withRule rule: String, completion: @escaping (Result<Bool, KanataValidationError>) -> Void) {
         let tempFile = NSTemporaryDirectory() + "kanata_test_\(UUID().uuidString).kbd"
         print("🔧 DEBUG: Creating temp file: \(tempFile)")
@@ -214,7 +214,7 @@ class KanataConfigValidator {
             completion(.failure(.validationFailed(error.localizedDescription)))
         }
     }
-    
+
     private func validateConfigStructure(_ config: String) -> Result<Bool, KanataValidationError> {
         // Check for required sections
         if !config.contains("(defcfg") {

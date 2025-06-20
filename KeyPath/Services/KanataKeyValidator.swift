@@ -1,7 +1,7 @@
 import Foundation
 
 class KanataKeyValidator {
-    
+
     func suggestKeyCorrection(_ keyName: String) -> String {
         let lower = keyName.lowercased()
 
@@ -41,7 +41,7 @@ class KanataKeyValidator {
 
         return ""
     }
-    
+
     func isValidKeyName(_ keyName: String) -> Bool {
         let validKeys = [
             // Letters
@@ -61,7 +61,7 @@ class KanataKeyValidator {
 
         return validKeys.contains(keyName.lowercased()) || keyName.count == 1
     }
-    
+
     private func levenshteinDistance(_ s1: String, _ s2: String) -> Int {
         let s1Array = Array(s1)
         let s2Array = Array(s2)

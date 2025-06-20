@@ -4,7 +4,7 @@ class KanataServiceManager {
     private let configPath = NSString(string: "~/.config/kanata/kanata.kbd").expandingTildeInPath
     private let fileManager = FileManager.default
     private let executableFinder = KanataExecutableFinder()
-    
+
     func installRule(_ rule: KanataRule, completion: @escaping (Result<String, KanataValidationError>) -> Void) {
         // Check for Karabiner conflict first
         if executableFinder.isKarabinerRunning() {
@@ -40,7 +40,7 @@ class KanataServiceManager {
             completion(.failure(.writeFailed(error.localizedDescription)))
         }
     }
-    
+
     func reloadKanata(completion: @escaping (Result<Bool, KanataValidationError>) -> Void) {
         guard let kanataPath = executableFinder.findKanataPath() else {
             completion(.failure(.kanataNotFound))
@@ -71,11 +71,11 @@ class KanataServiceManager {
             completion(.failure(.reloadFailed(error.localizedDescription)))
         }
     }
-    
+
     func getCurrentConfig() -> String? {
         return try? String(contentsOfFile: configPath, encoding: .utf8)
     }
-    
+
     func undoLastRule(backupPath: String, completion: @escaping (Result<Bool, KanataValidationError>) -> Void) {
         do {
             // Restore the backup

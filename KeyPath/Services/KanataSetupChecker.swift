@@ -3,7 +3,7 @@ import Foundation
 class KanataSetupChecker {
     private let configPath = NSString(string: "~/.config/kanata/kanata.kbd").expandingTildeInPath
     private let fileManager = FileManager.default
-    
+
     func checkKanataSetup() -> Result<Bool, KanataValidationError> {
         let configDir = (configPath as NSString).deletingLastPathComponent
 

@@ -55,7 +55,7 @@ extension KanataBehavior {
             return "Layer"
         }
     }
-    
+
     var description: String {
         switch self {
         case .simpleRemap(let from, let toKey):

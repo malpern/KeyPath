@@ -8,7 +8,7 @@ struct UserRule: Codable, Identifiable {
     let dateCreated: Date
     var dateModified: Date
     var backupPath: String?
-    
+
     init(kanataRule: KanataRule, backupPath: String? = nil) {
         self.id = UUID()
         self.kanataRule = kanataRule
@@ -17,7 +17,7 @@ struct UserRule: Codable, Identifiable {
         self.dateModified = Date()
         self.backupPath = backupPath
     }
-    
+
     mutating func setActive(_ active: Bool) {
         self.isActive = active
         self.dateModified = Date()
@@ -30,14 +30,14 @@ struct DeletedRule: Codable, Identifiable {
     let originalRule: UserRule
     let deletedDate: Date
     let backupPath: String?
-    
+
     init(userRule: UserRule) {
         self.id = UUID()
         self.originalRule = userRule
         self.deletedDate = Date()
         self.backupPath = userRule.backupPath
     }
-    
+
     /// Check if this deleted rule should be permanently removed (48 hours old)
     var shouldPermanentlyDelete: Bool {
         let fortyEightHoursAgo = Date().addingTimeInterval(-48 * 60 * 60)
@@ -50,22 +50,22 @@ struct DeletedRule: Codable, Identifiable {
 class UserRuleManager {
     var activeRules: [UserRule] = []
     private var deletedRules: [DeletedRule] = []
-    
+
     private let activeRulesKey = "KeyPath.UserRules.Active"
     private let deletedRulesKey = "KeyPath.UserRules.Deleted"
     private let kanataInstaller = KanataInstaller()
-    
+
     init() {
         loadRules()
         cleanupOldDeletedRules()
     }
-    
+
     // MARK: - Rule Management
-    
+
     /// Add a new rule and activate it in Kanata config
     func addRule(_ kanataRule: KanataRule, completion: @escaping (Result<UserRule, Error>) -> Void) {
         let userRule = UserRule(kanataRule: kanataRule)
-        
+
         // Install the rule in Kanata config
         kanataInstaller.installRule(kanataRule) { [weak self] result in
             DispatchQueue.main.async {
@@ -73,28 +73,28 @@ class UserRuleManager {
                 case .success(let backupPath):
                     var updatedRule = userRule
                     updatedRule.backupPath = backupPath
-                    
+
                     self?.activeRules.insert(updatedRule, at: 0) // New rules at top
                     self?.saveActiveRules()
                     completion(.success(updatedRule))
-                    
+
                 case .failure(let error):
                     completion(.failure(error))
                 }
             }
         }
     }
-    
+
     /// Toggle rule activation state
     func toggleRule(_ ruleId: UUID, completion: @escaping (Result<Bool, Error>) -> Void) {
         guard let index = activeRules.firstIndex(where: { $0.id == ruleId }) else {
             completion(.failure(RuleManagerError.ruleNotFound))
             return
         }
-        
+
         let newActiveState = !activeRules[index].isActive
         activeRules[index].setActive(newActiveState)
-        
+
         if newActiveState {
             // Reactivate rule
             kanataInstaller.installRule(activeRules[index].kanataRule) { [weak self] result in
@@ -128,21 +128,21 @@ class UserRuleManager {
             }
         }
     }
-    
+
     /// Delete a rule permanently (with 48-hour backup retention)
     func deleteRule(_ ruleId: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let index = activeRules.firstIndex(where: { $0.id == ruleId }) else {
             completion(.failure(RuleManagerError.ruleNotFound))
             return
         }
-        
+
         let ruleToDelete = activeRules[index]
         let deletedRule = DeletedRule(userRule: ruleToDelete)
-        
+
         // Move to deleted rules for 48-hour retention
         deletedRules.append(deletedRule)
         activeRules.remove(at: index)
-        
+
         // Regenerate Kanata config without this rule
         regenerateKanataConfig { [weak self] result in
             DispatchQueue.main.async {
@@ -162,26 +162,26 @@ class UserRuleManager {
             }
         }
     }
-    
+
     /// Get all rules sorted by creation date (newest first)
     var allRules: [UserRule] {
         return activeRules.sorted { $0.dateCreated > $1.dateCreated }
     }
-    
+
     /// Get only active rules
     var enabledRules: [UserRule] {
         return activeRules.filter { $0.isActive }
     }
-    
+
     // MARK: - Kanata Config Management
-    
+
     private func regenerateKanataConfig(completion: @escaping (Result<Void, Error>) -> Void) {
         // Get all currently active rules
         let activeKanataRules = enabledRules.map { $0.kanataRule }
-        
+
         // Use the new simple config manager
         let configManager = SimpleKanataConfigManager()
-        
+
         do {
             try configManager.updateConfig(with: activeKanataRules)
             completion(.success(()))
@@ -189,39 +189,39 @@ class UserRuleManager {
             completion(.failure(error))
         }
     }
-    
+
     // MARK: - Persistence
-    
+
     private func saveActiveRules() {
         if let encoded = try? JSONEncoder().encode(activeRules) {
             UserDefaults.standard.set(encoded, forKey: activeRulesKey)
         }
     }
-    
+
     private func saveDeletedRules() {
         if let encoded = try? JSONEncoder().encode(deletedRules) {
             UserDefaults.standard.set(encoded, forKey: deletedRulesKey)
         }
     }
-    
+
     private func loadRules() {
         // Load active rules
         if let data = UserDefaults.standard.data(forKey: activeRulesKey),
            let decoded = try? JSONDecoder().decode([UserRule].self, from: data) {
             activeRules = decoded
         }
-        
+
         // Load deleted rules
         if let data = UserDefaults.standard.data(forKey: deletedRulesKey),
            let decoded = try? JSONDecoder().decode([DeletedRule].self, from: data) {
             deletedRules = decoded
         }
     }
-    
+
     private func cleanupOldDeletedRules() {
         let originalCount = deletedRules.count
         deletedRules.removeAll { $0.shouldPermanentlyDelete }
-        
+
         if deletedRules.count != originalCount {
             saveDeletedRules()
         }
@@ -231,7 +231,7 @@ class UserRuleManager {
 enum RuleManagerError: Error, LocalizedError {
     case ruleNotFound
     case configRegenerationFailed
-    
+
     var errorDescription: String? {
         switch self {
         case .ruleNotFound:

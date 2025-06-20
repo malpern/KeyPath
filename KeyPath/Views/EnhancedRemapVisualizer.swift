@@ -20,7 +20,7 @@ func formatKeyLabel(_ key: String) -> String {
     if lowercased.contains("fn") || lowercased.contains("function") {
         return "🌐 Function"
     }
-    
+
     // Handle common key truncation issues
     if lowercased == "f" {
         return "F"

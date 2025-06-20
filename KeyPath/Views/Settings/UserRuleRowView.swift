@@ -29,7 +29,7 @@ struct UserRuleRowView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     CompactRuleVisualizer(
-                        behavior: rule.kanataRule.visualization.behavior, 
+                        behavior: rule.kanataRule.visualization.behavior,
                         explanation: rule.kanataRule.explanation
                     )
                     .opacity(rule.isActive ? 1.0 : 0.6)

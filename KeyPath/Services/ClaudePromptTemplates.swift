@@ -73,21 +73,21 @@ struct ClaudePromptTemplates {
     - Each rule must include its own (defsrc) and (deflayer) sections
     - Each rule should work independently when added to a config file
     - Use correct Kanata key names: caps, esc, lctl, rctl, lsft, rsft, lalt, ralt, spc, ret, tab, bspc, del, etc.
-    
+
     Examples:
     - Simple remap "a -> b":
       ```
       (defsrc a)
       (deflayer default b)
       ```
-    
+
     - Tap-hold "space tap for space, hold for shift":
       ```
       (defalias spc-sft (tap-hold 200 200 spc lsft))
       (defsrc spc)
       (deflayer default @spc-sft)
       ```
-    
+
     - Multiple key rule should include all keys in defsrc/deflayer
 
     Example user requests and appropriate behaviors:
@@ -106,7 +106,7 @@ struct ClaudePromptTemplates {
     - "how does the tap-hold rule work?" → Detailed explanation of tap-hold behavior and timing
     - "can you explain the numbers in tap-hold 200 200?" → Explanation of timing parameters
     - "what other examples of simple remaps are there?" → Educational examples and variations
-    
+
     When answering questions about Kanata rules:
     - Reference the specific rules from the conversation context
     - Explain syntax clearly with examples

@@ -4,7 +4,7 @@ struct RulesSettingsView: View {
     @State private var userRuleManager = UserRuleManager()
     @State private var selectedRule: UserRule?
     @State private var ruleHistory = RuleHistory()
-    @State private var showDeleteConfirmation: UUID? = nil
+    @State private var showDeleteConfirmation: UUID?
 
     var body: some View {
         if let selectedRule = selectedRule {
@@ -83,7 +83,7 @@ struct RulesSettingsView: View {
             }
         }
     }
-    
+
     private func deleteRule(_ ruleId: UUID) {
         userRuleManager.deleteRule(ruleId) { result in
             DispatchQueue.main.async {

@@ -2,7 +2,7 @@ import Foundation
 
 class KanataExecutableFinder {
     private let fileManager = FileManager.default
-    
+
     func findKanataPath() -> String? {
         let commonPaths = [
             "/opt/homebrew/bin/kanata",
@@ -43,7 +43,7 @@ class KanataExecutableFinder {
 
         return nil
     }
-    
+
     func isHomebrewInstalled() -> Bool {
         let commonBrewPaths = [
             "/opt/homebrew/bin/brew",
@@ -58,7 +58,7 @@ class KanataExecutableFinder {
 
         return false
     }
-    
+
     func isKarabinerRunning() -> Bool {
         print("🔧 DEBUG: Skipping Karabiner check for testing")
         // TODO: Re-enable Karabiner conflict detection after testing

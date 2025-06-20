@@ -15,13 +15,13 @@ extension AnthropicModelProvider {
 
         // Create a modified version of messages with the prompt as system instruction
         var contextMessages = messages
-        
+
         // Replace the last user message with the prompt-enhanced version
         if let lastIndex = contextMessages.lastIndex(where: { $0.role == .user }) {
             let enhancedPrompt = ClaudePromptTemplates.directGenerationPrompt.replacingOccurrences(of: "{USER_INPUT}", with: userText)
             contextMessages[lastIndex] = KeyPathMessage(role: .user, text: enhancedPrompt)
         }
-        
+
         // Use conversation method to include full context
         let response = try await sendConversation(contextMessages)
 
@@ -91,11 +91,11 @@ extension AnthropicModelProvider {
             }
         }
     }
-    
+
     private func validateAndFixRule(_ rule: KanataRule, userInput: String, maxRetries: Int) async throws -> KanataRule {
         var currentRule = rule
         var retryCount = 0
-        
+
         while retryCount < maxRetries {
             // Validate the complete config using SimpleKanataConfigManager
             let configManager = SimpleKanataConfigManager()
@@ -104,49 +104,49 @@ extension AnthropicModelProvider {
                     continuation.resume(returning: result)
                 }
             }
-            
+
             switch validationResult {
             case .success:
                 // Rule is valid, return it
                 return currentRule
-                
+
             case .failure(let error):
                 retryCount += 1
-                
+
                 if retryCount >= maxRetries {
                     throw StructuredResponseError.validationFailed("Failed to generate valid Kanata syntax after \(maxRetries) attempts. Last error: \(error.localizedDescription)")
                 }
-                
+
                 // Ask LLM to fix the invalid rule
                 let fixPrompt = """
                 The Kanata configuration you generated is invalid. Here's the error:
-                
+
                 Error: \(error.localizedDescription)
-                
+
                 Invalid configuration:
                 \(currentRule.completeKanataConfig)
-                
+
                 Please fix this configuration. Remember to generate a complete, self-contained Kanata configuration block that includes:
                 - (defsrc) section with the source key(s)
                 - (deflayer) section with the target mapping
                 - Valid Kanata syntax
-                
+
                 User's original request: "\(userInput)"
-                
+
                 Please generate a corrected version following the same JSON format.
                 """
-                
+
                 let fixResponse = try await sendMessage(fixPrompt)
-                
+
                 // Parse the fixed rule
                 guard let fixedRule = KanataRule.parse(from: fixResponse) else {
                     throw StructuredResponseError.parsingFailed
                 }
-                
+
                 currentRule = fixedRule
             }
         }
-        
+
         throw StructuredResponseError.validationFailed("Failed to generate valid rule after \(maxRetries) attempts")
     }
 }

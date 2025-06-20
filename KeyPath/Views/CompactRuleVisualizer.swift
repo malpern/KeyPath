@@ -308,7 +308,7 @@ struct CompactKeycap: View {
         case .source, .target: baseFont = .title3
         case .primary: baseFont = .title2
         }
-        
+
         // Use smaller font for modifier keys with symbols + names
         if label.contains("⌘") || label.contains("⌥") || label.contains("⌃") || label.contains("⇧") || label.contains("🌐") {
             switch style {
@@ -317,7 +317,7 @@ struct CompactKeycap: View {
             case .primary: return .title3
             }
         }
-        
+
         return baseFont
     }
 
@@ -328,12 +328,12 @@ struct CompactKeycap: View {
         case .source, .target: baseValue = 20
         case .primary: baseValue = 24
         }
-        
+
         // Add extra padding for modifier keys with symbols + names
         if label.contains("⌘") || label.contains("⌥") || label.contains("⌃") || label.contains("⇧") || label.contains("🌐") {
             return baseValue + 8
         }
-        
+
         return baseValue
     }
 
@@ -370,7 +370,7 @@ struct HoverableExplanationButton: View {
     let isEnabled: Bool
     let action: () -> Void
     @State private var isHovering = false
-    
+
     var body: some View {
         Button(action: action) {
             Text(text)

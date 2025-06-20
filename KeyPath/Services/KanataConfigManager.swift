@@ -105,14 +105,14 @@ class KanataConfigManager {
         if cleanRule.contains("(defsrc") && cleanRule.contains("(deflayer") {
             // Parse the complete configuration
             let tempConfig = parseConfig(cleanRule)
-            
+
             // Merge defsrc keys
             for key in tempConfig.defsrc {
                 if !config.defsrc.contains(key) {
                     config.defsrc.append(key)
                 }
             }
-            
+
             // Merge deflayers
             for (layerName, keys) in tempConfig.deflayer {
                 if layerName == "default" {
@@ -122,7 +122,7 @@ class KanataConfigManager {
                         while defaultLayer.count < config.defsrc.count {
                             defaultLayer.append("_")
                         }
-                        
+
                         // Update keys based on defsrc positions
                         for (i, srcKey) in tempConfig.defsrc.enumerated() {
                             if let targetIndex = config.defsrc.firstIndex(of: srcKey),
@@ -139,10 +139,10 @@ class KanataConfigManager {
                     config.deflayer[layerName] = keys
                 }
             }
-            
+
             // Add any defalias or other sections
             config.additionalSections.append(contentsOf: tempConfig.additionalSections)
-            
+
         } else if cleanRule.hasPrefix("(defalias ") {
             // Parse the defalias to extract the key being remapped
             let components = cleanRule.dropFirst(1).dropLast(1).components(separatedBy: " ")

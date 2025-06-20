@@ -1,7 +1,7 @@
 import Foundation
 
 class KanataRuleSuggestionProvider {
-    
+
     func suggestRuleFormat(_ input: String) -> String {
         let lower = input.lowercased()
 

@@ -13,7 +13,7 @@ struct KeyPathApp: App {
         // Reset Kanata code visibility on app launch
         UserDefaults.standard.set(false, forKey: "showKanataCode")
     }
-    
+
     var body: some Scene {
         WindowGroup {
             KeyPathContentView()
