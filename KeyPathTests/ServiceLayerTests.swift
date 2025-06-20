@@ -11,9 +11,9 @@ struct ServiceLayerTests {
         @Test("Generate config with no rules")
         func generateConfigWithNoRules() {
             let manager = SimpleKanataConfigManager()
-            
+
             let result = try? manager.generateConfig(with: [])
-            
+
             #expect(result != nil)
             #expect(result?.contains("defcfg") == true)
         }
@@ -35,7 +35,7 @@ struct ServiceLayerTests {
             )
 
             let result = try? manager.generateConfig(with: [rule])
-            
+
             #expect(result != nil)
             #expect(result?.contains("defcfg") == true)
             #expect(result?.contains("defsrc a") == true)
@@ -48,7 +48,7 @@ struct ServiceLayerTests {
         @Test("SoundManager shared instance exists")
         func soundManagerSharedInstance() {
             let soundManager = SoundManager.shared
-            
+
             // Basic existence test - SoundManager is a class, so always exists
             #expect(type(of: soundManager) == SoundManager.self)
         }
@@ -65,8 +65,8 @@ struct ServiceLayerTests {
 
         @Test("SecurityManager can be initialized")
         func securityManagerInitialization() {
-            let _ = SecurityManager()
-            
+            _ = SecurityManager()
+
             // Basic existence test - SecurityManager is a struct, so always exists
             #expect(Bool(true)) // Just test that initialization doesn't crash
         }
@@ -78,7 +78,7 @@ struct ServiceLayerTests {
         @Test("Validation error has description")
         func validationErrorDescription() {
             let error = KanataValidationError.validationFailed("Test error")
-            
+
             #expect(!error.localizedDescription.isEmpty)
             #expect(error.localizedDescription.contains("Test error"))
         }
@@ -86,7 +86,7 @@ struct ServiceLayerTests {
         @Test("Config directory not found error has description")
         func configDirectoryNotFoundErrorDescription() {
             let error = KanataValidationError.configDirectoryNotFound
-            
+
             #expect(!error.localizedDescription.isEmpty)
             #expect(error.localizedDescription.contains("configuration directory"))
         }

@@ -63,6 +63,10 @@ struct MinimalUserRuleTests {
         #expect(manager.activeRules.isEmpty)
         #expect(manager.allRules.isEmpty)
         #expect(manager.enabledRules.isEmpty)
+        
+        // Clean up
+        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
+        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
     }
 
     @Test("UserRule Codable conformance")
@@ -159,6 +163,10 @@ struct MinimalUserRuleTests {
 
     @Test("UserRuleManager persistence handles corrupted data")
     func persistenceCorruptedData() {
+        // Clear any existing data first
+        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
+        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
+        
         // Set corrupted data in UserDefaults
         UserDefaults.standard.set("invalid json data", forKey: "KeyPath.UserRules.Active")
 
@@ -168,6 +176,7 @@ struct MinimalUserRuleTests {
 
         // Clean up
         UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
+        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
     }
 
     @Test("UserRuleManager persistence handles empty data")
@@ -175,7 +184,7 @@ struct MinimalUserRuleTests {
         // Clear any existing data first
         UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
         UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
-        
+
         // Set empty data
         UserDefaults.standard.set(Data(), forKey: "KeyPath.UserRules.Active")
 

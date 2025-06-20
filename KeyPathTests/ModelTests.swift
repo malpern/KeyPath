@@ -11,7 +11,7 @@ struct ModelTests {
         @Test("Simple remap behavior properties")
         func simpleRemapBehaviorProperties() {
             let behavior = KanataBehavior.simpleRemap(from: "caps", toKey: "esc")
-            
+
             #expect(behavior.primaryKey == "caps")
             #expect(behavior.behaviorType == "Simple Remap")
             #expect(behavior.description.contains("caps"))
@@ -21,7 +21,7 @@ struct ModelTests {
         @Test("Tap-hold behavior properties")
         func tapHoldBehaviorProperties() {
             let behavior = KanataBehavior.tapHold(key: "space", tap: "space", hold: "cmd")
-            
+
             #expect(behavior.primaryKey == "space")
             #expect(behavior.behaviorType == "Tap-Hold")
             #expect(behavior.description.contains("space"))
@@ -32,7 +32,7 @@ struct ModelTests {
         @Test("Combo behavior properties")
         func comboBehaviorProperties() {
             let behavior = KanataBehavior.combo(keys: ["cmd", "space"], result: "spotlight")
-            
+
             #expect(behavior.primaryKey == "cmd + space")
             #expect(behavior.behaviorType == "Combo")
             #expect(behavior.description.contains("cmd"))
@@ -47,7 +47,7 @@ struct ModelTests {
                 TapDanceAction(tapCount: 2, action: "esc", description: "Double tap")
             ]
             let behavior = KanataBehavior.tapDance(key: "a", actions: actions)
-            
+
             #expect(behavior.primaryKey == "a")
             #expect(behavior.behaviorType == "Tap Dance")
             #expect(behavior.description.contains("a"))
@@ -57,7 +57,7 @@ struct ModelTests {
         @Test("Sequence behavior properties")
         func sequenceBehaviorProperties() {
             let behavior = KanataBehavior.sequence(trigger: "jk", sequence: ["escape"])
-            
+
             #expect(behavior.primaryKey == "jk")
             #expect(behavior.behaviorType == "Sequence")
             #expect(behavior.description.contains("jk"))
@@ -68,7 +68,7 @@ struct ModelTests {
         func layerBehaviorProperties() {
             let mappings = ["1": "f1", "2": "f2"]
             let behavior = KanataBehavior.layer(key: "fn", layerName: "function", mappings: mappings)
-            
+
             #expect(behavior.primaryKey == "fn")
             #expect(behavior.behaviorType == "Layer")
             #expect(behavior.description.contains("fn"))
@@ -85,7 +85,7 @@ struct ModelTests {
             let action1 = TapDanceAction(tapCount: 1, action: "a", description: "Test")
             let action2 = TapDanceAction(tapCount: 1, action: "a", description: "Test")
             let action3 = TapDanceAction(tapCount: 2, action: "a", description: "Test")
-            
+
             #expect(action1 == action2)
             #expect(action1 != action3)
         }
@@ -93,13 +93,13 @@ struct ModelTests {
         @Test("TapDanceAction codable")
         func tapDanceActionCodable() throws {
             let action = TapDanceAction(tapCount: 2, action: "esc", description: "Double tap escape")
-            
+
             let encoder = JSONEncoder()
             let data = try encoder.encode(action)
-            
+
             let decoder = JSONDecoder()
             let decodedAction = try decoder.decode(TapDanceAction.self, from: data)
-            
+
             #expect(decodedAction == action)
         }
     }
@@ -115,13 +115,13 @@ struct ModelTests {
                 title: "Test Visualization",
                 description: "Test description"
             )
-            
+
             let encoder = JSONEncoder()
             let data = try encoder.encode(visualization)
-            
+
             let decoder = JSONDecoder()
             let decodedVisualization = try decoder.decode(EnhancedRemapVisualization.self, from: data)
-            
+
             #expect(decodedVisualization.title == visualization.title)
             #expect(decodedVisualization.description == visualization.description)
         }
@@ -144,7 +144,7 @@ struct ModelTests {
                 confidence: .high,
                 explanation: "Test explanation"
             )
-            
+
             #expect(rule.completeKanataConfig == rule.kanataRule)
         }
 
@@ -156,7 +156,7 @@ struct ModelTests {
                 title: "Test Rule",
                 description: "Test description"
             )
-            
+
             // Test with defalias
             let rule1 = KanataRule(
                 visualization: visualization,
@@ -165,7 +165,7 @@ struct ModelTests {
                 explanation: "Test explanation"
             )
             #expect(rule1.displayRule.contains("defalias"))
-            
+
             // Test with arrow format
             let rule2 = KanataRule(
                 visualization: visualization,
@@ -184,28 +184,28 @@ struct ModelTests {
                 title: "Test Rule",
                 description: "Test description"
             )
-            
+
             let highRule = KanataRule(
                 visualization: visualization,
                 kanataRule: "test rule",
                 confidence: .high,
                 explanation: "High confidence"
             )
-            
+
             let mediumRule = KanataRule(
                 visualization: visualization,
                 kanataRule: "test rule",
                 confidence: .medium,
                 explanation: "Medium confidence"
             )
-            
+
             let lowRule = KanataRule(
                 visualization: visualization,
                 kanataRule: "test rule",
                 confidence: .low,
                 explanation: "Low confidence"
             )
-            
+
             #expect(highRule.confidence == .high)
             #expect(mediumRule.confidence == .medium)
             #expect(lowRule.confidence == .low)
@@ -219,24 +219,24 @@ struct ModelTests {
         func chatRoleTypes() {
             let userRole = ChatRole.user
             let assistantRole = ChatRole.assistant
-            
+
             #expect(userRole == .user)
             #expect(assistantRole == .assistant)
             #expect(userRole != assistantRole)
         }
     }
 
-    @Suite("KeyPathMessage Tests")  
+    @Suite("KeyPathMessage Tests")
     struct KeyPathMessageTests {
 
         @Test("Text message creation")
         func textMessageCreation() {
             let message = KeyPathMessage(role: .user, text: "Test message")
-            
+
             #expect(message.role == .user)
             #expect(!message.id.uuidString.isEmpty)
             #expect(message.timestamp <= Date())
-            
+
             if case .text(let content) = message.type {
                 #expect(content == "Test message")
             } else {
@@ -259,9 +259,9 @@ struct ModelTests {
                 explanation: "Test explanation"
             )
             let message = KeyPathMessage(role: .assistant, rule: rule)
-            
+
             #expect(message.role == .assistant)
-            
+
             if case .rule(let messageRule) = message.type {
                 #expect(messageRule.explanation == "Test explanation")
             } else {
@@ -274,7 +274,7 @@ struct ModelTests {
             let message1 = KeyPathMessage(role: .user, text: "Same text")
             let message2 = KeyPathMessage(role: .user, text: "Same text")
             let message3 = KeyPathMessage(role: .assistant, text: "Same text")
-            
+
             // Note: Messages with same content but different IDs are not equal
             #expect(message1.role == message2.role)
             #expect(message1.role != message3.role)

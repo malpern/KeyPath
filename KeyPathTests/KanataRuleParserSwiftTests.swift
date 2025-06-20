@@ -397,7 +397,7 @@ struct ParserPerformanceTests {
         }
         mappings.append("\"final\": \"final_value\"")
         let mappingsString = mappings.joined(separator: ",\n                            ")
-        
+
         let largeJSON = """
         ```json
         {

@@ -12,7 +12,7 @@ struct CoreLogicSwiftTests {
         func addRuleToHistory() {
             // Clear any existing history
             UserDefaults.standard.removeObject(forKey: "KeyPath.RuleHistory")
-            
+
             let history = RuleHistory()
             let rule = createSampleRule()
 
@@ -20,7 +20,7 @@ struct CoreLogicSwiftTests {
 
             #expect(history.items.count == 1)
             #expect(history.items.first?.rule.confidence == rule.confidence)
-            
+
             // Clean up
             UserDefaults.standard.removeObject(forKey: "KeyPath.RuleHistory")
         }
@@ -29,7 +29,7 @@ struct CoreLogicSwiftTests {
         func historyItemLimitEnforcement() {
             // Clear any existing history
             UserDefaults.standard.removeObject(forKey: "KeyPath.RuleHistory")
-            
+
             let history = RuleHistory()
 
             // Add more items than the limit
@@ -43,7 +43,7 @@ struct CoreLogicSwiftTests {
 
             // Newest items should be retained
             #expect(history.items.first?.rule.explanation.contains("Rule") == true)
-            
+
             // Clean up
             UserDefaults.standard.removeObject(forKey: "KeyPath.RuleHistory")
         }
