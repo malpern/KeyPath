@@ -80,12 +80,34 @@ private struct EnhancedKanataRule: Codable {
     }
 
     func toKanataRule() -> KanataRule {
+        // Validate and potentially fix the kanataRule before creating the KanataRule object
+        let validatedRule = validateAndFixKanataRule(kanataRule, visualization: visualization)
+        
         return KanataRule(
             visualization: visualization.toEnhancedRemapVisualization(),
-            kanataRule: kanataRule,
+            kanataRule: validatedRule,
             confidence: confidence,
             explanation: explanation
         )
+    }
+    
+    private func validateAndFixKanataRule(_ rule: String, visualization: EnhancedVisualizationData) -> String {
+        // Check if it's an invalid defalias with numbers
+        if rule.hasPrefix("(defalias") && rule.contains(")") {
+            let components = rule.dropFirst(10).dropLast(1).components(separatedBy: " ").filter { !$0.isEmpty }
+            if components.count >= 2 {
+                let aliasName = components[0]
+                // Check if alias name is a number (invalid in Kanata)
+                if Int(aliasName) != nil {
+                    // Fix it by using simple format instead
+                    if let from = visualization.behavior.data["from"]?.stringValue,
+                       let to = visualization.behavior.data["toKey"]?.stringValue ?? visualization.behavior.data["to"]?.stringValue {
+                        return "\(from) -> \(to)"
+                    }
+                }
+            }
+        }
+        return rule
     }
 }
 
