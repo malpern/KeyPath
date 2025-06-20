@@ -179,13 +179,14 @@ class UserRuleManager {
         // Get all currently active rules
         let activeKanataRules = enabledRules.map { $0.kanataRule }
         
-        // Use KanataConfigManager to regenerate the complete config
-        let configManager = KanataConfigManager()
+        // Use the new simple config manager
+        let configManager = SimpleKanataConfigManager()
         
-        // This would need to be implemented in KanataConfigManager
-        // to rebuild the entire config with only active rules
-        configManager.regenerateConfigWithRules(activeKanataRules) { result in
-            completion(result)
+        do {
+            try configManager.updateConfig(with: activeKanataRules)
+            completion(.success(()))
+        } catch {
+            completion(.failure(error))
         }
     }
     
@@ -237,40 +238,6 @@ enum RuleManagerError: Error, LocalizedError {
             return "Rule not found"
         case .configRegenerationFailed:
             return "Failed to regenerate Kanata configuration"
-        }
-    }
-}
-
-// MARK: - Extensions for KanataConfigManager
-
-extension KanataConfigManager {
-    /// Regenerate the entire Kanata config with only the provided rules
-    func regenerateConfigWithRules(_ rules: [KanataRule], completion: @escaping (Result<Void, Error>) -> Void) {
-        // Read the base configuration
-        let configPath = NSString(string: "~/.config/kanata/kanata.kbd").expandingTildeInPath
-        
-        do {
-            let baseConfig = try String(contentsOfFile: configPath, encoding: .utf8)
-            var config = parseConfig(baseConfig)
-            
-            // Clear existing rules (keep base config like defcfg)
-            config.defsrc = []
-            config.deflayer = ["default": []]
-            config.additionalSections = []
-            
-            // Add all active rules
-            for rule in rules {
-                // Use the simple rule format, not the complete config
-                addSimpleMapping(rule.kanataRule, to: &config)
-            }
-            
-            // Generate and write the new config
-            let newConfig = generateConfig(config)
-            try newConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-            
-            completion(.success(()))
-        } catch {
-            completion(.failure(error))
         }
     }
 }

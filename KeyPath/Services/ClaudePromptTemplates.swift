@@ -69,15 +69,26 @@ struct ClaudePromptTemplates {
     - These will be displayed as visual keycaps
 
     For the kanata_rule:
-    - Generate COMPLETE valid Kanata syntax including defsrc and deflayer sections
-    - For simple remaps use just the key name (e.g., "a -> b" or "caps -> esc")
-    - For tap-hold use: "th:key:tap:hold" (e.g., "th:spc:spc:lsft")
-    - For tap-dance use: "td:key:act1:act2:act3" (e.g., "td:f:f:lctl-f:lgui-f")
-    - For sequences use: "seq:trigger:key1:key2:key3" (e.g., "seq:email:j:o:h:n:@:e:x:a:m:p:l:e:.:c:o:m")
-    - For combos use: "combo:key1+key2:result" (e.g., "combo:lctl+lalt:del")
-    - For layers use: "layer:key:name:mappings" format
+    - Generate a COMPLETE, self-contained Kanata configuration block
+    - Each rule must include its own (defsrc) and (deflayer) sections
+    - Each rule should work independently when added to a config file
     - Use correct Kanata key names: caps, esc, lctl, rctl, lsft, rsft, lalt, ralt, spc, ret, tab, bspc, del, etc.
-    - The rule will be processed to generate the complete configuration automatically
+    
+    Examples:
+    - Simple remap "a -> b":
+      ```
+      (defsrc a)
+      (deflayer default b)
+      ```
+    
+    - Tap-hold "space tap for space, hold for shift":
+      ```
+      (defalias spc-sft (tap-hold 200 200 spc lsft))
+      (defsrc spc)
+      (deflayer default @spc-sft)
+      ```
+    
+    - Multiple key rule should include all keys in defsrc/deflayer
 
     Example user requests and appropriate behaviors:
     - "caps lock escape" → simpleRemap

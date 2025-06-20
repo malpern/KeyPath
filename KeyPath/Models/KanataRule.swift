@@ -42,13 +42,8 @@ extension KanataRule {
     
     /// Returns the complete Kanata configuration for this rule
     var completeKanataConfig: String {
-        // If the rule already contains complete config (defsrc/deflayer), return as-is
-        if kanataRule.contains("(defsrc") && kanataRule.contains("(deflayer") {
-            return kanataRule
-        }
-        
-        // Otherwise, generate complete configuration from the behavior
-        return KanataRuleGenerator.generateCompleteRule(from: visualization.behavior)
+        // With the new architecture, kanataRule should always be a complete config
+        return kanataRule
     }
     
     /// Returns a simplified display version of the rule (for UI display)
