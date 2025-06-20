@@ -77,6 +77,7 @@ struct CompactRuleVisualizer: View {
                         .fontWeight(.medium)
                 }
                 .buttonStyle(.plain)
+                .help("Show/hide Kanata configuration code")
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
