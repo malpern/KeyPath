@@ -107,7 +107,7 @@ class KeyPathChatController {
         messages.append(KeyPathMessage(role: .assistant, text: "Validating rule..."))
 
         // Validate the rule first
-        kanataInstaller.validateRule(rule.completeKanataConfig) { [weak self] result in
+        kanataInstaller.validateRule(rule.kanataRule) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 switch result {

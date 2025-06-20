@@ -260,7 +260,8 @@ extension KanataConfigManager {
             
             // Add all active rules
             for rule in rules {
-                addKanataRule(rule.completeKanataConfig, to: &config)
+                // Use the simple rule format, not the complete config
+                addSimpleMapping(rule.kanataRule, to: &config)
             }
             
             // Generate and write the new config

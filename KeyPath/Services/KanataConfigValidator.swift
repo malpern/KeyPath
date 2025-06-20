@@ -49,11 +49,6 @@ class KanataConfigValidator {
                 suggestedFix: "Please describe your keyboard mapping, like 'caps lock to escape' or 'a to b'"
             ))
         }
-        
-        // Skip semantic validation for complete Kanata configs
-        if cleanRule.contains("(defsrc") && cleanRule.contains("(deflayer") {
-            return .success(true)
-        }
 
         // Validate simple "a -> b" format
         if cleanRule.contains(" -> ") {
@@ -149,14 +144,7 @@ class KanataConfigValidator {
             print("🔧 DEBUG: Parsed config - defsrc: \(parsedConfig.defsrc), deflayer: \(parsedConfig.deflayer)")
 
             // Add the rule using the config manager
-            // Check if this is a complete config or a simple rule
-            if rule.contains("(defsrc") && rule.contains("(deflayer") {
-                // It's a complete config, use addKanataRule instead
-                configManager.addKanataRule(rule, to: &parsedConfig)
-            } else {
-                // It's a simple rule
-                configManager.addSimpleMapping(rule, to: &parsedConfig)
-            }
+            configManager.addSimpleMapping(rule, to: &parsedConfig)
 
             print("🔧 DEBUG: After adding rule - defsrc: \(parsedConfig.defsrc), deflayer: \(parsedConfig.deflayer)")
 
