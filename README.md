@@ -75,9 +75,68 @@ KeyPath combines several technologies:
 - **Kanata** for low-level keyboard remapping
 - **Liquid Glass Effects** for visual polish
 
+### Design Philosophy: LLM-First Architecture
+
+KeyPath follows a deliberate design philosophy that leverages the LLM (Large Language Model) for all Kanata-specific logic rather than hardcoding it into the application. This approach ensures:
+
+1. **Future-Proof**: As Kanata evolves and adds new features, KeyPath automatically supports them without code changes
+2. **Maintainable**: No complex Kanata syntax rules to maintain in the codebase
+3. **Flexible**: Can handle edge cases and unusual configurations without updates
+4. **Simple**: The codebase remains focused on UI/UX and system integration
+
+#### What the LLM Handles:
+- **Rule Generation**: Converting natural language to Kanata syntax
+- **Syntax Validation**: Understanding valid Kanata configurations
+- **Error Correction**: Fixing invalid rules based on validation feedback
+- **Key Name Validation**: Knowing which key names are valid in Kanata
+- **Configuration Merging**: Understanding how to combine multiple rules
+- **Display Formatting**: Providing user-friendly descriptions of rules
+
+#### What the App Handles:
+- **System Integration**: File I/O, process management, permissions
+- **UI/UX**: Visual components, animations, user interactions
+- **External Validation**: Using the actual Kanata binary to validate configs
+- **State Management**: Tracking rules, history, and application state
+- **API Communication**: Managing the connection to the LLM
+
+This separation of concerns means that KeyPath can adapt to any changes in Kanata's syntax or capabilities without requiring application updates, as long as the LLM is aware of those changes.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Development Guidelines
+
+When contributing to KeyPath, please follow these principles:
+
+1. **Avoid Hardcoding Kanata Logic**: 
+   - ❌ Don't write functions that generate Kanata syntax
+   - ❌ Don't maintain lists of valid Kanata key names
+   - ❌ Don't implement Kanata configuration parsing logic
+   - ✅ Do use the LLM to handle all Kanata-specific operations
+
+2. **LLM Integration Pattern**:
+   ```swift
+   // Bad: Hardcoded logic
+   func generateTapHoldRule(key: String, tap: String, hold: String) -> String {
+       return "(defalias \(key) (tap-hold 200 200 \(tap) \(hold)))"
+   }
+   
+   // Good: LLM-driven logic
+   func generateRule(description: String) async -> KanataRule {
+       return try await llm.generateRule(from: description)
+   }
+   ```
+
+3. **Validation Approach**:
+   - Use the Kanata binary for final validation
+   - Let the LLM handle syntax understanding and error correction
+   - The app should only orchestrate, not interpret
+
+4. **Future Features**:
+   - New Kanata features should work automatically
+   - If they don't, update the LLM prompts, not the code
+   - Keep the codebase Kanata-agnostic where possible
 
 ## License
 
