@@ -33,9 +33,9 @@ struct CoreLogicSwiftTests {
             let history = RuleHistory()
 
             // Add more items than the limit
-            for i in 0..<25 {
-                let rule = createSampleRule(explanation: "Rule \(i)")
-                history.addRule(rule, backupPath: "/tmp/backup\(i).kbd")
+            for index in 0..<25 {
+                let rule = createSampleRule(explanation: "Rule \(index)")
+                history.addRule(rule, backupPath: "/tmp/backup\(index).kbd")
             }
 
             // Should not exceed the maximum limit (assuming 20 is the limit)

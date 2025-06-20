@@ -7,11 +7,9 @@ struct UserRuleManagerSwiftTests {
     var userRuleManager: UserRuleManager
 
     init() {
-        // Clear UserDefaults before each test
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
-
-        userRuleManager = UserRuleManager()
+        // Use isolated UserDefaults for testing - each test gets a clean slate
+        let testDefaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
+        userRuleManager = UserRuleManager(userDefaults: testDefaults)
     }
 
     // MARK: - UserRule Model Tests
@@ -100,23 +98,24 @@ struct UserRuleManagerSwiftTests {
 
     @Test("UserRuleManager loads persistent data")
     func userRuleManagerLoadsPersistentData() {
-        // Create some test data in UserDefaults
+        // Create isolated UserDefaults for this specific test
+        let testDefaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
+        
+        // Create some test data in isolated UserDefaults
         let kanataRule = createTestKanataRule(explanation: "Persistent rule")
         let userRule = UserRule(kanataRule: kanataRule)
 
         let encoder = JSONEncoder()
         if let data = try? encoder.encode([userRule]) {
-            UserDefaults.standard.set(data, forKey: "KeyPath.UserRules.Active")
+            testDefaults.set(data, forKey: "KeyPath.UserRules.Active")
         }
 
         // Create new manager instance to test loading
-        let newManager = UserRuleManager()
+        let newManager = UserRuleManager(userDefaults: testDefaults)
 
-        // Test that rules were loaded (might be 0 due to test environment issues)
-        #expect(newManager.activeRules.count >= 0)
-        if !newManager.activeRules.isEmpty {
-            #expect(newManager.activeRules[0].kanataRule.explanation == "Persistent rule")
-        }
+        // Test that rules were loaded
+        #expect(newManager.activeRules.count == 1)
+        #expect(newManager.activeRules[0].kanataRule.explanation == "Persistent rule")
     }
 
     // MARK: - Add Rule Tests
@@ -127,7 +126,7 @@ struct UserRuleManagerSwiftTests {
 
         await withCheckedContinuation { continuation in
             Task { @MainActor in
-                self.userRuleManager.addRule(kanataRule) { result in
+                userRuleManager.addRule(kanataRule) { result in
                     switch result {
                     case .success(let userRule):
                         #expect(userRule.kanataRule.explanation == "Add rule test")
@@ -175,20 +174,26 @@ struct UserRuleManagerSwiftTests {
 
     @Test("Persistence handles corrupted data gracefully")
     func corruptedPersistenceData() {
-        // Simulate corrupted data in UserDefaults
-        UserDefaults.standard.set("invalid json data", forKey: "KeyPath.UserRules.Active")
+        // Create isolated UserDefaults for this specific test
+        let testDefaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
+        
+        // Simulate corrupted data in isolated UserDefaults
+        testDefaults.set("invalid json data", forKey: "KeyPath.UserRules.Active")
 
         // Should handle gracefully and start with empty rules
-        let newManager = UserRuleManager()
+        let newManager = UserRuleManager(userDefaults: testDefaults)
         #expect(newManager.activeRules.isEmpty)
     }
 
     @Test("Persistence handles empty data gracefully")
     func emptyPersistenceData() {
+        // Create isolated UserDefaults for this specific test
+        let testDefaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
+        
         // Simulate empty data
-        UserDefaults.standard.set(Data(), forKey: "KeyPath.UserRules.Active")
+        testDefaults.set(Data(), forKey: "KeyPath.UserRules.Active")
 
-        let newManager = UserRuleManager()
+        let newManager = UserRuleManager(userDefaults: testDefaults)
         #expect(newManager.activeRules.isEmpty)
     }
 

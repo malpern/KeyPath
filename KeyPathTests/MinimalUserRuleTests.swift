@@ -4,6 +4,12 @@ import Foundation
 
 @Suite("Minimal UserRule Tests")
 struct MinimalUserRuleTests {
+    var isolatedUserDefaults: UserDefaults
+    
+    init() {
+        // Use isolated UserDefaults for testing - each test gets a clean slate
+        isolatedUserDefaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
+    }
 
     @Test("UserRule can be created")
     func userRuleCreation() {
@@ -54,19 +60,11 @@ struct MinimalUserRuleTests {
 
     @Test("UserRuleManager initializes empty")
     func userRuleManagerInit() {
-        // Clear any existing data
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
-
-        let manager = UserRuleManager()
+        let manager = UserRuleManager(userDefaults: isolatedUserDefaults)
 
         #expect(manager.activeRules.isEmpty)
         #expect(manager.allRules.isEmpty)
         #expect(manager.enabledRules.isEmpty)
-        
-        // Clean up
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
     }
 
     @Test("UserRule Codable conformance")
@@ -163,37 +161,21 @@ struct MinimalUserRuleTests {
 
     @Test("UserRuleManager persistence handles corrupted data")
     func persistenceCorruptedData() {
-        // Clear any existing data first
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
-        
-        // Set corrupted data in UserDefaults
-        UserDefaults.standard.set("invalid json data", forKey: "KeyPath.UserRules.Active")
+        // Set corrupted data in isolated UserDefaults
+        isolatedUserDefaults.set("invalid json data", forKey: "KeyPath.UserRules.Active")
 
         // Should handle gracefully and start with empty rules
-        let manager = UserRuleManager()
+        let manager = UserRuleManager(userDefaults: isolatedUserDefaults)
         #expect(manager.activeRules.isEmpty)
-
-        // Clean up
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
     }
 
     @Test("UserRuleManager persistence handles empty data")
     func persistenceEmptyData() {
-        // Clear any existing data first
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
+        // Set empty data in isolated UserDefaults
+        isolatedUserDefaults.set(Data(), forKey: "KeyPath.UserRules.Active")
 
-        // Set empty data
-        UserDefaults.standard.set(Data(), forKey: "KeyPath.UserRules.Active")
-
-        let manager = UserRuleManager()
+        let manager = UserRuleManager(userDefaults: isolatedUserDefaults)
         #expect(manager.activeRules.isEmpty)
-
-        // Clean up
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
     }
 
     @Test("RuleManagerError descriptions")
@@ -214,10 +196,6 @@ struct MinimalUserRuleTests {
 
     @Test("UserRuleManager loads persistent data from disk")
     func persistenceLoadData() {
-        // Clear any existing data first
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
-
         // Create test data
         let behavior = KanataBehavior.simpleRemap(from: "test", toKey: "persistent")
         let visualization = EnhancedRemapVisualization(
@@ -234,24 +212,18 @@ struct MinimalUserRuleTests {
 
         let userRule = UserRule(kanataRule: kanataRule)
 
-        // Manually save data to UserDefaults
+        // Manually save data to isolated UserDefaults
         let encoder = JSONEncoder()
         if let data = try? encoder.encode([userRule]) {
-            UserDefaults.standard.set(data, forKey: "KeyPath.UserRules.Active")
+            isolatedUserDefaults.set(data, forKey: "KeyPath.UserRules.Active")
         }
 
         // Create new manager to test loading
-        let manager = UserRuleManager()
+        let manager = UserRuleManager(userDefaults: isolatedUserDefaults)
 
-        // Verify that the manager successfully loaded the persistent data (may be 0 in test environment)
-        #expect(manager.activeRules.count >= 0)
-        if manager.activeRules.count > 0 {
-            #expect(manager.activeRules[0].kanataRule.explanation == "Persistent test rule")
-            #expect(manager.activeRules[0].isActive == true)
-        }
-
-        // Clean up
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Active")
-        UserDefaults.standard.removeObject(forKey: "KeyPath.UserRules.Deleted")
+        // Verify that the manager successfully loaded the persistent data
+        #expect(manager.activeRules.count == 1)
+        #expect(manager.activeRules[0].kanataRule.explanation == "Persistent test rule")
+        #expect(manager.activeRules[0].isActive == true)
     }
 }

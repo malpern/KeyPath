@@ -54,8 +54,10 @@ class UserRuleManager {
     private let activeRulesKey = "KeyPath.UserRules.Active"
     private let deletedRulesKey = "KeyPath.UserRules.Deleted"
     private let kanataInstaller = KanataInstaller()
+    private let userDefaults: UserDefaults
 
-    init() {
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
         loadRules()
         cleanupOldDeletedRules()
     }
@@ -194,25 +196,25 @@ class UserRuleManager {
 
     private func saveActiveRules() {
         if let encoded = try? JSONEncoder().encode(activeRules) {
-            UserDefaults.standard.set(encoded, forKey: activeRulesKey)
+            userDefaults.set(encoded, forKey: activeRulesKey)
         }
     }
 
     private func saveDeletedRules() {
         if let encoded = try? JSONEncoder().encode(deletedRules) {
-            UserDefaults.standard.set(encoded, forKey: deletedRulesKey)
+            userDefaults.set(encoded, forKey: deletedRulesKey)
         }
     }
 
     private func loadRules() {
         // Load active rules
-        if let data = UserDefaults.standard.data(forKey: activeRulesKey),
+        if let data = userDefaults.data(forKey: activeRulesKey),
            let decoded = try? JSONDecoder().decode([UserRule].self, from: data) {
             activeRules = decoded
         }
 
         // Load deleted rules
-        if let data = UserDefaults.standard.data(forKey: deletedRulesKey),
+        if let data = userDefaults.data(forKey: deletedRulesKey),
            let decoded = try? JSONDecoder().decode([DeletedRule].self, from: data) {
             deletedRules = decoded
         }
