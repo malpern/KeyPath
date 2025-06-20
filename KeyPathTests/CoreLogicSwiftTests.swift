@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import KeyPath
 
 // MARK: - Core Logic Test Tags
@@ -10,7 +11,7 @@ extension Tag {
 }
 
 @Suite("Core Logic Tests", .tags(.core, .business))
-struct CoreLogicTests {
+struct CoreLogicSwiftTests {
     
     @Suite("Rule History Management", .tags(.models))
     struct RuleHistoryTests {
@@ -284,7 +285,7 @@ struct CoreLogicTests {
 }
 
 // MARK: - Test Utilities
-private extension CoreLogicTests {
+private extension CoreLogicSwiftTests {
     
     static func createSampleRule(
         explanation: String = "Sample rule explanation",

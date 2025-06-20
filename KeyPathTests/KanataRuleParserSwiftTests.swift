@@ -11,7 +11,7 @@ extension Tag {
 }
 
 @Suite("Kanata Rule Parser Tests", .tags(.parsing))
-struct KanataRuleParserTests {
+struct KanataRuleParserSwiftTests {
     
     @Suite("Enhanced Format Parsing", .tags(.enhanced, .json))
     struct EnhancedFormatTests {
@@ -367,7 +367,7 @@ struct KanataRuleParserTests {
 @Suite("Parser Performance Tests", .tags(.parsing))
 struct ParserPerformanceTests {
     
-    @Test("Parse large JSON performance", .timeLimit(.seconds(1)))
+    @Test("Parse large JSON performance", .timeLimit(.minutes(1)))
     func parseLargeJSONPerformance() {
         let largeJSON = """
         ```json

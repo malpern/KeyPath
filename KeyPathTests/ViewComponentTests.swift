@@ -300,23 +300,14 @@ final class ViewComponentTests: XCTestCase {
         }
     }
     
-    // MARK: - ChatRole and ChatMessage Tests
+    // MARK: - KeyPathMessage Tests
     
-    func testChatMessageCreation() {
-        let message = ChatMessage(role: .user, text: "Test chat message")
+    func testKeyPathMessageCreation() {
+        let message = KeyPathMessage(role: .user, text: "Test chat message")
         
         XCTAssertEqual(message.role, .user)
-        XCTAssertEqual(message.text, "Test chat message")
+        XCTAssertEqual(message.displayText, "Test chat message")
         XCTAssertNotNil(message.id)
-    }
-    
-    func testChatMessageEquality() {
-        let message1 = ChatMessage(role: .user, text: "Test")
-        let message2 = ChatMessage(role: .user, text: "Test")
-        
-        // Messages should be equal only if they have the same ID
-        XCTAssertNotEqual(message1, message2) // Different IDs
-        XCTAssertEqual(message1, message1) // Same instance
     }
     
     // MARK: - Integration Tests

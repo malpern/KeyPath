@@ -14,7 +14,7 @@ struct KeyPathApp: App {
             KeyPathContentView()
         }
         .windowStyle(.hiddenTitleBar)
-        
+
         // Menu bar app - this creates the status bar item
         MenuBarExtra("KeyPath", systemImage: "keyboard") {
             MenuBarView()

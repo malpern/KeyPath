@@ -3,14 +3,14 @@ import Foundation
 
 struct KeyPathContentView: View {
     // MARK: - State Properties
-    
+
     // UI State
     @State private var messages: [KeyPathMessage] = []
     @State private var inputText: String = ""
     @State private var isResponding = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
-    
+
     // KeyPath specific state
     @State private var pendingRemappingDescription: String?
     @State private var showRulePreview = false
@@ -18,16 +18,16 @@ struct KeyPathContentView: View {
     @State private var showOnboarding = false
     @State private var securityManager = SecurityManager()
     @State private var ruleHistory = RuleHistory()
-    
+
     // Settings
     @AppStorage("useStreaming") private var useStreaming = AppSettings.useStreaming
     @AppStorage("temperature") private var temperature = AppSettings.temperature
     @AppStorage("systemInstructions") private var systemInstructions = ClaudePromptTemplates.systemInstructions
     @AppStorage("chatProvider") private var chatProvider = AppSettings.chatProvider
-    
+
     @State private var provider: ChatModelProvider?
     @State private var streamingTask: Task<Void, Never>?
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -36,20 +36,21 @@ struct KeyPathContentView: View {
                     SystemStatusView(securityManager: securityManager)
                         .padding()
                 }
-                
+
                 // Messages area
                 KeyPathChatMessagesView(
                     messages: messages,
                     isResponding: isResponding,
                     onInstallRule: handleInstallRule
                 )
-                
+
                 // Input field at bottom
                 inputField
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
             }
             .navigationTitle("KeyPath")
+            .toolbarTitleDisplayMode(.inline)
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
@@ -78,14 +79,14 @@ struct KeyPathContentView: View {
         }
         .onAppear {
             provider = makeProvider()
-            
+
             // Show welcome message if this is first launch
             if messages.isEmpty {
                 showWelcomeMessage()
             }
-            
+
             // Check if we should show onboarding
-            if !securityManager.canInstallRules() {
+            if !securityManager.canInstallRules() || !KeychainManager.shared.hasAPIKey() {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     showOnboarding = true
                 }
@@ -98,104 +99,115 @@ struct KeyPathContentView: View {
             resetConversation()
         }
     }
-    
+
     // MARK: - Subviews
-    
+
     private var inputField: some View {
         HStack(spacing: 12) {
             TextField("Describe your keyboard remapping...", text: $inputText, axis: .vertical)
                 .textFieldStyle(.plain)
+                .font(.body)
                 .lineLimit(1...5)
-                .frame(minHeight: 20)
+                .frame(minHeight: 24)
                 .disabled(isResponding)
                 .onSubmit {
                     if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         handleSendOrStop()
                     }
                 }
-            
+
             Button(action: handleSendOrStop) {
                 Image(systemName: isResponding ? "stop.circle.fill" : "arrow.up.circle.fill")
                     .font(.system(size: 28))
-                    .foregroundStyle(isSendButtonDisabled ? Color.gray : Color.blue)
+                    .foregroundColor(isSendButtonDisabled ? .secondary : .accentColor)
                     .symbolRenderingMode(.hierarchical)
             }
             .disabled(isSendButtonDisabled)
             .buttonStyle(.plain)
+            .animation(.easeInOut(duration: 0.2), value: isResponding)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.thickMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
         .overlay(
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.3),
-                            Color.clear
-                        ],
-                        startPoint: .top,
-                        endPoint: .center
-                    ),
-                    lineWidth: 1
-                )
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(.quaternary, lineWidth: 0.5)
         )
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
     }
-    
+
     private var isSendButtonDisabled: Bool {
         return inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isResponding
     }
-    
+
     // MARK: - KeyPath Specific Methods
-    
+
     private func handleInstallRule(_ rule: KanataRule) {
         // Directly install the rule since we already have it
         installRule(rule)
     }
-    
+
     private func installRule(_ rule: KanataRule) {
         let installer = KanataInstaller()
         let security = SecurityManager()
-        
+
+        print("🔧 DEBUG: installRule called with rule: \(rule.explanation)")
+        print("🔧 DEBUG: canInstallRules = \(security.canInstallRules())")
+        print("🔧 DEBUG: isKanataInstalled = \(security.isKanataInstalled)")
+        print("🔧 DEBUG: hasConfigAccess = \(security.hasConfigAccess)")
+
         // First check if Kanata is set up
         if !security.canInstallRules() {
             messages.append(KeyPathMessage(role: .assistant, text: "⚠️ Kanata setup required. Please check Settings for instructions."))
             return
         }
-        
+
         messages.append(KeyPathMessage(role: .assistant, text: "Validating rule..."))
-        
+
         // Validate the rule first
         installer.validateRule(rule.kanataRule) { result in
+            print("🔧 DEBUG: Validation result: \(result)")
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    print("🔧 DEBUG: Validation successful, now installing...")
                     self.updateLastMessage(with: "✓ Rule validated successfully. Installing...")
-                    
+
                     // Now install the rule
                     installer.installRule(rule) { installResult in
+                        print("🔧 DEBUG: Installation result: \(installResult)")
                         DispatchQueue.main.async {
                             switch installResult {
                             case .success(let backupPath):
+                                print("🔧 DEBUG: Installation successful, backup at: \(backupPath)")
                                 self.ruleHistory.addRule(rule, backupPath: backupPath)
-                                self.updateLastMessage(with: "✅ Rule installed successfully! \(rule.visualization.description)")
+                                self.updateLastMessage(with: "✅ Rule installed successfully! \(rule.visualization.description)\n\n💡 To apply the changes, restart Kanata or run: `sudo kanata --cfg ~/.config/kanata/kanata.kbd`")
+                                SoundManager.shared.playSound(.success)
                             case .failure(let error):
-                                self.updateLastMessage(with: "❌ Installation failed: \(error.localizedDescription)")
+                                print("🔧 DEBUG: Installation failed: \(error)")
+                                if let installError = error as? KanataInstaller.InstallError {
+                                    self.updateLastMessage(with: installError.userFriendlyMessage)
+                                } else {
+                                    self.updateLastMessage(with: "❌ Installation failed: \(error.localizedDescription)")
+                                }
                             }
                         }
                     }
-                    
+
                 case .failure(let error):
-                    self.updateLastMessage(with: "❌ Validation failed: \(error.localizedDescription)")
+                    print("🔧 DEBUG: Validation failed: \(error)")
+                    if let installError = error as? KanataInstaller.InstallError {
+                        self.handleValidationError(installError)
+                    } else {
+                        self.updateLastMessage(with: "❌ Validation failed: \(error.localizedDescription)")
+                    }
                 }
             }
         }
     }
-    
+
     // MARK: - Model Interaction
-    
+
     private func handleSendOrStop() {
         if isResponding {
             stopStreaming()
@@ -203,23 +215,23 @@ struct KeyPathContentView: View {
             sendMessage()
         }
     }
-    
+
     private func sendMessage() {
         isResponding = true
         let userMessage = KeyPathMessage(role: .user, text: inputText)
         messages.append(userMessage)
         inputText = ""
         messages.append(KeyPathMessage(role: .assistant, text: ""))
-        
+
         // Always create a fresh provider to ensure we have the latest API key
         provider = makeProvider()
-        
+
         guard let anthropicProvider = provider as? AnthropicModelProvider else {
             showError(message: "KeyPath requires Anthropic Claude")
             isResponding = false
             return
         }
-        
+
         // Use direct generation with full conversation history
         Task {
             do {
@@ -248,60 +260,135 @@ struct KeyPathContentView: View {
             }
         }
     }
-    
+
     private func stopStreaming() {
         streamingTask?.cancel()
     }
-    
+
     @MainActor
     private func updateLastMessage(with text: String) {
         if !messages.isEmpty {
             messages[messages.count - 1] = KeyPathMessage(role: .assistant, text: text)
         }
     }
-    
+
+    // MARK: - Error Recovery
+
+    private func handleValidationError(_ error: KanataInstaller.InstallError) {
+        let userMessage = error.userFriendlyMessage
+
+        if error.isRecoverable {
+            // For recoverable errors, provide helpful suggestions and try to auto-recover
+            self.updateLastMessage(with: userMessage + "\n\n🔄 KeyPath can try to fix this automatically. Would you like to:")
+
+            // Add recovery options based on error type
+            switch error {
+            case .recoverableValidationError(let errorMsg, let suggestedFix):
+                if errorMsg.contains("Invalid source key") || errorMsg.contains("Invalid target key") {
+                    self.suggestKeyCorrection(suggestedFix)
+                } else if errorMsg.contains("format") {
+                    self.suggestFormatCorrection(suggestedFix)
+                } else {
+                    self.updateLastMessage(with: userMessage)
+                }
+            default:
+                self.updateLastMessage(with: userMessage)
+            }
+        } else {
+            // For non-recoverable errors, provide clear guidance
+            self.updateLastMessage(with: userMessage)
+
+            // Auto-fix some common issues
+            switch error {
+            case .configDirectoryNotFound, .configFileNotFound:
+                self.autoFixKanataSetup()
+            default:
+                break
+            }
+        }
+    }
+
+    private func suggestKeyCorrection(_ suggestion: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.messages.append(KeyPathMessage(
+                role: .assistant,
+                text: "💡 \(suggestion)\n\nTry describing your mapping again, or ask me something like:\n• \"Map caps lock to escape\"\n• \"Make space key act as shift\"\n• \"Change a to b\""
+            ))
+        }
+    }
+
+    private func suggestFormatCorrection(_ suggestion: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.messages.append(KeyPathMessage(
+                role: .assistant,
+                text: "💡 \(suggestion)\n\nI understand natural language! You can say:\n• \"caps lock to escape\"\n• \"map a to b\"\n• \"space bar as shift key\""
+            ))
+        }
+    }
+
+    private func autoFixKanataSetup() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.updateLastMessage(with: "🔄 Setting up Kanata configuration automatically...")
+
+            let installer = KanataInstaller()
+            let setupResult = installer.checkKanataSetup()
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                switch setupResult {
+                case .success:
+                    self.updateLastMessage(with: "✅ Kanata setup complete! You can now create keyboard rules.")
+                case .failure(let setupError):
+                    self.updateLastMessage(with: "❌ Auto-setup failed: \(setupError.localizedDescription)")
+                }
+            }
+        }
+    }
+
     // MARK: - Session & Helpers
-    
+
     private func makeProvider() -> ChatModelProvider {
         // Always use Anthropic for KeyPath
         return AnthropicModelProvider(systemInstructions: ClaudePromptTemplates.systemInstructions, temperature: temperature)
     }
-    
+
     private func resetConversation() {
         stopStreaming()
         messages.removeAll()
         pendingRemappingDescription = nil
         generatedRule = nil
     }
-    
+
     private func undoLastRule() {
         guard let lastRule = ruleHistory.getLastRule() else { return }
-        
+
         let installer = KanataInstaller()
         messages.append(KeyPathMessage(role: .assistant, text: "Undoing last rule: \(lastRule.rule.visualization.description)..."))
-        
+
         installer.undoLastRule(backupPath: lastRule.backupPath) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
                     self.ruleHistory.removeLastRule()
-                    self.updateLastMessage(with: "✅ Successfully undid the last rule. Your keyboard has been restored.")
+                    self.updateLastMessage(with: "✅ Successfully undid the last rule. Your keyboard has been restored.\n\n💡 To apply the changes, restart Kanata or run: `sudo kanata --cfg ~/.config/kanata/kanata.kbd`")
+                    SoundManager.shared.playSound(.deactivation)
                 case .failure(let error):
                     self.updateLastMessage(with: "❌ Failed to undo: \(error.localizedDescription)")
                 }
             }
         }
     }
-    
+
     private func showWelcomeMessage() {
         // Show animated logo first
         let logoMessage = KeyPathMessage(role: .assistant, text: "LOGO_VIEW")
         messages.append(logoMessage)
-        
+
         // Then show welcome text after a brief delay to let logo animate
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             let welcomeText = """
-            Welcome to KeyPath! I can help you create custom keyboard remapping rules. Here's what I can do:
+            # Welcome to KeyPath!
+
+            I can help you create custom keyboard remapping rules. Here's what I can do:
 
             - **Simple substitutions**: "Map Caps Lock to Escape" or "5 to 2"
             - **Tap-hold**: "Space bar taps space, but holding it acts as Shift"
@@ -312,63 +399,63 @@ struct KeyPathContentView: View {
 
             Just describe what you want in plain English and I'll create the rule for you!
             """
-            
+
             let welcomeMessage = KeyPathMessage(role: .assistant, text: welcomeText)
             self.messages.append(welcomeMessage)
         }
     }
-    
+
     @MainActor
     private func showError(message: String) {
         self.errorMessage = message
         self.showErrorAlert = true
         self.isResponding = false
     }
-    
+
     private func getUserFriendlyErrorMessage(from error: Error) -> String {
         let errorString = error.localizedDescription.lowercased()
-        
+
         // Check for specific error patterns and provide helpful messages
         if errorString.contains("x-api-key") || errorString.contains("authentication") {
             return """
             API Key Missing or Invalid
-            
+
             To use KeyPath, you need to add your Anthropic API key:
-            
+
             1. Open Settings (⌘,)
             2. Enter your Anthropic API key
             3. If you don't have one, get it at:
                https://console.anthropic.com/
-            
+
             Your API key should start with 'sk-ant-api...'
             """
         } else if errorString.contains("network") || errorString.contains("connection") {
             return """
             Network Connection Error
-            
+
             Please check your internet connection and try again.
             If the problem persists, the Anthropic API may be temporarily unavailable.
             """
         } else if errorString.contains("rate limit") {
             return """
             Rate Limit Exceeded
-            
+
             You've made too many requests. Please wait a moment and try again.
             Consider upgrading your Anthropic plan for higher limits.
             """
         } else if errorString.contains("invalid request") || errorString.contains("bad request") {
             return """
             Invalid Request
-            
+
             There was a problem with your request. Please try rephrasing your keyboard remapping description.
             """
         } else {
             // Generic error with the actual error for debugging
             return """
             An error occurred while processing your request.
-            
+
             Error details: \(error.localizedDescription)
-            
+
             If this continues, please check:
             - Your API key in Settings (⌘,)
             - Your internet connection
@@ -382,7 +469,7 @@ struct KeyPathChatMessagesView: View {
     let messages: [KeyPathMessage]
     let isResponding: Bool
     let onInstallRule: (KanataRule) -> Void
-    
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {

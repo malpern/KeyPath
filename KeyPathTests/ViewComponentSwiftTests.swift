@@ -10,7 +10,7 @@ extension Tag {
 }
 
 @Suite("View Component Tests", .tags(.ui, .models))
-struct ViewComponentTests {
+struct ViewComponentSwiftTests {
     
     @Suite("KanataBehavior Tests", .tags(.behavior))
     struct KanataBehaviorTests {

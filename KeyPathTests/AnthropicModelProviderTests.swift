@@ -212,13 +212,13 @@ final class AnthropicModelProviderTests: XCTestCase {
         
         for error in errors {
             XCTAssertNotNil(error.localizedDescription)
-            XCTAssertFalse(error.localizedDescription!.isEmpty)
+            XCTAssertFalse(error.localizedDescription.isEmpty)
         }
         
         // Test specific error messages
         XCTAssertEqual(AnthropicModelProvider.Errors.invalidURL.localizedDescription, "Invalid endpoint URL.")
         XCTAssertEqual(AnthropicModelProvider.Errors.noDataReceived.localizedDescription, "No data received.")
-        XCTAssertTrue(AnthropicModelProvider.Errors.unexpectedResponse("test").localizedDescription!.contains("test"))
+        XCTAssertTrue(AnthropicModelProvider.Errors.unexpectedResponse("test").localizedDescription.contains("test"))
     }
     
     // MARK: - Integration Tests
@@ -269,6 +269,274 @@ final class AnthropicModelProviderTests: XCTestCase {
         XCTAssertTrue(ruleMessage.isRule)
         XCTAssertNotNil(ruleMessage.rule)
         XCTAssertEqual(ruleMessage.rule?.kanataRule, "(defalias a b)")
+    }
+    
+    // MARK: - Streaming Tests
+    
+    func testStreamingMessageSuccess() {
+        let expectation = self.expectation(description: "Streaming completion")
+        
+        // Mock SSE data
+        let sseData = """
+        data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello"}}
+        
+        data: {"type":"content_block_delta","delta":{"type":"text_delta","text":" world"}}
+        
+        data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}
+        
+        data: [DONE]
+        
+        """.data(using: .utf8)!
+        
+        mockURLSession.data = sseData
+        mockURLSession.response = HTTPURLResponse(
+            url: URL(string: "https://api.anthropic.com/v1/messages")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "text/event-stream"]
+        )
+        
+        var streamedContent = ""
+        let task = Task {
+            do {
+                try await provider.streamMessage("Test prompt") { chunk in
+                    streamedContent += chunk
+                }
+                expectation.fulfill()
+            } catch {
+                XCTFail("Streaming failed: \(error)")
+                expectation.fulfill()
+            }
+        }
+        
+        waitForExpectations(timeout: 5.0) { _ in
+            task.cancel()
+            XCTAssertEqual(streamedContent, "Hello world")
+        }
+    }
+    
+    func testStreamingNetworkError() {
+        let expectation = self.expectation(description: "Network error handling")
+        
+        mockURLSession.error = URLError(.networkConnectionLost)
+        
+        let task = Task {
+            do {
+                try await provider.streamMessage("Test prompt") { _ in }
+                XCTFail("Should have thrown network error")
+            } catch {
+                XCTAssertTrue(error is URLError)
+                expectation.fulfill()
+            }
+        }
+        
+        waitForExpectations(timeout: 2.0) { _ in
+            task.cancel()
+        }
+    }
+    
+    // MARK: - Conversation Flow Tests
+    
+    func testSendConversationMultipleMessages() {
+        let expectation = self.expectation(description: "Conversation completion")
+        
+        let messages = [
+            KeyPathMessage(role: .user, text: "Hello"),
+            KeyPathMessage(role: .assistant, text: "Hi there!"),
+            KeyPathMessage(role: .user, text: "Create a rule")
+        ]
+        
+        mockURLSession.data = """
+        {
+            "content": [{"text": "Generated rule response"}],
+            "role": "assistant"
+        }
+        """.data(using: .utf8)!
+        
+        mockURLSession.response = HTTPURLResponse(
+            url: URL(string: "https://api.anthropic.com/v1/messages")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )
+        
+        let task = Task {
+            do {
+                let response = try await provider.sendConversation(messages)
+                XCTAssertEqual(response, "Generated rule response")
+                expectation.fulfill()
+            } catch {
+                XCTFail("Conversation failed: \(error)")
+                expectation.fulfill()
+            }
+        }
+        
+        waitForExpectations(timeout: 2.0) { _ in
+            task.cancel()
+        }
+    }
+    
+    // MARK: - Error Handling Tests
+    
+    func testAPIKeyValidationError() {
+        // Create provider without API key
+        let noKeyProvider = AnthropicModelProvider(systemInstructions: "test", temperature: 0.7)
+        
+        mockURLSession.data = """
+        {
+            "type": "error",
+            "error": {
+                "type": "authentication_error",
+                "message": "Invalid API key"
+            }
+        }
+        """.data(using: .utf8)!
+        
+        mockURLSession.response = HTTPURLResponse(
+            url: URL(string: "https://api.anthropic.com/v1/messages")!,
+            statusCode: 401,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )
+        
+        let expectation = self.expectation(description: "API key error")
+        
+        let task = Task {
+            do {
+                _ = try await noKeyProvider.sendMessage("Test")
+                XCTFail("Should have thrown authentication error")
+            } catch {
+                XCTAssertTrue(error.localizedDescription.contains("authentication") || 
+                            error.localizedDescription.contains("API key"))
+                expectation.fulfill()
+            }
+        }
+        
+        waitForExpectations(timeout: 2.0) { _ in
+            task.cancel()
+        }
+    }
+    
+    func testRateLimitHandling() {
+        let expectation = self.expectation(description: "Rate limit handling")
+        
+        mockURLSession.data = """
+        {
+            "type": "error",
+            "error": {
+                "type": "rate_limit_error",
+                "message": "Rate limit exceeded"
+            }
+        }
+        """.data(using: .utf8)!
+        
+        mockURLSession.response = HTTPURLResponse(
+            url: URL(string: "https://api.anthropic.com/v1/messages")!,
+            statusCode: 429,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json", "Retry-After": "60"]
+        )
+        
+        let task = Task {
+            do {
+                _ = try await provider.sendMessage("Test")
+                XCTFail("Should have thrown rate limit error")
+            } catch {
+                XCTAssertTrue(error.localizedDescription.contains("rate limit") ||
+                            error.localizedDescription.contains("429"))
+                expectation.fulfill()
+            }
+        }
+        
+        waitForExpectations(timeout: 2.0) { _ in
+            task.cancel()
+        }
+    }
+    
+    func testMalformedJSONResponse() {
+        let expectation = self.expectation(description: "Malformed JSON handling")
+        
+        mockURLSession.data = "Invalid JSON response".data(using: .utf8)!
+        mockURLSession.response = HTTPURLResponse(
+            url: URL(string: "https://api.anthropic.com/v1/messages")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )
+        
+        let task = Task {
+            do {
+                _ = try await provider.sendMessage("Test")
+                XCTFail("Should have thrown JSON parsing error")
+            } catch {
+                XCTAssertTrue(error is AnthropicModelProvider.Errors)
+                expectation.fulfill()
+            }
+        }
+        
+        waitForExpectations(timeout: 2.0) { _ in
+            task.cancel()
+        }
+    }
+    
+    func testRequestTimeoutHandling() {
+        let expectation = self.expectation(description: "Timeout handling")
+        
+        mockURLSession.error = URLError(.timedOut)
+        
+        let task = Task {
+            do {
+                _ = try await provider.sendMessage("Test")
+                XCTFail("Should have thrown timeout error")
+            } catch {
+                XCTAssertTrue(error is URLError)
+                expectation.fulfill()
+            }
+        }
+        
+        waitForExpectations(timeout: 2.0) { _ in
+            task.cancel()
+        }
+    }
+    
+    func testLargePayloadHandling() {
+        let expectation = self.expectation(description: "Large payload handling")
+        
+        // Create a large conversation history
+        var messages: [KeyPathMessage] = []
+        for i in 0..<100 {
+            messages.append(KeyPathMessage(role: .user, text: "Message \(i) with some content"))
+            messages.append(KeyPathMessage(role: .assistant, text: "Response \(i) with detailed explanation"))
+        }
+        
+        mockURLSession.data = """
+        {
+            "content": [{"text": "Handled large payload successfully"}],
+            "role": "assistant"
+        }
+        """.data(using: .utf8)!
+        
+        mockURLSession.response = HTTPURLResponse(
+            url: URL(string: "https://api.anthropic.com/v1/messages")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )
+        
+        let task = Task {
+            do {
+                let response = try await provider.sendConversation(messages)
+                XCTAssertEqual(response, "Handled large payload successfully")
+                expectation.fulfill()
+            } catch {
+                XCTFail("Large payload handling failed: \(error)")
+                expectation.fulfill()
+            }
+        }
+        
+        waitForExpectations(timeout: 5.0) { _ in
+            task.cancel()
+        }
     }
     
     // MARK: - Private Helper Methods

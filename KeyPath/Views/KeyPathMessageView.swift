@@ -8,10 +8,10 @@ struct FormattedLine {
 func formatTextWithBullets(_ text: String) -> [FormattedLine] {
     let lines = text.components(separatedBy: .newlines)
     var result: [FormattedLine] = []
-    
+
     for line in lines {
         let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-        
+
         if trimmedLine.isEmpty {
             // Empty line - add some spacing
             result.append(FormattedLine(view: AnyView(Spacer().frame(height: 4))))
@@ -39,7 +39,7 @@ func formatTextWithBullets(_ text: String) -> [FormattedLine] {
             }
         }
     }
-    
+
     return result
 }
 
@@ -47,16 +47,18 @@ struct KeyPathMessageView: View {
     let message: KeyPathMessage
     let isResponding: Bool
     let onInstallRule: ((KanataRule) -> Void)?
-    
+
     var body: some View {
         HStack {
             if message.role == .user {
                 Spacer()
                 Text(message.displayText)
-                    .padding(12)
-                    .foregroundColor(.white)
-                    .background(.blue)
-                    .clipShape(.rect(cornerRadius: 18))
+                    .font(.body)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(.white)
+                    .background(.tint)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     if message.displayText.isEmpty && isResponding {
@@ -82,9 +84,15 @@ struct KeyPathMessageView: View {
                                 .textSelection(.enabled)
                             } else if let attributedString = try? AttributedString(markdown: text) {
                                 Text(attributedString)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                    .lineSpacing(2)
                                     .textSelection(.enabled)
                             } else {
                                 Text(text)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                    .lineSpacing(2)
                                     .textSelection(.enabled)
                             }
                         case .rule(let rule):
@@ -96,7 +104,7 @@ struct KeyPathMessageView: View {
                         }
                     }
                 }
-                .padding(.vertical, message.role == .assistant ? 2 : 8)
+                .padding(.vertical, message.role == .assistant ? 4 : 8)
                 Spacer()
             }
         }
@@ -107,7 +115,7 @@ struct KeyPathMessageView: View {
 /// Animated loading indicator shown while AI is generating a response
 struct PulsingDotView: View {
     @State private var isAnimating = false
-    
+
     var body: some View {
         HStack(spacing: 6) {
             ForEach(0..<3) { index in

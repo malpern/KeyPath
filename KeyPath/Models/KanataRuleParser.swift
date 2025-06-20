@@ -10,23 +10,23 @@ extension KanataRule {
             // Fallback to old format
             return parseOldFormat(from: text)
         }
-        
+
         let jsonString = String(text[range])
         guard let jsonData = jsonString.data(using: .utf8) else {
             return parseOldFormat(from: text)
         }
-        
+
         let decoder = JSONDecoder()
-        
+
         // Try to decode the new enhanced format
         if let enhancedRule = try? decoder.decode(EnhancedKanataRule.self, from: jsonData) {
             return enhancedRule.toKanataRule()
         }
-        
+
         // Fallback to old format
         return parseOldFormat(from: text)
     }
-    
+
     private static func parseOldFormat(from text: String) -> KanataRule? {
         // Try to parse the old simple format
         let pattern = "```json\\s*([\\s\\S]*?)\\s*```"
@@ -35,23 +35,23 @@ extension KanataRule {
               let range = Range(match.range(at: 1), in: text) else {
             return nil
         }
-        
+
         let jsonString = String(text[range])
         guard let jsonData = jsonString.data(using: .utf8) else {
             return nil
         }
-        
+
         do {
             let decoder = JSONDecoder()
             let oldRule = try decoder.decode(OldKanataRule.self, from: jsonData)
-            
+
             // Convert to new format
             let enhancedVisualization = EnhancedRemapVisualization(
                 behavior: .simpleRemap(from: oldRule.visualization.from, toKey: oldRule.visualization.toKey),
                 title: "Simple Remap",
                 description: "Maps \(oldRule.visualization.from) to \(oldRule.visualization.toKey)"
             )
-            
+
             return KanataRule(
                 visualization: enhancedVisualization,
                 kanataRule: oldRule.kanataRule,
@@ -71,14 +71,14 @@ private struct EnhancedKanataRule: Codable {
     let kanataRule: String
     let confidence: KanataRule.Confidence
     let explanation: String
-    
+
     enum CodingKeys: String, CodingKey {
         case visualization
         case kanataRule = "kanata_rule"
         case confidence
         case explanation
     }
-    
+
     func toKanataRule() -> KanataRule {
         return KanataRule(
             visualization: visualization.toEnhancedRemapVisualization(),
@@ -93,7 +93,7 @@ private struct EnhancedVisualizationData: Codable {
     let behavior: BehaviorData
     let title: String
     let description: String
-    
+
     func toEnhancedRemapVisualization() -> EnhancedRemapVisualization {
         return EnhancedRemapVisualization(
             behavior: behavior.toKanataBehavior(),
@@ -106,7 +106,7 @@ private struct EnhancedVisualizationData: Codable {
 private struct BehaviorData: Codable {
     let type: String
     let data: [String: AnyCodable]
-    
+
     func toKanataBehavior() -> KanataBehavior {
         print("DEBUG: Parsing behavior type: '\(type)', data: \(data)")
         switch type {
@@ -114,14 +114,14 @@ private struct BehaviorData: Codable {
             let from = data["from"]?.stringValue ?? ""
             let toKey = data["toKey"]?.stringValue ?? data["to"]?.stringValue ?? ""
             return .simpleRemap(from: from, toKey: toKey)
-            
+
         case "tapHold":
             let key = data["key"]?.stringValue ?? ""
             let tap = data["tap"]?.stringValue ?? data["tapAction"]?.stringValue ?? ""
             let hold = data["hold"]?.stringValue ?? data["holdAction"]?.stringValue ?? ""
             print("DEBUG: tapHold - key: '\(key)', tap: '\(tap)', hold: '\(hold)'")
             return .tapHold(key: key, tap: tap, hold: hold)
-            
+
         case "tapDance":
             let key = data["key"]?.stringValue ?? ""
             let actionsData = data["actions"]?.arrayValue ?? []
@@ -140,17 +140,17 @@ private struct BehaviorData: Codable {
                 print("DEBUG: tapDance action - tapCount: \(action.tapCount), action: '\(action.action)', description: '\(action.description)'")
             }
             return .tapDance(key: key, actions: actions)
-            
+
         case "sequence":
             let trigger = data["trigger"]?.stringValue ?? ""
             let sequence = data["sequence"]?.arrayValue.compactMap { $0.stringValue } ?? []
             return .sequence(trigger: trigger, sequence: sequence)
-            
+
         case "combo":
             let keys = data["keys"]?.arrayValue.compactMap { $0.stringValue } ?? []
             let result = data["result"]?.stringValue ?? ""
             return .combo(keys: keys, result: result)
-            
+
         case "layer":
             let key = data["key"]?.stringValue ?? ""
             let layerName = data["layerName"]?.stringValue ?? ""
@@ -162,7 +162,7 @@ private struct BehaviorData: Codable {
                 }
             }
             return .layer(key: key, layerName: layerName, mappings: mappings)
-            
+
         default:
             // Fallback to simple remap
             print("DEBUG: Unknown behavior type '\(type)' - falling back to Unknown/Unknown")
@@ -177,7 +177,7 @@ private struct OldKanataRule: Codable {
     let kanataRule: String
     let confidence: KanataRule.Confidence
     let explanation: String
-    
+
     enum CodingKeys: String, CodingKey {
         case visualization
         case kanataRule = "kanata_rule"
@@ -189,30 +189,30 @@ private struct OldKanataRule: Codable {
 // Helper for dynamic JSON parsing
 private struct AnyCodable: Codable {
     let value: Any
-    
+
     var stringValue: String? {
         return value as? String
     }
-    
+
     var intValue: Int? {
         return value as? Int
     }
-    
+
     var arrayValue: [AnyCodable] {
         return (value as? [Any])?.map { AnyCodable(value: $0) } ?? []
     }
-    
+
     var dictionaryValue: [String: AnyCodable] {
         return (value as? [String: Any])?.mapValues { AnyCodable(value: $0) } ?? [:]
     }
-    
+
     init(value: Any) {
         self.value = value
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        
+
         if let string = try? container.decode(String.self) {
             value = string
         } else if let int = try? container.decode(Int.self) {
@@ -229,10 +229,10 @@ private struct AnyCodable: Codable {
             throw DecodingError.typeMismatch(AnyCodable.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Unsupported type"))
         }
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        
+
         if let string = value as? String {
             try container.encode(string)
         } else if let int = value as? Int {

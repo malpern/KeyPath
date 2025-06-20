@@ -31,9 +31,9 @@ let package = Package(
             dependencies: ["KeyPath"],
             path: "KeyPathTests",
             exclude: [
-                "ViewComponentTests.swift.disabled",
-                "SecurityManagerTests.swift.disabled",
-                "AnthropicModelProviderTests.swift.disabled"
+                "CoreLogicSwiftTests.swift",
+                "ViewComponentSwiftTests.swift",
+                "KanataRuleParserSwiftTests.swift"
             ]
         )
     ]

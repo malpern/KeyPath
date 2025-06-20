@@ -5,13 +5,13 @@ struct KanataRule: Codable {
     let kanataRule: String
     let confidence: Confidence
     let explanation: String
-    
+
     enum Confidence: String, Codable {
         case high
         case medium
         case low
     }
-    
+
     enum CodingKeys: String, CodingKey {
         case visualization
         case kanataRule = "kanata_rule"
@@ -24,7 +24,7 @@ struct KanataRule: Codable {
 struct RemapVisualization: Codable {
     let from: String
     let toKey: String
-    
+
     // Convert to enhanced visualization
     var enhanced: EnhancedRemapVisualization {
         return EnhancedRemapVisualization(

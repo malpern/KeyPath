@@ -9,7 +9,7 @@ enum KanataBehavior: Codable {
     case layer(key: String, layerName: String, mappings: [String: String])
 }
 
-struct TapDanceAction: Codable {
+struct TapDanceAction: Codable, Equatable {
     let tapCount: Int
     let action: String
     let description: String
@@ -38,7 +38,7 @@ extension KanataBehavior {
             return key
         }
     }
-    
+
     var behaviorType: String {
         switch self {
         case .simpleRemap:

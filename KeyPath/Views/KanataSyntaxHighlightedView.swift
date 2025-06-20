@@ -3,7 +3,7 @@ import SwiftUI
 struct KanataSyntaxHighlightedView: View {
     let code: String
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             highlightedCode
@@ -14,8 +14,8 @@ struct KanataSyntaxHighlightedView: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(colorScheme == .dark ? 
-                      Color(NSColor.textBackgroundColor) : 
+                .fill(colorScheme == .dark ?
+                      Color(NSColor.textBackgroundColor) :
                       Color.gray.opacity(0.05))
         )
         .overlay(
@@ -25,25 +25,24 @@ struct KanataSyntaxHighlightedView: View {
                        Color.black.opacity(0.15), lineWidth: 1)
         )
     }
-    
-    private var highlightedCode: Text {
+
+    private var highlightedCode: some View {
         let tokens = tokenize(code)
-        var result = Text("")
-        
-        for token in tokens {
-            result = result + Text(token.text)
-                .foregroundColor(color(for: token.type))
+
+        return HStack(spacing: 0) {
+            ForEach(Array(tokens.enumerated()), id: \.offset) { _, token in
+                Text(token.text)
+                    .foregroundColor(color(for: token.type))
+            }
         }
-        
-        return result
     }
-    
+
     private func tokenize(_ code: String) -> [Token] {
         var tokens: [Token] = []
         var currentWord = ""
         var inString = false
         var inComment = false
-        
+
         for char in code {
             if inComment {
                 currentWord.append(char)
@@ -89,19 +88,19 @@ struct KanataSyntaxHighlightedView: View {
                 currentWord.append(char)
             }
         }
-        
+
         if !currentWord.isEmpty {
             tokens.append(Token(text: currentWord, type: determineType(currentWord)))
         }
-        
+
         return tokens
     }
-    
+
     private func determineType(_ word: String) -> TokenType {
-        let keywords = ["defsrc", "deflayer", "defalias", "defcfg", "defseq", "defchords", 
-                       "tap-hold", "tap-dance", "multi-tap", "macro", "layer-toggle", 
+        let keywords = ["defsrc", "deflayer", "defalias", "defcfg", "defseq", "defchords",
+                       "tap-hold", "tap-dance", "multi-tap", "macro", "layer-toggle",
                        "layer-switch", "around", "cmd", "alt", "ctrl", "shift", "met"]
-        
+
         if keywords.contains(word.lowercased()) {
             return .keyword
         } else if word.starts(with: "@") {
@@ -112,7 +111,7 @@ struct KanataSyntaxHighlightedView: View {
             return .identifier
         }
     }
-    
+
     private func color(for type: TokenType) -> Color {
         switch type {
         case .keyword:
@@ -133,12 +132,12 @@ struct KanataSyntaxHighlightedView: View {
             return Color.primary
         }
     }
-    
+
     private struct Token {
         let text: String
         let type: TokenType
     }
-    
+
     private enum TokenType {
         case keyword
         case string
@@ -155,10 +154,10 @@ struct KanataSyntaxHighlightedView: View {
     VStack(spacing: 20) {
         KanataSyntaxHighlightedView(code: "(defsrc caps) (deflayer base esc)")
             .padding()
-        
+
         KanataSyntaxHighlightedView(code: "(defsrc spc) (deflayer base (tap-hold 200 200 spc lsft))")
             .padding()
-        
+
         KanataSyntaxHighlightedView(code: """
             ;; Multi-tap example
             (defsrc f)

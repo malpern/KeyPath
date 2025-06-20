@@ -3,7 +3,7 @@ import AppKit
 
 class SettingsWindowController: NSWindowController {
     static let shared = SettingsWindowController()
-    
+
     private init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
@@ -14,14 +14,14 @@ class SettingsWindowController: NSWindowController {
         window.title = "KeyPath Settings"
         window.center()
         window.contentView = NSHostingView(rootView: SettingsWindowView())
-        
+
         super.init(window: window)
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func showWindow(_ sender: Any?) {
         super.showWindow(sender)
         window?.makeKeyAndOrderFront(nil)
@@ -31,12 +31,12 @@ class SettingsWindowController: NSWindowController {
 
 struct SettingsWindowView: View {
     @State private var selectedTab: SettingsTab = .rules
-    
+
     enum SettingsTab: String, CaseIterable {
         case rules = "Rules"
         case general = "General"
         case advanced = "Advanced"
-        
+
         var icon: String {
             switch self {
             case .rules: return "list.bullet"
@@ -45,7 +45,7 @@ struct SettingsWindowView: View {
             }
         }
     }
-    
+
     var body: some View {
         HSplitView {
             // Sidebar
@@ -54,9 +54,9 @@ struct SettingsWindowView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
                     .padding()
-                
+
                 Divider()
-                
+
                 VStack(spacing: 0) {
                     ForEach(SettingsTab.allCases, id: \.self) { tab in
                         Button(action: { selectedTab = tab }) {
@@ -74,12 +74,12 @@ struct SettingsWindowView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
-                
+
                 Spacer()
             }
             .frame(minWidth: 200, maxWidth: 200)
             .background(Color(NSColor.controlBackgroundColor))
-            
+
             // Main content
             Group {
                 switch selectedTab {
@@ -100,7 +100,7 @@ struct RulesSettingsView: View {
     @State private var mockRules = MockRuleData.sampleRules
     @State private var selectedRule: MockRule?
     @State private var ruleHistory = RuleHistory()
-    
+
     var body: some View {
         if let selectedRule = selectedRule {
             RuleDetailView(
@@ -119,9 +119,9 @@ struct RulesSettingsView: View {
                     Text("Active Rules")
                         .font(.title2)
                         .fontWeight(.semibold)
-                    
+
                     Spacer()
-                    
+
                     if !ruleHistory.items.isEmpty {
                         Button(action: undoLastRule) {
                             HStack {
@@ -131,15 +131,15 @@ struct RulesSettingsView: View {
                         }
                         .buttonStyle(.bordered)
                     }
-                    
+
                     Text("\(mockRules.filter(\.isActive).count) of \(mockRules.count) active")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 .padding()
-                
+
                 Divider()
-                
+
                 // Rules list
                 ScrollView {
                     LazyVStack(spacing: 8) {
@@ -157,12 +157,12 @@ struct RulesSettingsView: View {
             }
         }
     }
-    
+
     private func undoLastRule() {
         guard let lastRule = ruleHistory.getLastRule() else { return }
-        
+
         let installer = KanataInstaller()
-        
+
         installer.undoLastRule(backupPath: lastRule.backupPath) { result in
             DispatchQueue.main.async {
                 switch result {
@@ -184,7 +184,7 @@ struct RuleDetailView: View {
     let onUpdate: (MockRule) -> Void
     @State private var isEditingName = false
     @State private var editedName = ""
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             // Header with back button
@@ -196,9 +196,9 @@ struct RuleDetailView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                
+
                 Spacer()
-                
+
                 // Rule name (editable)
                 if isEditingName {
                     TextField("Rule name", text: $editedName, onCommit: {
@@ -223,9 +223,9 @@ struct RuleDetailView: View {
                 }
             }
             .padding()
-            
+
             Divider()
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     // Large visualization with demo button
@@ -242,7 +242,7 @@ struct RuleDetailView: View {
                                     )
                             )
                     }
-                    
+
                     // Description
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Description")
@@ -250,12 +250,12 @@ struct RuleDetailView: View {
                         Text(rule.explanation)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     // Kanata code with syntax highlighting
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Kanata Configuration")
                             .font(.headline)
-                        
+
                         ScrollView(.horizontal, showsIndicators: false) {
                             Text(rule.kanataCode)
                                 .font(.system(.body, design: .monospaced))
@@ -281,7 +281,7 @@ struct RuleRowView: View {
     let onToggle: () -> Void
     let onDelete: () -> Void
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -295,7 +295,7 @@ struct RuleRowView: View {
                 .onTapGesture {
                     onToggle()
                 }
-                
+
                 // Rule name and visualization
                 VStack(alignment: .leading, spacing: 8) {
                     Text(rule.name)
@@ -303,11 +303,11 @@ struct RuleRowView: View {
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     CompactRuleVisualizer(behavior: rule.behavior, explanation: rule.explanation)
                         .opacity(rule.isActive ? 1.0 : 0.6)
                 }
-                
+
                 // Delete button
                 Button(action: onDelete) {
                     Image(systemName: "trash")
@@ -338,7 +338,7 @@ struct RuleRowView: View {
 struct GeneralSettingsView: View {
     @State private var securityManager = SecurityManager()
     @State private var showOnboarding = false
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             Text("General Settings")
@@ -346,15 +346,15 @@ struct GeneralSettingsView: View {
                 .fontWeight(.semibold)
                 .padding(.horizontal)
                 .padding(.top)
-            
+
             Divider()
-            
+
             VStack(alignment: .leading, spacing: 16) {
                 // Setup and Security Section
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Setup & Security")
                         .font(.headline)
-                    
+
                     HStack {
                         Button(action: { showOnboarding = true }) {
                             HStack {
@@ -363,9 +363,9 @@ struct GeneralSettingsView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        
+
                         Spacer()
-                        
+
                         Button(action: {
                             securityManager.forceRefresh()
                         }) {
@@ -377,14 +377,14 @@ struct GeneralSettingsView: View {
                         .buttonStyle(.bordered)
                     }
                 }
-                
+
                 Divider()
-                
+
                 // Chat Management Section
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Chat Management")
                         .font(.headline)
-                    
+
                     Button(action: {
                         // This would need to be connected to the main view's reset function
                         // For now, it's a placeholder
@@ -395,12 +395,12 @@ struct GeneralSettingsView: View {
                         }
                     }
                     .buttonStyle(.bordered)
-                    
+
                     Text("Note: Use Cmd+N or menu bar to start a new chat")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
             }
             .padding(.horizontal)
@@ -422,8 +422,8 @@ struct AdvancedSettingsView: View {
     @AppStorage("chatProvider") private var chatProvider = AppSettings.chatProvider
     @State private var anthropicAPIKey = ""
     @State private var showAPIKey = false
-    @State private var saveError: String? = nil
-    
+    @State private var saveError: String?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -432,20 +432,20 @@ struct AdvancedSettingsView: View {
                     .fontWeight(.semibold)
                     .padding(.horizontal)
                     .padding(.top)
-                
+
                 Divider()
-                
+
                 // API Configuration
                 VStack(alignment: .leading, spacing: 16) {
                     Text("API Configuration")
                         .font(.headline)
                         .padding(.horizontal)
-                    
+
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Anthropic API Key")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         HStack {
                             if showAPIKey {
                                 TextField("sk-ant-api...", text: $anthropicAPIKey)
@@ -461,13 +461,13 @@ struct AdvancedSettingsView: View {
                             .buttonStyle(.plain)
                         }
                         .help("Your Anthropic API key. Get one at https://console.anthropic.com/")
-                        
+
                         if let error = saveError {
                             Label(error, systemImage: "exclamationmark.triangle")
                                 .foregroundColor(.red)
                                 .font(.caption)
                         }
-                        
+
                         if anthropicAPIKey.isEmpty {
                             Label("API key required for KeyPath to work", systemImage: "exclamationmark.triangle")
                                 .foregroundColor(.orange)
@@ -480,24 +480,24 @@ struct AdvancedSettingsView: View {
                                     .font(.caption)
                             }
                         }
-                        
+
                         Link("Get an API key from Anthropic", destination: URL(string: "https://console.anthropic.com/")!)
                             .font(.caption)
                     }
                     .padding(.horizontal)
                 }
-                
+
                 Divider()
-                
+
                 // Generation Settings
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Generation Settings")
                         .font(.headline)
                         .padding(.horizontal)
-                    
+
                     VStack(alignment: .leading, spacing: 12) {
                         Toggle("Stream Responses", isOn: $useStreaming)
-                        
+
                         VStack(alignment: .leading) {
                             Text("Temperature: \(temperature, specifier: "%.2f")")
                             Slider(value: $temperature, in: 0.0...2.0, step: 0.1)
@@ -506,7 +506,7 @@ struct AdvancedSettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                         .padding(.vertical, 4)
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             Text("System Instructions")
                                 .font(.subheadline)
@@ -521,7 +521,7 @@ struct AdvancedSettingsView: View {
                     }
                     .padding(.horizontal)
                 }
-                
+
                 Spacer(minLength: 20)
             }
         }
@@ -532,7 +532,7 @@ struct AdvancedSettingsView: View {
                 anthropicAPIKey = keychainKey
             }
         }
-        .onChange(of: anthropicAPIKey) { oldValue, newValue in
+        .onChange(of: anthropicAPIKey) { _, newValue in
             // Save to Keychain when API key changes
             if !newValue.isEmpty {
                 do {

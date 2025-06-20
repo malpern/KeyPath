@@ -1,5 +1,5 @@
 import XCTest
-@testable import KeyPathCore
+@testable import KeyPath
 
 final class CoreLogicTests: XCTestCase {
     

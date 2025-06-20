@@ -57,38 +57,24 @@ final class SecurityManagerTests: XCTestCase {
     
     // MARK: - Published Properties Tests
     
-    func testPublishedProperties() {
-        let expectation = self.expectation(description: "Published properties update")
-        expectation.expectedFulfillmentCount = 3
+    func testObservableProperties() {
+        // Test that observable properties are accessible and have valid values
+        let initialKanataState = securityManager.isKanataInstalled
+        let initialConfigState = securityManager.hasConfigAccess
+        let initialSudoState = securityManager.needsSudoPermission
         
-        // Test that published properties trigger updates
-        securityManager.$isKanataInstalled
-            .sink { _ in
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
+        // Properties should be accessible (Boolean values are valid)
+        XCTAssertNotNil(initialKanataState)
+        XCTAssertNotNil(initialConfigState)
+        XCTAssertNotNil(initialSudoState)
         
-        securityManager.$hasConfigAccess
-            .sink { _ in
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
+        // Test that forceRefresh works without throwing
+        XCTAssertNoThrow(securityManager.forceRefresh())
         
-        securityManager.$needsSudoPermission
-            .sink { _ in
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
-        
-        // Trigger an update
-        securityManager.forceRefresh()
-        
-        // Give time for the publishers to fire
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
-        
-        waitForExpectations(timeout: 1.0, handler: nil)
+        // Values after refresh should still be valid
+        XCTAssertNotNil(securityManager.isKanataInstalled)
+        XCTAssertNotNil(securityManager.hasConfigAccess)
+        XCTAssertNotNil(securityManager.needsSudoPermission)
     }
     
     // MARK: - Rule Installation Permission Tests

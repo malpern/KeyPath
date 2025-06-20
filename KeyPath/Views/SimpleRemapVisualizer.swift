@@ -3,11 +3,11 @@ import SwiftUI
 struct SimpleRemapVisualizer: View {
     let visualization: RemapVisualization
     @State private var animateArrow = false
-    
+
     var body: some View {
         HStack(spacing: 32) {
             KeycapView(label: visualization.from, isSource: true)
-            
+
             ZStack {
                 // Arrow with animation
                 Image(systemName: "arrow.right")
@@ -26,7 +26,7 @@ struct SimpleRemapVisualizer: View {
                         value: animateArrow
                     )
             }
-            
+
             KeycapView(label: visualization.toKey, isSource: false)
         }
         .padding(.vertical, 20)
@@ -39,23 +39,23 @@ struct SimpleRemapVisualizer: View {
 struct KeycapView: View {
     let label: String
     let isSource: Bool
-    
+
     @State private var isPressed = false
     @Environment(\.colorScheme) var colorScheme
-    
+
     private var keyColor: Color {
         if isSource {
-            return colorScheme == .dark ? 
-                Color(red: 0.3, green: 0.3, blue: 0.3) : 
+            return colorScheme == .dark ?
+                Color(red: 0.3, green: 0.3, blue: 0.3) :
                 Color(red: 0.5, green: 0.5, blue: 0.5)
         } else {
             // Use a more vibrant color for destination with better contrast
-            return colorScheme == .dark ? 
-                Color.accentColor : 
+            return colorScheme == .dark ?
+                Color.accentColor :
                 Color.accentColor.opacity(0.9)
         }
     }
-    
+
     private var labelColor: Color {
         if isSource {
             return .white
@@ -64,7 +64,7 @@ struct KeycapView: View {
             return colorScheme == .dark ? .white : .white
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Key cap
@@ -73,7 +73,7 @@ struct KeycapView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.black.opacity(0.3))
                     .offset(y: isPressed ? 1 : 4)
-                
+
                 // Main key
                 RoundedRectangle(cornerRadius: 12)
                     .fill(keyColor)
@@ -91,7 +91,7 @@ struct KeycapView: View {
                                 lineWidth: 1
                             )
                     )
-                
+
                 // Highlight
                 LinearGradient(
                     colors: [
@@ -103,7 +103,7 @@ struct KeycapView: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(2)
-                
+
                 // Label
                 Text(label)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
@@ -136,14 +136,14 @@ struct KeycapView: View {
                 toKey: "Escape"
             )
         )
-        
+
         SimpleRemapVisualizer(
             visualization: RemapVisualization(
                 from: "Right Cmd",
                 toKey: "Enter"
             )
         )
-        
+
         SimpleRemapVisualizer(
             visualization: RemapVisualization(
                 from: "F1",

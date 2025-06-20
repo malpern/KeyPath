@@ -34,15 +34,15 @@ enum AppSettings {
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     var onDismiss: (() -> Void)?
-    
+
     @AppStorage("useStreaming") private var useStreaming = AppSettings.useStreaming
     @AppStorage("temperature") private var temperature = AppSettings.temperature
     @AppStorage("systemInstructions") private var systemInstructions = AppSettings.systemInstructions
     @AppStorage("chatProvider") private var chatProvider = AppSettings.chatProvider
     @State private var anthropicAPIKey = ""
     @State private var showAPIKey = false
-    @State private var saveError: String? = nil
-    
+    @State private var saveError: String?
+
     var body: some View {
         NavigationStack {
             Form {
@@ -62,13 +62,13 @@ struct SettingsView: View {
                         }
                     }
                     .help("Your Anthropic API key. Get one at https://console.anthropic.com/")
-                    
+
                     if let error = saveError {
                         Label(error, systemImage: "exclamationmark.triangle")
                             .foregroundColor(.red)
                             .font(.caption)
                     }
-                    
+
                     if anthropicAPIKey.isEmpty {
                         Label("API key required for KeyPath to work", systemImage: "exclamationmark.triangle")
                             .foregroundColor(.orange)
@@ -82,7 +82,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 Section("Generation") {
                     Toggle("Stream Responses", isOn: $useStreaming)
                     VStack(alignment: .leading) {
@@ -97,7 +97,7 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                 }
-                
+
                 Section("System Instructions") {
                     TextEditor(text: $systemInstructions)
                         .frame(minHeight: 100)
@@ -120,7 +120,7 @@ struct SettingsView: View {
                 anthropicAPIKey = keychainKey
             }
         }
-        .onChange(of: anthropicAPIKey) { oldValue, newValue in
+        .onChange(of: anthropicAPIKey) { _, newValue in
             // Save to Keychain when API key changes
             if !newValue.isEmpty {
                 do {

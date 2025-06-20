@@ -1,24 +1,34 @@
 import Foundation
 
 class AnthropicModelProvider: ChatModelProvider {
-    private let apiKey: String
+    private var _apiKey: String?
     private let model: String = "claude-3-5-sonnet-20241022"
     private let endpoint: String = "https://api.anthropic.com/v1/messages"
     private let temperature: Double
     private let systemInstructions: String
-    
+
     init(systemInstructions: String, temperature: Double) {
         self.systemInstructions = systemInstructions
         self.temperature = temperature
-        
+        // Don't load API key immediately - do it lazily when needed
+    }
+
+    /// Lazily loads the API key from keychain when first accessed
+    private var apiKey: String {
+        if let key = _apiKey {
+            return key
+        }
+
         // Check Keychain for API key
         if let key = KeychainManager.shared.apiKey, !key.isEmpty {
-            self.apiKey = key
+            _apiKey = key
             print("[AnthropicModelProvider] Using Keychain API key")
+            return key
         }
+
         // Check UserDefaults for backwards compatibility
-        else if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
-            self.apiKey = key
+        if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
+            _apiKey = key
             print("[AnthropicModelProvider] Migrating UserDefaults API key to Keychain")
             // Migrate to Keychain
             do {
@@ -27,45 +37,46 @@ class AnthropicModelProvider: ChatModelProvider {
             } catch {
                 print("[AnthropicModelProvider] Failed to migrate to Keychain: \(error)")
             }
+            return key
         }
-        // Use empty string to allow graceful error handling
-        else {
-            self.apiKey = ""
-            print("[AnthropicModelProvider] No API key found")
-        }
+
+        // No API key found
+        _apiKey = ""
+        print("[AnthropicModelProvider] No API key found")
+        return ""
     }
-    
+
     func sendMessage(_ prompt: String) async throws -> String {
         let request = try createRequest(prompt: prompt, streaming: false)
         let (data, _) = try await URLSession.shared.data(for: request)
-        
+
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let contentArr = json["content"] as? [[String: Any]],
               let text = contentArr.first?["text"] as? String else {
             let raw = String(data: data, encoding: .utf8) ?? "<unreadable>"
             throw Errors.unexpectedResponse(raw)
         }
-        
+
         return text
     }
-    
+
     func sendConversation(_ messages: [KeyPathMessage]) async throws -> String {
         let request = try createConversationRequest(messages: messages, streaming: false)
         let (data, _) = try await URLSession.shared.data(for: request)
-        
+
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let contentArr = json["content"] as? [[String: Any]],
               let text = contentArr.first?["text"] as? String else {
             let raw = String(data: data, encoding: .utf8) ?? "<unreadable>"
             throw Errors.unexpectedResponse(raw)
         }
-        
+
         return text
     }
-    
+
     func streamMessage(_ prompt: String, onUpdate: @escaping (String) -> Void) async throws {
         let request = try createRequest(prompt: prompt, streaming: true)
-        
+
         return try await withCheckedThrowingContinuation { continuation in
             let handler = AnthropicSSEStreamHandler(
                 onUpdate: onUpdate,
@@ -78,19 +89,19 @@ class AnthropicModelProvider: ChatModelProvider {
                     }
                 }
             )
-            
+
             let session = URLSession(configuration: .default, delegate: handler, delegateQueue: nil)
             let task = session.dataTask(with: request)
             handler.task = task
             task.resume()
         }
     }
-    
+
     private func createRequest(prompt: String, streaming: Bool) throws -> URLRequest {
         guard let url = URL(string: endpoint) else {
             throw Errors.invalidURL
         }
-        
+
         var requestBody: [String: Any] = [
             "model": model,
             "max_tokens": 1024,
@@ -103,7 +114,7 @@ class AnthropicModelProvider: ChatModelProvider {
         if streaming {
             requestBody["stream"] = true
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -113,15 +124,15 @@ class AnthropicModelProvider: ChatModelProvider {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         return request
     }
-    
+
     private func createConversationRequest(messages: [KeyPathMessage], streaming: Bool) throws -> URLRequest {
         guard let url = URL(string: endpoint) else {
             throw Errors.invalidURL
         }
-        
+
         // Convert KeyPathMessage to Anthropic format
         var anthropicMessages: [[String: Any]] = []
-        
+
         for message in messages {
             switch message.type {
             case .text(let text):
@@ -133,9 +144,9 @@ class AnthropicModelProvider: ChatModelProvider {
                 // Include the rule's kanata code and explanation in the conversation
                 let ruleText = """
                 I created this rule for you:
-                
+
                 **\(rule.explanation)**
-                
+
                 ```kanata
                 \(rule.kanataRule)
                 ```
@@ -146,7 +157,7 @@ class AnthropicModelProvider: ChatModelProvider {
                 ])
             }
         }
-        
+
         var requestBody: [String: Any] = [
             "model": model,
             "max_tokens": 1024,
@@ -157,7 +168,7 @@ class AnthropicModelProvider: ChatModelProvider {
         if streaming {
             requestBody["stream"] = true
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -167,12 +178,12 @@ class AnthropicModelProvider: ChatModelProvider {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         return request
     }
-    
+
     enum Errors: Error, LocalizedError {
         case invalidURL
         case noDataReceived
         case unexpectedResponse(String)
-        
+
         var errorDescription: String? {
             switch self {
             case .invalidURL: "Invalid endpoint URL."
@@ -189,12 +200,12 @@ class AnthropicSSEStreamHandler: NSObject, URLSessionDataDelegate {
     var task: URLSessionDataTask?
     private var buffer = Data()
     private var isFinished = false
-    
+
     init(onUpdate: @escaping (String) -> Void, completion: @escaping (Result<Void, Error>) -> Void) {
         self.onUpdate = onUpdate
         self.completion = completion
     }
-    
+
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         print("[SSE] Received response headers.")
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
@@ -211,13 +222,13 @@ class AnthropicSSEStreamHandler: NSObject, URLSessionDataDelegate {
         print("[SSE] Response OK (status code \(httpResponse.statusCode)). Allowing connection.")
         completionHandler(.allow)
     }
-    
+
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         print("[SSE] Received data chunk: \(String(data: data, encoding: .utf8) ?? "non-utf8 data")")
         buffer.append(data)
         processBuffer()
     }
-    
+
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error = error {
             print("[SSE] Task completed with error: \(error.localizedDescription)")
@@ -232,7 +243,7 @@ class AnthropicSSEStreamHandler: NSObject, URLSessionDataDelegate {
             completion(.success(()))
         }
     }
-    
+
     private func processBuffer() {
         print("[SSE] Processing buffer...")
         while let range = buffer.range(of: "\n\n".data(using: .utf8)!) {
@@ -259,4 +270,4 @@ class AnthropicSSEStreamHandler: NSObject, URLSessionDataDelegate {
             }
         }
     }
-} 
+}

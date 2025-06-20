@@ -1,5 +1,5 @@
 import XCTest
-@testable import KeyPathCore
+@testable import KeyPath
 
 final class KanataInstallerTests: XCTestCase {
     var installer: KanataInstaller!

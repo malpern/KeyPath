@@ -6,7 +6,7 @@ struct LiquidGlassEffect: ViewModifier {
     @Environment(\.colorScheme) var colorScheme
     let intensity: Double
     let cornerRadius: CGFloat
-    
+
     func body(content: Content) -> some View {
         content
             .background(
@@ -14,7 +14,7 @@ struct LiquidGlassEffect: ViewModifier {
                     // Base glass layer with dynamic material
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .fill(.regularMaterial)
-                    
+
                     // Gradient overlay for depth
                     LinearGradient(
                         colors: [
@@ -27,7 +27,7 @@ struct LiquidGlassEffect: ViewModifier {
                     )
                     .blendMode(colorScheme == .dark ? .plusLighter : .overlay)
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                    
+
                     // Inner glow for glass effect
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .strokeBorder(
@@ -66,7 +66,7 @@ struct LiquidGlassContainer<Content: View>: View {
     let content: Content
     let cornerRadius: CGFloat
     let intensity: Double
-    
+
     init(
         cornerRadius: CGFloat = 20,
         intensity: Double = 0.8,
@@ -76,7 +76,7 @@ struct LiquidGlassContainer<Content: View>: View {
         self.intensity = intensity
         self.content = content()
     }
-    
+
     var body: some View {
         content
             .modifier(LiquidGlassEffect(
@@ -90,7 +90,7 @@ struct LiquidGlassContainer<Content: View>: View {
 struct LiquidGlassButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) var colorScheme
     @State private var isPressed = false
-    
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .padding(.horizontal, 20)
@@ -100,7 +100,7 @@ struct LiquidGlassButtonStyle: ButtonStyle {
                     // Dynamic glass material
                     Capsule()
                         .fill(.thinMaterial)
-                    
+
                     // Gradient overlay
                     LinearGradient(
                         colors: [
@@ -118,7 +118,7 @@ struct LiquidGlassButtonStyle: ButtonStyle {
                 Capsule()
                     .stroke(
                         LinearGradient(
-                            colors: configuration.isPressed ? 
+                            colors: configuration.isPressed ?
                                 [Color.clear, Color.clear] :
                                 [Color.white.opacity(0.4), Color.clear],
                             startPoint: .top,
@@ -135,7 +135,7 @@ struct LiquidGlassButtonStyle: ButtonStyle {
 // MARK: - Liquid Glass Alert Style
 struct LiquidGlassAlertStyle: ViewModifier {
     @Environment(\.colorScheme) var colorScheme
-    
+
     func body(content: Content) -> some View {
         content
             .padding(24)
@@ -144,7 +144,7 @@ struct LiquidGlassAlertStyle: ViewModifier {
                     // Ultra thin material for alerts
                     RoundedRectangle(cornerRadius: 24)
                         .fill(.ultraThinMaterial)
-                    
+
                     // Subtle gradient
                     LinearGradient(
                         colors: [
@@ -186,7 +186,7 @@ extension View {
             cornerRadius: cornerRadius
         ))
     }
-    
+
     func liquidGlassAlert() -> some View {
         self.modifier(LiquidGlassAlertStyle())
     }
@@ -198,7 +198,7 @@ struct LiquidGlassTextField: View {
     let placeholder: String
     @FocusState private var isFocused: Bool
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         TextField(placeholder, text: $text)
             .textFieldStyle(.plain)
@@ -207,7 +207,7 @@ struct LiquidGlassTextField: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(isFocused ? .thickMaterial : .regularMaterial)
-                    
+
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(
                             Color.accentColor.opacity(isFocused ? 0.5 : 0),
@@ -237,7 +237,7 @@ struct LiquidGlassTextField: View {
 struct LiquidGlassProgressView: View {
     let progress: Double
     @State private var animatedProgress: Double = 0
-    
+
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -245,7 +245,7 @@ struct LiquidGlassProgressView: View {
                 Capsule()
                     .fill(.ultraThinMaterial)
                     .frame(height: 8)
-                
+
                 // Progress fill
                 Capsule()
                     .fill(
