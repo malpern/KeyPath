@@ -167,7 +167,7 @@ struct KeyPathContentView: View {
         messages.append(KeyPathMessage(role: .assistant, text: "Validating rule..."))
 
         // Validate the rule first
-        installer.validateRule(rule.kanataRule) { result in
+        installer.validateRule(rule.completeKanataConfig) { result in
             print("🔧 DEBUG: Validation result: \(result)")
             DispatchQueue.main.async {
                 switch result {

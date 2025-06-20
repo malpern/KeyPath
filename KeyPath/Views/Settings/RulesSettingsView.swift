@@ -1,20 +1,16 @@
 import SwiftUI
 
 struct RulesSettingsView: View {
-    @State private var mockRules = MockRuleData.sampleRules
-    @State private var selectedRule: MockRule?
+    @State private var userRuleManager = UserRuleManager()
+    @State private var selectedRule: UserRule?
     @State private var ruleHistory = RuleHistory()
+    @State private var showDeleteConfirmation: UUID? = nil
 
     var body: some View {
         if let selectedRule = selectedRule {
-            RuleDetailView(
+            UserRuleDetailView(
                 rule: selectedRule,
-                onBack: { self.selectedRule = nil },
-                onUpdate: { updatedRule in
-                    if let index = mockRules.firstIndex(where: { $0.id == updatedRule.id }) {
-                        mockRules[index] = updatedRule
-                    }
-                }
+                onBack: { self.selectedRule = nil }
             )
         } else {
             VStack(alignment: .leading, spacing: 0) {
@@ -36,7 +32,7 @@ struct RulesSettingsView: View {
                         .buttonStyle(.bordered)
                     }
 
-                    Text("\(mockRules.filter(\.isActive).count) of \(mockRules.count) active")
+                    Text("\(userRuleManager.enabledRules.count) of \(userRuleManager.activeRules.count) active")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -47,16 +43,55 @@ struct RulesSettingsView: View {
                 // Rules list
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ForEach(Array(mockRules.enumerated()), id: \.element.id) { index, rule in
-                            RuleRowView(
+                        ForEach(userRuleManager.allRules) { rule in
+                            UserRuleRowView(
                                 rule: rule,
-                                onToggle: { mockRules[index].isActive.toggle() },
-                                onDelete: { mockRules.remove(at: index) },
+                                onToggle: { toggleRule(rule.id) },
+                                onDelete: { showDeleteConfirmation = rule.id },
                                 onTap: { selectedRule = rule }
                             )
                         }
                     }
                     .padding()
+                }
+                .alert("Delete Rule?", isPresented: .constant(showDeleteConfirmation != nil)) {
+                    Button("Cancel", role: .cancel) {
+                        showDeleteConfirmation = nil
+                    }
+                    Button("Delete", role: .destructive) {
+                        if let ruleId = showDeleteConfirmation {
+                            deleteRule(ruleId)
+                        }
+                        showDeleteConfirmation = nil
+                    }
+                } message: {
+                    Text("This rule will be deleted permanently after 48 hours. Are you sure?")
+                }
+            }
+        }
+    }
+
+    private func toggleRule(_ ruleId: UUID) {
+        userRuleManager.toggleRule(ruleId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let isActive):
+                    print("Rule \(isActive ? "activated" : "deactivated") successfully")
+                case .failure(let error):
+                    print("Failed to toggle rule: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    private func deleteRule(_ ruleId: UUID) {
+        userRuleManager.deleteRule(ruleId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("Rule deleted successfully")
+                case .failure(let error):
+                    print("Failed to delete rule: \(error.localizedDescription)")
                 }
             }
         }

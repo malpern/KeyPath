@@ -25,6 +25,7 @@ class KeyPathChatController {
     private let ruleHistory: RuleHistory
     private let modelProvider: ChatModelProvider
     private let kanataInstaller: KanataInstaller
+    private let userRuleManager: UserRuleManager
 
     // MARK: - Initialization
 
@@ -32,12 +33,14 @@ class KeyPathChatController {
         securityManager: SecurityManager = SecurityManager(),
         ruleHistory: RuleHistory = RuleHistory(),
         modelProvider: ChatModelProvider,
-        kanataInstaller: KanataInstaller = KanataInstaller()
+        kanataInstaller: KanataInstaller = KanataInstaller(),
+        userRuleManager: UserRuleManager = UserRuleManager()
     ) {
         self.securityManager = securityManager
         self.ruleHistory = ruleHistory
         self.modelProvider = modelProvider
         self.kanataInstaller = kanataInstaller
+        self.userRuleManager = userRuleManager
     }
 
     // MARK: - Public Methods
@@ -104,19 +107,22 @@ class KeyPathChatController {
         messages.append(KeyPathMessage(role: .assistant, text: "Validating rule..."))
 
         // Validate the rule first
-        kanataInstaller.validateRule(rule.kanataRule) { [weak self] result in
+        kanataInstaller.validateRule(rule.completeKanataConfig) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 switch result {
                 case .success:
                     self.updateLastMessage(with: "✓ Rule validated successfully. Installing...")
 
-                    // Now install the rule
-                    self.kanataInstaller.installRule(rule) { installResult in
+                    // Use the UserRuleManager to add the rule
+                    self.userRuleManager.addRule(rule) { addResult in
                         DispatchQueue.main.async {
-                            switch installResult {
-                            case .success(let backupPath):
-                                self.ruleHistory.addRule(rule, backupPath: backupPath)
+                            switch addResult {
+                            case .success(let userRule):
+                                // Also add to legacy rule history for undo functionality
+                                if let backupPath = userRule.backupPath {
+                                    self.ruleHistory.addRule(rule, backupPath: backupPath)
+                                }
                                 self.updateLastMessage(with: "✅ Rule installed successfully! \(rule.visualization.description)")
                             case .failure(let error):
                                 self.updateLastMessage(with: "❌ Installation failed: \(error.localizedDescription)")
