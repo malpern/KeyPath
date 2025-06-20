@@ -84,6 +84,17 @@ KeyPath follows a deliberate design philosophy that leverages the LLM (Large Lan
 3. **Flexible**: Can handle edge cases and unusual configurations without updates
 4. **Simple**: The codebase remains focused on UI/UX and system integration
 
+### Configuration Architecture: Inspired by Karabiner-Elements
+
+KeyPath's rule management is inspired by [Karabiner-Elements](https://github.com/pqrs-org/Karabiner-Elements)' elegant approach to configuration management:
+
+- **Individual Rules**: Each rule is a complete, self-contained Kanata configuration block
+- **Simple Concatenation**: The final config file is created by combining all active rules
+- **No Complex Merging**: Rules are independent and don't require sophisticated merging logic
+- **Toggle-Friendly**: Rules can be easily enabled/disabled by including/excluding them from the final config
+
+This design choice eliminates the need for complex rule parsing and merging algorithms, instead relying on the natural modularity of well-structured configuration blocks.
+
 #### What the LLM Handles:
 - **Rule Generation**: Converting natural language to Kanata syntax
 - **Syntax Validation**: Understanding valid Kanata configurations
@@ -147,4 +158,5 @@ This project is available under the [MIT License](LICENSE).
 - Chat interface based on [Apple Intelligence Chat](https://github.com/PallavAg/Apple-Intelligence-Chat) by Pallav Agarwal
 - Built with [Kanata](https://github.com/jtroo/kanata) by jtroo
 - AI powered by [Anthropic Claude](https://www.anthropic.com/)
+- Configuration architecture inspired by [Karabiner-Elements](https://github.com/pqrs-org/Karabiner-Elements) by pqrs-org
 - Liquid Glass UI design inspired by Apple's WWDC 2025 guidelines
