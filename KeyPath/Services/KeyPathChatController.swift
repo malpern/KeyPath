@@ -35,7 +35,7 @@ class KeyPathChatController {
         ruleHistory: RuleHistory = RuleHistory(),
         modelProvider: ChatModelProvider,
         kanataInstaller: KanataInstaller? = nil,
-        userRuleManager: UserRuleManager = UserRuleManager(),
+        userRuleManager: UserRuleManager? = nil,
         errorMessageGenerator: LLMErrorMessageGenerator? = nil
     ) {
         self.securityManager = securityManager
@@ -46,7 +46,7 @@ class KeyPathChatController {
         let anthropicProvider = modelProvider as? AnthropicModelProvider
         self.kanataInstaller = kanataInstaller ?? KanataInstaller(llmProvider: anthropicProvider)
         
-        self.userRuleManager = userRuleManager
+        self.userRuleManager = userRuleManager ?? UserRuleManager.shared
         self.errorMessageGenerator = errorMessageGenerator ?? LLMErrorMessageGenerator(llmProvider: anthropicProvider)
     }
 

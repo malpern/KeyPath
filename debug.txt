@@ -57,3 +57,51 @@ KeyPath Debug Log
 : 🔧 DEBUG: Attempting to reload Kanata...
 : 🔧 DEBUG: Kanata reload failed (exit code: 1)
 : 🔧 DEBUG: Kanata reload failed (exit code: 1)
+: 🔧 DEBUG: Cleaning up old backup files in /Users/malpern/.config/kanata
+: 🔧 DEBUG: Kanata status check - running: true, message: Kanata is running (PID: 65662, 68029)
+: 🔧 DEBUG: Cleaning up old backup files in /Users/malpern/.config/kanata
+: 🔧 DEBUG: Kanata status check - running: false, message: Kanata is not running
+: 🔧 DEBUG: Add Rule button clicked!
+: 🔧 DEBUG: About to call onInstall() for rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: handleInstallRule called with rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: rule.kanataRule = '5 -> 6'
+: 🔧 DEBUG: installRule called with rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: rule.kanataRule: '5 -> 6'
+: 🔧 DEBUG: rule.completeKanataConfig:
+: 🔧 DEBUG: (defsrc
+  5
+)
+
+(deflayer default
+  6
+)
+: 🔧 DEBUG: canInstallRules = true
+: 🔧 DEBUG: isKanataInstalled = true
+: 🔧 DEBUG: hasConfigAccess = true
+: 🔧 DEBUG: Cleaning up old backup files in /Users/malpern/.config/kanata
+: 🔧 DEBUG: Kanata status check - running: false, message: Kanata is not running
+: 🔧 DEBUG: Add Rule button clicked!
+: 🔧 DEBUG: About to call onInstall() for rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: handleInstallRule called with rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: rule.kanataRule = '5 -> 6'
+: 🔧 DEBUG: installRule called with rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: rule.kanataRule: '5 -> 6'
+: 🔧 DEBUG: rule.completeKanataConfig:
+: 🔧 DEBUG: (defsrc
+  5
+)
+
+(deflayer default
+  6
+)
+: 🔧 DEBUG: canInstallRules = true
+: 🔧 DEBUG: isKanataInstalled = true
+: 🔧 DEBUG: hasConfigAccess = true
+: 🔧 DEBUG: Kanata is running, attempting auto-reload...
+: 🔧 DEBUG: Attempting to reload Kanata...
+: 🔧 DEBUG: Kanata reload failed (exit code: 1)
+: 🔧 DEBUG: Cleaning up old backup files in /Users/malpern/.config/kanata
+: 🔧 DEBUG: Attempting to reload Kanata...
+: 🔧 DEBUG: Attempting to reload Kanata...
+: 🔧 DEBUG: Kanata reload failed (exit code: 1)
+: 🔧 DEBUG: Kanata reload failed (exit code: 1)

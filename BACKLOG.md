@@ -303,7 +303,206 @@ Leverage Kanata's hot reload capability (SIGUSR1/SIGUSR2) to detect conflicts by
 - Rule templates/bundles for common patterns
 - Performance impact testing and optimization suggestions
 
+
+---
+
+## 🔄 Future Enhancement Backlog
+
+### Key Name Normalization Improvements
+
+**Problem**: Current system only handles ~50 English key variations with hardcoded mappings and LLM fallback.
+
+**Current Limitations:**
+- No international keyboard support (German "leertaste", French "barre d'espace")
+- No fuzzy matching for typos ("sapce" → "space")
+- No natural language handling ("the space bar", "right control key")
+- LLM calls block UI thread
+- No left/right modifier distinction consistency
+
+**Proposed 3-Phase Solution:**
+1. **Expand hardcoded dictionary**: Add ~150 common variations, international terms, left/right modifiers
+2. **Smart pre-processing**: Remove articles ("the"), handle common typos with fuzzy matching
+3. **Performance optimization**: Async LLM calls with caching layer
+
+**Expected Impact**: 90%+ success rate for natural key input vs current ~70%
+
+### Advanced Conflict Detection
+
+**Problem**: Users can create overlapping keyboard rules that interfere with each other.
+
+**Conflict Types to Detect:**
+- Direct key conflicts (5→6, 5→7)
+- Tap-hold overlaps (space tap/hold defined twice)
+- Layer namespace collisions
+- Modifier chain conflicts (caps→ctrl affects caps+A)
+- Sequence prefix conflicts ("email" vs "emailwork")
+
+**Implementation Approach:**
+1. **Static analysis**: Parse existing config, build conflict graph
+2. **Hot reload testing**: Apply rules temporarily, test actual behavior
+3. **User-guided resolution**: "Keep new rule? (replaces existing 5→6)"
+
+**Technical Challenges**: macOS input simulation permissions, state management, rollback complexity
+
+### LLM Response Parsing Robustness
+
+**Problem**: Current parsing can fail on edge cases, malformed JSON, or unexpected LLM output formats.
+
+**Improvements Needed:**
+- Better error recovery for malformed code blocks
+- Fallback parsing strategies for JSON variations
+- Graceful handling of LLM hallucinations
+- Retry mechanisms with refined prompts
+- Validation of generated Kanata syntax before installation
+
+**Expected Impact**: Reduced rule generation failures, better error messages for users
+
+### Conflict Resolution UI Patterns
+
+**Problem**: When conflicts are detected, users need intuitive ways to resolve them without technical knowledge.
+
+**UI Design Challenges:**
+- Explaining conflicts in non-technical terms
+- Providing clear resolution options
+- Maintaining workflow momentum
+- Educational value vs simplicity
+
+**Proposed UI Patterns:**
+1. **Conflict badges**: Visual indicators on rules showing overlaps
+2. **Resolution wizard**: Step-by-step guided conflict resolution
+3. **Preview mode**: "Test rule before keeping" with temporary application
+4. **Visual conflict graph**: Show rule relationships and dependencies
+5. **Smart suggestions**: LLM-powered resolution recommendations
+
+**Implementation Considerations:**
+- Progressive disclosure (simple → advanced options)
+- Undo/redo support for resolution actions
+- Integration with existing rule management UI
+- Accessibility for screen readers
+
+### Privileged Helper Tool for Distribution Readiness
+
+**Problem**: Current hot reload requires manual sudo commands, and distribution (App Store/signed installer) needs proper privilege management.
+
+**Two-Birds-One-Stone Solution**: A single privileged helper tool that handles both Kanata management AND hot reload capabilities.
+
+#### **Current Distribution Challenges:**
+1. **Kanata installation** - Needs root privileges for low-level keyboard access
+2. **Hot reload** - Needs root privileges to send SIGUSR1 signals to Kanata
+3. **App Store distribution** - Apps can't request arbitrary root access
+4. **User trust** - Manual sudo commands create security concerns
+
+#### **Proposed Architecture:**
+
+```
+┌─────────────────┐    XPC     ┌─────────────────┐
+│   KeyPath.app   │ ◄────────► │ KeyPathHelper   │
+│  (User space)   │            │  (Root space)   │
+│                 │            │                 │
+│ • UI/UX         │            │ • Kanata mgmt   │
+│ • Rule gen      │            │ • Hot reload    │
+│ • Config mgmt   │            │ • File access   │
+└─────────────────┘            └─────────────────┘
+```
+
+#### **KeyPathHelper Responsibilities:**
+```swift
+class KeyPathPrivilegedHelper {
+    func installKanata() -> Bool           // Download/install Kanata binary
+    func startKanata(configPath: String) -> Bool   // Launch with root privileges  
+    func stopKanata() -> Bool              // Clean process termination
+    func reloadKanata() -> Bool            // Send SIGUSR1 for hot reload
+    func checkKanataStatus() -> KanataStatus // Process monitoring
+    func updateKanataConfig(newConfig: String) -> Bool // Secure config updates
+}
+```
+
+#### **User Experience Flow:**
+
+**First Install:**
+1. User downloads KeyPath.dmg (signed installer)
+2. Drags KeyPath.app to Applications
+3. First launch: "KeyPath needs to install keyboard management components"
+4. User enters password **once** to install privileged helper
+5. Helper automatically installs Kanata, starts it, everything works seamlessly
+
+**Daily Usage:**
+1. User creates rule in KeyPath.app (no special permissions)
+2. Rule installed → automatic hot reload via helper (no password needed)
+3. Completely seamless experience
+
+**Uninstall:**
+1. Helper provides clean removal of all components
+2. No system residue left behind
+
+#### **Distribution Benefits:**
+
+**For Signed Distribution:**
+- ✅ **One-time installation** of privileged helper during app setup
+- ✅ **Code signed helper** that users trust (from same developer certificate)
+- ✅ **Clean uninstall** (helper can remove itself and all components)
+- ✅ **User permission flow** managed by macOS security framework
+- ✅ **Notarization compatible** for Gatekeeper approval
+
+**For App Store Distribution:**
+- ✅ **Sandboxed main app** (no special entitlements needed in main bundle)
+- ✅ **Privileged operations** isolated to separate, auditable helper
+- ✅ **Apple's security model** - helper installation requires explicit user approval
+- ✅ **Automatic updates** of both app and helper through standard mechanisms
+- ✅ **Security review friendly** - clear separation of concerns
+
+#### **Security Benefits:**
+- **Principle of least privilege** - Helper only performs specific Kanata operations
+- **Code signing chain** - Both app and helper signed by same developer identity
+- **macOS managed permissions** - System handles helper installation/authorization
+- **Auditable codebase** - Helper code is minimal, focused, and reviewable
+- **Sandboxed main app** - UI/logic runs with normal user permissions
+- **Secure communication** - XPC provides encrypted, authenticated inter-process communication
+
+#### **Real-World Examples Using This Pattern:**
+- **Little Snitch** (network monitoring - privileged network access)
+- **Bartender** (menu bar management - system UI manipulation)  
+- **CleanMyMac** (system maintenance - file system access)
+- **Karabiner-Elements** (keyboard remapping - low-level input access)
+- **1Password** (browser integration - privileged browser communication)
+
+This is the **industry standard approach** for Mac apps requiring system-level access while maintaining security and distribution compatibility.
+
+#### **Implementation Phases:**
+
+**Phase 1 (Current):** 
+- Keep manual reload approach for development
+- Document current limitations in user documentation
+
+**Phase 2 (Pre-distribution):**
+1. Create `KeyPathHelper` privileged tool with XPC interface
+2. Implement secure communication between main app and helper
+3. Add helper installation flow to main app startup
+4. Implement helper-based Kanata management (install/start/stop/reload)
+5. Test signing, notarization, and installation flow
+6. Add clean uninstall capabilities
+
+**Phase 3 (Distribution Ready):**
+- Ready for signed distribution via website
+- Ready for Mac App Store submission
+- Professional installation experience
+- Enterprise deployment capable
+
+#### **Technical Requirements:**
+- **Helper tool** written in Swift/Objective-C with minimal dependencies
+- **XPC service** for secure inter-process communication
+- **Launch daemon** registration for system startup if needed
+- **Code signing** with Developer ID or Mac App Store certificates
+- **Installer package** (.pkg) for helper deployment
+- **Privileged helper management** using ServiceManagement framework
+
+#### **User Trust & Transparency:**
+- Clear explanation during installation of what privileges are needed and why
+- Open source helper code for security auditing
+- Minimal privilege scope (only Kanata management, no broader system access)
+- Optional: Allow users to review exact operations before helper installation
+
 ---
 
 *Last updated: 2025-06-21*
-*Added comprehensive conflict analysis and hot reload testing strategy*
+*Added comprehensive conflict analysis, hot reload testing strategy, and future enhancement backlog*

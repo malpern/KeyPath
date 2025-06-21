@@ -48,6 +48,8 @@ struct DeletedRule: Codable, Identifiable {
 /// Enhanced rule manager that handles user rules, activation state, and deletion
 @Observable
 class UserRuleManager {
+    static let shared = UserRuleManager()
+    
     var activeRules: [UserRule] = []
     private var deletedRules: [DeletedRule] = []
 
@@ -56,7 +58,8 @@ class UserRuleManager {
     private let kanataInstaller = KanataInstaller()
     private let userDefaults: UserDefaults
 
-    init(userDefaults: UserDefaults = .standard) {
+    // Internal initializer allows testing with isolated UserDefaults
+    internal init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         loadRules()
         cleanupOldDeletedRules()
@@ -173,6 +176,13 @@ class UserRuleManager {
     /// Get only active rules
     var enabledRules: [UserRule] {
         return activeRules.filter { $0.isActive }
+    }
+    
+    /// Add a rule that was already installed (for integration with legacy installation flows)
+    func addInstalledRule(_ kanataRule: KanataRule, backupPath: String) {
+        let userRule = UserRule(kanataRule: kanataRule, backupPath: backupPath)
+        activeRules.insert(userRule, at: 0) // New rules at top
+        saveActiveRules()
     }
 
     // MARK: - Kanata Config Management

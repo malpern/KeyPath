@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RulesSettingsView: View {
-    @State private var userRuleManager = UserRuleManager()
+    @State private var userRuleManager = UserRuleManager.shared
     @State private var selectedRule: UserRule?
     @State private var ruleHistory = RuleHistory()
     @State private var showDeleteConfirmation: UUID?

@@ -51,6 +51,9 @@ struct KeyPathRuleInstaller {
                                 print("🔧 DEBUG: Installation successful, backup at: \(backupPath)")
                                 context.ruleHistory.addRule(rule, backupPath: backupPath)
                                 
+                                // Add to UserRuleManager for tracking in Settings
+                                UserRuleManager.shared.addInstalledRule(rule, backupPath: backupPath)
+                                
                                 // Attempt auto-reload
                                 let processManager = KanataProcessManager.shared
                                 if processManager.isKanataRunning() {
