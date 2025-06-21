@@ -27,7 +27,7 @@ struct RemapVisualization: Codable {
 
     // Convert to enhanced visualization
     var enhanced: EnhancedRemapVisualization {
-        return EnhancedRemapVisualization(
+        EnhancedRemapVisualization(
             behavior: .simpleRemap(from: from, toKey: toKey),
             title: "Simple Remap",
             description: "Maps \(from) to \(toKey)"
@@ -37,13 +37,41 @@ struct RemapVisualization: Codable {
 
 extension KanataRule {
     static func parse(from text: String) -> KanataRule? {
-        return parseEnhanced(from: text)
+        parseEnhanced(from: text)
     }
 
     /// Returns the complete Kanata configuration for this rule
     var completeKanataConfig: String {
-        // With the new architecture, kanataRule should always be a complete config
-        return kanataRule
+        // If kanataRule is already a complete config (contains defsrc/deflayer), return it
+        if kanataRule.contains("(defsrc") && kanataRule.contains("(deflayer") {
+            return kanataRule
+        }
+        
+        // If it's a simple format, generate complete config from behavior synchronously
+        // This is a fallback for simple cases - for complex generation, use the async version
+        return generateCompleteConfigSynchronously()
+    }
+    
+    /// Generates complete Kanata config synchronously (simplified version)
+    private func generateCompleteConfigSynchronously() -> String {
+        switch visualization.behavior {
+        case .simpleRemap(let from, let toKey):
+            // Simple case - generate immediately without async key validation
+            let fromKey = from.lowercased()
+            let toKeyNormalized = toKey.lowercased()
+            return """
+            (defsrc
+              \(fromKey)
+            )
+
+            (deflayer default
+              \(toKeyNormalized)
+            )
+            """
+        default:
+            // For complex cases, return the original rule and let async validation handle it
+            return kanataRule
+        }
     }
 
     /// Returns a simplified display version of the rule (for UI display)
