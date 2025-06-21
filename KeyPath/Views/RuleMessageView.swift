@@ -155,7 +155,8 @@ struct RuleMessageView: View {
 
             // Install button
             Button(action: {
-                print("🔧 DEBUG: Add Rule button pressed for rule: \(rule.explanation)")
+                DebugLogger.shared.log("🔧 DEBUG: Add Rule button clicked!")
+                DebugLogger.shared.log("🔧 DEBUG: About to call onInstall() for rule: \(rule.explanation)")
                 onInstall()
             }) {
                 HStack {

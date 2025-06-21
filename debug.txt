@@ -1,0 +1,59 @@
+KeyPath Debug Log
+==================: 🔧 DEBUG: Add Rule button clicked!
+: 🔧 DEBUG: About to call onInstall() for rule: Maps the '5' key to output '6' instead
+: 🔧 DEBUG: handleInstallRule called with rule: Maps the '5' key to output '6' instead
+: 🔧 DEBUG: rule.kanataRule = '(defsrc 5)
+(deflayer default 6)'
+: 🔧 DEBUG: installRule called with rule: Maps the '5' key to output '6' instead
+: 🔧 DEBUG: rule.kanataRule: '(defsrc 5)
+(deflayer default 6)'
+: 🔧 DEBUG: rule.completeKanataConfig:
+: 🔧 DEBUG: (defsrc 5)
+(deflayer default 6)
+: 🔧 DEBUG: canInstallRules = true
+: 🔧 DEBUG: isKanataInstalled = true
+: 🔧 DEBUG: hasConfigAccess = true
+: 🔧 DEBUG: Add Rule button clicked!
+: 🔧 DEBUG: About to call onInstall() for rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: handleInstallRule called with rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: rule.kanataRule = '5 -> 6'
+: 🔧 DEBUG: installRule called with rule: Maps the '5' key to output '6'
+: 🔧 DEBUG: rule.kanataRule: '5 -> 6'
+: 🔧 DEBUG: rule.completeKanataConfig:
+: 🔧 DEBUG: (defsrc
+  5
+)
+
+(deflayer default
+  6
+)
+: 🔧 DEBUG: canInstallRules = true
+: 🔧 DEBUG: isKanataInstalled = true
+: 🔧 DEBUG: hasConfigAccess = true
+: 🔧 DEBUG: Add Rule button clicked!
+: 🔧 DEBUG: About to call onInstall() for rule: Maps the '8' key to output '9'
+: 🔧 DEBUG: handleInstallRule called with rule: Maps the '8' key to output '9'
+: 🔧 DEBUG: rule.kanataRule = '8 -> 9'
+: 🔧 DEBUG: installRule called with rule: Maps the '8' key to output '9'
+: 🔧 DEBUG: rule.kanataRule: '8 -> 9'
+: 🔧 DEBUG: rule.completeKanataConfig:
+: 🔧 DEBUG: (defsrc
+  8
+)
+
+(deflayer default
+  9
+)
+: 🔧 DEBUG: canInstallRules = true
+: 🔧 DEBUG: isKanataInstalled = true
+: 🔧 DEBUG: hasConfigAccess = true
+: 🔧 DEBUG: Cleaning up old backup files in /Users/malpern/.config/kanata
+: 🔧 DEBUG: Attempting to reload Kanata...
+: 🔧 DEBUG: Attempting to reload Kanata...
+: 🔧 DEBUG: Kanata reload failed (exit code: 1)
+: 🔧 DEBUG: Kanata reload failed (exit code: 1)
+: 🔧 DEBUG: Cleaning up old backup files in /Users/malpern/.config/kanata
+: 🔧 DEBUG: Attempting to reload Kanata...
+: 🔧 DEBUG: Attempting to reload Kanata...
+: 🔧 DEBUG: Kanata reload failed (exit code: 1)
+: 🔧 DEBUG: Kanata reload failed (exit code: 1)

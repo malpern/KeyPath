@@ -62,6 +62,11 @@ class KanataConfigValidator {
             return validateDefaliasFormat(cleanRule)
         }
 
+        // Check if it's a complete Kanata config
+        if cleanRule.contains("(defsrc") && cleanRule.contains("(deflayer") {
+            return .success(true)
+        }
+
         return .failure(.recoverableValidationError(
             "Let me help you create that rule",
             suggestedFix: "I can understand natural language like 'caps lock to escape' or 'map a to b'. Try describing what you want to do."

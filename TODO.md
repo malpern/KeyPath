@@ -158,12 +158,13 @@ When multiple keyboard remapping rules can be active simultaneously, conflicts a
 #### Phase 2: Rule Management
 - **Manual ordering**: Drag to reorder rules (like Karabiner)
 - **Conflict badges**: Visual indicators on conflicting rules
-- **Test mode**: Try rules temporarily
+- **Test mode**: Try rules temporarily using hot reload
 
-#### Phase 3: Smart Resolution
+#### Phase 3: Smart Resolution  
 - **Context awareness**: App-specific rules
 - **Layer-first design**: Treat layers as primary organization
 - **Conflict wizard**: Guided resolution UI
+- **Hot reload conflict testing**: Real-time conflict detection via temporary rule application
 
 ### Implementation Considerations
 
@@ -199,6 +200,78 @@ enum ConflictType {
 3. **Recovery**: Easy conflict resolution
 4. **Education**: Teach layer-based thinking
 
+### Hot Reload Testing for Conflict Detection
+
+#### The Concept: "Try Before You Buy"
+Leverage Kanata's hot reload capability (SIGUSR1/SIGUSR2) to detect conflicts by actually testing rule combinations:
+
+1. **Save current config** as backup
+2. **Apply new rule** to temporary config
+3. **Hot reload** Kanata with combined config  
+4. **Test behavior** programmatically or with user feedback
+5. **Detect conflicts** based on actual vs expected behavior
+6. **Revert or confirm** based on results
+
+#### What This Could Detect
+
+**Silent Conflicts:**
+- Two rules mapping same key → test which one wins
+- Example: "5→6" + "5→7" → send "5", see if output is 6 or 7
+
+**Broken Dependencies:**
+- Rules using undefined aliases → Kanata validation fails
+- Missing layer references → runtime errors
+
+**Layer Conflicts:**  
+- Multiple rules using same activation key → test which layer activates
+- Performance degradation → measure response time
+
+#### Implementation Approaches
+
+**1. Automated Testing**
+- Create test config, hot reload, send synthetic keystrokes
+- Capture outputs via macOS APIs, compare expected vs actual
+- Fully automated but requires input simulation permissions
+
+**2. User-Guided Testing**
+- Apply rule temporarily, prompt user to test manually
+- Show "Keep" or "Revert" buttons after user testing
+- Simple but relies on user understanding
+
+**3. Hybrid Analysis**
+- Static analysis for obvious conflicts
+- Hot reload testing for ambiguous cases  
+- User confirmation for complex scenarios
+
+#### User Experience Flow Example
+
+**Scenario: Adding "5→7" when "5→6" exists**
+1. Pre-check: "Key 5 already mapped to 6. Test new mapping?"
+2. Apply temporarily: Config updated, Kanata reloaded
+3. Test prompt: "Press 5 to test. You should see '7'"
+4. User tests: Sees 7 appear
+5. Decision: "Keep this rule? (replaces 5→6)"
+6. Confirm or revert
+
+#### Technical Challenges
+- **Synthetic input**: macOS security restrictions on keystroke simulation
+- **State management**: Kanata internal state, layer persistence
+- **Rollback complexity**: Handling reload failures, ensuring clean state
+- **Race conditions**: User input during testing, timing issues
+
+#### Benefits vs Limitations
+
+**Benefits:**
+- Real conflict detection vs guessing
+- User education through immediate feedback  
+- Confidence building before committing rules
+- Catches edge cases static analysis misses
+
+**Limitations:**
+- Not all conflicts testable (app-specific, timing-dependent)
+- Performance overhead from extra reload cycles
+- Security considerations with automated input injection
+
 ### Open Questions
 
 1. Should some conflicts be allowed intentionally?
@@ -206,21 +279,31 @@ enum ConflictType {
 3. Automatic vs manual resolution?
 4. How to leverage LLM for conflict suggestions?
 5. Should we adopt layer-first architecture?
+6. How complex should hot reload testing be in MVP vs future phases?
+7. What's the right balance between automated testing vs user-guided testing?
 
 ### Recommendations
 
 **For MVP**:
 - Warn on direct key conflicts only
-- Add basic rule reordering
+- Add basic rule reordering  
 - Document conflict types in help
+- Simple hot reload after rule installation (no conflict testing yet)
+
+**Phase 2**:
+- User-guided conflict testing: "Test this rule before keeping it?"
+- Basic conflict badges on overlapping rules
+- Manual rollback capabilities
 
 **Future**:
-- Comprehensive conflict analysis
-- Visual conflict graph
-- Smart resolution suggestions
-- Rule templates/bundles
+- Comprehensive conflict analysis engine
+- Automated testing with synthetic input
+- Visual conflict graph showing rule interactions
+- Smart resolution suggestions powered by LLM
+- Rule templates/bundles for common patterns
+- Performance impact testing and optimization suggestions
 
 ---
 
 *Last updated: 2025-06-21*
-*Added comprehensive conflict and ordering analysis*
+*Added comprehensive conflict analysis and hot reload testing strategy*

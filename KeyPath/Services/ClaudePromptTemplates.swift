@@ -11,20 +11,20 @@ struct ClaudePromptTemplates {
     4. For NEW remapping requests: Do NOT add any text before or after the JSON
     5. For questions about existing rules: Provide detailed explanations about the Kanata syntax, how it works, and answer their specific questions
 
-    Example for "a to b":
+    Example for "5 to 6":
     ```json
     {
       "visualization": {
         "behavior": {
           "type": "simpleRemap",
-          "data": {"from": "A", "to": "B"}
+          "data": {"from": "5", "to": "6"}
         },
         "title": "Simple Remap",
-        "description": "A → B"
+        "description": "5 → 6"
       },
-      "kanata_rule": "a -> b",
+      "kanata_rule": "5 -> 6",
       "confidence": "high",
-      "explanation": "Maps the 'a' key to output 'b'"
+      "explanation": "Maps the '5' key to output '6'"
     }
     ```
 
@@ -39,7 +39,7 @@ struct ClaudePromptTemplates {
         "title": "Descriptive title",
         "description": "What this mapping does"
       },
-      "kanata_rule": "key_from -> key_to",
+      "kanata_rule": "Simple format (a -> b) OR complete Kanata config for complex rules",
       "confidence": "high|medium|low",
       "explanation": "Brief explanation of what this rule does"
     }
@@ -78,27 +78,21 @@ struct ClaudePromptTemplates {
     - For other keys, use friendly names like "Space", "F1", "A", etc.
     - These will be displayed as visual keycaps with Mac symbols
 
-    For the kanata_rule:
-    - Generate a COMPLETE, self-contained Kanata configuration block
-    - Each rule must include its own (defsrc) and (deflayer) sections
-    - Each rule should work independently when added to a config file
+    For the kanata_rule field:
+    - Use SIMPLE format for basic remaps: "key_from -> key_to" (e.g., "a -> b", "caps -> esc")
+    - For complex behaviors (tap-hold, tap-dance, etc.), provide the complete Kanata configuration
     - Use correct Kanata key names: caps, esc, lctl, rctl, lsft, rsft, lalt, ralt, spc, ret, tab, bspc, del, etc.
 
-    Examples:
-    - Simple remap "a -> b":
-      ```
-      (defsrc a)
-      (deflayer default b)
-      ```
-
-    - Tap-hold "space tap for space, hold for shift":
+    Examples by type:
+    - Simple remap: kanata_rule = "a -> b" or "caps -> esc"
+    - Tap-hold: Include complete config:
       ```
       (defalias spc-sft (tap-hold 200 200 spc lsft))
       (defsrc spc)
       (deflayer default @spc-sft)
       ```
-
-    - Multiple key rule should include all keys in defsrc/deflayer
+    - Tap-dance: Include complete config with defalias
+    - Other complex behaviors: Include complete Kanata configuration
 
     Example user requests and appropriate behaviors:
     - "caps lock escape" → simpleRemap
@@ -159,9 +153,9 @@ struct ClaudePromptTemplates {
     - These will be displayed as visual keycaps with Mac symbols
 
     For the kanata_rule:
-    - Generate a simple rule format that will be processed into complete Kanata syntax
-    - For simple remaps use: "from -> to" (e.g., "caps -> esc")
-    - The system will automatically generate the complete configuration
+    - Generate a simple rule format for basic remaps: "from -> to" (e.g., "caps -> esc", "5 -> 6")
+    - This simple format will be automatically processed into complete Kanata syntax
+    - Only use complete Kanata configuration for complex behaviors that can't be expressed as simple remaps
 
     Confirmed remapping: {REMAPPING_DESCRIPTION}
     """

@@ -10,6 +10,7 @@ struct KeyPathContentView: View {
     @State private var isResponding = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
+    @State private var showKanataNotRunningAlert = false
     @FocusState private var isInputFocused: Bool
 
     // KeyPath specific state
@@ -38,6 +39,11 @@ struct KeyPathContentView: View {
                 if !securityManager.canInstallRules() {
                     SystemStatusView(securityManager: securityManager)
                         .padding()
+                } else {
+                    // Show Kanata status
+                    KanataStatusView()
+                        .padding(.horizontal)
+                        .padding(.top, 8)
                 }
 
                 // Messages area
@@ -79,6 +85,14 @@ struct KeyPathContentView: View {
                 Button("OK") {}
             } message: {
                 Text(errorMessage)
+            }
+            .alert("Kanata Not Running", isPresented: $showKanataNotRunningAlert) {
+                Button("OK") {}
+                Button("How to Start Kanata") {
+                    // Could open help documentation or show instructions
+                }
+            } message: {
+                Text("Kanata is not currently running. Your rule has been saved but won't be active until you start Kanata.\n\nTo start Kanata, run:\nsudo kanata --cfg ~/.config/kanata/kanata.kbd")
             }
         }
         .onAppear {
@@ -162,6 +176,8 @@ struct KeyPathContentView: View {
     // MARK: - KeyPath Specific Methods
 
     private func handleInstallRule(_ rule: KanataRule) {
+        DebugLogger.shared.log("🔧 DEBUG: handleInstallRule called with rule: \(rule.explanation)")
+        DebugLogger.shared.log("🔧 DEBUG: rule.kanataRule = '\(rule.kanataRule)'")
         // Directly install the rule since we already have it
         installRule(rule)
     }
@@ -172,7 +188,8 @@ struct KeyPathContentView: View {
             ruleHistory: ruleHistory,
             updateLastMessage: { text in self.updateLastMessage(with: text) },
             onFocusInput: { self.isInputFocused = true },
-            onValidationError: { error in self.handleValidationError(error) }
+            onValidationError: { error in self.handleValidationError(error) },
+            onKanataNotRunning: { self.showKanataNotRunningAlert = true }
         )
         KeyPathRuleInstaller.installRule(rule, context: context)
     }
