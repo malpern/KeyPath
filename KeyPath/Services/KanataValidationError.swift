@@ -1,5 +1,11 @@
 import Foundation
 
+// ⚠️ ARCHITECTURE WARNING: LLM-First Design
+// This file contains hardcoded error messages that should be enhanced with LLM context.
+// DO NOT add new hardcoded error patterns without explicit approval.
+// See ARCHITECTURE.md for guidelines.
+// COMPLETED: LLM-powered error messages now available via LLMErrorMessageGenerator
+
 enum KanataValidationError: Error, LocalizedError {
     case configDirectoryNotFound
     case configFileNotFound

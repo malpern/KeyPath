@@ -26,6 +26,7 @@ class KeyPathChatController {
     private let modelProvider: ChatModelProvider
     private let kanataInstaller: KanataInstaller
     private let userRuleManager: UserRuleManager
+    private let errorMessageGenerator: LLMErrorMessageGenerator
 
     // MARK: - Initialization
 
@@ -33,14 +34,20 @@ class KeyPathChatController {
         securityManager: SecurityManager = SecurityManager(),
         ruleHistory: RuleHistory = RuleHistory(),
         modelProvider: ChatModelProvider,
-        kanataInstaller: KanataInstaller = KanataInstaller(),
-        userRuleManager: UserRuleManager = UserRuleManager()
+        kanataInstaller: KanataInstaller? = nil,
+        userRuleManager: UserRuleManager = UserRuleManager(),
+        errorMessageGenerator: LLMErrorMessageGenerator? = nil
     ) {
         self.securityManager = securityManager
         self.ruleHistory = ruleHistory
         self.modelProvider = modelProvider
-        self.kanataInstaller = kanataInstaller
+        
+        // Pass LLM provider to kanataInstaller if it's an AnthropicModelProvider
+        let anthropicProvider = modelProvider as? AnthropicModelProvider
+        self.kanataInstaller = kanataInstaller ?? KanataInstaller(llmProvider: anthropicProvider)
+        
         self.userRuleManager = userRuleManager
+        self.errorMessageGenerator = errorMessageGenerator ?? LLMErrorMessageGenerator(llmProvider: anthropicProvider)
     }
 
     // MARK: - Public Methods
@@ -50,51 +57,8 @@ class KeyPathChatController {
             return
         }
 
-        await MainActor.run {
-            isResponding = true
-            let userMessage = KeyPathMessage(role: .user, text: userInput)
-            messages.append(userMessage)
-            messages.append(KeyPathMessage(role: .assistant, text: ""))
-        }
-
-        // Check if the provider supports direct message with history
-        if let anthropicProvider = modelProvider as? AnthropicModelProvider {
-            do {
-                let response = try await anthropicProvider.sendDirectMessageWithHistory(messages)
-                await MainActor.run {
-                    handleResponse(response)
-                }
-            } catch {
-                await MainActor.run {
-                    let userFriendlyMessage = getUserFriendlyErrorMessage(from: error)
-                    showError(message: userFriendlyMessage)
-                    // Remove the empty message we added
-                    if messages.last?.displayText.isEmpty == true {
-                        messages.removeLast()
-                    }
-                }
-            }
-        } else if let mockProvider = modelProvider as? KeyPathTestableProvider {
-            do {
-                let response = try await mockProvider.sendDirectMessageWithHistory(messages)
-                await MainActor.run {
-                    handleResponse(response)
-                }
-            } catch {
-                await MainActor.run {
-                    let userFriendlyMessage = getUserFriendlyErrorMessage(from: error)
-                    showError(message: userFriendlyMessage)
-                    // Remove the empty message we added
-                    if messages.last?.displayText.isEmpty == true {
-                        messages.removeLast()
-                    }
-                }
-            }
-        } else {
-            await MainActor.run {
-                showError(message: "KeyPath requires Anthropic Claude")
-            }
-        }
+        await prepareForMessage(userInput)
+        await processMessage()
     }
 
     func installRule(_ rule: KanataRule) {
@@ -214,55 +178,66 @@ class KeyPathChatController {
         isResponding = false
     }
 
-    internal func getUserFriendlyErrorMessage(from error: Error) -> String {
-        let errorString = error.localizedDescription.lowercased()
+    // MARK: - Message Processing Helpers
 
-        // Check for specific error patterns and provide helpful messages
-        if errorString.contains("x-api-key") || errorString.contains("authentication") {
-            return """
-            API Key Missing or Invalid
-
-            To use KeyPath, you need to add your Anthropic API key:
-
-            1. Open Settings (⌘,)
-            2. Enter your Anthropic API key
-            3. If you don't have one, get it at:
-               https://console.anthropic.com/
-
-            Your API key should start with 'sk-ant-api...'
-            """
-        } else if errorString.contains("network") || errorString.contains("connection") {
-            return """
-            Network Connection Error
-
-            Please check your internet connection and try again.
-            If the problem persists, the Anthropic API may be temporarily unavailable.
-            """
-        } else if errorString.contains("rate limit") {
-            return """
-            Rate Limit Exceeded
-
-            You've made too many requests. Please wait a moment and try again.
-            Consider upgrading your Anthropic plan for higher limits.
-            """
-        } else if errorString.contains("invalid request") || errorString.contains("bad request") {
-            return """
-            Invalid Request
-
-            There was a problem with your request. Please try rephrasing your keyboard remapping description.
-            """
-        } else {
-            // Generic error with the actual error for debugging
-            return """
-            An error occurred while processing your request.
-
-            Error details: \(error.localizedDescription)
-
-            If this continues, please check:
-            - Your API key in Settings (⌘,)
-            - Your internet connection
-            - The Anthropic API status
-            """
+    private func prepareForMessage(_ userInput: String) async {
+        await MainActor.run {
+            isResponding = true
+            let userMessage = KeyPathMessage(role: .user, text: userInput)
+            messages.append(userMessage)
+            messages.append(KeyPathMessage(role: .assistant, text: ""))
         }
     }
+
+    private func processMessage() async {
+        if let anthropicProvider = modelProvider as? AnthropicModelProvider {
+            await handleAnthropicProvider(anthropicProvider)
+        } else if let mockProvider = modelProvider as? KeyPathTestableProvider {
+            await handleMockProvider(mockProvider)
+        } else {
+            await MainActor.run {
+                showError(message: "KeyPath requires Anthropic Claude")
+            }
+        }
+    }
+
+    private func handleAnthropicProvider(_ provider: AnthropicModelProvider) async {
+        do {
+            let response = try await provider.sendDirectMessageWithHistory(messages)
+            await MainActor.run {
+                handleResponse(response)
+            }
+        } catch {
+            await handleProviderError(error, providerName: "Anthropic Claude")
+        }
+    }
+
+    private func handleMockProvider(_ provider: KeyPathTestableProvider) async {
+        do {
+            let response = try await provider.sendDirectMessageWithHistory(messages)
+            await MainActor.run {
+                handleResponse(response)
+            }
+        } catch {
+            await handleProviderError(error, providerName: "Mock/Test Provider")
+        }
+    }
+
+    private func handleProviderError(_ error: Error, providerName: String) async {
+        let context = ErrorContext(
+            operation: "Sending message to \(providerName)",
+            userInput: messages.dropLast().last?.displayText,
+            additionalInfo: ["provider": providerName]
+        )
+        let userFriendlyMessage = await errorMessageGenerator.generateUserFriendlyErrorMessage(from: error, context: context)
+        
+        await MainActor.run {
+            showError(message: userFriendlyMessage)
+            // Remove the empty message we added
+            if messages.last?.displayText.isEmpty == true {
+                messages.removeLast()
+            }
+        }
+    }
+
 }

@@ -2,6 +2,11 @@ import Foundation
 
 class KanataConfigValidator {
     private let executableFinder = KanataExecutableFinder()
+    private let llmProvider: AnthropicModelProvider?
+    
+    init(llmProvider: AnthropicModelProvider? = nil) {
+        self.llmProvider = llmProvider
+    }
 
     func validateRule(_ rule: String, completion: @escaping (Result<Bool, KanataValidationError>) -> Void) {
         print("🔧 DEBUG: Starting validation for rule: \(rule)")
@@ -86,7 +91,7 @@ class KanataConfigValidator {
     }
 
     private func validateKeyNames(fromKey: String, toKey: String) -> Result<Bool, KanataValidationError> {
-        let keyValidator = KanataKeyValidator()
+        let keyValidator = KanataKeyValidator(llmProvider: llmProvider)
 
         if !keyValidator.isValidKeyName(fromKey) {
             let suggestion = keyValidator.suggestKeyCorrection(fromKey)
@@ -119,7 +124,7 @@ class KanataConfigValidator {
         }
 
         let aliasName = components[0]
-        let keyValidator = KanataKeyValidator()
+        let keyValidator = KanataKeyValidator(llmProvider: llmProvider)
         guard keyValidator.isValidKeyName(aliasName) else {
             let suggestion = keyValidator.suggestKeyCorrection(aliasName)
             return .failure(.recoverableValidationError(

@@ -65,8 +65,18 @@ struct ClaudePromptTemplates {
        }
 
     For the visualization:
-    - Use friendly key names like "Caps Lock", "Escape", "Command", etc.
-    - These will be displayed as visual keycaps
+    - Use Mac-style modifier key symbols for clarity and familiarity:
+      • Command = ⌘ (not "Cmd" or "Command")
+      • Option/Alt = ⌥ (not "Alt" or "Option") 
+      • Shift = ⇧ (not "Shift")
+      • Control = ⌃ (not "Ctrl" or "Control")
+      • Caps Lock = ⇪ (not "Caps" or "Caps Lock")
+      • Tab = ⇥ (not "Tab")
+      • Delete = ⌫ (not "Del" or "Delete")
+      • Return = ⏎ (not "Enter" or "Return")
+      • Escape = ⎋ (not "Esc" or "Escape")
+    - For other keys, use friendly names like "Space", "F1", "A", etc.
+    - These will be displayed as visual keycaps with Mac symbols
 
     For the kanata_rule:
     - Generate a COMPLETE, self-contained Kanata configuration block
@@ -135,8 +145,18 @@ struct ClaudePromptTemplates {
     ```
 
     For the visualization:
-    - Use friendly key names like "Caps Lock", "Escape", "Command", etc.
-    - These will be displayed as visual keycaps
+    - Use Mac-style modifier key symbols for clarity and familiarity:
+      • Command = ⌘ (not "Cmd" or "Command")
+      • Option/Alt = ⌥ (not "Alt" or "Option") 
+      • Shift = ⇧ (not "Shift")
+      • Control = ⌃ (not "Ctrl" or "Control")
+      • Caps Lock = ⇪ (not "Caps" or "Caps Lock")
+      • Tab = ⇥ (not "Tab")
+      • Delete = ⌫ (not "Del" or "Delete")
+      • Return = ⏎ (not "Enter" or "Return")
+      • Escape = ⎋ (not "Esc" or "Escape")
+    - For other keys, use friendly names like "Space", "F1", "A", etc.
+    - These will be displayed as visual keycaps with Mac symbols
 
     For the kanata_rule:
     - Generate a simple rule format that will be processed into complete Kanata syntax
@@ -198,6 +218,6 @@ struct ClaudePromptTemplates {
     """
 
     static func formatPhase2Prompt(remappingDescription: String) -> String {
-        return phase2GenerationPrompt.replacingOccurrences(of: "{REMAPPING_DESCRIPTION}", with: remappingDescription)
+        phase2GenerationPrompt.replacingOccurrences(of: "{REMAPPING_DESCRIPTION}", with: remappingDescription)
     }
 }

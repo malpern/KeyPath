@@ -14,6 +14,10 @@
 
 KeyPath is an intuitive macOS application that makes keyboard remapping accessible to everyone. Powered by AI, it translates natural language descriptions into powerful keyboard customizations using [Kanata](https://github.com/jtroo/kanata) under the hood.
 
+### 🚨 Important: LLM-First Architecture
+
+KeyPath follows an **LLM-first design philosophy**. This means we prioritize intelligent, flexible understanding of user input over rigid validation rules. Please read [ARCHITECTURE.md](ARCHITECTURE.md) before contributing to understand our approach to avoiding hardcoded logic.
+
 ## Features
 
 - **Natural Language Input**: Describe your desired keyboard behavior in plain English

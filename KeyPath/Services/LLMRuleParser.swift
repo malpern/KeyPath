@@ -26,13 +26,14 @@ enum RuleParsingError: Error, LocalizedError {
 
 class LLMRuleParser {
     private let llmProvider: AnthropicModelProvider?
-    private let configManager = SimpleKanataConfigManager()
+    private let configManager: SimpleKanataConfigManager
     
     // Cache for common patterns to reduce API calls
     private var ruleCache: [String: ParsedRule] = [:]
     
     init(llmProvider: AnthropicModelProvider?) {
         self.llmProvider = llmProvider
+        self.configManager = SimpleKanataConfigManager(llmProvider: llmProvider)
         setupCommonRuleCache()
     }
     

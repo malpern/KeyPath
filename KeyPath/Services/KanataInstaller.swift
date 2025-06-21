@@ -2,9 +2,13 @@ import Foundation
 
 class KanataInstaller {
     private let executableFinder = KanataExecutableFinder()
-    private let validator = KanataConfigValidator()
+    private let validator: KanataConfigValidator
     private let serviceManager = KanataServiceManager()
     private let setupChecker = KanataSetupChecker()
+    
+    init(llmProvider: AnthropicModelProvider? = nil) {
+        self.validator = KanataConfigValidator(llmProvider: llmProvider)
+    }
 
     // Auto-install Kanata using Homebrew
     func autoInstallKanata(completion: @escaping (Result<Bool, KanataValidationError>) -> Void) {
@@ -35,12 +39,12 @@ class KanataInstaller {
 
     // Check if Homebrew is installed
     func isHomebrewInstalled() -> Bool {
-        return executableFinder.isHomebrewInstalled()
+        executableFinder.isHomebrewInstalled()
     }
 
     // Check if Karabiner-Elements is running
     func isKarabinerRunning() -> Bool {
-        return executableFinder.isKarabinerRunning()
+        executableFinder.isKarabinerRunning()
     }
 
     // Legacy support - map old InstallError to new KanataValidationError
@@ -48,7 +52,7 @@ class KanataInstaller {
 
     // Check if Kanata is installed and config exists (create if needed)
     func checkKanataSetup() -> Result<Bool, KanataValidationError> {
-        return setupChecker.checkKanataSetup()
+        setupChecker.checkKanataSetup()
     }
 
     // Validate a rule using kanata --check and semantic validation
@@ -63,7 +67,7 @@ class KanataInstaller {
 
     // Get current config for display
     func getCurrentConfig() -> String? {
-        return serviceManager.getCurrentConfig()
+        serviceManager.getCurrentConfig()
     }
 
     // Undo last rule by restoring from backup

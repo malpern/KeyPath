@@ -3,8 +3,12 @@ import Foundation
 /// Simple Kanata configuration manager following Karabiner-Elements pattern
 /// Individual rules are complete, self-contained configs that get concatenated
 class SimpleKanataConfigManager {
-
+    private let llmProvider: AnthropicModelProvider?
     private let configPath = NSString(string: "~/.config/kanata/kanata.kbd").expandingTildeInPath
+    
+    init(llmProvider: AnthropicModelProvider? = nil) {
+        self.llmProvider = llmProvider
+    }
 
     /// Generate complete Kanata configuration from individual rules
     func generateConfig(with activeRules: [KanataRule]) throws -> String {
@@ -53,7 +57,7 @@ class SimpleKanataConfigManager {
 
     /// Validate configuration using Kanata binary (if available)
     func validateConfig(_ config: String, completion: @escaping (Result<Bool, Error>) -> Void) {
-        let validator = KanataConfigValidator()
+        let validator = KanataConfigValidator(llmProvider: llmProvider)
 
         // Create a temporary file with the complete config
         let tempFile = NSTemporaryDirectory() + "kanata_validate_\(UUID().uuidString).kbd"
