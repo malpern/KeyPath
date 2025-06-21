@@ -160,3 +160,4 @@ This project is available under the [MIT License](LICENSE).
 - AI powered by [Anthropic Claude](https://www.anthropic.com/)
 - Configuration architecture inspired by [Karabiner-Elements](https://github.com/pqrs-org/Karabiner-Elements) by pqrs-org
 - Liquid Glass UI design inspired by Apple's WWDC 2025 guidelines
+# Test change

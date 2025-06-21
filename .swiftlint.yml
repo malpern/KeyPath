@@ -1,0 +1,55 @@
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - force_unwrapping
+  - implicit_return
+  - overridden_super_call
+  - redundant_nil_coalescing
+  - sorted_imports
+  - toggle_bool
+  - unused_import
+
+included:
+  - KeyPath
+  - KeyPathTests
+
+excluded:
+  - KeyPath/Assets.xcassets
+  - KeyPath/ContentView.swift.original
+  - .git
+  - .build
+  - DerivedData
+
+line_length:
+  warning: 120
+  error: 150
+
+function_body_length:
+  warning: 50
+  error: 100
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 1000
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+
+reporter: "xcode"
