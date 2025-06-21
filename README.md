@@ -79,6 +79,94 @@ KeyPath combines several technologies:
 - **Kanata** for low-level keyboard remapping
 - **Liquid Glass Effects** for visual polish
 
+### Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "User Interface Layer"
+        UI[SwiftUI Interface]
+        INPUT[Natural Language Input]
+        PREVIEW[Rule Preview]
+        HISTORY[Rule History]
+    end
+    
+    subgraph "LLM-First Intelligence Layer"
+        LLM[Anthropic Claude API]
+        PARSER[LLM Rule Parser]
+        VALIDATOR[LLM Key Validator]
+        ERROR_GEN[LLM Error Generator]
+    end
+    
+    subgraph "Service Layer"
+        CHAT[Chat Controller]
+        INSTALLER[Kanata Installer]
+        SECURITY[Security Manager]
+        CONFIG[Config Manager]
+    end
+    
+    subgraph "System Integration Layer"
+        KANATA[Kanata Binary]
+        FILESYSTEM[File System]
+        PERMISSIONS[macOS Permissions]
+        KEYCHAIN[Keychain API Keys]
+    end
+    
+    subgraph "Caching & Performance"
+        RULE_CACHE[Rule Cache]
+        KEY_CACHE[Key Validation Cache]
+        ERROR_CACHE[Error Message Cache]
+    end
+    
+    %% User Flow
+    INPUT -->|"caps lock to escape"| CHAT
+    CHAT -->|Context & History| LLM
+    LLM -->|Structured Response| PARSER
+    PARSER -->|Validated Rule| PREVIEW
+    PREVIEW -->|User Confirms| INSTALLER
+    
+    %% LLM Intelligence Flow
+    PARSER -.->|Cache Check| RULE_CACHE
+    VALIDATOR -.->|Cache Check| KEY_CACHE
+    ERROR_GEN -.->|Cache Check| ERROR_CACHE
+    
+    PARSER -->|Key Validation| VALIDATOR
+    VALIDATOR -->|LLM Analysis| LLM
+    CHAT -->|Error Context| ERROR_GEN
+    ERROR_GEN -->|Contextual Messages| LLM
+    
+    %% System Integration Flow
+    INSTALLER -->|Validate Config| KANATA
+    INSTALLER -->|Write Rules| FILESYSTEM
+    SECURITY -->|Check Permissions| PERMISSIONS
+    CONFIG -->|Manage Files| FILESYSTEM
+    CHAT -->|API Keys| KEYCHAIN
+    
+    %% Data Persistence
+    HISTORY -->|Store Rules| FILESYSTEM
+    CONFIG -->|Active Rules| FILESYSTEM
+    
+    %% Styling
+    classDef llm fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef ui fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef service fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef system fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef cache fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    
+    class LLM,PARSER,VALIDATOR,ERROR_GEN llm
+    class UI,INPUT,PREVIEW,HISTORY ui
+    class CHAT,INSTALLER,SECURITY,CONFIG service
+    class KANATA,FILESYSTEM,PERMISSIONS,KEYCHAIN system
+    class RULE_CACHE,KEY_CACHE,ERROR_CACHE cache
+```
+
+#### Key Architectural Principles:
+
+🧠 **LLM-First Intelligence**: All Kanata-specific logic flows through the LLM layer
+⚡ **Smart Caching**: Frequently used validations and rules are cached for performance  
+🔄 **Async Processing**: Non-blocking operations maintain UI responsiveness
+🛡️ **Security Integration**: Proper macOS permission handling and secure API key storage
+📝 **External Validation**: Final rule validation uses the actual Kanata binary
+
 ### Design Philosophy: LLM-First Architecture
 
 KeyPath follows a deliberate design philosophy that leverages the LLM (Large Language Model) for all Kanata-specific logic rather than hardcoding it into the application. This approach ensures:
