@@ -1,5 +1,6 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import KeyPath
 
 @Suite("Core Logic Tests")
@@ -10,8 +11,9 @@ struct CoreLogicSwiftTests {
 
         @Test("Add rule to history")
         func addRuleToHistory() {
-            // Clear any existing history
+            // Clear any existing history and force synchronize
             UserDefaults.standard.removeObject(forKey: "KeyPath.RuleHistory")
+            UserDefaults.standard.synchronize()
 
             let history = RuleHistory()
             let rule = createSampleRule()
@@ -23,12 +25,14 @@ struct CoreLogicSwiftTests {
 
             // Clean up
             UserDefaults.standard.removeObject(forKey: "KeyPath.RuleHistory")
+            UserDefaults.standard.synchronize()
         }
 
         @Test("History item limit enforcement")
         func historyItemLimitEnforcement() {
-            // Clear any existing history
+            // Clear any existing history and force synchronize
             UserDefaults.standard.removeObject(forKey: "KeyPath.RuleHistory")
+            UserDefaults.standard.synchronize()
 
             let history = RuleHistory()
 
@@ -46,6 +50,7 @@ struct CoreLogicSwiftTests {
 
             // Clean up
             UserDefaults.standard.removeObject(forKey: "KeyPath.RuleHistory")
+            UserDefaults.standard.synchronize()
         }
     }
 
