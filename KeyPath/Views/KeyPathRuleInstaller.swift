@@ -54,17 +54,11 @@ struct KeyPathRuleInstaller {
                                 // Add to UserRuleManager for tracking in Settings
                                 UserRuleManager.shared.addInstalledRule(rule, backupPath: backupPath)
                                 
-                                // Attempt auto-reload
+                                // Check if Kanata is running for user feedback
                                 let processManager = KanataProcessManager.shared
                                 if processManager.isKanataRunning() {
-                                    DebugLogger.shared.log("🔧 DEBUG: Kanata is running, attempting auto-reload...")
-                                    let reloadSuccess = processManager.reloadKanata()
-                                    
-                                    if reloadSuccess {
-                                        context.updateLastMessage("✅ Rule installed and activated! \(rule.visualization.description)\n\n🔄 Kanata configuration reloaded automatically. Your new rule is now active!")
-                                    } else {
-                                        context.updateLastMessage("✅ Rule installed successfully! \(rule.visualization.description)\n\n⚠️ Auto-reload failed. Please restart Kanata manually or run: `sudo pkill -SIGUSR1 kanata`")
-                                    }
+                                    DebugLogger.shared.log("🔧 DEBUG: Kanata is running, live-reload will handle config update...")
+                                    context.updateLastMessage("✅ Rule installed and activated! \(rule.visualization.description)\n\n🔄 Kanata will automatically reload the new configuration.")
                                 } else {
                                     context.updateLastMessage("✅ Rule installed successfully! \(rule.visualization.description)\n\n⚠️ Kanata is not running. Your rule has been saved but is not active yet.")
                                     // Trigger the alert dialog

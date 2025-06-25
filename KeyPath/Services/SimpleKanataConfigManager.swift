@@ -18,6 +18,7 @@ class SimpleKanataConfigManager {
 
         (defcfg
           process-unmapped-keys yes
+          live-reload-file \(configPath)
         )
 
         """

@@ -360,7 +360,7 @@ struct KeyPathChatMessagesView: View {
                     Text("KeyPath")
                         .font(.largeTitle.bold())
                         .padding(.top, 20)
-                        .padding(.bottom, 10)
+                         .padding(.bottom, 10)
                         .opacity(showTitleInHeader ? 0 : 1)
                         .background(GeometryReader { geometry in
                             Color.clear.preference(

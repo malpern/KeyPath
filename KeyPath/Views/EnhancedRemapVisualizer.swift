@@ -4,32 +4,90 @@ import SwiftUI
 func formatKeyLabel(_ key: String) -> String {
     let lowercased = key.lowercased()
 
-    // Mac modifier symbols with both symbol and name
-    if lowercased.contains("cmd") || lowercased.contains("command") {
-        return "⌘ Command"
+    // Special cases for compound keys
+    if lowercased == "c-c" || lowercased == "ctrl-c" {
+        return "⌃C"
     }
-    if lowercased.contains("opt") || lowercased.contains("option") || lowercased.contains("alt") {
-        return "⌥ Option"
+    if lowercased == "c-v" || lowercased == "ctrl-v" {
+        return "⌃V"
     }
-    if lowercased.contains("ctrl") || lowercased.contains("control") {
-        return "⌃ Control"
+    if lowercased == "c-f" {
+        return "⌃F"
     }
-    if lowercased.contains("shift") {
-        return "⇧ Shift"
+    if lowercased == "c-s-f" {
+        return "⌃⇧F"
     }
-    if lowercased.contains("fn") || lowercased.contains("function") {
-        return "🌐 Function"
+    if lowercased == "c-s-tab" {
+        return "⌃⇧⇥"
     }
-
-    // Handle common key truncation issues
-    if lowercased == "f" {
-        return "F"
+    if lowercased == "c-tab" {
+        return "⌃⇥"
     }
-    if lowercased == "j" {
-        return "J"
+    
+    // Mac modifier symbols
+    if lowercased == "cmd" || lowercased == "command" || lowercased == "lgui" || lowercased == "lmet" {
+        return "⌘"
     }
-
-    return key
+    if lowercased == "opt" || lowercased == "option" || lowercased == "alt" || lowercased == "lalt" {
+        return "⌥"
+    }
+    if lowercased == "ctrl" || lowercased == "control" || lowercased == "lctl" {
+        return "⌃"
+    }
+    if lowercased == "shift" || lowercased == "lsft" || lowercased == "rsft" {
+        return "⇧"
+    }
+    if lowercased == "fn" || lowercased == "function" {
+        return "🌐"
+    }
+    
+    // Special keys
+    if lowercased == "caps" || lowercased == "capslock" || lowercased == "caps lock" {
+        return "⇪"
+    }
+    if lowercased == "esc" || lowercased == "escape" {
+        return "⎋"
+    }
+    if lowercased == "spc" || lowercased == "space" {
+        return "␣"
+    }
+    if lowercased == "ret" || lowercased == "return" || lowercased == "enter" {
+        return "⏎"
+    }
+    if lowercased == "tab" {
+        return "⇥"
+    }
+    if lowercased == "left" {
+        return "←"
+    }
+    if lowercased == "right" || lowercased == "rght" {
+        return "→"
+    }
+    if lowercased == "up" {
+        return "↑"
+    }
+    if lowercased == "down" {
+        return "↓"
+    }
+    if lowercased == "[" {
+        return "["
+    }
+    if lowercased == "]" {
+        return "]"
+    }
+    
+    // Letter keys - uppercase single letters
+    if lowercased.count == 1 && lowercased.first?.isLetter == true {
+        return lowercased.uppercased()
+    }
+    
+    // Sequences
+    if lowercased == "em" {
+        return "em"
+    }
+    
+    // Return original for anything else
+    return key.uppercased()
 }
 
 struct EnhancedRemapVisualizer: View {

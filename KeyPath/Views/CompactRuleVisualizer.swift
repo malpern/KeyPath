@@ -49,20 +49,6 @@ struct CompactRuleVisualizer: View {
 
             Spacer()
 
-            // Explanation text (truncated) - clickable to toggle code panel
-            HoverableExplanationButton(
-                text: explanation,
-                isEnabled: showCodeToggle,
-                action: {
-                    if showCodeToggle {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showKanataCode.toggle()
-                            onCodeToggle?()
-                        }
-                    }
-                }
-            )
-
             // Code toggle button (if enabled) - moved to far right
             if showCodeToggle {
                 Button(action: {
@@ -288,11 +274,13 @@ struct CompactKeycap: View {
     let style: CompactKeycapStyle
 
     var body: some View {
-        Text(formatKeyLabel(label))
+        Text(formattedLabel)
             .font(systemFont)
+            .fontWeight(.medium)
             .foregroundColor(.white)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
+            .frame(minWidth: minWidth)
             .background(keyColor)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
@@ -300,48 +288,54 @@ struct CompactKeycap: View {
                     .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
             )
     }
+    
+    private var formattedLabel: String {
+        formatKeyLabel(label)
+    }
+    
+    private var isSpecialKey: Bool {
+        let formatted = formattedLabel
+        return formatted.contains("⌘") || formatted.contains("⌥") || 
+               formatted.contains("⌃") || formatted.contains("⇧") || 
+               formatted.contains("🌐") || formatted.contains("⇪") ||
+               formatted.contains("⎋") || formatted.contains("␣") ||
+               formatted.contains("⏎") || formatted.contains("⇥") ||
+               formatted.contains("←") || formatted.contains("→") ||
+               formatted.contains("↑") || formatted.contains("↓")
+    }
 
     private var systemFont: Font {
-        let baseFont: Font
         switch style {
-        case .mini: baseFont = .callout
-        case .source, .target: baseFont = .title3
-        case .primary: baseFont = .title2
+        case .mini: 
+            return isSpecialKey ? .caption : .caption2
+        case .source, .target: 
+            return isSpecialKey ? .callout : .body
+        case .primary: 
+            return isSpecialKey ? .title3 : .title2
         }
-
-        // Use smaller font for modifier keys with symbols + names
-        if label.contains("⌘") || label.contains("⌥") || label.contains("⌃") || label.contains("⇧") || label.contains("🌐") {
-            switch style {
-            case .mini: return .caption
-            case .source, .target: return .callout
-            case .primary: return .title3
-            }
+    }
+    
+    private var minWidth: CGFloat {
+        switch style {
+        case .mini: return 30
+        case .source, .target: return 45
+        case .primary: return 60
         }
-
-        return baseFont
     }
 
     private var horizontalPadding: CGFloat {
-        let baseValue: CGFloat
         switch style {
-        case .mini: baseValue = 12
-        case .source, .target: baseValue = 20
-        case .primary: baseValue = 24
+        case .mini: return 8
+        case .source, .target: return 12
+        case .primary: return 16
         }
-
-        // Add extra padding for modifier keys with symbols + names
-        if label.contains("⌘") || label.contains("⌥") || label.contains("⌃") || label.contains("⇧") || label.contains("🌐") {
-            return baseValue + 8
-        }
-
-        return baseValue
     }
 
     private var verticalPadding: CGFloat {
         switch style {
-        case .mini: return 6
-        case .source, .target: return 10
-        case .primary: return 12
+        case .mini: return 4
+        case .source, .target: return 6
+        case .primary: return 8
         }
     }
 

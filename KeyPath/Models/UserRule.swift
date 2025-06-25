@@ -196,6 +196,7 @@ class UserRuleManager {
 
         do {
             try configManager.updateConfig(with: activeKanataRules)
+            DebugLogger.shared.log("🔧 DEBUG: Config updated, Kanata will auto-reload via live-reload-file")
             completion(.success(()))
         } catch {
             completion(.failure(error))
