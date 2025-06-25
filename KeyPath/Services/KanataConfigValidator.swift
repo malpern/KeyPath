@@ -163,14 +163,24 @@ class KanataConfigValidator {
         let existingConfig = try String(contentsOfFile: configPath, encoding: .utf8)
         print("🔧 DEBUG: Existing config length: \(existingConfig.count) characters")
 
-        let configManager = KanataConfigManager()
-        var parsedConfig = configManager.parseConfig(existingConfig)
-        print("🔧 DEBUG: Parsed config - defsrc: \(parsedConfig.defsrc), deflayer: \(parsedConfig.deflayer)")
-
-        configManager.addSimpleMapping(rule, to: &parsedConfig)
-        print("🔧 DEBUG: After adding rule - defsrc: \(parsedConfig.defsrc), deflayer: \(parsedConfig.deflayer)")
-
-        let testConfig = configManager.generateConfig(parsedConfig)
+        // Use SimpleKanataConfigManager which supports live-reload-file
+        let configManager = SimpleKanataConfigManager()
+        
+        // Parse existing rules and add the new rule for testing
+        let existingRules = parseExistingRules(from: existingConfig)
+        let newRule = KanataRule(
+            visualization: EnhancedRemapVisualization(
+                behavior: .simpleRemap(from: "test", toKey: "test"),
+                title: "Test",
+                description: "Test rule"
+            ),
+            kanataRule: rule,
+            confidence: .high,
+            explanation: "Test rule"
+        )
+        
+        let allRules = existingRules + [newRule]
+        let testConfig = try configManager.generateConfig(with: allRules)
         print("🔧 DEBUG: Generated test config:\n\(testConfig)")
         print("🔧 DEBUG: Test config length: \(testConfig.count) characters")
 
@@ -180,6 +190,61 @@ class KanataConfigValidator {
         }
 
         return testConfig
+    }
+    
+    private func parseExistingRules(from config: String) -> [KanataRule] {
+        // Simple parser to extract existing rules from comments
+        var rules: [KanataRule] = []
+        let lines = config.components(separatedBy: .newlines)
+        
+        var currentExplanation = ""
+        var currentConfig = ""
+        var inRuleSection = false
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            if trimmed.hasPrefix(";; Rule:") {
+                // Start of a new rule
+                if !currentConfig.isEmpty {
+                    // Save previous rule
+                    let rule = KanataRule(
+                        visualization: EnhancedRemapVisualization(
+                            behavior: .simpleRemap(from: "unknown", toKey: "unknown"),
+                            title: currentExplanation,
+                            description: currentExplanation
+                        ),
+                        kanataRule: currentConfig.trimmingCharacters(in: .whitespacesAndNewlines),
+                        confidence: .high,
+                        explanation: currentExplanation
+                    )
+                    rules.append(rule)
+                }
+                
+                currentExplanation = String(trimmed.dropFirst(9)).trimmingCharacters(in: .whitespaces)
+                currentConfig = ""
+                inRuleSection = true
+            } else if inRuleSection && !trimmed.hasPrefix(";;") && !trimmed.isEmpty && !trimmed.hasPrefix("(defcfg") {
+                currentConfig += line + "\n"
+            }
+        }
+        
+        // Don't forget the last rule
+        if !currentConfig.isEmpty {
+            let rule = KanataRule(
+                visualization: EnhancedRemapVisualization(
+                    behavior: .simpleRemap(from: "unknown", toKey: "unknown"),
+                    title: currentExplanation,
+                    description: currentExplanation
+                ),
+                kanataRule: currentConfig.trimmingCharacters(in: .whitespacesAndNewlines),
+                confidence: .high,
+                explanation: currentExplanation
+            )
+            rules.append(rule)
+        }
+        
+        return rules
     }
 
     private func runKanataValidation(tempFile: String, completion: @escaping (Result<Bool, KanataValidationError>) -> Void) throws {
