@@ -1,0 +1,48 @@
+# Build artifacts
+.build/
+build/
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+*.xcuserdata
+*.xcuserdatad
+*.xcscheme
+*.xccheckout
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Swift Package Manager
+.swiftpm/
+Packages/
+Package.resolved
+*.xcodeproj/
+
+# App artifacts
+*.app
+*.dSYM
+
+# Logs
+*.log
