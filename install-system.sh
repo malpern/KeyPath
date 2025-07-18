@@ -18,7 +18,7 @@ LAUNCH_DAEMON_LABEL="com.keypath.kanata"
 LAUNCH_DAEMON_PLIST="/Library/LaunchDaemons/${LAUNCH_DAEMON_LABEL}.plist"
 KANATA_CONFIG_DIR="/usr/local/etc/kanata"
 KANATA_CONFIG_FILE="${KANATA_CONFIG_DIR}/keypath.kbd"
-KANATA_BINARY="/opt/homebrew/bin/kanata"
+KANATA_BINARY="/usr/local/bin/kanata-cmd"
 KEYPATH_APP_DIR="/Applications"
 
 # Functions
@@ -48,7 +48,7 @@ check_root() {
 check_kanata() {
     if [[ ! -f "$KANATA_BINARY" ]]; then
         log_error "Kanata not found at $KANATA_BINARY"
-        log_error "Please install Kanata first: brew install kanata"
+        log_error "Please compile Kanata with cmd feature first"
         exit 1
     fi
     log_success "Kanata found at $KANATA_BINARY"

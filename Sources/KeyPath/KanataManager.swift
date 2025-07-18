@@ -160,7 +160,11 @@ class KanataManager: ObservableObject {
             "tab": "tab",
             "escape": "esc",
             "backspace": "bspc",
-            "delete": "del"
+            "delete": "del",
+            "cmd": "cmd",
+            "command": "cmd",
+            "lcmd": "lcmd",
+            "rcmd": "rcmd"
         ]
         
         let lowercaseKey = key.lowercased()

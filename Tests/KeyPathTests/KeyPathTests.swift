@@ -35,6 +35,10 @@ final class KeyPathTests: XCTestCase {
             ("escape", "esc"),
             ("backspace", "bspc"),
             ("delete", "del"),
+            ("cmd", "cmd"),
+            ("command", "cmd"),
+            ("lcmd", "lcmd"),
+            ("rcmd", "rcmd"),
             ("unknown", "unknown") // Should pass through unchanged
         ]
         
@@ -247,7 +251,11 @@ extension KanataManager {
             "tab": "tab",
             "escape": "esc",
             "backspace": "bspc",
-            "delete": "del"
+            "delete": "del",
+            "cmd": "cmd",
+            "command": "cmd",
+            "lcmd": "lcmd",
+            "rcmd": "rcmd"
         ]
         
         let lowercaseKey = key.lowercased()
