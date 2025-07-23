@@ -2,11 +2,10 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var keyboardCapture = KeyboardCapture()
-    @StateObject private var kanataManager = KanataManager()
+    @EnvironmentObject var kanataManager: KanataManager
     @State private var isRecording = false
     @State private var recordedInput = ""
     @State private var recordedOutput = ""
-    @State private var showingInstaller = false
     @State private var showingSettings = false
     @State private var saveMessage = ""
     @State private var saveMessageColor = Color.green
@@ -103,39 +102,15 @@ struct ContentView: View {
             .cornerRadius(12)
             
             // Action Buttons
-            HStack(spacing: 16) {
-                Button("Settings") {
-                    showingSettings = true
-                }
-                .buttonStyle(.bordered)
-                
-                Button("Installer") {
-                    showingInstaller = true
-                }
-                .buttonStyle(.bordered)
-                
-                Button("Restart Kanata") {
-                    restartKanata()
-                }
-                .buttonStyle(.bordered)
-                .disabled(!kanataManager.isRunning)
-                
-                // SAFETY: Emergency stop button
-                Button("🚨 Emergency Stop") {
-                    emergencyStop()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-                .disabled(!kanataManager.isRunning)
+            Button("Settings") {
+                showingSettings = true
             }
+            .buttonStyle(.bordered)
             
             Spacer()
         }
         .padding()
         .frame(width: 500, height: 600)
-        .sheet(isPresented: $showingInstaller) {
-            InstallerView()
-        }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }
@@ -197,20 +172,9 @@ struct ContentView: View {
         }
     }
     
-    private func restartKanata() {
-        Task {
-            await kanataManager.restartKanata()
-        }
-    }
-    
-    // SAFETY: Emergency stop function
-    private func emergencyStop() {
-        Task {
-            await kanataManager.emergencyStop()
-        }
-    }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(KanataManager())
 }

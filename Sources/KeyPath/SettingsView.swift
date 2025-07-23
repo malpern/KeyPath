@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var kanataManager = KanataManager()
+    @EnvironmentObject var kanataManager: KanataManager
     
     var body: some View {
         NavigationView {
@@ -21,20 +21,54 @@ struct SettingsView: View {
                         .cornerRadius(8)
                 }
                 
-                VStack(spacing: 12) {
-                    Button("Restart Kanata") {
-                        Task {
-                            await kanataManager.restartKanata()
-                        }
-                    }
-                    .buttonStyle(.bordered)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Manual Controls")
+                        .font(.headline)
                     
-                    Button("Refresh Status") {
-                        Task {
-                            await kanataManager.updateStatus()
+                    Text("Kanata starts automatically when KeyPath launches.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            Button(kanataManager.isRunning ? "Stop Kanata" : "Start Kanata") {
+                                Task {
+                                    if kanataManager.isRunning {
+                                        await kanataManager.stopKanata()
+                                    } else {
+                                        await kanataManager.startKanata()
+                                    }
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Restart Kanata") {
+                                Task {
+                                    await kanataManager.restartKanata()
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(!kanataManager.isRunning)
+                        }
+                        
+                        HStack(spacing: 12) {
+                            Button("🚨 Emergency Stop") {
+                                Task {
+                                    await kanataManager.emergencyStop()
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.red)
+                            .disabled(!kanataManager.isRunning)
+                            
+                            Button("Refresh Status") {
+                                Task {
+                                    await kanataManager.updateStatus()
+                                }
+                            }
+                            .buttonStyle(.bordered)
                         }
                     }
-                    .buttonStyle(.bordered)
                 }
                 
                 if let error = kanataManager.lastError {

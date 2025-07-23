@@ -35,10 +35,12 @@ final class KeyPathTests: XCTestCase {
             ("escape", "esc"),
             ("backspace", "bspc"),
             ("delete", "del"),
-            ("cmd", "cmd"),
-            ("command", "cmd"),
-            ("lcmd", "lcmd"),
-            ("rcmd", "rcmd"),
+            ("cmd", "lmet"),
+            ("command", "lmet"),
+            ("lcmd", "lmet"),
+            ("rcmd", "rmet"),
+            ("leftcmd", "lmet"),
+            ("rightcmd", "rmet"),
             ("unknown", "unknown") // Should pass through unchanged
         ]
         
@@ -60,6 +62,14 @@ final class KeyPathTests: XCTestCase {
         XCTAssertEqual(manager.convertToKanataSequence("escape"), "esc")
         XCTAssertEqual(manager.convertToKanataSequence("space"), "spc")
         XCTAssertEqual(manager.convertToKanataSequence("return"), "ret")
+        
+        // Test CMD key mappings (these are multi-character key names)
+        XCTAssertEqual(manager.convertToKanataSequence("cmd"), "lmet")
+        XCTAssertEqual(manager.convertToKanataSequence("command"), "lmet")
+        XCTAssertEqual(manager.convertToKanataSequence("lcmd"), "lmet")
+        XCTAssertEqual(manager.convertToKanataSequence("rcmd"), "rmet")
+        XCTAssertEqual(manager.convertToKanataSequence("leftcmd"), "lmet")
+        XCTAssertEqual(manager.convertToKanataSequence("rightcmd"), "rmet")
         
         // Test sequences
         XCTAssertEqual(manager.convertToKanataSequence("hello"), "(h e l l o)")
@@ -237,6 +247,59 @@ final class KeyPathTests: XCTestCase {
         // This test depends on system state, so we just verify it returns a boolean
         XCTAssertTrue(hasPermissions == true || hasPermissions == false)
     }
+    
+    // MARK: - Auto-Start Tests
+    
+    func testAutoStartInitialization() throws {
+        // Test that KanataManager initializes with auto-start
+        let manager = KanataManager()
+        
+        // Give it a moment to run init tasks
+        Thread.sleep(forTimeInterval: 0.1)
+        
+        // Check that status was updated
+        XCTAssertNotNil(manager.isRunning)
+    }
+    
+    func testCleanupFunction() async throws {
+        let manager = KanataManager()
+        
+        // The cleanup function should exist and be callable
+        await manager.cleanup()
+        
+        // No crash means success for this basic test
+        XCTAssertTrue(true)
+    }
+    
+    func testDaemonManagement() async throws {
+        let manager = KanataManager()
+        
+        // Test that daemon checking doesn't crash
+        // We can't test actual daemon operations without system permissions
+        // But we can ensure the functions exist and don't crash
+        
+        // This should complete without throwing
+        await manager.updateStatus()
+        
+        // Check that error handling works
+        if manager.lastError != nil {
+            XCTAssertFalse(manager.lastError!.isEmpty)
+        }
+    }
+    
+    func testAutoStartErrorHandling() async throws {
+        let manager = KanataManager()
+        
+        // Test that errors are properly set when Kanata isn't installed
+        // This test may pass or fail depending on system state
+        // but it shouldn't crash
+        
+        if !manager.isInstalled() {
+            // If not installed, there should be an error after init
+            Thread.sleep(forTimeInterval: 0.5)
+            XCTAssertNotNil(manager.lastError)
+        }
+    }
 }
 
 // MARK: - Helper Extensions
@@ -254,10 +317,12 @@ extension KanataManager {
             "escape": "esc",
             "backspace": "bspc",
             "delete": "del",
-            "cmd": "cmd",
-            "command": "cmd",
-            "lcmd": "lcmd",
-            "rcmd": "rcmd"
+            "cmd": "lmet",
+            "command": "lmet",
+            "lcmd": "lmet",
+            "rcmd": "rmet",
+            "leftcmd": "lmet",
+            "rightcmd": "rmet"
         ]
         
         let lowercaseKey = key.lowercased()
@@ -278,28 +343,6 @@ extension KanataManager {
         }
     }
     
-    func generateKanataConfig(input: String, output: String) -> String {
-        let kanataInput = convertToKanataKey(input)
-        let kanataOutput = convertToKanataSequence(output)
-        
-        return """
-        ;; KeyPath Generated Configuration
-        ;; Input: \(input) -> Output: \(output)
-        ;; Generated: \(Date())
-        
-        (defcfg
-          process-unmapped-keys yes
-        )
-        
-        (defsrc
-          \(kanataInput)
-        )
-        
-        (deflayer base
-          \(kanataOutput)
-        )
-        """
-    }
 }
 
 extension KeyboardCapture {

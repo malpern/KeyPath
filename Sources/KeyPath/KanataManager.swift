@@ -18,6 +18,52 @@ class KanataManager: ObservableObject {
     init() {
         Task {
             await updateStatus()
+            await autoStartKanata()
+        }
+    }
+    
+    // MARK: - Auto Management
+    
+    /// Automatically start Kanata if installed and not running
+    private func autoStartKanata() async {
+        // Only auto-start if Kanata is installed
+        guard isInstalled() else {
+            await MainActor.run {
+                self.lastError = "Kanata not installed. Please install using the system installer."
+            }
+            return
+        }
+        
+        // Check if already running
+        if await isKanataRunning() {
+            await MainActor.run {
+                self.lastError = nil // Clear any previous errors
+            }
+            return
+        }
+        
+        // Try to start Kanata
+        await startKanata()
+        
+        // Verify it started successfully
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // Wait 2 seconds
+        await updateStatus()
+        
+        if !isRunning {
+            await MainActor.run {
+                self.lastError = "Failed to auto-start Kanata. Check permissions and daemon status."
+            }
+        } else {
+            await MainActor.run {
+                self.lastError = nil
+            }
+        }
+    }
+    
+    /// Stop Kanata when app is terminating
+    func cleanup() async {
+        if isRunning {
+            await stopKanata()
         }
     }
     
@@ -51,6 +97,9 @@ class KanataManager: ObservableObject {
     }
     
     func startKanata() async {
+        // IMPORTANT: Ensure Karabiner daemon is running first
+        await ensureDaemonRunning()
+        
         await executeCommand(["kickstart", "-k", "system/\(launchDaemonLabel)"])
         await updateStatus()
     }
@@ -193,7 +242,7 @@ class KanataManager: ObservableObject {
         }
     }
     
-    private func generateKanataConfig(input: String, output: String) -> String {
+    func generateKanataConfig(input: String, output: String) -> String {
         // Convert input key to Kanata format
         let kanataInput = convertToKanataKey(input)
         let kanataOutput = convertToKanataSequence(output)
@@ -238,10 +287,14 @@ class KanataManager: ObservableObject {
             "escape": "esc",
             "backspace": "bspc",
             "delete": "del",
-            "cmd": "cmd",
-            "command": "cmd",
-            "lcmd": "lcmd",
-            "rcmd": "rcmd"
+            "cmd": "lmet",
+            "command": "lmet",
+            "lcmd": "lmet",
+            "rcmd": "rmet",
+            "lcommand": "lmet",
+            "rcommand": "rmet",
+            "leftcmd": "lmet",
+            "rightcmd": "rmet"
         ]
         
         let lowercaseKey = key.lowercased()
@@ -265,14 +318,98 @@ class KanataManager: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Daemon Management
+    
+    /// Ensures the Karabiner VirtualHID daemon is running
+    /// This is required for Kanata to work on macOS Sequoia
+    private func ensureDaemonRunning() async {
+        let daemonPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+        
+        // Check if daemon is already running
+        if await isDaemonRunning() {
+            return // Already running
+        }
+        
+        // Start the daemon
+        await withCheckedContinuation { continuation in
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            
+            let script = """
+            do shell script "sudo '\(daemonPath)' &" with administrator privileges
+            """
+            
+            task.arguments = ["-e", script]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+            
+            task.terminationHandler = { process in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                
+                if process.terminationStatus != 0 {
+                    Task { @MainActor in
+                        if output.contains("User canceled") {
+                            self.lastError = "Daemon startup cancelled by user"
+                        } else {
+                            self.lastError = "Failed to start daemon: \(output)"
+                        }
+                    }
+                }
+                continuation.resume()
+            }
+            
+            do {
+                try task.run()
+            } catch {
+                Task { @MainActor in
+                    self.lastError = "Failed to start daemon: \(error.localizedDescription)"
+                }
+                continuation.resume()
+            }
+        }
+        
+        // Wait a moment for daemon to start
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+    }
+    
+    /// Check if the Karabiner daemon is running
+    private func isDaemonRunning() async -> Bool {
+        await withCheckedContinuation { continuation in
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/ps")
+            task.arguments = ["aux"]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+            
+            task.terminationHandler = { _ in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                
+                let isRunning = output.contains("Karabiner-VirtualHIDDevice-Daemon")
+                continuation.resume(returning: isRunning)
+            }
+            
+            do {
+                try task.run()
+            } catch {
+                continuation.resume(returning: false)
+            }
+        }
+    }
 }
 
 // MARK: - Installation Check
 
 extension KanataManager {
     func isInstalled() -> Bool {
-        // Check if Kanata binary exists
-        let kanataPath = "/usr/local/bin/kanata"
+        // Check if CMD-enabled Kanata binary exists
+        let kanataPath = "/usr/local/bin/kanata-cmd"
         return FileManager.default.fileExists(atPath: kanataPath)
     }
     
