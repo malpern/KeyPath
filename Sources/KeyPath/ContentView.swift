@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var recordedInput = ""
     @State private var recordedOutput = ""
     @State private var showingSettings = false
+    @State private var showingInstallationWizard = false
     @State private var saveMessage = ""
     @State private var saveMessageColor = Color.green
     
@@ -92,13 +93,16 @@ struct ContentView: View {
                     
                     if let error = kanataManager.lastError {
                         VStack(alignment: .trailing, spacing: 4) {
-                            Text("⚠️ Setup Required")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                                .fontWeight(.medium)
+                            Button("⚠️ Setup Required") {
+                                showingInstallationWizard = true
+                            }
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .fontWeight(.medium)
+                            .buttonStyle(.plain)
                             
                             if error.contains("sudo ./install-system.sh") {
-                                Text("Run installer in Terminal")
+                                Text("Tap to run installer")
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
@@ -123,9 +127,17 @@ struct ContentView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }
+        .sheet(isPresented: $showingInstallationWizard) {
+            InstallationWizardView()
+        }
         .onAppear {
             Task {
                 await kanataManager.updateStatus()
+                
+                // Show installation wizard for new users
+                if !kanataManager.isCompletelyInstalled() {
+                    showingInstallationWizard = true
+                }
             }
         }
     }

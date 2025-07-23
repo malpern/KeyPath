@@ -442,7 +442,7 @@ extension KanataManager {
     
     /// Check if both Kanata binary and LaunchDaemon are installed
     func isCompletelyInstalled() -> Bool {
-        return isInstalled() && isServiceInstalled()
+        return isInstalled() && isServiceInstalled() && isKarabinerDriverInstalled()
     }
     
     func isServiceInstalled() -> Bool {
@@ -451,18 +451,68 @@ extension KanataManager {
         return FileManager.default.fileExists(atPath: plistPath)
     }
     
+    func isKarabinerDriverInstalled() -> Bool {
+        // Check if Karabiner VirtualHID driver is installed
+        let driverPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
+        return FileManager.default.fileExists(atPath: driverPath)
+    }
+    
     func getInstallationStatus() -> String {
         let kanataInstalled = isInstalled()
         let serviceInstalled = isServiceInstalled()
+        let driverInstalled = isKarabinerDriverInstalled()
         
-        if kanataInstalled && serviceInstalled {
+        if kanataInstalled && serviceInstalled && driverInstalled {
             return "✅ Fully installed"
+        } else if kanataInstalled && serviceInstalled {
+            return "⚠️ Driver missing"
         } else if kanataInstalled {
-            return "⚠️ Kanata installed, service missing"
-        } else if serviceInstalled {
-            return "⚠️ Service installed, Kanata missing"
+            return "⚠️ Service & driver missing"
         } else {
             return "❌ Not installed"
         }
+    }
+    
+    /// Perform transparent installation for new users
+    func performTransparentInstallation() async -> Bool {
+        return await withCheckedContinuation { continuation in
+            let script = """
+            tell application "System Events"
+                display dialog "KeyPath needs to install its keyboard engine. This requires administrator privileges." with title "KeyPath Setup" buttons {"Cancel", "Install"} default button "Install" with icon note
+                if button returned of result is "Install" then
+                    do shell script "cd '\(getCurrentDirectory())' && sudo ./install-system.sh" with administrator privileges
+                    return "success"
+                else
+                    return "cancelled"
+                end if
+            end tell
+            """
+            
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            task.arguments = ["-e", script]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+            
+            task.terminationHandler = { process in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                
+                let success = process.terminationStatus == 0 && output.contains("success")
+                continuation.resume(returning: success)
+            }
+            
+            do {
+                try task.run()
+            } catch {
+                continuation.resume(returning: false)
+            }
+        }
+    }
+    
+    private func getCurrentDirectory() -> String {
+        return FileManager.default.currentDirectoryPath
     }
 }

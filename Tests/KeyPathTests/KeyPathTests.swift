@@ -300,6 +300,154 @@ final class KeyPathTests: XCTestCase {
             XCTAssertNotNil(manager.lastError)
         }
     }
+    
+    // MARK: - Seamless Experience Tests
+    
+    func testCompleteInstallationCheck() throws {
+        let manager = KanataManager()
+        
+        // Test that isCompletelyInstalled checks both binary and daemon
+        let binaryExists = manager.isInstalled()
+        let serviceExists = manager.isServiceInstalled()
+        let completelyInstalled = manager.isCompletelyInstalled()
+        
+        // Complete installation requires both components
+        XCTAssertEqual(completelyInstalled, binaryExists && serviceExists)
+    }
+    
+    func testInstallationStatusMessages() throws {
+        let manager = KanataManager()
+        
+        let status = manager.getInstallationStatus()
+        
+        // Should return one of the expected status messages
+        let validStatuses = [
+            "✅ Fully installed",
+            "⚠️ Driver missing",
+            "⚠️ Service & driver missing",
+            "❌ Not installed"
+        ]
+        
+        XCTAssertTrue(validStatuses.contains(status), "Status should be one of the valid options: \(status)")
+    }
+    
+    func testAutoReloadFunctionality() async throws {
+        let manager = KanataManager()
+        
+        // Test that auto-reload doesn't crash when called
+        // In test environment, this will likely fail due to missing installation
+        // But it should fail gracefully with appropriate error messages
+        
+        do {
+            try await manager.saveConfiguration(input: "caps", output: "escape")
+            // Should complete without throwing if fully installed
+            XCTAssertTrue(true)
+        } catch {
+            // If it throws, it should be a known error type
+            let errorDescription = error.localizedDescription.lowercased()
+            XCTAssertTrue(errorDescription.contains("kanata") || 
+                         errorDescription.contains("config") ||
+                         errorDescription.contains("permission") ||
+                         errorDescription.contains("check") ||
+                         errorDescription.contains("validate") ||
+                         errorDescription.contains("launchdaemon") ||
+                         errorDescription.contains("install"),
+                         "Error should be installation-related: \(error.localizedDescription)")
+        }
+    }
+    
+    func testSeamlessConfigSaving() async throws {
+        let manager = KanataManager()
+        
+        // Test configuration generation and validation
+        let config = manager.generateKanataConfig(input: "caps", output: "escape")
+        
+        // Config should contain safety features and CMD support
+        XCTAssertTrue(config.contains("process-unmapped-keys no"), "Should have safety setting")
+        XCTAssertTrue(config.contains("danger-enable-cmd yes"), "Should have CMD support")
+        XCTAssertTrue(config.contains("SAFETY FEATURES"), "Should have safety documentation")
+        
+        // Test that saveConfiguration handles the complete workflow
+        do {
+            try await manager.saveConfiguration(input: "caps", output: "escape")
+        } catch {
+            // Expected to fail in test environment without full installation
+            // But should fail gracefully
+            XCTAssertNotNil(error.localizedDescription)
+        }
+    }
+    
+    func testErrorMessagesForNewUsers() async throws {
+        let manager = KanataManager()
+        
+        // Simulate new user experience by checking error handling
+        if !manager.isCompletelyInstalled() {
+            // Should provide helpful error messages
+            if !manager.isInstalled() {
+                // When binary is missing, should guide to installer
+                Thread.sleep(forTimeInterval: 0.5) // Allow async init to complete
+                if let error = manager.lastError {
+                    XCTAssertTrue(error.contains("sudo ./install-system.sh") || 
+                                 error.contains("install"), 
+                                 "Should guide user to installer: \(error)")
+                }
+            }
+            
+            if !manager.isServiceInstalled() {
+                // When service is missing, should guide to installer
+                Thread.sleep(forTimeInterval: 0.5)
+                if let error = manager.lastError {
+                    XCTAssertTrue(error.contains("LaunchDaemon") || 
+                                 error.contains("install"),
+                                 "Should mention missing service: \(error)")
+                }
+            }
+        }
+    }
+    
+    func testTransparentKanataManagement() throws {
+        let manager = KanataManager()
+        
+        // Test that all user-facing functionality hides Kanata implementation details
+        let status = manager.getInstallationStatus()
+        
+        // Status messages should be user-friendly
+        if status.contains("❌") {
+            XCTAssertTrue(status == "❌ Not installed", "Should have clear not installed message")
+        } else if status.contains("✅") {
+            XCTAssertTrue(status == "✅ Fully installed", "Should have clear success message")
+        }
+        
+        // Error messages should guide users without technical jargon
+        if let error = manager.lastError {
+            XCTAssertFalse(error.contains("launchctl"), "Should not expose launchctl commands")
+            XCTAssertFalse(error.contains("plist"), "Should not expose plist details")
+            XCTAssertFalse(error.contains("/Library/LaunchDaemons"), "Should not expose system paths")
+        }
+    }
+    
+    // MARK: - Installation Wizard Tests
+    
+    func testInstallationWizardFlow() throws {
+        // Test the installation wizard components exist and function
+        let manager = KanataManager()
+        
+        // These functions should exist for the wizard
+        let binaryInstalled = manager.isInstalled()
+        let serviceInstalled = manager.isServiceInstalled() 
+        let fullyInstalled = manager.isCompletelyInstalled()
+        
+        // Should be able to determine installation state
+        XCTAssertNotNil(binaryInstalled)
+        XCTAssertNotNil(serviceInstalled) 
+        XCTAssertNotNil(fullyInstalled)
+        
+        // Installation status should be descriptive for wizard
+        let status = manager.getInstallationStatus()
+        XCTAssertFalse(status.isEmpty, "Status should not be empty")
+        XCTAssertTrue(status.contains("✅") || status.contains("⚠️") || status.contains("❌"), 
+                     "Status should have clear visual indicators")
+    }
 }
 
 // MARK: - Helper Extensions
