@@ -1,0 +1,18 @@
+;; Test CMD key support
+;; Maps left CMD to right CMD (should work if CMD support is enabled)
+;; Maps caps to escape as backup test
+
+(defsrc
+  caps
+  lcmd
+)
+
+(deflayer base
+  esc
+  rcmd
+)
+
+(defcfg
+  process-unmapped-keys no
+  log-layer-changes no
+)

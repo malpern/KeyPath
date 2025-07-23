@@ -1,0 +1,17 @@
+;; Simple CMD key support test
+;; Try different CMD key names
+
+(defsrc
+  caps
+  cmd
+)
+
+(deflayer base
+  esc
+  (macro C M D _ W O R K S !)
+)
+
+(defcfg
+  process-unmapped-keys no
+  log-layer-changes no
+)

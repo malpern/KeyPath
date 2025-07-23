@@ -1,0 +1,13 @@
+;; Safe test configuration - caps to escape
+(defsrc
+  caps
+)
+
+(deflayer base
+  esc
+)
+
+(defcfg
+  process-unmapped-keys no
+  log-layer-changes no
+)

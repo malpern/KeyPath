@@ -8,6 +8,12 @@ struct KeyPathApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(kanataManager)
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                    // Seamlessly stop Kanata when KeyPath quits (like Karabiner-Elements)
+                    Task {
+                        await kanataManager.cleanup()
+                    }
+                }
         }
         .windowResizability(.contentSize)
         

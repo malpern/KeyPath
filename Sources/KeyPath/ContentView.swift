@@ -17,7 +17,7 @@ struct ContentView: View {
                 .font(.largeTitle)
                 .fontWeight(.bold)
             
-            Text("Record keyboard shortcuts and remap them with Kanata")
+            Text("Record keyboard shortcuts and create custom key mappings")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
@@ -43,7 +43,7 @@ struct ContentView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(kanataManager.isRunning && !isRecording)
+                        .disabled(!kanataManager.isCompletelyInstalled() && !isRecording)
                     }
                 }
                 
@@ -77,7 +77,7 @@ struct ContentView: View {
             
             // Status Section
             VStack(alignment: .leading, spacing: 8) {
-                Text("Kanata Status:")
+                Text("KeyPath Status:")
                     .font(.headline)
                 
                 HStack {
@@ -85,15 +85,24 @@ struct ContentView: View {
                         .fill(kanataManager.isRunning ? Color.green : Color.red)
                         .frame(width: 12, height: 12)
                     
-                    Text(kanataManager.isRunning ? "Running" : "Stopped")
+                    Text(kanataManager.isRunning ? "Ready" : "Not Ready")
                         .font(.body)
                     
                     Spacer()
                     
                     if let error = kanataManager.lastError {
-                        Text("Error: \(error)")
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("⚠️ Setup Required")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .fontWeight(.medium)
+                            
+                            if error.contains("sudo ./install-system.sh") {
+                                Text("Run installer in Terminal")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
             }

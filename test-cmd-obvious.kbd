@@ -1,0 +1,18 @@
+;; Obvious CMD key support test
+;; Maps left CMD to type "CMD_WORKS!" 
+;; Maps caps to escape as backup
+
+(defsrc
+  caps
+  lcmd
+)
+
+(deflayer base
+  esc
+  (macro C M D _ W O R K S !)
+)
+
+(defcfg
+  process-unmapped-keys no
+  log-layer-changes no
+)

@@ -24,12 +24,19 @@ class KanataManager: ObservableObject {
     
     // MARK: - Auto Management
     
-    /// Automatically start Kanata if installed and not running
+    /// Automatically start Kanata if fully installed and not running
     private func autoStartKanata() async {
-        // Only auto-start if Kanata is installed
-        guard isInstalled() else {
+        // Check for complete installation (binary + LaunchDaemon)
+        guard isCompletelyInstalled() else {
+            let status = getInstallationStatus()
             await MainActor.run {
-                self.lastError = "Kanata not installed. Please install using the system installer."
+                if !self.isInstalled() {
+                    self.lastError = "Kanata not installed. Please run: sudo ./install-system.sh"
+                } else if !self.isServiceInstalled() {
+                    self.lastError = "LaunchDaemon missing. Please run: sudo ./install-system.sh"
+                } else {
+                    self.lastError = "Installation incomplete: \(status)"
+                }
             }
             return
         }
@@ -42,16 +49,16 @@ class KanataManager: ObservableObject {
             return
         }
         
-        // Try to start Kanata
+        // Try to start Kanata (this will handle daemon startup automatically)
         await startKanata()
         
         // Verify it started successfully
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // Wait 2 seconds
+        try? await Task.sleep(nanoseconds: 3_000_000_000) // Wait 3 seconds
         await updateStatus()
         
         if !isRunning {
             await MainActor.run {
-                self.lastError = "Failed to auto-start Kanata. Check permissions and daemon status."
+                self.lastError = "Failed to auto-start Kanata. Try running: sudo ./install-system.sh"
             }
         } else {
             await MainActor.run {
@@ -134,8 +141,28 @@ class KanataManager: ObservableObject {
         let configURL = URL(fileURLWithPath: configPath)
         try config.write(to: configURL, atomically: true, encoding: .utf8)
         
-        // Restart Kanata to apply new config
-        await restartKanata()
+        // Auto-reload Kanata with new config (seamless like Karabiner-Elements)
+        await autoReloadKanata()
+    }
+    
+    /// Seamlessly reload Kanata with new configuration
+    private func autoReloadKanata() async {
+        guard isCompletelyInstalled() else {
+            // If not installed, just update status
+            await updateStatus()
+            return
+        }
+        
+        if isRunning {
+            // Restart Kanata to pick up new config
+            await restartKanata()
+        } else {
+            // Start Kanata if not running
+            await startKanata()
+        }
+        
+        // Update status after reload
+        await updateStatus()
     }
     
     // SAFETY: Validate configuration using kanata --check
@@ -411,6 +438,11 @@ extension KanataManager {
         // Check if CMD-enabled Kanata binary exists
         let kanataPath = "/usr/local/bin/kanata-cmd"
         return FileManager.default.fileExists(atPath: kanataPath)
+    }
+    
+    /// Check if both Kanata binary and LaunchDaemon are installed
+    func isCompletelyInstalled() -> Bool {
+        return isInstalled() && isServiceInstalled()
     }
     
     func isServiceInstalled() -> Bool {
