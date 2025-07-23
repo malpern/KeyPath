@@ -74,12 +74,14 @@ final class KeyPathTests: XCTestCase {
         
         // Check config structure
         XCTAssertTrue(config.contains("(defcfg"))
-        XCTAssertTrue(config.contains("process-unmapped-keys yes"))
+        XCTAssertTrue(config.contains("process-unmapped-keys no"))  // SAFETY: Updated expectation
+        XCTAssertTrue(config.contains("danger-enable-cmd yes"))     // SAFETY: CMD support
         XCTAssertTrue(config.contains("(defsrc"))
         XCTAssertTrue(config.contains("caps"))
         XCTAssertTrue(config.contains("(deflayer base"))
         XCTAssertTrue(config.contains("esc"))
         XCTAssertTrue(config.contains(";; Input: caps -> Output: escape"))
+        XCTAssertTrue(config.contains("SAFETY FEATURES"))           // SAFETY: Documentation
         
         // Ensure no invalid options
         XCTAssertFalse(config.contains("log-level"))

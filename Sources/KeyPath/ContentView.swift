@@ -8,6 +8,8 @@ struct ContentView: View {
     @State private var recordedOutput = ""
     @State private var showingInstaller = false
     @State private var showingSettings = false
+    @State private var saveMessage = ""
+    @State private var saveMessageColor = Color.green
     
     var body: some View {
         VStack(spacing: 20) {
@@ -61,6 +63,14 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(recordedInput.isEmpty || recordedOutput.isEmpty)
+                
+                // Save Message
+                if !saveMessage.isEmpty {
+                    Text(saveMessage)
+                        .foregroundColor(saveMessageColor)
+                        .font(.caption)
+                        .animation(.easeInOut(duration: 0.3), value: saveMessage)
+                }
             }
             .padding()
             .background(Color.gray.opacity(0.05))
@@ -109,6 +119,14 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!kanataManager.isRunning)
+                
+                // SAFETY: Emergency stop button
+                Button("🚨 Emergency Stop") {
+                    emergencyStop()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .disabled(!kanataManager.isRunning)
             }
             
             Spacer()
@@ -146,7 +164,14 @@ struct ContentView: View {
     private func saveKeyPath() {
         Task {
             do {
-                try await kanataManager.saveConfiguration(input: recordedInput, output: recordedOutput)
+                let inputKey = recordedInput
+                let outputKey = recordedOutput
+                
+                try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
+                
+                // Show success message
+                saveMessage = "✅ Saved: \(inputKey) → \(outputKey)"
+                saveMessageColor = Color.green
                 
                 // Clear the form
                 recordedInput = ""
@@ -154,8 +179,20 @@ struct ContentView: View {
                 
                 // Update status
                 await kanataManager.updateStatus()
+                
+                // Clear message after 3 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    saveMessage = ""
+                }
             } catch {
-                print("Error saving configuration: \(error)")
+                // Show error message
+                saveMessage = "❌ Error saving: \(error.localizedDescription)"
+                saveMessageColor = Color.red
+                
+                // Clear error message after 5 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    saveMessage = ""
+                }
             }
         }
     }
@@ -163,6 +200,13 @@ struct ContentView: View {
     private func restartKanata() {
         Task {
             await kanataManager.restartKanata()
+        }
+    }
+    
+    // SAFETY: Emergency stop function
+    private func emergencyStop() {
+        Task {
+            await kanataManager.emergencyStop()
         }
     }
 }

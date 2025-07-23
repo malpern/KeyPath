@@ -65,8 +65,17 @@ class KanataManager: ObservableObject {
         await updateStatus()
     }
     
+    // SAFETY: Emergency stop function
+    func emergencyStop() async {
+        await executeCommand(["kill", "TERM", "system/\(launchDaemonLabel)"])
+        await updateStatus()
+    }
+    
     func saveConfiguration(input: String, output: String) async throws {
         let config = generateKanataConfig(input: input, output: output)
+        
+        // SAFETY: Validate configuration before saving
+        try await validateConfiguration(config)
         
         // Create config directory if it doesn't exist
         let configDir = URL(fileURLWithPath: configDirectory)
@@ -80,18 +89,21 @@ class KanataManager: ObservableObject {
         await restartKanata()
     }
     
-    func updateStatus() async {
-        let running = await isKanataRunning()
-        isRunning = running
-    }
-    
-    // MARK: - Private Implementation
-    
-    private func executeCommand(_ arguments: [String]) async {
+    // SAFETY: Validate configuration using kanata --check
+    private func validateConfiguration(_ config: String) async throws {
+        // Write config to temporary file
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("keypath-test.kbd")
+        try config.write(to: tempURL, atomically: true, encoding: .utf8)
+        
+        defer {
+            try? FileManager.default.removeItem(at: tempURL)
+        }
+        
+        // Validate using kanata --check
         await withCheckedContinuation { continuation in
             let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            task.arguments = ["/bin/launchctl"] + arguments
+            task.executableURL = URL(fileURLWithPath: "/usr/local/bin/kanata-cmd")
+            task.arguments = ["--cfg", tempURL.path, "--check"]
             
             let pipe = Pipe()
             task.standardOutput = pipe
@@ -103,7 +115,63 @@ class KanataManager: ObservableObject {
                 
                 if process.terminationStatus != 0 {
                     Task { @MainActor in
-                        self.lastError = "Command failed: \(output)"
+                        self.lastError = "Invalid configuration: \(output)"
+                    }
+                }
+                continuation.resume()
+            }
+            
+            do {
+                try task.run()
+            } catch {
+                Task { @MainActor in
+                    self.lastError = "Failed to validate config: \(error.localizedDescription)"
+                }
+                continuation.resume()
+            }
+        }
+        
+        if lastError != nil {
+            throw NSError(domain: "KanataManager", code: 1, userInfo: [NSLocalizedDescriptionKey: lastError ?? "Config validation failed"])
+        }
+    }
+    
+    func updateStatus() async {
+        let running = await isKanataRunning()
+        isRunning = running
+    }
+    
+    // MARK: - Private Implementation
+    
+    private func executeCommand(_ arguments: [String]) async {
+        await withCheckedContinuation { continuation in
+            // Try to use osascript to run sudo commands with GUI authorization
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            
+            // Create AppleScript that prompts for password
+            let script = """
+            do shell script "/bin/launchctl \(arguments.joined(separator: " "))" with administrator privileges
+            """
+            
+            task.arguments = ["-e", script]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+            
+            task.terminationHandler = { process in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                
+                if process.terminationStatus != 0 {
+                    Task { @MainActor in
+                        // Check if user cancelled
+                        if output.contains("User canceled") {
+                            self.lastError = "Authorization cancelled by user"
+                        } else {
+                            self.lastError = "Command failed: \(output)"
+                        }
                     }
                 } else {
                     Task { @MainActor in
@@ -134,9 +202,18 @@ class KanataManager: ObservableObject {
         ;; KeyPath Generated Configuration
         ;; Input: \(input) -> Output: \(output)
         ;; Generated: \(Date())
+        ;; 
+        ;; SAFETY FEATURES:
+        ;; - Only specified keys are intercepted
+        ;; - All other keys pass through normally
+        ;; - Emergency stop: Use KeyPath app or Terminal
         
         (defcfg
-          process-unmapped-keys yes
+          ;; SAFETY: Only process explicitly mapped keys
+          process-unmapped-keys no
+          
+          ;; SAFETY: Allow cmd for system shortcuts
+          danger-enable-cmd yes
         )
         
         (defsrc

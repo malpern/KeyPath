@@ -1,0 +1,18 @@
+;; Fixed CMD key support test
+;; Maps left CMD to type "cmd works"
+;; Maps caps to escape
+
+(defsrc
+  caps
+  lmet
+)
+
+(deflayer base
+  esc
+  (macro c m d spc w o r k s)
+)
+
+(defcfg
+  process-unmapped-keys no
+  log-layer-changes no
+)
