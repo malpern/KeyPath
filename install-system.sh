@@ -103,6 +103,10 @@ create_launch_daemon() {
         <string>--cfg</string>
         <string>${KANATA_CONFIG_FILE}</string>
     </array>
+    <key>UserName</key>
+    <string>root</string>
+    <key>GroupName</key>
+    <string>wheel</string>
     <key>RunAtLoad</key>
     <false/>
     <key>KeepAlive</key>
@@ -113,6 +117,8 @@ create_launch_daemon() {
     <string>/var/log/kanata.log</string>
     <key>ThrottleInterval</key>
     <integer>1</integer>
+    <key>ProcessType</key>
+    <string>Interactive</string>
 </dict>
 </plist>
 EOF

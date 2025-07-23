@@ -22,6 +22,12 @@ struct InstallationWizardView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
+                    
+                    Text("KeyPath automatically handles root privileges for low-level keyboard access")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 }
                 
                 // Installation Progress
@@ -37,7 +43,7 @@ struct InstallationWizardView: View {
                     InstallationStepView(
                         step: 2,
                         title: "Setup System Service",
-                        description: "Configures automatic startup and permissions",
+                        description: "Configures automatic startup with root privileges",
                         status: installer.serviceInstallStatus,
                         isActive: installer.currentStep >= 2
                     )

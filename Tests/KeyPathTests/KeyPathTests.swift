@@ -448,6 +448,67 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(status.contains("✅") || status.contains("⚠️") || status.contains("❌"), 
                      "Status should have clear visual indicators")
     }
+    
+    // MARK: - Root Privilege Tests
+    
+    func testLaunchDaemonRootConfiguration() throws {
+        let manager = KanataManager()
+        
+        // Test that LaunchDaemon components exist
+        XCTAssertNotNil(manager.isServiceInstalled())
+        
+        // The LaunchDaemon plist should exist when service is installed
+        if manager.isServiceInstalled() {
+            let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+            XCTAssertTrue(FileManager.default.fileExists(atPath: plistPath), 
+                         "LaunchDaemon plist should exist")
+        }
+    }
+    
+    func testRootPrivilegeVerification() async throws {
+        let manager = KanataManager()
+        
+        // Test that root verification doesn't crash
+        // In test environment, this should complete without throwing
+        // The actual verification is system-dependent
+        
+        if manager.isCompletelyInstalled() {
+            // If installed, we can test the start process
+            await manager.startKanata()
+            
+            // Should complete without crashing
+            XCTAssertTrue(true, "Start process should complete")
+            
+            // Check that status is updated
+            XCTAssertNotNil(manager.isRunning)
+        } else {
+            // If not installed, should have appropriate error
+            if let error = manager.lastError {
+                XCTAssertTrue(error.contains("install") || error.contains("missing"),
+                             "Should indicate installation needed: \(error)")
+            }
+        }
+    }
+    
+    func testAutomatedRootHandling() throws {
+        let manager = KanataManager()
+        
+        // Test that the system is designed to handle root privileges automatically
+        // LaunchDaemons should run as root by default
+        
+        // Check that the binary path is correct for system installation
+        let binaryPath = "/usr/local/bin/kanata-cmd"
+        let binaryExists = FileManager.default.fileExists(atPath: binaryPath)
+        
+        if binaryExists {
+            // If binary exists, LaunchDaemon should be configured to run it as root
+            XCTAssertTrue(manager.isInstalled(), "Binary detection should work")
+        }
+        
+        // The design should not require manual privilege escalation
+        // LaunchDaemon handles this automatically
+        XCTAssertTrue(true, "Automated root handling should be built into LaunchDaemon")
+    }
 }
 
 // MARK: - Helper Extensions

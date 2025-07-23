@@ -46,19 +46,24 @@ class KanataManager: ObservableObject {
             await MainActor.run {
                 self.lastError = nil // Clear any previous errors
             }
+            await verifyRootExecution() // Verify it's running as root
             return
         }
         
-        // Try to start Kanata (this will handle daemon startup automatically)
+        // Try to start Kanata (LaunchDaemon automatically handles root privileges)
+        await MainActor.run {
+            self.lastError = "Starting Kanata with root privileges..."
+        }
+        
         await startKanata()
         
-        // Verify it started successfully
+        // Verify it started successfully with proper privileges
         try? await Task.sleep(nanoseconds: 3_000_000_000) // Wait 3 seconds
         await updateStatus()
         
         if !isRunning {
             await MainActor.run {
-                self.lastError = "Failed to auto-start Kanata. Try running: sudo ./install-system.sh"
+                self.lastError = "Failed to auto-start Kanata. LaunchDaemon may need reinstallation."
             }
         } else {
             await MainActor.run {
@@ -107,8 +112,15 @@ class KanataManager: ObservableObject {
         // IMPORTANT: Ensure Karabiner daemon is running first
         await ensureDaemonRunning()
         
+        // LaunchDaemon automatically runs Kanata as root - no manual privilege escalation needed
         await executeCommand(["kickstart", "-k", "system/\(launchDaemonLabel)"])
+        
+        // Verify Kanata started with root privileges
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // Wait 2 seconds
         await updateStatus()
+        
+        // Check if running as root
+        await verifyRootExecution()
     }
     
     func stopKanata() async {
@@ -514,5 +526,62 @@ extension KanataManager {
     
     private func getCurrentDirectory() -> String {
         return FileManager.default.currentDirectoryPath
+    }
+    
+    /// Verify that Kanata is running with root privileges
+    private func verifyRootExecution() async {
+        await withCheckedContinuation { continuation in
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/ps")
+            task.arguments = ["-axo", "pid,user,comm"]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+            
+            task.terminationHandler = { _ in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                
+                // Check if kanata-cmd is running as root
+                let lines = output.components(separatedBy: .newlines)
+                let kanataProcess = lines.first { line in
+                    line.contains("kanata-cmd") || line.contains("kanata")
+                }
+                
+                if let process = kanataProcess {
+                    if process.contains("root") {
+                        Task { @MainActor in
+                            // Kanata is running as root - perfect!
+                            if self.lastError?.contains("root") == true {
+                                self.lastError = nil // Clear root-related errors
+                            }
+                        }
+                    } else {
+                        Task { @MainActor in
+                            self.lastError = "Kanata is not running as root. Keyboard access may be limited."
+                        }
+                    }
+                } else {
+                    Task { @MainActor in
+                        if self.isRunning {
+                            // LaunchDaemon shows as running but process not found
+                            self.lastError = "Kanata service started but process verification failed."
+                        }
+                    }
+                }
+                
+                continuation.resume()
+            }
+            
+            do {
+                try task.run()
+            } catch {
+                Task { @MainActor in
+                    self.lastError = "Failed to verify root execution: \(error.localizedDescription)"
+                }
+                continuation.resume()
+            }
+        }
     }
 }
