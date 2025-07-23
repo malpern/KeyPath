@@ -238,6 +238,42 @@ class KanataManager: ObservableObject {
         await autoReloadKanata()
     }
     
+    /// Reset configuration to default (no custom mappings)
+    func resetToDefaultConfig() async throws {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        let dateString = formatter.string(from: Date())
+        
+        let defaultConfig = """
+        ;; KeyPath Default Configuration
+        ;; Created by KeyPath on \(dateString)
+        ;; 
+        ;; SAFETY FEATURES:
+        ;; - Emergency exit: Left Ctrl + Space + Esc
+        ;; - Process unmapped keys to prevent lockout
+        ;; - No custom mappings - clean slate for testing
+
+        (defcfg
+          process-unmapped-keys yes
+        )
+
+        ;; No key mappings defined - all keys pass through normally
+        ;; Add your custom mappings through KeyPath's interface
+        """
+        
+        // Create config directory if it doesn't exist
+        let configDir = URL(fileURLWithPath: configDirectory)
+        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        
+        // Write default config file
+        let configURL = URL(fileURLWithPath: configPath)
+        try defaultConfig.write(to: configURL, atomically: true, encoding: .utf8)
+        
+        // Auto-reload Kanata with default config
+        await autoReloadKanata()
+    }
+    
     /// Seamlessly reload Kanata with new configuration
     private func autoReloadKanata() async {
         guard isCompletelyInstalled() else {
@@ -375,10 +411,16 @@ class KanataManager: ObservableObject {
         let kanataInput = convertToKanataKey(input)
         let kanataOutput = convertToKanataSequence(output)
         
+        // Format date and time
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        let dateString = formatter.string(from: Date())
+        
         return """
         ;; KeyPath Generated Configuration
+        ;; Created by KeyPath on \(dateString)
         ;; Input: \(input) -> Output: \(output)
-        ;; Generated: \(Date())
         ;; 
         ;; SAFETY FEATURES:
         ;; - Only specified keys are intercepted
@@ -564,7 +606,7 @@ extension KanataManager {
         let driverInstalled = isKarabinerDriverInstalled()
         
         if kanataInstalled && serviceInstalled && driverInstalled {
-            return "✅ Fully installed"
+            return "Fully installed"
         } else if kanataInstalled && serviceInstalled {
             return "⚠️ Driver missing"
         } else if kanataInstalled {

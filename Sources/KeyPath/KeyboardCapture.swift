@@ -7,12 +7,32 @@ class KeyboardCapture: ObservableObject {
     private var runLoopSource: CFRunLoopSource?
     private var captureCallback: ((String) -> Void)?
     private var isCapturing = false
+    private var isContinuous = false
+    private var pauseTimer: Timer?
+    private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
     
     func startCapture(callback: @escaping (String) -> Void) {
         guard !isCapturing else { return }
         
         captureCallback = callback
         isCapturing = true
+        isContinuous = false
+        
+        // Request accessibility permissions if needed
+        if !hasAccessibilityPermissions() {
+            requestAccessibilityPermissions()
+            return
+        }
+        
+        setupEventTap()
+    }
+    
+    func startContinuousCapture(callback: @escaping (String) -> Void) {
+        guard !isCapturing else { return }
+        
+        captureCallback = callback
+        isCapturing = true
+        isContinuous = true
         
         // Request accessibility permissions if needed
         if !hasAccessibilityPermissions() {
@@ -27,7 +47,12 @@ class KeyboardCapture: ObservableObject {
         guard isCapturing else { return }
         
         isCapturing = false
+        isContinuous = false
         captureCallback = nil
+        
+        // Cancel pause timer
+        pauseTimer?.invalidate()
+        pauseTimer = nil
         
         if let eventTap = eventTap {
             CFMachPortInvalidate(eventTap)
@@ -76,7 +101,26 @@ class KeyboardCapture: ObservableObject {
         
         DispatchQueue.main.async {
             self.captureCallback?(keyName)
-            self.stopCapture()
+            
+            if !self.isContinuous {
+                // Single key capture - stop immediately
+                self.stopCapture()
+            } else {
+                // Continuous capture - reset pause timer
+                self.resetPauseTimer()
+            }
+        }
+    }
+    
+    private func resetPauseTimer() {
+        // Cancel existing timer
+        pauseTimer?.invalidate()
+        
+        // Start new timer for auto-stop after pause
+        pauseTimer = Timer.scheduledTimer(withTimeInterval: pauseDuration, repeats: false) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.stopCapture()
+            }
         }
     }
     

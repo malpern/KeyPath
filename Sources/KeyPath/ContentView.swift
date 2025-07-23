@@ -4,9 +4,9 @@ struct ContentView: View {
     @StateObject private var keyboardCapture = KeyboardCapture()
     @EnvironmentObject var kanataManager: KanataManager
     @State private var isRecording = false
+    @State private var isRecordingOutput = false
     @State private var recordedInput = ""
     @State private var recordedOutput = ""
-    @State private var showingSettings = false
     @State private var showingInstallationWizard = false
     @State private var hasCheckedRequirements = false
     @State private var saveMessage = ""
@@ -15,13 +15,22 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 20) {
             // Header
-            Text("KeyPath Recorder")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Text("Record keyboard shortcuts and create custom key mappings")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Image(systemName: "keyboard")
+                        .font(.largeTitle)
+                        .foregroundColor(.blue)
+                    
+                    Text("KeyPath")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                }
+                
+                Text("Record keyboard shortcuts and create custom key mappings")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             // Recording Section
             VStack(spacing: 16) {
@@ -37,33 +46,67 @@ struct ContentView: View {
                             .background(Color.gray.opacity(0.1))
                             .cornerRadius(8)
                         
-                        Button(isRecording ? "Stop Recording" : "Record Input") {
+                        Button(action: {
                             if isRecording {
                                 stopRecording()
                             } else {
                                 startRecording()
                             }
+                        }) {
+                            Image(systemName: getInputButtonIcon())
+                                .font(.title2)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.plain)
+                        .frame(height: 44)
+                        .frame(minWidth: 44)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
                         .disabled(!kanataManager.isCompletelyInstalled() && !isRecording)
                     }
                 }
                 
-                // Output Mapping
+                // Output Recording
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Output Key:")
                         .font(.headline)
                     
-                    TextField("Enter output key (e.g., 'escape', 'a', 'space')", text: $recordedOutput)
-                        .textFieldStyle(.roundedBorder)
+                    HStack {
+                        Text(recordedOutput.isEmpty ? "Press keys..." : recordedOutput)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
+                        
+                        Button(action: {
+                            if isRecordingOutput {
+                                stopOutputRecording()
+                            } else {
+                                startOutputRecording()
+                            }
+                        }) {
+                            Image(systemName: getOutputButtonIcon())
+                                .font(.title2)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(height: 44)
+                        .frame(minWidth: 44)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                        .disabled(!kanataManager.isCompletelyInstalled() && !isRecordingOutput)
+                    }
                 }
                 
                 // Save Button
-                Button("Save KeyPath") {
-                    saveKeyPath()
+                HStack {
+                    Spacer()
+                    Button("Save") {
+                        saveKeyPath()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(recordedInput.isEmpty || recordedOutput.isEmpty)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(recordedInput.isEmpty || recordedOutput.isEmpty)
                 
                 // Save Message
                 if !saveMessage.isEmpty {
@@ -77,57 +120,45 @@ struct ContentView: View {
             .background(Color.gray.opacity(0.05))
             .cornerRadius(12)
             
-            // Status Section
-            VStack(alignment: .leading, spacing: 8) {
-                Text("KeyPath Status:")
-                    .font(.headline)
-                
-                HStack {
-                    Circle()
-                        .fill(kanataManager.isRunning ? Color.green : Color.red)
-                        .frame(width: 12, height: 12)
-                    
-                    Text(kanataManager.isRunning ? "Ready" : "Not Ready")
-                        .font(.body)
-                    
-                    Spacer()
-                    
-                    if let error = kanataManager.lastError {
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Button("⚠️ Setup Required") {
-                                showingInstallationWizard = true
-                            }
-                            .font(.caption)
+            // Error Section (only show if there's an error)
+            if let error = kanataManager.lastError, !kanataManager.isRunning {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)
-                            .fontWeight(.medium)
-                            .buttonStyle(.plain)
-                            
-                            if error.contains("sudo ./install-system.sh") {
-                                Text("Tap to run installer")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
+                            .font(.headline)
+                        
+                        Text("KeyPath Error")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Button("Fix Issues") {
+                            showingInstallationWizard = true
                         }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
                     }
+                    
+                    Text(error)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                )
             }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
             
-            // Action Buttons
-            Button("Settings") {
-                showingSettings = true
-            }
-            .buttonStyle(.bordered)
-            
-            Spacer()
         }
         .padding()
-        .frame(width: 500, height: 600)
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
+        .frame(width: 500)
+        .fixedSize(horizontal: false, vertical: true)
         .sheet(isPresented: $showingInstallationWizard) {
             InstallationWizardView()
                 .onAppear {
@@ -151,6 +182,26 @@ struct ContentView: View {
         .onChange(of: kanataManager.lastError) { _ in
             print("🔍 [ContentView] lastError changed to: \(kanataManager.lastError ?? "nil")")
             checkRequirementsAndShowWizard()
+        }
+    }
+    
+    private func getInputButtonIcon() -> String {
+        if isRecording {
+            return "xmark.circle.fill"
+        } else if recordedInput.isEmpty {
+            return "play.circle.fill"
+        } else {
+            return "arrow.clockwise.circle.fill"
+        }
+    }
+    
+    private func getOutputButtonIcon() -> String {
+        if isRecordingOutput {
+            return "xmark.circle.fill"
+        } else if recordedOutput.isEmpty {
+            return "play.circle.fill"
+        } else {
+            return "arrow.clockwise.circle.fill"
         }
     }
     
@@ -204,6 +255,23 @@ struct ContentView: View {
     
     private func stopRecording() {
         isRecording = false
+        keyboardCapture.stopCapture()
+    }
+    
+    private func startOutputRecording() {
+        isRecordingOutput = true
+        recordedOutput = ""
+        
+        keyboardCapture.startContinuousCapture { keyName in
+            if !recordedOutput.isEmpty {
+                recordedOutput += " "
+            }
+            recordedOutput += keyName
+        }
+    }
+    
+    private func stopOutputRecording() {
+        isRecordingOutput = false
         keyboardCapture.stopCapture()
     }
     
