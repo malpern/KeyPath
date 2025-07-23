@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var recordedOutput = ""
     @State private var showingSettings = false
     @State private var showingInstallationWizard = false
+    @State private var hasCheckedRequirements = false
     @State private var saveMessage = ""
     @State private var saveMessageColor = Color.green
     
@@ -129,14 +130,63 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingInstallationWizard) {
             InstallationWizardView()
+                .onAppear {
+                    print("🔍 [ContentView] Installation wizard sheet is being presented")
+                }
         }
         .onAppear {
-            Task {
-                await kanataManager.updateStatus()
+            print("🔍 [ContentView] onAppear called")
+            if !hasCheckedRequirements {
+                print("🔍 [ContentView] First time checking requirements")
+                checkRequirementsAndShowWizard()
+                hasCheckedRequirements = true
+            }
+        }
+        .onChange(of: kanataManager.isRunning) { _ in
+            print("🔍 [ContentView] isRunning changed to: \(kanataManager.isRunning)")
+            if hasCheckedRequirements {
+                checkRequirementsAndShowWizard()
+            }
+        }
+        .onChange(of: kanataManager.lastError) { _ in
+            print("🔍 [ContentView] lastError changed to: \(kanataManager.lastError ?? "nil")")
+            checkRequirementsAndShowWizard()
+        }
+    }
+    
+    private func checkRequirementsAndShowWizard() {
+        Task {
+            await kanataManager.updateStatus()
+            
+            await MainActor.run {
+                // Show installation wizard for new users or when permissions are missing
+                let completelyInstalled = kanataManager.isCompletelyInstalled()
+                let hasPermissions = kanataManager.hasInputMonitoringPermission()
+                let isRunning = kanataManager.isRunning
                 
-                // Show installation wizard for new users
-                if !kanataManager.isCompletelyInstalled() {
-                    showingInstallationWizard = true
+                print("🔍 [ContentView] Completely installed: \(completelyInstalled), Has permissions: \(hasPermissions), Is running: \(isRunning)")
+                
+                // Show wizard if not completely installed, missing permissions, or service failing to run
+                let hasSetupError = kanataManager.lastError?.contains("Setup Required") == true
+                let serviceNotWorking = !isRunning // If Kanata isn't running, we need to fix something
+                let shouldShowWizard = !completelyInstalled || !hasPermissions || serviceNotWorking || hasSetupError
+                
+                print("🔍 [ContentView] Should show wizard: \(shouldShowWizard)")
+                print("🔍 [ContentView] Has setup error: \(hasSetupError)")
+                print("🔍 [ContentView] Last error: \(kanataManager.lastError ?? "none")")
+                
+                if shouldShowWizard {
+                    print("🔍 [ContentView] Showing installation wizard")
+                    print("🔍 [ContentView] Current showingInstallationWizard state: \(showingInstallationWizard)")
+                    
+                    // Use a small delay to ensure SwiftUI processes the state change
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        showingInstallationWizard = true
+                        print("🔍 [ContentView] Set showingInstallationWizard to: \(showingInstallationWizard)")
+                    }
+                } else {
+                    print("🔍 [ContentView] Not showing installation wizard")
+                    showingInstallationWizard = false
                 }
             }
         }
