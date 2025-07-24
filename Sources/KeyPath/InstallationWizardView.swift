@@ -1,4 +1,5 @@
 import SwiftUI
+import IOKit.hid
 
 struct InstallationWizardView: View {
     @Environment(\.dismiss) private var dismiss
@@ -83,6 +84,16 @@ struct InstallationWizardView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+                } else if installer.allComponentsInstalledButServiceNotRunning {
+                    Button("🚀 Start KeyPath Service") {
+                        Task {
+                            await kanataManager.autoStartKanata()
+                            await kanataManager.updateStatus()
+                            installer.checkInitialState(kanataManager: kanataManager)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                 } else if installer.needsPermissionGrant {
                     VStack(spacing: 12) {
                         Text("Grant Input Monitoring Permission")
@@ -149,7 +160,7 @@ struct InstallationWizardView: View {
             }
         }
         .padding(40)
-        .frame(width: 600, height: 580)
+        .frame(width: 600, height: 700)
         .onAppear {
             installer.checkInitialState(kanataManager: kanataManager)
         }
@@ -254,9 +265,22 @@ class KeyPathInstaller: ObservableObject {
                permissionStatus != .completed
     }
     
+    var allComponentsInstalledButServiceNotRunning: Bool {
+        return binaryInstallStatus == .completed && 
+               serviceInstallStatus == .completed && 
+               driverInstallStatus == .completed &&
+               permissionStatus == .completed &&
+               !installationComplete // This means service is not running
+    }
+    
     func checkInitialState(kanataManager: KanataManager) {
         // Use the shared KanataManager instance that has current service state
         let manager = kanataManager
+        
+        // Debug: Check current state before making decisions
+        print("🔍 [Wizard] Checking initial state...")
+        print("🔍 [Wizard] isRunning: \(manager.isRunning)")
+        print("🔍 [Wizard] lastError: \(manager.lastError ?? "none")")
         
         if manager.isInstalled() {
             binaryInstallStatus = .completed
@@ -274,18 +298,48 @@ class KeyPathInstaller: ObservableObject {
             currentStep = max(currentStep, 3)
         }
         
-        // Check if Input Monitoring permission is granted (using current service state)
-        if manager.hasInputMonitoringPermission() {
-            permissionStatus = .completed
-            currentStep = max(currentStep, 4)
+        // Use direct system API check only - ignore service state for wizard
+        var hasWorkingPermissions = false
+        if #available(macOS 10.15, *) {
+            let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
+            hasWorkingPermissions = accessType == kIOHIDAccessTypeGranted
+            print("🔍 [Wizard] IOHIDCheckAccess result: \(accessType) = \(hasWorkingPermissions)")
+        } else {
+            // For older macOS, assume granted for now
+            hasWorkingPermissions = true
         }
         
-        if binaryInstallStatus == .completed && 
-           serviceInstallStatus == .completed && 
-           driverInstallStatus == .completed &&
-           permissionStatus == .completed {
+        if hasWorkingPermissions {
+            permissionStatus = .completed
+            currentStep = max(currentStep, 4)
+        } else {
+            permissionStatus = .notStarted
+        }
+        
+        print("🔍 [Wizard] Final status check:")
+        print("🔍 [Wizard] Binary: \(binaryInstallStatus)")
+        print("🔍 [Wizard] Service: \(serviceInstallStatus)")
+        print("🔍 [Wizard] Driver: \(driverInstallStatus)")
+        print("🔍 [Wizard] Permissions: \(permissionStatus)")
+        print("🔍 [Wizard] Service running: \(manager.isRunning)")
+        
+        // Only mark as complete if all components are installed AND the service is actually running
+        let allComponentsComplete = binaryInstallStatus == .completed && 
+                                   serviceInstallStatus == .completed && 
+                                   driverInstallStatus == .completed &&
+                                   permissionStatus == .completed
+        
+        if allComponentsComplete && manager.isRunning {
             installationComplete = true
             statusMessage = "KeyPath is ready to use!"
+            print("🔍 [Wizard] All components complete AND service running - installation finished")
+        } else if allComponentsComplete && !manager.isRunning {
+            installationComplete = false
+            statusMessage = "⚠️ All components installed but Kanata service is not running. Click 'Start Using KeyPath' to start the service."
+            print("🔍 [Wizard] All components complete but service not running - need to start service")
+        } else {
+            installationComplete = false
+            print("🔍 [Wizard] Some components not complete - showing wizard")
         }
     }
     

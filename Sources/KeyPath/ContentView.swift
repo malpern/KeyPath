@@ -135,6 +135,12 @@ struct ContentView: View {
                         Spacer()
                         
                         Button("Fix Issues") {
+                            Task {
+                                print("🔄 [UI] Fix Issues button clicked - attempting to restart Kanata service")
+                                await kanataManager.autoStartKanata()
+                                await kanataManager.updateStatus()
+                                print("🔄 [UI] Fix Issues completed - service status: \(kanataManager.isRunning)")
+                            }
                             showingInstallationWizard = true
                         }
                         .buttonStyle(.borderedProminent)
@@ -217,14 +223,15 @@ struct ContentView: View {
                 
                 print("🔍 [ContentView] Completely installed: \(completelyInstalled), Has permissions: \(hasPermissions), Is running: \(isRunning)")
                 
-                // Show wizard if not completely installed, missing permissions, or service failing to run
+                // Show wizard if not completely installed, missing permissions, or setup required
                 let hasSetupError = kanataManager.lastError?.contains("Setup Required") == true
-                let serviceNotWorking = !isRunning // If Kanata isn't running, we need to fix something
-                let shouldShowWizard = !completelyInstalled || !hasPermissions || serviceNotWorking || hasSetupError
+                // Only show wizard for missing components/permissions, not just service not running
+                let shouldShowWizard = !completelyInstalled || !hasPermissions || hasSetupError
                 
                 print("🔍 [ContentView] Should show wizard: \(shouldShowWizard)")
                 print("🔍 [ContentView] Has setup error: \(hasSetupError)")
                 print("🔍 [ContentView] Last error: \(kanataManager.lastError ?? "none")")
+                print("🔍 [ContentView] Reasons: !completelyInstalled=\(!completelyInstalled), !hasPermissions=\(!hasPermissions), hasSetupError=\(hasSetupError)")
                 
                 if shouldShowWizard {
                     print("🔍 [ContentView] Showing installation wizard")

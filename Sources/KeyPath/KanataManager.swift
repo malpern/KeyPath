@@ -8,9 +8,10 @@ import ApplicationServices
 class KanataManager: ObservableObject {
     @Published var isRunning = false
     @Published var lastError: String?
+    private var hasTriedAutoStart = false
     
     private let launchDaemonLabel = "com.keypath.kanata"
-    private let configDirectory = "/usr/local/etc/kanata"
+    private let configDirectory = "\(NSHomeDirectory())/Library/Application Support/KeyPath"
     private let configFileName = "keypath.kbd"
     
     var configPath: String {
@@ -27,7 +28,7 @@ class KanataManager: ObservableObject {
     // MARK: - Auto Management
     
     /// Automatically start Kanata if fully installed and not running
-    private func autoStartKanata() async {
+    func autoStartKanata() async {
         print("🔧 [AutoStart] Starting auto-start process...")
         
         // Check individual components
@@ -85,7 +86,12 @@ class KanataManager: ObservableObject {
         if !isRunning {
             print("🔧 [AutoStart] Failed to start Kanata")
             await MainActor.run {
-                self.lastError = "⚠️ Setup Required: Grant Input Monitoring permissions in System Settings → Privacy & Security"
+                // Give more accurate error message based on actual state
+                if !self.hasInputMonitoringPermission() {
+                    self.lastError = "⚠️ Setup Required: Grant Input Monitoring permissions in System Settings → Privacy & Security"
+                } else {
+                    self.lastError = "⚠️ Kanata service failed to start. Try restarting the app or check system logs."
+                }
             }
         } else {
             print("🔧 [AutoStart] Successfully started Kanata!")
@@ -234,7 +240,10 @@ class KanataManager: ObservableObject {
         let configURL = URL(fileURLWithPath: configPath)
         try config.write(to: configURL, atomically: true, encoding: .utf8)
         
-        // Auto-reload Kanata with new config (seamless like Karabiner-Elements)
+        // Auto-restart Kanata to pick up new config (requires admin password)
+        // This is necessary because Kanata doesn't automatically detect config file changes
+        print("💾 [Config] Configuration saved successfully to \(configPath)")
+        print("🔄 [Config] Restarting Kanata service to apply changes...")
         await autoReloadKanata()
     }
     
@@ -257,6 +266,12 @@ class KanataManager: ObservableObject {
         (defcfg
           process-unmapped-keys yes
         )
+
+        ;; Define source keys (empty means all keys pass through)
+        (defsrc)
+
+        ;; Define default layer (empty means all keys pass through)
+        (deflayer default)
 
         ;; No key mappings defined - all keys pass through normally
         ;; Add your custom mappings through KeyPath's interface
@@ -344,6 +359,23 @@ class KanataManager: ObservableObject {
     func updateStatus() async {
         let running = await isKanataRunning()
         isRunning = running
+        
+        // Smart autostart: if service isn't running but should be (all components installed + permissions granted), try to start it
+        let completelyInstalled = isCompletelyInstalled()
+        let hasPermissions = hasInputMonitoringPermission()
+        
+        print("🔧 [UpdateStatus] Status check: running=\(running), installed=\(completelyInstalled), permissions=\(hasPermissions), hasTriedAutoStart=\(hasTriedAutoStart)")
+        
+        if !running && completelyInstalled && hasPermissions && !hasTriedAutoStart {
+            print("🔧 [UpdateStatus] Service not running but conditions met - triggering autostart")
+            hasTriedAutoStart = true
+            await autoStartKanata()
+            
+            // Re-check status after autostart attempt
+            let newRunning = await isKanataRunning()
+            isRunning = newRunning
+            print("🔧 [UpdateStatus] After autostart: running=\(isRunning)")
+        }
     }
     
     // MARK: - Private Implementation
@@ -689,7 +721,7 @@ extension KanataManager {
                                 <array>
                                     <string>/usr/local/bin/kanata-cmd</string>
                                     <string>--cfg</string>
-                                    <string>/usr/local/etc/kanata/keypath.kbd</string>
+                                    <string>\(configPath)</string>
                                 </array>
                                 <key>UserName</key>
                                 <string>root</string>
@@ -981,20 +1013,12 @@ extension KanataManager {
             let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
             let apiSaysGranted = accessType == kIOHIDAccessTypeGranted
             print("🔐 [Permissions] Input Monitoring API says: \(accessType), granted: \(apiSaysGranted)")
+            print("🔐 [Permissions] Current service state: isRunning=\(isRunning), lastError=\(lastError ?? "none")")
             
             // Check if service is experiencing successive crashes (indicates permission issues)
             let hasSuccessiveCrashes = checkServiceCrashStatus()
             if hasSuccessiveCrashes {
                 print("🔐 [Permissions] Service has successive crashes - treating as permission denied")
-                return false
-            }
-            
-            // Practical check: if Kanata service is failing with permission errors, 
-            // then permissions aren't effectively working
-            let serviceFailingWithPermissions = !isRunning && (lastError?.contains("Setup Required") == true)
-            
-            if serviceFailingWithPermissions {
-                print("🔐 [Permissions] Service failing with permission errors - treating as not granted")
                 return false
             }
             
@@ -1004,14 +1028,8 @@ extension KanataManager {
                 return true
             }
             
-            // Check if service is not running and we have crashes - likely permission issue
-            if !isRunning && hasSuccessiveCrashes {
-                print("🔐 [Permissions] Service not running with crashes - treating as permission denied")
-                return false
-            }
-            
-            // Fall back to API check if service state is unclear
-            print("🔐 [Permissions] Using API result: \(apiSaysGranted)")
+            // Otherwise, trust the system API - don't let service state override it
+            print("🔐 [Permissions] Service not running, using API result: \(apiSaysGranted)")
             return apiSaysGranted
         } else {
             // For older macOS versions, Input Monitoring was part of Accessibility
