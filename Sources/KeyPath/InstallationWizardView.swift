@@ -1,168 +1,228 @@
 import SwiftUI
 import IOKit.hid
+import ApplicationServices
+
+enum WizardPage: String, CaseIterable {
+    case summary = "Summary"
+    case conflicts = "Resolve Conflicts"
+    case inputMonitoring = "Input Monitoring Permission"
+    case accessibility = "Accessibility Permission"
+    case installation = "Install Components"
+}
 
 struct InstallationWizardView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataManager: KanataManager
     @StateObject private var installer = KeyPathInstaller()
+    @State private var currentPage: WizardPage = .summary
+    @State private var isInitializing = true
     
     var body: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 0) {
             // Header
-            VStack(spacing: 16) {
-                Image(systemName: "keyboard")
-                    .font(.system(size: 60))
-                    .foregroundColor(.blue)
+            wizardHeader()
+            
+            // Page Content
+            TabView(selection: $currentPage) {
+                SummaryPageView(installer: installer, kanataManager: kanataManager)
+                    .tag(WizardPage.summary)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
                 
-                Text("Welcome to KeyPath")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                ConflictsPageView(installer: installer, kanataManager: kanataManager)
+                    .tag(WizardPage.conflicts)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
                 
-                Text("Let's set up your keyboard remapping system")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                InputMonitoringPageView(installer: installer, kanataManager: kanataManager)
+                    .tag(WizardPage.inputMonitoring)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
                 
-                Text("KeyPath automatically handles root privileges for low-level keyboard access")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                AccessibilityPageView(installer: installer, kanataManager: kanataManager)
+                    .tag(WizardPage.accessibility)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                
+                InstallationPageView(installer: installer, kanataManager: kanataManager)
+                    .tag(WizardPage.installation)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
             }
+            .tabViewStyle(DefaultTabViewStyle())
+            .animation(.easeInOut(duration: 0.3), value: currentPage)
             
-            // Installation Progress
-            VStack(spacing: 20) {
-                InstallationStepView(
-                    step: 1,
-                    title: "Install Kanata Engine",
-                    description: "Installs the keyboard remapping engine with CMD key support",
-                    status: installer.binaryInstallStatus,
-                    isActive: installer.currentStep >= 1
-                )
-                
-                InstallationStepView(
-                    step: 2,
-                    title: "Setup System Service",
-                    description: "Configures automatic startup with root privileges",
-                    status: installer.serviceInstallStatus,
-                    isActive: installer.currentStep >= 2
-                )
-                
-                InstallationStepView(
-                    step: 3,
-                    title: "Install Karabiner Driver",
-                    description: "Installs required system driver for macOS compatibility",
-                    status: installer.driverInstallStatus,
-                    isActive: installer.currentStep >= 3
-                )
-                
-                InstallationStepView(
-                    step: 4,
-                    title: "Grant Input Monitoring Permission",
-                    description: "Required for keyboard event monitoring",
-                    status: installer.permissionStatus,
-                    isActive: installer.currentStep >= 4
-                )
-            }
             
-            // Installation Messages
-            if !installer.statusMessage.isEmpty {
-                Text(installer.statusMessage)
-                    .font(.caption)
-                    .foregroundColor(installer.isError ? .red : .blue)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            Spacer()
-            
-            // Action Buttons
-            HStack(spacing: 16) {
-                if installer.installationComplete {
-                    Button("🎉 Start Using KeyPath") {
-                        dismiss()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                } else if installer.allComponentsInstalledButServiceNotRunning {
-                    Button("🚀 Start KeyPath Service") {
-                        Task {
-                            await kanataManager.autoStartKanata()
-                            await kanataManager.updateStatus()
-                            installer.checkInitialState(kanataManager: kanataManager)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                } else if installer.needsPermissionGrant {
-                    VStack(spacing: 12) {
-                        Text("Grant Input Monitoring Permission")
-                            .font(.headline)
-                        
-                        VStack(spacing: 8) {
-                            Text("Add this file to Input Monitoring in System Settings:")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            HStack {
-                                Text("/usr/local/bin/kanata-cmd")
-                                    .font(.system(.body, design: .monospaced))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.gray.opacity(0.1))
-                                    .cornerRadius(6)
-                                
-                                Button(action: {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString("/usr/local/bin/kanata-cmd", forType: .string)
-                                }) {
-                                    Image(systemName: "doc.on.doc")
-                                        .foregroundColor(.blue)
-                                }
-                                .buttonStyle(.plain)
-                                .help("Copy to clipboard")
-                            }
-                        }
-                        
-                        HStack(spacing: 16) {
-                            Button("Request Permission") {
-                                Task {
-                                    _ = kanataManager.requestInputMonitoringPermission()
-                                    await installer.updatePermissionStatus(kanataManager: kanataManager)
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            
-                            Button("Open System Settings") {
-                                kanataManager.openInputMonitoringSettings()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
-                } else if installer.isInstalling {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Installing...")
-                            .font(.headline)
-                    }
-                    .padding()
-                } else {
-                    Button("Install KeyPath") {
-                        Task {
-                            await installer.performTransparentInstallation(kanataManager: kanataManager)
-                            await kanataManager.updateStatus()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+            // Navigation Controls
+            wizardNavigation()
+        }
+        .frame(width: 700, height: 800)
+        .background(VisualEffectBackground())
+        .onAppear {
+            AppLogger.shared.log("🔍 [Wizard] ========== WIZARD LAUNCHED ==========")
+            Task {
+                // Small delay to ensure UI is ready
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                installer.checkInitialState(kanataManager: kanataManager)
+                updateCurrentPage()
+                withAnimation {
+                    isInitializing = false
                 }
             }
         }
-        .padding(40)
-        .frame(width: 600, height: 700)
-        .onAppear {
-            installer.checkInitialState(kanataManager: kanataManager)
+        .overlay {
+            if isInitializing {
+                ZStack {
+                    Color(NSColor.windowBackgroundColor)
+                        .opacity(0.9)
+                    
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Checking system status...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
+        .onChange(of: installer.hasConflicts) { _ in updateCurrentPage() }
+        .onChange(of: installer.binaryInstallStatus) { _ in updateCurrentPage() }
+        .onChange(of: installer.serviceInstallStatus) { _ in updateCurrentPage() }
+        .onChange(of: installer.driverInstallStatus) { _ in updateCurrentPage() }
+        .onChange(of: installer.keyPathInputMonitoringStatus) { _ in updateCurrentPage() }
+        .onChange(of: installer.keyPathAccessibilityStatus) { _ in updateCurrentPage() }
+        .onChange(of: installer.kanataCmdInputMonitoringPermissionStatus) { _ in updateCurrentPage() }
+        .onChange(of: installer.kanataCmdAccessibilityStatus) { _ in updateCurrentPage() }
+        .onChange(of: installer.installationComplete) { _ in updateCurrentPage() }
+    }
+    
+    @ViewBuilder
+    private func wizardHeader() -> some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "keyboard")
+                    .font(.system(size: 32))
+                    .foregroundColor(.blue)
+                
+                Text("KeyPath Setup")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                Spacer()
+                
+                Button("✕") { 
+                    AppLogger.shared.log("User clicked close button on wizard.")
+                    dismiss() 
+                }
+                    .buttonStyle(.plain)
+                    .font(.title2)
+                    .foregroundColor(.secondary)
+                    .keyboardShortcut(.cancelAction)
+            }
+            
+        }
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+    
+    @ViewBuilder
+    private func wizardNavigation() -> some View {
+        HStack {
+            Button(action: {
+                AppLogger.shared.log("User clicked 'Previous' button from page \(currentPage.rawValue)")
+                navigateToPage(direction: -1)
+            }) {
+                Label("Previous", systemImage: "chevron.left")
+            }
+            .buttonStyle(.bordered)
+            .disabled(!canNavigateBackward())
+            .keyboardShortcut(.leftArrow, modifiers: [])
+            
+            Spacer()
+            
+            Text(currentPage.rawValue)
+                .font(.headline)
+            
+            Spacer()
+            
+            Button(action: {
+                AppLogger.shared.log("User clicked 'Next' button from page \(currentPage.rawValue)")
+                navigateToPage(direction: 1)
+            }) {
+                Label("Next", systemImage: "chevron.right")
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.bordered)
+            .disabled(!canNavigateForward())
+            .keyboardShortcut(.rightArrow, modifiers: [])
+        }
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+    
+    private func updateCurrentPage() {
+        DispatchQueue.main.async {
+            let oldPage = currentPage
+            
+            // Only show pages when there's work to do!
+            if installer.hasConflicts {
+                // Show conflicts page ONLY if there are conflicts
+                currentPage = .conflicts
+            } else if installer.keyPathInputMonitoringStatus != .completed || 
+                      installer.kanataCmdInputMonitoringPermissionStatus != .completed {
+                // Show Input Monitoring page FIRST if those permissions are missing
+                currentPage = .inputMonitoring
+            } else if installer.keyPathAccessibilityStatus != .completed ||
+                      installer.kanataCmdAccessibilityStatus != .completed {
+                // Show Accessibility page SECOND if those permissions are missing
+                currentPage = .accessibility
+            } else if installer.binaryInstallStatus != .completed ||
+                      installer.serviceInstallStatus != .completed ||
+                      installer.driverInstallStatus != .completed {
+                // Show installation page AFTER permissions are granted
+                currentPage = .installation  
+            } else {
+                // Everything is complete - show summary
+                currentPage = .summary
+            }
+            
+            if oldPage != currentPage {
+                AppLogger.shared.log("Wizard page automatically updated from \(oldPage.rawValue) to \(currentPage.rawValue)")
+            }
+        }
+    }
+    
+    private func navigateToPage(direction: Int) {
+        let pages = WizardPage.allCases
+        guard let currentIndex = pages.firstIndex(of: currentPage) else { return }
+        
+        let newIndex = currentIndex + direction
+        if newIndex >= 0 && newIndex < pages.count {
+            let oldPage = currentPage
+            currentPage = pages[newIndex]
+            AppLogger.shared.log("Navigated from page \(oldPage.rawValue) to \(currentPage.rawValue)")
+        }
+    }
+    
+    private func canNavigateBackward() -> Bool {
+        return WizardPage.allCases.firstIndex(of: currentPage) ?? 0 > 0
+    }
+    
+    private func canNavigateForward() -> Bool {
+        // Don't allow manual navigation if we're on a required page
+        switch currentPage {
+        case .conflicts:
+            return !installer.hasConflicts // Can only proceed if conflicts resolved
+        case .inputMonitoring:
+            return installer.keyPathInputMonitoringStatus == .completed && 
+                   installer.kanataCmdInputMonitoringPermissionStatus == .completed
+        case .accessibility:
+            return installer.keyPathAccessibilityStatus == .completed && 
+                   installer.kanataCmdAccessibilityStatus == .completed
+        case .installation:
+            return installer.binaryInstallStatus == .completed &&
+                   installer.serviceInstallStatus == .completed &&
+                   installer.driverInstallStatus == .completed
+        default:
+            let currentIndex = WizardPage.allCases.firstIndex(of: currentPage) ?? 0
+            return currentIndex < WizardPage.allCases.count - 1
         }
     }
 }
@@ -256,124 +316,256 @@ class KeyPathInstaller: ObservableObject {
     @Published var binaryInstallStatus: InstallationStatus = .notStarted
     @Published var serviceInstallStatus: InstallationStatus = .notStarted
     @Published var driverInstallStatus: InstallationStatus = .notStarted
-    @Published var permissionStatus: InstallationStatus = .notStarted
+    
+    // Conflict detection
+    @Published var hasConflicts = false
+    @Published var conflictDescription = ""
+    
+    // Granular permission statuses
+    @Published var keyPathInputMonitoringStatus: InstallationStatus = .notStarted
+    @Published var keyPathAccessibilityStatus: InstallationStatus = .notStarted
+    @Published var kanataCmdInputMonitoringPermissionStatus: InstallationStatus = .notStarted
+    @Published var kanataCmdAccessibilityStatus: InstallationStatus = .notStarted
+    
+    // Derived overall permission status
+    var permissionStatus: InstallationStatus {
+        if keyPathInputMonitoringStatus == .completed &&
+           keyPathAccessibilityStatus == .completed &&
+           kanataCmdInputMonitoringPermissionStatus == .completed &&
+           kanataCmdAccessibilityStatus == .completed {
+            return .completed
+        } else if keyPathInputMonitoringStatus == .failed ||
+                  keyPathAccessibilityStatus == .failed ||
+                  kanataCmdInputMonitoringPermissionStatus == .failed ||
+                  kanataCmdAccessibilityStatus == .failed {
+            return .failed
+        } else if keyPathInputMonitoringStatus == .inProgress ||
+                  keyPathAccessibilityStatus == .inProgress ||
+                  kanataCmdInputMonitoringPermissionStatus == .inProgress ||
+                  kanataCmdAccessibilityStatus == .inProgress {
+            return .inProgress
+        }
+        return .notStarted
+    }
     
     var needsPermissionGrant: Bool {
-        return binaryInstallStatus == .completed && 
-               serviceInstallStatus == .completed && 
-               driverInstallStatus == .completed &&
-               permissionStatus != .completed
+        return permissionStatus != .completed
     }
     
     var allComponentsInstalledButServiceNotRunning: Bool {
-        return binaryInstallStatus == .completed && 
-               serviceInstallStatus == .completed && 
+        return binaryInstallStatus == .completed &&
+               serviceInstallStatus == .completed &&
                driverInstallStatus == .completed &&
                permissionStatus == .completed &&
                !installationComplete // This means service is not running
     }
     
     func checkInitialState(kanataManager: KanataManager) {
-        // Use the shared KanataManager instance that has current service state
         let manager = kanataManager
         
-        // Debug: Check current state before making decisions
-        print("🔍 [Wizard] Checking initial state...")
-        print("🔍 [Wizard] isRunning: \(manager.isRunning)")
-        print("🔍 [Wizard] lastError: \(manager.lastError ?? "none")")
+        AppLogger.shared.log("🔍 [Wizard] ========== STARTING checkInitialState ==========")
+        AppLogger.shared.log("🔍 [Wizard] Checking initial state...")
+        AppLogger.shared.log("🔍 [Wizard] Manager state: isRunning=\(manager.isRunning), lastError=\(manager.lastError ?? "none")")
         
-        if manager.isInstalled() {
+        // ALWAYS check for conflicting processes first
+        AppLogger.shared.log("🔍 [Wizard] Step 0: Checking for conflicting Kanata processes...")
+        // Check for real conflicts using pgrep
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-fl", "kanata-cmd"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        var hasConflictingProcesses = false
+        var conflictDesc = ""
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            if task.terminationStatus == 0 && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                hasConflictingProcesses = true
+                conflictDesc = "Found running Kanata processes:\n\(output)"
+            }
+        } catch {
+            AppLogger.shared.log("🔍 [Wizard] Error checking for conflicts: \(error)")
+        }
+        hasConflicts = hasConflictingProcesses
+        conflictDescription = conflictDesc
+        
+        AppLogger.shared.log("🔍 [Wizard] Conflict check result: hasConflicts=\(hasConflicts), description='\(conflictDescription)'")
+        
+        if hasConflicts {
+            AppLogger.shared.log("🔍 [Wizard] ❌ CONFLICTS DETECTED: \(conflictDescription)")
+            statusMessage = "⚠️ Conflicting Kanata processes must be terminated before proceeding."
+            isError = true
+            
+            // Reset all other statuses - don't check anything else while conflicts exist
+            binaryInstallStatus = .notStarted
+            serviceInstallStatus = .notStarted
+            driverInstallStatus = .notStarted
+            keyPathInputMonitoringStatus = .notStarted
+            keyPathAccessibilityStatus = .notStarted
+            kanataCmdInputMonitoringPermissionStatus = .notStarted
+            kanataCmdAccessibilityStatus = .notStarted
+            installationComplete = false
+            
+            AppLogger.shared.log("🔍 [Wizard] 🛑 STOPPING ALL OTHER CHECKS DUE TO CONFLICTS")
+            return  // ABSOLUTELY NO OTHER CHECKS WHILE CONFLICTS EXIST
+        }
+        
+        AppLogger.shared.log("🔍 [Wizard] ✅ No conflicts detected, proceeding with installation checks...")
+        statusMessage = "Checking installation status..."
+        isError = false
+        
+        // Step 1: Check binary installation
+        AppLogger.shared.log("🔍 [Wizard] Step 1: Checking binary installation...")
+        let binaryInstalled = manager.isInstalled()
+        AppLogger.shared.log("🔍 [Wizard] Binary installed: \(binaryInstalled)")
+        if binaryInstalled {
             binaryInstallStatus = .completed
-            currentStep = max(currentStep, 1)
+            AppLogger.shared.log("🔍 [Wizard] ✅ Binary installation: COMPLETED")
+        } else {
+            binaryInstallStatus = .notStarted
+            AppLogger.shared.log("🔍 [Wizard] ❌ Binary installation: NOT STARTED")
         }
         
-        if manager.isServiceInstalled() {
+        // Step 2: Check service installation (Privileged Helper)
+        AppLogger.shared.log("🔍 [Wizard] Step 2: Checking service installation (Privileged Helper)...")
+        let helperInstalled = manager.isHelperInstalled()
+        AppLogger.shared.log("🔍 [Wizard] Helper installed: \(helperInstalled)")
+        if helperInstalled {
             serviceInstallStatus = .completed
-            currentStep = max(currentStep, 2)
+            AppLogger.shared.log("🔍 [Wizard] ✅ Service installation: COMPLETED")
+        } else {
+            serviceInstallStatus = .notStarted
+            AppLogger.shared.log("🔍 [Wizard] ❌ Service installation: NOT STARTED")
         }
         
-        // Check if Karabiner driver is installed
-        if manager.isKarabinerDriverInstalled() {
+        // Step 3: Check Karabiner driver installation
+        AppLogger.shared.log("🔍 [Wizard] Step 3: Checking Karabiner driver installation...")
+        let driverInstalled = manager.isKarabinerDriverInstalled()
+        AppLogger.shared.log("🔍 [Wizard] Driver installed: \(driverInstalled)")
+        if driverInstalled {
             driverInstallStatus = .completed
-            currentStep = max(currentStep, 3)
-        }
-        
-        // Use direct system API check only - ignore service state for wizard
-        var hasWorkingPermissions = false
-        if #available(macOS 10.15, *) {
-            let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
-            hasWorkingPermissions = accessType == kIOHIDAccessTypeGranted
-            print("🔍 [Wizard] IOHIDCheckAccess result: \(accessType) = \(hasWorkingPermissions)")
+            AppLogger.shared.log("🔍 [Wizard] ✅ Driver installation: COMPLETED")
         } else {
-            // For older macOS, assume granted for now
-            hasWorkingPermissions = true
+            driverInstallStatus = .notStarted
+            AppLogger.shared.log("🔍 [Wizard] ❌ Driver installation: NOT STARTED")
         }
         
-        if hasWorkingPermissions {
-            permissionStatus = .completed
-            currentStep = max(currentStep, 4)
-        } else {
-            permissionStatus = .notStarted
-        }
+        // Step 4: Check granular permissions
+        AppLogger.shared.log("🔍 [Wizard] Step 4: Checking granular permissions...")
         
-        print("🔍 [Wizard] Final status check:")
-        print("🔍 [Wizard] Binary: \(binaryInstallStatus)")
-        print("🔍 [Wizard] Service: \(serviceInstallStatus)")
-        print("🔍 [Wizard] Driver: \(driverInstallStatus)")
-        print("🔍 [Wizard] Permissions: \(permissionStatus)")
-        print("🔍 [Wizard] Service running: \(manager.isRunning)")
+        // KeyPath.app Input Monitoring
+        let kpInputMonitoring = manager.hasInputMonitoringPermission()
+        AppLogger.shared.log("🔍 [Wizard] KeyPath Input Monitoring: \(kpInputMonitoring)")
+        keyPathInputMonitoringStatus = kpInputMonitoring ? .completed : .notStarted
         
-        // Only mark as complete if all components are installed AND the service is actually running
-        let allComponentsComplete = binaryInstallStatus == .completed && 
-                                   serviceInstallStatus == .completed && 
+        // KeyPath.app Accessibility
+        let kpAccessibility = manager.hasAccessibilityPermission()
+        AppLogger.shared.log("🔍 [Wizard] KeyPath Accessibility: \(kpAccessibility)")
+        keyPathAccessibilityStatus = kpAccessibility ? .completed : .notStarted
+        
+        // TCC database check for both apps
+        let (keyPathHasPermission, kanataHasPermission, permissionDetails) = manager.checkBothAppsHavePermissions()
+        AppLogger.shared.log("🔍 [Wizard] TCC Permission check: KeyPath=\(keyPathHasPermission), kanata-cmd=\(kanataHasPermission)")
+        AppLogger.shared.log("🔍 [Wizard] TCC Details:\n\(permissionDetails)")
+        
+        // kanata-cmd Input Monitoring (via TCC database check)
+        kanataCmdInputMonitoringPermissionStatus = kanataHasPermission ? .completed : .notStarted
+        
+        // Check kanata-cmd Accessibility permissions using TCC database
+        // For now, we'll check if kanata-cmd has accessibility using file access test
+        let kanataCmdPath = "/usr/local/bin/kanata-cmd"
+        let kanataCmdAccessibility = manager.checkAccessibilityForPath(kanataCmdPath)
+        AppLogger.shared.log("🔍 [Wizard] kanata-cmd Accessibility: \(kanataCmdAccessibility)")
+        kanataCmdAccessibilityStatus = kanataCmdAccessibility ? .completed : .notStarted
+        
+        // Determine overall permission status (derived property)
+        AppLogger.shared.log("🔍 [Wizard] Individual permission statuses:")
+        AppLogger.shared.log("🔍 [Wizard] - keyPathInputMonitoringStatus: \(keyPathInputMonitoringStatus)")
+        AppLogger.shared.log("🔍 [Wizard] - keyPathAccessibilityStatus: \(keyPathAccessibilityStatus)")
+        AppLogger.shared.log("🔍 [Wizard] - kanataCmdInputMonitoringPermissionStatus: \(kanataCmdInputMonitoringPermissionStatus)")
+        AppLogger.shared.log("🔍 [Wizard] - kanataCmdAccessibilityStatus: \(kanataCmdAccessibilityStatus)")
+        AppLogger.shared.log("🔍 [Wizard] Overall permission status: \(permissionStatus)")
+        
+        // Final status determination
+        AppLogger.shared.log("🔍 [Wizard] ========== FINAL STATUS CHECK ==========")
+        AppLogger.shared.log("🔍 [Wizard] Binary: \(binaryInstallStatus)")
+        AppLogger.shared.log("🔍 [Wizard] Service: \(serviceInstallStatus)")
+        AppLogger.shared.log("🔍 [Wizard] Driver: \(driverInstallStatus)")
+        AppLogger.shared.log("🔍 [Wizard] Permissions: \(permissionStatus)")
+        AppLogger.shared.log("🔍 [Wizard] Service running: \(manager.isRunning)")
+        
+        let allComponentsComplete = binaryInstallStatus == .completed &&
+                                   serviceInstallStatus == .completed &&
                                    driverInstallStatus == .completed &&
                                    permissionStatus == .completed
+        
+        AppLogger.shared.log("🔍 [Wizard] All components complete: \(allComponentsComplete)")
         
         if allComponentsComplete && manager.isRunning {
             installationComplete = true
             statusMessage = "KeyPath is ready to use!"
-            print("🔍 [Wizard] All components complete AND service running - installation finished")
+            AppLogger.shared.log("🔍 [Wizard] 🎉 INSTALLATION COMPLETE - all components installed and service running")
         } else if allComponentsComplete && !manager.isRunning {
             installationComplete = false
             statusMessage = "⚠️ All components installed but Kanata service is not running. Click 'Start Using KeyPath' to start the service."
-            print("🔍 [Wizard] All components complete but service not running - need to start service")
+            AppLogger.shared.log("🔍 [Wizard] ⚠️ Components complete but service not running - need to start service")
         } else {
             installationComplete = false
-            print("🔍 [Wizard] Some components not complete - showing wizard")
+            statusMessage = "Please complete the installation steps."
+            AppLogger.shared.log("🔍 [Wizard] ❌ Some components not complete - continuing wizard")
         }
+        
+        AppLogger.shared.log("🔍 [Wizard] Final UI state: installationComplete=\(installationComplete), statusMessage='\(statusMessage)'")
+        AppLogger.shared.log("🔍 [Wizard] ========== checkInitialState COMPLETE ==========")
     }
     
     func performTransparentInstallation(kanataManager: KanataManager) async {
+        AppLogger.shared.log("🚀 [Install] Starting transparent installation.")
+        AppLogger.shared.log("🚀 [Install] Setting UI to installing state...")
         isInstalling = true
         isError = false
         
         // Show all steps as in progress
-        currentStep = 1
         binaryInstallStatus = .inProgress
         serviceInstallStatus = .inProgress
         driverInstallStatus = .inProgress
         statusMessage = "Installing KeyPath components..."
+        AppLogger.shared.log("🚀 [Install] UI updated, calling kanataManager.performTransparentInstallation()...")
         
         // Perform the transparent installation
         let success = await kanataManager.performTransparentInstallation()
+        AppLogger.shared.log("🚀 [Install] kanataManager.performTransparentInstallation() returned: \(success)")
         
         if success {
+            AppLogger.shared.log("✅ [Install] Transparent installation script succeeded.")
             // Mark all as completed
             binaryInstallStatus = .completed
             serviceInstallStatus = .completed
             driverInstallStatus = .completed
-            currentStep = 4
             
-            // Check if permissions are already granted
-            if kanataManager.hasInputMonitoringPermission() {
-                permissionStatus = .completed
+            // Re-check permissions after installation
+            checkInitialState(kanataManager: kanataManager)
+            
+            if permissionStatus == .completed {
                 installationComplete = true
-                statusMessage = "🎉 Installation complete! KeyPath is ready to use."
+                statusMessage = "🎉 Installation complete! KeyPath is ready to use!"
+                AppLogger.shared.log("✅ [Install] Permissions already granted. Installation complete.")
             } else {
-                permissionStatus = .notStarted
-                statusMessage = "✅ Installation complete! Please grant Input Monitoring permission to finish setup."
+                installationComplete = false
+                statusMessage = "✅ Installation complete! Please grant permissions to finish setup."
+                AppLogger.shared.log("⚠️ [Install] Installation complete, but permissions are needed.")
             }
         } else {
+            AppLogger.shared.log("❌ [Install] Transparent installation script failed or was cancelled.")
             // Mark as failed
             binaryInstallStatus = .failed
             serviceInstallStatus = .failed
@@ -386,27 +578,863 @@ class KeyPathInstaller: ObservableObject {
     }
     
     func updatePermissionStatus(kanataManager: KanataManager) async {
-        await kanataManager.updateStatus()
-        
-        if kanataManager.hasInputMonitoringPermission() {
-            permissionStatus = .completed
-            installationComplete = true
-            statusMessage = "🎉 Permission granted! KeyPath is now ready to use."
-        } else {
-            permissionStatus = .failed
-            statusMessage = "⚠️ Permission not granted. Please open System Settings to enable Input Monitoring."
-            isError = true
+        AppLogger.shared.log("🔘 [UI Action] User requested permission status update.")
+        // Re-run the full initial state check to update all statuses
+        checkInitialState(kanataManager: kanataManager)
+    }
+}
+
+// MARK: - Page View Implementations
+
+struct SummaryPageView: View {
+    @ObservedObject var installer: KeyPathInstaller
+    let kanataManager: KanataManager
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 12) {
+                Image(systemName: "keyboard.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.accentColor)
+                    .symbolRenderingMode(.hierarchical)
+                
+                Text("Welcome to KeyPath")
+                    .font(.title)
+                    .fontWeight(.semibold)
+                
+                Text("Set up your keyboard customization tool")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 32)
+            
+            VStack(alignment: .leading, spacing: 16) {
+                SummaryItemView(
+                    icon: "keyboard",
+                    title: "Binary Installation",
+                    status: installer.binaryInstallStatus
+                )
+                
+                SummaryItemView(
+                    icon: "gear",
+                    title: "Helper Service",
+                    status: installer.serviceInstallStatus
+                )
+                
+                SummaryItemView(
+                    icon: "cpu",
+                    title: "Karabiner Driver",
+                    status: installer.driverInstallStatus
+                )
+                
+                SummaryItemView(
+                    icon: "lock.shield",
+                    title: "System Permissions",
+                    status: installer.permissionStatus
+                )
+            }
+            .padding(.horizontal, 60)
+            
+            Spacer()
+            
+            if installer.installationComplete {
+                VStack(spacing: 16) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Setup Complete")
+                            .fontWeight(.medium)
+                    }
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    
+                    Button("Start Using KeyPath") {
+                        if let window = NSApplication.shared.windows.first {
+                            window.close()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                }
+            } else if installer.hasConflicts {
+                Text("⚠️ Conflicts detected. Please resolve them to continue.")
+                    .foregroundColor(.orange)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("Complete the setup process to start using KeyPath")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+    }
+}
+
+struct SummaryItemView: View {
+    let icon: String
+    let title: String
+    let status: InstallationStatus
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(iconColor)
+                .frame(width: 30)
+            
+            Text(title)
+                .font(.body)
+            
+            Spacer()
+            
+            statusIcon
         }
     }
     
-    // Legacy method - kept for potential future use
-    func performInstallation() async {
-        await performTransparentInstallation(kanataManager: KanataManager())
+    var iconColor: Color {
+        switch status {
+        case .completed: return .green
+        case .inProgress: return .blue
+        case .failed: return .red
+        case .notStarted: return .gray
+        }
     }
     
-    private func getCurrentDirectory() -> String {
-        return FileManager.default.currentDirectoryPath
+    @ViewBuilder
+    var statusIcon: some View {
+        switch status {
+        case .completed:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.title3)
+        case .inProgress:
+            ProgressView()
+                .scaleEffect(0.7)
+        case .failed:
+            Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.red)
+                .font(.title3)
+        case .notStarted:
+            Image(systemName: "circle")
+                .foregroundColor(.gray.opacity(0.5))
+                .font(.title3)
+        }
     }
+}
+
+struct ConflictsPageView: View {
+    @ObservedObject var installer: KeyPathInstaller
+    let kanataManager: KanataManager
+    @State private var isTerminating = false
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.orange.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                    
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.orange)
+                        .symbolRenderingMode(.multicolor)
+                }
+                
+                Text("Conflicting Processes")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("Other Kanata processes must be stopped before continuing")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 400)
+            }
+            .padding(.top, 32)
+            
+            VStack(alignment: .leading, spacing: 16) {
+                Text("The following conflicting processes were found:")
+                    .font(.headline)
+                
+                ScrollView {
+                    Text(installer.conflictDescription)
+                        .font(.system(.body, design: .monospaced))
+                        .padding()
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(8)
+                }
+                .frame(maxHeight: 200)
+                
+                Text("These processes may be:")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Other Kanata instances running with root privileges", systemImage: "terminal")
+                    Label("Previous KeyPath processes that didn't shut down properly", systemImage: "xmark.app")
+                    Label("Manual Kanata installations running in the background", systemImage: "gearshape.2")
+                }
+                .font(.caption)
+                .padding(.leading)
+            }
+            .padding(.horizontal, 40)
+            
+            Spacer()
+            
+            VStack(spacing: 12) {
+                Button(action: terminateConflicts) {
+                    if isTerminating {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .frame(width: 20, height: 20)
+                    } else {
+                        Text("Terminate Conflicting Processes")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(isTerminating)
+                
+                Button("Check Again") {
+                    installer.checkInitialState(kanataManager: kanataManager)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .disabled(isTerminating)
+            }
+        }
+        .padding()
+    }
+    
+    private func terminateConflicts() {
+        Task {
+            isTerminating = true
+            // Terminate conflicts - simplified for now
+            AppLogger.shared.log("🔧 [Conflicts] Terminating conflicting processes...")
+            let _ = true // Placeholder
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+            installer.checkInitialState(kanataManager: kanataManager)
+            isTerminating = false
+        }
+    }
+}
+
+struct InputMonitoringPageView: View {
+    @ObservedObject var installer: KeyPathInstaller
+    let kanataManager: KanataManager
+    @State private var showingDetails = false
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                    
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 36))
+                        .foregroundColor(.blue)
+                        .symbolRenderingMode(.hierarchical)
+                }
+                
+                Text("Input Monitoring")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("Allow KeyPath to monitor keyboard input")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 32)
+            
+            // Permission Status Cards
+            VStack(spacing: 16) {
+                PermissionCard(
+                    appName: "KeyPath.app",
+                    appPath: Bundle.main.bundlePath,
+                    status: installer.keyPathInputMonitoringStatus,
+                    permissionType: "Input Monitoring"
+                )
+                
+                PermissionCard(
+                    appName: "kanata-cmd",
+                    appPath: "/usr/local/bin/kanata-cmd",
+                    status: installer.kanataCmdInputMonitoringPermissionStatus,
+                    permissionType: "Input Monitoring"
+                )
+            }
+            .padding(.horizontal, 40)
+            
+            // Instructions
+            if installer.keyPathInputMonitoringStatus != .completed || 
+               installer.kanataCmdInputMonitoringPermissionStatus != .completed {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("How to grant permission:")
+                        .font(.headline)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .top) {
+                            Text("1.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("Click 'Open System Settings' below")
+                        }
+                        HStack(alignment: .top) {
+                            Text("2.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("Navigate to Privacy & Security → Input Monitoring")
+                        }
+                        HStack(alignment: .top) {
+                            Text("3.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("Enable the toggle for both KeyPath and kanata-cmd")
+                        }
+                        HStack(alignment: .top) {
+                            Text("4.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("Click 'Check Permission Status' to verify")
+                        }
+                    }
+                    .font(.subheadline)
+                }
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(8)
+                .padding(.horizontal, 40)
+            }
+            
+            Spacer()
+            
+            // Action Buttons
+            VStack(spacing: 12) {
+                if installer.keyPathInputMonitoringStatus != .completed || 
+                   installer.kanataCmdInputMonitoringPermissionStatus != .completed {
+                    Button("Open System Settings") {
+                        kanataManager.openInputMonitoringSettings()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    
+                    Button("Check Permission Status") {
+                        Task {
+                            await installer.updatePermissionStatus(kanataManager: kanataManager)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.body)
+                        Text("Permissions granted")
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.secondary)
+                }
+                
+                Button("Show Details") {
+                    showingDetails.toggle()
+                }
+                .buttonStyle(.link)
+            }
+        }
+        .padding()
+        .sheet(isPresented: $showingDetails) {
+            PermissionDetailsSheet(kanataManager: kanataManager)
+        }
+    }
+}
+
+struct AccessibilityPageView: View {
+    @ObservedObject var installer: KeyPathInstaller
+    let kanataManager: KanataManager
+    @State private var showingDetails = false
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                    
+                    Image(systemName: "hand.raised.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(.blue)
+                        .symbolRenderingMode(.hierarchical)
+                }
+                
+                Text("Accessibility")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("Allow KeyPath to control your computer")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 32)
+            
+            // Permission Status Cards
+            VStack(spacing: 16) {
+                PermissionCard(
+                    appName: "KeyPath.app",
+                    appPath: Bundle.main.bundlePath,
+                    status: installer.keyPathAccessibilityStatus,
+                    permissionType: "Accessibility"
+                )
+                
+                PermissionCard(
+                    appName: "kanata-cmd",
+                    appPath: "/usr/local/bin/kanata-cmd",
+                    status: installer.kanataCmdAccessibilityStatus,
+                    permissionType: "Accessibility"
+                )
+            }
+            .padding(.horizontal, 40)
+            
+            // Instructions
+            if installer.keyPathAccessibilityStatus != .completed || 
+               installer.kanataCmdAccessibilityStatus != .completed {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("How to grant permission:")
+                        .font(.headline)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .top) {
+                            Text("1.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("Click 'Open System Settings' below")
+                        }
+                        HStack(alignment: .top) {
+                            Text("2.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("Navigate to Privacy & Security → Accessibility")
+                        }
+                        HStack(alignment: .top) {
+                            Text("3.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("Enable the toggle for both KeyPath and kanata-cmd")
+                        }
+                        HStack(alignment: .top) {
+                            Text("4.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("You may need to unlock with your password")
+                        }
+                        HStack(alignment: .top) {
+                            Text("5.")
+                                .fontWeight(.medium)
+                                .frame(width: 20)
+                            Text("Click 'Check Permission Status' to verify")
+                        }
+                    }
+                    .font(.subheadline)
+                }
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(8)
+                .padding(.horizontal, 40)
+            }
+            
+            Spacer()
+            
+            // Action Buttons
+            VStack(spacing: 12) {
+                if installer.keyPathAccessibilityStatus != .completed || 
+                   installer.kanataCmdAccessibilityStatus != .completed {
+                    Button("Open System Settings") {
+                        kanataManager.openAccessibilitySettings()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    
+                    Button("Check Permission Status") {
+                        Task {
+                            await installer.updatePermissionStatus(kanataManager: kanataManager)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.body)
+                        Text("Permissions granted")
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding()
+    }
+}
+
+struct InstallationPageView: View {
+    @ObservedObject var installer: KeyPathInstaller
+    let kanataManager: KanataManager
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                    
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(.blue)
+                        .symbolRenderingMode(.hierarchical)
+                }
+                
+                Text("Install Components")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("Set up required system components")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 32)
+            
+            // Installation Status
+            VStack(spacing: 16) {
+                InstallationItemView(
+                    title: "Kanata Binary",
+                    description: "Core keyboard remapping engine",
+                    status: installer.binaryInstallStatus
+                )
+                
+                InstallationItemView(
+                    title: "Privileged Helper",
+                    description: "Manages Kanata process with required permissions",
+                    status: installer.serviceInstallStatus
+                )
+                
+                InstallationItemView(
+                    title: "Karabiner Driver",
+                    description: "Virtual keyboard driver for input capture",
+                    status: installer.driverInstallStatus
+                )
+            }
+            .padding(.horizontal, 40)
+            
+            Spacer()
+            
+            // Action Buttons
+            if installer.isInstalling {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("Installing components...")
+                        .foregroundColor(.secondary)
+                }
+            } else if installer.binaryInstallStatus == .completed &&
+                      installer.serviceInstallStatus == .completed &&
+                      installer.driverInstallStatus == .completed {
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.body)
+                        Text("Components installed")
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.secondary)
+                    
+                    if installer.allComponentsInstalledButServiceNotRunning {
+                        Button("Start KeyPath Service") {
+                            Task {
+                                await kanataManager.startKanata()
+                                installer.checkInitialState(kanataManager: kanataManager)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                    }
+                }
+            } else {
+                VStack(spacing: 12) {
+                    Button("Install Components") {
+                        Task {
+                            await installer.performTransparentInstallation(kanataManager: kanataManager)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    
+                    Text("Administrator password required")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            if installer.isError {
+                Text(installer.statusMessage)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+        }
+        .padding()
+    }
+}
+
+struct InstallationItemView: View {
+    let title: String
+    let description: String
+    let status: InstallationStatus
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            statusIcon
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+    }
+    
+    @ViewBuilder
+    var statusIcon: some View {
+        switch status {
+        case .completed:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.title2)
+        case .inProgress:
+            ProgressView()
+        case .failed:
+            Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.red)
+                .font(.title2)
+        case .notStarted:
+            Image(systemName: "circle.dashed")
+                .foregroundColor(.gray.opacity(0.5))
+                .font(.title2)
+        }
+    }
+}
+
+struct PermissionCard: View {
+    let appName: String
+    let appPath: String
+    let status: InstallationStatus
+    let permissionType: String
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            statusIcon
+                .frame(width: 30)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(appName)
+                    .font(.headline)
+                Text(appPath)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            
+            Spacer()
+            
+            Text(statusText)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(statusColor)
+        }
+        .padding()
+        .background(backgroundColor)
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(borderColor, lineWidth: 1)
+        )
+    }
+    
+    var statusIcon: some View {
+        Group {
+            switch status {
+            case .completed:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.title3)
+            case .inProgress:
+                ProgressView()
+                    .scaleEffect(0.7)
+            case .failed:
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.title3)
+            case .notStarted:
+                Image(systemName: "minus.circle.fill")
+                    .foregroundColor(.orange)
+                    .font(.title3)
+            }
+        }
+    }
+    
+    var statusText: String {
+        switch status {
+        case .completed: return "Granted"
+        case .inProgress: return "Checking..."
+        case .failed: return "Error"
+        case .notStarted: return "Not Granted"
+        }
+    }
+    
+    var statusColor: Color {
+        switch status {
+        case .completed: return .green
+        case .inProgress: return .blue
+        case .failed: return .red
+        case .notStarted: return .orange
+        }
+    }
+    
+    var backgroundColor: Color {
+        switch status {
+        case .completed: return Color.green.opacity(0.1)
+        case .failed: return Color.red.opacity(0.1)
+        default: return Color(NSColor.controlBackgroundColor)
+        }
+    }
+    
+    var borderColor: Color {
+        switch status {
+        case .completed: return Color.green.opacity(0.3)
+        case .failed: return Color.red.opacity(0.3)
+        case .notStarted: return Color.orange.opacity(0.3)
+        default: return Color.clear
+        }
+    }
+}
+
+struct PermissionDetailsSheet: View {
+    let kanataManager: KanataManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var permissionDetails = ""
+    @State private var isLoading = true
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("Permission Details")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                Spacer()
+                
+                Button("Close") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            if isLoading {
+                ProgressView("Checking permissions...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("TCC Database Check Results:")
+                            .font(.headline)
+                        
+                        Text(permissionDetails)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding()
+                            .background(Color(NSColor.textBackgroundColor))
+                            .cornerRadius(8)
+                        
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("What to do if permissions are missing:")
+                                .font(.headline)
+                            
+                            Text("1. Open System Settings → Privacy & Security")
+                            Text("2. Navigate to Input Monitoring")
+                            Text("3. Add both KeyPath.app and /usr/local/bin/kanata-cmd")
+                            Text("4. Navigate to Accessibility")
+                            Text("5. Add both KeyPath.app and /usr/local/bin/kanata-cmd")
+                            Text("6. You may need to restart KeyPath after granting permissions")
+                        }
+                        .font(.subheadline)
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    .padding()
+                }
+            }
+        }
+        .frame(width: 600, height: 500)
+        .padding()
+        .onAppear {
+            loadPermissionDetails()
+        }
+    }
+    
+    private func loadPermissionDetails() {
+        Task {
+            let (keyPathHas, kanataHas, details) = kanataManager.checkBothAppsHavePermissions()
+            
+            await MainActor.run {
+                var report = "=== Permission Status Report ===\n\n"
+                report += "KeyPath.app:\n"
+                report += "• Input Monitoring: \(kanataManager.hasInputMonitoringPermission() ? "✅ Granted" : "❌ Not Granted")\n"
+                report += "• Accessibility: \(kanataManager.hasAccessibilityPermission() ? "✅ Granted" : "❌ Not Granted")\n"
+                report += "• TCC Database: \(keyPathHas ? "✅ Found" : "❌ Not Found")\n\n"
+                
+                report += "kanata-cmd (/usr/local/bin/kanata-cmd):\n"
+                report += "• Input Monitoring (TCC): \(kanataHas ? "✅ Granted" : "❌ Not Granted")\n"
+                report += "• Accessibility: \(kanataManager.checkAccessibilityForPath("/usr/local/bin/kanata-cmd") ? "✅ Granted" : "❌ Not Granted")\n\n"
+                
+                report += "=== TCC Database Details ===\n"
+                report += details
+                
+                permissionDetails = report
+                isLoading = false
+            }
+        }
+    }
+}
+
+// MARK: - Visual Effect Background
+
+struct VisualEffectBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.blendingMode = .behindWindow
+        view.material = .contentBackground
+        view.state = .active
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 #Preview {

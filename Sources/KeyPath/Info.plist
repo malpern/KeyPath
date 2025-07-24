@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string>KeyPath</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.keypath.KeyPath</string>
+	<key>CFBundleName</key>
+	<string>KeyPath</string>
+	<key>CFBundleVersion</key>
+	<string>1.0.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2025 KeyPath. All rights reserved.</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>SMPrivilegedExecutables</key>
+	<dict>
+		<key>com.keypath.helper</key>
+		<string>identifier "com.keypath.helper" and anchor apple generic and certificate leaf[subject.CN] = "Developer ID Application: Micah Alpern (X2RKZ5TG99)" and certificate 1[field.1.2.840.113635.100.6.2.1] /* exists */</string>
+	</dict>
+</dict>
+</plist>

@@ -37,7 +37,7 @@ struct SettingsView: View {
                         
                         StatusRow(
                             label: "Installation",
-                            status: kanataManager.getInstallationStatus(),
+                            status: kanataManager.isCompletelyInstalled() ? "Installed" : "Not Installed",
                             isActive: kanataManager.isCompletelyInstalled()
                         )
                     }
@@ -120,7 +120,7 @@ struct SettingsView: View {
                                 disabled: !kanataManager.isRunning,
                                 action: {
                                     Task {
-                                        await kanataManager.emergencyStop()
+                                        await kanataManager.stopKanata()
                                     }
                                 }
                             )
@@ -197,7 +197,7 @@ struct SettingsView: View {
                 do {
                     try openProcess.run()
                 } catch {
-                    print("Failed to open config file in Zed: \(error)")
+                    AppLogger.shared.log("Failed to open config file in Zed: \(error)")
                     // As a last resort, just open the file with default app
                     NSWorkspace.shared.open(URL(fileURLWithPath: configPath))
                 }
@@ -208,10 +208,10 @@ struct SettingsView: View {
     private func resetToDefaultConfig() {
         Task {
             do {
-                try await kanataManager.resetToDefaultConfig()
-                print("✅ Successfully reset config to default")
+                try await kanataManager.saveConfiguration(input: "", output: "")
+                AppLogger.shared.log("✅ Successfully reset config to default")
             } catch {
-                print("❌ Failed to reset config: \(error)")
+                AppLogger.shared.log("❌ Failed to reset config: \(error)")
             }
         }
     }

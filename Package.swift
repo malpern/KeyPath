@@ -11,6 +11,10 @@ let package = Package(
             name: "KeyPath",
             targets: ["KeyPath"]
         ),
+        .executable(
+            name: "KeyPathHelper",
+            targets: ["KeyPathHelper"]
+        ),
     ],
     dependencies: [
         // Add any dependencies here
@@ -20,6 +24,12 @@ let package = Package(
             name: "KeyPath",
             dependencies: [],
             path: "Sources/KeyPath"
+        ),
+        .executableTarget(
+            name: "KeyPathHelper",
+            dependencies: [],
+            path: "Sources/KeyPathHelper",
+            exclude: ["Info.plist", "launchd.plist"]
         ),
         .testTarget(
             name: "KeyPathTests",
