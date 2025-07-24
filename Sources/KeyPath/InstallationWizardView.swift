@@ -388,9 +388,25 @@ class KeyPathInstaller: ObservableObject {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
             
+            AppLogger.shared.log("🔍 [Wizard] pgrep exit status: \(task.terminationStatus), output: '\(output)'")
+            
             if task.terminationStatus == 0 && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 hasConflictingProcesses = true
-                conflictDesc = "Found running Kanata processes:\n\(output)"
+                // Parse the output - pgrep -fl returns "PID command"
+                let lines = output.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "\n")
+                conflictDesc = "Found \(lines.count) Kanata process\(lines.count == 1 ? "" : "es"):\n"
+                for line in lines {
+                    // Extract PID and command from "PID command" format
+                    let components = line.components(separatedBy: " ")
+                    if let pid = components.first {
+                        let command = components.dropFirst().joined(separator: " ")
+                        conflictDesc += "• Process ID: \(pid) - \(command)\n"
+                    }
+                }
+            } else {
+                // Make sure we clear the conflict state
+                hasConflictingProcesses = false
+                conflictDesc = ""
             }
         } catch {
             AppLogger.shared.log("🔍 [Wizard] Error checking for conflicts: \(error)")
@@ -809,10 +825,50 @@ struct ConflictsPageView: View {
     private func terminateConflicts() {
         Task {
             isTerminating = true
-            // Terminate conflicts - simplified for now
             AppLogger.shared.log("🔧 [Conflicts] Terminating conflicting processes...")
-            let _ = true // Placeholder
+            
+            // Extract PIDs from the conflict description
+            let lines = installer.conflictDescription.components(separatedBy: "\n")
+            for line in lines {
+                if line.contains("Process ID:") {
+                    let components = line.components(separatedBy: "Process ID:").last?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if let pid = components {
+                        AppLogger.shared.log("🔧 [Conflicts] Attempting to terminate PID: \(pid)")
+                        
+                        // Try to kill the process
+                        let killTask = Process()
+                        killTask.executableURL = URL(fileURLWithPath: "/bin/kill")
+                        killTask.arguments = ["-9", pid]
+                        
+                        do {
+                            try killTask.run()
+                            killTask.waitUntilExit()
+                            if killTask.terminationStatus == 0 {
+                                AppLogger.shared.log("✅ [Conflicts] Successfully terminated PID: \(pid)")
+                            } else {
+                                AppLogger.shared.log("❌ [Conflicts] Failed to terminate PID: \(pid) - may require sudo")
+                                // Try with sudo
+                                let sudoKillTask = Process()
+                                sudoKillTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                                sudoKillTask.arguments = ["-e", "do shell script \"kill -9 \(pid)\" with administrator privileges"]
+                                
+                                try sudoKillTask.run()
+                                sudoKillTask.waitUntilExit()
+                                if sudoKillTask.terminationStatus == 0 {
+                                    AppLogger.shared.log("✅ [Conflicts] Successfully terminated PID with sudo: \(pid)")
+                                }
+                            }
+                        } catch {
+                            AppLogger.shared.log("❌ [Conflicts] Error terminating PID \(pid): \(error)")
+                        }
+                    }
+                }
+            }
+            
+            // Wait a moment for processes to fully terminate
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+            
+            // Re-check for conflicts
             installer.checkInitialState(kanataManager: kanataManager)
             isTerminating = false
         }
