@@ -78,8 +78,8 @@ tail -f /var/log/kanata.log
 ```
 
 ### Configuration
-- System config: `/usr/local/etc/kanata/keypath.kbd`
-- Hot reload: Service restarts automatically via KanataManager
+- User config: `~/Library/Application Support/KeyPath/keypath.kbd`
+- Hot reload: Service restarts automatically via KanataManager when config changes
 
 ## Dependencies
 
@@ -113,7 +113,7 @@ KanataManager handles special key conversions:
 ## Troubleshooting
 
 - **Service won't start**: Check kanata path with `which kanata`
-- **Config invalid**: Test with `kanata --cfg /usr/local/etc/kanata/keypath.kbd --check`
+- **Config invalid**: Test with `kanata --cfg "~/Library/Application Support/KeyPath/keypath.kbd" --check`
 - **Permissions**: Grant in System Settings > Privacy & Security
 - **Logs**: Check `/var/log/kanata.log`
 
