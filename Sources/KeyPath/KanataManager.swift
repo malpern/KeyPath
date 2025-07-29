@@ -86,6 +86,7 @@ class KanataManager: ObservableObject {
     @Published var keyMappings: [KeyMapping] = []
     @Published var diagnostics: [KanataDiagnostic] = []
     @Published var lastProcessExitCode: Int32?
+    @Published var lastConfigUpdate: Date = Date()
     
     private var kanataProcess: Process?
     private let configDirectory = "\(NSHomeDirectory())/Library/Application Support/KeyPath"
@@ -1498,6 +1499,9 @@ sudo pkill -f karabiner_grabber
         
         let configURL = URL(fileURLWithPath: configPath)
         try config.write(to: configURL, atomically: true, encoding: .utf8)
+        
+        // Notify UI that config was updated
+        lastConfigUpdate = Date()
     }
     
     /// Backs up a failed config and applies safe default, returning backup path

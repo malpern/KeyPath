@@ -9,8 +9,8 @@ struct ContentView: View {
     @State private var recordedOutput = ""
     @State private var showingInstallationWizard = false
     @State private var hasCheckedRequirements = false
-    @State private var saveMessage = ""
-    @State private var saveMessageColor = Color.green
+    @State private var showStatusMessage = false
+    @State private var statusMessage = ""
     
     var body: some View {
         VStack(spacing: 20) {
@@ -21,12 +21,17 @@ struct ContentView: View {
             RecordingSection(recordedInput: $recordedInput, recordedOutput: $recordedOutput,
                              isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
                              kanataManager: kanataManager, keyboardCapture: keyboardCapture,
-                             saveMessage: $saveMessage, saveMessageColor: $saveMessageColor)
+                             showStatusMessage: showStatusMessage)
             
             // Error Section (only show if there's an error)
             if let error = kanataManager.lastError, !kanataManager.isRunning {
                 ErrorSection(kanataManager: kanataManager, showingInstallationWizard: $showingInstallationWizard, error: error)
             }
+            
+            // Status Message - Fixed at bottom with stable layout
+            StatusMessageView(message: statusMessage, isVisible: showStatusMessage)
+                .frame(height: showStatusMessage ? nil : 0)
+                .clipped()
             
             // TODO: Diagnostic Summary (show critical issues) - commented out to revert to previous behavior
             // if !kanataManager.diagnostics.isEmpty {
@@ -63,6 +68,24 @@ struct ContentView: View {
         .onChange(of: kanataManager.lastError) { value in
             AppLogger.shared.log("🔍 [ContentView] lastError changed to: \(value ?? "nil")")
             checkRequirementsAndShowWizard()
+        }
+        .onChange(of: kanataManager.lastConfigUpdate) { _ in
+            // Show status message when config is updated externally
+            showStatusMessage(message: "Key mappings updated")
+        }
+    }
+    
+    private func showStatusMessage(message: String) {
+        statusMessage = message
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+            showStatusMessage = true
+        }
+        
+        // Hide after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            withAnimation(.easeOut(duration: 0.3)) {
+                showStatusMessage = false
+            }
         }
     }
     
@@ -135,8 +158,7 @@ struct RecordingSection: View {
     @Binding var isRecordingOutput: Bool
     @ObservedObject var kanataManager: KanataManager
     @ObservedObject var keyboardCapture: KeyboardCapture
-    @Binding var saveMessage: String
-    @Binding var saveMessageColor: Color
+    let showStatusMessage: (String) -> Void
     @State private var outputInactivityTimer: Timer?
     @State private var showingConfigCorruptionAlert = false
     @State private var configCorruptionDetails = ""
@@ -229,13 +251,6 @@ struct RecordingSection: View {
                 .disabled(recordedInput.isEmpty || recordedOutput.isEmpty)
             }
             
-            // Save Message
-            if !saveMessage.isEmpty {
-                Text(saveMessage)
-                    .foregroundColor(saveMessageColor)
-                    .font(.caption)
-                    .animation(.easeInOut(duration: 0.3), value: saveMessage)
-            }
         }
         .padding()
         .background(Color.gray.opacity(0.05))
@@ -372,9 +387,8 @@ struct RecordingSection: View {
                 
                 try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
                 
-                // Show success message
-                saveMessage = "✅ Saved: \(inputKey) → \(outputKey)"
-                saveMessageColor = Color.green
+                // Show status message
+                showStatusMessage("Key mapping saved: \(inputKey) → \(outputKey)")
                 
                 // Clear the form
                 recordedInput = ""
@@ -384,11 +398,6 @@ struct RecordingSection: View {
                 await kanataManager.updateStatus()
                 
                 // No helper installation needed - kanata runs directly with --watch
-                
-                // Clear message after 3 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    saveMessage = ""
-                }
             } catch {
                 // Handle specific config errors
                 if let configError = error as? ConfigError {
@@ -404,8 +413,7 @@ struct RecordingSection: View {
                         configRepairSuccessful = false
                         showingConfigCorruptionAlert = true
                         
-                        saveMessage = "⚠️ Config repaired automatically"
-                        saveMessageColor = Color.orange
+                        showStatusMessage("⚠️ Config repaired automatically")
                         
                     case .claudeRepairFailed(let reason):
                         configCorruptionDetails = """
@@ -418,8 +426,7 @@ struct RecordingSection: View {
                         configRepairSuccessful = false
                         showingConfigCorruptionAlert = true
                         
-                        saveMessage = "❌ Config repair failed - using safe fallback"
-                        saveMessageColor = Color.red
+                        showStatusMessage("❌ Config repair failed - using safe fallback")
                     
                     case .repairFailedNeedsUserAction(let originalConfig, _, let originalErrors, let repairErrors, let mappings):
                         // Handle user action required case
@@ -450,30 +457,21 @@ struct RecordingSection: View {
                                     You can examine and manually fix the backed up configuration if needed.
                                     """
                                     showingRepairFailedAlert = true
-                                    saveMessage = "⚠️ Config backed up, safe default applied"
-                                    saveMessageColor = Color.orange
+                                    showStatusMessage("⚠️ Config backed up, safe default applied")
                                 }
                             } catch {
                                 await MainActor.run {
-                                    saveMessage = "❌ Failed to backup config: \(error.localizedDescription)"
-                                    saveMessageColor = Color.red
+                                    showStatusMessage("❌ Failed to backup config: \(error.localizedDescription)")
                                 }
                             }
                         }
                         
                     default:
-                        saveMessage = "❌ Config error: \(error.localizedDescription)"
-                        saveMessageColor = Color.red
+                        showStatusMessage("❌ Config error: \(error.localizedDescription)")
                     }
                 } else {
                     // Show generic error message
-                    saveMessage = "❌ Error saving: \(error.localizedDescription)"
-                    saveMessageColor = Color.red
-                }
-                
-                // Clear error message after 5 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                    saveMessage = ""
+                    showStatusMessage("❌ Error saving: \(error.localizedDescription)")
                 }
             }
         }
@@ -588,6 +586,85 @@ struct DiagnosticSummarySection: View {
         )
         .sheet(isPresented: $showingDiagnostics) {
             DiagnosticsView(kanataManager: kanataManager)
+        }
+    }
+}
+
+struct StatusMessageView: View {
+    let message: String
+    let isVisible: Bool
+    
+    var body: some View {
+        Group {
+            if isVisible {
+                HStack(spacing: 12) {
+                    Image(systemName: iconName)
+                        .font(.title2)
+                        .foregroundColor(iconColor)
+                    
+                    Text(message)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(backgroundColor)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(borderColor, lineWidth: 1)
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+            }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isVisible)
+    }
+    
+    private var iconName: String {
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            return "xmark.circle.fill"
+        } else if message.contains("⚠️") || message.contains("Config repaired") || message.contains("backed up") {
+            return "exclamationmark.triangle.fill"
+        } else {
+            return "checkmark.circle.fill"
+        }
+    }
+    
+    private var iconColor: Color {
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            return .red
+        } else if message.contains("⚠️") || message.contains("Config repaired") || message.contains("backed up") {
+            return .orange
+        } else {
+            return .green
+        }
+    }
+    
+    private var backgroundColor: Color {
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            return Color.red.opacity(0.1)
+        } else if message.contains("⚠️") || message.contains("Config repaired") || message.contains("backed up") {
+            return Color.orange.opacity(0.1)
+        } else {
+            return Color.green.opacity(0.1)
+        }
+    }
+    
+    private var borderColor: Color {
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            return Color.red.opacity(0.3)
+        } else if message.contains("⚠️") || message.contains("Config repaired") || message.contains("backed up") {
+            return Color.orange.opacity(0.3)
+        } else {
+            return Color.green.opacity(0.3)
         }
     }
 }
