@@ -174,7 +174,11 @@ Add entries to `/etc/sudoers` (use `sudo visudo`):
 # Allow user to run kanata as root without password
 username ALL=(ALL) NOPASSWD: /usr/local/bin/kanata
 username ALL=(ALL) NOPASSWD: /usr/bin/pkill -f kanata
+username ALL=(ALL) NOPASSWD: /usr/bin/sed -i* /usr/local/etc/kanata/keypath.kbd
+username ALL=(ALL) NOPASSWD: /usr/bin/tee /usr/local/etc/kanata/keypath.kbd
 ```
+
+**Note**: The exact path must match in sudoers - use `/usr/bin/pkill -f kanata` not `pkill -f "kanata.*pattern"`
 
 ### 2. Modify Process Execution in Swift
 Update the KanataManager to use sudo when launching Kanata:
@@ -239,10 +243,28 @@ ps aux | grep kanata | grep -v grep
 
 ### Verify Sudoers Configuration
 ```bash
+# Check what sudo commands are available without password
+sudo -l | grep kanata
+
 # Test passwordless sudo
 sudo -n /usr/local/bin/kanata --version
 
 # Should NOT prompt for password if configured correctly
+```
+
+### Administrative Tasks Available Without Password
+Based on the current sudoers configuration, Claude Code can perform these tasks without password prompts:
+
+```bash
+# Start/restart Kanata
+sudo /usr/local/bin/kanata --cfg /path/to/config.kbd --watch
+
+# Kill Kanata processes (exact path required)
+sudo /usr/bin/pkill -f kanata
+
+# Update system config files
+sudo /usr/bin/tee /usr/local/etc/kanata/keypath.kbd < user-config.kbd
+sudo /usr/bin/sed -i.bak 's/old/new/' /usr/local/etc/kanata/keypath.kbd
 ```
 
 ## Common Issues
