@@ -18,7 +18,7 @@ final class KeyPathTests: XCTestCase {
         let manager = KanataManager()
         XCTAssertFalse(manager.isRunning)
         XCTAssertNil(manager.lastError)
-        XCTAssertEqual(manager.configPath, "/usr/local/etc/kanata/keypath.kbd")
+        XCTAssertEqual(manager.configPath, "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd")
     }
     
     func testConvertToKanataKey() throws {
@@ -296,7 +296,7 @@ final class KeyPathTests: XCTestCase {
         
         if !manager.isInstalled() {
             // If not installed, there should be an error after init
-            Thread.sleep(forTimeInterval: 0.5)
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             XCTAssertNotNil(manager.lastError)
         }
     }
@@ -385,7 +385,7 @@ final class KeyPathTests: XCTestCase {
             // Should provide helpful error messages
             if !manager.isInstalled() {
                 // When binary is missing, should guide to installer
-                Thread.sleep(forTimeInterval: 0.5) // Allow async init to complete
+                try? await Task.sleep(nanoseconds: 500_000_000) // Allow async init to complete
                 if let error = manager.lastError {
                     XCTAssertTrue(error.contains("sudo ./install-system.sh") || 
                                  error.contains("install"), 
@@ -395,7 +395,7 @@ final class KeyPathTests: XCTestCase {
             
             if !manager.isServiceInstalled() {
                 // When service is missing, should guide to installer
-                Thread.sleep(forTimeInterval: 0.5)
+                try? await Task.sleep(nanoseconds: 500_000_000)
                 if let error = manager.lastError {
                     XCTAssertTrue(error.contains("LaunchDaemon") || 
                                  error.contains("install"),
@@ -570,7 +570,7 @@ final class KeyPathTests: XCTestCase {
         let manager = KanataManager()
         
         // Test config path is correct
-        XCTAssertEqual(manager.configPath, "/usr/local/etc/kanata/keypath.kbd",
+        XCTAssertEqual(manager.configPath, "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd",
                       "Config path should be in expected location")
         
         // Test that config includes proper attribution
@@ -629,47 +629,6 @@ final class KeyPathTests: XCTestCase {
 }
 
 // MARK: - Helper Extensions
-
-extension KanataManager {
-    // Expose private methods for testing
-    func convertToKanataKey(_ key: String) -> String {
-        let keyMap: [String: String] = [
-            "caps": "caps",
-            "capslock": "caps",
-            "space": "spc",
-            "enter": "ret",
-            "return": "ret",
-            "tab": "tab",
-            "escape": "esc",
-            "backspace": "bspc",
-            "delete": "del",
-            "cmd": "lmet",
-            "command": "lmet",
-            "lcmd": "lmet",
-            "rcmd": "rmet",
-            "leftcmd": "lmet",
-            "rightcmd": "rmet"
-        ]
-        
-        let lowercaseKey = key.lowercased()
-        return keyMap[lowercaseKey] ?? lowercaseKey
-    }
-    
-    func convertToKanataSequence(_ sequence: String) -> String {
-        if sequence.count == 1 {
-            return convertToKanataKey(sequence)
-        } else {
-            let converted = convertToKanataKey(sequence)
-            if converted != sequence.lowercased() {
-                return converted
-            } else {
-                let keys = sequence.map { convertToKanataKey(String($0)) }
-                return "(\(keys.joined(separator: " ")))"
-            }
-        }
-    }
-    
-}
 
 extension KeyboardCapture {
     // Expose private methods for testing

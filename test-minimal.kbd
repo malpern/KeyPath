@@ -1,0 +1,13 @@
+;; Absolutely minimal kanata config for testing
+
+(defcfg
+  process-unmapped-keys no
+)
+
+(defsrc
+  1
+)
+
+(deflayer base
+  3
+)
