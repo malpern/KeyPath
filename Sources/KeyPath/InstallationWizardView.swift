@@ -47,7 +47,7 @@ struct InstallationWizardView: View {
             }
             .animation(.easeInOut(duration: 0.3), value: currentPage)
         }
-        .frame(width: 700, height: 850)
+        .frame(width: 700, height: 600)
         .background(VisualEffectBackground())
         .onAppear {
             AppLogger.shared.log("🔍 [Wizard] ========== WIZARD LAUNCHED ==========")
@@ -1573,6 +1573,30 @@ struct DaemonPageView: View {
             }
             
             Spacer()
+            
+            // Navigation buttons
+            HStack {
+                Button("Previous") {
+                    withAnimation {
+                        // Navigate to previous appropriate page
+                        installer.checkInitialState(kanataManager: kanataManager)
+                    }
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                if installer.daemonStatus == .completed {
+                    Button("Next") {
+                        withAnimation {
+                            // Navigate to next appropriate page
+                            installer.checkInitialState(kanataManager: kanataManager)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(.horizontal)
         }
         .padding()
     }

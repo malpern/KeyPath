@@ -79,7 +79,6 @@ enum DiagnosticCategory: String, CaseIterable {
     case conflict = "Conflict"
 }
 
-@MainActor
 class KanataManager: ObservableObject {
     @Published var isRunning = false
     @Published var lastError: String?
@@ -97,30 +96,35 @@ class KanataManager: ObservableObject {
     }
     
     init() {
-        Task {
-            await updateStatus()
-            // Try to start Kanata automatically on launch if all requirements are met
-            let status = getSystemRequirementsStatus()
-            
-            if status.installed && status.permissions && status.driver {
-                // Start daemon if not running
-                if !status.daemon {
-                    AppLogger.shared.log("🚀 [Init] Starting Karabiner daemon automatically...")
-                    let daemonStarted = await startKarabinerDaemon()
-                    if daemonStarted {
-                        AppLogger.shared.log("✅ [Init] Karabiner daemon started successfully")
-                        await startKanata()
-                    } else {
-                        AppLogger.shared.log("❌ [Init] Failed to start Karabiner daemon - Kanata startup aborted")
-                    }
-                } else {
-                    AppLogger.shared.log("✅ [Init] All requirements met - starting Kanata")
+        // Dispatch heavy initialization work to background thread
+        Task.detached { [weak self] in
+            await self?.performInitialization()
+        }
+    }
+    
+    private func performInitialization() async {
+        await updateStatus()
+        // Try to start Kanata automatically on launch if all requirements are met
+        let status = getSystemRequirementsStatus()
+        
+        if status.installed && status.permissions && status.driver {
+            // Start daemon if not running
+            if !status.daemon {
+                AppLogger.shared.log("🚀 [Init] Starting Karabiner daemon automatically...")
+                let daemonStarted = await startKarabinerDaemon()
+                if daemonStarted {
+                    AppLogger.shared.log("✅ [Init] Karabiner daemon started successfully")
                     await startKanata()
+                } else {
+                    AppLogger.shared.log("❌ [Init] Failed to start Karabiner daemon - Kanata startup aborted")
                 }
             } else {
-                AppLogger.shared.log("⚠️ [Init] System requirements not met - skipping auto-start")
-                AppLogger.shared.log("🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)")
+                AppLogger.shared.log("✅ [Init] All requirements met - starting Kanata")
+                await startKanata()
             }
+        } else {
+            AppLogger.shared.log("⚠️ [Init] System requirements not met - skipping auto-start")
+            AppLogger.shared.log("🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)")
         }
     }
     
@@ -652,7 +656,9 @@ class KanataManager: ObservableObject {
             let processRunning = process.isRunning
             if self.isRunning != processRunning {
                 AppLogger.shared.log("⚠️ [Status] Process state changed: \(processRunning)")
-                self.isRunning = processRunning
+                await MainActor.run {
+                    self.isRunning = processRunning
+                }
                 if !processRunning {
                     kanataProcess = nil
                 }
@@ -662,13 +668,17 @@ class KanataManager: ObservableObject {
             let externalRunning = await checkExternalKanataProcess()
             if self.isRunning != externalRunning {
                 AppLogger.shared.log("⚠️ [Status] External kanata process detected: \(externalRunning)")
-                self.isRunning = externalRunning
+                await MainActor.run {
+                    self.isRunning = externalRunning
+                }
                 
                 // Clear exit code, error message, and stale diagnostics when we detect external process is running
                 // This prevents showing stale information for currently running processes
                 if externalRunning {
-                    self.lastProcessExitCode = nil
-                    self.lastError = nil
+                    await MainActor.run {
+                        self.lastProcessExitCode = nil
+                        self.lastError = nil
+                    }
                     self.clearProcessDiagnostics()
                     AppLogger.shared.log("🔄 [Status] Cleared stale exit code, error, and diagnostics - external process is running")
                 }
@@ -1229,11 +1239,11 @@ sudo pkill -f karabiner_grabber
 ;; Mappings: \(mappingsList)
 ;; 
 ;; SAFETY FEATURES:
-;; - process-unmapped-keys no: Only process explicitly mapped keys
+;; - process-unmapped-keys yes: Process all keys (unmapped keys pass through)
 ;; - danger-enable-cmd yes: Enable CMD key remapping (required for macOS)
 
 (defcfg
-  process-unmapped-keys no
+  process-unmapped-keys yes
   danger-enable-cmd yes
 )
 
@@ -1258,11 +1268,11 @@ sudo pkill -f karabiner_grabber
 ;; Input: \(input) -> Output: \(output)
 ;; 
 ;; SAFETY FEATURES:
-;; - process-unmapped-keys no: Only process explicitly mapped keys
+;; - process-unmapped-keys yes: Process all keys (unmapped keys pass through)
 ;; - danger-enable-cmd yes: Enable CMD key remapping (required for macOS)
 
 (defcfg
-  process-unmapped-keys no
+  process-unmapped-keys yes
   danger-enable-cmd yes
 )
 
@@ -1467,7 +1477,7 @@ sudo pkill -f karabiner_grabber
                 if !repairedConfig.contains("(defcfg") {
                     let defcfgSection = """
                     (defcfg
-                      process-unmapped-keys no
+                      process-unmapped-keys yes
                       danger-enable-cmd yes
                     )
                     

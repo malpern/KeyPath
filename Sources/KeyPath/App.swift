@@ -132,12 +132,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("🔍 [AppDelegate] applicationDidFinishLaunching called")
         AppLogger.shared.log("🔍 [AppDelegate] applicationDidFinishLaunching called")
         
-        // Start Kanata automatically if config exists
-        Task {
-            AppLogger.shared.log("🔍 [AppDelegate] Calling startKanataIfConfigured")
-            await kanataManager?.startKanataIfConfigured()
-            AppLogger.shared.log("🔍 [AppDelegate] startKanataIfConfigured completed")
-        }
+        // Note: Kanata is already started in KanataManager.init() if requirements are met
+        // No need to start it again here
     }
     
     func applicationWillResignActive(_ notification: Notification) {

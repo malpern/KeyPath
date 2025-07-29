@@ -1,7 +1,7 @@
 # KeyPath - Simplified Keyboard Remapping for macOS
 
 <div align="center">
-  <img src="docs/images/keypath-main.png" alt="KeyPath Main Interface" width="600"/>
+  <!-- <img src="docs/images/keypath-main.png" alt="KeyPath Main Interface" width="600"/> -->
   
   *Simple, elegant keyboard remapping for macOS*
 </div>
@@ -53,21 +53,23 @@ KeyPath is a modern macOS application that makes keyboard remapping effortless. 
 ## 📱 How It Works
 
 ### Main Interface
-<img src="docs/images/keypath-main.png" alt="KeyPath Main Interface" width="500"/>
+<!-- Screenshots coming soon! -->
+<!-- <img src="docs/images/keypath-main.png" alt="KeyPath Main Interface" width="500"/> -->
 
+**Creating a Key Mapping:**
 1. **Record Input Key**: Click the play button and press any key (e.g., Caps Lock)
 2. **Record Output Key**: Click the second play button and press your desired output (e.g., Escape)  
 3. **Save**: Click "Save" to instantly apply the mapping
 
 ### Settings & Monitoring
-<img src="docs/images/keypath-settings.png" alt="KeyPath Settings" width="500"/>
+<!-- <img src="docs/images/keypath-settings.png" alt="KeyPath Settings" width="500"/> -->
 
-The settings panel shows real-time status of:
-- **Kanata Service**: The core remapping engine
-- **Karabiner Daemon**: Virtual HID device driver
-- **Installation**: System integration status
+**Real-time Status Display:**
+- **Kanata Service**: Shows if the core remapping engine is running
+- **Karabiner Daemon**: Indicates virtual HID device driver status
+- **Installation**: Confirms system integration is complete
 
-**Service Control**: Start, stop, or restart the remapping service as needed.
+**Service Control**: Use the settings panel to start, stop, or restart the remapping service as needed.
 
 ## 💡 Common Use Cases
 
