@@ -19,12 +19,12 @@ KeyPath is a macOS application that provides simple keyboard remapping using Kan
 ### Installation
 1. **Build the app**:
    ```bash
-   ./build.sh
+   ./Scripts/build.sh
    ```
 
 2. **Install the system service**:
    ```bash
-   sudo ./install-system.sh
+   sudo ./Scripts/reinstall-kanata.sh
    ```
 
 3. **Launch the app**:
@@ -54,6 +54,20 @@ KeyPath uses a simplified architecture inspired by Karabiner-Elements:
 - **File-based Config**: Direct config file updates (no XPC)
 - **Hot Reload**: Automatic service restart on config changes
 
+## 📁 Project Structure
+
+```
+KeyPath/
+├── Sources/KeyPath/           # Core SwiftUI application
+├── Tests/                     # Unit and integration tests
+│   ├── KeyPathTests/         # Swift test suites
+│   └── fixtures/             # Test configuration files
+├── Scripts/                   # Build, test, and maintenance scripts
+├── dev-tools/                 # Development and debugging utilities
+├── docs/                      # Documentation and troubleshooting guides
+└── dist/                      # Build artifacts (generated)
+```
+
 ## 📋 Service Management
 
 ### Manual Commands
@@ -82,7 +96,7 @@ The `KanataManager` class provides async methods:
 
 ### Run All Tests
 ```bash
-./run-tests.sh
+./Scripts/run-tests.sh
 ```
 
 ### Individual Test Suites
@@ -91,10 +105,9 @@ The `KanataManager` class provides async methods:
 swift test
 
 # Integration tests
-./test-kanata-system.sh
-./test-hot-reload.sh
-./test-service-status.sh
-./test-installer.sh
+./Scripts/test-hot-reload.sh
+./Scripts/test-service-status.sh
+./Scripts/test-installer.sh
 ```
 
 ### Test Coverage

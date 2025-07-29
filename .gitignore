@@ -45,6 +45,13 @@ Package.resolved
 *.dSYM
 
 # Logs
-*.logkanata-source/
-kanata/
+*.log
+logs/
+
+# External source code - don't include full Kanata source
 kanata-source/
+kanata/
+
+# Temporary test files
+*.tmp
+temp_*
