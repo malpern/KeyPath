@@ -13,6 +13,9 @@ struct ContentView: View {
     @State private var statusMessage = ""
     @State private var showingEmergencyAlert = false
     
+    // Phase 2: Lifecycle Manager (will be initialized in onAppear to use injected kanataManager)
+    @State private var lifecycleManager: KanataLifecycleManager?
+    
     var body: some View {
         VStack(spacing: 20) {
             // Header
@@ -22,7 +25,7 @@ struct ContentView: View {
             RecordingSection(recordedInput: $recordedInput, recordedOutput: $recordedOutput,
                              isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
                              kanataManager: kanataManager, keyboardCapture: keyboardCapture,
-                             showStatusMessage: showStatusMessage)
+                             showStatusMessage: showStatusMessage, lifecycleManager: lifecycleManager)
             
             // Error Section (only show if there's an error)
             if let error = kanataManager.lastError, !kanataManager.isRunning {
@@ -53,6 +56,17 @@ struct ContentView: View {
         }
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
+            
+            // Phase 2: Initialize lifecycle manager
+            if lifecycleManager == nil {
+                AppLogger.shared.log("🏗️ [ContentView] Initializing KanataLifecycleManager")
+                lifecycleManager = KanataLifecycleManager(kanataManager: kanataManager)
+                
+                // Start the lifecycle management
+                Task {
+                    await lifecycleManager?.initialize()
+                }
+            }
             
             if !hasCheckedRequirements {
                 AppLogger.shared.log("🔍 [ContentView] First time checking requirements")
@@ -177,6 +191,9 @@ struct RecordingSection: View {
     @ObservedObject var kanataManager: KanataManager
     @ObservedObject var keyboardCapture: KeyboardCapture
     let showStatusMessage: (String) -> Void
+    
+    // Phase 2: Lifecycle Manager Integration
+    let lifecycleManager: KanataLifecycleManager?
     @State private var outputInactivityTimer: Timer?
     @State private var showingConfigCorruptionAlert = false
     @State private var configCorruptionDetails = ""
@@ -437,7 +454,15 @@ struct RecordingSection: View {
             let outputKey = recordedOutput
             
             AppLogger.shared.log("💾 [Save] Saving mapping: \(inputKey) → \(outputKey)")
-            try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
+            
+            // Phase 2: Use lifecycle manager if available, otherwise fall back to direct KanataManager
+            if let lifecycleManager = lifecycleManager {
+                AppLogger.shared.log("💾 [Save] Using KanataLifecycleManager for save operation")
+                await lifecycleManager.applyConfiguration(input: inputKey, output: outputKey)
+            } else {
+                AppLogger.shared.log("💾 [Save] Using direct KanataManager for save operation")
+                try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
+            }
             
             AppLogger.shared.log("💾 [Save] Configuration saved successfully")
             
