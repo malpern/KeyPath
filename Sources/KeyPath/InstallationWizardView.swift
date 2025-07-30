@@ -18,6 +18,9 @@ struct InstallationWizardView: View {
     @State private var currentPage: WizardPage = .summary
     @State private var isInitializing = true
     
+    // Phase 3: Reactive Wizard Integration
+    @State private var lifecycleManager: KanataLifecycleManager?
+    
     var body: some View {
         AppLogger.shared.log("🔍 [Wizard] UI Render - hasConflicts: \(installer.hasConflicts), conflictDescription: '\(installer.conflictDescription)'")
         
@@ -31,7 +34,7 @@ struct InstallationWizardView: View {
                     if currentPage == .summary {
                         SummaryPageView(installer: installer, kanataManager: kanataManager)
                     } else if currentPage == .conflicts {
-                        ConflictsPageView(installer: installer, kanataManager: kanataManager)
+                        ConflictsPageView(installer: installer, kanataManager: kanataManager, lifecycleManager: lifecycleManager)
                     } else if currentPage == .daemon {
                         DaemonPageView(installer: installer, kanataManager: kanataManager, onNavigate: updateCurrentPage)
                     } else if currentPage == .inputMonitoring {
@@ -51,6 +54,13 @@ struct InstallationWizardView: View {
         .background(VisualEffectBackground())
         .onAppear {
             AppLogger.shared.log("🔍 [Wizard] ========== WIZARD LAUNCHED ==========")
+            
+            // Phase 3: Initialize lifecycle manager for reactive wizard
+            if lifecycleManager == nil {
+                AppLogger.shared.log("🏗️ [Wizard] Initializing KanataLifecycleManager for reactive wizard")
+                lifecycleManager = KanataLifecycleManager(kanataManager: kanataManager)
+            }
+            
             Task {
                 // Small delay to ensure UI is ready
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
@@ -770,6 +780,9 @@ struct ConflictsPageView: View {
     @State private var isTerminating = false
     @State private var showTerminationConfirmation = false
     
+    // Phase 3: Reactive Wizard Integration
+    let lifecycleManager: KanataLifecycleManager?
+    
     var body: some View {
         VStack(spacing: 24) {
             VStack(spacing: 12) {
@@ -841,6 +854,18 @@ struct ConflictsPageView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(isTerminating || installer.conflictDescription.isEmpty)
+                
+                // Phase 3: Show lifecycle manager state if available
+                if let lifecycleManager = lifecycleManager {
+                    HStack {
+                        Circle()
+                            .fill(lifecycleManager.stateColor)
+                            .frame(width: 8, height: 8)
+                        Text("System State: \(lifecycleManager.stateDisplayName)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
                 Button("Check Again") {
                     Task<Void, Never> {
