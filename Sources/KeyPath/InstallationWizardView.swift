@@ -33,13 +33,13 @@ struct InstallationWizardView: View {
                     } else if currentPage == .conflicts {
                         ConflictsPageView(installer: installer, kanataManager: kanataManager)
                     } else if currentPage == .daemon {
-                        DaemonPageView(installer: installer, kanataManager: kanataManager)
+                        DaemonPageView(installer: installer, kanataManager: kanataManager, onNavigate: updateCurrentPage)
                     } else if currentPage == .inputMonitoring {
-                        InputMonitoringPageView(installer: installer, kanataManager: kanataManager)
+                        InputMonitoringPageView(installer: installer, kanataManager: kanataManager, onNavigate: updateCurrentPage)
                     } else if currentPage == .accessibility {
-                        AccessibilityPageView(installer: installer, kanataManager: kanataManager)
+                        AccessibilityPageView(installer: installer, kanataManager: kanataManager, onNavigate: updateCurrentPage)
                     } else if currentPage == .installation {
-                        InstallationPageView(installer: installer, kanataManager: kanataManager)
+                        InstallationPageView(installer: installer, kanataManager: kanataManager, onNavigate: updateCurrentPage)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -54,7 +54,7 @@ struct InstallationWizardView: View {
             Task {
                 // Small delay to ensure UI is ready
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                installer.checkInitialState(kanataManager: kanataManager)
+                await installer.checkInitialState(kanataManager: kanataManager)
                 updateCurrentPage()
                 withAnimation {
                     isInitializing = false
@@ -246,7 +246,7 @@ class KeyPathInstaller: ObservableObject {
                !installationComplete // This means service is not running
     }
     
-    func checkInitialState(kanataManager: KanataManager) {
+    func checkInitialState(kanataManager: KanataManager) async {
         let manager = kanataManager
         
         AppLogger.shared.log("🔍 [Wizard] ========== STARTING checkInitialState ==========")
@@ -357,6 +357,29 @@ class KeyPathInstaller: ObservableObject {
                         conflictDesc += "• Process ID: \(pid) - \(command)\n"
                     }
                     AppLogger.shared.log("🔍 [Wizard] ⚠️ SETTING CONFLICTS=TRUE: \(validProcesses)")
+                    
+                    // Auto-terminate conflicts immediately
+                    AppLogger.shared.log("🔧 [Wizard] Auto-terminating \(validProcesses.count) detected conflicts...")
+                    
+                    let killTask = Process()
+                    killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+                    killTask.arguments = ["/usr/bin/pkill", "-f", "kanata"]
+                    
+                    do {
+                        try killTask.run()
+                        killTask.waitUntilExit()
+                        AppLogger.shared.log("✅ [Wizard] Auto-terminated all Kanata processes")
+                        
+                        // Wait for processes to fully terminate
+                        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                        
+                        // Clear conflicts after successful termination
+                        hasConflictingProcesses = false
+                        conflictDesc = ""
+                        AppLogger.shared.log("🔍 [Wizard] ✅ Conflicts auto-resolved")
+                    } catch {
+                        AppLogger.shared.log("❌ [Wizard] Error auto-terminating conflicts: \(error)")
+                    }
                 } else {
                     hasConflictingProcesses = false
                     conflictDesc = ""
@@ -552,7 +575,7 @@ class KeyPathInstaller: ObservableObject {
             driverInstallStatus = .completed
             
             // Re-check permissions after installation
-            checkInitialState(kanataManager: kanataManager)
+            await checkInitialState(kanataManager: kanataManager)
             
             if permissionStatus == .completed {
                 installationComplete = true
@@ -579,13 +602,14 @@ class KeyPathInstaller: ObservableObject {
     func updatePermissionStatus(kanataManager: KanataManager) async {
         AppLogger.shared.log("🔘 [UI Action] User requested permission status update.")
         // Re-run the full initial state check to update all statuses
-        checkInitialState(kanataManager: kanataManager)
+        await checkInitialState(kanataManager: kanataManager)
     }
 }
 
 // MARK: - Page View Implementations
 
 struct SummaryPageView: View {
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var installer: KeyPathInstaller
     let kanataManager: KanataManager
     
@@ -661,8 +685,15 @@ struct SummaryPageView: View {
                     .foregroundColor(.secondary)
                     
                     Button("Start Using KeyPath") {
-                        if let window = NSApplication.shared.windows.first {
-                            window.close()
+                        Task {
+                            // Start Kanata if it's not running
+                            if !kanataManager.isRunning {
+                                await kanataManager.startKanata()
+                            }
+                            // Then dismiss the wizard
+                            await MainActor.run {
+                                dismiss()
+                            }
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -737,6 +768,7 @@ struct ConflictsPageView: View {
     @ObservedObject var installer: KeyPathInstaller
     let kanataManager: KanataManager
     @State private var isTerminating = false
+    @State private var showTerminationConfirmation = false
     
     var body: some View {
         VStack(spacing: 24) {
@@ -795,7 +827,9 @@ struct ConflictsPageView: View {
             Spacer()
             
             VStack(spacing: 12) {
-                Button(action: terminateConflicts) {
+                Button(action: {
+                    showTerminationConfirmation = true
+                }) {
                     if isTerminating {
                         ProgressView()
                             .scaleEffect(0.8)
@@ -809,7 +843,9 @@ struct ConflictsPageView: View {
                 .disabled(isTerminating || installer.conflictDescription.isEmpty)
                 
                 Button("Check Again") {
-                    installer.checkInitialState(kanataManager: kanataManager)
+                    Task<Void, Never> {
+                        await installer.checkInitialState(kanataManager: kanataManager)
+                    }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
@@ -817,25 +853,37 @@ struct ConflictsPageView: View {
             }
         }
         .padding()
+        .alert("Terminate Conflicting Processes", isPresented: $showTerminationConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Terminate", role: .destructive) {
+                terminateConflicts()
+            }
+        } message: {
+            Text("This will forcefully terminate the conflicting Kanata processes. This action cannot be undone.\n\nProcesses to terminate:\n\(installer.conflictDescription)")
+        }
     }
     
     private func terminateConflicts() {
         Task {
             isTerminating = true
-            AppLogger.shared.log("🔧 [Conflicts] Terminating conflicting processes...")
+            AppLogger.shared.log("🔧 [Conflicts] ========== USER CONFIRMED TERMINATION ==========")
+            AppLogger.shared.log("🔧 [Conflicts] User explicitly confirmed termination of conflicting processes")
+            AppLogger.shared.log("🔧 [Conflicts] Processes to terminate: \(installer.conflictDescription)")
             
             // Extract PIDs from the conflict description
             let lines = installer.conflictDescription.components(separatedBy: "\n")
             for line in lines {
                 if line.contains("Process ID:") {
-                    let components = line.components(separatedBy: "Process ID:").last?.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if let pid = components {
-                        AppLogger.shared.log("🔧 [Conflicts] Attempting to terminate PID: \(pid)")
+                    // Extract just the PID number: "Process ID: 12345 - /path/to/command"
+                    let afterPID = line.components(separatedBy: "Process ID:").last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    let pidString = afterPID.components(separatedBy: " ").first ?? ""
+                    if !pidString.isEmpty, let pid = Int(pidString) {
+                        AppLogger.shared.log("🔧 [Conflicts] Attempting to terminate PID: \(pid) - \(line)")
                         
                         // Try to kill the process
                         let killTask = Process()
                         killTask.executableURL = URL(fileURLWithPath: "/bin/kill")
-                        killTask.arguments = ["-9", pid]
+                        killTask.arguments = ["-9", String(pid)]
                         
                         do {
                             try killTask.run()
@@ -844,15 +892,19 @@ struct ConflictsPageView: View {
                                 AppLogger.shared.log("✅ [Conflicts] Successfully terminated PID: \(pid)")
                             } else {
                                 AppLogger.shared.log("❌ [Conflicts] Failed to terminate PID: \(pid) - may require sudo")
-                                // Try with sudo
-                                let sudoKillTask = Process()
-                                sudoKillTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                                sudoKillTask.arguments = ["-e", "do shell script \"kill -9 \(pid)\" with administrator privileges"]
                                 
-                                try sudoKillTask.run()
-                                sudoKillTask.waitUntilExit()
-                                if sudoKillTask.terminationStatus == 0 {
-                                    AppLogger.shared.log("✅ [Conflicts] Successfully terminated PID with sudo: \(pid)")
+                                // For Kanata processes, we can use passwordless sudo pkill
+                                if line.contains("kanata") {
+                                    AppLogger.shared.log("🔧 [Conflicts] Attempting sudo termination for Kanata process")
+                                    let sudoKillTask = Process()
+                                    sudoKillTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+                                    sudoKillTask.arguments = ["/usr/bin/pkill", "-f", "kanata"]
+                                    
+                                    try sudoKillTask.run()
+                                    sudoKillTask.waitUntilExit()
+                                    if sudoKillTask.terminationStatus == 0 {
+                                        AppLogger.shared.log("✅ [Conflicts] Successfully terminated all Kanata processes with sudo")
+                                    }
                                 }
                             }
                         } catch {
@@ -866,7 +918,7 @@ struct ConflictsPageView: View {
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
             
             // Re-check for conflicts
-            installer.checkInitialState(kanataManager: kanataManager)
+            await installer.checkInitialState(kanataManager: kanataManager)
             isTerminating = false
         }
     }
@@ -875,8 +927,10 @@ struct ConflictsPageView: View {
 struct InputMonitoringPageView: View {
     @ObservedObject var installer: KeyPathInstaller
     let kanataManager: KanataManager
+    let onNavigate: (() -> Void)?
     @State private var showingDetails = false
     @State private var showingHelp = false
+    @State private var permissionTimer: Timer?
     
     var body: some View {
         VStack(spacing: 24) {
@@ -983,14 +1037,52 @@ struct InputMonitoringPageView: View {
         .sheet(isPresented: $showingHelp) {
             InputMonitoringHelpSheet(kanataManager: kanataManager)
         }
+        .onAppear {
+            startPermissionMonitoring()
+        }
+        .onDisappear {
+            stopPermissionMonitoring()
+        }
+    }
+    
+    private func startPermissionMonitoring() {
+        // Check permissions every 2 seconds to detect changes
+        permissionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            Task { @MainActor in
+                let oldKeyPathStatus = installer.keyPathInputMonitoringStatus
+                let oldKanataStatus = installer.kanataCmdInputMonitoringPermissionStatus
+                
+                // Update permission status
+                await installer.checkInitialState(kanataManager: kanataManager)
+                
+                // If permissions changed and both are now granted, navigate
+                if (oldKeyPathStatus != installer.keyPathInputMonitoringStatus || 
+                    oldKanataStatus != installer.kanataCmdInputMonitoringPermissionStatus) &&
+                   installer.keyPathInputMonitoringStatus == .completed &&
+                   installer.kanataCmdInputMonitoringPermissionStatus == .completed {
+                    
+                    AppLogger.shared.log("🔍 [InputMonitoringPage] Permissions granted, navigating to next page")
+                    onNavigate?()
+                }
+            }
+        }
+        AppLogger.shared.log("🔍 [InputMonitoringPage] Started permission monitoring")
+    }
+    
+    private func stopPermissionMonitoring() {
+        permissionTimer?.invalidate()
+        permissionTimer = nil
+        AppLogger.shared.log("🔍 [InputMonitoringPage] Stopped permission monitoring")
     }
 }
 
 struct AccessibilityPageView: View {
     @ObservedObject var installer: KeyPathInstaller
     let kanataManager: KanataManager
+    let onNavigate: (() -> Void)?
     @State private var showingDetails = false
     @State private var showingHelp = false
+    @State private var permissionTimer: Timer?
     
     var body: some View {
         VStack(spacing: 24) {
@@ -1078,12 +1170,49 @@ struct AccessibilityPageView: View {
         .sheet(isPresented: $showingHelp) {
             AccessibilityHelpSheet(kanataManager: kanataManager)
         }
+        .onAppear {
+            startPermissionMonitoring()
+        }
+        .onDisappear {
+            stopPermissionMonitoring()
+        }
+    }
+    
+    private func startPermissionMonitoring() {
+        // Check permissions every 2 seconds to detect changes
+        permissionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            Task { @MainActor in
+                let oldKeyPathStatus = installer.keyPathAccessibilityStatus
+                let oldKanataStatus = installer.kanataCmdAccessibilityStatus
+                
+                // Update permission status
+                await installer.checkInitialState(kanataManager: kanataManager)
+                
+                // If permissions changed and both are now granted, navigate
+                if (oldKeyPathStatus != installer.keyPathAccessibilityStatus || 
+                    oldKanataStatus != installer.kanataCmdAccessibilityStatus) &&
+                   installer.keyPathAccessibilityStatus == .completed &&
+                   installer.kanataCmdAccessibilityStatus == .completed {
+                    
+                    AppLogger.shared.log("🔍 [AccessibilityPage] Permissions granted, navigating to next page")
+                    onNavigate?()
+                }
+            }
+        }
+        AppLogger.shared.log("🔍 [AccessibilityPage] Started permission monitoring")
+    }
+    
+    private func stopPermissionMonitoring() {
+        permissionTimer?.invalidate()
+        permissionTimer = nil
+        AppLogger.shared.log("🔍 [AccessibilityPage] Stopped permission monitoring")
     }
 }
 
 struct InstallationPageView: View {
     @ObservedObject var installer: KeyPathInstaller
     let kanataManager: KanataManager
+    let onNavigate: (() -> Void)?
     
     var body: some View {
         VStack(spacing: 24) {
@@ -1159,7 +1288,7 @@ struct InstallationPageView: View {
                         Button("Start KeyPath Service") {
                             Task {
                                 await kanataManager.startKanata()
-                                installer.checkInitialState(kanataManager: kanataManager)
+                                await installer.checkInitialState(kanataManager: kanataManager)
                             }
                         }
                         .buttonStyle(.borderedProminent)
@@ -1171,6 +1300,20 @@ struct InstallationPageView: View {
                     Button("Install Components") {
                         Task {
                             await installer.performTransparentInstallation(kanataManager: kanataManager)
+                            
+                            // After installation, if successful, show success briefly then navigate
+                            if installer.driverInstallStatus == .completed &&
+                               installer.binaryInstallStatus == .completed &&
+                               installer.serviceInstallStatus == .completed {
+                                
+                                // Wait a moment to show the success message
+                                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                                
+                                // Then navigate to next step
+                                await MainActor.run {
+                                    onNavigate?()
+                                }
+                            }
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -1483,6 +1626,7 @@ struct PermissionDetailsSheet: View {
 struct DaemonPageView: View {
     @ObservedObject var installer: KeyPathInstaller
     let kanataManager: KanataManager
+    let onNavigate: () -> Void
     @State private var isStartingDaemon = false
     
     var body: some View {
@@ -1577,9 +1721,10 @@ struct DaemonPageView: View {
             // Navigation buttons
             HStack {
                 Button("Previous") {
-                    withAnimation {
-                        // Navigate to previous appropriate page
-                        installer.checkInitialState(kanataManager: kanataManager)
+                    // Navigate to previous appropriate page
+                    Task<Void, Never> {
+                        await installer.checkInitialState(kanataManager: kanataManager)
+                        onNavigate()
                     }
                 }
                 .buttonStyle(.bordered)
@@ -1588,9 +1733,10 @@ struct DaemonPageView: View {
                 
                 if installer.daemonStatus == .completed {
                     Button("Next") {
-                        withAnimation {
-                            // Navigate to next appropriate page
-                            installer.checkInitialState(kanataManager: kanataManager)
+                        // Navigate to next appropriate page
+                        Task<Void, Never> {
+                            await installer.checkInitialState(kanataManager: kanataManager)
+                            onNavigate()
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -1608,7 +1754,7 @@ struct DaemonPageView: View {
             let success = await kanataManager.startKarabinerDaemon()
             
             // Refresh the installer state
-            installer.checkInitialState(kanataManager: kanataManager)
+            await installer.checkInitialState(kanataManager: kanataManager)
             
             isStartingDaemon = false
             

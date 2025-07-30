@@ -208,6 +208,28 @@ sudo /Library/Application\ Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice
 
 ## Debugging Steps
 
+### Analyzing Application Logs for Kanata Issues
+When debugging Kanata integration issues, look for these key patterns in your app logs:
+
+```bash
+# Find all Kanata process starts and their PIDs
+grep "Successfully started Kanata process" /path/to/debug.log
+
+# Check for process exits and their codes
+grep "Kanata process exited with code" /path/to/debug.log
+
+# Common exit codes:
+# - Exit code 6: Access denied/privilege violation
+# - Exit code 15: SIGTERM (normal termination)
+# - Exit code 1: General error (check stdout/stderr)
+
+# Look for initialization sequences
+grep -A10 "performInitialization" /path/to/debug.log
+
+# Track the full lifecycle of a Kanata process
+grep -E "(Starting Kanata|Successfully started|process exited|Monitor)" /path/to/debug.log
+```
+
 ### Verify Kanata Can Run as Root
 ```bash
 # Test config validation
@@ -277,6 +299,19 @@ sudo /usr/bin/sed -i.bak 's/old/new/' /usr/local/etc/kanata/keypath.kbd
 **Cause**: Multiple Kanata instances running  
 **Solution**: Kill all instances before starting new one
 
+**Detailed Error Pattern**:
+```
+entering the processing loop
+Init: catching only releases and sending immediately
+Watching config file for changes: /path/to/config.kbd
+entering the event loop
+
+IOHIDDeviceOpen error: (iokit/common) exclusive access and device already open
+[ERROR] failed to open keyboard device(s): Couldn't register any device
+```
+
+This sequence indicates Kanata successfully initialized but failed when trying to open the HID device because another process (likely another Kanata instance) already has exclusive access.
+
 ### 3. "Password required" when using sudo
 **Cause**: Sudoers not configured for passwordless access  
 **Solution**: Add NOPASSWD entries to sudoers file
@@ -284,6 +319,45 @@ sudo /usr/bin/sed -i.bak 's/old/new/' /usr/local/etc/kanata/keypath.kbd
 ### 4. Driver connection failures
 **Cause**: Karabiner daemon not running  
 **Solution**: Start Karabiner-VirtualHIDDevice-Daemon as admin
+
+### 5. Race Conditions During App Initialization
+**Cause**: Multiple initialization paths attempting to start Kanata simultaneously  
+**Solution**: Add guards to prevent concurrent starts
+
+When an app initializes, multiple code paths may try to start Kanata:
+- App initialization (`init()` → `performInitialization()`)
+- UI state checks (`ContentView` → `checkRequirementsAndShowWizard()`)
+- Installation wizard completion
+
+**Prevention**:
+```swift
+// Check if already running before starting
+if isRunning {
+    AppLogger.shared.log("✅ [Init] Kanata is already running - skipping initialization")
+    return
+}
+```
+
+### 6. Keyboard Becomes Unresponsive Despite Kanata Running
+**Cause**: First Kanata instance holds exclusive HID device access, subsequent instances fail  
+**Symptoms**: 
+- Logs show "IOHIDDeviceOpen error: (iokit/common) exclusive access and device already open"
+- Multiple PIDs attempting to start Kanata
+- Exit code 6 after "entering the processing loop"
+
+**Debugging**:
+```bash
+# Check logs for multiple start attempts
+grep -A5 "Successfully started Kanata" /path/to/debug.log
+
+# Look for exclusive access errors
+grep -A5 "exclusive access" /path/to/debug.log
+```
+
+**Solution**: Ensure single instance management in your app:
+1. Check if Kanata is running before starting
+2. Add mutex/locks around start operations
+3. Properly handle process lifecycle in async contexts
 
 ## Architecture Notes
 
@@ -305,6 +379,29 @@ if let process = kanataProcess, process.isRunning {
     process.terminate()  // Properly kills sudo and kanata
 }
 ```
+
+## Best Practices for Kanata Integration
+
+### 1. Single Instance Management
+Always ensure only one Kanata instance runs at a time:
+- Check if running before starting
+- Add guards in initialization code
+- Handle async initialization carefully
+
+### 2. Proper Error Handling
+- Log both stdout and stderr from Kanata process
+- Track exit codes and their meanings
+- Provide clear diagnostics to users
+
+### 3. Configuration Validation
+- Always validate config before starting Kanata
+- Use `--check` flag for validation
+- Provide meaningful error messages for config issues
+
+### 4. Process Lifecycle Management
+- Monitor Kanata process for unexpected exits
+- Implement proper cleanup on app termination
+- Handle sudo wrapper process correctly
 
 ## References
 - [Kanata GitHub](https://github.com/jtroo/kanata) - Main keyboard remapper project

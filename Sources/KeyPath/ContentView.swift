@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var hasCheckedRequirements = false
     @State private var showStatusMessage = false
     @State private var statusMessage = ""
+    @State private var showingEmergencyAlert = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -58,6 +59,12 @@ struct ContentView: View {
                 checkRequirementsAndShowWizard()
                 hasCheckedRequirements = true
             }
+            
+            // Start monitoring for emergency stop sequence
+            keyboardCapture.startEmergencyMonitoring {
+                showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
+                showingEmergencyAlert = true
+            }
         }
         .onChange(of: kanataManager.isRunning) { value in
             AppLogger.shared.log("🔍 [ContentView] isRunning changed to: \(value)")
@@ -72,6 +79,17 @@ struct ContentView: View {
         .onChange(of: kanataManager.lastConfigUpdate) { _ in
             // Show status message when config is updated externally
             showStatusMessage(message: "Key mappings updated")
+        }
+        .onDisappear {
+            // Stop emergency monitoring when view disappears
+            keyboardCapture.stopEmergencyMonitoring()
+        }
+        .alert("Emergency Stop Activated", isPresented: $showingEmergencyAlert) {
+            Button("OK") {
+                showingEmergencyAlert = false
+            }
+        } message: {
+            Text("The Kanata emergency stop sequence (Ctrl+Space+Esc) was detected. Kanata has been stopped for safety.")
         }
     }
     
@@ -166,6 +184,11 @@ struct RecordingSection: View {
     @State private var showingRepairFailedAlert = false
     @State private var repairFailedDetails = ""
     @State private var failedConfigBackupPath = ""
+    
+    // MARK: - Phase 1: Save Operation Debouncing
+    @State private var isSaving = false
+    @State private var saveDebounceTimer: Timer?
+    private let saveDebounceDelay: TimeInterval = 0.5
 
     var body: some View {
         VStack(spacing: 16) {
@@ -244,11 +267,20 @@ struct RecordingSection: View {
             // Save Button
             HStack {
                 Spacer()
-                Button("Save") {
-                    saveKeyPath()
+                Button(action: {
+                    debouncedSave()
+                }) {
+                    HStack {
+                        if isSaving {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .frame(width: 16, height: 16)
+                        }
+                        Text(isSaving ? "Saving..." : "Save")
+                    }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(recordedInput.isEmpty || recordedOutput.isEmpty)
+                .disabled(recordedInput.isEmpty || recordedOutput.isEmpty || isSaving)
             }
             
         }
@@ -379,26 +411,59 @@ struct RecordingSection: View {
         }
     }
     
-    private func saveKeyPath() {
-        Task {
-            do {
-                let inputKey = recordedInput
-                let outputKey = recordedOutput
-                
-                try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
-                
-                // Show status message
+    // MARK: - Phase 1: Debounced Save Implementation
+    private func debouncedSave() {
+        // Cancel any existing timer
+        saveDebounceTimer?.invalidate()
+        
+        // Show saving state immediately for user feedback
+        isSaving = true
+        AppLogger.shared.log("💾 [Save] Debounced save initiated - starting timer")
+        
+        // Create new timer
+        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) { _ in
+            AppLogger.shared.log("💾 [Save] Debounce timer fired - executing save")
+            Task {
+                await saveKeyPath()
+            }
+        }
+    }
+    
+    private func saveKeyPath() async {
+        AppLogger.shared.log("💾 [Save] ========== SAVE OPERATION START ==========")
+        
+        do {
+            let inputKey = recordedInput
+            let outputKey = recordedOutput
+            
+            AppLogger.shared.log("💾 [Save] Saving mapping: \(inputKey) → \(outputKey)")
+            try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
+            
+            AppLogger.shared.log("💾 [Save] Configuration saved successfully")
+            
+            // Show status message
+            await MainActor.run {
                 showStatusMessage("Key mapping saved: \(inputKey) → \(outputKey)")
                 
                 // Clear the form
                 recordedInput = ""
                 recordedOutput = ""
-                
-                // Update status
-                await kanataManager.updateStatus()
-                
-                // No helper installation needed - kanata runs directly with --watch
-            } catch {
+                isSaving = false
+            }
+            
+            // Update status
+            AppLogger.shared.log("💾 [Save] Updating manager status...")
+            await kanataManager.updateStatus()
+            
+            AppLogger.shared.log("💾 [Save] ========== SAVE OPERATION COMPLETE ==========")
+        } catch {
+            AppLogger.shared.log("❌ [Save] Error during save operation: \(error)")
+            
+            // Reset saving state
+            await MainActor.run {
+                isSaving = false
+            }
+            
                 // Handle specific config errors
                 if let configError = error as? ConfigError {
                     switch configError {
@@ -410,10 +475,11 @@ struct RecordingSection: View {
                         
                         KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration. If repair failed, a safe fallback configuration was applied.
                         """
-                        configRepairSuccessful = false
-                        showingConfigCorruptionAlert = true
-                        
-                        showStatusMessage("⚠️ Config repaired automatically")
+                        await MainActor.run {
+                            configRepairSuccessful = false
+                            showingConfigCorruptionAlert = true
+                            showStatusMessage("⚠️ Config repaired automatically")
+                        }
                         
                     case .claudeRepairFailed(let reason):
                         configCorruptionDetails = """
@@ -423,10 +489,11 @@ struct RecordingSection: View {
                         
                         A safe fallback configuration has been applied. Your system should continue working with basic functionality.
                         """
-                        configRepairSuccessful = false
-                        showingConfigCorruptionAlert = true
-                        
-                        showStatusMessage("❌ Config repair failed - using safe fallback")
+                        await MainActor.run {
+                            configRepairSuccessful = false
+                            showingConfigCorruptionAlert = true
+                            showStatusMessage("❌ Config repair failed - using safe fallback")
+                        }
                     
                     case .repairFailedNeedsUserAction(let originalConfig, _, let originalErrors, let repairErrors, let mappings):
                         // Handle user action required case
@@ -467,16 +534,19 @@ struct RecordingSection: View {
                         }
                         
                     default:
-                        showStatusMessage("❌ Config error: \(error.localizedDescription)")
+                        await MainActor.run {
+                            showStatusMessage("❌ Config error: \(error.localizedDescription)")
+                        }
                     }
                 } else {
                     // Show generic error message
-                    showStatusMessage("❌ Error saving: \(error.localizedDescription)")
+                    await MainActor.run {
+                        showStatusMessage("❌ Error saving: \(error.localizedDescription)")
+                    }
                 }
             }
         }
     }
-}
 
 struct ErrorSection: View {
     @ObservedObject var kanataManager: KanataManager

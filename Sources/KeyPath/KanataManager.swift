@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import IOKit.hidsystem
 import ApplicationServices
+import os
 
 /// Errors related to configuration management
 enum ConfigError: Error, LocalizedError {
@@ -90,6 +91,13 @@ class KanataManager: ObservableObject {
     private var kanataProcess: Process?
     private let configDirectory = "\(NSHomeDirectory())/Library/Application Support/KeyPath"
     private let configFileName = "keypath.kbd"
+    private var isStartingKanata = false
+    private var isInitializing = false
+    
+    // MARK: - Process Synchronization (Phase 1)
+    private static var startupLock = os_unfair_lock()
+    private var lastStartAttempt: Date?
+    private let minStartInterval: TimeInterval = 2.0
     
     var configPath: String {
         "\(configDirectory)/\(configFileName)"
@@ -103,9 +111,24 @@ class KanataManager: ObservableObject {
     }
     
     private func performInitialization() async {
+        // Prevent concurrent initialization
+        if isInitializing {
+            AppLogger.shared.log("⚠️ [Init] Already initializing - skipping duplicate initialization")
+            return
+        }
+        
+        isInitializing = true
+        defer { isInitializing = false }
+        
         await updateStatus()
         // Try to start Kanata automatically on launch if all requirements are met
         let status = getSystemRequirementsStatus()
+        
+        // Check if Kanata is already running before attempting to start
+        if isRunning {
+            AppLogger.shared.log("✅ [Init] Kanata is already running - skipping initialization")
+            return
+        }
         
         if status.installed && status.permissions && status.driver {
             // Start daemon if not running
@@ -114,12 +137,16 @@ class KanataManager: ObservableObject {
                 let daemonStarted = await startKarabinerDaemon()
                 if daemonStarted {
                     AppLogger.shared.log("✅ [Init] Karabiner daemon started successfully")
+                    // Add a delay to ensure daemon is fully ready
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
                     await startKanata()
                 } else {
                     AppLogger.shared.log("❌ [Init] Failed to start Karabiner daemon - Kanata startup aborted")
                 }
             } else {
                 AppLogger.shared.log("✅ [Init] All requirements met - starting Kanata")
+                // Add a small delay to ensure the daemon is fully ready
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
                 await startKanata()
             }
         } else {
@@ -441,7 +468,29 @@ class KanataManager: ObservableObject {
     }
     
     func startKanata() async {
-        AppLogger.shared.log("🚀 [Start] Starting Kanata directly...")
+        // Phase 1: Process synchronization using os_unfair_lock (async-safe when used correctly)
+        os_unfair_lock_lock(&KanataManager.startupLock)
+        defer { os_unfair_lock_unlock(&KanataManager.startupLock) }
+        
+        AppLogger.shared.log("🚀 [Start] Starting Kanata with synchronization lock...")
+        
+        // Prevent rapid successive starts
+        if let lastAttempt = lastStartAttempt,
+           Date().timeIntervalSince(lastAttempt) < minStartInterval {
+            AppLogger.shared.log("⚠️ [Start] Ignoring rapid start attempt within \(minStartInterval)s")
+            return
+        }
+        lastStartAttempt = Date()
+        
+        // Check if already running or starting
+        if isRunning || isStartingKanata {
+            AppLogger.shared.log("⚠️ [Start] Kanata is already running or starting - skipping start")
+            return
+        }
+        
+        // Set flag to prevent concurrent starts
+        isStartingKanata = true
+        defer { isStartingKanata = false }
         
         // Pre-flight checks
         let validation = validateConfigFile()
@@ -468,9 +517,27 @@ class KanataManager: ObservableObject {
             kanataProcess = nil
         }
         
+        // Also kill any external Kanata processes to ensure clean start
+        AppLogger.shared.log("🧹 [Start] Cleaning up any external Kanata processes...")
+        let killTask = Process()
+        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        killTask.arguments = ["/usr/bin/pkill", "-f", "kanata"]
+        
+        do {
+            try killTask.run()
+            killTask.waitUntilExit()
+            // Wait a moment for processes to fully terminate
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        } catch {
+            AppLogger.shared.log("⚠️ [Start] Error killing external Kanata processes: \(error)")
+        }
+        
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
         task.arguments = ["/usr/local/bin/kanata", "--cfg", configPath, "--watch"]
+        
+        // Set environment to ensure proper execution
+        task.environment = ProcessInfo.processInfo.environment
         
         // Capture both stdout and stderr for diagnostics
         let outputPipe = Pipe()
@@ -1239,11 +1306,11 @@ sudo pkill -f karabiner_grabber
 ;; Mappings: \(mappingsList)
 ;; 
 ;; SAFETY FEATURES:
-;; - process-unmapped-keys yes: Process all keys (unmapped keys pass through)
+;; - process-unmapped-keys no: Only process explicitly mapped keys
 ;; - danger-enable-cmd yes: Enable CMD key remapping (required for macOS)
 
 (defcfg
-  process-unmapped-keys yes
+  process-unmapped-keys no
   danger-enable-cmd yes
 )
 
@@ -1268,11 +1335,11 @@ sudo pkill -f karabiner_grabber
 ;; Input: \(input) -> Output: \(output)
 ;; 
 ;; SAFETY FEATURES:
-;; - process-unmapped-keys yes: Process all keys (unmapped keys pass through)
+;; - process-unmapped-keys no: Only process explicitly mapped keys
 ;; - danger-enable-cmd yes: Enable CMD key remapping (required for macOS)
 
 (defcfg
-  process-unmapped-keys yes
+  process-unmapped-keys no
   danger-enable-cmd yes
 )
 
@@ -1477,7 +1544,7 @@ sudo pkill -f karabiner_grabber
                 if !repairedConfig.contains("(defcfg") {
                     let defcfgSection = """
                     (defcfg
-                      process-unmapped-keys yes
+                      process-unmapped-keys no
                       danger-enable-cmd yes
                     )
                     

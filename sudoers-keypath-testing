@@ -1,0 +1,21 @@
+# KeyPath Testing - Passwordless sudo for specific wrapper scripts
+# Generated for user: malpern
+
+# Wrapper scripts for testing operations
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/scripts/test-launchctl.sh
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/scripts/test-process-manager.sh
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/scripts/test-file-manager.sh
+
+# Direct commands needed by wrapper scripts
+malpern ALL=(ALL) NOPASSWD: /usr/bin/pkill
+malpern ALL=(ALL) NOPASSWD: /bin/launchctl
+malpern ALL=(ALL) NOPASSWD: /opt/homebrew/bin/kanata
+malpern ALL=(ALL) NOPASSWD: /usr/local/bin/kanata
+malpern ALL=(ALL) NOPASSWD: /bin/mkdir -p /usr/local/etc/kanata*
+malpern ALL=(ALL) NOPASSWD: /bin/mkdir -p /var/log/keypath*
+malpern ALL=(ALL) NOPASSWD: /usr/sbin/chown * /usr/local/etc/kanata*
+malpern ALL=(ALL) NOPASSWD: /usr/sbin/chown * /var/log/keypath*
+malpern ALL=(ALL) NOPASSWD: /bin/chmod * /usr/local/etc/kanata*
+malpern ALL=(ALL) NOPASSWD: /bin/chmod * /var/log/keypath*
+malpern ALL=(ALL) NOPASSWD: /bin/cp * /Library/LaunchDaemons/com.keypath.*
+malpern ALL=(ALL) NOPASSWD: /bin/rm /Library/LaunchDaemons/com.keypath.*

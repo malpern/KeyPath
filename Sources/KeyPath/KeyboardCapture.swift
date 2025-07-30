@@ -11,6 +11,13 @@ class KeyboardCapture: ObservableObject {
     private var pauseTimer: Timer?
     private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
     
+    // Emergency stop sequence detection
+    private var emergencyEventTap: CFMachPort?
+    private var emergencyRunLoopSource: CFRunLoopSource?
+    private var emergencyCallback: (() -> Void)?
+    private var isMonitoringEmergency = false
+    private var pressedKeys: Set<Int64> = []
+    
     func startCapture(callback: @escaping (String) -> Void) {
         guard !isCapturing else { return }
         
@@ -151,5 +158,95 @@ class KeyboardCapture: ObservableObject {
     private func requestAccessibilityPermissions() {
         let options: [CFString: Any] = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true]
         AXIsProcessTrustedWithOptions(options as CFDictionary)
+    }
+    
+    // MARK: - Emergency Stop Sequence Detection
+    
+    func startEmergencyMonitoring(callback: @escaping () -> Void) {
+        guard !isMonitoringEmergency else { return }
+        
+        emergencyCallback = callback
+        isMonitoringEmergency = true
+        
+        // Request accessibility permissions if needed
+        if !hasAccessibilityPermissions() {
+            requestAccessibilityPermissions()
+            return
+        }
+        
+        setupEmergencyEventTap()
+    }
+    
+    func stopEmergencyMonitoring() {
+        guard isMonitoringEmergency else { return }
+        
+        isMonitoringEmergency = false
+        pressedKeys.removeAll()
+        
+        if let source = emergencyRunLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+            emergencyRunLoopSource = nil
+        }
+        
+        if let tap = emergencyEventTap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            emergencyEventTap = nil
+        }
+    }
+    
+    private func setupEmergencyEventTap() {
+        let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
+        
+        emergencyEventTap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: CGEventMask(eventMask),
+            callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
+                let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon!).takeUnretainedValue()
+                capture.handleEmergencyEvent(event: event, type: type)
+                return Unmanaged.passUnretained(event)
+            },
+            userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        )
+        
+        guard let eventTap = emergencyEventTap else {
+            print("Failed to create emergency event tap")
+            return
+        }
+        
+        emergencyRunLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), emergencyRunLoopSource, .commonModes)
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+    }
+    
+    private func handleEmergencyEvent(event: CGEvent, type: CGEventType) {
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        
+        // Key codes for the emergency sequence: Ctrl (59), Space (49), Esc (53)
+        let leftControlKey: Int64 = 59
+        let spaceKey: Int64 = 49
+        let escapeKey: Int64 = 53
+        
+        if type == .keyDown {
+            pressedKeys.insert(keyCode)
+            
+            // Check if all three keys are pressed simultaneously
+            if pressedKeys.contains(leftControlKey) && 
+               pressedKeys.contains(spaceKey) && 
+               pressedKeys.contains(escapeKey) {
+                
+                AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
+                
+                DispatchQueue.main.async {
+                    self.emergencyCallback?()
+                }
+                
+                // Clear the set to prevent repeated triggers
+                pressedKeys.removeAll()
+            }
+        } else if type == .keyUp {
+            pressedKeys.remove(keyCode)
+        }
     }
 }
