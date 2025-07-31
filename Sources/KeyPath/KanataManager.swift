@@ -1401,24 +1401,36 @@ sudo pkill -f karabiner_grabber
     func killKarabinerGrabber() async -> Bool {
         AppLogger.shared.log("🔧 [Conflict] Attempting to kill karabiner_grabber")
         
+        // Use osascript to prompt for admin password and run the kill command
+        let script = """
+        do shell script "/usr/bin/pkill -f karabiner_grabber" with administrator privileges
+        """
+        
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["/usr/bin/pkill", "-f", "karabiner_grabber"]
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
         
         do {
             try task.run()
             task.waitUntilExit()
             
-            // Wait a moment for process to fully terminate
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            
-            // Verify it's gone
-            let stillRunning = isKarabinerElementsRunning()
-            if !stillRunning {
-                AppLogger.shared.log("✅ [Conflict] Successfully killed karabiner_grabber")
-                return true
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [Conflict] Successfully executed kill command")
+                
+                // Wait a moment for process to fully terminate
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                
+                // Verify it's gone
+                let stillRunning = isKarabinerElementsRunning()
+                if !stillRunning {
+                    AppLogger.shared.log("✅ [Conflict] karabiner_grabber successfully terminated")
+                    return true
+                } else {
+                    AppLogger.shared.log("⚠️ [Conflict] karabiner_grabber still running after kill attempt")
+                    return false
+                }
             } else {
-                AppLogger.shared.log("⚠️ [Conflict] karabiner_grabber still running after kill attempt")
+                AppLogger.shared.log("❌ [Conflict] Kill command failed with exit code: \(task.terminationStatus)")
                 return false
             }
         } catch {
