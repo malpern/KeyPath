@@ -17,6 +17,11 @@ struct InstallationWizardView: View {
     @State private var currentIssues: [WizardIssue] = []
     @State private var isPerformingAutoFix = false
     
+    // Auto-navigation control
+    @State private var lastPageChangeTime = Date()
+    @State private var userInteractionMode = false
+    private let autoNavigationGracePeriod: TimeInterval = 10.0 // 10 seconds
+    
     var body: some View {
         VStack(spacing: 0) {
             // Header with page dots
@@ -71,6 +76,9 @@ struct InstallationWizardView: View {
             PageDotsIndicator(currentPage: currentPage) { page in
                 withAnimation(.easeInOut(duration: 0.3)) {
                     currentPage = page
+                    lastPageChangeTime = Date()
+                    userInteractionMode = true
+                    AppLogger.shared.log("🔍 [NewWizard] User manually navigated to \(page) - entering user interaction mode")
                 }
             }
         }
@@ -170,6 +178,7 @@ struct InstallationWizardView: View {
             systemState = result.state
             currentIssues = result.issues
             currentPage = navigationEngine.determineCurrentPage(for: result.state)
+            lastPageChangeTime = Date()
             
             withAnimation {
                 isInitializing = false
@@ -193,23 +202,38 @@ struct InstallationWizardView: View {
                 systemState = result.state
                 currentIssues = result.issues
                 
-                // Auto-navigate if needed, but with special handling for conflicts page
+                // Check if we're in user interaction grace period
+                let timeSinceLastPageChange = Date().timeIntervalSince(lastPageChangeTime)
+                let inGracePeriod = userInteractionMode && timeSinceLastPageChange < autoNavigationGracePeriod
+                
+                // Auto-navigate if needed, but with grace period and conflicts handling
                 let targetPage = navigationEngine.determineCurrentPage(for: result.state)
                 let shouldAutoNavigate = navigationEngine.createNavigationState(currentPage: currentPage, systemState: systemState).shouldAutoNavigate
                 
-                // Don't auto-navigate away from conflicts page if there are unresolved conflicts  
-                let hasUnresolvedConflicts = currentIssues.contains { $0.category == .conflicts }
-                let isOnConflictsPage = currentPage == .conflicts
-                let wouldNavigateAwayFromConflicts = isOnConflictsPage && targetPage != .conflicts
-                
                 if targetPage != currentPage && shouldAutoNavigate {
-                    if wouldNavigateAwayFromConflicts && hasUnresolvedConflicts {
+                    // Never auto-navigate during grace period
+                    if inGracePeriod {
+                        AppLogger.shared.log("🔍 [NewWizard] Preventing auto-nav during grace period (\(String(format: "%.1f", timeSinceLastPageChange))s of \(autoNavigationGracePeriod)s)")
+                    }
+                    // Don't auto-navigate away from conflicts page if there are unresolved conflicts  
+                    else if currentPage == .conflicts && currentIssues.contains(where: { $0.category == .conflicts }) {
                         AppLogger.shared.log("🔍 [NewWizard] Preventing auto-nav away from conflicts page - unresolved conflicts exist")
-                    } else {
+                    }
+                    // Don't auto-navigate away from any action page where user might be interacting
+                    else if [.conflicts, .daemon, .installation].contains(currentPage) && timeSinceLastPageChange < 5.0 {
+                        AppLogger.shared.log("🔍 [NewWizard] Preventing auto-nav away from action page - recent page change")
+                    }
+                    else {
                         withAnimation {
                             currentPage = targetPage
+                            lastPageChangeTime = Date()
+                            userInteractionMode = false // Reset user interaction mode on auto-nav
                         }
                     }
+                } else if inGracePeriod && timeSinceLastPageChange >= autoNavigationGracePeriod {
+                    // Grace period expired, reset user interaction mode
+                    userInteractionMode = false
+                    AppLogger.shared.log("🔍 [NewWizard] Grace period expired - auto-navigation re-enabled")
                 }
                 
                 if oldState != systemState || oldPage != currentPage {
@@ -225,6 +249,9 @@ struct InstallationWizardView: View {
         Task {
             await MainActor.run {
                 isPerformingAutoFix = true
+                userInteractionMode = true
+                lastPageChangeTime = Date()
+                AppLogger.shared.log("🔍 [NewWizard] Auto-fix started - entering user interaction mode")
             }
             
             // Find issues that can be auto-fixed
