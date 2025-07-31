@@ -87,6 +87,7 @@ struct DiagnosticsView: View {
         }
         .sheet(isPresented: $showingWizard) {
             InstallationWizardView()
+                .environmentObject(kanataManager)
         }
     }
     

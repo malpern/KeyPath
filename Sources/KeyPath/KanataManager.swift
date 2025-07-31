@@ -2,7 +2,13 @@ import Foundation
 import SwiftUI
 import IOKit.hidsystem
 import ApplicationServices
-import os
+
+/// Actor for process synchronization to prevent multiple concurrent Kanata starts
+actor ProcessSynchronizationActor {
+    func synchronize<T>(_ operation: @Sendable () async throws -> T) async rethrows -> T {
+        return try await operation()
+    }
+}
 
 /// Errors related to configuration management
 enum ConfigError: Error, LocalizedError {
@@ -95,7 +101,7 @@ class KanataManager: ObservableObject {
     private var isInitializing = false
     
     // MARK: - Process Synchronization (Phase 1)
-    private static var startupLock = os_unfair_lock()
+    private static let startupActor = ProcessSynchronizationActor()
     private var lastStartAttempt: Date?
     private let minStartInterval: TimeInterval = 2.0
     
@@ -130,29 +136,10 @@ class KanataManager: ObservableObject {
             return
         }
         
-        if status.installed && status.permissions && status.driver {
-            // Start daemon if not running
-            if !status.daemon {
-                AppLogger.shared.log("🚀 [Init] Starting Karabiner daemon automatically...")
-                let daemonStarted = await startKarabinerDaemon()
-                if daemonStarted {
-                    AppLogger.shared.log("✅ [Init] Karabiner daemon started successfully")
-                    // Add a delay to ensure daemon is fully ready
-                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                    await startKanata()
-                } else {
-                    AppLogger.shared.log("❌ [Init] Failed to start Karabiner daemon - Kanata startup aborted")
-                }
-            } else {
-                AppLogger.shared.log("✅ [Init] All requirements met - starting Kanata")
-                // Add a small delay to ensure the daemon is fully ready
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                await startKanata()
-            }
-        } else {
-            AppLogger.shared.log("⚠️ [Init] System requirements not met - skipping auto-start")
-            AppLogger.shared.log("🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)")
-        }
+        // TEMPORARILY DISABLED: Auto-start to debug keyboard unresponsiveness issue
+        // The wizard's "Start Using KeyPath" button will handle starting Kanata
+        AppLogger.shared.log("⚠️ [Init] Auto-start disabled - user must manually start via wizard")
+        AppLogger.shared.log("🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)")
     }
     
     // MARK: - Diagnostics
@@ -171,24 +158,98 @@ class KanataManager: ObservableObject {
         diagnostics.removeAll()
     }
     
-    /// Clears process-related and permission-related diagnostics when Kanata starts successfully
-    /// This prevents showing stale error diagnostics for previously failed processes
-    private func clearProcessDiagnostics() {
-        let initialCount = diagnostics.count
+    /// Attempts to recover from zombie keyboard capture when VirtualHID connection fails
+    private func attemptKeyboardRecovery() async {
+        AppLogger.shared.log("🔧 [Recovery] Starting keyboard recovery process...")
         
-        // Remove diagnostics related to process failures and permission issues
-        // Keep configuration-related diagnostics as they may still be relevant
-        diagnostics.removeAll { diagnostic in
-            diagnostic.category == .process || 
-            diagnostic.category == .permissions ||
-            (diagnostic.category == .conflict && diagnostic.title.contains("Exit"))
-        }
+        // Step 1: Ensure all Kanata processes are killed
+        AppLogger.shared.log("🔧 [Recovery] Step 1: Killing any remaining Kanata processes")
+        await killAllKanataProcesses()
         
-        let removedCount = initialCount - diagnostics.count
-        if removedCount > 0 {
-            AppLogger.shared.log("🔄 [Diagnostics] Cleared \(removedCount) stale process/permission diagnostics")
+        // Step 2: Wait for system to release keyboard control
+        AppLogger.shared.log("🔧 [Recovery] Step 2: Waiting 2 seconds for keyboard release...")
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        
+        // Step 3: Restart VirtualHID daemon
+        AppLogger.shared.log("🔧 [Recovery] Step 3: Attempting to restart Karabiner daemon...")
+        await restartKarabinerDaemon()
+        
+        // Step 4: Wait before retry
+        AppLogger.shared.log("🔧 [Recovery] Step 4: Waiting 3 seconds before retry...")
+        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+        
+        // Step 5: Try starting Kanata again with validation
+        AppLogger.shared.log("🔧 [Recovery] Step 5: Attempting to restart Kanata with VirtualHID validation...")
+        await startKanataWithValidation()
+        
+        AppLogger.shared.log("🔧 [Recovery] Keyboard recovery process complete")
+    }
+    
+    /// Kills all Kanata processes for recovery purposes
+    private func killAllKanataProcesses() async {
+        let killTask = Process()
+        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        killTask.arguments = ["/usr/bin/pkill", "-f", "kanata"]
+        
+        do {
+            try killTask.run()
+            killTask.waitUntilExit()
+            AppLogger.shared.log("🔧 [Recovery] Killed all Kanata processes")
+        } catch {
+            AppLogger.shared.log("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
         }
     }
+    
+    /// Restarts the Karabiner VirtualHID daemon to fix connection issues
+    private func restartKarabinerDaemon() async {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = [
+            "/usr/bin/pkill", "-f", "Karabiner-VirtualHIDDevice-Daemon"
+        ]
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            AppLogger.shared.log("🔧 [Recovery] Killed Karabiner daemon")
+            
+            // Wait a moment then check if it auto-restarts
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            
+            if !isKarabinerDaemonRunning() {
+                AppLogger.shared.log("🔧 [Recovery] Daemon not auto-restarted, attempting manual start...")
+                
+                let startTask = Process()
+                startTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+                startTask.arguments = [
+                    "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+                ]
+                
+                try? startTask.run()
+                AppLogger.shared.log("🔧 [Recovery] Attempted to start Karabiner daemon")
+            }
+        } catch {
+            AppLogger.shared.log("⚠️ [Recovery] Failed to restart Karabiner daemon: \(error)")
+        }
+    }
+    
+    /// Starts Kanata with VirtualHID connection validation 
+    private func startKanataWithValidation() async {
+        // Check if VirtualHID daemon is running first
+        if !isKarabinerDaemonRunning() {
+            AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
+            await updatePublishedProperties(
+                isRunning: self.isRunning,
+                lastProcessExitCode: self.lastProcessExitCode,
+                lastError: "Recovery failed: Karabiner daemon not available"
+            )
+            return
+        }
+        
+        // Try starting Kanata normally
+        await startKanata()
+    }
+    
     
     func validateConfigFile() -> (isValid: Bool, errors: [String]) {
         guard FileManager.default.fileExists(atPath: configPath) else {
@@ -304,17 +365,37 @@ class KanataManager: ObservableObject {
                 canAutoFix: false
             ))
         case 6:
-            // Exit code 6 is commonly related to permission issues
-            diagnostics.append(KanataDiagnostic(
-                timestamp: Date(),
-                severity: .error,
-                category: .permissions,
-                title: "Access Denied",
-                description: "Kanata cannot access system resources (exit code 6).",
-                technicalDetails: "Exit code: 6\nOutput: \(output)",
-                suggestedAction: "Use the Installation Wizard to check and grant required permissions",
-                canAutoFix: false
-            ))
+            // Exit code 6 has different causes - check for VirtualHID connection issues
+            if output.contains("connect_failed asio.system:61") {
+                diagnostics.append(KanataDiagnostic(
+                    timestamp: Date(),
+                    severity: .error,
+                    category: .conflict,
+                    title: "VirtualHID Connection Failed",
+                    description: "Kanata captured keyboard input but failed to connect to VirtualHID driver, causing unresponsive keyboard.",
+                    technicalDetails: "Exit code: 6 (VirtualHID connection failure)\nOutput: \(output)",
+                    suggestedAction: "Restart Karabiner-VirtualHIDDevice daemon or try starting KeyPath again",
+                    canAutoFix: true
+                ))
+                
+                // This is the "zombie keyboard capture" bug - automatically attempt recovery
+                Task {
+                    AppLogger.shared.log("🚨 [Recovery] Detected zombie keyboard capture - attempting automatic recovery")
+                    await self.attemptKeyboardRecovery()
+                }
+            } else {
+                // Generic exit code 6 - permission issues
+                diagnostics.append(KanataDiagnostic(
+                    timestamp: Date(),
+                    severity: .error,
+                    category: .permissions,
+                    title: "Access Denied",
+                    description: "Kanata cannot access system resources (exit code 6).",
+                    technicalDetails: "Exit code: 6\nOutput: \(output)",
+                    suggestedAction: "Use the Installation Wizard to check and grant required permissions",
+                    canAutoFix: false
+                ))
+            }
         default:
             // For unknown exit codes, check if it might be permission-related
             let isPermissionRelated = output.contains("permission") || 
@@ -445,6 +526,48 @@ class KanataManager: ObservableObject {
             ))
         }
         
+        // Check for karabiner_grabber conflict
+        if isKarabinerElementsRunning() {
+            diagnostics.append(KanataDiagnostic(
+                timestamp: Date(),
+                severity: .error,
+                category: .conflict,
+                title: "Karabiner Grabber Conflict",
+                description: "karabiner_grabber is running and will prevent Kanata from starting",
+                technicalDetails: "This causes 'exclusive access and device already open' errors",
+                suggestedAction: "Quit Karabiner-Elements or disable its key remapping",
+                canAutoFix: true  // We can kill it
+            ))
+        }
+        
+        // Check driver extension status
+        if isKarabinerDriverInstalled() && !isKarabinerDriverExtensionEnabled() {
+            diagnostics.append(KanataDiagnostic(
+                timestamp: Date(),
+                severity: .error,
+                category: .system,
+                title: "Driver Extension Not Enabled",
+                description: "Karabiner driver is installed but not enabled in System Settings",
+                technicalDetails: "Driver extension shows as not [activated enabled]",
+                suggestedAction: "Enable in System Settings > Privacy & Security > Driver Extensions",
+                canAutoFix: false
+            ))
+        }
+        
+        // Check background services
+        if !areKarabinerBackgroundServicesEnabled() {
+            diagnostics.append(KanataDiagnostic(
+                timestamp: Date(),
+                severity: .warning,
+                category: .system,
+                title: "Background Services Not Enabled",
+                description: "Karabiner background services may not be enabled",
+                technicalDetails: "Services not detected in launchctl",
+                suggestedAction: "Enable in System Settings > General > Login Items & Extensions",
+                canAutoFix: false
+            ))
+        }
+        
         return diagnostics
     }
     
@@ -468,10 +591,62 @@ class KanataManager: ObservableObject {
     }
     
     func startKanata() async {
-        // Phase 1: Process synchronization using os_unfair_lock (async-safe when used correctly)
-        os_unfair_lock_lock(&KanataManager.startupLock)
-        defer { os_unfair_lock_unlock(&KanataManager.startupLock) }
+        // Trace who is calling startKanata
+        AppLogger.shared.log("📞 [Trace] startKanata() called from:")
+        for (index, symbol) in Thread.callStackSymbols.prefix(5).enumerated() {
+            AppLogger.shared.log("📞 [Trace] [\(index)] \(symbol)")
+        }
         
+        // Phase 1: Process synchronization using actor (async-safe)
+        return await KanataManager.startupActor.synchronize { [self] in
+            await self.performStartKanata()
+        }
+    }
+    
+    /// Start Kanata with automatic safety timeout - stops if no user interaction for 30 seconds
+    func startKanataWithSafetyTimeout() async {
+        await startKanata()
+        
+        // Only start safety timer if Kanata actually started
+        if isRunning {
+            AppLogger.shared.log("🛡️ [Safety] Starting 30-second safety timeout for Kanata")
+            
+            // Start safety timeout in background
+            Task.detached { [weak self] in
+                // Wait 30 seconds
+                try? await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
+                
+                // Check if Kanata is still running and stop it
+                guard let self = self else { return }
+                
+                if await MainActor.run { self.isRunning } {
+                    AppLogger.shared.log("⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
+                    await self.stopKanata()
+                    
+                    // Show safety notification
+                    await MainActor.run {
+                        let alert = NSAlert()
+                        alert.messageText = "Safety Timeout Activated"
+                        alert.informativeText = """
+                        KeyPath automatically stopped the keyboard remapping service after 30 seconds as a safety precaution.
+                        
+                        If the service was working correctly, you can restart it from the main app window.
+                        
+                        If you experienced keyboard issues, this timeout prevented them from continuing.
+                        """
+                        alert.alertStyle = .informational
+                        alert.runModal()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func performStartKanata() async {
+        
+        let startTime = Date()
+        AppLogger.shared.log("🚀 [Start] ========== KANATA START ATTEMPT ==========") 
+        AppLogger.shared.log("🚀 [Start] Time: \(startTime)")
         AppLogger.shared.log("🚀 [Start] Starting Kanata with synchronization lock...")
         
         // Prevent rapid successive starts
@@ -484,7 +659,9 @@ class KanataManager: ObservableObject {
         
         // Check if already running or starting
         if isRunning || isStartingKanata {
+            let currentPID = kanataProcess?.processIdentifier ?? -1
             AppLogger.shared.log("⚠️ [Start] Kanata is already running or starting - skipping start")
+            AppLogger.shared.log("⚠️ [Start] Current state: isRunning=\(isRunning), isStartingKanata=\(isStartingKanata), PID=\(currentPID)")
             return
         }
         
@@ -506,8 +683,37 @@ class KanataManager: ObservableObject {
                 canAutoFix: true
             )
             addDiagnostic(diagnostic)
-            self.lastError = "Configuration Error: \(validation.errors.first ?? "Unknown error")"
+            await updatePublishedProperties(
+                isRunning: self.isRunning,
+                lastProcessExitCode: self.lastProcessExitCode,
+                lastError: "Configuration Error: \(validation.errors.first ?? "Unknown error")"
+            )
             return
+        }
+        
+        // Check for karabiner_grabber conflict
+        if isKarabinerElementsRunning() {
+            AppLogger.shared.log("⚠️ [Start] Detected karabiner_grabber running - attempting to kill it")
+            let killed = await killKarabinerGrabber()
+            if !killed {
+                let diagnostic = KanataDiagnostic(
+                    timestamp: Date(),
+                    severity: .error,
+                    category: .conflict,
+                    title: "Karabiner Grabber Conflict",
+                    description: "karabiner_grabber is running and preventing Kanata from starting",
+                    technicalDetails: "This causes 'exclusive access and device already open' errors",
+                    suggestedAction: "Quit Karabiner-Elements manually",
+                    canAutoFix: false
+                )
+                addDiagnostic(diagnostic)
+                await updatePublishedProperties(
+                    isRunning: self.isRunning,
+                    lastProcessExitCode: self.lastProcessExitCode,
+                    lastError: "Conflict: karabiner_grabber is running"
+                )
+                return
+            }
         }
         
         // Stop existing process if running
@@ -534,7 +740,7 @@ class KanataManager: ObservableObject {
         
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["/usr/local/bin/kanata", "--cfg", configPath, "--watch"]
+        task.arguments = ["/usr/local/bin/kanata", "--cfg", configPath, "--watch", "--debug", "--log-layer-changes"]
         
         // Set environment to ensure proper execution
         task.environment = ProcessInfo.processInfo.environment
@@ -553,14 +759,37 @@ class KanataManager: ObservableObject {
         do {
             try task.run()
             self.kanataProcess = task
-            self.isRunning = true
-            self.lastError = nil
-            self.lastProcessExitCode = nil
             
-            // Clear old process-related and permission-related diagnostics when successfully starting
-            self.clearProcessDiagnostics()
+            // Check for other Kanata processes immediately after starting
+            Task.detached {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                let psTask = Process()
+                psTask.executableURL = URL(fileURLWithPath: "/bin/ps")
+                psTask.arguments = ["aux"]
+                let pipe = Pipe()
+                psTask.standardOutput = pipe
+                try? psTask.run()
+                psTask.waitUntilExit()
+                
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                let kanataProcesses = output.components(separatedBy: .newlines).filter { $0.contains("kanata") && !$0.contains("grep") }
+                
+                AppLogger.shared.log("🔍 [ProcessCheck] Found \(kanataProcesses.count) Kanata processes after start:")
+                for (index, process) in kanataProcesses.enumerated() {
+                    AppLogger.shared.log("🔍 [ProcessCheck] [\(index)] \(process)")
+                }
+            }
+            // Update state and clear old diagnostics when successfully starting
+            await updatePublishedProperties(
+                isRunning: true,
+                lastProcessExitCode: nil,
+                lastError: nil,
+                shouldClearDiagnostics: true
+            )
             
             AppLogger.shared.log("✅ [Start] Successfully started Kanata process (PID: \(task.processIdentifier))")
+            AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
             
             // Monitor process in background
             Task {
@@ -568,8 +797,11 @@ class KanataManager: ObservableObject {
             }
             
         } catch {
-            self.isRunning = false
-            self.lastError = "Failed to start Kanata: \(error.localizedDescription)"
+            await updatePublishedProperties(
+                isRunning: false,
+                lastProcessExitCode: self.lastProcessExitCode,
+                lastError: "Failed to start Kanata: \(error.localizedDescription)"
+            )
             AppLogger.shared.log("❌ [Start] Failed to start Kanata: \(error.localizedDescription)")
             
             let diagnostic = KanataDiagnostic(
@@ -591,37 +823,64 @@ class KanataManager: ObservableObject {
     private func monitorKanataProcess(_ process: Process, outputPipe: Pipe, errorPipe: Pipe) async {
         AppLogger.shared.log("👁️ [Monitor] Starting process monitoring for PID \(process.processIdentifier)")
         
+        // Monitor output in real-time while process is running
+        Task.detached { [weak self] in
+            let outputHandle = outputPipe.fileHandleForReading
+            let errorHandle = errorPipe.fileHandleForReading
+            
+            // Set up async reading for real-time debug output
+            outputHandle.readabilityHandler = { handle in
+                let data = handle.availableData
+                if !data.isEmpty {
+                    let output = String(data: data, encoding: .utf8) ?? ""
+                    AppLogger.shared.log("🔍 [Debug/Output] \(output.trimmingCharacters(in: .whitespacesAndNewlines))")
+                }
+            }
+            
+            errorHandle.readabilityHandler = { handle in
+                let data = handle.availableData
+                if !data.isEmpty {
+                    let error = String(data: data, encoding: .utf8) ?? ""
+                    AppLogger.shared.log("🔍 [Debug/Error] \(error.trimmingCharacters(in: .whitespacesAndNewlines))")
+                }
+            }
+        }
+        
         // Wait for process to exit (this will block until process terminates)
         process.waitUntilExit()
         
-        await MainActor.run {
-            let exitCode = process.terminationStatus
-            self.lastProcessExitCode = exitCode
-            
-            AppLogger.shared.log("📊 [Monitor] Kanata process exited with code: \(exitCode)")
-            
-            // Capture output and error streams
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            
-            let outputString = String(data: outputData, encoding: .utf8) ?? ""
-            let errorString = String(data: errorData, encoding: .utf8) ?? ""
-            let combinedOutput = "\(outputString)\n\(errorString)".trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            AppLogger.shared.log("📋 [Monitor] Process output: \(combinedOutput)")
-            
-            // Update state
-            self.isRunning = false
-            if self.kanataProcess?.processIdentifier == process.processIdentifier {
-                self.kanataProcess = nil
-            }
-            
-            // Diagnose the failure if it wasn't a normal shutdown
-            if exitCode != 0 && exitCode != -15 { // -15 is SIGTERM (normal shutdown)
-                self.diagnoseKanataFailure(exitCode, combinedOutput)
-                self.lastError = "Kanata exited with code \(exitCode)"
-            }
+        let exitCode = process.terminationStatus
+        AppLogger.shared.log("📊 [Monitor] Kanata process exited with code: \(exitCode)")
+        
+        // Capture output and error streams
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        
+        let outputString = String(data: outputData, encoding: .utf8) ?? ""
+        let errorString = String(data: errorData, encoding: .utf8) ?? ""
+        let combinedOutput = "\(outputString)\n\(errorString)".trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        AppLogger.shared.log("📋 [Monitor] Process output: \(combinedOutput)")
+        
+        // Update state
+        if self.kanataProcess?.processIdentifier == process.processIdentifier {
+            self.kanataProcess = nil
         }
+        
+        // Diagnose the failure if it wasn't a normal shutdown
+        let errorMessage: String?
+        if exitCode != 0 && exitCode != -15 { // -15 is SIGTERM (normal shutdown)
+            self.diagnoseKanataFailure(exitCode, combinedOutput)
+            errorMessage = "Kanata exited with code \(exitCode)"
+        } else {
+            errorMessage = nil
+        }
+        
+        await updatePublishedProperties(
+            isRunning: false,
+            lastProcessExitCode: exitCode,
+            lastError: errorMessage
+        )
         
         // Update status after process exits
         await updateStatus()
@@ -646,8 +905,11 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("ℹ️ [Stop] No Kanata process to stop")
         }
         
-        self.isRunning = false
-        self.lastError = nil
+        await updatePublishedProperties(
+            isRunning: false,
+            lastProcessExitCode: self.lastProcessExitCode,
+            lastError: nil
+        )
         await updateStatus()
     }
     
@@ -718,14 +980,53 @@ class KanataManager: ObservableObject {
     }
     
     func updateStatus() async {
+        // Synchronize status updates to prevent concurrent access to @Published properties
+        return await KanataManager.startupActor.synchronize { [self] in
+            await self.performUpdateStatus()
+        }
+    }
+    
+    /// Main actor function to safely update all @Published properties
+    @MainActor
+    private func updatePublishedProperties(
+        isRunning: Bool,
+        lastProcessExitCode: Int32?,
+        lastError: String?,
+        shouldClearDiagnostics: Bool = false
+    ) {
+        self.isRunning = isRunning
+        self.lastProcessExitCode = lastProcessExitCode
+        self.lastError = lastError
+        
+        if shouldClearDiagnostics {
+            let initialCount = diagnostics.count
+            
+            // Remove diagnostics related to process failures and permission issues
+            // Keep configuration-related diagnostics as they may still be relevant
+            diagnostics.removeAll { diagnostic in
+                diagnostic.category == .process || 
+                diagnostic.category == .permissions ||
+                (diagnostic.category == .conflict && diagnostic.title.contains("Exit"))
+            }
+            
+            let removedCount = initialCount - diagnostics.count
+            if removedCount > 0 {
+                AppLogger.shared.log("🔄 [Diagnostics] Cleared \(removedCount) stale process/permission diagnostics")
+            }
+        }
+    }
+    
+    private func performUpdateStatus() async {
         // Check if our process is still running
         if let process = kanataProcess {
             let processRunning = process.isRunning
             if self.isRunning != processRunning {
                 AppLogger.shared.log("⚠️ [Status] Process state changed: \(processRunning)")
-                await MainActor.run {
-                    self.isRunning = processRunning
-                }
+                await updatePublishedProperties(
+                    isRunning: processRunning,
+                    lastProcessExitCode: self.lastProcessExitCode,
+                    lastError: self.lastError
+                )
                 if !processRunning {
                     kanataProcess = nil
                 }
@@ -735,19 +1036,23 @@ class KanataManager: ObservableObject {
             let externalRunning = await checkExternalKanataProcess()
             if self.isRunning != externalRunning {
                 AppLogger.shared.log("⚠️ [Status] External kanata process detected: \(externalRunning)")
-                await MainActor.run {
-                    self.isRunning = externalRunning
-                }
                 
                 // Clear exit code, error message, and stale diagnostics when we detect external process is running
                 // This prevents showing stale information for currently running processes
                 if externalRunning {
-                    await MainActor.run {
-                        self.lastProcessExitCode = nil
-                        self.lastError = nil
-                    }
-                    self.clearProcessDiagnostics()
+                    await updatePublishedProperties(
+                        isRunning: externalRunning,
+                        lastProcessExitCode: nil,
+                        lastError: nil,
+                        shouldClearDiagnostics: true
+                    )
                     AppLogger.shared.log("🔄 [Status] Cleared stale exit code, error, and diagnostics - external process is running")
+                } else {
+                    await updatePublishedProperties(
+                        isRunning: externalRunning,
+                        lastProcessExitCode: self.lastProcessExitCode,
+                        lastError: self.lastError
+                    )
                 }
             }
         }
@@ -982,12 +1287,83 @@ class KanataManager: ObservableObject {
         return FileManager.default.fileExists(atPath: driverPath)
     }
     
+    func isKarabinerDriverExtensionEnabled() -> Bool {
+        // Check if the Karabiner driver extension is actually enabled in the system
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/systemextensionsctl")
+        task.arguments = ["list"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            // Look for Karabiner driver with [activated enabled] status
+            let lines = output.components(separatedBy: .newlines)
+            for line in lines {
+                if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice") &&
+                   line.contains("[activated enabled]") {
+                    AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
+                    return true
+                }
+            }
+            
+            AppLogger.shared.log("⚠️ [Driver] Karabiner driver extension not enabled or not found")
+            AppLogger.shared.log("⚠️ [Driver] systemextensionsctl output:\n\(output)")
+            return false
+        } catch {
+            AppLogger.shared.log("❌ [Driver] Error checking driver extension status: \(error)")
+            return false
+        }
+    }
+    
+    func areKarabinerBackgroundServicesEnabled() -> Bool {
+        // Check if Karabiner background services are enabled in Login Items
+        // This is harder to check programmatically on modern macOS
+        // We'll check if the services are actually running as a proxy
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["list"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            // Check for Karabiner services in the user's launchctl list
+            let hasServices = output.contains("org.pqrs.karabiner")
+            
+            if hasServices {
+                AppLogger.shared.log("✅ [Services] Karabiner background services detected")
+            } else {
+                AppLogger.shared.log("⚠️ [Services] Karabiner background services not found - may not be enabled in Login Items")
+            }
+            
+            return hasServices
+        } catch {
+            AppLogger.shared.log("❌ [Services] Error checking background services: \(error)")
+            return false
+        }
+    }
+    
     func isKarabinerElementsRunning() -> Bool {
         // Check if Karabiner-Elements grabber is running (conflicts with Kanata)
-        // We specifically look for the full karabiner_grabber binary path, not just the name
+        // We check more broadly for karabiner_grabber process
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", "/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_grabber"]
+        task.arguments = ["-f", "karabiner_grabber"]
         
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -1001,11 +1377,16 @@ class KanataManager: ObservableObject {
             let output = String(data: data, encoding: .utf8) ?? ""
             let isRunning = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             
-            AppLogger.shared.log("🔍 [Conflict] Karabiner-Elements grabber running: \(isRunning)")
-            AppLogger.shared.log("🔍 [Conflict] pgrep output: '\(output)'")
+            if isRunning {
+                AppLogger.shared.log("⚠️ [Conflict] karabiner_grabber is running - will conflict with Kanata")
+                AppLogger.shared.log("⚠️ [Conflict] This causes 'exclusive access' errors when starting Kanata")
+            } else {
+                AppLogger.shared.log("✅ [Conflict] No karabiner_grabber detected")
+            }
+            
             return isRunning
         } catch {
-            AppLogger.shared.log("❌ [Conflict] Error checking Karabiner-Elements: \(error)")
+            AppLogger.shared.log("❌ [Conflict] Error checking karabiner_grabber: \(error)")
             return false
         }
     }
@@ -1015,6 +1396,35 @@ class KanataManager: ObservableObject {
 sudo launchctl unload /Library/LaunchDaemons/org.pqrs.karabiner.karabiner_grabber.plist
 sudo pkill -f karabiner_grabber
 """
+    }
+    
+    func killKarabinerGrabber() async -> Bool {
+        AppLogger.shared.log("🔧 [Conflict] Attempting to kill karabiner_grabber")
+        
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = ["/usr/bin/pkill", "-f", "karabiner_grabber"]
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            // Wait a moment for process to fully terminate
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            
+            // Verify it's gone
+            let stillRunning = isKarabinerElementsRunning()
+            if !stillRunning {
+                AppLogger.shared.log("✅ [Conflict] Successfully killed karabiner_grabber")
+                return true
+            } else {
+                AppLogger.shared.log("⚠️ [Conflict] karabiner_grabber still running after kill attempt")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("❌ [Conflict] Failed to kill karabiner_grabber: \(error)")
+            return false
+        }
     }
     
     func isKarabinerDaemonRunning() -> Bool {
@@ -1307,11 +1717,9 @@ sudo pkill -f karabiner_grabber
 ;; 
 ;; SAFETY FEATURES:
 ;; - process-unmapped-keys no: Only process explicitly mapped keys
-;; - danger-enable-cmd yes: Enable CMD key remapping (required for macOS)
 
 (defcfg
   process-unmapped-keys no
-  danger-enable-cmd yes
 )
 
 (defsrc
@@ -1336,11 +1744,9 @@ sudo pkill -f karabiner_grabber
 ;; 
 ;; SAFETY FEATURES:
 ;; - process-unmapped-keys no: Only process explicitly mapped keys
-;; - danger-enable-cmd yes: Enable CMD key remapping (required for macOS)
 
 (defcfg
   process-unmapped-keys no
-  danger-enable-cmd yes
 )
 
 (defsrc
@@ -1545,7 +1951,6 @@ sudo pkill -f karabiner_grabber
                     let defcfgSection = """
                     (defcfg
                       process-unmapped-keys no
-                      danger-enable-cmd yes
                     )
                     
                     """

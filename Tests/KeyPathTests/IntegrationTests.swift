@@ -21,7 +21,12 @@ class IntegrationTests: XCTestCase {
         
         // Initialize all components
         kanataManager = KanataManager()
-        lifecycleManager = KanataLifecycleManager(kanataManager: kanataManager)
+        
+        // Initialize MainActor-isolated components
+        await MainActor.run {
+            lifecycleManager = KanataLifecycleManager(kanataManager: kanataManager)
+        }
+        
         systemChecker = SystemRequirementsChecker()
         configManager = KanataConfigManager()
         
@@ -71,18 +76,24 @@ class IntegrationTests: XCTestCase {
         AppLogger.shared.log("🧪 [Integration] Testing state transition integrity")
         
         // Start with uninitialized state
-        XCTAssertEqual(lifecycleManager.currentState, .uninitialized)
+        await MainActor.run {
+            XCTAssertEqual(lifecycleManager.currentState, .uninitialized)
+        }
         
         // Initialize
         await lifecycleManager.initialize()
         
         // Should transition through states predictably
         // Note: Exact states depend on system conditions, but should follow valid transitions
-        XCTAssertNotEqual(lifecycleManager.currentState, .uninitialized)
+        await MainActor.run {
+            XCTAssertNotEqual(lifecycleManager.currentState, .uninitialized)
+        }
         
         // Test reset functionality
-        lifecycleManager.reset()
-        XCTAssertEqual(lifecycleManager.currentState, .uninitialized)
+        await MainActor.run {
+            lifecycleManager.reset()
+            XCTAssertEqual(lifecycleManager.currentState, .uninitialized)
+        }
         
         AppLogger.shared.log("✅ [Integration] State transition integrity test passed")
     }
@@ -113,12 +124,17 @@ class IntegrationTests: XCTestCase {
         AppLogger.shared.log("🧪 [Integration] Testing error recovery scenarios")
         
         // Test state machine error recovery
-        lifecycleManager.reset()
+        await MainActor.run {
+            lifecycleManager.reset()
+        }
         await lifecycleManager.initialize()
         
         // Simulate error condition
         // Note: In a real test, we'd inject errors, but for now we test structure
-        XCTAssertNotNil(lifecycleManager.canPerformActions)
+        let canPerformActions = await MainActor.run {
+            lifecycleManager.canPerformActions
+        }
+        XCTAssertNotNil(canPerformActions)
         
         // Test configuration validation errors
         let invalidConfig = "(defcfg\n  invalid-syntax\n"  // Intentionally malformed
@@ -146,7 +162,9 @@ class IntegrationTests: XCTestCase {
                 XCTAssertTrue(config.validationResult.isValid)
                 
                 // Test concurrent state queries
-                let canStart = lifecycleManager.canPerformOperation("start")
+                let canStart = await MainActor.run {
+                    lifecycleManager.canPerformOperation("start")
+                }
                 XCTAssertNotNil(canStart)
                 
                 AppLogger.shared.log("🧪 [Integration] Completed concurrent task \(taskId)")
@@ -169,7 +187,9 @@ class IntegrationTests: XCTestCase {
         
         for iteration in 1...iterationCount {
             // Create and destroy components to test for leaks
-            let tempManager = KanataLifecycleManager(kanataManager: kanataManager)
+            let tempManager = await MainActor.run {
+                KanataLifecycleManager(kanataManager: kanataManager)
+            }
             let tempChecker = SystemRequirementsChecker()
             let tempConfigManager = KanataConfigManager()
             
@@ -211,13 +231,20 @@ class IntegrationTests: XCTestCase {
         AppLogger.shared.log("🧪 [Integration] Testing Phase 2 integration")
         
         // Test state machine coordination
-        XCTAssertEqual(lifecycleManager.currentState, .uninitialized)
+        await MainActor.run {
+            XCTAssertEqual(lifecycleManager.currentState, .uninitialized)
+        }
         
         await lifecycleManager.initialize()
-        XCTAssertNotEqual(lifecycleManager.currentState, .uninitialized)
+        
+        await MainActor.run {
+            XCTAssertNotEqual(lifecycleManager.currentState, .uninitialized)
+        }
         
         // Test lifecycle operations
-        let stateInfo = lifecycleManager.getStateInfo()
+        let stateInfo = await MainActor.run {
+            lifecycleManager.getStateInfo()
+        }
         XCTAssertNotNil(stateInfo["currentState"])
         
         AppLogger.shared.log("✅ [Integration] Phase 2 integration test passed")
@@ -260,7 +287,10 @@ class IntegrationTests: XCTestCase {
         
         // 3. Lifecycle initialization
         await lifecycleManager.initialize()
-        XCTAssertNotEqual(lifecycleManager.currentState, .uninitialized)
+        
+        await MainActor.run {
+            XCTAssertNotEqual(lifecycleManager.currentState, .uninitialized)
+        }
         
         AppLogger.shared.log("✅ [Integration] New user installation scenario test passed")
     }
@@ -360,7 +390,9 @@ class StressTests: XCTestCase {
         // Test system stability over extended time
         AppLogger.shared.log("🧪 [Stress] Testing long running operations")
         
-        let lifecycleManager = KanataLifecycleManager(kanataManager: KanataManager())
+        let lifecycleManager = await MainActor.run {
+            KanataLifecycleManager(kanataManager: KanataManager())
+        }
         
         // Simulate long-running operation
         for cycle in 1...10 {
@@ -369,7 +401,9 @@ class StressTests: XCTestCase {
             // Small delay to simulate real usage
             try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
             
-            lifecycleManager.reset()
+            await MainActor.run {
+                lifecycleManager.reset()
+            }
             
             AppLogger.shared.log("🧪 [Stress] Completed cycle \(cycle)/10")
         }
@@ -408,10 +442,14 @@ class ErrorInjectionTests: XCTestCase {
         // Test invalid state transitions
         AppLogger.shared.log("🧪 [ErrorInjection] Testing state transition errors")
         
-        let lifecycleManager = KanataLifecycleManager(kanataManager: KanataManager())
+        let lifecycleManager = await MainActor.run {
+            KanataLifecycleManager(kanataManager: KanataManager())
+        }
         
         // Test that invalid operations return false without crashing
-        let canStart = lifecycleManager.canPerformOperation("invalid_operation")
+        let canStart = await MainActor.run {
+            lifecycleManager.canPerformOperation("invalid_operation")
+        }
         XCTAssertFalse(canStart, "Invalid operations should return false")
         
         AppLogger.shared.log("✅ [ErrorInjection] State transition error test passed")

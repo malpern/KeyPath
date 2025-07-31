@@ -1,409 +1,645 @@
-# SMAppService XPC Connection Debugging - Learnings
+# Kanata macOS Integration - Complete Debugging Guide
 
-## The Problem
-After migrating from SMJobBless to SMAppService on macOS 13+, the privileged helper daemon would appear to register successfully (`SMAppServiceStatus: enabled`) but XPC connections would fail with:
-```
-XPC connection error: Couldn't communicate with a helper application.
-```
+This document contains comprehensive debugging information for Kanata keyboard remapping integration on macOS, based on extensive real-world debugging sessions.
 
-## Root Cause
-**SMAppService requires the Info.plist to be embedded in the helper binary for proper validation after notarization.**
-
-Without the embedded Info.plist:
-- SMAppService reports successful registration 
-- The daemon appears in System Settings → Login Items
-- But the daemon never actually starts or accepts XPC connections
-- `sudo launchctl list` shows no trace of the service
-
-## The Solution
-
-### 1. Embed Info.plist in Helper Binary
-Modify the build process to embed the helper's Info.plist during compilation:
-
-```bash
-# Build helper with embedded Info.plist
-swift build --configuration release --product KeyPathHelper \
-    -Xlinker -sectcreate \
-    -Xlinker __TEXT \
-    -Xlinker __info_plist \
-    -Xlinker Sources/KeyPathHelper/Info.plist
-```
-
-**Verification**: Check if Info.plist is embedded:
-```bash
-# Should show Info.plist entries > 0
-codesign -dv /path/to/helper/binary
-
-# Should show __info_plist section
-otool -l /path/to/helper/binary | grep -A 5 "__info_plist"
-```
-
-### 2. Use Absolute Paths in Daemon Plist
-The launchd plist must use absolute paths to the helper binary:
-
-```xml
-<key>Program</key>
-<string>/full/path/to/KeyPath.app/Contents/MacOS/KeyPathHelper</string>
-```
-
-Not relative paths like:
-```xml
-<key>Program</key>
-<string>Contents/MacOS/KeyPathHelper</string>  <!-- WRONG -->
-```
-
-### 3. Reset Background Task Management
-When making changes to SMAppService daemons, always reset the background task cache:
-
-```bash
-sudo sfltool resetbtm
-# Restart computer
-```
-
-This clears corrupted registration states that can persist even after fixing the underlying issues.
-
-## Debugging Steps
-
-### Check SMAppService Status
-```swift
-let service = SMAppService.daemon(plistName: "com.example.helper.plist")
-print("Status: \(service.status)")
-// Should be .enabled (1) when working
-```
-
-### Check if Daemon is Actually Running
-```bash
-# Should show the daemon if properly registered
-sudo launchctl list | grep your-daemon-identifier
-```
-
-### Check XPC Connection Logs
-Add detailed XPC logging to identify connection failures:
-```swift
-connection.invalidationHandler = {
-    print("❌ XPC connection invalidated")
-}
-connection.interruptionHandler = {
-    print("⚠️ XPC connection interrupted")
-}
-```
-
-### Enable System Logging
-For deeper diagnosis:
-```bash
-sudo log stream --debug --info --predicate "process in { 'YourApp', 'smd', 'backgroundtaskmanagementd'} and sender in {'ServiceManagement', 'BackgroundTaskManagement', 'smd', 'backgroundtaskmanagementd'}"
-```
-
-## Common Error Codes
-
-| Error Code | Meaning | Solution |
-|------------|---------|----------|
-| Code 3 + -67028/-67056 | Codesigning failure | Embed Info.plist in helper binary |
-| Code 111 | Invalid Program/ProgramArguments | Use absolute paths in daemon plist |
-| Code 22 | Invalid argument | Service in broken state, reset with `sfltool resetbtm` |
-
-## Known Issues
-
-### macOS Version Compatibility
-- **Ventura 13.0.1 - 13.1**: Known SMAppService bugs, upgrade to 13.5+
-- **Ventura 13.6**: Daemon may not disable properly (Apple FB13206906)
-- **Sonoma 14.2+**: Generally works well
-
-### Background Item Persistence
-After using `sfltool resetbtm`, items may still appear in System Settings → Login Items. This is intentional to preserve user preferences, but the underlying registration is cleared.
-
-### Code Signature Changes
-Any change to code signatures requires:
-1. `sudo sfltool resetbtm`
-2. Restart computer
-3. Re-approve background item when prompted
-
-## Prevention
-
-### Build Process Checklist
-- [ ] Info.plist embedded in helper binary
-- [ ] Helper signed with same certificate as main app
-- [ ] Daemon plist uses absolute paths
-- [ ] SMPrivilegedExecutables entry matches helper signature
-- [ ] App properly notarized and stapled
-
-### Testing Checklist
-- [ ] `sudo launchctl list | grep daemon` shows running service
-- [ ] XPC connection establishes without errors
-- [ ] Background item appears in System Settings
-- [ ] Helper responds to XPC calls
-
-## References
-- [Peter Steinberger's SMAppService Article](https://steipete.me/posts/2025/code-signing-and-notarization-sparkle-and-tears) - Critical reference for Info.plist embedding
-- [Apple SMAppService Documentation](https://developer.apple.com/documentation/servicemanagement/smappservice)
-- [Apple Developer Forums - Service Management](https://developer.apple.com/forums/tags/servicemanagement)
-
-## Emergency Recovery
-If SMAppService gets completely stuck:
-1. `sudo sfltool resetbtm`
-2. Remove app from `/Applications`
-3. Restart computer
-4. Reinstall app with proper configuration
-
-This usually resolves any persistent registration issues.
+## Table of Contents
+- [Quick Reference](#quick-reference)
+- [The "Zombie Keyboard Capture" Issue](#the-zombie-keyboard-capture-issue)
+- [Thread Safety in Swift Apps](#thread-safety-in-swift-apps)
+- [VirtualHID Connection Issues](#virtualhid-connection-issues)
+- [Common Problems & Solutions](#common-problems--solutions)
+- [Debugging Workflows](#debugging-workflows)
+- [Architecture & Best Practices](#architecture--best-practices)
 
 ---
 
-# Kanata macOS Integration - Learnings
+## Quick Reference
 
-## The Problem
-KeyPath transitioned from SMAppService privileged helpers to using Kanata directly as a keyboard remapper. However, Kanata was failing to start with the error:
-```
-IOHIDDeviceOpen error: (iokit/common) privilege violation
-failed to open keyboard device(s): Couldn't register any device
-```
+### Emergency Recovery
+If keyboard becomes unresponsive:
+1. **Kanata Emergency Sequence**: `Left Ctrl + Space + Esc` (works even when keyboard seems dead)
+2. **Kill all processes**: `sudo pkill -f kanata`
+3. **Restart VirtualHID daemon**: Kill and restart Karabiner daemon
 
-## Root Cause
-**Kanata requires root privileges on macOS to access IOHIDDevice for keyboard input/output.**
-
-Unlike on Linux where Kanata can run as a regular user with proper udev rules, macOS requires root access for:
-- Opening HID devices for input capture
-- Creating virtual HID devices for output
-- Bypassing System Integrity Protection for low-level keyboard access
-
-## The Solution
-
-### 1. Configure Passwordless Sudo for Kanata
-Add entries to `/etc/sudoers` (use `sudo visudo`):
+### Key Diagnostic Commands
 ```bash
-# Allow user to run kanata as root without password
-username ALL=(ALL) NOPASSWD: /usr/local/bin/kanata
-username ALL=(ALL) NOPASSWD: /usr/bin/pkill -f kanata
-username ALL=(ALL) NOPASSWD: /usr/bin/sed -i* /usr/local/etc/kanata/keypath.kbd
-username ALL=(ALL) NOPASSWD: /usr/bin/tee /usr/local/etc/kanata/keypath.kbd
-```
+# Check if Kanata is working (look for key events in output)
+timeout 5s sudo kanata --cfg /path/to/config.kbd --debug
 
-**Note**: The exact path must match in sudoers - use `/usr/bin/pkill -f kanata` not `pkill -f "kanata.*pattern"`
-
-### 2. Modify Process Execution in Swift
-Update the KanataManager to use sudo when launching Kanata:
-
-```swift
-// ❌ WRONG - Runs as user, fails with privilege violation
-let task = Process()
-task.executableURL = URL(fileURLWithPath: "/usr/local/bin/kanata")
-task.arguments = ["--cfg", configPath, "--watch"]
-
-// ✅ CORRECT - Runs as root via sudo
-let task = Process()
-task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-task.arguments = ["/usr/local/bin/kanata", "--cfg", configPath, "--watch"]
-```
-
-### 3. Ensure Karabiner-VirtualHIDDevice-Daemon is Running
-Kanata integrates with Karabiner's virtual HID driver for better compatibility:
-
-```bash
-# Check if daemon is running
+# Check daemon status
 ps aux | grep -i karabiner | grep -v grep
 
-# Start daemon manually if needed (requires admin)
-sudo /Library/Application\ Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon
+# Monitor real-time logs
+tail -f ~/Library/Logs/KeyPath/keypath-debug.log
 ```
 
-## Debugging Steps
+---
 
-### Analyzing Application Logs for Kanata Issues
-When debugging Kanata integration issues, look for these key patterns in your app logs:
+## The "Zombie Keyboard Capture" Issue
 
+### Problem Description
+**"Zombie Keyboard Capture"** occurs when Kanata successfully captures keyboard input but fails to establish proper output connection, leaving the keyboard unresponsive.
+
+**Symptoms:**
+- Keyboard becomes completely unresponsive
+- Kanata appears to be running (process exists)
+- Logs show `connect_failed asio.system:61` errors
+- Emergency sequence (Ctrl+Space+Esc) still works
+
+### Root Cause Analysis
+Based on extensive debugging, the issue has multiple components:
+
+1. **VirtualHID Connection Failures**: `connect_failed asio.system:61` 
+2. **Karabiner Daemon Permission Issues**: Daemon runs but can't bind properly
+3. **Multiple Process Conflicts**: Concurrent Kanata starts causing exclusive access errors
+
+### Critical Discovery
+**The `connect_failed asio.system:61` errors are NOT fatal!**
+
+Our testing revealed that Kanata continues to process keyboard events and perform remapping even with these connection errors. The key insight is that these are warnings, not blocking failures.
+
+### The Real Fix
+The solution is **not** eliminating the connection errors, but:
+
+1. **Ensuring Karabiner daemon is running** (even with permission warnings)
+2. **Preventing multiple concurrent Kanata instances**
+3. **Implementing automatic recovery in the app**
+4. **Adding proper thread-safety to prevent crashes during recovery**
+
+### Testing Evidence
+Manual testing showed:
 ```bash
-# Find all Kanata process starts and their PIDs
-grep "Successfully started Kanata process" /path/to/debug.log
-
-# Check for process exits and their codes
-grep "Kanata process exited with code" /path/to/debug.log
-
-# Common exit codes:
-# - Exit code 6: Access denied/privilege violation
-# - Exit code 15: SIGTERM (normal termination)
-# - Exit code 1: General error (check stdout/stderr)
-
-# Look for initialization sequences
-grep -A10 "performInitialization" /path/to/debug.log
-
-# Track the full lifecycle of a Kanata process
-grep -E "(Starting Kanata|Successfully started|process exited|Monitor)" /path/to/debug.log
+# This works despite connection errors:
+sudo kanata --cfg config.kbd --debug
+# Output shows:
+# - connect_failed asio.system:61  ← WARNING, not fatal
+# - KeyEvent processing continues   ← ACTUAL FUNCTIONALITY WORKS
+# - Key remapping operates correctly ← PROVES IT'S WORKING
 ```
 
-### Verify Kanata Can Run as Root
+---
+
+## Thread Safety in Swift Apps
+
+### The Problem
+Swift's `@Published` properties are not thread-safe when modified from multiple concurrent contexts, even when using `@MainActor`.
+
+**Common Error:**
+```
+Unlock of an os_unfair_lock not owned by current thread
+```
+
+### Root Cause
+Multiple `updateStatus()` calls can create race conditions when:
+1. Different tasks call `updateStatus()` simultaneously
+2. Individual `MainActor.run` blocks execute concurrently
+3. `@Published` properties are modified from different threads
+
+### The Solution
+**Centralized State Management Pattern:**
+
+```swift
+/// Main actor function to safely update all @Published properties
+@MainActor
+private func updatePublishedProperties(
+    isRunning: Bool,
+    lastProcessExitCode: Int32?,
+    lastError: String?,
+    shouldClearDiagnostics: Bool = false
+) {
+    self.isRunning = isRunning
+    self.lastProcessExitCode = lastProcessExitCode
+    self.lastError = lastError
+    
+    if shouldClearDiagnostics {
+        // Atomically clear diagnostics
+        let initialCount = diagnostics.count
+        diagnostics.removeAll { diagnostic in
+            diagnostic.category == .process || 
+            diagnostic.category == .permissions ||
+            (diagnostic.category == .conflict && diagnostic.title.contains("Exit"))
+        }
+        // ... logging
+    }
+}
+```
+
+**Replace all scattered `MainActor.run` blocks:**
+```swift
+// ❌ WRONG - Can cause race conditions
+await MainActor.run {
+    self.isRunning = false
+    self.lastError = error
+}
+await MainActor.run {
+    self.clearProcessDiagnostics()
+}
+
+// ✅ CORRECT - Atomic state update
+await updatePublishedProperties(
+    isRunning: false,
+    lastProcessExitCode: exitCode,
+    lastError: error,
+    shouldClearDiagnostics: true
+)
+```
+
+### Testing Thread Safety
+Signs your fix worked:
+- App runs without crashes during state transitions
+- No more `os_unfair_lock` errors in crash reports
+- UI remains responsive during Kanata start/stop operations
+
+---
+
+## VirtualHID Connection Issues
+
+### Understanding the Error Messages
+
+**Karabiner Daemon Permission Errors:**
+```
+[client] [error] virtual_hid_device_service_server: bind_failed: Permission denied
+```
+- **Impact**: Warnings only, not fatal
+- **Cause**: Daemon needs elevated permissions to bind properly
+- **Solution**: Start daemon with regular user (it will still work)
+
+**Kanata Connection Errors:**
+```
+connect_failed asio.system:61
+```
+- **Impact**: Warnings only, remapping still works
+- **Cause**: VirtualHID connection handshake issues
+- **Solution**: Restart daemon, but functionality continues regardless
+
+### Daemon Management
 ```bash
-# Test config validation
-sudo kanata --cfg /path/to/config.kbd --check
+# Start daemon (permission warnings are normal)
+"/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon" &
 
-# Test actual execution (with timeout)
-timeout 10s sudo kanata --cfg /path/to/config.kbd
+# Check daemon is running
+ps aux | grep -i karabiner | grep -v grep
+
+# Expected output:
+# _driverkit  XXX  ... DriverKit extension (system)
+# malpern     XXX  ... VirtualHIDDevice-Daemon (user process)
 ```
 
-Expected successful output:
+### When VirtualHID Issues Are NOT the Problem
+If you see these, the issue is elsewhere:
+- Kanata debug output shows key events being processed
+- `Attempting to write InputEvent` messages appear
+- Emergency sequence (Ctrl+Space+Esc) works normally
+
+---
+
+## Common Problems & Solutions
+
+### 1. Keyboard Becomes Unresponsive
+**Symptoms:**
+- No key input registers
+- Kanata process running
+- Logs show connection errors
+
+**Debugging:**
+```bash
+# Test if Kanata is actually processing events
+timeout 5s sudo kanata --cfg /path/to/config.kbd --debug
+# Look for: KeyEvent messages, InputEvent writes
 ```
-kanata v1.9.0 starting
-process unmapped keys: false
-config file is valid
-Sleeping for 2s...
+
+**Solutions (in order):**
+1. Use emergency sequence: `Left Ctrl + Space + Esc`
+2. Kill Kanata: `sudo pkill -f kanata`
+3. Restart daemon: Kill and restart Karabiner daemon
+4. Check for multiple instances: `ps aux | grep kanata`
+
+### 2. Multiple Kanata Instances
+**Error Pattern:**
+```
 entering the processing loop
 entering the event loop
-connected
-driver_activated 1
-driver_connected 1
-Starting kanata proper
-```
-
-### Check for Multiple Instances
-Kanata fails if multiple instances try to access the same HID device:
-```bash
-# Kill all kanata processes
-sudo pkill -f kanata
-
-# Verify cleanup
-ps aux | grep kanata | grep -v grep
-```
-
-### Verify Sudoers Configuration
-```bash
-# Check what sudo commands are available without password
-sudo -l | grep kanata
-
-# Test passwordless sudo
-sudo -n /usr/local/bin/kanata --version
-
-# Should NOT prompt for password if configured correctly
-```
-
-### Administrative Tasks Available Without Password
-Based on the current sudoers configuration, Claude Code can perform these tasks without password prompts:
-
-```bash
-# Start/restart Kanata
-sudo /usr/local/bin/kanata --cfg /path/to/config.kbd --watch
-
-# Kill Kanata processes (exact path required)
-sudo /usr/bin/pkill -f kanata
-
-# Update system config files
-sudo /usr/bin/tee /usr/local/etc/kanata/keypath.kbd < user-config.kbd
-sudo /usr/bin/sed -i.bak 's/old/new/' /usr/local/etc/kanata/keypath.kbd
-```
-
-## Common Issues
-
-### 1. "IOHIDDeviceOpen error: privilege violation"
-**Cause**: Kanata running as regular user  
-**Solution**: Use sudo to run as root
-
-### 2. "Couldn't register any device" + "exclusive access"
-**Cause**: Multiple Kanata instances running  
-**Solution**: Kill all instances before starting new one
-
-**Detailed Error Pattern**:
-```
-entering the processing loop
-Init: catching only releases and sending immediately
-Watching config file for changes: /path/to/config.kbd
-entering the event loop
-
 IOHIDDeviceOpen error: (iokit/common) exclusive access and device already open
 [ERROR] failed to open keyboard device(s): Couldn't register any device
 ```
 
-This sequence indicates Kanata successfully initialized but failed when trying to open the HID device because another process (likely another Kanata instance) already has exclusive access.
+**Common Cause: karabiner_grabber Running**
+This error often occurs because `karabiner_grabber` is already capturing keyboard input:
+```bash
+# Check if karabiner_grabber is running
+ps aux | grep karabiner_grabber | grep -v grep
 
-### 3. "Password required" when using sudo
-**Cause**: Sudoers not configured for passwordless access  
-**Solution**: Add NOPASSWD entries to sudoers file
+# Kill it before starting Kanata
+sudo pkill -f karabiner_grabber
+```
 
-### 4. Driver connection failures
-**Cause**: Karabiner daemon not running  
-**Solution**: Start Karabiner-VirtualHIDDevice-Daemon as admin
-
-### 5. Race Conditions During App Initialization
-**Cause**: Multiple initialization paths attempting to start Kanata simultaneously  
-**Solution**: Add guards to prevent concurrent starts
-
-When an app initializes, multiple code paths may try to start Kanata:
-- App initialization (`init()` → `performInitialization()`)
-- UI state checks (`ContentView` → `checkRequirementsAndShowWizard()`)
-- Installation wizard completion
-
-**Prevention**:
+**Prevention in Code:**
 ```swift
-// Check if already running before starting
+// Always check before starting
 if isRunning {
-    AppLogger.shared.log("✅ [Init] Kanata is already running - skipping initialization")
+    AppLogger.shared.log("✅ [Init] Kanata already running - skipping")
     return
 }
-```
 
-### 6. Keyboard Becomes Unresponsive Despite Kanata Running
-**Cause**: First Kanata instance holds exclusive HID device access, subsequent instances fail  
-**Symptoms**: 
-- Logs show "IOHIDDeviceOpen error: (iokit/common) exclusive access and device already open"
-- Multiple PIDs attempting to start Kanata
-- Exit code 6 after "entering the processing loop"
-
-**Debugging**:
-```bash
-# Check logs for multiple start attempts
-grep -A5 "Successfully started Kanata" /path/to/debug.log
-
-# Look for exclusive access errors
-grep -A5 "exclusive access" /path/to/debug.log
-```
-
-**Solution**: Ensure single instance management in your app:
-1. Check if Kanata is running before starting
-2. Add mutex/locks around start operations
-3. Properly handle process lifecycle in async contexts
-
-## Architecture Notes
-
-### File-based Configuration
-Kanata uses file watching (`--watch` flag) to reload configs automatically:
-- Config path: `/usr/local/etc/kanata/keypath.kbd` (system-wide)
-- Alternative: `~/Library/Application Support/KeyPath/keypath.kbd` (user-specific)
-
-### Permission Requirements
-- **App**: Accessibility permission (to detect when to show UI)
-- **Kanata binary**: Input Monitoring permission + root privileges
-- **User**: Sudoers entry for passwordless kanata execution
-
-### Process Management
-Swift Process API works well with sudo:
-```swift
-// Termination still works through the sudo wrapper
-if let process = kanataProcess, process.isRunning {
-    process.terminate()  // Properly kills sudo and kanata
+// Use actor-based synchronization
+await KanataManager.startupActor.synchronize {
+    await self.performStartKanata()
 }
 ```
 
-## Best Practices for Kanata Integration
+### 3. Thread Safety Crashes
+**Error:**
+```
+Unlock of an os_unfair_lock not owned by current thread
+```
 
-### 1. Single Instance Management
-Always ensure only one Kanata instance runs at a time:
-- Check if running before starting
-- Add guards in initialization code
-- Handle async initialization carefully
+**Fix:**
+- Implement centralized state management
+- Use single `@MainActor` function for all `@Published` property updates
+- Remove scattered `MainActor.run` blocks
 
-### 2. Proper Error Handling
-- Log both stdout and stderr from Kanata process
-- Track exit codes and their meanings
-- Provide clear diagnostics to users
+### 4. Permission Issues
+**Kanata won't start:**
+```bash
+# Test basic permissions
+sudo kanata --version
 
-### 3. Configuration Validation
-- Always validate config before starting Kanata
-- Use `--check` flag for validation
-- Provide meaningful error messages for config issues
+# Check sudoers configuration
+sudo -l | grep kanata
+```
 
-### 4. Process Lifecycle Management
-- Monitor Kanata process for unexpected exits
-- Implement proper cleanup on app termination
-- Handle sudo wrapper process correctly
+**macOS Specific Permission Requirements:**
+1. **Input Monitoring**: System Settings > Privacy & Security > Input Monitoring
+   - Add `/usr/local/bin/kanata` (or `/opt/homebrew/bin/kanata` on ARM Macs)
+   - Add Terminal.app or your terminal (e.g., Ghostty)
+   - Add KeyPath.app if using the GUI
+
+2. **Karabiner Driver Extension**: System Settings > Privacy & Security > Driver Extensions
+   - Enable `Karabiner-VirtualHIDDevice-Manager.app`
+
+3. **Login Items & Extensions**: System Settings > General > Login Items & Extensions
+   - Enable "Karabiner-Elements Non-Privileged Agents"
+   - Enable "Karabiner-Elements Privileged Daemons"
+
+**Required sudoers entries:**
+```bash
+# Add to /etc/sudoers via sudo visudo
+username ALL=(ALL) NOPASSWD: /usr/local/bin/kanata
+username ALL=(ALL) NOPASSWD: /usr/bin/pkill -f kanata
+```
+
+### 5. Configuration Errors
+**Always validate before starting:**
+```bash
+sudo kanata --cfg /path/to/config.kbd --check
+```
+
+**Safe config template:**
+```lisp
+;; Safe configuration template
+(defcfg
+  process-unmapped-keys no  ;; IMPORTANT: Only process mapped keys
+)
+
+(defsrc
+  caps
+)
+
+(deflayer base
+  esc
+)
+```
+
+---
+
+## Debugging Workflows
+
+### Initial Problem Assessment
+1. **Check if Kanata is running**: `ps aux | grep kanata`
+2. **Test configuration**: `sudo kanata --cfg config.kbd --check`
+3. **Review recent logs**: `tail -50 ~/Library/Logs/KeyPath/keypath-debug.log`
+4. **Check daemon status**: `ps aux | grep karabiner`
+
+### Deep Debugging Session
+```bash
+# 1. Clean slate
+sudo pkill -f kanata
+pkill -f "Karabiner-VirtualHIDDevice-Daemon"
+
+# 2. Start daemon
+"/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon" > /tmp/karabiner-daemon.log 2>&1 &
+
+# 3. Test Kanata manually with debug output
+timeout 10s sudo kanata --cfg /path/to/config.kbd --debug --log-layer-changes
+
+# 4. Look for key processing evidence
+# - KeyEvent messages
+# - InputEvent writes  
+# - Layer changes
+# - Emergency sequence recognition
+```
+
+### App Integration Testing
+```bash
+# 1. Monitor app logs in real-time
+tail -f ~/Library/Logs/KeyPath/keypath-debug.log
+
+# 2. Start app and observe initialization
+open -a KeyPath
+
+# 3. Watch for thread safety issues
+# - No os_unfair_lock crashes
+# - Clean state transitions
+# - Proper error handling
+
+# 4. Test recovery systems
+# - Use emergency sequence if keyboard becomes unresponsive
+# - Check automatic recovery attempts in logs
+```
+
+### Log Analysis Patterns
+```bash
+# Find Kanata process lifecycle
+grep -E "(Starting Kanata|Successfully started|process exited)" debug.log
+
+# Check for thread safety issues
+grep -E "(MainActor|updateStatus|clearProcessDiagnostics)" debug.log
+
+# Look for VirtualHID connection issues
+grep -E "(connect_failed|asio\.system:61)" debug.log
+
+# Track automatic recovery attempts
+grep -E "(Recovery|attemptKeyboardRecovery|zombie)" debug.log
+```
+
+---
+
+## Architecture & Best Practices
+
+### Process Management
+```swift
+// Proper sudo-based Kanata execution
+let task = Process()
+task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+task.arguments = ["/usr/local/bin/kanata", "--cfg", configPath, "--debug"]
+
+// Monitor output in real-time
+let outputPipe = Pipe()
+let errorPipe = Pipe()
+task.standardOutput = outputPipe
+task.standardError = errorPipe
+
+// Termination works through sudo wrapper
+if let process = kanataProcess, process.isRunning {
+    process.terminate()  // Properly kills both sudo and kanata
+}
+```
+
+### Configuration Management
+```swift
+// Always validate before starting
+func validateConfigFile() -> (isValid: Bool, errors: [String]) {
+    guard FileManager.default.fileExists(atPath: configPath) else {
+        return (false, ["Config file does not exist"])
+    }
+    
+    // Use --check flag for validation
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+    task.arguments = ["/usr/local/bin/kanata", "--cfg", configPath, "--check"]
+    
+    // ... execute and parse result
+}
+```
+
+### Error Recovery
+```swift
+// Automatic recovery for VirtualHID connection failures
+private func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
+    switch exitCode {
+    case 6:
+        if output.contains("connect_failed asio.system:61") {
+            // This is "zombie keyboard capture" - attempt recovery
+            diagnostics.append(KanataDiagnostic(
+                title: "VirtualHID Connection Failed",
+                description: "Kanata captured keyboard but failed VirtualHID connection",
+                canAutoFix: true
+            ))
+            
+            Task {
+                await attemptKeyboardRecovery()
+            }
+        }
+    }
+}
+
+private func attemptKeyboardRecovery() async {
+    AppLogger.shared.log("🚨 [Recovery] Attempting keyboard recovery")
+    
+    // Step 1: Kill all Kanata processes
+    await killAllKanataProcesses()
+    
+    // Step 2: Wait for keyboard release
+    try? await Task.sleep(nanoseconds: 2_000_000_000)
+    
+    // Step 3: Restart VirtualHID daemon
+    await restartKarabinerDaemon()
+    
+    // Step 4: Retry Kanata start
+    await startKanata()
+}
+```
+
+### Thread Safety Pattern
+```swift
+// Centralized state management
+@MainActor
+private func updatePublishedProperties(
+    isRunning: Bool,
+    lastProcessExitCode: Int32?,
+    lastError: String?,
+    shouldClearDiagnostics: Bool = false
+) {
+    // All @Published property modifications happen atomically here
+    self.isRunning = isRunning
+    self.lastProcessExitCode = lastProcessExitCode
+    self.lastError = lastError
+    
+    if shouldClearDiagnostics {
+        // Integrated diagnostics clearing prevents race conditions
+        let initialCount = diagnostics.count
+        diagnostics.removeAll { diagnostic in
+            diagnostic.category == .process || 
+            diagnostic.category == .permissions ||
+            (diagnostic.category == .conflict && diagnostic.title.contains("Exit"))
+        }
+        
+        let removedCount = initialCount - diagnostics.count
+        if removedCount > 0 {
+            AppLogger.shared.log("🔄 [Diagnostics] Cleared \(removedCount) stale diagnostics")
+        }
+    }
+}
+
+// Usage throughout the app
+await updatePublishedProperties(
+    isRunning: false,
+    lastProcessExitCode: exitCode,
+    lastError: errorMessage,
+    shouldClearDiagnostics: true
+)
+```
+
+---
+
+## Manual Kanata Setup Without KeyPath
+
+### Prerequisites
+Before running Kanata manually, ensure all Karabiner-Elements components are properly configured:
+
+1. **Install Karabiner-Elements** (if not already installed)
+2. **Enable Driver Extension** (System Settings > Privacy & Security > Driver Extensions)
+3. **Enable Background Services** (System Settings > General > Login Items & Extensions)
+   - Karabiner-Elements Non-Privileged Agents ✓
+   - Karabiner-Elements Privileged Daemons ✓
+4. **Grant Input Monitoring** to kanata binary and terminal
+5. **Disable karabiner_grabber** to prevent conflicts
+
+### Manual Startup Procedure
+```bash
+# 1. Kill any conflicting processes
+sudo pkill -f karabiner_grabber
+sudo pkill -f kanata
+
+# 2. Start Karabiner VirtualHID daemon (if not running)
+"/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon" &
+
+# 3. Start Kanata with your config
+sudo kanata --cfg "/path/to/your/config.kbd"
+```
+
+### Important Notes
+- **Permission errors are normal**: VirtualHID daemon shows `bind_failed: Permission denied` but still works
+- **Connection warnings are not fatal**: `connect_failed asio.system:61` messages don't prevent functionality
+- **Keyboard may briefly freeze**: Use emergency sequence (Ctrl+Space+Esc) if needed
+
+## KeyPath Installation Wizard - Comprehensive System Checks
+
+### What the Wizard CHECKS (Updated 2025)
+✅ **Kanata binary installation** - Verifies kanata executable exists  
+✅ **Karabiner driver files exist** - Checks `/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice`  
+✅ **VirtualHIDDevice-Daemon running** - Verifies daemon process is active  
+✅ **Driver Extension actually enabled** - Uses `systemextensionsctl` to verify `[activated enabled]` status  
+✅ **Background services enabled** - Checks if Login Items & Extensions services are running  
+✅ **karabiner_grabber conflicts** - Detects conflicting grabber processes  
+✅ **Input Monitoring permissions** - KeyPath.app and kanata binary TCC database checks  
+✅ **Accessibility permissions** - KeyPath.app system access verification  
+✅ **Service running status** - Separate check for whether Kanata is actually running
+
+### Automatic Conflict Resolution
+The wizard can now **auto-fix** several issues:
+- 🔧 **Kill conflicting karabiner_grabber** automatically
+- 🔧 **Restart VirtualHID daemon** if needed
+- 🔧 **Install/uninstall LaunchDaemon** services
+- 🔧 **Create config directories and files**
+
+### Manual Action Still Required
+❌ **Enable Driver Extension** - Must be done in System Settings > Privacy & Security > Driver Extensions  
+❌ **Enable Login Items & Extensions** - Must toggle both Karabiner services manually  
+❌ **Grant Input Monitoring** - Must add binaries in System Settings > Privacy & Security  
+❌ **Grant Accessibility** - Must enable for KeyPath.app in System Settings
+
+### Wizard UI States
+
+**🟢 All Active (Green):**
+- All components installed AND Kanata service running
+- Shows "KeyPath is Active" with "Close Setup" button
+
+**🟠 Ready but Not Running (Orange):**
+- All components installed but Kanata service not running
+- Shows "Service Not Running" with "Start Kanata Service" button
+- Prevents misleading "all green" when service is actually stopped
+
+**🔴 Setup Issues (Red/Gray):**
+- Missing components or conflicts detected
+- Shows specific issues and required actions
+
+### Advanced Verification Commands
+For debugging when the comprehensive wizard checks still miss issues:
+
+```bash
+# 1. Verify driver extension system status
+systemextensionsctl list | grep -i karabiner
+# Expected: [activated enabled]
+
+# 2. Check system-level Karabiner services
+sudo launchctl list | grep -i karabiner
+# Expected: system-level daemon entries
+
+# 3. Verify user-level background services  
+launchctl list | grep -i karabiner
+# Expected: user-level service entries
+
+# 4. Check for any grabber conflicts
+ps aux | grep karabiner_grabber | grep -v grep
+# Expected: empty (no conflicts)
+
+# 5. Test kanata can access HID devices
+sudo kanata --cfg /path/to/config.kbd --check
+# Expected: no errors, clean validation
+
+# 6. Verify TCC permissions database
+sudo sqlite3 /Library/Application\ Support/com.apple.TCC/TCC.db \
+  "SELECT client, allowed FROM access WHERE service='kTCCServiceListenEvent';"
+# Expected: KeyPath and kanata entries with allowed=1
+```
+
+## Key Lessons Learned
+
+### 1. Connection Errors Are Not Fatal
+The biggest breakthrough was realizing that `connect_failed asio.system:61` errors don't prevent Kanata from working. Manual testing proved that keyboard remapping continues to function despite these warnings.
+
+### 2. Thread Safety Requires Centralization
+Scattered `MainActor.run` blocks create race conditions. The solution is centralized state management with a single `@MainActor` function handling all `@Published` property updates.
+
+### 3. VirtualHID Daemon Permissions Are Complex
+The daemon will run and provide basic functionality even with permission warnings. Don't let permission errors in logs mislead you into thinking the system isn't working.
+
+### 4. Emergency Recovery Is Critical
+Always implement and document the Kanata emergency sequence (`Left Ctrl + Space + Esc`). This works even when the keyboard appears completely unresponsive.
+
+### 5. Manual Testing Reveals Truth
+When app integration fails, test Kanata manually to isolate whether the issue is with Kanata itself or the app's process management.
+
+### 6. Automatic Recovery Must Be Thread-Safe
+Recovery systems that attempt to restart processes must handle concurrent access properly, or they'll crash during the very scenarios they're designed to fix.
+
+---
 
 ## References
+
 - [Kanata GitHub](https://github.com/jtroo/kanata) - Main keyboard remapper project
 - [Karabiner-DriverKit-VirtualHIDDevice](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice) - macOS HID driver
 - [IOHIDFamily Documentation](https://developer.apple.com/documentation/iokit/iohidfamily) - Apple's HID framework
+- [Swift Concurrency](https://docs.swift.org/swift-book/LanguageGuide/Concurrency.html) - Thread safety with async/await
+
+---
+
+## Troubleshooting Checklist
+
+When debugging Kanata issues:
+
+- [ ] Is Kanata actually processing key events? (Check debug output)
+- [ ] Are there multiple Kanata instances? (`ps aux | grep kanata`)
+- [ ] Is karabiner_grabber running? (`ps aux | grep karabiner_grabber`)
+- [ ] Is Karabiner daemon running? (`ps aux | grep karabiner`)
+- [ ] Does config validate? (`sudo kanata --cfg config.kbd --check`)
+- [ ] Are there thread safety crashes? (Check crash reports)
+- [ ] Can you use emergency sequence? (`Left Ctrl + Space + Esc`)
+- [ ] Are VirtualHID connection errors blocking functionality? (Usually no!)
+- [ ] Is the app's automatic recovery working? (Check logs)
+- [ ] Driver Extension enabled? (`systemextensionsctl list | grep karabiner`)
+- [ ] Background services enabled? (Check Login Items & Extensions)
+- [ ] Input Monitoring granted? (Check System Settings)
+
+Remember: Many "errors" in logs are actually warnings. Focus on whether the core functionality (key remapping) is working, not whether all log messages are clean.

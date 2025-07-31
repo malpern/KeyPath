@@ -42,6 +42,13 @@ struct KeyPathApp: App {
                     openConfigInEditor(kanataManager: kanataManager)
                 }
                 .keyboardShortcut("o", modifiers: .command)
+                
+                Divider()
+                
+                Button("Show Installation Wizard") {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
             }
         }
         

@@ -53,6 +53,7 @@ struct ContentView: View {
                 .onAppear {
                     AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
                 }
+                .environmentObject(kanataManager)
         }
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
@@ -104,6 +105,9 @@ struct ContentView: View {
             }
         } message: {
             Text("The Kanata emergency stop sequence (Ctrl+Space+Esc) was detected. Kanata has been stopped for safety.")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
+            showingInstallationWizard = true
         }
     }
     
