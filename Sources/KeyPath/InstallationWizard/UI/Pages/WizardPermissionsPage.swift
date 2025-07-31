@@ -73,7 +73,8 @@ struct WizardPermissionsPage: View {
                         IssueCardView(
                             issue: issue,
                             onAutoFix: nil, // Permissions require manual action
-                            isFixing: false
+                            isFixing: false,
+                            kanataManager: kanataManager
                         )
                     }
                 }

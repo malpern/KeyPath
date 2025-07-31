@@ -75,11 +75,9 @@ struct ContentView: View {
                 hasCheckedRequirements = true
             }
             
-            // Start monitoring for emergency stop sequence
-            keyboardCapture.startEmergencyMonitoring {
-                showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
-                showingEmergencyAlert = true
-            }
+            // Try to start monitoring for emergency stop sequence
+            // This will silently fail if permissions aren't granted yet
+            startEmergencyMonitoringIfPossible()
         }
         .onChange(of: kanataManager.isRunning) { value in
             AppLogger.shared.log("🔍 [ContentView] isRunning changed to: \(value)")
@@ -109,6 +107,14 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
             showingInstallationWizard = true
         }
+        .onChange(of: showingInstallationWizard) { showing in
+            // When wizard closes, try to start emergency monitoring if we now have permissions
+            if !showing {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    startEmergencyMonitoringIfPossible()
+                }
+            }
+        }
     }
     
     private func showStatusMessage(message: String) {
@@ -122,6 +128,20 @@ struct ContentView: View {
             withAnimation(.easeOut(duration: 0.3)) {
                 showStatusMessage = false
             }
+        }
+    }
+    
+    private func startEmergencyMonitoringIfPossible() {
+        // Only try if we're not already monitoring
+        if !keyboardCapture.checkAccessibilityPermissionsSilently() {
+            // Don't have permissions yet - we'll try again later
+            return
+        }
+        
+        // We have permissions, start monitoring
+        keyboardCapture.startEmergencyMonitoring {
+            showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
+            showingEmergencyAlert = true
         }
     }
     

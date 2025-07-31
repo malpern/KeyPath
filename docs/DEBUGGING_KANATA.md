@@ -224,13 +224,28 @@ IOHIDDeviceOpen error: (iokit/common) exclusive access and device already open
 ```
 
 **Common Cause: karabiner_grabber Running**
-This error often occurs because `karabiner_grabber` is already capturing keyboard input:
+This error often occurs because `karabiner_grabber` is already capturing keyboard input. Karabiner uses both system-level LaunchDaemons and user-level LaunchAgents:
+
 ```bash
 # Check if karabiner_grabber is running
 ps aux | grep karabiner_grabber | grep -v grep
 
-# Kill it before starting Kanata
+# Check system-level services
+sudo launchctl list | grep karabiner_grabber
+
+# Check user-level services  
+launchctl list | grep karabiner_grabber
+
+# Comprehensive removal (requires admin privileges)
+# Stop system LaunchDaemon
+sudo launchctl bootout system "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" 2>/dev/null
+
+# Stop user LaunchAgent  
+launchctl bootout gui/$(id -u) "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" 2>/dev/null
+
+# Kill any remaining processes
 sudo pkill -f karabiner_grabber
+sudo pkill -9 -f karabiner_grabber  # Force kill stubborn processes
 ```
 
 **Prevention in Code:**
@@ -507,7 +522,14 @@ Before running Kanata manually, ensure all Karabiner-Elements components are pro
 
 ### Manual Startup Procedure
 ```bash
-# 1. Kill any conflicting processes
+# 1. Comprehensive Karabiner grabber cleanup
+# Stop system LaunchDaemon
+sudo launchctl bootout system "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" 2>/dev/null
+
+# Stop user LaunchAgent  
+launchctl bootout gui/$(id -u) "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" 2>/dev/null
+
+# Kill any remaining processes
 sudo pkill -f karabiner_grabber
 sudo pkill -f kanata
 
@@ -538,16 +560,70 @@ sudo kanata --cfg "/path/to/your/config.kbd"
 
 ### Automatic Conflict Resolution
 The wizard can now **auto-fix** several issues:
-- 🔧 **Kill conflicting karabiner_grabber** automatically
+- 🔧 **Kill conflicting karabiner_grabber** automatically (comprehensive system+user service removal)
 - 🔧 **Restart VirtualHID daemon** if needed
 - 🔧 **Install/uninstall LaunchDaemon** services
 - 🔧 **Create config directories and files**
 
+### Karabiner Grabber Conflict Resolution (Advanced)
+**Problem**: Karabiner Elements runs grabber services at both system and user levels that auto-restart when killed.
+
+**KeyPath Solution**: Comprehensive service shutdown that prevents restarts:
+1. **Stop system LaunchDaemon**: `org.pqrs.service.daemon.karabiner_grabber` 
+2. **Stop user LaunchAgent**: `org.pqrs.service.agent.karabiner_grabber`
+3. **Kill remaining processes**: Force-kill any stubborn grabber processes
+4. **Verify success**: Check that no grabber processes remain running
+5. **Preserve VirtualHID**: Keep the HID driver daemon that Kanata needs
+
+**Important**: This only stops the keyboard **grabber** service, not the **VirtualHID driver** that both Karabiner and Kanata require for proper operation.
+
 ### Manual Action Still Required
 ❌ **Enable Driver Extension** - Must be done in System Settings > Privacy & Security > Driver Extensions  
-❌ **Enable Login Items & Extensions** - Must toggle both Karabiner services manually  
+❌ **Enable Login Items & Extensions** - Must add Karabiner services manually (see detailed steps below)  
 ❌ **Grant Input Monitoring** - Must add binaries in System Settings > Privacy & Security  
 ❌ **Grant Accessibility** - Must enable for KeyPath.app in System Settings
+
+### Enabling Karabiner Background Services (Critical Step)
+
+**Problem**: Karabiner background services may not appear in System Settings > General > Login Items & Extensions by default.
+
+**Solution**: Manually add them as Login Items:
+
+1. **Open System Settings > General > Login Items & Extensions**
+2. **Click the "Open at Login" section in the left sidebar**
+3. **Click the "+" button to add new items**
+4. **Navigate to**: `/Library/Application Support/org.pqrs/Karabiner-Elements/`
+5. **Add these two applications** (drag & drop or use + button):
+   - `Karabiner-Elements Non-Privileged Agents.app`
+   - `Karabiner-Elements Privileged Daemons.app`
+6. **Restart your Mac** or log out/log in for changes to take effect
+
+**KeyPath Detection Fix (Updated 2025)**:
+- KeyPath now has a **dedicated Background Services wizard page** with its own icon
+- Fixed detection pattern: now correctly identifies `org.pqrs.service.agent.karabiner_*` services
+- Background Services issues are separated from Input Monitoring permissions
+
+**KeyPath Automation Tools**:
+- 🔧 **"Help" button** - Shows detailed step-by-step instructions with helpful tools
+- 📁 **"Open Karabiner Folder"** - Opens Finder directly to the Karabiner apps location
+- 📋 **"Copy File Paths"** - Copies full paths to clipboard for easy navigation
+- ⚙️ **One-click setup** - Background Services cards automatically open both System Settings and Finder
+
+**Verification**: After restart, check that services are running:
+```bash
+launchctl list | grep -i karabiner
+# Expected: Multiple karabiner services with PIDs (not "-")
+# Example output:
+# 10916	0	org.pqrs.service.agent.Karabiner-Menu
+# 10919	0	org.pqrs.service.agent.Karabiner-NotificationWindow
+# 10221	0	org.pqrs.service.agent.karabiner_console_user_server
+# 10223	0	org.pqrs.service.agent.karabiner_session_monitor
+```
+
+**Common Issues**:
+- **Services don't appear in "By Category" view**: They will show up in "Open at Login" after manual addition
+- **KeyPath shows "Background Services Disabled"**: This was a detection bug fixed in 2025 - the wizard now correctly detects running services
+- **Services show as disabled despite manual addition**: Make sure you added the `.app` files (not the `.plist` files) to Login Items
 
 ### Wizard UI States
 
@@ -632,6 +708,7 @@ When debugging Kanata issues:
 - [ ] Is Kanata actually processing key events? (Check debug output)
 - [ ] Are there multiple Kanata instances? (`ps aux | grep kanata`)
 - [ ] Is karabiner_grabber running? (`ps aux | grep karabiner_grabber`)
+- [ ] Are both system and user grabber services stopped? (`sudo launchctl list | grep karabiner_grabber` and `launchctl list | grep karabiner_grabber`)
 - [ ] Is Karabiner daemon running? (`ps aux | grep karabiner`)
 - [ ] Does config validate? (`sudo kanata --cfg config.kbd --check`)
 - [ ] Are there thread safety crashes? (Check crash reports)
@@ -639,7 +716,8 @@ When debugging Kanata issues:
 - [ ] Are VirtualHID connection errors blocking functionality? (Usually no!)
 - [ ] Is the app's automatic recovery working? (Check logs)
 - [ ] Driver Extension enabled? (`systemextensionsctl list | grep karabiner`)
-- [ ] Background services enabled? (Check Login Items & Extensions)
+- [ ] Background services enabled? (Check Login Items & Extensions - manually add if missing)
+- [ ] Karabiner Login Items manually added? (`Karabiner-Elements Non-Privileged Agents.app` and `Karabiner-Elements Privileged Daemons.app`)
 - [ ] Input Monitoring granted? (Check System Settings)
 
 Remember: Many "errors" in logs are actually warnings. Focus on whether the core functionality (key remapping) is working, not whether all log messages are clean.

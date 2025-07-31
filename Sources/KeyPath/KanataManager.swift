@@ -1373,7 +1373,8 @@ class KanataManager: ObservableObject {
             let output = String(data: data, encoding: .utf8) ?? ""
             
             // Check for Karabiner services in the user's launchctl list
-            let hasServices = output.contains("org.pqrs.karabiner")
+            // Look for the actual service patterns that are created by Login Items
+            let hasServices = output.contains("org.pqrs.service.agent.karabiner")
             
             if hasServices {
                 AppLogger.shared.log("✅ [Services] Karabiner background services detected")
@@ -1429,42 +1430,63 @@ sudo pkill -f karabiner_grabber
     }
     
     func killKarabinerGrabber() async -> Bool {
-        AppLogger.shared.log("🔧 [Conflict] Attempting to kill karabiner_grabber")
+        AppLogger.shared.log("🔧 [Conflict] Attempting to stop Karabiner grabber services")
         
-        // Use osascript to prompt for admin password and run the kill command
-        let script = """
-        do shell script "/usr/bin/pkill -f karabiner_grabber" with administrator privileges
+        // Karabiner has both system LaunchDaemon and user LaunchAgent services
+        // We need to stop both to fully disable the grabber
+        
+        let stopScript = """
+        # Stop system LaunchDaemon (runs as root)
+        launchctl bootout system "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" 2>/dev/null || true
+        
+        # Stop user LaunchAgent
+        launchctl bootout gui/$(id -u) "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" 2>/dev/null || true
+        
+        # Kill any remaining processes
+        pkill -f karabiner_grabber 2>/dev/null || true
+        
+        # Wait for processes to terminate
+        sleep 1
+        
+        # Final cleanup - kill any stubborn processes
+        pkill -9 -f karabiner_grabber 2>/dev/null || true
         """
         
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", script]
+        let stopTask = Process()
+        stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        stopTask.arguments = ["-e", "do shell script \"\(stopScript)\" with administrator privileges"]
         
         do {
-            try task.run()
-            task.waitUntilExit()
+            try stopTask.run()
+            stopTask.waitUntilExit()
+            AppLogger.shared.log("🔧 [Conflict] Attempted to stop all Karabiner grabber services")
             
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [Conflict] Successfully executed kill command")
-                
-                // Wait a moment for process to fully terminate
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                
-                // Verify it's gone
-                let stillRunning = isKarabinerElementsRunning()
-                if !stillRunning {
-                    AppLogger.shared.log("✅ [Conflict] karabiner_grabber successfully terminated")
-                    return true
-                } else {
-                    AppLogger.shared.log("⚠️ [Conflict] karabiner_grabber still running after kill attempt")
-                    return false
-                }
+            // Wait a moment for cleanup
+            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+            
+            // Verify no grabber processes are still running
+            let checkTask = Process()
+            checkTask.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            checkTask.arguments = ["-f", "karabiner_grabber"]
+            
+            let outputPipe = Pipe()
+            checkTask.standardOutput = outputPipe
+            checkTask.standardError = Pipe()
+            
+            try checkTask.run()
+            checkTask.waitUntilExit()
+            
+            let success = checkTask.terminationStatus != 0 // pgrep returns 1 if no processes found
+            if success {
+                AppLogger.shared.log("✅ [Conflict] Karabiner grabber successfully stopped")
             } else {
-                AppLogger.shared.log("❌ [Conflict] Kill command failed with exit code: \(task.terminationStatus)")
-                return false
+                AppLogger.shared.log("⚠️ [Conflict] Some Karabiner grabber processes may still be running")
             }
+            
+            return success
+            
         } catch {
-            AppLogger.shared.log("❌ [Conflict] Failed to kill karabiner_grabber: \(error)")
+            AppLogger.shared.log("❌ [Conflict] Failed to stop Karabiner grabber: \(error)")
             return false
         }
     }

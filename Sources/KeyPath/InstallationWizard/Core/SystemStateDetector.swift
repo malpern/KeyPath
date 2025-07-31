@@ -1,4 +1,5 @@
 import Foundation
+import ApplicationServices
 
 /// Pure system state detection logic - no side effects, no auto-fixing
 class SystemStateDetector: SystemStateDetecting {
@@ -180,29 +181,23 @@ class SystemStateDetector: SystemStateDetecting {
         var missing: [PermissionRequirement] = []
         var granted: [PermissionRequirement] = []
         
-        // Check KeyPath app permissions
-        if kanataManager.hasInputMonitoringPermission() {
-            granted.append(.keyPathInputMonitoring)
-        } else {
-            missing.append(.keyPathInputMonitoring)
-        }
+        // Check both KeyPath app and kanata binary permissions
+        let (keyPathHasPermission, kanataHasPermission, _) = kanataManager.checkBothAppsHavePermissions()
         
-        if kanataManager.hasAccessibilityPermission() {
-            granted.append(.keyPathAccessibility)
-        } else {
-            missing.append(.keyPathAccessibility)
-        }
-        
-        // Check kanata binary permissions
-        let (_, kanataHasPermission, _) = kanataManager.checkBothAppsHavePermissions()
-        if kanataHasPermission {
+        // For Input Monitoring, we need BOTH apps to have permission for the system to work properly
+        if keyPathHasPermission && kanataHasPermission {
             granted.append(.kanataInputMonitoring)
         } else {
             missing.append(.kanataInputMonitoring)
         }
         
+        // Check accessibility permissions for both apps
+        // For KeyPath app, use the system's current accessibility check
+        let keyPathAccessibility = AXIsProcessTrusted()
         let kanataAccessibility = kanataManager.checkAccessibilityForPath("/usr/local/bin/kanata")
-        if kanataAccessibility {
+        
+        // For Accessibility, we need BOTH apps to have permission  
+        if keyPathAccessibility && kanataAccessibility {
             granted.append(.kanataAccessibility)
         } else {
             missing.append(.kanataAccessibility)
@@ -325,9 +320,12 @@ class SystemStateDetector: SystemStateDetecting {
     
     private func createPermissionIssues(from result: PermissionCheckResult) -> [WizardIssue] {
         return result.missing.map { permission in
-            WizardIssue(
+            // Background services get their own category and page
+            let category: WizardIssue.IssueCategory = permission == .backgroundServicesEnabled ? .backgroundServices : .permissions
+            
+            return WizardIssue(
                 severity: .warning,
-                category: .permissions,
+                category: category,
                 title: permissionTitle(for: permission),
                 description: permissionDescription(for: permission),
                 autoFixAction: nil,
@@ -401,8 +399,6 @@ class SystemStateDetector: SystemStateDetecting {
     
     private func permissionTitle(for permission: PermissionRequirement) -> String {
         switch permission {
-        case .keyPathInputMonitoring: return "KeyPath Input Monitoring"
-        case .keyPathAccessibility: return "KeyPath Accessibility"
         case .kanataInputMonitoring: return "Kanata Input Monitoring"
         case .kanataAccessibility: return "Kanata Accessibility"
         case .driverExtensionEnabled: return "Driver Extension Disabled"
@@ -412,10 +408,6 @@ class SystemStateDetector: SystemStateDetecting {
     
     private func permissionDescription(for permission: PermissionRequirement) -> String {
         switch permission {
-        case .keyPathInputMonitoring:
-            return "KeyPath.app needs Input Monitoring permission to capture keystrokes."
-        case .keyPathAccessibility:
-            return "KeyPath.app needs Accessibility permission for system control."
         case .kanataInputMonitoring:
             return "The kanata binary needs Input Monitoring permission to process keys."
         case .kanataAccessibility:
@@ -423,20 +415,20 @@ class SystemStateDetector: SystemStateDetecting {
         case .driverExtensionEnabled:
             return "Karabiner driver extension must be enabled in System Settings."
         case .backgroundServicesEnabled:
-            return "Karabiner background services must be enabled for HID functionality."
+            return "Karabiner background services must be enabled for HID functionality. These may need to be manually added as Login Items."
         }
     }
     
     private func userActionForPermission(_ permission: PermissionRequirement) -> String {
         switch permission {
-        case .keyPathInputMonitoring, .kanataInputMonitoring:
+        case .kanataInputMonitoring:
             return "Grant permission in System Settings > Privacy & Security > Input Monitoring"
-        case .keyPathAccessibility, .kanataAccessibility:
+        case .kanataAccessibility:
             return "Grant permission in System Settings > Privacy & Security > Accessibility"
         case .driverExtensionEnabled:
             return "Enable in System Settings > Privacy & Security > Driver Extensions"
         case .backgroundServicesEnabled:
-            return "Enable in System Settings > General > Login Items & Extensions"
+            return "Add Karabiner services to Login Items in System Settings > General > Login Items & Extensions"
         }
     }
     

@@ -7,10 +7,11 @@ import SwiftUI
 enum WizardPage: String, CaseIterable {
     case summary = "Summary"
     case conflicts = "Resolve Conflicts"
-    case daemon = "Karabiner Daemon"
     case inputMonitoring = "Input Monitoring Permission"
     case accessibility = "Accessibility Permission"
+    case backgroundServices = "Background Services"
     case installation = "Install Components"
+    case daemon = "Karabiner Daemon"
 }
 
 /// Status of individual installation or check components
@@ -44,8 +45,6 @@ enum SystemConflict: Equatable {
 
 /// Permission requirements for the system
 enum PermissionRequirement: Equatable {
-    case keyPathInputMonitoring
-    case keyPathAccessibility
     case kanataInputMonitoring
     case kanataAccessibility
     case driverExtensionEnabled
@@ -107,6 +106,7 @@ struct WizardIssue: Identifiable {
     enum IssueCategory {
         case conflicts
         case permissions
+        case backgroundServices
         case installation
         case daemon
         case service

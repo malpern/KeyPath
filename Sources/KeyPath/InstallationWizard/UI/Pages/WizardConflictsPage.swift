@@ -5,27 +5,32 @@ struct WizardConflictsPage: View {
     let isFixing: Bool
     let onAutoFix: () -> Void
     let onRefresh: () async -> Void
+    let kanataManager: KanataManager
+    
+    @State private var isScanning = false
     
     var body: some View {
         VStack(spacing: 24) {
-            // Header
+            // Header - Changes based on conflict state
             VStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(Color.orange.opacity(0.1))
+                        .fill(issues.isEmpty ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
                         .frame(width: 80, height: 80)
                     
-                    Image(systemName: "exclamationmark.triangle.fill")
+                    Image(systemName: issues.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .font(.system(size: 40))
-                        .foregroundColor(.orange)
+                        .foregroundColor(issues.isEmpty ? .green : .orange)
                         .symbolRenderingMode(.multicolor)
                 }
                 
-                Text("Conflicting Processes")
+                Text(issues.isEmpty ? "No Conflicts Detected" : "Conflicting Processes")
                     .font(.title2)
                     .fontWeight(.semibold)
                 
-                Text("Conflicting keyboard remapping processes must be stopped before continuing")
+                Text(issues.isEmpty ? 
+                     "No conflicting keyboard remapping processes found. You're ready to proceed!" :
+                     "Conflicting keyboard remapping processes must be stopped before continuing")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -40,7 +45,8 @@ struct WizardConflictsPage: View {
                         IssueCardView(
                             issue: issue,
                             onAutoFix: issue.autoFixAction != nil ? onAutoFix : nil,
-                            isFixing: isFixing
+                            isFixing: isFixing,
+                            kanataManager: kanataManager
                         )
                     }
                 }
@@ -49,18 +55,32 @@ struct WizardConflictsPage: View {
             
             // Explanation
             VStack(alignment: .leading, spacing: 16) {
-                Text("Common conflicting processes:")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Karabiner-Elements (conflicts with Kanata)", systemImage: "keyboard")
-                    Label("Other Kanata instances running with root privileges", systemImage: "terminal")
-                    Label("Previous KeyPath processes that didn't shut down properly", systemImage: "xmark.app")
-                    Label("Manual Kanata installations running in the background", systemImage: "gearshape.2")
+                if issues.isEmpty {
+                    VStack(spacing: 16) {
+                        Text("✅ System Status: Clean")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.green)
+                        
+                        Text("KeyPath checked for conflicts and found none. The system is ready for keyboard remapping.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                } else {
+                    Text("Common conflicting processes:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Karabiner-Elements (conflicts with Kanata)", systemImage: "keyboard")
+                        Label("Other Kanata instances running with root privileges", systemImage: "terminal")
+                        Label("Previous KeyPath processes that didn't shut down properly", systemImage: "xmark.app")
+                        Label("Manual Kanata installations running in the background", systemImage: "gearshape.2")
+                    }
+                    .font(.caption)
+                    .padding(.leading)
                 }
-                .font(.caption)
-                .padding(.leading)
             }
             .padding(.horizontal, 40)
             
@@ -77,14 +97,27 @@ struct WizardConflictsPage: View {
                     .disabled(isFixing)
                 }
                 
-                Button("Check Again") {
+                Button(action: {
                     Task {
+                        isScanning = true
                         await onRefresh()
+                        // Keep spinner visible for a moment so user sees the action
+                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                        isScanning = false
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        if isScanning {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .progressViewStyle(CircularProgressViewStyle())
+                        }
+                        Text(isScanning ? "Scanning..." : (issues.isEmpty ? "Re-scan for Conflicts" : "Check Again"))
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
-                .disabled(isFixing)
+                .disabled(isFixing || isScanning)
             }
         }
         .padding()

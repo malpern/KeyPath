@@ -23,6 +23,11 @@ mkdir -p "$RESOURCES_DIR"
 # Copy executable
 cp .build/arm64-apple-macosx/release/KeyPath "$MACOS_DIR/KeyPath"
 
+# Copy app icon
+if [ -f "Sources/KeyPath/Resources/AppIcon.icns" ]; then
+    cp "Sources/KeyPath/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
+fi
+
 # Create Info.plist
 cat > "$CONTENTS_DIR/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -43,6 +48,8 @@ cat > "$CONTENTS_DIR/Info.plist" << EOF
     <string>APPL</string>
     <key>CFBundleSignature</key>
     <string>????</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>NSPrincipalClass</key>

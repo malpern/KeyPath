@@ -5,6 +5,7 @@ struct WizardSummaryPage: View {
     let issues: [WizardIssue]
     let onStartService: () -> Void
     let onDismiss: () -> Void
+    let onNavigateToPage: ((WizardPage) -> Void)?
     
     var body: some View {
         VStack(spacing: 24) {
@@ -44,11 +45,50 @@ struct WizardSummaryPage: View {
         let statusItems = createStatusItems()
         
         ForEach(statusItems, id: \.title) { item in
-            SummaryItemView(
-                icon: item.icon,
-                title: item.title,
-                status: item.status
-            )
+            if item.isNavigable {
+                Button(action: {
+                    onNavigateToPage?(item.targetPage!)
+                }) {
+                    SummaryItemView(
+                        icon: item.icon,
+                        title: item.title,
+                        status: item.status
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                SummaryItemView(
+                    icon: item.icon,
+                    title: item.title,
+                    status: item.status
+                )
+            }
+        }
+        
+        // Show permissions breakdown if there are issues
+        if hasAnyPermissionIssues() {
+            VStack(spacing: 8) {
+                let permissionItems = createPermissionStatusItems()
+                ForEach(permissionItems, id: \.title) { item in
+                    Button(action: {
+                        onNavigateToPage?(item.targetPage!)
+                    }) {
+                        HStack(spacing: 12) {
+                            // Indent permission sub-items
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(width: 16)
+                            
+                            SummaryItemView(
+                                icon: item.icon,
+                                title: item.title,
+                                status: item.status
+                            )
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         
         // Show service status separately with visual separation
@@ -154,52 +194,107 @@ struct WizardSummaryPage: View {
     
     // MARK: - Helper Methods
     
+    private func openSystemPermissions() {
+        // Open the main Privacy & Security settings - users can navigate to Input Monitoring/Accessibility from there
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    
     private func createStatusItems() -> [StatusItem] {
         var items: [StatusItem] = []
         
-        // Binary Installation
-        items.append(StatusItem(
-            icon: "keyboard",
-            title: "Binary Installation",
-            status: hasIssueOfType(.installation) ? .failed : .completed
-        ))
+        // Follow the same order as wizard pages: conflicts → permissions → installation → daemon
         
-        // Service Configuration
-        items.append(StatusItem(
-            icon: "gear",
-            title: "Kanata Service",
-            status: .completed // Always available with direct execution
-        ))
-        
-        // Driver Installation
-        items.append(StatusItem(
-            icon: "cpu",
-            title: "Karabiner Driver",
-            status: hasDriverIssues() ? .failed : .completed
-        ))
-        
-        // Daemon Status
-        items.append(StatusItem(
-            icon: "gear.circle",
-            title: "Karabiner Daemon",
-            status: hasIssueOfType(.daemon) ? .failed : .completed
-        ))
-        
-        // Conflicts
+        // 1. Conflicts (first thing to resolve)
         items.append(StatusItem(
             icon: "exclamationmark.triangle",
             title: "No Conflicts",
-            status: hasIssueOfType(.conflicts) ? .failed : .completed
+            status: hasIssueOfType(.conflicts) ? .failed : .completed,
+            isNavigable: true,
+            targetPage: .conflicts
         ))
         
-        // Permissions
+        // 2. System Permissions (collapsed/expanded based on issues)
+        let hasPermissionIssues = hasAnyPermissionIssues()
         items.append(StatusItem(
             icon: "lock.shield",
             title: "System Permissions",
-            status: hasIssueOfType(.permissions) ? .failed : .completed
+            status: hasPermissionIssues ? .failed : .completed,
+            isNavigable: false // Don't navigate on collapsed permissions - sub-items will handle navigation
+        ))
+        
+        // 3. Binary Installation
+        items.append(StatusItem(
+            icon: "keyboard",
+            title: "Binary Installation",
+            status: hasIssueOfType(.installation) ? .failed : .completed,
+            isNavigable: true,
+            targetPage: .installation
+        ))
+        
+        // 4. Karabiner Driver
+        items.append(StatusItem(
+            icon: "cpu",
+            title: "Karabiner Driver",
+            status: hasDriverIssues() ? .failed : .completed,
+            isNavigable: true,
+            targetPage: .installation
+        ))
+        
+        // 5. Daemon Status
+        items.append(StatusItem(
+            icon: "gear.circle",
+            title: "Karabiner Daemon",
+            status: hasIssueOfType(.daemon) ? .failed : .completed,
+            isNavigable: true,
+            targetPage: .daemon
         ))
         
         return items
+    }
+    
+    private func createPermissionStatusItems() -> [StatusItem] {
+        var items: [StatusItem] = []
+        
+        // Input Monitoring Permission
+        let hasInputMonitoringIssues = issues.contains { issue in
+            issue.category == .permissions && issue.title == "Kanata Input Monitoring"
+        }
+        items.append(StatusItem(
+            icon: "eye",
+            title: "Input Monitoring",
+            status: hasInputMonitoringIssues ? .failed : .completed,
+            isNavigable: true,
+            targetPage: .inputMonitoring
+        ))
+        
+        // Accessibility Permission  
+        let hasAccessibilityIssues = issues.contains { issue in
+            issue.category == .permissions && issue.title == "Kanata Accessibility"
+        }
+        items.append(StatusItem(
+            icon: "accessibility",
+            title: "Accessibility",
+            status: hasAccessibilityIssues ? .failed : .completed,
+            isNavigable: true,
+            targetPage: .accessibility
+        ))
+        
+        // Background Services
+        items.append(StatusItem(
+            icon: "gear.badge",
+            title: "Background Services",
+            status: hasIssueOfType(.backgroundServices) ? .failed : .completed,
+            isNavigable: true,
+            targetPage: .backgroundServices
+        ))
+        
+        return items
+    }
+    
+    private func hasAnyPermissionIssues() -> Bool {
+        return hasIssueOfType(.permissions) || hasIssueOfType(.backgroundServices)
     }
     
     private var shouldShowServiceStatus: Bool {
@@ -228,10 +323,12 @@ struct WizardSummaryPage: View {
     }
     
     private func hasDriverIssues() -> Bool {
-        // Check for driver-related installation issues
+        // Check for both driver extension permission issues AND driver component issues
         issues.contains { issue in
-            issue.category == .installation && 
-            (issue.title.contains("Driver") || issue.title.contains("Karabiner"))
+            // Driver extension permission issue (category: .permissions)
+            (issue.category == .permissions && issue.title == "Driver Extension Disabled") ||
+            // Karabiner driver component issue (category: .installation)  
+            (issue.category == .installation && issue.title == "Karabiner Driver Missing")
         }
     }
 }
@@ -242,4 +339,14 @@ private struct StatusItem {
     let icon: String
     let title: String
     let status: InstallationStatus
+    let isNavigable: Bool
+    let targetPage: WizardPage?
+    
+    init(icon: String, title: String, status: InstallationStatus, isNavigable: Bool = false, targetPage: WizardPage? = nil) {
+        self.icon = icon
+        self.title = title
+        self.status = status
+        self.isNavigable = isNavigable
+        self.targetPage = targetPage
+    }
 }

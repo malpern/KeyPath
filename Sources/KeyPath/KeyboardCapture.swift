@@ -25,9 +25,13 @@ class KeyboardCapture: ObservableObject {
         isCapturing = true
         isContinuous = false
         
-        // Request accessibility permissions if needed
+        // Only start capture if we already have permissions
+        // Don't prompt for permissions - let the wizard handle that
         if !hasAccessibilityPermissions() {
-            requestAccessibilityPermissions()
+            // Silently fail - user needs to grant permissions through wizard
+            isCapturing = false
+            captureCallback = nil
+            callback("⚠️ Accessibility permission required")
             return
         }
         
@@ -41,9 +45,14 @@ class KeyboardCapture: ObservableObject {
         isCapturing = true
         isContinuous = true
         
-        // Request accessibility permissions if needed
+        // Only start capture if we already have permissions
+        // Don't prompt for permissions - let the wizard handle that
         if !hasAccessibilityPermissions() {
-            requestAccessibilityPermissions()
+            // Silently fail - user needs to grant permissions through wizard
+            isCapturing = false
+            isContinuous = false
+            captureCallback = nil
+            callback("⚠️ Accessibility permission required")
             return
         }
         
@@ -160,6 +169,16 @@ class KeyboardCapture: ObservableObject {
         AXIsProcessTrustedWithOptions(options as CFDictionary)
     }
     
+    // Check permissions without prompting
+    func checkAccessibilityPermissionsSilently() -> Bool {
+        return AXIsProcessTrusted()
+    }
+    
+    // Public method to explicitly request permissions (for use in wizard)
+    func requestPermissionsExplicitly() {
+        requestAccessibilityPermissions()
+    }
+    
     // MARK: - Emergency Stop Sequence Detection
     
     func startEmergencyMonitoring(callback: @escaping () -> Void) {
@@ -168,9 +187,11 @@ class KeyboardCapture: ObservableObject {
         emergencyCallback = callback
         isMonitoringEmergency = true
         
-        // Request accessibility permissions if needed
+        // Only start monitoring if we already have permissions
+        // Don't prompt for permissions - let the wizard handle that
         if !hasAccessibilityPermissions() {
-            requestAccessibilityPermissions()
+            // Silently fail - we'll start monitoring once permissions are granted
+            isMonitoringEmergency = false
             return
         }
         

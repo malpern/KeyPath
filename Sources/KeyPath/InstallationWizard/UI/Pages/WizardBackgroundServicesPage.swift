@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct WizardDaemonPage: View {
+struct WizardBackgroundServicesPage: View {
     let issues: [WizardIssue]
     let isFixing: Bool
     let onAutoFix: () -> Void
@@ -11,36 +11,36 @@ struct WizardDaemonPage: View {
         VStack(spacing: 24) {
             // Header
             VStack(spacing: 12) {
-                Image(systemName: "gear.circle.fill")
+                Image(systemName: "gear.badge")
                     .font(.system(size: 48))
                     .foregroundColor(.blue)
                     .symbolRenderingMode(.hierarchical)
                 
-                Text("Karabiner Daemon")
+                Text("Background Services")
                     .font(.title2)
                     .fontWeight(.semibold)
                 
-                Text("The Karabiner Virtual HID Device Daemon is required for keyboard remapping to work properly.")
+                Text("Karabiner background services must be enabled for proper keyboard functionality.")
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.top, 32)
             
-            // Daemon Status
+            // Services Status
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
-                    Image(systemName: daemonRunning ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    Image(systemName: backgroundServicesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill")
                         .font(.title2)
-                        .foregroundColor(daemonRunning ? .green : .red)
+                        .foregroundColor(backgroundServicesEnabled ? .green : .orange)
                         .frame(width: 30)
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Karabiner Virtual HID Device Daemon")
+                        Text("Karabiner Background Services")
                             .font(.body)
                             .fontWeight(.medium)
                         
-                        Text(daemonRunning ? "Daemon is running" : "Daemon is not running")
+                        Text(backgroundServicesEnabled ? "Services are enabled" : "Services not enabled in Login Items")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -72,45 +72,54 @@ struct WizardDaemonPage: View {
             Spacer()
             
             // Action Section
-            if !daemonRunning {
+            if !backgroundServicesEnabled {
                 VStack(spacing: 16) {
-                    Text("The daemon needs to be running for Kanata to communicate with the keyboard hardware.")
+                    Text("These services need to be manually added to Login Items for automatic startup.")
                         .multilineTextAlignment(.center)
                         .foregroundColor(.secondary)
                         .font(.body)
                     
-                    Button(action: {
-                        onAutoFix()
-                    }) {
-                        HStack {
-                            if isFixing {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                Text("Starting Daemon...")
-                            } else {
-                                Image(systemName: "play.circle.fill")
-                                Text("Start Karabiner Daemon")
+                    VStack(spacing: 12) {
+                        Button("Open System Settings") {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+                                NSWorkspace.shared.open(url)
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        
+                        HStack(spacing: 12) {
+                            Button("Open Karabiner Folder") {
+                                openKarabinerFolderInFinder()
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Show Help") {
+                                // This will be handled by the parent view
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        
+                        Button("Check Status") {
+                            Task {
+                                await onRefresh()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(isFixing)
                 }
-                .frame(maxWidth: 300)
+                .frame(maxWidth: 350)
             } else {
                 VStack(spacing: 8) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
-                        Text("Daemon is running successfully!")
+                        Text("Background services are enabled!")
                             .fontWeight(.medium)
                     }
                     
-                    Text("You can proceed to the next step.")
+                    Text("Karabiner services will start automatically at login.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -121,8 +130,17 @@ struct WizardDaemonPage: View {
     
     // MARK: - Computed Properties
     
-    private var daemonRunning: Bool {
-        // If there are no daemon issues, assume it's running
-        !issues.contains { $0.category == .daemon }
+    private var backgroundServicesEnabled: Bool {
+        // If there are no background services issues, assume they're enabled
+        !issues.contains { $0.category == .backgroundServices }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func openKarabinerFolderInFinder() {
+        let karabinerPath = "/Library/Application Support/org.pqrs/Karabiner-Elements/"
+        if let url = URL(string: "file://\(karabinerPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? karabinerPath)") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }

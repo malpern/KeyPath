@@ -83,6 +83,9 @@ $CURRENT_USER ALL=(ALL) NOPASSWD: $SCRIPT_DIR/test-file-manager.sh
 
 # Direct commands needed by wrapper scripts
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/pkill
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/pkill -f kanata
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/pkill -f karabiner_grabber
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/pkill -f Karabiner-VirtualHIDDevice-Daemon
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/launchctl
 $CURRENT_USER ALL=(ALL) NOPASSWD: /opt/homebrew/bin/kanata
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/local/bin/kanata

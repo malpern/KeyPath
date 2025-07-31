@@ -5,6 +5,7 @@ struct WizardInstallationPage: View {
     let isFixing: Bool
     let onAutoFix: () -> Void
     let onRefresh: () async -> Void
+    let kanataManager: KanataManager
     
     var body: some View {
         VStack(spacing: 24) {
@@ -61,7 +62,8 @@ struct WizardInstallationPage: View {
                         IssueCardView(
                             issue: issue,
                             onAutoFix: issue.autoFixAction != nil ? onAutoFix : nil,
-                            isFixing: isFixing
+                            isFixing: isFixing,
+                            kanataManager: kanataManager
                         )
                     }
                 }

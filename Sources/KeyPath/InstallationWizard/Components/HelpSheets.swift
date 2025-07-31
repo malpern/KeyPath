@@ -257,6 +257,174 @@ struct AccessibilityHelpSheet: View {
     }
 }
 
+// MARK: - Background Services Help Sheet
+
+struct BackgroundServicesHelpSheet: View {
+    let kanataManager: KanataManager
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("Background Services Setup Help")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Karabiner background services may not appear in System Settings by default. You need to manually add them as Login Items:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("How to add Login Items:")
+                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .top) {
+                                Text("1.")
+                                    .fontWeight(.medium)
+                                    .frame(width: 20)
+                                Text("Click 'Open System Settings' below")
+                            }
+                            HStack(alignment: .top) {
+                                Text("2.")
+                                    .fontWeight(.medium)
+                                    .frame(width: 20)
+                                Text("Go to General → Login Items & Extensions")
+                            }
+                            HStack(alignment: .top) {
+                                Text("3.")
+                                    .fontWeight(.medium)
+                                    .frame(width: 20)
+                                Text("Click the \"Open at Login\" section in the left sidebar")
+                            }
+                            HStack(alignment: .top) {
+                                Text("4.")
+                                    .fontWeight(.medium)
+                                    .frame(width: 20)
+                                Text("Click the \"+\" button to add new items")
+                            }
+                            HStack(alignment: .top) {
+                                Text("5.")
+                                    .fontWeight(.medium)
+                                    .frame(width: 20)
+                                Text("Navigate to: /Library/Application Support/org.pqrs/Karabiner-Elements/")
+                                    .font(.system(.subheadline, design: .monospaced))
+                            }
+                            HStack(alignment: .top) {
+                                Text("6.")
+                                    .fontWeight(.medium)
+                                    .frame(width: 20)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Add these two applications (drag & drop or use + button):")
+                                    Text("• Karabiner-Elements Non-Privileged Agents.app")
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundColor(.secondary)
+                                    Text("• Karabiner-Elements Privileged Daemons.app")
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            HStack(alignment: .top) {
+                                Text("7.")
+                                    .fontWeight(.medium)
+                                    .frame(width: 20)
+                                Text("Restart your Mac or log out/log in for changes to take effect")
+                            }
+                        }
+                        .font(.subheadline)
+                    }
+                    .padding()
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(8)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Helpful Tools:")
+                            .font(.headline)
+                        
+                        Text("• Use 'Open Karabiner Folder' to browse directly to the apps")
+                        Text("• Use 'Copy File Paths' to get the full paths for manual navigation")
+                        Text("• Services may not appear in \"By Category\" view even when working")
+                        Text("• You can verify services with: launchctl list | grep karabiner")
+                            .font(.system(.subheadline, design: .monospaced))
+                    }
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+                    
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            Button("Open System Settings") {
+                                if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            
+                            Button("Open Karabiner Folder") {
+                                openKarabinerFolderInFinder()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        
+                        HStack(spacing: 12) {
+                            Button("Copy File Paths") {
+                                copyKarabinerPathsToClipboard()
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Check Service Status") {
+                                Task {
+                                    // Refresh service status
+                                    await MainActor.run {
+                                        kanataManager.objectWillChange.send()
+                                    }
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .frame(width: 650, height: 600)
+        .padding()
+    }
+    
+    private func openKarabinerFolderInFinder() {
+        let karabinerPath = "/Library/Application Support/org.pqrs/Karabiner-Elements/"
+        if let url = URL(string: "file://\(karabinerPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? karabinerPath)") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    
+    private func copyKarabinerPathsToClipboard() {
+        let paths = """
+        Karabiner-Elements Non-Privileged Agents.app
+        Karabiner-Elements Privileged Daemons.app
+        
+        Full paths:
+        /Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app
+        /Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app
+        """
+        
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(paths, forType: .string)
+    }
+    
+}
+
 // MARK: - Visual Effect Background
 
 struct VisualEffectBackground: NSViewRepresentable {

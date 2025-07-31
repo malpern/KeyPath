@@ -15,12 +15,14 @@ class WizardNavigationEngine: WizardNavigating {
             
         case .missingPermissions(let missing):
             // Prioritize Input Monitoring first, then Accessibility
-            if missing.contains(.keyPathInputMonitoring) || missing.contains(.kanataInputMonitoring) {
+            if missing.contains(.kanataInputMonitoring) {
                 return .inputMonitoring
-            } else if missing.contains(.keyPathAccessibility) || missing.contains(.kanataAccessibility) {
+            } else if missing.contains(.kanataAccessibility) {
                 return .accessibility
+            } else if missing.contains(.backgroundServicesEnabled) {
+                return .backgroundServices
             } else {
-                // Driver extension or background services - these are shown on permissions pages
+                // Driver extension - show on input monitoring page
                 return .inputMonitoring
             }
             
@@ -76,6 +78,7 @@ class WizardNavigationEngine: WizardNavigating {
             .conflicts,           // Must resolve conflicts first
             .inputMonitoring,     // Permissions before installation
             .accessibility,       // Second permission type
+            .backgroundServices,  // Background services setup
             .installation,        // Install components after permissions
             .daemon,              // Start daemon after installation
             .summary              // Final state
@@ -97,6 +100,8 @@ class WizardNavigationEngine: WizardNavigating {
             return true  // Cannot use without components
         case .inputMonitoring, .accessibility:
             return false // Can proceed but functionality limited
+        case .backgroundServices:
+            return false // Can proceed but services won't auto-start
         case .daemon:
             return false // Can auto-start
         case .summary:
@@ -131,6 +136,8 @@ class WizardNavigationEngine: WizardNavigating {
             return "Open Settings"
         case .accessibility:
             return "Open Settings"
+        case .backgroundServices:
+            return "Open System Settings"
         case .installation:
             return "Install Components"
         case .daemon:
@@ -161,6 +168,8 @@ class WizardNavigationEngine: WizardNavigating {
             return false
         case .inputMonitoring, .accessibility:
             return true // Can always open settings
+        case .backgroundServices:
+            return true // Can always open system settings
         case .installation:
             if case .missingComponents(let missing) = state {
                 return !missing.isEmpty

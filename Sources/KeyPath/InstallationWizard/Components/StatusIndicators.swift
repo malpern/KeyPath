@@ -6,6 +6,14 @@ struct SummaryItemView: View {
     let icon: String
     let title: String
     let status: InstallationStatus
+    let onTap: (() -> Void)?
+    
+    init(icon: String, title: String, status: InstallationStatus, onTap: (() -> Void)? = nil) {
+        self.icon = icon
+        self.title = title
+        self.status = status
+        self.onTap = onTap
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -21,6 +29,12 @@ struct SummaryItemView: View {
             
             statusIcon
         }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap?()
+        }
+        .background(onTap != nil ? Color.clear : Color.clear)
+        .help(onTap != nil ? "Click to open settings" : "")
     }
     
     var iconColor: Color {
@@ -108,6 +122,9 @@ struct IssueCardView: View {
     let issue: WizardIssue
     let onAutoFix: (() -> Void)?
     let isFixing: Bool
+    let kanataManager: KanataManager?
+    
+    @State private var showingBackgroundServicesHelp = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -159,13 +176,26 @@ struct IssueCardView: View {
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
                     
-                    Text(userAction)
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(6)
+                    HStack {
+                        Text(userAction)
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        
+                        Spacer()
+                        
+                        // Add help button for Background Services issues
+                        if issue.title.contains("Background Services") {
+                            Button("Help") {
+                                showingBackgroundServicesHelp = true
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(6)
                 }
             }
         }
@@ -176,6 +206,11 @@ struct IssueCardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(borderColor, lineWidth: 1)
         )
+        .sheet(isPresented: $showingBackgroundServicesHelp) {
+            if let kanataManager = kanataManager {
+                BackgroundServicesHelpSheet(kanataManager: kanataManager)
+            }
+        }
     }
     
     var backgroundColor: Color {

@@ -141,6 +141,20 @@ struct PermissionCard: View {
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
+        } else if permissionType == "Background Services" {
+            // For Background Services, open both System Settings and Finder
+            // First open System Settings
+            if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+                NSWorkspace.shared.open(url)
+            }
+            
+            // Then open Karabiner folder in Finder after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let karabinerPath = "/Library/Application Support/org.pqrs/Karabiner-Elements/"
+                if let url = URL(string: "file://\(karabinerPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? karabinerPath)") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
         } else {
             // Fallback to general Privacy & Security (without closing wizard)
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
