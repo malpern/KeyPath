@@ -185,14 +185,16 @@ struct WizardPermissionsPage: View {
     }
     
     private var allPermissionsGranted: Bool {
-        switch permissionType {
-        case .inputMonitoring:
-            return keyPathInputMonitoringStatus == .completed && 
-                   kanataInputMonitoringStatus == .completed
-        case .accessibility:
-            return keyPathAccessibilityStatus == .completed && 
-                   kanataAccessibilityStatus == .completed
+        // Use the issues array to determine status - this ensures consistency with SystemStateDetector
+        let relevantIssues = issues.filter { issue in
+            switch permissionType {
+            case .inputMonitoring:
+                return issue.category == .permissions && issue.title == "Kanata Input Monitoring" 
+            case .accessibility:
+                return issue.category == .permissions && issue.title == "Kanata Accessibility"
+            }
         }
+        return relevantIssues.isEmpty
     }
     
     private func openSettings() {

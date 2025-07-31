@@ -40,16 +40,9 @@ class SystemStateDetector: SystemStateDetecting {
             issues.append(createDaemonIssue())
         }
         
-        if !serviceRunning {
-            // Only add service issue if all other components are ready
-            let allOtherComponentsReady = !conflictResult.hasConflicts && 
-                                        permissionResult.allGranted && 
-                                        componentResult.allInstalled && 
-                                        daemonRunning
-            if allOtherComponentsReady {
-                issues.append(createServiceIssue())
-            }
-        }
+        // Service status is handled by systemState on the summary page
+        // No need to create separate service issues since the summary page
+        // provides a "Start Kanata Service" button based on systemState
         
         // Determine available auto-fix actions
         let autoFixActions = determineAutoFixActions(
@@ -358,16 +351,6 @@ class SystemStateDetector: SystemStateDetecting {
         )
     }
     
-    private func createServiceIssue() -> WizardIssue {
-        WizardIssue(
-            severity: .info,
-            category: .service,
-            title: "Kanata Service Not Running",
-            description: "All components are ready but the Kanata service is not active.",
-            autoFixAction: nil,
-            userAction: "Click 'Start Kanata Service' to begin keyboard remapping"
-        )
-    }
     
     // MARK: - Auto-Fix Action Determination
     

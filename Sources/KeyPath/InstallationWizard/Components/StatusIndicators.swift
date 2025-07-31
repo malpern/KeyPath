@@ -33,7 +33,7 @@ struct SummaryItemView: View {
         .onTapGesture {
             onTap?()
         }
-        .background(onTap != nil ? Color.clear : Color.clear)
+        .background(Color.clear)
         .help(onTap != nil ? "Click to open settings" : "")
     }
     
@@ -184,7 +184,7 @@ struct IssueCardView: View {
                         Spacer()
                         
                         // Add help button for Background Services issues
-                        if issue.title.contains("Background Services") {
+                        if issue.category == .backgroundServices {
                             Button("Help") {
                                 showingBackgroundServicesHelp = true
                             }

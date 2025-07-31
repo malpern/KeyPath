@@ -89,7 +89,7 @@ struct WizardIssue: Identifiable {
             case .info: return .blue
             case .warning: return .orange
             case .error: return .red
-            case .critical: return .red
+            case .critical: return .purple
             }
         }
         
@@ -109,8 +109,6 @@ struct WizardIssue: Identifiable {
         case backgroundServices
         case installation
         case daemon
-        case service
-        case configuration
     }
 }
 
