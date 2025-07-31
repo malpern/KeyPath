@@ -187,14 +187,23 @@ class KanataManager: ObservableObject {
     
     /// Kills all Kanata processes for recovery purposes
     private func killAllKanataProcesses() async {
-        let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        killTask.arguments = ["/usr/bin/pkill", "-f", "kanata"]
+        let script = """
+        do shell script "/usr/bin/pkill -f kanata" with administrator privileges
+        """
+        
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
         
         do {
-            try killTask.run()
-            killTask.waitUntilExit()
-            AppLogger.shared.log("🔧 [Recovery] Killed all Kanata processes")
+            try task.run()
+            task.waitUntilExit()
+            
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("🔧 [Recovery] Killed all Kanata processes")
+            } else {
+                AppLogger.shared.log("⚠️ [Recovery] Failed to kill Kanata processes - exit code: \(task.terminationStatus)")
+            }
         } catch {
             AppLogger.shared.log("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
         }
@@ -202,16 +211,24 @@ class KanataManager: ObservableObject {
     
     /// Restarts the Karabiner VirtualHID daemon to fix connection issues
     private func restartKarabinerDaemon() async {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = [
-            "/usr/bin/pkill", "-f", "Karabiner-VirtualHIDDevice-Daemon"
-        ]
+        // First kill the daemon
+        let killScript = """
+        do shell script "/usr/bin/pkill -f Karabiner-VirtualHIDDevice-Daemon" with administrator privileges
+        """
+        
+        let killTask = Process()
+        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        killTask.arguments = ["-e", killScript]
         
         do {
-            try task.run()
-            task.waitUntilExit()
-            AppLogger.shared.log("🔧 [Recovery] Killed Karabiner daemon")
+            try killTask.run()
+            killTask.waitUntilExit()
+            
+            if killTask.terminationStatus == 0 {
+                AppLogger.shared.log("🔧 [Recovery] Killed Karabiner daemon")
+            } else {
+                AppLogger.shared.log("⚠️ [Recovery] Failed to kill Karabiner daemon - exit code: \(killTask.terminationStatus)")
+            }
             
             // Wait a moment then check if it auto-restarts
             try? await Task.sleep(nanoseconds: 2_000_000_000)
@@ -219,11 +236,13 @@ class KanataManager: ObservableObject {
             if !isKarabinerDaemonRunning() {
                 AppLogger.shared.log("🔧 [Recovery] Daemon not auto-restarted, attempting manual start...")
                 
+                let startScript = """
+                do shell script "\\"/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon\\" > /dev/null 2>&1 &" with administrator privileges
+                """
+                
                 let startTask = Process()
-                startTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-                startTask.arguments = [
-                    "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
-                ]
+                startTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                startTask.arguments = ["-e", startScript]
                 
                 try? startTask.run()
                 AppLogger.shared.log("🔧 [Recovery] Attempted to start Karabiner daemon")
@@ -725,13 +744,24 @@ class KanataManager: ObservableObject {
         
         // Also kill any external Kanata processes to ensure clean start
         AppLogger.shared.log("🧹 [Start] Cleaning up any external Kanata processes...")
+        let killScript = """
+        do shell script "/usr/bin/pkill -f kanata" with administrator privileges
+        """
+        
         let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        killTask.arguments = ["/usr/bin/pkill", "-f", "kanata"]
+        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        killTask.arguments = ["-e", killScript]
         
         do {
             try killTask.run()
             killTask.waitUntilExit()
+            
+            if killTask.terminationStatus == 0 {
+                AppLogger.shared.log("🧹 [Start] Cleaned up external Kanata processes")
+            } else {
+                AppLogger.shared.log("⚠️ [Start] Cleanup returned exit code: \(killTask.terminationStatus)")
+            }
+            
             // Wait a moment for processes to fully terminate
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
         } catch {
