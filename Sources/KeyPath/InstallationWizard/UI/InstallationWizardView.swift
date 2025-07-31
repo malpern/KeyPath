@@ -193,11 +193,22 @@ struct InstallationWizardView: View {
                 systemState = result.state
                 currentIssues = result.issues
                 
-                // Auto-navigate if needed
+                // Auto-navigate if needed, but with special handling for conflicts page
                 let targetPage = navigationEngine.determineCurrentPage(for: result.state)
-                if targetPage != currentPage && navigationEngine.createNavigationState(currentPage: currentPage, systemState: systemState).shouldAutoNavigate {
-                    withAnimation {
-                        currentPage = targetPage
+                let shouldAutoNavigate = navigationEngine.createNavigationState(currentPage: currentPage, systemState: systemState).shouldAutoNavigate
+                
+                // Don't auto-navigate away from conflicts page if there are unresolved conflicts  
+                let hasUnresolvedConflicts = currentIssues.contains { $0.category == .conflicts }
+                let isOnConflictsPage = currentPage == .conflicts
+                let wouldNavigateAwayFromConflicts = isOnConflictsPage && targetPage != .conflicts
+                
+                if targetPage != currentPage && shouldAutoNavigate {
+                    if wouldNavigateAwayFromConflicts && hasUnresolvedConflicts {
+                        AppLogger.shared.log("🔍 [NewWizard] Preventing auto-nav away from conflicts page - unresolved conflicts exist")
+                    } else {
+                        withAnimation {
+                            currentPage = targetPage
+                        }
                     }
                 }
                 
