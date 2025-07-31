@@ -47,27 +47,17 @@ class WizardAutoFixer: AutoFixCapable {
     private func terminateConflictingProcesses() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Terminating conflicting processes")
         
-        // Use broad pkill to terminate all kanata processes
-        let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        killTask.arguments = ["/usr/bin/pkill", "-f", "kanata"]
+        // Use KanataManager's specific method to kill karabiner_grabber
+        let success = await kanataManager.killKarabinerGrabber()
         
-        do {
-            try killTask.run()
-            killTask.waitUntilExit()
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully terminated conflicting processes")
             
-            if killTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [AutoFixer] Successfully terminated conflicting processes")
-                
-                // Wait for processes to fully terminate
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                return true
-            } else {
-                AppLogger.shared.log("❌ [AutoFixer] Failed to terminate processes - exit code: \(killTask.terminationStatus)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Error terminating processes: \(error)")
+            // Wait for processes to fully terminate
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            return true
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to terminate conflicting processes")
             return false
         }
     }
