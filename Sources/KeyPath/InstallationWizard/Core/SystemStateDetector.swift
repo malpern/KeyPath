@@ -6,17 +6,22 @@ class SystemStateDetector: SystemStateDetecting {
     private let kanataManager: KanataManager
     private let vhidDeviceManager: VHIDDeviceManager
     private let launchDaemonInstaller: LaunchDaemonInstaller
+    private let systemRequirements: SystemRequirements
     
-    init(kanataManager: KanataManager, vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(), launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller()) {
+    init(kanataManager: KanataManager, vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(), launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(), systemRequirements: SystemRequirements = SystemRequirements()) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.launchDaemonInstaller = launchDaemonInstaller
+        self.systemRequirements = systemRequirements
     }
     
     // MARK: - Main Detection Method
     
     func detectCurrentState() async -> SystemStateResult {
         AppLogger.shared.log("🔍 [StateDetector] Starting comprehensive system state detection")
+        
+        // Check system compatibility first
+        let compatibilityResult = systemRequirements.validateSystemCompatibility()
         
         // Detect all aspects of system state
         let conflictResult = await detectConflicts()
@@ -27,6 +32,7 @@ class SystemStateDetector: SystemStateDetecting {
         
         // Determine overall state
         let state = determineOverallState(
+            compatibility: compatibilityResult,
             conflicts: conflictResult,
             permissions: permissionResult,
             components: componentResult,
@@ -36,6 +42,7 @@ class SystemStateDetector: SystemStateDetecting {
         
         // Collect all issues
         var issues: [WizardIssue] = []
+        issues.append(contentsOf: createSystemRequirementIssues(from: compatibilityResult))
         issues.append(contentsOf: createConflictIssues(from: conflictResult))
         issues.append(contentsOf: createPermissionIssues(from: permissionResult))
         issues.append(contentsOf: createComponentIssues(from: componentResult))
@@ -305,6 +312,7 @@ class SystemStateDetector: SystemStateDetecting {
     // MARK: - State Determination
     
     private func determineOverallState(
+        compatibility: SystemRequirements.ValidationResult,
         conflicts: ConflictDetectionResult,
         permissions: PermissionCheckResult,
         components: ComponentCheckResult,
@@ -312,7 +320,12 @@ class SystemStateDetector: SystemStateDetecting {
         daemonRunning: Bool
     ) -> WizardSystemState {
         
-        // Priority order: conflicts > missing components > missing permissions > daemon > service > ready
+        // Priority order: compatibility > conflicts > missing components > missing permissions > daemon > service > ready
+        
+        // System compatibility is the highest priority
+        if !compatibility.isCompatible {
+            return .initializing // Use initializing state for compatibility issues since we don't have a specific state
+        }
         
         if conflicts.hasConflicts {
             return .conflictsDetected(conflicts: conflicts.conflicts)
@@ -338,6 +351,39 @@ class SystemStateDetector: SystemStateDetecting {
     }
     
     // MARK: - Issue Creation
+    
+    private func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult) -> [WizardIssue] {
+        var issues: [WizardIssue] = []
+        
+        // Create issues for each compatibility problem
+        if !result.isCompatible {
+            for issue in result.issues {
+                issues.append(WizardIssue(
+                    identifier: .component(.karabinerDriver), // Use existing identifier for now
+                    severity: .critical,
+                    category: .systemRequirements,
+                    title: "System Compatibility Issue",
+                    description: issue,
+                    autoFixAction: nil, // No auto-fix for system compatibility issues
+                    userAction: result.recommendations.first
+                ))
+            }
+        }
+        
+        // Add informational issue about driver type requirements (always show this)
+        let driverInfo = WizardIssue(
+            identifier: .component(.karabinerDriver),
+            severity: .info,
+            category: .systemRequirements,
+            title: "Driver Type: \(result.requiredDriverType.displayName)",
+            description: "This system requires \(result.requiredDriverType.description)",
+            autoFixAction: nil,
+            userAction: nil
+        )
+        issues.append(driverInfo)
+        
+        return issues
+    }
     
     private func createConflictIssues(from result: ConflictDetectionResult) -> [WizardIssue] {
         guard result.hasConflicts else { return [] }

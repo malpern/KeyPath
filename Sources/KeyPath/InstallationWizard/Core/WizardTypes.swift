@@ -148,6 +148,7 @@ struct WizardIssue: Identifiable {
         case backgroundServices
         case installation
         case daemon
+        case systemRequirements
     }
 }
 
