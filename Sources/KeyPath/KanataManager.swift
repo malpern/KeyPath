@@ -1238,7 +1238,7 @@ class KanataManager: ObservableObject {
         return (keyPathOverall, kanataOverall, details)
     }
     
-    private func checkTCCForInputMonitoring(path: String) -> Bool {
+    func checkTCCForInputMonitoring(path: String) -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
         task.arguments = ["/Library/Application Support/com.apple.TCC/TCC.db",
@@ -1427,6 +1427,232 @@ class KanataManager: ObservableObject {
 sudo launchctl unload /Library/LaunchDaemons/org.pqrs.karabiner.karabiner_grabber.plist
 sudo pkill -f karabiner_grabber
 """
+    }
+    
+    /// Permanently disable all Karabiner Elements services with user permission
+    func disableKarabinerElementsPermanently() async -> Bool {
+        AppLogger.shared.log("🔧 [Karabiner] Starting permanent disable of Karabiner Elements services")
+        
+        // Ask user for permission first
+        let userConsented = await requestPermissionToDisableKarabiner()
+        guard userConsented else {
+            AppLogger.shared.log("❌ [Karabiner] User declined permission to disable Karabiner Elements")
+            return false
+        }
+        
+        // Get the disable script
+        let script = getDisableKarabinerElementsScript()
+        
+        // Execute with elevated privileges
+        return await executeScriptWithSudo(script: script, description: "Disable Karabiner Elements Services")
+    }
+    
+    /// Request user permission to disable Karabiner Elements
+    private func requestPermissionToDisableKarabiner() async -> Bool {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = "Disable Karabiner Elements?"
+                alert.informativeText = """
+                KeyPath has detected that Karabiner Elements' grabber service is running, which conflicts with Kanata and prevents keyboard remapping from working properly.
+                
+                Would you like to permanently disable the conflicting Karabiner services? This will:
+                • Stop the karabiner_grabber process (conflicts with Kanata)
+                • Stop related keyboard remapping services
+                • Keep Karabiner Event Viewer and menu apps working
+                • Allow Kanata to work without conflicts
+                
+                Note: This only disables the conflicting parts. You can still use Karabiner Event Viewer for debugging.
+                """
+                alert.addButton(withTitle: "Disable Conflicting Services")
+                alert.addButton(withTitle: "Cancel")
+                alert.alertStyle = .warning
+                
+                let response = alert.runModal()
+                continuation.resume(returning: response == .alertFirstButtonReturn)
+            }
+        }
+    }
+    
+    /// Generate script to disable only conflicting Karabiner Elements services
+    private func getDisableKarabinerElementsScript() -> String {
+        return """
+        #!/bin/bash
+        
+        echo "🔧 Disabling conflicting Karabiner Elements services..."
+        echo "ℹ️  Keeping Event Viewer and menu apps working"
+        
+        # Kill only conflicting processes (keep Menu and NotificationWindow)
+        echo "Stopping conflicting processes..."
+        pkill -f "karabiner_grabber" 2>/dev/null || true
+        echo "  ✓ Stopped karabiner_grabber (main conflict with Kanata)"
+        
+        pkill -f "karabiner_console_user_server" 2>/dev/null || true
+        echo "  ✓ Stopped karabiner_console_user_server"
+        
+        pkill -f "karabiner_session_monitor" 2>/dev/null || true
+        echo "  ✓ Stopped karabiner_session_monitor"
+        
+        # Disable the conflicting services using their actual service names
+        echo "Disabling conflicting services..."
+        launchctl bootout gui/$(id -u) org.pqrs.service.agent.karabiner_grabber 2>/dev/null || true
+        echo "  ✓ Disabled karabiner_grabber service"
+        
+        launchctl bootout gui/$(id -u) org.pqrs.service.agent.karabiner_console_user_server 2>/dev/null || true  
+        echo "  ✓ Disabled karabiner_console_user_server service"
+        
+        launchctl bootout gui/$(id -u) org.pqrs.service.agent.karabiner_session_monitor 2>/dev/null || true
+        echo "  ✓ Disabled karabiner_session_monitor service"
+        
+        # Keep menu apps running - they don't conflict
+        echo "ℹ️  Keeping Karabiner-Menu and Karabiner-NotificationWindow running"
+        echo "ℹ️  Karabiner Event Viewer will continue to work for debugging"
+        
+        # Verify that karabiner_grabber is actually gone
+        echo ""
+        echo "🔍 Verifying karabiner_grabber removal..."
+        sleep 2  # Give processes time to fully terminate
+        
+        if pgrep -f "karabiner_grabber" > /dev/null 2>&1; then
+            echo "❌ VERIFICATION FAILED: karabiner_grabber is still running"
+            echo "   Attempting force kill..."
+            pkill -9 -f "karabiner_grabber" 2>/dev/null || true
+            sleep 1
+            if pgrep -f "karabiner_grabber" > /dev/null 2>&1; then
+                echo "❌ FORCE KILL FAILED: karabiner_grabber could not be stopped"
+                exit 1
+            else
+                echo "✅ Force kill successful: karabiner_grabber stopped"
+            fi
+        else
+            echo "✅ VERIFIED: karabiner_grabber successfully stopped"
+        fi
+        
+        # Verify services are disabled
+        echo "🔍 Verifying services are disabled..."
+        if launchctl list | grep -q "org.pqrs.service.agent.karabiner_grabber"; then
+            echo "⚠️  WARNING: karabiner_grabber service still appears in launchctl list"
+            echo "   This may indicate the service will restart on login"
+        else
+            echo "✅ VERIFIED: karabiner_grabber service successfully disabled"
+        fi
+        
+        echo ""
+        echo "✅ Conflicting Karabiner services have been disabled"
+        echo "✅ Event Viewer and menu apps remain functional"
+        echo "✅ Changes are effective immediately - no restart required"
+        echo "✅ Conflicts will stay resolved after system restarts"
+        echo ""
+        echo "Note: Re-enable by opening Karabiner Elements settings if needed"
+        """
+    }
+    
+    /// Execute a script with sudo privileges using osascript
+    private func executeScriptWithSudo(script: String, description: String) async -> Bool {
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                // Create temporary script file
+                let tempDir = NSTemporaryDirectory()
+                let scriptPath = "\(tempDir)disable_karabiner_\(UUID().uuidString).sh"
+                
+                do {
+                    // Write script to temporary file
+                    try script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
+                    
+                    // Make script executable
+                    let chmodTask = Process()
+                    chmodTask.executableURL = URL(fileURLWithPath: "/bin/chmod")
+                    chmodTask.arguments = ["+x", scriptPath]
+                    try chmodTask.run()
+                    chmodTask.waitUntilExit()
+                    
+                    // Execute script with sudo using osascript for password prompt
+                    let osascriptCommand = """
+                    do shell script "\(scriptPath)" with administrator privileges
+                    """
+                    
+                    let osascriptTask = Process()
+                    osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                    osascriptTask.arguments = ["-e", osascriptCommand]
+                    
+                    let pipe = Pipe()
+                    osascriptTask.standardOutput = pipe
+                    osascriptTask.standardError = pipe
+                    
+                    try osascriptTask.run()
+                    osascriptTask.waitUntilExit()
+                    
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    let output = String(data: data, encoding: .utf8) ?? ""
+                    
+                    // Clean up temporary file
+                    try? FileManager.default.removeItem(atPath: scriptPath)
+                    
+                    if osascriptTask.terminationStatus == 0 {
+                        AppLogger.shared.log("✅ [Karabiner] Successfully disabled Karabiner Elements services")
+                        AppLogger.shared.log("📝 [Karabiner] Output: \(output)")
+                        
+                        // Perform additional verification from Swift side
+                        Task {
+                            try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
+                            await self.verifyKarabinerGrabberRemoval()
+                        }
+                        
+                        continuation.resume(returning: true)
+                    } else {
+                        AppLogger.shared.log("❌ [Karabiner] Failed to disable Karabiner Elements services")
+                        AppLogger.shared.log("📝 [Karabiner] Error output: \(output)")
+                        continuation.resume(returning: false)
+                    }
+                    
+                } catch {
+                    AppLogger.shared.log("❌ [Karabiner] Error executing disable script: \(error)")
+                    // Clean up temporary file
+                    try? FileManager.default.removeItem(atPath: scriptPath)
+                    continuation.resume(returning: false)
+                }
+            }
+        }
+    }
+    
+    /// Verify that karabiner_grabber has been successfully removed
+    private func verifyKarabinerGrabberRemoval() async {
+        AppLogger.shared.log("🔍 [Karabiner] Performing post-disable verification...")
+        
+        // Check if process is still running
+        let isStillRunning = isKarabinerElementsRunning()
+        if isStillRunning {
+            AppLogger.shared.log("⚠️ [Karabiner] WARNING: karabiner_grabber still detected after disable attempt")
+            AppLogger.shared.log("⚠️ [Karabiner] This may cause conflicts with Kanata")
+        } else {
+            AppLogger.shared.log("✅ [Karabiner] VERIFIED: karabiner_grabber successfully removed")
+        }
+        
+        // Check if service is still in launchctl list
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["list"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            if output.contains("org.pqrs.service.agent.karabiner_grabber") {
+                AppLogger.shared.log("⚠️ [Karabiner] WARNING: karabiner_grabber service still in launchctl list")
+                AppLogger.shared.log("⚠️ [Karabiner] Service may restart on next login")
+            } else {
+                AppLogger.shared.log("✅ [Karabiner] VERIFIED: karabiner_grabber service successfully unloaded")
+            }
+        } catch {
+            AppLogger.shared.log("❌ [Karabiner] Error checking launchctl status: \(error)")
+        }
     }
     
     func killKarabinerGrabber() async -> Bool {

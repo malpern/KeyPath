@@ -191,6 +191,7 @@ protocol AutoFixCapable {
 /// Protocol for wizard navigation management
 protocol WizardNavigating {
     func determineCurrentPage(for state: WizardSystemState) -> WizardPage
+    func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage
     func canNavigate(from: WizardPage, to: WizardPage, given state: WizardSystemState) -> Bool
     func nextPage(from current: WizardPage, given state: WizardSystemState) -> WizardPage?
 }

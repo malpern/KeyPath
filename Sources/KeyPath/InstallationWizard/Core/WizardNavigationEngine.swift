@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// Handles wizard navigation logic based on system state
 class WizardNavigationEngine: WizardNavigating {
@@ -35,6 +36,59 @@ class WizardNavigationEngine: WizardNavigating {
         case .serviceNotRunning, .ready, .active:
             return .summary
         }
+    }
+    
+    func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage {
+        // First check for blocking issues in priority order
+        AppLogger.shared.log("🔍 [NavigationEngine] Determining page for \(issues.count) issues:")
+        for issue in issues {
+            AppLogger.shared.log("🔍 [NavigationEngine]   - \(issue.category): \(issue.title)")
+        }
+        
+        // 1. Conflicts (highest priority)
+        if issues.contains(where: { $0.category == .conflicts }) {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .conflicts (found conflicts)")
+            return .conflicts
+        }
+        
+        // 2. Missing components 
+        if issues.contains(where: { $0.category == .installation }) {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .installation (found installation issues)")
+            return .installation
+        }
+        
+        // 3. Permissions (check specific types and only go to pages with actual issues)
+        let inputMonitoringIssue = issues.first(where: { $0.category == .permissions && $0.title == "Kanata Input Monitoring" })
+        if let issue = inputMonitoringIssue {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .inputMonitoring (found input monitoring issue: '\(issue.title)')")
+            return .inputMonitoring
+        } else {
+            AppLogger.shared.log("🔍 [NavigationEngine] No input monitoring issues found - skipping input monitoring page")
+        }
+        
+        let accessibilityIssue = issues.first(where: { $0.category == .permissions && $0.title == "Kanata Accessibility" })
+        if let issue = accessibilityIssue {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .accessibility (found accessibility issue: '\(issue.title)')")
+            return .accessibility
+        } else {
+            AppLogger.shared.log("🔍 [NavigationEngine] No accessibility issues found - skipping accessibility page")
+        }
+        
+        // 4. Background services
+        if issues.contains(where: { $0.category == .backgroundServices }) {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .backgroundServices (found background services issues)")
+            return .backgroundServices
+        }
+        
+        // 5. Daemon issues
+        if issues.contains(where: { $0.category == .daemon }) {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .daemon (found daemon issues)")
+            return .daemon
+        }
+        
+        // 6. If no issues, go to summary
+        AppLogger.shared.log("🔍 [NavigationEngine] → .summary (no issues found)")
+        return .summary
     }
     
     func canNavigate(from: WizardPage, to: WizardPage, given state: WizardSystemState) -> Bool {

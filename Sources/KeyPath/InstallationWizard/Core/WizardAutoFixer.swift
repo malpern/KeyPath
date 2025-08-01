@@ -47,19 +47,37 @@ class WizardAutoFixer: AutoFixCapable {
     private func terminateConflictingProcesses() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Terminating conflicting processes")
         
-        // Use KanataManager's specific method to kill karabiner_grabber
-        let success = await kanataManager.killKarabinerGrabber()
+        // First try temporary fix (just killing processes)
+        let temporarySuccess = await kanataManager.killKarabinerGrabber()
         
-        if success {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully terminated conflicting processes")
+        if temporarySuccess {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully terminated conflicting processes (temporary)")
             
             // Wait for processes to fully terminate
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            
+            // Check if Karabiner Elements is installed and offer permanent disable
+            if await isKarabinerElementsInstalled() {
+                let permanentSuccess = await kanataManager.disableKarabinerElementsPermanently()
+                if permanentSuccess {
+                    AppLogger.shared.log("✅ [AutoFixer] Successfully disabled Karabiner Elements permanently - effective immediately")
+                    AppLogger.shared.log("ℹ️ [AutoFixer] No restart required - conflicts resolved permanently")
+                } else {
+                    AppLogger.shared.log("⚠️ [AutoFixer] Temporary fix applied, but permanent disable was declined or failed")
+                }
+            }
+            
             return true
         } else {
             AppLogger.shared.log("❌ [AutoFixer] Failed to terminate conflicting processes")
             return false
         }
+    }
+    
+    /// Check if Karabiner Elements is installed on the system
+    private func isKarabinerElementsInstalled() async -> Bool {
+        let karabinerAppPath = "/Applications/Karabiner-Elements.app"
+        return FileManager.default.fileExists(atPath: karabinerAppPath)
     }
     
     private func startKarabinerDaemon() async -> Bool {

@@ -210,14 +210,16 @@ struct InstallationWizardView: View {
         await MainActor.run {
             systemState = result.state
             currentIssues = result.issues
-            currentPage = navigationEngine.determineCurrentPage(for: result.state)
+            let targetPage = navigationEngine.determineCurrentPage(for: result.state, issues: result.issues)
+            currentPage = targetPage
             lastPageChangeTime = Date()
             
             withAnimation {
                 isInitializing = false
             }
             
-            AppLogger.shared.log("🔍 [NewWizard] Initial state: \(result.state), \(result.issues.count) issues, page: \(currentPage)")
+            AppLogger.shared.log("🔍 [NewWizard] Initial setup - State: \(result.state), Issues: \(result.issues.count), Target Page: \(targetPage)")
+            AppLogger.shared.log("🔍 [NewWizard] Issue details: \(result.issues.map { "\($0.category)-\($0.title)" })")
         }
     }
     
@@ -240,8 +242,10 @@ struct InstallationWizardView: View {
                 let inGracePeriod = userInteractionMode && timeSinceLastPageChange < autoNavigationGracePeriod
                 
                 // Auto-navigate if needed, but with grace period and conflicts handling
-                let targetPage = navigationEngine.determineCurrentPage(for: result.state)
+                let targetPage = navigationEngine.determineCurrentPage(for: result.state, issues: result.issues)
                 let shouldAutoNavigate = navigationEngine.createNavigationState(currentPage: currentPage, systemState: systemState).shouldAutoNavigate
+                
+                AppLogger.shared.log("🔍 [Navigation] Current: \(currentPage), Target: \(targetPage), Issues: \(result.issues.map { "\($0.category)-\($0.title)" })")
                 
                 if targetPage != currentPage && shouldAutoNavigate {
                     // Never auto-navigate during grace period

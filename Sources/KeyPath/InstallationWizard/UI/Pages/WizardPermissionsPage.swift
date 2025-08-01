@@ -66,20 +66,7 @@ struct WizardPermissionsPage: View {
             }
             .padding(.horizontal, 40)
             
-            // Issues (if any)
-            if !issues.isEmpty {
-                VStack(spacing: 12) {
-                    ForEach(issues) { issue in
-                        IssueCardView(
-                            issue: issue,
-                            onAutoFix: nil, // Permissions require manual action
-                            isFixing: false,
-                            kanataManager: kanataManager
-                        )
-                    }
-                }
-                .padding(.horizontal, 40)
-            }
+            // Permission status is shown via the cards above - no need to duplicate as issues
             
             Spacer()
             
@@ -167,19 +154,23 @@ struct WizardPermissionsPage: View {
     // MARK: - Permission Status Computation
     
     private var keyPathInputMonitoringStatus: InstallationStatus {
+        // For Input Monitoring page, check only Input Monitoring permission
         kanataManager.hasInputMonitoringPermission() ? .completed : .notStarted
     }
     
     private var kanataInputMonitoringStatus: InstallationStatus {
-        let (_, kanataHasPermission, _) = kanataManager.checkBothAppsHavePermissions()
-        return kanataHasPermission ? .completed : .notStarted
+        // Check kanata's Input Monitoring permission specifically
+        let kanataHasInputMonitoring = kanataManager.checkTCCForInputMonitoring(path: "/usr/local/bin/kanata")
+        return kanataHasInputMonitoring ? .completed : .notStarted
     }
     
     private var keyPathAccessibilityStatus: InstallationStatus {
+        // Check KeyPath's Accessibility permission specifically
         kanataManager.hasAccessibilityPermission() ? .completed : .notStarted
     }
     
     private var kanataAccessibilityStatus: InstallationStatus {
+        // Check kanata's Accessibility permission specifically
         let kanataAccessibility = kanataManager.checkAccessibilityForPath("/usr/local/bin/kanata")
         return kanataAccessibility ? .completed : .notStarted
     }

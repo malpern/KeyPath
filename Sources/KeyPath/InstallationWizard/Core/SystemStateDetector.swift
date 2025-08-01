@@ -174,14 +174,19 @@ class SystemStateDetector: SystemStateDetecting {
         var missing: [PermissionRequirement] = []
         var granted: [PermissionRequirement] = []
         
-        // Check both KeyPath app and kanata binary permissions
-        let (keyPathHasPermission, kanataHasPermission, _) = kanataManager.checkBothAppsHavePermissions()
+        // Check Input Monitoring permissions for each app individually
+        let keyPathHasInputMonitoring = kanataManager.hasInputMonitoringPermission()
+        let kanataHasInputMonitoring = kanataManager.checkTCCForInputMonitoring(path: "/usr/local/bin/kanata")
+        
+        AppLogger.shared.log("🔍 [StateDetector] Input Monitoring - KeyPath: \(keyPathHasInputMonitoring), Kanata: \(kanataHasInputMonitoring)")
         
         // For Input Monitoring, we need BOTH apps to have permission for the system to work properly
-        if keyPathHasPermission && kanataHasPermission {
+        if keyPathHasInputMonitoring && kanataHasInputMonitoring {
             granted.append(.kanataInputMonitoring)
+            AppLogger.shared.log("🔍 [StateDetector] ✅ Input Monitoring GRANTED")
         } else {
             missing.append(.kanataInputMonitoring)
+            AppLogger.shared.log("🔍 [StateDetector] ❌ Input Monitoring MISSING")
         }
         
         // Check accessibility permissions for both apps
@@ -189,11 +194,15 @@ class SystemStateDetector: SystemStateDetecting {
         let keyPathAccessibility = AXIsProcessTrusted()
         let kanataAccessibility = kanataManager.checkAccessibilityForPath("/usr/local/bin/kanata")
         
+        AppLogger.shared.log("🔍 [StateDetector] Accessibility - KeyPath: \(keyPathAccessibility), Kanata: \(kanataAccessibility)")
+        
         // For Accessibility, we need BOTH apps to have permission  
         if keyPathAccessibility && kanataAccessibility {
             granted.append(.kanataAccessibility)
+            AppLogger.shared.log("🔍 [StateDetector] ✅ Accessibility GRANTED")
         } else {
             missing.append(.kanataAccessibility)
+            AppLogger.shared.log("🔍 [StateDetector] ❌ Accessibility MISSING")
         }
         
         // Check driver extension
@@ -312,14 +321,22 @@ class SystemStateDetector: SystemStateDetecting {
     }
     
     private func createPermissionIssues(from result: PermissionCheckResult) -> [WizardIssue] {
+        AppLogger.shared.log("🔍 [StateDetector] Creating issues for \(result.missing.count) missing permissions:")
+        for permission in result.missing {
+            AppLogger.shared.log("🔍 [StateDetector]   - Missing: \(permission)")
+        }
+        
         return result.missing.map { permission in
             // Background services get their own category and page
             let category: WizardIssue.IssueCategory = permission == .backgroundServicesEnabled ? .backgroundServices : .permissions
+            let title = permissionTitle(for: permission)
+            
+            AppLogger.shared.log("🔍 [StateDetector] Creating issue: category=\(category), title='\(title)'")
             
             return WizardIssue(
                 severity: .warning,
                 category: category,
-                title: permissionTitle(for: permission),
+                title: title,
                 description: permissionDescription(for: permission),
                 autoFixAction: nil,
                 userAction: userActionForPermission(permission)

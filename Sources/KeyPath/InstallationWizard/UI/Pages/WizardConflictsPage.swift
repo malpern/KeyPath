@@ -8,6 +8,14 @@ struct WizardConflictsPage: View {
     let kanataManager: KanataManager
     
     @State private var isScanning = false
+    @State private var isDisablingPermanently = false
+    
+    // Check if there are Karabiner-related conflicts
+    private var hasKarabinerConflict: Bool {
+        issues.contains { issue in
+            issue.description.lowercased().contains("karabiner")
+        }
+    }
     
     var body: some View {
         VStack(spacing: 24) {
@@ -95,6 +103,35 @@ struct WizardConflictsPage: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .disabled(isFixing)
+                    
+                    // Add permanent disable option for Karabiner Elements
+                    if hasKarabinerConflict {
+                        Button(action: {
+                            Task {
+                                isDisablingPermanently = true
+                                let success = await kanataManager.disableKarabinerElementsPermanently()
+                                if success {
+                                    // Refresh after successful disable
+                                    await onRefresh()
+                                }
+                                isDisablingPermanently = false
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                if isDisablingPermanently {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Image(systemName: "xmark.shield")
+                                }
+                                Text(isDisablingPermanently ? "Disabling..." : "Permanently Disable Conflicting Services")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                        .disabled(isDisablingPermanently || isFixing)
+                    }
                 }
                 
                 Button(action: {
