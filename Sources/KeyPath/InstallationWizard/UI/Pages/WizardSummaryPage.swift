@@ -38,6 +38,7 @@ struct WizardSummaryPage: View {
         let statusItems = createStatusItems()
         
         ForEach(statusItems, id: \.title) { item in
+            // Show the main status item
             WizardStatusItem(
                 icon: item.icon,
                 title: item.title,
@@ -45,26 +46,26 @@ struct WizardSummaryPage: View {
                 isNavigable: item.isNavigable,
                 action: item.isNavigable ? { onNavigateToPage?(item.targetPage!) } : nil
             )
-        }
-        
-        // Show permissions breakdown if there are issues
-        if hasAnyPermissionIssues() {
-            VStack(spacing: WizardDesign.Spacing.labelGap) {
-                let permissionItems = createPermissionStatusItems()
-                ForEach(permissionItems, id: \.title) { item in
-                    HStack(spacing: WizardDesign.Spacing.iconGap) {
-                        // Indent permission sub-items
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: WizardDesign.Spacing.indentation)
-                        
-                        WizardStatusItem(
-                            icon: item.icon,
-                            title: item.title,
-                            status: item.status,
-                            isNavigable: item.isNavigable,
-                            action: item.isNavigable ? { onNavigateToPage?(item.targetPage!) } : nil
-                        )
+            
+            // If this is the System Permissions item, show the permission breakdown immediately after
+            if item.title == "System Permissions" && hasAnyPermissionIssues() {
+                VStack(spacing: WizardDesign.Spacing.labelGap) {
+                    let permissionItems = createPermissionStatusItems()
+                    ForEach(permissionItems, id: \.title) { permissionItem in
+                        HStack(spacing: WizardDesign.Spacing.iconGap) {
+                            // Indent permission sub-items to show they belong to System Permissions
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(width: WizardDesign.Spacing.indentation)
+                            
+                            WizardStatusItem(
+                                icon: permissionItem.icon,
+                                title: permissionItem.title,
+                                status: permissionItem.status,
+                                isNavigable: permissionItem.isNavigable,
+                                action: permissionItem.isNavigable ? { onNavigateToPage?(permissionItem.targetPage!) } : nil
+                            )
+                        }
                     }
                 }
             }
