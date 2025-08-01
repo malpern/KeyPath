@@ -84,6 +84,7 @@ struct WizardPermissionsPage: View {
                     .buttonStyle(.link)
                 }
             }
+            .padding(.bottom, WizardDesign.Spacing.pageVertical)
         }
         .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
         .background(WizardDesign.Colors.wizardBackground)

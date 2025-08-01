@@ -48,9 +48,14 @@ struct WizardConflictsPage: View {
             VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                 if issues.isEmpty {
                     VStack(spacing: WizardDesign.Spacing.itemGap) {
-                        Text("✅ System Status: Clean")
-                            .font(WizardDesign.Typography.status)
-                            .foregroundColor(WizardDesign.Colors.success)
+                        HStack(spacing: WizardDesign.Spacing.labelGap) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(WizardDesign.Colors.success)
+                                .font(WizardDesign.Typography.body)
+                            Text("System Status: Clean")
+                                .font(WizardDesign.Typography.status)
+                        }
+                        .foregroundColor(WizardDesign.Colors.success)
                         
                         Text("KeyPath checked for conflicts and found none. The system is ready for keyboard remapping.")
                             .font(WizardDesign.Typography.body)
