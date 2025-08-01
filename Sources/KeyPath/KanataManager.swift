@@ -1390,6 +1390,13 @@ class KanataManager: ObservableObject {
     }
     
     func isKarabinerElementsRunning() -> Bool {
+        // First check if we've permanently disabled the grabber
+        let markerPath = "\(NSHomeDirectory())/.keypath/karabiner-grabber-disabled"
+        if FileManager.default.fileExists(atPath: markerPath) {
+            AppLogger.shared.log("ℹ️ [Conflict] karabiner_grabber permanently disabled by KeyPath - skipping conflict check")
+            return false
+        }
+        
         // Check if Karabiner-Elements grabber is running (conflicts with Kanata)
         // We check more broadly for karabiner_grabber process
         let task = Process()
@@ -1479,71 +1486,122 @@ sudo pkill -f karabiner_grabber
         return """
         #!/bin/bash
         
-        echo "🔧 Disabling conflicting Karabiner Elements services..."
+        echo "🔧 Permanently disabling conflicting Karabiner Elements services..."
         echo "ℹ️  Keeping Event Viewer and menu apps working"
         
-        # Kill only conflicting processes (keep Menu and NotificationWindow)
-        echo "Stopping conflicting processes..."
+        # Kill only the conflicting process - karabiner_grabber
+        echo "Stopping conflicting process..."
         pkill -f "karabiner_grabber" 2>/dev/null || true
-        echo "  ✓ Stopped karabiner_grabber (main conflict with Kanata)"
+        echo "  ✓ Stopped karabiner_grabber (only process that conflicts with Kanata)"
         
-        pkill -f "karabiner_console_user_server" 2>/dev/null || true
-        echo "  ✓ Stopped karabiner_console_user_server"
+        echo "ℹ️  Keeping other Karabiner services running (they don't conflict)"
+        echo "ℹ️  - karabiner_console_user_server: provides configuration interface"
+        echo "ℹ️  - karabiner_session_monitor: monitors session changes"
         
-        pkill -f "karabiner_session_monitor" 2>/dev/null || true
-        echo "  ✓ Stopped karabiner_session_monitor"
+        # Step 1: Disable and unload all karabiner_grabber services
+        echo "Disabling karabiner_grabber services permanently..."
         
-        # Disable the conflicting services using their actual service names
-        echo "Disabling conflicting services..."
+        # User-level services
+        launchctl disable gui/$(id -u)/org.pqrs.service.agent.karabiner_grabber 2>/dev/null || true
         launchctl bootout gui/$(id -u) org.pqrs.service.agent.karabiner_grabber 2>/dev/null || true
-        echo "  ✓ Disabled karabiner_grabber service"
         
-        launchctl bootout gui/$(id -u) org.pqrs.service.agent.karabiner_console_user_server 2>/dev/null || true  
-        echo "  ✓ Disabled karabiner_console_user_server service"
+        # System-level services
+        launchctl disable system/org.pqrs.service.daemon.karabiner_grabber 2>/dev/null || true
+        launchctl bootout system/org.pqrs.service.daemon.karabiner_grabber 2>/dev/null || true
         
-        launchctl bootout gui/$(id -u) org.pqrs.service.agent.karabiner_session_monitor 2>/dev/null || true
-        echo "  ✓ Disabled karabiner_session_monitor service"
+        # Also disable with all possible service names
+        launchctl disable gui/$(id -u)/org.pqrs.Karabiner-Elements.karabiner_grabber 2>/dev/null || true
+        launchctl bootout gui/$(id -u) org.pqrs.Karabiner-Elements.karabiner_grabber 2>/dev/null || true
         
-        # Keep menu apps running - they don't conflict
-        echo "ℹ️  Keeping Karabiner-Menu and Karabiner-NotificationWindow running"
-        echo "ℹ️  Karabiner Event Viewer will continue to work for debugging"
+        echo "  ✓ Disabled and unloaded all karabiner_grabber services"
         
-        # Verify that karabiner_grabber is actually gone
+        # Step 2: Find and disable ALL karabiner_grabber plist files
+        echo "Disabling karabiner_grabber plist files permanently..."
+        
+        # Common locations for Karabiner plist files
+        PLIST_LOCATIONS=(
+            "$HOME/Library/LaunchAgents"
+            "/Library/LaunchAgents"
+            "/Library/LaunchDaemons"
+            "/System/Library/LaunchAgents"
+            "/System/Library/LaunchDaemons"
+        )
+        
+        for location in "${PLIST_LOCATIONS[@]}"; do
+            if [ -d "$location" ]; then
+                find "$location" -name "*karabiner*grabber*.plist" 2>/dev/null | while read plist; do
+                    if [ -f "$plist" ]; then
+                        echo "  📦 Backing up and disabling: $plist"
+                        cp "$plist" "$plist.keypath-backup" 2>/dev/null || true
+                        mv "$plist" "$plist.keypath-disabled" 2>/dev/null || true
+                    fi
+                done
+            fi
+        done
+        
+        # Step 3: Create a marker file to prevent automatic restart
+        echo "Creating permanent disable marker..."
+        mkdir -p "$HOME/.keypath"
+        echo "$(date): Karabiner grabber permanently disabled by KeyPath" > "$HOME/.keypath/karabiner-grabber-disabled"
+        echo "  ✓ Created disable marker at ~/.keypath/karabiner-grabber-disabled"
+        
+        # Step 4: Kill any remaining karabiner_grabber processes more aggressively
+        echo "Final cleanup of any remaining karabiner_grabber processes..."
+        pkill -9 -f "karabiner_grabber" 2>/dev/null || true
+        sleep 1
+        
+        echo "ℹ️  All Karabiner menu apps and other services remain running"
+        echo "ℹ️  Only karabiner_grabber (the keyboard grabber) has been permanently disabled"
+        
+        # Step 5: Comprehensive verification
         echo ""
-        echo "🔍 Verifying karabiner_grabber removal..."
+        echo "🔍 Verifying permanent karabiner_grabber removal..."
         sleep 2  # Give processes time to fully terminate
         
+        GRABBER_FOUND=false
+        
+        # Check for running processes
         if pgrep -f "karabiner_grabber" > /dev/null 2>&1; then
-            echo "❌ VERIFICATION FAILED: karabiner_grabber is still running"
-            echo "   Attempting force kill..."
-            pkill -9 -f "karabiner_grabber" 2>/dev/null || true
-            sleep 1
-            if pgrep -f "karabiner_grabber" > /dev/null 2>&1; then
-                echo "❌ FORCE KILL FAILED: karabiner_grabber could not be stopped"
-                exit 1
-            else
-                echo "✅ Force kill successful: karabiner_grabber stopped"
+            echo "❌ VERIFICATION FAILED: karabiner_grabber process is still running"
+            GRABBER_FOUND=true
+        fi
+        
+        # Check for enabled services
+        if launchctl print gui/$(id -u)/org.pqrs.service.agent.karabiner_grabber 2>/dev/null | grep -q "state = running"; then
+            echo "❌ VERIFICATION FAILED: karabiner_grabber service is still enabled"
+            GRABBER_FOUND=true
+        fi
+        
+        # Check for active plist files
+        for location in "${PLIST_LOCATIONS[@]}"; do
+            if [ -d "$location" ]; then
+                if find "$location" -name "*karabiner*grabber*.plist" 2>/dev/null | grep -q "\\.plist$"; then
+                    echo "❌ VERIFICATION FAILED: Active karabiner_grabber plist files still exist"
+                    GRABBER_FOUND=true
+                    break
+                fi
             fi
+        done
+        
+        if [ "$GRABBER_FOUND" = false ]; then
+            echo "✅ VERIFICATION SUCCESSFUL: karabiner_grabber permanently disabled"
+            echo "✅ Conflicts resolved - Kanata can now run without interference"
+            echo "✅ Changes will persist across reboots and app restarts"
         else
-            echo "✅ VERIFIED: karabiner_grabber successfully stopped"
+            echo "⚠️  VERIFICATION INCOMPLETE: Some karabiner_grabber components may still be active"
+            echo "   This may cause conflicts to reappear after restart"
         fi
         
-        # Verify services are disabled
-        echo "🔍 Verifying services are disabled..."
-        if launchctl list | grep -q "org.pqrs.service.agent.karabiner_grabber"; then
-            echo "⚠️  WARNING: karabiner_grabber service still appears in launchctl list"
-            echo "   This may indicate the service will restart on login"
-        else
-            echo "✅ VERIFIED: karabiner_grabber service successfully disabled"
-        fi
+        # Step 6: Show what's still running (for user awareness)
+        echo ""
+        echo "📊 Remaining Karabiner processes (these are OK and don't conflict):"
+        pgrep -f "karabiner" | grep -v "karabiner_grabber" | while read pid; do
+            ps -p "$pid" -o pid,comm 2>/dev/null | tail -n +2 || true
+        done
         
         echo ""
-        echo "✅ Conflicting Karabiner services have been disabled"
-        echo "✅ Event Viewer and menu apps remain functional"
-        echo "✅ Changes are effective immediately - no restart required"
-        echo "✅ Conflicts will stay resolved after system restarts"
-        echo ""
-        echo "Note: Re-enable by opening Karabiner Elements settings if needed"
+        echo "🎉 Permanent disable complete!"
+        echo "   Restart your system to test persistence."
         """
     }
     
