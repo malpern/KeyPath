@@ -9,36 +9,28 @@ struct WizardSummaryPage: View {
     let onNavigateToPage: ((WizardPage) -> Void)?
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            VStack(spacing: 12) {
-                Image(systemName: "keyboard.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
-                    .symbolRenderingMode(.hierarchical)
-                
-                Text("Welcome to KeyPath")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                
-                Text("Set up your keyboard customization tool")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 32)
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Header using design system
+            WizardPageHeader(
+                icon: "keyboard.fill",
+                title: "Welcome to KeyPath", 
+                subtitle: "Set up your keyboard customization tool",
+                status: .info
+            )
             
             // System Status Overview
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                 systemStatusItems()
             }
-            .padding(.horizontal, 60)
+            .wizardPagePadding()
             
             Spacer()
             
             // Action Section
             actionSection()
         }
-        .padding()
+        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .background(WizardDesign.Colors.wizardBackground)
     }
     
     @ViewBuilder
@@ -46,48 +38,34 @@ struct WizardSummaryPage: View {
         let statusItems = createStatusItems()
         
         ForEach(statusItems, id: \.title) { item in
-            if item.isNavigable {
-                Button(action: {
-                    onNavigateToPage?(item.targetPage!)
-                }) {
-                    SummaryItemView(
-                        icon: item.icon,
-                        title: item.title,
-                        status: item.status
-                    )
-                }
-                .buttonStyle(.plain)
-            } else {
-                SummaryItemView(
-                    icon: item.icon,
-                    title: item.title,
-                    status: item.status
-                )
-            }
+            WizardStatusItem(
+                icon: item.icon,
+                title: item.title,
+                status: item.status,
+                isNavigable: item.isNavigable,
+                action: item.isNavigable ? { onNavigateToPage?(item.targetPage!) } : nil
+            )
         }
         
         // Show permissions breakdown if there are issues
         if hasAnyPermissionIssues() {
-            VStack(spacing: 8) {
+            VStack(spacing: WizardDesign.Spacing.labelGap) {
                 let permissionItems = createPermissionStatusItems()
                 ForEach(permissionItems, id: \.title) { item in
-                    Button(action: {
-                        onNavigateToPage?(item.targetPage!)
-                    }) {
-                        HStack(spacing: 12) {
-                            // Indent permission sub-items
-                            Rectangle()
-                                .fill(Color.clear)
-                                .frame(width: 16)
-                            
-                            SummaryItemView(
-                                icon: item.icon,
-                                title: item.title,
-                                status: item.status
-                            )
-                        }
+                    HStack(spacing: WizardDesign.Spacing.iconGap) {
+                        // Indent permission sub-items
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: WizardDesign.Spacing.indentation)
+                        
+                        WizardStatusItem(
+                            icon: item.icon,
+                            title: item.title,
+                            status: item.status,
+                            isNavigable: item.isNavigable,
+                            action: item.isNavigable ? { onNavigateToPage?(item.targetPage!) } : nil
+                        )
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -95,9 +73,9 @@ struct WizardSummaryPage: View {
         // Show service status separately with visual separation
         if shouldShowServiceStatus {
             Divider()
-                .padding(.vertical, 8)
+                .padding(.vertical, WizardDesign.Spacing.labelGap)
             
-            SummaryItemView(
+            WizardStatusItem(
                 icon: "play.circle.fill",
                 title: "Kanata Service Running",
                 status: serviceStatus
@@ -110,86 +88,78 @@ struct WizardSummaryPage: View {
         switch systemState {
         case .active:
             // Everything is ready and running
-            VStack(spacing: 16) {
-                HStack(spacing: 8) {
+            VStack(spacing: WizardDesign.Spacing.itemGap) {
+                HStack(spacing: WizardDesign.Spacing.labelGap) {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(WizardDesign.Colors.success)
                     Text("KeyPath is Active")
-                        .fontWeight(.medium)
+                        .font(WizardDesign.Typography.status)
                 }
-                .font(.body)
-                .foregroundColor(.green)
+                .foregroundColor(WizardDesign.Colors.success)
                 
-                Button("Close Setup") {
+                WizardButton("Close Setup", style: .primary) {
                     onDismiss()
                 }
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
             }
-            .padding(.bottom, 32)
+            .padding(.bottom, WizardDesign.Spacing.pageVertical)
             
         case .serviceNotRunning, .ready:
             // Components ready but service not running
-            VStack(spacing: 16) {
-                HStack(spacing: 8) {
+            VStack(spacing: WizardDesign.Spacing.itemGap) {
+                HStack(spacing: WizardDesign.Spacing.labelGap) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
+                        .foregroundColor(WizardDesign.Colors.warning)
                     Text("Service Not Running")
-                        .fontWeight(.medium)
+                        .font(WizardDesign.Typography.status)
                 }
-                .font(.body)
-                .foregroundColor(.orange)
+                .foregroundColor(WizardDesign.Colors.warning)
                 
                 Text("All components are installed but the Kanata service is not active.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(WizardDesign.Typography.caption)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
                     .multilineTextAlignment(.center)
                 
-                Button("Start Kanata Service") {
+                WizardButton("Start Kanata Service", style: .primary) {
                     onStartService()
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             }
-            .padding(.bottom, 32)
+            .padding(.bottom, WizardDesign.Spacing.pageVertical)
             
         case .conflictsDetected:
             // Conflicts detected
-            VStack(spacing: 16) {
-                HStack(spacing: 8) {
+            VStack(spacing: WizardDesign.Spacing.itemGap) {
+                HStack(spacing: WizardDesign.Spacing.labelGap) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.red)
+                        .foregroundColor(WizardDesign.Colors.error)
                     Text("Conflicts Detected")
-                        .fontWeight(.medium)
+                        .font(WizardDesign.Typography.status)
                 }
-                .font(.body)
-                .foregroundColor(.red)
+                .foregroundColor(WizardDesign.Colors.error)
                 
                 Text("Please resolve conflicts to continue.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(WizardDesign.Typography.caption)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
                     .multilineTextAlignment(.center)
             }
-            .padding(.bottom, 32)
+            .padding(.bottom, WizardDesign.Spacing.pageVertical)
             
         default:
             // Components not ready
-            VStack(spacing: 16) {
-                HStack(spacing: 8) {
+            VStack(spacing: WizardDesign.Spacing.itemGap) {
+                HStack(spacing: WizardDesign.Spacing.labelGap) {
                     Image(systemName: "gear.badge.xmark")
-                        .foregroundColor(.gray)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
                     Text("Setup Incomplete")
-                        .fontWeight(.medium)
+                        .font(WizardDesign.Typography.status)
                 }
-                .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundColor(WizardDesign.Colors.secondaryText)
                 
                 Text("Complete the setup process to start using KeyPath")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(WizardDesign.Typography.caption)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
                     .multilineTextAlignment(.center)
             }
-            .padding(.bottom, 32)
+            .padding(.bottom, WizardDesign.Spacing.pageVertical)
         }
     }
     

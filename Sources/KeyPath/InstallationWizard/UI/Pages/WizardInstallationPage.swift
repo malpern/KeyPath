@@ -8,33 +8,17 @@ struct WizardInstallationPage: View {
     let kanataManager: KanataManager
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.1))
-                        .frame(width: 80, height: 80)
-                    
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundColor(.blue)
-                        .symbolRenderingMode(.hierarchical)
-                }
-                
-                Text("Install Components")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Set up required system components")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.top, 32)
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Header using design system
+            WizardPageHeader(
+                icon: "arrow.down.circle.fill",
+                title: "Install Components",
+                subtitle: "Set up required system components",
+                status: .info
+            )
             
             // Installation Status
-            VStack(spacing: 16) {
+            VStack(spacing: WizardDesign.Spacing.itemGap) {
                 InstallationItemView(
                     title: "Kanata Binary",
                     description: "Core keyboard remapping engine",
@@ -81,31 +65,32 @@ struct WizardInstallationPage: View {
                         .foregroundColor(.secondary)
                 }
             } else if allComponentsInstalled {
-                VStack(spacing: 12) {
-                    HStack(spacing: 8) {
+                VStack(spacing: WizardDesign.Spacing.elementGap) {
+                    HStack(spacing: WizardDesign.Spacing.labelGap) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.body)
+                            .foregroundColor(WizardDesign.Colors.success)
+                            .font(WizardDesign.Typography.body)
                         Text("Components installed")
-                            .fontWeight(.medium)
+                            .font(WizardDesign.Typography.status)
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
                 }
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: WizardDesign.Spacing.elementGap) {
                     Button("Install Components") {
                         onAutoFix()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isFixing))
+                    .disabled(isFixing)
                     
                     Text("Administrator password required")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(WizardDesign.Typography.caption)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
                 }
             }
         }
-        .padding()
+        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .background(WizardDesign.Colors.wizardBackground)
     }
     
     // MARK: - Helper Methods

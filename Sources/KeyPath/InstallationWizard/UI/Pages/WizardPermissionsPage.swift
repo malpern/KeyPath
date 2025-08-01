@@ -35,61 +35,44 @@ struct WizardPermissionsPage: View {
     @State private var showingHelp = false
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.1))
-                        .frame(width: 80, height: 80)
-                    
-                    Image(systemName: permissionType.icon)
-                        .font(.system(size: 36))
-                        .foregroundColor(.blue)
-                        .symbolRenderingMode(.hierarchical)
-                }
-                
-                Text(permissionType.title)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text(permissionType.description)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.top, 32)
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Header using design system
+            WizardPageHeader(
+                icon: permissionType.icon,
+                title: permissionType.title,
+                subtitle: permissionType.description,
+                status: .info
+            )
             
             // Permission Status Cards
-            VStack(spacing: 16) {
+            VStack(spacing: WizardDesign.Spacing.itemGap) {
                 permissionCards()
             }
-            .padding(.horizontal, 40)
+            .wizardPagePadding()
             
             // Permission status is shown via the cards above - no need to duplicate as issues
             
             Spacer()
             
-            // Action Section
-            VStack(spacing: 12) {
+            // Action Section using design system
+            VStack(spacing: WizardDesign.Spacing.elementGap) {
                 if allPermissionsGranted {
-                    HStack(spacing: 8) {
+                    HStack(spacing: WizardDesign.Spacing.labelGap) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.body)
+                            .foregroundColor(WizardDesign.Colors.success)
+                            .font(WizardDesign.Typography.body)
                         Text("Permissions granted")
-                            .fontWeight(.medium)
+                            .font(WizardDesign.Typography.status)
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
                 } else {
                     Button("Open \(permissionType.title) Settings") {
                         openSettings()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
                 }
                 
-                HStack(spacing: 16) {
+                HStack(spacing: WizardDesign.Spacing.itemGap) {
                     Button("Show Details") {
                         showingDetails.toggle()
                     }
@@ -102,7 +85,8 @@ struct WizardPermissionsPage: View {
                 }
             }
         }
-        .padding()
+        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .background(WizardDesign.Colors.wizardBackground)
         .sheet(isPresented: $showingDetails) {
             PermissionDetailsSheet(kanataManager: kanataManager)
         }

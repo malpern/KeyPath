@@ -16,14 +16,14 @@ struct SummaryItemView: View {
     }
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: WizardDesign.Spacing.iconGap) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(WizardDesign.Typography.subsectionTitle)
                 .foregroundColor(iconColor)
                 .frame(width: 30)
             
             Text(title)
-                .font(.body)
+                .font(WizardDesign.Typography.body)
             
             Spacer()
             
@@ -39,10 +39,10 @@ struct SummaryItemView: View {
     
     var iconColor: Color {
         switch status {
-        case .completed: return .green
-        case .inProgress: return .blue
-        case .failed: return .red
-        case .notStarted: return .gray
+        case .completed: return WizardDesign.Colors.success
+        case .inProgress: return WizardDesign.Colors.inProgress
+        case .failed: return WizardDesign.Colors.error
+        case .notStarted: return WizardDesign.Colors.secondaryText
         }
     }
     
@@ -51,19 +51,19 @@ struct SummaryItemView: View {
         switch status {
         case .completed:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-                .font(.title3)
+                .foregroundColor(WizardDesign.Colors.success)
+                .font(WizardDesign.Typography.subsectionTitle)
         case .inProgress:
             ProgressView()
                 .scaleEffect(0.7)
         case .failed:
             Image(systemName: "xmark.circle.fill")
-                .foregroundColor(.red)
-                .font(.title3)
+                .foregroundColor(WizardDesign.Colors.error)
+                .font(WizardDesign.Typography.subsectionTitle)
         case .notStarted:
             Image(systemName: "circle")
-                .foregroundColor(.gray.opacity(0.5))
-                .font(.title3)
+                .foregroundColor(WizardDesign.Colors.secondaryText.opacity(0.5))
+                .font(WizardDesign.Typography.subsectionTitle)
         }
     }
 }
@@ -76,23 +76,21 @@ struct InstallationItemView: View {
     let status: InstallationStatus
     
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: WizardDesign.Spacing.itemGap) {
             statusIcon
                 .frame(width: 24)
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap / 2) {
                 Text(title)
-                    .font(.headline)
+                    .font(WizardDesign.Typography.subsectionTitle)
                 Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(WizardDesign.Typography.caption)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
             }
             
             Spacer()
         }
-        .padding()
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(8)
+        .wizardCard()
     }
     
     @ViewBuilder
@@ -100,18 +98,18 @@ struct InstallationItemView: View {
         switch status {
         case .completed:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-                .font(.title2)
+                .foregroundColor(WizardDesign.Colors.success)
+                .font(WizardDesign.Typography.sectionTitle)
         case .inProgress:
             ProgressView()
         case .failed:
             Image(systemName: "xmark.circle.fill")
-                .foregroundColor(.red)
-                .font(.title2)
+                .foregroundColor(WizardDesign.Colors.error)
+                .font(WizardDesign.Typography.sectionTitle)
         case .notStarted:
             Image(systemName: "circle.dashed")
-                .foregroundColor(.gray.opacity(0.5))
-                .font(.title2)
+                .foregroundColor(WizardDesign.Colors.secondaryText.opacity(0.5))
+                .font(WizardDesign.Typography.sectionTitle)
         }
     }
 }
@@ -127,21 +125,21 @@ struct IssueCardView: View {
     @State private var showingBackgroundServicesHelp = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+            HStack(spacing: WizardDesign.Spacing.iconGap) {
                 Image(systemName: issue.severity.icon)
                     .font(.title2)
                     .foregroundColor(issue.severity.color)
                     .frame(width: 24)
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap / 2) {
                     Text(issue.title)
-                        .font(.headline)
+                        .font(WizardDesign.Typography.subsectionTitle)
                         .foregroundColor(.primary)
                     
                     Text(issue.description)
-                        .font(.body)
-                        .foregroundColor(.secondary)
+                        .font(WizardDesign.Typography.body)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 
@@ -152,22 +150,9 @@ struct IssueCardView: View {
                 HStack {
                     Spacer()
                     
-                    Button(action: onAutoFix) {
-                        HStack(spacing: 6) {
-                            if isFixing {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                Text("Fixing...")
-                            } else {
-                                Image(systemName: "wrench.and.screwdriver")
-                                Text("Auto-Fix")
-                            }
-                        }
+                    WizardButton(isFixing ? "Fixing..." : "Auto-Fix", style: .secondary, isLoading: isFixing) {
+                        onAutoFix()
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(isFixing)
                 }
             } else if let userAction = issue.userAction {
                 VStack(alignment: .leading, spacing: 8) {
@@ -199,9 +184,7 @@ struct IssueCardView: View {
                 }
             }
         }
-        .padding()
-        .background(backgroundColor)
-        .cornerRadius(12)
+        .wizardCard()
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(borderColor, lineWidth: 1)
@@ -243,22 +226,22 @@ struct WizardProgressView: View {
     let description: String
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: WizardDesign.Spacing.labelGap) {
             ProgressView(value: progress, total: 1.0)
-                .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
+                .progressViewStyle(LinearProgressViewStyle(tint: WizardDesign.Colors.primaryAction))
                 .frame(height: 6)
             
             HStack {
                 Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(WizardDesign.Typography.caption)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
                 
                 Spacer()
                 
                 Text("\(Int(progress * 100))%")
-                    .font(.caption)
+                    .font(WizardDesign.Typography.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
             }
         }
     }
@@ -271,18 +254,18 @@ struct PageDotsIndicator: View {
     let onPageSelected: (WizardPage) -> Void
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: WizardDesign.Spacing.labelGap) {
             ForEach(WizardPage.allCases, id: \.self) { page in
                 Circle()
-                    .fill(currentPage == page ? Color.accentColor : Color.gray.opacity(0.4))
+                    .fill(currentPage == page ? WizardDesign.Colors.primaryAction : WizardDesign.Colors.secondaryText.opacity(0.4))
                     .frame(width: 8, height: 8)
                     .scaleEffect(currentPage == page ? 1.2 : 1.0)
-                    .animation(.easeInOut(duration: 0.2), value: currentPage)
+                    .animation(WizardDesign.Animation.buttonFeedback, value: currentPage)
                     .onTapGesture {
                         onPageSelected(page)
                     }
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, WizardDesign.Spacing.labelGap)
     }
 }

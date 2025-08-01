@@ -18,37 +18,20 @@ struct WizardConflictsPage: View {
     }
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Header - Changes based on conflict state
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(issues.isEmpty ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
-                        .frame(width: 80, height: 80)
-                    
-                    Image(systemName: issues.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(issues.isEmpty ? .green : .orange)
-                        .symbolRenderingMode(.multicolor)
-                }
-                
-                Text(issues.isEmpty ? "No Conflicts Detected" : "Conflicting Processes")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text(issues.isEmpty ? 
-                     "No conflicting keyboard remapping processes found. You're ready to proceed!" :
-                     "Conflicting keyboard remapping processes must be stopped before continuing")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 400)
-            }
-            .padding(.top, 32)
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Header using design system
+            WizardPageHeader(
+                icon: issues.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                title: issues.isEmpty ? "No Conflicts Detected" : "Conflicting Processes",
+                subtitle: issues.isEmpty ? 
+                    "No conflicting keyboard remapping processes found. You're ready to proceed!" :
+                    "Conflicting keyboard remapping processes must be stopped before continuing",
+                status: issues.isEmpty ? .success : .warning
+            )
             
             // Issues List
             if !issues.isEmpty {
-                VStack(spacing: 16) {
+                VStack(spacing: WizardDesign.Spacing.itemGap) {
                     ForEach(issues) { issue in
                         IssueCardView(
                             issue: issue,
@@ -58,50 +41,48 @@ struct WizardConflictsPage: View {
                         )
                     }
                 }
-                .padding(.horizontal, 40)
+                .wizardPagePadding()
             }
             
-            // Explanation
-            VStack(alignment: .leading, spacing: 16) {
+            // Explanation using design system
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                 if issues.isEmpty {
-                    VStack(spacing: 16) {
+                    VStack(spacing: WizardDesign.Spacing.itemGap) {
                         Text("✅ System Status: Clean")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.green)
+                            .font(WizardDesign.Typography.status)
+                            .foregroundColor(WizardDesign.Colors.success)
                         
                         Text("KeyPath checked for conflicts and found none. The system is ready for keyboard remapping.")
-                            .font(.body)
-                            .foregroundColor(.secondary)
+                            .font(WizardDesign.Typography.body)
+                            .foregroundColor(WizardDesign.Colors.secondaryText)
                             .multilineTextAlignment(.center)
                     }
                 } else {
                     Text("Common conflicting processes:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .font(WizardDesign.Typography.subsectionTitle)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
                     
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
                         Label("Karabiner-Elements (conflicts with Kanata)", systemImage: "keyboard")
                         Label("Other Kanata instances running with root privileges", systemImage: "terminal")
                         Label("Previous KeyPath processes that didn't shut down properly", systemImage: "xmark.app")
                         Label("Manual Kanata installations running in the background", systemImage: "gearshape.2")
                     }
-                    .font(.caption)
-                    .padding(.leading)
+                    .font(WizardDesign.Typography.caption)
+                    .padding(.leading, WizardDesign.Spacing.indentation)
                 }
             }
-            .padding(.horizontal, 40)
+            .wizardPagePadding()
             
             Spacer()
             
-            // Action Buttons
-            VStack(spacing: 12) {
+            // Action Buttons using design system
+            VStack(spacing: WizardDesign.Spacing.elementGap) {
                 if !issues.isEmpty && issues.first?.autoFixAction != nil {
                     Button("Terminate Conflicting Processes") {
                         onAutoFix()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isFixing))
                     .disabled(isFixing)
                     
                     // Add permanent disable option for Karabiner Elements
@@ -111,25 +92,14 @@ struct WizardConflictsPage: View {
                                 isDisablingPermanently = true
                                 let success = await kanataManager.disableKarabinerElementsPermanently()
                                 if success {
-                                    // Refresh after successful disable
                                     await onRefresh()
                                 }
                                 isDisablingPermanently = false
                             }
                         }) {
-                            HStack(spacing: 8) {
-                                if isDisablingPermanently {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Image(systemName: "xmark.shield")
-                                }
-                                Text(isDisablingPermanently ? "Disabling..." : "Permanently Disable Conflicting Services")
-                            }
+                            Text(isDisablingPermanently ? "Disabling..." : "Permanently Disable Conflicting Services")
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
+                        .buttonStyle(WizardDesign.Component.DestructiveButton(isLoading: isDisablingPermanently))
                         .disabled(isDisablingPermanently || isFixing)
                     }
                 }
@@ -139,24 +109,17 @@ struct WizardConflictsPage: View {
                         isScanning = true
                         await onRefresh()
                         // Keep spinner visible for a moment so user sees the action
-                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                        try? await Task.sleep(nanoseconds: 500_000_000)
                         isScanning = false
                     }
                 }) {
-                    HStack(spacing: 8) {
-                        if isScanning {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .progressViewStyle(CircularProgressViewStyle())
-                        }
-                        Text(isScanning ? "Scanning..." : (issues.isEmpty ? "Re-scan for Conflicts" : "Check Again"))
-                    }
+                    Text(isScanning ? "Scanning..." : (issues.isEmpty ? "Re-scan for Conflicts" : "Check Again"))
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
+                .buttonStyle(WizardDesign.Component.SecondaryButton(isLoading: isScanning))
                 .disabled(isFixing || isScanning)
             }
         }
-        .padding()
+        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .background(WizardDesign.Colors.wizardBackground)
     }
 }
