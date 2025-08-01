@@ -6,37 +6,8 @@ class WizardNavigationEngine: WizardNavigating {
     
     // MARK: - Main Navigation Logic
     
-    func determineCurrentPage(for state: WizardSystemState) -> WizardPage {
-        switch state {
-        case .initializing:
-            return .summary
-            
-        case .conflictsDetected:
-            return .conflicts
-            
-        case .missingPermissions(let missing):
-            // Prioritize Input Monitoring first, then Accessibility
-            if missing.contains(.kanataInputMonitoring) {
-                return .inputMonitoring
-            } else if missing.contains(.kanataAccessibility) {
-                return .accessibility
-            } else if missing.contains(.backgroundServicesEnabled) {
-                return .backgroundServices
-            } else {
-                // Driver extension - show on input monitoring page
-                return .inputMonitoring
-            }
-            
-        case .missingComponents:
-            return .installation
-            
-        case .daemonNotRunning:
-            return .daemon
-            
-        case .serviceNotRunning, .ready, .active:
-            return .summary
-        }
-    }
+    /// Primary navigation method - determines the current page based on system state and issues
+    /// This is the preferred method as it uses structured issue identifiers for type-safe navigation
     
     func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage {
         // First check for blocking issues in priority order
@@ -57,8 +28,8 @@ class WizardNavigationEngine: WizardNavigating {
             return .installation
         }
         
-        // 3. Permissions (check specific types and only go to pages with actual issues)
-        let inputMonitoringIssue = issues.first(where: { $0.category == .permissions && $0.title == "Kanata Input Monitoring" })
+        // 3. Permissions (check specific types using structured identifiers)
+        let inputMonitoringIssue = issues.first(where: { $0.identifier == .permission(.kanataInputMonitoring) })
         if let issue = inputMonitoringIssue {
             AppLogger.shared.log("🔍 [NavigationEngine] → .inputMonitoring (found input monitoring issue: '\(issue.title)')")
             return .inputMonitoring
@@ -66,7 +37,7 @@ class WizardNavigationEngine: WizardNavigating {
             AppLogger.shared.log("🔍 [NavigationEngine] No input monitoring issues found - skipping input monitoring page")
         }
         
-        let accessibilityIssue = issues.first(where: { $0.category == .permissions && $0.title == "Kanata Accessibility" })
+        let accessibilityIssue = issues.first(where: { $0.identifier == .permission(.kanataAccessibility) })
         if let issue = accessibilityIssue {
             AppLogger.shared.log("🔍 [NavigationEngine] → .accessibility (found accessibility issue: '\(issue.title)')")
             return .accessibility
@@ -97,9 +68,9 @@ class WizardNavigationEngine: WizardNavigating {
         return true
     }
     
-    func nextPage(from current: WizardPage, given state: WizardSystemState) -> WizardPage? {
+    func nextPage(from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue] = []) -> WizardPage? {
         // Determine what the next logical page should be based on current state
-        let targetPage = determineCurrentPage(for: state)
+        let targetPage = determineCurrentPage(for: state, issues: issues)
         
         // If we're already on the target page, no next page
         if current == targetPage {
@@ -111,8 +82,8 @@ class WizardNavigationEngine: WizardNavigating {
     
     // MARK: - Navigation State Creation
     
-    func createNavigationState(currentPage: WizardPage, systemState: WizardSystemState) -> WizardNavigationState {
-        let targetPage = determineCurrentPage(for: systemState)
+    func createNavigationState(currentPage: WizardPage, systemState: WizardSystemState, issues: [WizardIssue] = []) -> WizardNavigationState {
+        let targetPage = determineCurrentPage(for: systemState, issues: issues)
         let shouldAutoNavigate = currentPage != targetPage
         
         return WizardNavigationState(
@@ -166,13 +137,13 @@ class WizardNavigationEngine: WizardNavigating {
     // MARK: - Navigation Helpers
     
     /// Determines if the wizard should show a "Next" button on the given page
-    func shouldShowNextButton(for page: WizardPage, state: WizardSystemState) -> Bool {
-        let targetPage = determineCurrentPage(for: state)
+    func shouldShowNextButton(for page: WizardPage, state: WizardSystemState, issues: [WizardIssue] = []) -> Bool {
+        let targetPage = determineCurrentPage(for: state, issues: issues)
         let currentIndex = pageIndex(page)
         let targetIndex = pageIndex(targetPage)
         
         // Show next button if we're not on the final target page
-        return currentIndex < targetIndex || targetPage != .summary
+        return currentIndex < targetIndex || targetPage != WizardPage.summary
     }
     
     /// Determines if the wizard should show a "Previous" button on the given page

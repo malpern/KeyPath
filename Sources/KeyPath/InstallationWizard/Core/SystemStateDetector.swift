@@ -310,14 +310,18 @@ class SystemStateDetector: SystemStateDetecting {
     private func createConflictIssues(from result: ConflictDetectionResult) -> [WizardIssue] {
         guard result.hasConflicts else { return [] }
         
-        return [WizardIssue(
-            severity: .error,
-            category: .conflicts,
-            title: "Conflicting Processes Detected",
-            description: result.description,
-            autoFixAction: .terminateConflictingProcesses,
-            userAction: nil
-        )]
+        // Create issues for each specific conflict
+        return result.conflicts.map { conflict in
+            WizardIssue(
+                identifier: .conflict(conflict),
+                severity: .error,
+                category: .conflicts,
+                title: WizardConstants.Titles.conflictingProcesses,
+                description: result.description,
+                autoFixAction: .terminateConflictingProcesses,
+                userAction: nil
+            )
+        }
     }
     
     private func createPermissionIssues(from result: PermissionCheckResult) -> [WizardIssue] {
@@ -334,6 +338,7 @@ class SystemStateDetector: SystemStateDetecting {
             AppLogger.shared.log("🔍 [StateDetector] Creating issue: category=\(category), title='\(title)'")
             
             return WizardIssue(
+                identifier: .permission(permission),
                 severity: .warning,
                 category: category,
                 title: title,
@@ -347,6 +352,7 @@ class SystemStateDetector: SystemStateDetecting {
     private func createComponentIssues(from result: ComponentCheckResult) -> [WizardIssue] {
         return result.missing.map { component in
             WizardIssue(
+                identifier: .component(component),
                 severity: .error,
                 category: .installation,
                 title: componentTitle(for: component),
@@ -359,9 +365,10 @@ class SystemStateDetector: SystemStateDetecting {
     
     private func createDaemonIssue() -> WizardIssue {
         WizardIssue(
+            identifier: .daemon,
             severity: .warning,
             category: .daemon,
-            title: "Karabiner Daemon Not Running",
+            title: WizardConstants.Titles.daemonNotRunning,
             description: "The Karabiner Virtual HID Device Daemon needs to be running for keyboard remapping.",
             autoFixAction: .startKarabinerDaemon,
             userAction: nil
@@ -399,10 +406,10 @@ class SystemStateDetector: SystemStateDetecting {
     
     private func permissionTitle(for permission: PermissionRequirement) -> String {
         switch permission {
-        case .kanataInputMonitoring: return "Kanata Input Monitoring"
-        case .kanataAccessibility: return "Kanata Accessibility"
-        case .driverExtensionEnabled: return "Driver Extension Disabled"
-        case .backgroundServicesEnabled: return "Background Services Disabled"
+        case .kanataInputMonitoring: return WizardConstants.Titles.kanataInputMonitoring
+        case .kanataAccessibility: return WizardConstants.Titles.kanataAccessibility
+        case .driverExtensionEnabled: return WizardConstants.Titles.driverExtensionDisabled
+        case .backgroundServicesEnabled: return WizardConstants.Titles.backgroundServicesDisabled
         }
     }
     
@@ -434,10 +441,10 @@ class SystemStateDetector: SystemStateDetecting {
     
     private func componentTitle(for component: ComponentRequirement) -> String {
         switch component {
-        case .kanataBinary: return "Kanata Binary Missing"
+        case .kanataBinary: return WizardConstants.Titles.kanataBinaryMissing
         case .kanataService: return "Kanata Service Missing"
-        case .karabinerDriver: return "Karabiner Driver Missing"
-        case .karabinerDaemon: return "Karabiner Daemon Not Running"
+        case .karabinerDriver: return WizardConstants.Titles.karabinerDriverMissing
+        case .karabinerDaemon: return WizardConstants.Titles.daemonNotRunning
         }
     }
     

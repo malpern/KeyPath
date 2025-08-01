@@ -68,9 +68,42 @@ enum AutoFixAction: Equatable {
     case createConfigDirectories
 }
 
+/// Structured identifier for wizard issues to enable type-safe navigation
+enum IssueIdentifier: Equatable {
+    case permission(PermissionRequirement)
+    case component(ComponentRequirement)
+    case conflict(SystemConflict)
+    case daemon
+    
+    /// Check if this identifier represents a conflict
+    var isConflict: Bool {
+        if case .conflict = self { return true }
+        return false
+    }
+    
+    /// Check if this identifier represents a permission issue
+    var isPermission: Bool {
+        if case .permission = self { return true }
+        return false
+    }
+    
+    /// Check if this identifier represents a component issue
+    var isComponent: Bool {
+        if case .component = self { return true }
+        return false
+    }
+    
+    /// Check if this identifier represents a daemon issue
+    var isDaemon: Bool {
+        if case .daemon = self { return true }
+        return false
+    }
+}
+
 /// Issue detected by the wizard that requires attention
 struct WizardIssue: Identifiable {
     let id = UUID()
+    let identifier: IssueIdentifier
     let severity: IssueSeverity
     let category: IssueCategory
     let title: String
@@ -172,6 +205,32 @@ struct ComponentCheckResult {
     }
 }
 
+// MARK: - Constants
+
+/// Constants for consistent wizard titles and messages
+enum WizardConstants {
+    enum Titles {
+        static let inputMonitoring = "Input Monitoring"
+        static let accessibility = "Accessibility" 
+        static let kanataInputMonitoring = "Kanata Input Monitoring"
+        static let kanataAccessibility = "Kanata Accessibility"
+        static let conflictingProcesses = "Conflicting Processes Detected"
+        static let karabinerGrabberConflict = "Karabiner Grabber Conflict"
+        static let daemonNotRunning = "Karabiner Daemon Not Running"
+        static let driverExtensionDisabled = "Driver Extension Disabled"
+        static let backgroundServicesDisabled = "Background Services Disabled"
+        static let kanataBinaryMissing = "Kanata Binary Missing"
+        static let karabinerDriverMissing = "Karabiner Driver Missing"
+    }
+    
+    enum Messages {
+        static let permissionRequired = "Permission required for keyboard remapping"
+        static let conflictDetected = "Conflicting process detected"
+        static let componentMissing = "Required component is missing"
+        static let daemonRequired = "Daemon required for virtual HID functionality"
+    }
+}
+
 // MARK: - Protocols
 
 /// Protocol for objects that can detect system state
@@ -190,8 +249,8 @@ protocol AutoFixCapable {
 
 /// Protocol for wizard navigation management
 protocol WizardNavigating {
-    func determineCurrentPage(for state: WizardSystemState) -> WizardPage
+    /// Primary navigation method using structured issue identifiers for type-safe navigation
     func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage
     func canNavigate(from: WizardPage, to: WizardPage, given state: WizardSystemState) -> Bool
-    func nextPage(from current: WizardPage, given state: WizardSystemState) -> WizardPage?
+    func nextPage(from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue]) -> WizardPage?
 }

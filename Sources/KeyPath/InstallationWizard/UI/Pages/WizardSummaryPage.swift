@@ -3,6 +3,7 @@ import SwiftUI
 struct WizardSummaryPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
+    let stateInterpreter: WizardStateInterpreter
     let onStartService: () -> Void
     let onDismiss: () -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
@@ -258,25 +259,19 @@ struct WizardSummaryPage: View {
         var items: [StatusItem] = []
         
         // Input Monitoring Permission
-        let hasInputMonitoringIssues = issues.contains { issue in
-            issue.category == .permissions && issue.title == "Kanata Input Monitoring"
-        }
         items.append(StatusItem(
             icon: "eye",
-            title: "Input Monitoring",
-            status: hasInputMonitoringIssues ? .failed : .completed,
+            title: WizardConstants.Titles.inputMonitoring,
+            status: stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues),
             isNavigable: true,
             targetPage: .inputMonitoring
         ))
         
         // Accessibility Permission  
-        let hasAccessibilityIssues = issues.contains { issue in
-            issue.category == .permissions && issue.title == "Kanata Accessibility"
-        }
         items.append(StatusItem(
             icon: "accessibility",
-            title: "Accessibility",
-            status: hasAccessibilityIssues ? .failed : .completed,
+            title: WizardConstants.Titles.accessibility,
+            status: stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues),
             isNavigable: true,
             targetPage: .accessibility
         ))
@@ -285,7 +280,7 @@ struct WizardSummaryPage: View {
         items.append(StatusItem(
             icon: "gear.badge",
             title: "Background Services",
-            status: hasIssueOfType(.backgroundServices) ? .failed : .completed,
+            status: stateInterpreter.areBackgroundServicesEnabled(in: issues) ? .completed : .failed,
             isNavigable: true,
             targetPage: .backgroundServices
         ))
@@ -294,7 +289,8 @@ struct WizardSummaryPage: View {
     }
     
     private func hasAnyPermissionIssues() -> Bool {
-        return hasIssueOfType(.permissions) || hasIssueOfType(.backgroundServices)
+        return stateInterpreter.hasAnyPermissionIssues(in: issues) || 
+               !stateInterpreter.areBackgroundServicesEnabled(in: issues)
     }
     
     private var shouldShowServiceStatus: Bool {

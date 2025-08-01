@@ -8,6 +8,7 @@ struct InstallationWizardView: View {
     // New architecture components
     @StateObject private var stateManager = WizardStateManager()
     @StateObject private var autoFixer = WizardAutoFixerManager()
+    @StateObject private var stateInterpreter = WizardStateInterpreter()
     private let navigationEngine = WizardNavigationEngine()
     
     // UI state
@@ -110,6 +111,7 @@ struct InstallationWizardView: View {
                     WizardSummaryPage(
                         systemState: systemState,
                         issues: currentIssues,
+                        stateInterpreter: stateInterpreter,
                         onStartService: startKanataService,
                         onDismiss: { dismiss() },
                         onNavigateToPage: { page in
@@ -243,7 +245,7 @@ struct InstallationWizardView: View {
                 
                 // Auto-navigate if needed, but with grace period and conflicts handling
                 let targetPage = navigationEngine.determineCurrentPage(for: result.state, issues: result.issues)
-                let shouldAutoNavigate = navigationEngine.createNavigationState(currentPage: currentPage, systemState: systemState).shouldAutoNavigate
+                let shouldAutoNavigate = navigationEngine.createNavigationState(currentPage: currentPage, systemState: systemState, issues: result.issues).shouldAutoNavigate
                 
                 AppLogger.shared.log("🔍 [Navigation] Current: \(currentPage), Target: \(targetPage), Issues: \(result.issues.map { "\($0.category)-\($0.title)" })")
                 
