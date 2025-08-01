@@ -9,19 +9,13 @@ struct InstallationWizardView: View {
     @StateObject private var stateManager = WizardStateManager()
     @StateObject private var autoFixer = WizardAutoFixerManager()
     @StateObject private var stateInterpreter = WizardStateInterpreter()
-    private let navigationEngine = WizardNavigationEngine()
+    @StateObject private var navigationCoordinator = WizardNavigationCoordinator()
+    @StateObject private var asyncOperationManager = WizardAsyncOperationManager()
     
     // UI state
-    @State private var currentPage: WizardPage = .summary
     @State private var isInitializing = true
     @State private var systemState: WizardSystemState = .initializing
     @State private var currentIssues: [WizardIssue] = []
-    @State private var isPerformingAutoFix = false
-    
-    // Auto-navigation control
-    @State private var lastPageChangeTime = Date()
-    @State private var userInteractionMode = false
-    private let autoNavigationGracePeriod: TimeInterval = 10.0 // 10 seconds
     
     var body: some View {
         VStack(spacing: 0) {
@@ -89,13 +83,9 @@ struct InstallationWizardView: View {
                 .disabled(shouldBlockClose)
             }
             
-            PageDotsIndicator(currentPage: currentPage) { page in
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    currentPage = page
-                    lastPageChangeTime = Date()
-                    userInteractionMode = true
-                    AppLogger.shared.log("🔍 [NewWizard] User manually navigated to \(page) - entering user interaction mode")
-                }
+            PageDotsIndicator(currentPage: navigationCoordinator.currentPage) { page in
+                navigationCoordinator.navigateToPage(page)
+                AppLogger.shared.log("🔍 [NewWizard] User manually navigated to \(page) - entering user interaction mode")
             }
         }
         .padding()
@@ -106,7 +96,7 @@ struct InstallationWizardView: View {
     private func pageContent() -> some View {
         ZStack {
             Group {
-                switch currentPage {
+                switch navigationCoordinator.currentPage {
                 case .summary:
                     WizardSummaryPage(
                         systemState: systemState,
@@ -115,17 +105,13 @@ struct InstallationWizardView: View {
                         onStartService: startKanataService,
                         onDismiss: { dismiss() },
                         onNavigateToPage: { page in
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                currentPage = page
-                                lastPageChangeTime = Date()
-                                userInteractionMode = true
-                            }
+                            navigationCoordinator.navigateToPage(page)
                         }
                     )
                 case .conflicts:
                     WizardConflictsPage(
                         issues: currentIssues.filter { $0.category == .conflicts },
-                        isFixing: isPerformingAutoFix,
+                        isFixing: asyncOperationManager.hasRunningOperations,
                         onAutoFix: performAutoFix,
                         onRefresh: refreshState,
                         kanataManager: kanataManager
@@ -145,7 +131,7 @@ struct InstallationWizardView: View {
                 case .daemon:
                     WizardDaemonPage(
                         issues: currentIssues.filter { $0.category == .daemon },
-                        isFixing: isPerformingAutoFix,
+                        isFixing: asyncOperationManager.hasRunningOperations,
                         onAutoFix: performAutoFix,
                         onRefresh: refreshState,
                         kanataManager: kanataManager
@@ -153,7 +139,7 @@ struct InstallationWizardView: View {
                 case .backgroundServices:
                     WizardBackgroundServicesPage(
                         issues: currentIssues.filter { $0.category == .backgroundServices },
-                        isFixing: isPerformingAutoFix,
+                        isFixing: asyncOperationManager.hasRunningOperations,
                         onAutoFix: performAutoFix,
                         onRefresh: refreshState,
                         kanataManager: kanataManager
@@ -161,7 +147,7 @@ struct InstallationWizardView: View {
                 case .installation:
                     WizardInstallationPage(
                         issues: currentIssues.filter { $0.category == .installation },
-                        isFixing: isPerformingAutoFix,
+                        isFixing: asyncOperationManager.hasRunningOperations,
                         onAutoFix: performAutoFix,
                         onRefresh: refreshState,
                         kanataManager: kanataManager
@@ -170,7 +156,7 @@ struct InstallationWizardView: View {
             }
             .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
         }
-        .animation(.easeInOut(duration: 0.3), value: currentPage)
+        .animation(.easeInOut(duration: 0.3), value: navigationCoordinator.currentPage)
     }
     
     @ViewBuilder
@@ -207,20 +193,18 @@ struct InstallationWizardView: View {
     private func performInitialStateCheck() async {
         AppLogger.shared.log("🔍 [NewWizard] Performing initial state check")
         
-        let result = await stateManager.detectCurrentState()
+        let operation = WizardOperations.stateDetection(stateManager: stateManager)
         
-        await MainActor.run {
+        await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             systemState = result.state
             currentIssues = result.issues
-            let targetPage = navigationEngine.determineCurrentPage(for: result.state, issues: result.issues)
-            currentPage = targetPage
-            lastPageChangeTime = Date()
+            navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
             
             withAnimation {
                 isInitializing = false
             }
             
-            AppLogger.shared.log("🔍 [NewWizard] Initial setup - State: \(result.state), Issues: \(result.issues.count), Target Page: \(targetPage)")
+            AppLogger.shared.log("🔍 [NewWizard] Initial setup - State: \(result.state), Issues: \(result.issues.count), Target Page: \(navigationCoordinator.currentPage)")
             AppLogger.shared.log("🔍 [NewWizard] Issue details: \(result.issues.map { "\($0.category)-\($0.title)" })")
         }
     }
@@ -230,53 +214,27 @@ struct InstallationWizardView: View {
         while !Task.isCancelled {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             
-            let result = await stateManager.detectCurrentState()
+            // Skip state detection if async operations are running to avoid conflicts
+            guard !asyncOperationManager.hasRunningOperations else {
+                continue
+            }
             
-            await MainActor.run {
+            let operation = WizardOperations.stateDetection(stateManager: stateManager)
+            
+            await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
                 let oldState = systemState
-                let oldPage = currentPage
+                let oldPage = navigationCoordinator.currentPage
                 
                 systemState = result.state
                 currentIssues = result.issues
                 
-                // Check if we're in user interaction grace period
-                let timeSinceLastPageChange = Date().timeIntervalSince(lastPageChangeTime)
-                let inGracePeriod = userInteractionMode && timeSinceLastPageChange < autoNavigationGracePeriod
+                AppLogger.shared.log("🔍 [Navigation] Current: \(navigationCoordinator.currentPage), Issues: \(result.issues.map { "\($0.category)-\($0.title)" })")
                 
-                // Auto-navigate if needed, but with grace period and conflicts handling
-                let targetPage = navigationEngine.determineCurrentPage(for: result.state, issues: result.issues)
-                let shouldAutoNavigate = navigationEngine.createNavigationState(currentPage: currentPage, systemState: systemState, issues: result.issues).shouldAutoNavigate
+                // Use navigation coordinator for auto-navigation logic
+                navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
                 
-                AppLogger.shared.log("🔍 [Navigation] Current: \(currentPage), Target: \(targetPage), Issues: \(result.issues.map { "\($0.category)-\($0.title)" })")
-                
-                if targetPage != currentPage && shouldAutoNavigate {
-                    // Never auto-navigate during grace period
-                    if inGracePeriod {
-                        AppLogger.shared.log("🔍 [NewWizard] Preventing auto-nav during grace period (\(String(format: "%.1f", timeSinceLastPageChange))s of \(autoNavigationGracePeriod)s)")
-                    }
-                    // Don't auto-navigate away from conflicts page if there are unresolved conflicts  
-                    else if currentPage == .conflicts && currentIssues.contains(where: { $0.category == .conflicts }) {
-                        AppLogger.shared.log("🔍 [NewWizard] Preventing auto-nav away from conflicts page - unresolved conflicts exist")
-                    }
-                    // Don't auto-navigate away from any action page where user might be interacting
-                    else if [.conflicts, .daemon, .installation].contains(currentPage) && timeSinceLastPageChange < 5.0 {
-                        AppLogger.shared.log("🔍 [NewWizard] Preventing auto-nav away from action page - recent page change")
-                    }
-                    else {
-                        withAnimation {
-                            currentPage = targetPage
-                            lastPageChangeTime = Date()
-                            userInteractionMode = false // Reset user interaction mode on auto-nav
-                        }
-                    }
-                } else if inGracePeriod && timeSinceLastPageChange >= autoNavigationGracePeriod {
-                    // Grace period expired, reset user interaction mode
-                    userInteractionMode = false
-                    AppLogger.shared.log("🔍 [NewWizard] Grace period expired - auto-navigation re-enabled")
-                }
-                
-                if oldState != systemState || oldPage != currentPage {
-                    AppLogger.shared.log("🔍 [NewWizard] State changed: \(oldState) -> \(systemState), page: \(oldPage) -> \(currentPage)")
+                if oldState != systemState || oldPage != navigationCoordinator.currentPage {
+                    AppLogger.shared.log("🔍 [NewWizard] State changed: \(oldState) -> \(systemState), page: \(oldPage) -> \(navigationCoordinator.currentPage)")
                 }
             }
         }
@@ -286,36 +244,30 @@ struct InstallationWizardView: View {
     
     private func performAutoFix() {
         Task {
-            await MainActor.run {
-                isPerformingAutoFix = true
-                userInteractionMode = true
-                lastPageChangeTime = Date()
-                AppLogger.shared.log("🔍 [NewWizard] Auto-fix started - entering user interaction mode")
-            }
+            AppLogger.shared.log("🔍 [NewWizard] Auto-fix started")
             
             // Find issues that can be auto-fixed
             let autoFixableIssues = currentIssues.compactMap { $0.autoFixAction }
             
             for action in autoFixableIssues {
-                let success = await autoFixer.performAutoFix(action)
-                AppLogger.shared.log("🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
+                let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
+                
+                await asyncOperationManager.execute(operation: operation) { (success: Bool) in
+                    AppLogger.shared.log("🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
+                }
             }
             
             // Refresh state after auto-fix attempts
             await refreshState()
-            
-            await MainActor.run {
-                isPerformingAutoFix = false
-            }
         }
     }
     
     private func refreshState() async {
         AppLogger.shared.log("🔍 [NewWizard] Refreshing system state")
         
-        let result = await stateManager.detectCurrentState()
+        let operation = WizardOperations.stateDetection(stateManager: stateManager)
         
-        await MainActor.run {
+        await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             systemState = result.state
             currentIssues = result.issues
         }
@@ -328,14 +280,20 @@ struct InstallationWizardView: View {
             
             if shouldStart {
                 if !kanataManager.isRunning {
-                    await kanataManager.startKanataWithSafetyTimeout()
+                    let operation = WizardOperations.startService(kanataManager: kanataManager)
                     
-                    // Wait a moment to ensure it starts properly
-                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                }
-                
-                // Dismiss the wizard
-                await MainActor.run {
+                    await asyncOperationManager.execute(operation: operation) { (success: Bool) in
+                        if success {
+                            AppLogger.shared.log("✅ [NewWizard] Kanata service started successfully")
+                            dismiss()
+                        } else {
+                            AppLogger.shared.log("❌ [NewWizard] Failed to start Kanata service")
+                        }
+                    } onFailure: { error in
+                        AppLogger.shared.log("❌ [NewWizard] Error starting Kanata service: \(error.localizedDescription)")
+                    }
+                } else {
+                    // Service already running, dismiss wizard
                     dismiss()
                 }
             }
