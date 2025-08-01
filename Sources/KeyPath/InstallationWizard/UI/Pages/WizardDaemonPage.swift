@@ -8,55 +8,42 @@ struct WizardDaemonPage: View {
     let kanataManager: KanataManager
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            VStack(spacing: 12) {
-                Image(systemName: "gear.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(.blue)
-                    .symbolRenderingMode(.hierarchical)
-                
-                Text("Karabiner Daemon")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("The Karabiner Virtual HID Device Daemon is required for keyboard remapping to work properly.")
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.top, 32)
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Header using design system
+            WizardPageHeader(
+                icon: "gear.circle.fill",
+                title: "Karabiner Daemon",
+                subtitle: "The Karabiner Virtual HID Device Daemon is required for keyboard remapping to work properly.",
+                status: .info
+            )
             
-            // Daemon Status
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
+            // Daemon Status using design system
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
+                HStack(spacing: WizardDesign.Spacing.iconGap) {
                     Image(systemName: daemonRunning ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(daemonRunning ? .green : .red)
+                        .font(WizardDesign.Typography.sectionTitle)
+                        .foregroundColor(daemonRunning ? WizardDesign.Colors.success : WizardDesign.Colors.error)
                         .frame(width: 30)
                     
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap / 2) {
                         Text("Karabiner Virtual HID Device Daemon")
-                            .font(.body)
+                            .font(WizardDesign.Typography.body)
                             .fontWeight(.medium)
                         
                         Text(daemonRunning ? "Daemon is running" : "Daemon is not running")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(WizardDesign.Typography.caption)
+                            .foregroundColor(WizardDesign.Colors.secondaryText)
                     }
                     
                     Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
+                .wizardCard()
             }
-            .frame(maxWidth: 400)
+            .wizardContentSpacing()
             
             // Issues (if any)
             if !issues.isEmpty {
-                VStack(spacing: 12) {
+                VStack(spacing: WizardDesign.Spacing.itemGap) {
                     ForEach(issues) { issue in
                         IssueCardView(
                             issue: issue,
@@ -66,57 +53,55 @@ struct WizardDaemonPage: View {
                         )
                     }
                 }
-                .padding(.horizontal, 40)
+                .wizardPagePadding()
             }
             
             Spacer()
             
-            // Action Section
+            // Action Section using design system
             if !daemonRunning {
-                VStack(spacing: 16) {
+                VStack(spacing: WizardDesign.Spacing.itemGap) {
                     Text("The daemon needs to be running for Kanata to communicate with the keyboard hardware.")
                         .multilineTextAlignment(.center)
-                        .foregroundColor(.secondary)
-                        .font(.body)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
+                        .font(WizardDesign.Typography.body)
                     
                     Button(action: {
                         onAutoFix()
                     }) {
-                        HStack {
+                        HStack(spacing: WizardDesign.Spacing.labelGap) {
                             if isFixing {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                 Text("Starting Daemon...")
                             } else {
                                 Image(systemName: "play.circle.fill")
                                 Text("Start Karabiner Daemon")
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isFixing))
                     .disabled(isFixing)
                 }
-                .frame(maxWidth: 300)
+                .wizardContentSpacing()
             } else {
-                VStack(spacing: 8) {
-                    HStack {
+                VStack(spacing: WizardDesign.Spacing.labelGap) {
+                    HStack(spacing: WizardDesign.Spacing.labelGap) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(WizardDesign.Colors.success)
                         Text("Daemon is running successfully!")
-                            .fontWeight(.medium)
+                            .font(WizardDesign.Typography.status)
                     }
                     
                     Text("You can proceed to the next step.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(WizardDesign.Typography.caption)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
                 }
             }
         }
-        .padding()
+        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .background(WizardDesign.Colors.wizardBackground)
     }
     
     // MARK: - Computed Properties

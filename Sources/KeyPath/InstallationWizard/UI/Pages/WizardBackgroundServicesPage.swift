@@ -8,55 +8,42 @@ struct WizardBackgroundServicesPage: View {
     let kanataManager: KanataManager
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            VStack(spacing: 12) {
-                Image(systemName: "gear.badge")
-                    .font(.system(size: 48))
-                    .foregroundColor(.blue)
-                    .symbolRenderingMode(.hierarchical)
-                
-                Text("Background Services")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Karabiner background services must be enabled for proper keyboard functionality.")
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.top, 32)
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Header using design system
+            WizardPageHeader(
+                icon: "gear.badge",
+                title: "Background Services",
+                subtitle: "Karabiner background services must be enabled for proper keyboard functionality.",
+                status: .info
+            )
             
-            // Services Status
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
+            // Services Status using design system
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
+                HStack(spacing: WizardDesign.Spacing.iconGap) {
                     Image(systemName: backgroundServicesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(backgroundServicesEnabled ? .green : .orange)
+                        .font(WizardDesign.Typography.sectionTitle)
+                        .foregroundColor(backgroundServicesEnabled ? WizardDesign.Colors.success : WizardDesign.Colors.warning)
                         .frame(width: 30)
                     
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap / 2) {
                         Text("Karabiner Background Services")
-                            .font(.body)
+                            .font(WizardDesign.Typography.body)
                             .fontWeight(.medium)
                         
                         Text(backgroundServicesEnabled ? "Services are enabled" : "Services not enabled in Login Items")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(WizardDesign.Typography.caption)
+                            .foregroundColor(WizardDesign.Colors.secondaryText)
                     }
                     
                     Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
+                .wizardCard()
             }
-            .frame(maxWidth: 400)
+            .wizardContentSpacing()
             
             // Issues (if any)
             if !issues.isEmpty {
-                VStack(spacing: 12) {
+                VStack(spacing: WizardDesign.Spacing.itemGap) {
                     ForEach(issues) { issue in
                         IssueCardView(
                             issue: issue,
@@ -66,38 +53,37 @@ struct WizardBackgroundServicesPage: View {
                         )
                     }
                 }
-                .padding(.horizontal, 40)
+                .wizardPagePadding()
             }
             
             Spacer()
             
-            // Action Section
+            // Action Section using design system
             if !backgroundServicesEnabled {
-                VStack(spacing: 16) {
+                VStack(spacing: WizardDesign.Spacing.itemGap) {
                     Text("These services need to be manually added to Login Items for automatic startup.")
                         .multilineTextAlignment(.center)
-                        .foregroundColor(.secondary)
-                        .font(.body)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
+                        .font(WizardDesign.Typography.body)
                     
-                    VStack(spacing: 12) {
+                    VStack(spacing: WizardDesign.Spacing.elementGap) {
                         Button("Open System Settings") {
                             if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
                                 NSWorkspace.shared.open(url)
                             }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
                         
-                        HStack(spacing: 12) {
+                        HStack(spacing: WizardDesign.Spacing.elementGap) {
                             Button("Open Karabiner Folder") {
                                 openKarabinerFolderInFinder()
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(WizardDesign.Component.SecondaryButton())
                             
                             Button("Show Help") {
                                 // This will be handled by the parent view
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(WizardDesign.Component.SecondaryButton())
                         }
                         
                         Button("Check Status") {
@@ -105,27 +91,27 @@ struct WizardBackgroundServicesPage: View {
                                 await onRefresh()
                             }
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
                     }
                 }
-                .frame(maxWidth: 350)
+                .wizardContentSpacing()
             } else {
-                VStack(spacing: 8) {
-                    HStack {
+                VStack(spacing: WizardDesign.Spacing.labelGap) {
+                    HStack(spacing: WizardDesign.Spacing.labelGap) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(WizardDesign.Colors.success)
                         Text("Background services are enabled!")
-                            .fontWeight(.medium)
+                            .font(WizardDesign.Typography.status)
                     }
                     
                     Text("Karabiner services will start automatically at login.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(WizardDesign.Typography.caption)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
                 }
             }
         }
-        .padding()
+        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .background(WizardDesign.Colors.wizardBackground)
     }
     
     // MARK: - Computed Properties
