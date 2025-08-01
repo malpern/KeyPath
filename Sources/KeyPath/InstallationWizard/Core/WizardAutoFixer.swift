@@ -3,9 +3,13 @@ import Foundation
 /// Handles automatic fixing of detected issues - pure action logic
 class WizardAutoFixer: AutoFixCapable {
     private let kanataManager: KanataManager
+    private let vhidDeviceManager: VHIDDeviceManager
+    private let launchDaemonInstaller: LaunchDaemonInstaller
     
-    init(kanataManager: KanataManager) {
+    init(kanataManager: KanataManager, vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(), launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller()) {
         self.kanataManager = kanataManager
+        self.vhidDeviceManager = vhidDeviceManager
+        self.launchDaemonInstaller = launchDaemonInstaller
     }
     
     // MARK: - AutoFixCapable Protocol
@@ -22,6 +26,10 @@ class WizardAutoFixer: AutoFixCapable {
             return true // We can run the installation script
         case .createConfigDirectories:
             return true // We can create directories
+        case .activateVHIDDeviceManager:
+            return vhidDeviceManager.detectInstallation() // Only if manager is installed
+        case .installLaunchDaemonServices:
+            return true // We can attempt to install LaunchDaemon services
         }
     }
     
@@ -39,6 +47,10 @@ class WizardAutoFixer: AutoFixCapable {
             return await installMissingComponents()
         case .createConfigDirectories:
             return await createConfigDirectories()
+        case .activateVHIDDeviceManager:
+            return await activateVHIDDeviceManager()
+        case .installLaunchDaemonServices:
+            return await installLaunchDaemonServices()
         }
     }
     
@@ -157,6 +169,49 @@ class WizardAutoFixer: AutoFixCapable {
             
         } catch {
             AppLogger.shared.log("❌ [AutoFixer] Failed to create config directories: \(error)")
+            return false
+        }
+    }
+    
+    private func activateVHIDDeviceManager() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Activating VHIDDevice Manager")
+        
+        let success = await vhidDeviceManager.activateManager()
+        
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully activated VHIDDevice Manager")
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to activate VHIDDevice Manager")
+        }
+        
+        return success
+    }
+    
+    private func installLaunchDaemonServices() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Installing LaunchDaemon services")
+        
+        // Install all three LaunchDaemon services
+        let kanataSuccess = launchDaemonInstaller.createKanataLaunchDaemon()
+        let vhidDaemonSuccess = launchDaemonInstaller.createVHIDDaemonService()
+        let vhidManagerSuccess = launchDaemonInstaller.createVHIDManagerService()
+        
+        let installSuccess = kanataSuccess && vhidDaemonSuccess && vhidManagerSuccess
+        
+        if installSuccess {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully installed LaunchDaemon services")
+            
+            // Load the services
+            let loadSuccess = await launchDaemonInstaller.loadServices()
+            
+            if loadSuccess {
+                AppLogger.shared.log("✅ [AutoFixer] Successfully loaded LaunchDaemon services")
+                return true
+            } else {
+                AppLogger.shared.log("❌ [AutoFixer] Failed to load LaunchDaemon services")
+                return false
+            }
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to install LaunchDaemon services")
             return false
         }
     }

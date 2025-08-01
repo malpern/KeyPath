@@ -4,9 +4,13 @@ import ApplicationServices
 /// Pure system state detection logic - no side effects, no auto-fixing
 class SystemStateDetector: SystemStateDetecting {
     private let kanataManager: KanataManager
+    private let vhidDeviceManager: VHIDDeviceManager
+    private let launchDaemonInstaller: LaunchDaemonInstaller
     
-    init(kanataManager: KanataManager) {
+    init(kanataManager: KanataManager, vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(), launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller()) {
         self.kanataManager = kanataManager
+        self.vhidDeviceManager = vhidDeviceManager
+        self.launchDaemonInstaller = launchDaemonInstaller
     }
     
     // MARK: - Main Detection Method
@@ -260,8 +264,36 @@ class SystemStateDetector: SystemStateDetecting {
             missing.append(.karabinerDaemon)
         }
         
+        // Check VHIDDevice Manager components
+        if vhidDeviceManager.detectInstallation() {
+            installed.append(.vhidDeviceManager)
+        } else {
+            missing.append(.vhidDeviceManager)
+        }
+        
+        if vhidDeviceManager.detectActivation() {
+            installed.append(.vhidDeviceActivation)
+        } else {
+            missing.append(.vhidDeviceActivation)
+        }
+        
+        if vhidDeviceManager.detectRunning() {
+            installed.append(.vhidDeviceRunning)
+        } else {
+            missing.append(.vhidDeviceRunning)
+        }
+        
+        // Check LaunchDaemon services
+        let daemonStatus = launchDaemonInstaller.getServiceStatus()
+        if daemonStatus.allServicesLoaded {
+            installed.append(.launchDaemonServices)
+        } else {
+            missing.append(.launchDaemonServices)
+        }
+        
         let canAutoInstall = !missing.isEmpty && 
-                           !missing.contains(.karabinerDriver) // Driver requires manual installation
+                           !missing.contains(.karabinerDriver) && // Driver requires manual installation
+                           !missing.contains(.vhidDeviceManager) // VHIDDevice Manager requires manual installation
         
         return ComponentCheckResult(
             missing: missing,
@@ -357,8 +389,8 @@ class SystemStateDetector: SystemStateDetecting {
                 category: .installation,
                 title: componentTitle(for: component),
                 description: componentDescription(for: component),
-                autoFixAction: component == .karabinerDriver ? nil : .installMissingComponents,
-                userAction: component == .karabinerDriver ? "Install Karabiner-Elements from website" : nil
+                autoFixAction: getAutoFixAction(for: component),
+                userAction: getUserAction(for: component)
             )
         }
     }
@@ -397,6 +429,17 @@ class SystemStateDetector: SystemStateDetecting {
         
         if !daemonRunning {
             actions.append(.startKarabinerDaemon)
+        }
+        
+        // Check if VHIDDevice Manager needs activation
+        if components.missing.contains(.vhidDeviceActivation) && 
+           components.installed.contains(.vhidDeviceManager) {
+            actions.append(.activateVHIDDeviceManager)
+        }
+        
+        // Check if LaunchDaemon services need installation
+        if components.missing.contains(.launchDaemonServices) {
+            actions.append(.installLaunchDaemonServices)
         }
         
         return actions
@@ -445,6 +488,10 @@ class SystemStateDetector: SystemStateDetecting {
         case .kanataService: return "Kanata Service Missing"
         case .karabinerDriver: return WizardConstants.Titles.karabinerDriverMissing
         case .karabinerDaemon: return WizardConstants.Titles.daemonNotRunning
+        case .vhidDeviceManager: return "VirtualHIDDevice Manager Missing"
+        case .vhidDeviceActivation: return "VirtualHIDDevice Manager Not Activated"
+        case .vhidDeviceRunning: return "VirtualHIDDevice Daemon Not Running"
+        case .launchDaemonServices: return "LaunchDaemon Services Not Installed"
         }
     }
     
@@ -458,6 +505,38 @@ class SystemStateDetector: SystemStateDetecting {
             return "Karabiner-Elements driver is required for virtual HID functionality."
         case .karabinerDaemon:
             return "Karabiner Virtual HID Device Daemon is not running."
+        case .vhidDeviceManager:
+            return "The Karabiner VirtualHIDDevice Manager application is not installed. This is required for keyboard remapping functionality."
+        case .vhidDeviceActivation:
+            return "The VirtualHIDDevice Manager needs to be activated to enable virtual HID functionality."
+        case .vhidDeviceRunning:
+            return "The VirtualHIDDevice daemon processes are not running. This may indicate the manager needs activation or restart."
+        case .launchDaemonServices:
+            return "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
+        }
+    }
+    
+    private func getAutoFixAction(for component: ComponentRequirement) -> AutoFixAction? {
+        switch component {
+        case .karabinerDriver, .vhidDeviceManager:
+            return nil // These require manual installation
+        case .vhidDeviceActivation:
+            return .activateVHIDDeviceManager
+        case .launchDaemonServices:
+            return .installLaunchDaemonServices
+        default:
+            return .installMissingComponents
+        }
+    }
+    
+    private func getUserAction(for component: ComponentRequirement) -> String? {
+        switch component {
+        case .karabinerDriver:
+            return "Install Karabiner-Elements from website"
+        case .vhidDeviceManager:
+            return "Install Karabiner-VirtualHIDDevice from website"
+        default:
+            return nil
         }
     }
 }

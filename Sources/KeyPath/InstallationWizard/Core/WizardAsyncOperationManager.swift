@@ -254,6 +254,10 @@ extension AutoFixAction {
             return "Install Missing Components"
         case .createConfigDirectories:
             return "Create Config Directories"
+        case .activateVHIDDeviceManager:
+            return "Activate VirtualHIDDevice Manager"
+        case .installLaunchDaemonServices:
+            return "Install LaunchDaemon Services"
         }
     }
 }

@@ -57,6 +57,10 @@ enum ComponentRequirement: Equatable {
     case kanataService
     case karabinerDriver
     case karabinerDaemon
+    case vhidDeviceManager
+    case vhidDeviceActivation
+    case vhidDeviceRunning
+    case launchDaemonServices
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -66,6 +70,8 @@ enum AutoFixAction: Equatable {
     case restartVirtualHIDDaemon
     case installMissingComponents
     case createConfigDirectories
+    case activateVHIDDeviceManager
+    case installLaunchDaemonServices
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
