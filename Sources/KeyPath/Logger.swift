@@ -13,15 +13,15 @@ class AppLogger {
     private init() {
         // Set log directory to user's home directory for reliable access
         logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
-        
+
         dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-        
+
         // Ensure log directory exists
         do {
             try FileManager.default.createDirectory(atPath: logDirectory,
-                                                withIntermediateDirectories: true,
-                                                attributes: nil)
+                                                    withIntermediateDirectories: true,
+                                                    attributes: nil)
         } catch {
             // Fallback to temporary directory if creation fails
             print("Error creating log directory at \(logDirectory): \(error.localizedDescription). Falling back to temporary directory.")
@@ -32,9 +32,9 @@ class AppLogger {
     func log(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
         let timestamp = dateFormatter.string(from: Date())
         let fileName = (file as NSString).lastPathComponent
-        
+
         let logMessage = "[\(timestamp)] [\(fileName):\(line) \(function)] \(message)\n"
-        
+
         // Also print to console for live debugging during development
         Swift.print(logMessage, terminator: "")
 

@@ -1,23 +1,8 @@
 # Installation Wizard Tests
 
-This directory contains comprehensive integration tests for the new installation wizard architecture.
+Tests real system behavior over mocks - system state detection, auto-fixing, and navigation logic.
 
-## Test Structure
-
-- **SystemStateDetectorTests.swift** - Integration tests for system state detection with real system
-- **WizardAutoFixerTests.swift** - Integration tests for auto-fix functionality with real system  
-- **WizardNavigationEngineTests.swift** - Unit tests for wizard navigation logic (pure functions)
-
-## Testing Philosophy
-
-**Integration Tests Over Mocks** - Following the principle that for system management tools, testing against the real system provides more confidence than extensive mocking.
-
-### Core Principles
-
-- **Test REAL system behavior** - Use actual system state, processes, and permissions
-- **Test business logic with real data** - Validate that our code works with actual system conditions  
-- **Minimal mocking** - Only mock what's truly necessary (dangerous operations, external dependencies)
-- **Safe testing** - Avoid destructive operations that could break the development environment
+Run: `swift test --filter InstallationWizardTests`
 
 ## Test Approach
 

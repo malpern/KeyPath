@@ -6,7 +6,7 @@ struct WizardDaemonPage: View {
     let onAutoFix: () -> Void
     let onRefresh: () async -> Void
     let kanataManager: KanataManager
-    
+
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
             // Header using design system
@@ -16,7 +16,7 @@ struct WizardDaemonPage: View {
                 subtitle: "The Karabiner Virtual HID Device Daemon is required for keyboard remapping to work properly.",
                 status: .info
             )
-            
+
             // Daemon Status using design system
             VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                 HStack(spacing: WizardDesign.Spacing.iconGap) {
@@ -24,23 +24,23 @@ struct WizardDaemonPage: View {
                         .font(WizardDesign.Typography.sectionTitle)
                         .foregroundColor(daemonRunning ? WizardDesign.Colors.success : WizardDesign.Colors.error)
                         .frame(width: 30)
-                    
+
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap / 2) {
                         Text("Karabiner Virtual HID Device Daemon")
                             .font(WizardDesign.Typography.body)
                             .fontWeight(.medium)
-                        
+
                         Text(daemonRunning ? "Daemon is running" : "Daemon is not running")
                             .font(WizardDesign.Typography.caption)
                             .foregroundColor(WizardDesign.Colors.secondaryText)
                     }
-                    
+
                     Spacer()
                 }
                 .wizardCard()
             }
             .wizardContentSpacing()
-            
+
             // Issues (if any)
             if !issues.isEmpty {
                 VStack(spacing: WizardDesign.Spacing.itemGap) {
@@ -55,9 +55,9 @@ struct WizardDaemonPage: View {
                 }
                 .wizardPagePadding()
             }
-            
+
             Spacer()
-            
+
             // Action Section using design system
             if !daemonRunning {
                 VStack(spacing: WizardDesign.Spacing.itemGap) {
@@ -65,7 +65,7 @@ struct WizardDaemonPage: View {
                         .multilineTextAlignment(.center)
                         .foregroundColor(WizardDesign.Colors.secondaryText)
                         .font(WizardDesign.Typography.body)
-                    
+
                     Button(action: {
                         onAutoFix()
                     }) {
@@ -93,19 +93,19 @@ struct WizardDaemonPage: View {
                         Text("Daemon is running successfully!")
                             .font(WizardDesign.Typography.status)
                     }
-                    
+
                     Text("You can proceed to the next step.")
                         .font(WizardDesign.Typography.caption)
                         .foregroundColor(WizardDesign.Colors.secondaryText)
                 }
             }
         }
-        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
     }
-    
+
     // MARK: - Computed Properties
-    
+
     private var daemonRunning: Bool {
         // If there are no daemon issues, assume it's running
         !issues.contains { $0.category == .daemon }

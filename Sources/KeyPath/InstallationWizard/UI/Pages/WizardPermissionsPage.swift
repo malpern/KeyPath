@@ -4,21 +4,21 @@ struct WizardPermissionsPage: View {
     enum PermissionType {
         case inputMonitoring
         case accessibility
-        
+
         var title: String {
             switch self {
             case .inputMonitoring: return "Input Monitoring"
             case .accessibility: return "Accessibility"
             }
         }
-        
+
         var description: String {
             switch self {
             case .inputMonitoring: return "Allow KeyPath to monitor keyboard input"
             case .accessibility: return "Allow KeyPath to control your computer"
             }
         }
-        
+
         var icon: String {
             switch self {
             case .inputMonitoring: return "keyboard"
@@ -26,14 +26,14 @@ struct WizardPermissionsPage: View {
             }
         }
     }
-    
+
     let permissionType: PermissionType
     let issues: [WizardIssue]
     let kanataManager: KanataManager
-    
+
     @State private var showingDetails = false
     @State private var showingHelp = false
-    
+
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
             // Header using design system
@@ -43,17 +43,17 @@ struct WizardPermissionsPage: View {
                 subtitle: permissionType.description,
                 status: .info
             )
-            
+
             // Permission Status Cards
             VStack(spacing: WizardDesign.Spacing.itemGap) {
                 permissionCards()
             }
             .wizardPagePadding()
-            
+
             // Permission status is shown via the cards above - no need to duplicate as issues
-            
+
             Spacer()
-            
+
             // Action Section using design system
             VStack(spacing: WizardDesign.Spacing.elementGap) {
                 if allPermissionsGranted {
@@ -71,13 +71,13 @@ struct WizardPermissionsPage: View {
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                 }
-                
+
                 HStack(spacing: WizardDesign.Spacing.itemGap) {
                     Button("Show Details") {
                         showingDetails.toggle()
                     }
                     .buttonStyle(.link)
-                    
+
                     Button("Help") {
                         showingHelp = true
                     }
@@ -86,7 +86,7 @@ struct WizardPermissionsPage: View {
             }
             .padding(.bottom, WizardDesign.Spacing.pageVertical)
         }
-        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
         .sheet(isPresented: $showingDetails) {
             PermissionDetailsSheet(kanataManager: kanataManager)
@@ -100,7 +100,7 @@ struct WizardPermissionsPage: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func permissionCards() -> some View {
         switch permissionType {
@@ -111,14 +111,14 @@ struct WizardPermissionsPage: View {
                 status: keyPathInputMonitoringStatus,
                 permissionType: "Input Monitoring"
             )
-            
+
             PermissionCard(
                 appName: "kanata",
-                appPath: "/usr/local/bin/kanata",
+                appPath: WizardSystemPaths.kanataBinaryDefault,
                 status: kanataInputMonitoringStatus,
                 permissionType: "Input Monitoring"
             )
-            
+
         case .accessibility:
             PermissionCard(
                 appName: "KeyPath.app",
@@ -126,53 +126,59 @@ struct WizardPermissionsPage: View {
                 status: keyPathAccessibilityStatus,
                 permissionType: "Accessibility"
             )
-            
+
             PermissionCard(
                 appName: "kanata",
-                appPath: "/usr/local/bin/kanata",
+                appPath: WizardSystemPaths.kanataBinaryDefault,
                 status: kanataAccessibilityStatus,
                 permissionType: "Accessibility"
             )
         }
     }
-    
+
     // MARK: - Permission Status Computation
-    
+
     private var keyPathInputMonitoringStatus: InstallationStatus {
         // For Input Monitoring page, check only Input Monitoring permission
         kanataManager.hasInputMonitoringPermission() ? .completed : .notStarted
     }
-    
+
     private var kanataInputMonitoringStatus: InstallationStatus {
         // Check kanata's Input Monitoring permission specifically
-        let kanataHasInputMonitoring = kanataManager.checkTCCForInputMonitoring(path: "/usr/local/bin/kanata")
+        let kanataHasInputMonitoring = kanataManager.checkTCCForInputMonitoring(path: WizardSystemPaths.kanataBinaryDefault)
         return kanataHasInputMonitoring ? .completed : .notStarted
     }
-    
+
     private var keyPathAccessibilityStatus: InstallationStatus {
         // Check KeyPath's Accessibility permission specifically
         kanataManager.hasAccessibilityPermission() ? .completed : .notStarted
     }
-    
+
     private var kanataAccessibilityStatus: InstallationStatus {
         // Check kanata's Accessibility permission specifically
-        let kanataAccessibility = kanataManager.checkAccessibilityForPath("/usr/local/bin/kanata")
+        let kanataAccessibility = kanataManager.checkAccessibilityForPath(WizardSystemPaths.kanataBinaryDefault)
         return kanataAccessibility ? .completed : .notStarted
     }
-    
+
     private var allPermissionsGranted: Bool {
-        // Use the issues array to determine status - this ensures consistency with SystemStateDetector
-        let relevantIssues = issues.filter { issue in
+        // Use helper method to check for relevant permission issues
+        return !hasRelevantPermissionIssues()
+    }
+
+    /// Helper method to check for permission issues relevant to the current page
+    private func hasRelevantPermissionIssues() -> Bool {
+        return issues.contains { issue in
+            guard issue.category == .permissions else { return false }
+
             switch permissionType {
             case .inputMonitoring:
-                return issue.category == .permissions && issue.title == "Kanata Input Monitoring" 
+                return issue.title == "Kanata Input Monitoring"
             case .accessibility:
-                return issue.category == .permissions && issue.title == "Kanata Accessibility"
+                return issue.title == "Kanata Accessibility"
             }
         }
-        return relevantIssues.isEmpty
     }
-    
+
     private func openSettings() {
         switch permissionType {
         case .inputMonitoring:
@@ -189,15 +195,15 @@ struct WizardPermissionsPage: View {
                 isARepeat: false,
                 keyCode: 53
             )
-            
+
             if let event = escapeEvent {
                 NSApplication.shared.postEvent(event, atStart: false)
             }
-            
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 kanataManager.openInputMonitoringSettings()
             }
-            
+
         case .accessibility:
             // For Accessibility, open settings immediately without closing wizard
             kanataManager.openAccessibilitySettings()

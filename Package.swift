@@ -29,10 +29,5 @@ let package = Package(
             dependencies: ["KeyPath"],
             path: "Tests/KeyPathTests"
         ),
-        .testTarget(
-            name: "InstallationWizardTests",
-            dependencies: ["KeyPath"],
-            path: "Tests/InstallationWizardTests"
-        ),
     ]
 )

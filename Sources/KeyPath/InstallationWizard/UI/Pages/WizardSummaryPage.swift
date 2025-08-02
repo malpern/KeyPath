@@ -7,36 +7,36 @@ struct WizardSummaryPage: View {
     let onStartService: () -> Void
     let onDismiss: () -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
-    
+
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
             // Header using design system
             WizardPageHeader(
                 icon: "keyboard.fill",
-                title: "Welcome to KeyPath", 
+                title: "Welcome to KeyPath",
                 subtitle: "Set up your keyboard customization tool",
                 status: .info
             )
-            
+
             // System Status Overview
             VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                 systemStatusItems()
             }
             .wizardPagePadding()
-            
+
             Spacer()
-            
+
             // Action Section
             actionSection()
         }
-        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
     }
-    
+
     @ViewBuilder
     private func systemStatusItems() -> some View {
         let statusItems = createStatusItems()
-        
+
         ForEach(statusItems, id: \.title) { item in
             // Show the main status item
             WizardStatusItem(
@@ -46,7 +46,7 @@ struct WizardSummaryPage: View {
                 isNavigable: item.isNavigable,
                 action: item.isNavigable ? { onNavigateToPage?(item.targetPage!) } : nil
             )
-            
+
             // If this is the System Permissions item, show the permission breakdown immediately after
             if item.title == "System Permissions" && hasAnyPermissionIssues() {
                 VStack(spacing: WizardDesign.Spacing.labelGap) {
@@ -57,7 +57,7 @@ struct WizardSummaryPage: View {
                             Rectangle()
                                 .fill(Color.clear)
                                 .frame(width: WizardDesign.Spacing.indentation)
-                            
+
                             WizardStatusItem(
                                 icon: permissionItem.icon,
                                 title: permissionItem.title,
@@ -70,20 +70,8 @@ struct WizardSummaryPage: View {
                 }
             }
         }
-        
-        // Show service status separately with visual separation
-        if shouldShowServiceStatus {
-            Divider()
-                .padding(.vertical, WizardDesign.Spacing.labelGap)
-            
-            WizardStatusItem(
-                icon: "play.circle.fill",
-                title: "Kanata Service Running",
-                status: serviceStatus
-            )
-        }
     }
-    
+
     @ViewBuilder
     private func actionSection() -> some View {
         switch systemState {
@@ -97,13 +85,13 @@ struct WizardSummaryPage: View {
                         .font(WizardDesign.Typography.status)
                 }
                 .foregroundColor(WizardDesign.Colors.success)
-                
+
                 WizardButton("Close Setup", style: .primary) {
                     onDismiss()
                 }
             }
             .padding(.bottom, WizardDesign.Spacing.pageVertical)
-            
+
         case .serviceNotRunning, .ready:
             // Components ready but service not running
             VStack(spacing: WizardDesign.Spacing.itemGap) {
@@ -114,18 +102,18 @@ struct WizardSummaryPage: View {
                         .font(WizardDesign.Typography.status)
                 }
                 .foregroundColor(WizardDesign.Colors.warning)
-                
+
                 Text("All components are installed but the Kanata service is not active.")
                     .font(WizardDesign.Typography.caption)
                     .foregroundColor(WizardDesign.Colors.secondaryText)
                     .multilineTextAlignment(.center)
-                
+
                 WizardButton("Start Kanata Service", style: .primary) {
                     onStartService()
                 }
             }
             .padding(.bottom, WizardDesign.Spacing.pageVertical)
-            
+
         case .conflictsDetected:
             // Conflicts detected
             VStack(spacing: WizardDesign.Spacing.itemGap) {
@@ -136,14 +124,14 @@ struct WizardSummaryPage: View {
                         .font(WizardDesign.Typography.status)
                 }
                 .foregroundColor(WizardDesign.Colors.error)
-                
+
                 Text("Please resolve conflicts to continue.")
                     .font(WizardDesign.Typography.caption)
                     .foregroundColor(WizardDesign.Colors.secondaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.bottom, WizardDesign.Spacing.pageVertical)
-            
+
         default:
             // Components not ready
             VStack(spacing: WizardDesign.Spacing.itemGap) {
@@ -154,7 +142,7 @@ struct WizardSummaryPage: View {
                         .font(WizardDesign.Typography.status)
                 }
                 .foregroundColor(WizardDesign.Colors.secondaryText)
-                
+
                 Text("Complete the setup process to start using KeyPath")
                     .font(WizardDesign.Typography.caption)
                     .foregroundColor(WizardDesign.Colors.secondaryText)
@@ -163,21 +151,21 @@ struct WizardSummaryPage: View {
             .padding(.bottom, WizardDesign.Spacing.pageVertical)
         }
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func openSystemPermissions() {
         // Open the main Privacy & Security settings - users can navigate to Input Monitoring/Accessibility from there
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
             NSWorkspace.shared.open(url)
         }
     }
-    
+
     private func createStatusItems() -> [StatusItem] {
         var items: [StatusItem] = []
-        
+
         // Follow the same order as wizard pages: conflicts → permissions → installation → daemon
-        
+
         // 1. Conflicts (first thing to resolve)
         items.append(StatusItem(
             icon: "exclamationmark.triangle",
@@ -186,16 +174,17 @@ struct WizardSummaryPage: View {
             isNavigable: true,
             targetPage: .conflicts
         ))
-        
+
         // 2. System Permissions (collapsed/expanded based on issues)
         let hasPermissionIssues = hasAnyPermissionIssues()
         items.append(StatusItem(
             icon: "lock.shield",
             title: "System Permissions",
             status: hasPermissionIssues ? .failed : .completed,
-            isNavigable: false // Don't navigate on collapsed permissions - sub-items will handle navigation
+            isNavigable: true,
+            targetPage: getSystemPermissionsTargetPage()
         ))
-        
+
         // 3. Binary Installation
         items.append(StatusItem(
             icon: "keyboard",
@@ -204,7 +193,7 @@ struct WizardSummaryPage: View {
             isNavigable: true,
             targetPage: .installation
         ))
-        
+
         // 4. Karabiner Driver
         items.append(StatusItem(
             icon: "cpu",
@@ -213,22 +202,33 @@ struct WizardSummaryPage: View {
             isNavigable: true,
             targetPage: .installation
         ))
-        
+
         // 5. Daemon Status
         items.append(StatusItem(
-            icon: "gear.circle",
+            icon: "gear",
             title: "Karabiner Daemon",
             status: hasIssueOfType(.daemon) ? .failed : .completed,
             isNavigable: true,
             targetPage: .daemon
         ))
-        
+
+        // 6. Kanata Service Status (when components are ready)
+        if shouldShowServiceStatus {
+            items.append(StatusItem(
+                icon: "play",
+                title: "Kanata Service",
+                status: serviceStatus,
+                isNavigable: true,
+                targetPage: .service
+            ))
+        }
+
         return items
     }
-    
+
     private func createPermissionStatusItems() -> [StatusItem] {
         var items: [StatusItem] = []
-        
+
         // Input Monitoring Permission
         items.append(StatusItem(
             icon: "eye",
@@ -237,8 +237,8 @@ struct WizardSummaryPage: View {
             isNavigable: true,
             targetPage: .inputMonitoring
         ))
-        
-        // Accessibility Permission  
+
+        // Accessibility Permission
         items.append(StatusItem(
             icon: "accessibility",
             title: WizardConstants.Titles.accessibility,
@@ -246,7 +246,7 @@ struct WizardSummaryPage: View {
             isNavigable: true,
             targetPage: .accessibility
         ))
-        
+
         // Background Services
         items.append(StatusItem(
             icon: "gear.badge",
@@ -255,47 +255,61 @@ struct WizardSummaryPage: View {
             isNavigable: true,
             targetPage: .backgroundServices
         ))
-        
+
         return items
     }
-    
+
     private func hasAnyPermissionIssues() -> Bool {
-        return stateInterpreter.hasAnyPermissionIssues(in: issues) || 
-               !stateInterpreter.areBackgroundServicesEnabled(in: issues)
+        return stateInterpreter.hasAnyPermissionIssues(in: issues) ||
+            !stateInterpreter.areBackgroundServicesEnabled(in: issues)
     }
-    
+
     private var shouldShowServiceStatus: Bool {
-        // Show service status when components are ready
-        switch systemState {
-        case .serviceNotRunning, .ready, .active:
-            return true
-        default:
-            return false
-        }
+        // Always show service status - it's a critical component users need to see
+        // Service will show appropriate status (failed/not started/completed) based on system state
+        return true
     }
-    
+
     private var serviceStatus: InstallationStatus {
         switch systemState {
         case .active:
             return .completed
         case .serviceNotRunning, .ready:
             return .failed
+        case .initializing:
+            return .inProgress
         default:
+            // For states with missing components, show as not started
+            // Service can't run until prerequisites are met
             return .notStarted
         }
     }
-    
+
     private func hasIssueOfType(_ category: WizardIssue.IssueCategory) -> Bool {
         issues.contains { $0.category == category }
     }
-    
+
     private func hasDriverIssues() -> Bool {
         // Check for both driver extension permission issues AND driver component issues
         issues.contains { issue in
             // Driver extension permission issue (category: .permissions)
             (issue.category == .permissions && issue.title == "Driver Extension Disabled") ||
-            // Karabiner driver component issue (category: .installation)  
-            (issue.category == .installation && issue.title == "Karabiner Driver Missing")
+                // Karabiner driver component issue (category: .installation)
+                (issue.category == .installation && issue.title == "Karabiner Driver Missing")
+        }
+    }
+
+    private func getSystemPermissionsTargetPage() -> WizardPage {
+        // Navigate to the first permission page that has issues, or inputMonitoring as default
+        if stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues) == .failed {
+            return .inputMonitoring
+        } else if stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues) == .failed {
+            return .accessibility
+        } else if !stateInterpreter.areBackgroundServicesEnabled(in: issues) {
+            return .backgroundServices
+        } else {
+            // If no issues, default to first permission page
+            return .inputMonitoring
         }
     }
 }
@@ -308,7 +322,7 @@ private struct StatusItem {
     let status: InstallationStatus
     let isNavigable: Bool
     let targetPage: WizardPage?
-    
+
     init(icon: String, title: String, status: InstallationStatus, isNavigable: Bool = false, targetPage: WizardPage? = nil) {
         self.icon = icon
         self.title = title

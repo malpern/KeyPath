@@ -1,28 +1,27 @@
+import ApplicationServices
 import Foundation
 import IOKit.hidsystem
-import ApplicationServices
 
 /// Phase 4: System Requirements Checker
-/// 
+///
 /// Modular component for checking all system requirements needed for KeyPath to function.
-/// This replaces the scattered requirement checks throughout the codebase with a 
+/// This replaces the scattered requirement checks throughout the codebase with a
 /// centralized, testable, and comprehensive system.
 class SystemRequirementsChecker {
-    
     // MARK: - Requirement Results
-    
+
     struct RequirementCheckResult {
         let requirement: SystemRequirement
         let status: RequirementStatus
         let details: String
         let actionRequired: String?
-        
+
         enum RequirementStatus {
             case satisfied
             case missing
             case warning
             case error
-            
+
             var isBlocking: Bool {
                 switch self {
                 case .missing, .error:
@@ -33,17 +32,17 @@ class SystemRequirementsChecker {
             }
         }
     }
-    
+
     enum SystemRequirement: String, CaseIterable {
         case kanataExecution = "kanata_executable"
-        case accessibilityPermissions = "accessibility_permissions" 
+        case accessibilityPermissions = "accessibility_permissions"
         case inputMonitoringPermissions = "input_monitoring_permissions"
         case launchDaemonDirectory = "launch_daemon_directory"
         case configDirectory = "config_directory"
         case logDirectory = "log_directory"
         case systemVersion = "system_version"
-        case architecture = "architecture"
-        
+        case architecture
+
         var displayName: String {
             switch self {
             case .kanataExecution:
@@ -64,7 +63,7 @@ class SystemRequirementsChecker {
                 return "System Architecture"
             }
         }
-        
+
         var description: String {
             switch self {
             case .kanataExecution:
@@ -85,7 +84,7 @@ class SystemRequirementsChecker {
                 return "Intel or Apple Silicon supported"
             }
         }
-        
+
         var isBlockingRequirement: Bool {
             switch self {
             case .kanataExecution, .accessibilityPermissions, .inputMonitoringPermissions, .systemVersion:
@@ -95,9 +94,9 @@ class SystemRequirementsChecker {
             }
         }
     }
-    
+
     // MARK: - Comprehensive Check Results
-    
+
     struct SystemRequirementsReport {
         let timestamp: Date
         let overallStatus: OverallStatus
@@ -105,13 +104,13 @@ class SystemRequirementsChecker {
         let blockingIssues: [RequirementCheckResult]
         let warnings: [RequirementCheckResult]
         let summary: String
-        
+
         enum OverallStatus {
             case allSatisfied
             case hasWarnings
             case hasBlockingIssues
             case systemError
-            
+
             var canProceed: Bool {
                 switch self {
                 case .allSatisfied, .hasWarnings:
@@ -121,46 +120,46 @@ class SystemRequirementsChecker {
                 }
             }
         }
-        
+
         var requiresInstallation: Bool {
             return blockingIssues.contains { result in
                 result.requirement == .kanataExecution ||
-                result.requirement == .launchDaemonDirectory ||
-                result.requirement == .configDirectory
+                    result.requirement == .launchDaemonDirectory ||
+                    result.requirement == .configDirectory
             }
         }
-        
+
         var requiresPermissions: Bool {
             return blockingIssues.contains { result in
                 result.requirement == .accessibilityPermissions ||
-                result.requirement == .inputMonitoringPermissions
+                    result.requirement == .inputMonitoringPermissions
             }
         }
     }
-    
+
     // MARK: - Public Interface
-    
+
     /// Perform comprehensive system requirements check
     func checkAllRequirements() async -> SystemRequirementsReport {
         AppLogger.shared.log("🔍 [SystemCheck] ========== COMPREHENSIVE REQUIREMENTS CHECK ==========")
-        
+
         let startTime = Date()
         var results: [RequirementCheckResult] = []
-        
+
         // Check all requirements
         for requirement in SystemRequirement.allCases {
             AppLogger.shared.log("🔍 [SystemCheck] Checking: \(requirement.displayName)")
             let result = await checkRequirement(requirement)
             results.append(result)
-            
+
             let statusEmoji = result.status.isBlocking ? "❌" : "✅"
             AppLogger.shared.log("\(statusEmoji) [SystemCheck] \(requirement.displayName): \(result.details)")
         }
-        
+
         // Analyze overall status
         let blockingIssues = results.filter { $0.status.isBlocking }
         let warnings = results.filter { $0.status == .warning }
-        
+
         let overallStatus: SystemRequirementsReport.OverallStatus
         if !blockingIssues.isEmpty {
             overallStatus = .hasBlockingIssues
@@ -169,9 +168,9 @@ class SystemRequirementsChecker {
         } else {
             overallStatus = .allSatisfied
         }
-        
+
         let summary = generateSummary(overallStatus: overallStatus, blockingCount: blockingIssues.count, warningCount: warnings.count)
-        
+
         let report = SystemRequirementsReport(
             timestamp: Date(),
             overallStatus: overallStatus,
@@ -180,13 +179,13 @@ class SystemRequirementsChecker {
             warnings: warnings,
             summary: summary
         )
-        
+
         let duration = Date().timeIntervalSince(startTime)
         AppLogger.shared.log("🔍 [SystemCheck] Check completed in \(String(format: "%.2f", duration))s - Status: \(overallStatus)")
-        
+
         return report
     }
-    
+
     /// Check a specific requirement
     func checkRequirement(_ requirement: SystemRequirement) async -> RequirementCheckResult {
         switch requirement {
@@ -208,16 +207,16 @@ class SystemRequirementsChecker {
             return checkArchitecture()
         }
     }
-    
+
     // MARK: - Individual Requirement Checks
-    
+
     private func checkKanataExecutable() async -> RequirementCheckResult {
         let possiblePaths = [
-            "/opt/homebrew/bin/kanata",  // ARM Homebrew
-            "/usr/local/bin/kanata",     // Intel Homebrew
-            "/usr/bin/kanata"            // System install
+            "/opt/homebrew/bin/kanata", // ARM Homebrew
+            "/usr/local/bin/kanata", // Intel Homebrew
+            "/usr/bin/kanata", // System install
         ]
-        
+
         for path in possiblePaths {
             if FileManager.default.fileExists(atPath: path) && FileManager.default.isExecutableFile(atPath: path) {
                 // Verify it's actually the Kanata executable
@@ -232,7 +231,7 @@ class SystemRequirementsChecker {
                 }
             }
         }
-        
+
         return RequirementCheckResult(
             requirement: .kanataExecution,
             status: .missing,
@@ -240,37 +239,37 @@ class SystemRequirementsChecker {
             actionRequired: "Install Kanata via Homebrew: brew install kanata"
         )
     }
-    
+
     private func verifyKanataExecutable(at path: String) async -> (isValid: Bool, version: String) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: path)
         task.arguments = ["--version"]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
-            if task.terminationStatus == 0 && output.lowercased().contains("kanata") {
+
+            if task.terminationStatus == 0, output.lowercased().contains("kanata") {
                 let version = output.trimmingCharacters(in: .whitespacesAndNewlines)
                 return (true, version)
             }
         } catch {
             AppLogger.shared.log("❌ [SystemCheck] Error verifying Kanata at \(path): \(error)")
         }
-        
+
         return (false, "Unknown")
     }
-    
+
     private func checkAccessibilityPermissions() -> RequirementCheckResult {
         let trusted = AXIsProcessTrusted()
-        
+
         if trusted {
             return RequirementCheckResult(
                 requirement: .accessibilityPermissions,
@@ -287,12 +286,12 @@ class SystemRequirementsChecker {
             )
         }
     }
-    
+
     private func checkInputMonitoringPermissions() -> RequirementCheckResult {
         // This is a simplified check - in reality, input monitoring permissions
         // are harder to programmatically verify
         let status: RequirementCheckResult.RequirementStatus = .warning
-        
+
         return RequirementCheckResult(
             requirement: .inputMonitoringPermissions,
             status: status,
@@ -300,11 +299,11 @@ class SystemRequirementsChecker {
             actionRequired: "Ensure input monitoring permissions are granted in System Settings > Privacy & Security > Input Monitoring"
         )
     }
-    
+
     private func checkLaunchDaemonDirectory() -> RequirementCheckResult {
         let launchDaemonPath = "/Library/LaunchDaemons"
         let fileManager = FileManager.default
-        
+
         if fileManager.fileExists(atPath: launchDaemonPath) {
             // Check if we can write to it (requires sudo, but we can check directory existence)
             return RequirementCheckResult(
@@ -322,11 +321,11 @@ class SystemRequirementsChecker {
             )
         }
     }
-    
+
     private func checkConfigDirectory() -> RequirementCheckResult {
         let configPath = "/usr/local/etc/kanata"
         let fileManager = FileManager.default
-        
+
         if fileManager.fileExists(atPath: configPath) {
             return RequirementCheckResult(
                 requirement: .configDirectory,
@@ -343,11 +342,11 @@ class SystemRequirementsChecker {
             )
         }
     }
-    
+
     private func checkLogDirectory() -> RequirementCheckResult {
         let logPath = "/var/log"
         let fileManager = FileManager.default
-        
+
         if fileManager.fileExists(atPath: logPath) {
             return RequirementCheckResult(
                 requirement: .logDirectory,
@@ -364,15 +363,15 @@ class SystemRequirementsChecker {
             )
         }
     }
-    
+
     private func checkSystemVersion() -> RequirementCheckResult {
         let processInfo = ProcessInfo.processInfo
         let version = processInfo.operatingSystemVersion
-        
+
         // KeyPath requires macOS 13.0+
         let minimumMajor = 13
         let currentMajor = version.majorVersion
-        
+
         if currentMajor >= minimumMajor {
             return RequirementCheckResult(
                 requirement: .systemVersion,
@@ -389,10 +388,10 @@ class SystemRequirementsChecker {
             )
         }
     }
-    
+
     private func checkArchitecture() -> RequirementCheckResult {
         let architecture = ProcessInfo.processInfo.processorCount > 0 ? "Supported" : "Unknown"
-        
+
         return RequirementCheckResult(
             requirement: .architecture,
             status: .satisfied,
@@ -400,9 +399,9 @@ class SystemRequirementsChecker {
             actionRequired: nil
         )
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func generateSummary(overallStatus: SystemRequirementsReport.OverallStatus, blockingCount: Int, warningCount: Int) -> String {
         switch overallStatus {
         case .allSatisfied:

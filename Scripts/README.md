@@ -1,23 +1,15 @@
 # Scripts
 
-Essential scripts for building, testing, and maintaining KeyPath.
+## Build & Release
+- `build-and-sign.sh` - Production build with signing
+- `build.sh` - Debug build
 
-## Build Scripts
+## Testing
+- `run-tests.sh` - All tests
+- `test-*.sh` - Individual test suites
 
-- **build-and-sign.sh** - Build, sign, and notarize the app for distribution
-- **build.sh** - Simple debug build
-- **sign-kanata.sh** - Sign the Kanata binary
-
-## Testing Scripts
-
-- **run-tests.sh** - Run all tests
-- **test-hot-reload.sh** - Test config hot reloading
-- **test-installer.sh** - Test installation wizard
-- **test-service-status.sh** - Test service status checking
-
-## System Management
-
-- **diagnose-kanata.sh** - Comprehensive Kanata diagnostics
+## Development Setup
+Run `./setup-passwordless-testing.sh` for testing setup. Grant Accessibility and Input Monitoring permissions to Terminal/Xcode in System Settings.
 - **clean-reinstall-kanata.sh** - Clean reinstall of Kanata system
 - **reinstall-kanata.sh** - Reinstall Kanata integration
 - **reset-kanata-permissions.sh** - Reset Kanata permissions

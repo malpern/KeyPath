@@ -6,29 +6,29 @@ struct WizardConflictsPage: View {
     let onAutoFix: () -> Void
     let onRefresh: () async -> Void
     let kanataManager: KanataManager
-    
+
     @State private var isScanning = false
     @State private var isDisablingPermanently = false
-    
+
     // Check if there are Karabiner-related conflicts
     private var hasKarabinerConflict: Bool {
         issues.contains { issue in
             issue.description.lowercased().contains("karabiner")
         }
     }
-    
+
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
             // Header using design system
             WizardPageHeader(
                 icon: issues.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
                 title: issues.isEmpty ? "No Conflicts Detected" : "Conflicting Processes",
-                subtitle: issues.isEmpty ? 
+                subtitle: issues.isEmpty ?
                     "No conflicting keyboard remapping processes found. You're ready to proceed!" :
                     "Conflicting keyboard remapping processes must be stopped before continuing",
                 status: issues.isEmpty ? .success : .warning
             )
-            
+
             // Issues List
             if !issues.isEmpty {
                 VStack(spacing: WizardDesign.Spacing.itemGap) {
@@ -43,7 +43,7 @@ struct WizardConflictsPage: View {
                 }
                 .wizardPagePadding()
             }
-            
+
             // Explanation using design system
             VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                 if issues.isEmpty {
@@ -56,7 +56,7 @@ struct WizardConflictsPage: View {
                                 .font(WizardDesign.Typography.status)
                         }
                         .foregroundColor(WizardDesign.Colors.success)
-                        
+
                         Text("KeyPath checked for conflicts and found none. The system is ready for keyboard remapping.")
                             .font(WizardDesign.Typography.body)
                             .foregroundColor(WizardDesign.Colors.secondaryText)
@@ -66,7 +66,7 @@ struct WizardConflictsPage: View {
                     Text("Common conflicting processes:")
                         .font(WizardDesign.Typography.subsectionTitle)
                         .foregroundColor(WizardDesign.Colors.secondaryText)
-                    
+
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
                         Label("Karabiner-Elements (conflicts with Kanata)", systemImage: "keyboard")
                         Label("Other Kanata instances running with root privileges", systemImage: "terminal")
@@ -78,9 +78,9 @@ struct WizardConflictsPage: View {
                 }
             }
             .wizardPagePadding()
-            
+
             Spacer()
-            
+
             // Action Buttons using design system
             VStack(spacing: WizardDesign.Spacing.elementGap) {
                 if !issues.isEmpty && issues.first?.autoFixAction != nil {
@@ -89,7 +89,7 @@ struct WizardConflictsPage: View {
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isFixing))
                     .disabled(isFixing)
-                    
+
                     // Add permanent disable option for Karabiner Elements
                     if hasKarabinerConflict {
                         Button(action: {
@@ -108,7 +108,7 @@ struct WizardConflictsPage: View {
                         .disabled(isDisablingPermanently || isFixing)
                     }
                 }
-                
+
                 Button(action: {
                     Task {
                         isScanning = true
@@ -124,7 +124,7 @@ struct WizardConflictsPage: View {
                 .disabled(isFixing || isScanning)
             }
         }
-        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
     }
 }

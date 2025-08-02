@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 @main
 struct KeyPathApp: App {
@@ -11,7 +11,7 @@ struct KeyPathApp: App {
         NSApplication.shared.setActivationPolicy(.regular)
         appDelegate.kanataManager = kanataManager
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -30,28 +30,28 @@ struct KeyPathApp: App {
                             ),
                             NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
                             NSApplication.AboutPanelOptionKey.applicationVersion: "1.1",
-                            NSApplication.AboutPanelOptionKey.version: "Build 2"
+                            NSApplication.AboutPanelOptionKey.version: "Build 2",
                         ]
                     )
                 }
             }
-            
+
             // Add File menu with Open Config
             CommandGroup(replacing: .newItem) {
                 Button("Open Config") {
                     openConfigInEditor(kanataManager: kanataManager)
                 }
                 .keyboardShortcut("o", modifiers: .command)
-                
+
                 Divider()
-                
+
                 Button("Show Installation Wizard") {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             }
         }
-        
+
         Settings {
             SettingsView()
                 .environmentObject(kanataManager)
@@ -64,12 +64,12 @@ struct KeyPathApp: App {
 @MainActor
 func openConfigInEditor(kanataManager: KanataManager) {
     let configPath = kanataManager.configPath
-    
+
     // Try to open with Zed first
     let zedProcess = Process()
     zedProcess.launchPath = "/usr/local/bin/zed"
     zedProcess.arguments = [configPath]
-    
+
     do {
         try zedProcess.run()
         AppLogger.shared.log("📝 Opened config in Zed")
@@ -79,7 +79,7 @@ func openConfigInEditor(kanataManager: KanataManager) {
         let homebrewZedProcess = Process()
         homebrewZedProcess.launchPath = "/opt/homebrew/bin/zed"
         homebrewZedProcess.arguments = [configPath]
-        
+
         do {
             try homebrewZedProcess.run()
             AppLogger.shared.log("📝 Opened config in Zed (Homebrew)")
@@ -89,7 +89,7 @@ func openConfigInEditor(kanataManager: KanataManager) {
             let openZedProcess = Process()
             openZedProcess.launchPath = "/usr/bin/open"
             openZedProcess.arguments = ["-a", "Zed", configPath]
-            
+
             do {
                 try openZedProcess.run()
                 AppLogger.shared.log("📝 Opened config in Zed (via open)")
@@ -99,7 +99,7 @@ func openConfigInEditor(kanataManager: KanataManager) {
                 let fallbackProcess = Process()
                 fallbackProcess.launchPath = "/usr/bin/open"
                 fallbackProcess.arguments = ["-t", configPath]
-                
+
                 do {
                     try fallbackProcess.run()
                     AppLogger.shared.log("📝 Opened config in default text editor")
@@ -117,37 +117,37 @@ func openConfigInEditor(kanataManager: KanataManager) {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: KanataManager?
 
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         print("🔍 [AppDelegate] applicationShouldTerminate called")
         return .terminateNow
     }
-    
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+
+    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         print("🔍 [AppDelegate] applicationShouldTerminateAfterLastWindowClosed called")
         return true
     }
-    
-    func applicationWillHide(_ notification: Notification) {
+
+    func applicationWillHide(_: Notification) {
         print("🔍 [AppDelegate] applicationWillHide called")
     }
-    
-    func applicationDidBecomeActive(_ notification: Notification) {
+
+    func applicationDidBecomeActive(_: Notification) {
         print("🔍 [AppDelegate] applicationDidBecomeActive called")
     }
-    
-    func applicationDidFinishLaunching(_ notification: Notification) {
+
+    func applicationDidFinishLaunching(_: Notification) {
         print("🔍 [AppDelegate] applicationDidFinishLaunching called")
         AppLogger.shared.log("🔍 [AppDelegate] applicationDidFinishLaunching called")
-        
+
         // Note: Kanata is already started in KanataManager.init() if requirements are met
         // No need to start it again here
     }
-    
-    func applicationWillResignActive(_ notification: Notification) {
+
+    func applicationWillResignActive(_: Notification) {
         print("🔍 [AppDelegate] applicationWillResignActive called")
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    func applicationWillTerminate(_: Notification) {
         // Ensure Kanata is stopped when the app quits.
         Task {
             await kanataManager?.cleanup()

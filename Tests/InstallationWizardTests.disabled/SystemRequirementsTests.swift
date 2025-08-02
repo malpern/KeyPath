@@ -219,11 +219,13 @@ final class SystemRequirementsTests: XCTestCase {
         let kanataManager = KanataManager()
         let vhidManager = VHIDDeviceManager()
         let launchDaemonInstaller = LaunchDaemonInstaller()
+        let packageManager = PackageManager()
         let detector = SystemStateDetector(
             kanataManager: kanataManager,
             vhidDeviceManager: vhidManager,
             launchDaemonInstaller: launchDaemonInstaller,
-            systemRequirements: systemRequirements
+            systemRequirements: systemRequirements,
+            packageManager: packageManager
         )
         
         // Verify detector can be created with SystemRequirements

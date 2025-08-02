@@ -1,5 +1,5 @@
-import Foundation
 import Carbon
+import Foundation
 import SwiftUI
 
 class KeyboardCapture: ObservableObject {
@@ -10,21 +10,21 @@ class KeyboardCapture: ObservableObject {
     private var isContinuous = false
     private var pauseTimer: Timer?
     private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
-    
+
     // Emergency stop sequence detection
     private var emergencyEventTap: CFMachPort?
     private var emergencyRunLoopSource: CFRunLoopSource?
     private var emergencyCallback: (() -> Void)?
     private var isMonitoringEmergency = false
     private var pressedKeys: Set<Int64> = []
-    
+
     func startCapture(callback: @escaping (String) -> Void) {
         guard !isCapturing else { return }
-        
+
         captureCallback = callback
         isCapturing = true
         isContinuous = false
-        
+
         // Only start capture if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
         if !hasAccessibilityPermissions() {
@@ -34,17 +34,17 @@ class KeyboardCapture: ObservableObject {
             callback("⚠️ Accessibility permission required")
             return
         }
-        
+
         setupEventTap()
     }
-    
+
     func startContinuousCapture(callback: @escaping (String) -> Void) {
         guard !isCapturing else { return }
-        
+
         captureCallback = callback
         isCapturing = true
         isContinuous = true
-        
+
         // Only start capture if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
         if !hasAccessibilityPermissions() {
@@ -55,69 +55,69 @@ class KeyboardCapture: ObservableObject {
             callback("⚠️ Accessibility permission required")
             return
         }
-        
+
         setupEventTap()
     }
-    
+
     func stopCapture() {
         guard isCapturing else { return }
-        
+
         isCapturing = false
         isContinuous = false
         captureCallback = nil
-        
+
         // Cancel pause timer
         pauseTimer?.invalidate()
         pauseTimer = nil
-        
+
         if let eventTap = eventTap {
             CFMachPortInvalidate(eventTap)
             self.eventTap = nil
         }
-        
+
         if let runLoopSource = runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
             self.runLoopSource = nil
         }
     }
-    
+
     private func setupEventTap() {
         let eventMask = (1 << CGEventType.keyDown.rawValue)
-        
+
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(eventMask),
-            callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
+            callback: { _, _, event, refcon -> Unmanaged<CGEvent>? in
                 guard let refcon = refcon else { return Unmanaged.passRetained(event) }
-                
+
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
                 capture.handleKeyEvent(event)
-                
+
                 // Return nil to suppress the event
                 return nil
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         )
-        
+
         guard let eventTap = eventTap else {
             print("Failed to create event tap")
             return
         }
-        
+
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
     }
-    
+
     private func handleKeyEvent(_ event: CGEvent) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let keyName = keyCodeToString(keyCode)
-        
+
         DispatchQueue.main.async {
             self.captureCallback?(keyName)
-            
+
             if !self.isContinuous {
                 // Single key capture - stop immediately
                 self.stopCapture()
@@ -127,11 +127,11 @@ class KeyboardCapture: ObservableObject {
             }
         }
     }
-    
+
     private func resetPauseTimer() {
         // Cancel existing timer
         pauseTimer?.invalidate()
-        
+
         // Start new timer for auto-stop after pause
         pauseTimer = Timer.scheduledTimer(withTimeInterval: pauseDuration, repeats: false) { [weak self] _ in
             DispatchQueue.main.async {
@@ -139,7 +139,7 @@ class KeyboardCapture: ObservableObject {
             }
         }
     }
-    
+
     private func keyCodeToString(_ keyCode: Int64) -> String {
         // Map common key codes to readable names
         let keyMap: [Int64: String] = [
@@ -150,43 +150,43 @@ class KeyboardCapture: ObservableObject {
             30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
             37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
             44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps"
+            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps",
         ]
-        
+
         if let keyName = keyMap[keyCode] {
             return keyName
         } else {
             return "key\(keyCode)"
         }
     }
-    
+
     private func hasAccessibilityPermissions() -> Bool {
         return AXIsProcessTrusted()
     }
-    
+
     private func requestAccessibilityPermissions() {
         let options: [CFString: Any] = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true]
         AXIsProcessTrustedWithOptions(options as CFDictionary)
     }
-    
+
     // Check permissions without prompting
     func checkAccessibilityPermissionsSilently() -> Bool {
         return AXIsProcessTrusted()
     }
-    
+
     // Public method to explicitly request permissions (for use in wizard)
     func requestPermissionsExplicitly() {
         requestAccessibilityPermissions()
     }
-    
+
     // MARK: - Emergency Stop Sequence Detection
-    
+
     func startEmergencyMonitoring(callback: @escaping () -> Void) {
         guard !isMonitoringEmergency else { return }
-        
+
         emergencyCallback = callback
         isMonitoringEmergency = true
-        
+
         // Only start monitoring if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
         if !hasAccessibilityPermissions() {
@@ -194,75 +194,75 @@ class KeyboardCapture: ObservableObject {
             isMonitoringEmergency = false
             return
         }
-        
+
         setupEmergencyEventTap()
     }
-    
+
     func stopEmergencyMonitoring() {
         guard isMonitoringEmergency else { return }
-        
+
         isMonitoringEmergency = false
         pressedKeys.removeAll()
-        
+
         if let source = emergencyRunLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
             emergencyRunLoopSource = nil
         }
-        
+
         if let tap = emergencyEventTap {
             CGEvent.tapEnable(tap: tap, enable: false)
             emergencyEventTap = nil
         }
     }
-    
+
     private func setupEmergencyEventTap() {
         let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
-        
+
         emergencyEventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(eventMask),
-            callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
+            callback: { _, type, event, refcon -> Unmanaged<CGEvent>? in
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon!).takeUnretainedValue()
                 capture.handleEmergencyEvent(event: event, type: type)
                 return Unmanaged.passUnretained(event)
             },
             userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         )
-        
+
         guard let eventTap = emergencyEventTap else {
             print("Failed to create emergency event tap")
             return
         }
-        
+
         emergencyRunLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), emergencyRunLoopSource, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
     }
-    
+
     private func handleEmergencyEvent(event: CGEvent, type: CGEventType) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        
+
         // Key codes for the emergency sequence: Ctrl (59), Space (49), Esc (53)
         let leftControlKey: Int64 = 59
         let spaceKey: Int64 = 49
         let escapeKey: Int64 = 53
-        
+
         if type == .keyDown {
             pressedKeys.insert(keyCode)
-            
+
             // Check if all three keys are pressed simultaneously
-            if pressedKeys.contains(leftControlKey) && 
-               pressedKeys.contains(spaceKey) && 
-               pressedKeys.contains(escapeKey) {
-                
+            if pressedKeys.contains(leftControlKey),
+               pressedKeys.contains(spaceKey),
+               pressedKeys.contains(escapeKey)
+            {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
-                
+
                 DispatchQueue.main.async {
                     self.emergencyCallback?()
                 }
-                
+
                 // Clear the set to prevent repeated triggers
                 pressedKeys.removeAll()
             }

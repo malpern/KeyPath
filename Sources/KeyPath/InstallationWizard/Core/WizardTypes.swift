@@ -12,6 +12,7 @@ enum WizardPage: String, CaseIterable {
     case backgroundServices = "Background Services"
     case installation = "Install Components"
     case daemon = "Karabiner Daemon"
+    case service = "Kanata Service"
 }
 
 /// Status of individual installation or check components
@@ -61,6 +62,7 @@ enum ComponentRequirement: Equatable {
     case vhidDeviceActivation
     case vhidDeviceRunning
     case launchDaemonServices
+    case packageManager // Homebrew or other package manager
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -72,6 +74,7 @@ enum AutoFixAction: Equatable {
     case createConfigDirectories
     case activateVHIDDeviceManager
     case installLaunchDaemonServices
+    case installViaBrew // Install missing packages via Homebrew
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
@@ -80,25 +83,25 @@ enum IssueIdentifier: Equatable {
     case component(ComponentRequirement)
     case conflict(SystemConflict)
     case daemon
-    
+
     /// Check if this identifier represents a conflict
     var isConflict: Bool {
         if case .conflict = self { return true }
         return false
     }
-    
+
     /// Check if this identifier represents a permission issue
     var isPermission: Bool {
         if case .permission = self { return true }
         return false
     }
-    
+
     /// Check if this identifier represents a component issue
     var isComponent: Bool {
         if case .component = self { return true }
         return false
     }
-    
+
     /// Check if this identifier represents a daemon issue
     var isDaemon: Bool {
         if case .daemon = self { return true }
@@ -116,13 +119,13 @@ struct WizardIssue: Identifiable {
     let description: String
     let autoFixAction: AutoFixAction?
     let userAction: String?
-    
+
     enum IssueSeverity {
         case info
         case warning
         case error
         case critical
-        
+
         var color: Color {
             switch self {
             case .info: return .blue
@@ -131,7 +134,7 @@ struct WizardIssue: Identifiable {
             case .critical: return .purple
             }
         }
-        
+
         var icon: String {
             switch self {
             case .info: return "info.circle"
@@ -141,7 +144,7 @@ struct WizardIssue: Identifiable {
             }
         }
     }
-    
+
     enum IssueCategory {
         case conflicts
         case permissions
@@ -169,11 +172,11 @@ struct SystemStateResult {
     let issues: [WizardIssue]
     let autoFixActions: [AutoFixAction]
     let detectionTimestamp: Date
-    
+
     var hasBlockingIssues: Bool {
         issues.contains { $0.severity == .critical || $0.severity == .error }
     }
-    
+
     var canAutoFix: Bool {
         !autoFixActions.isEmpty
     }
@@ -184,7 +187,7 @@ struct ConflictDetectionResult {
     let conflicts: [SystemConflict]
     let canAutoResolve: Bool
     let description: String
-    
+
     var hasConflicts: Bool {
         !conflicts.isEmpty
     }
@@ -195,7 +198,7 @@ struct PermissionCheckResult {
     let missing: [PermissionRequirement]
     let granted: [PermissionRequirement]
     let needsUserAction: Bool
-    
+
     var allGranted: Bool {
         missing.isEmpty
     }
@@ -206,7 +209,7 @@ struct ComponentCheckResult {
     let missing: [ComponentRequirement]
     let installed: [ComponentRequirement]
     let canAutoInstall: Bool
-    
+
     var allInstalled: Bool {
         missing.isEmpty
     }
@@ -218,7 +221,7 @@ struct ComponentCheckResult {
 enum WizardConstants {
     enum Titles {
         static let inputMonitoring = "Input Monitoring"
-        static let accessibility = "Accessibility" 
+        static let accessibility = "Accessibility"
         static let kanataInputMonitoring = "Kanata Input Monitoring"
         static let kanataAccessibility = "Kanata Accessibility"
         static let conflictingProcesses = "Conflicting Processes Detected"
@@ -229,7 +232,7 @@ enum WizardConstants {
         static let kanataBinaryMissing = "Kanata Binary Missing"
         static let karabinerDriverMissing = "Karabiner Driver Missing"
     }
-    
+
     enum Messages {
         static let permissionRequired = "Permission required for keyboard remapping"
         static let conflictDetected = "Conflicting process detected"

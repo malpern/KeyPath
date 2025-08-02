@@ -7,22 +7,22 @@ struct PermissionDetailsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var permissionDetails = ""
     @State private var isLoading = true
-    
+
     var body: some View {
         VStack(spacing: 20) {
             HStack {
                 Text("Permission Details")
                     .font(.title2)
                     .fontWeight(.bold)
-                
+
                 Spacer()
-                
+
                 Button("Close") {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
             }
-            
+
             if isLoading {
                 ProgressView("Checking permissions...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -31,20 +31,20 @@ struct PermissionDetailsSheet: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("TCC Database Check Results:")
                             .font(.headline)
-                        
+
                         Text(permissionDetails)
                             .font(.system(.body, design: .monospaced))
                             .textSelection(.enabled)
                             .padding()
                             .background(Color(NSColor.textBackgroundColor))
                             .cornerRadius(8)
-                        
+
                         Divider()
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             Text("What to do if permissions are missing:")
                                 .font(.headline)
-                            
+
                             Text("1. Open System Settings → Privacy & Security")
                             Text("2. Navigate to Input Monitoring")
                             Text("3. Add both KeyPath.app and /usr/local/bin/kanata")
@@ -67,25 +67,25 @@ struct PermissionDetailsSheet: View {
             loadPermissionDetails()
         }
     }
-    
+
     private func loadPermissionDetails() {
         Task {
             let (keyPathHas, kanataHas, details) = kanataManager.checkBothAppsHavePermissions()
-            
+
             await MainActor.run {
                 var report = "=== Permission Status Report ===\n\n"
                 report += "KeyPath.app:\n"
                 report += "• Input Monitoring: \(kanataManager.hasInputMonitoringPermission() ? "✅ Granted" : "❌ Not Granted")\n"
                 report += "• Accessibility: \(kanataManager.hasAccessibilityPermission() ? "✅ Granted" : "❌ Not Granted")\n"
                 report += "• TCC Database: \(keyPathHas ? "✅ Found" : "❌ Not Found")\n\n"
-                
+
                 report += "kanata (/usr/local/bin/kanata):\n"
                 report += "• Input Monitoring (TCC): \(kanataHas ? "✅ Granted" : "❌ Not Granted")\n"
                 report += "• Accessibility: \(kanataManager.checkAccessibilityForPath("/usr/local/bin/kanata") ? "✅ Granted" : "❌ Not Granted")\n\n"
-                
+
                 report += "=== TCC Database Details ===\n"
                 report += details
-                
+
                 permissionDetails = report
                 isLoading = false
             }
@@ -98,28 +98,28 @@ struct PermissionDetailsSheet: View {
 struct InputMonitoringHelpSheet: View {
     let kanataManager: KanataManager
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         VStack(spacing: 20) {
             HStack {
                 Text("Input Monitoring Permission Help")
                     .font(.title2)
                     .fontWeight(.semibold)
-                
+
                 Spacer()
-                
+
                 Button("Done") {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
             }
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("How to grant permission:")
                             .font(.headline)
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(alignment: .top) {
                                 Text("1.")
@@ -151,7 +151,7 @@ struct InputMonitoringHelpSheet: View {
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
-                    
+
                     VStack(spacing: 12) {
                         Button("Check Permission Status") {
                             Task {
@@ -177,28 +177,28 @@ struct InputMonitoringHelpSheet: View {
 struct AccessibilityHelpSheet: View {
     let kanataManager: KanataManager
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         VStack(spacing: 20) {
             HStack {
                 Text("Accessibility Permission Help")
                     .font(.title2)
                     .fontWeight(.semibold)
-                
+
                 Spacer()
-                
+
                 Button("Done") {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
             }
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("How to grant permission:")
                             .font(.headline)
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(alignment: .top) {
                                 Text("1.")
@@ -236,7 +236,7 @@ struct AccessibilityHelpSheet: View {
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
-                    
+
                     VStack(spacing: 12) {
                         Button("Check Permission Status") {
                             Task {
@@ -262,32 +262,32 @@ struct AccessibilityHelpSheet: View {
 struct BackgroundServicesHelpSheet: View {
     let kanataManager: KanataManager
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         VStack(spacing: 20) {
             HStack {
                 Text("Background Services Setup Help")
                     .font(.title2)
                     .fontWeight(.semibold)
-                
+
                 Spacer()
-                
+
                 Button("Done") {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
             }
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Karabiner background services may not appear in System Settings by default. You need to manually add them as Login Items:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         Text("How to add Login Items:")
                             .font(.headline)
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(alignment: .top) {
                                 Text("1.")
@@ -346,11 +346,11 @@ struct BackgroundServicesHelpSheet: View {
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
-                    
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Helpful Tools:")
                             .font(.headline)
-                        
+
                         Text("• Use 'Open Karabiner Folder' to browse directly to the apps")
                         Text("• Use 'Copy File Paths' to get the full paths for manual navigation")
                         Text("• Services may not appear in \"By Category\" view even when working")
@@ -360,7 +360,7 @@ struct BackgroundServicesHelpSheet: View {
                     .padding()
                     .background(Color.blue.opacity(0.1))
                     .cornerRadius(8)
-                    
+
                     VStack(spacing: 12) {
                         HStack(spacing: 12) {
                             Button("Open System Settings") {
@@ -369,19 +369,19 @@ struct BackgroundServicesHelpSheet: View {
                                 }
                             }
                             .buttonStyle(.borderedProminent)
-                            
+
                             Button("Open Karabiner Folder") {
                                 openKarabinerFolderInFinder()
                             }
                             .buttonStyle(.bordered)
                         }
-                        
+
                         HStack(spacing: 12) {
                             Button("Copy File Paths") {
                                 copyKarabinerPathsToClipboard()
                             }
                             .buttonStyle(.bordered)
-                            
+
                             Button("Check Service Status") {
                                 Task {
                                     // Refresh service status
@@ -400,41 +400,40 @@ struct BackgroundServicesHelpSheet: View {
         .frame(width: 650, height: 600)
         .padding()
     }
-    
+
     private func openKarabinerFolderInFinder() {
         let karabinerPath = "/Library/Application Support/org.pqrs/Karabiner-Elements/"
         if let url = URL(string: "file://\(karabinerPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? karabinerPath)") {
             NSWorkspace.shared.open(url)
         }
     }
-    
+
     private func copyKarabinerPathsToClipboard() {
         let paths = """
         Karabiner-Elements Non-Privileged Agents.app
         Karabiner-Elements Privileged Daemons.app
-        
+
         Full paths:
         /Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app
         /Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app
         """
-        
+
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(paths, forType: .string)
     }
-    
 }
 
 // MARK: - Visual Effect Background
 
 struct VisualEffectBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
+    func makeNSView(context _: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.blendingMode = .behindWindow
         view.material = .contentBackground
         view.state = .active
         return view
     }
-    
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+
+    func updateNSView(_: NSVisualEffectView, context _: Context) {}
 }

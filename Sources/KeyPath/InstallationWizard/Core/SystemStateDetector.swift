@@ -1,5 +1,5 @@
-import Foundation
 import ApplicationServices
+import Foundation
 
 /// Pure system state detection logic - no side effects, no auto-fixing
 class SystemStateDetector: SystemStateDetecting {
@@ -7,29 +7,31 @@ class SystemStateDetector: SystemStateDetecting {
     private let vhidDeviceManager: VHIDDeviceManager
     private let launchDaemonInstaller: LaunchDaemonInstaller
     private let systemRequirements: SystemRequirements
-    
-    init(kanataManager: KanataManager, vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(), launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(), systemRequirements: SystemRequirements = SystemRequirements()) {
+    private let packageManager: PackageManager
+
+    init(kanataManager: KanataManager, vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(), launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(), systemRequirements: SystemRequirements = SystemRequirements(), packageManager: PackageManager = PackageManager()) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.launchDaemonInstaller = launchDaemonInstaller
         self.systemRequirements = systemRequirements
+        self.packageManager = packageManager
     }
-    
+
     // MARK: - Main Detection Method
-    
+
     func detectCurrentState() async -> SystemStateResult {
         AppLogger.shared.log("🔍 [StateDetector] Starting comprehensive system state detection")
-        
+
         // Check system compatibility first
         let compatibilityResult = systemRequirements.validateSystemCompatibility()
-        
+
         // Detect all aspects of system state
         let conflictResult = await detectConflicts()
         let permissionResult = await checkPermissions()
         let componentResult = await checkComponents()
         let serviceRunning = kanataManager.isRunning
         let daemonRunning = kanataManager.isKarabinerDaemonRunning()
-        
+
         // Determine overall state
         let state = determineOverallState(
             compatibility: compatibilityResult,
@@ -39,22 +41,22 @@ class SystemStateDetector: SystemStateDetecting {
             serviceRunning: serviceRunning,
             daemonRunning: daemonRunning
         )
-        
+
         // Collect all issues
         var issues: [WizardIssue] = []
         issues.append(contentsOf: createSystemRequirementIssues(from: compatibilityResult))
         issues.append(contentsOf: createConflictIssues(from: conflictResult))
         issues.append(contentsOf: createPermissionIssues(from: permissionResult))
         issues.append(contentsOf: createComponentIssues(from: componentResult))
-        
+
         if !daemonRunning {
             issues.append(createDaemonIssue())
         }
-        
+
         // Service status is handled by systemState on the summary page
         // No need to create separate service issues since the summary page
         // provides a "Start Kanata Service" button based on systemState
-        
+
         // Determine available auto-fix actions
         let autoFixActions = determineAutoFixActions(
             conflicts: conflictResult,
@@ -62,87 +64,90 @@ class SystemStateDetector: SystemStateDetecting {
             components: componentResult,
             daemonRunning: daemonRunning
         )
-        
+
         let result = SystemStateResult(
             state: state,
             issues: issues,
             autoFixActions: autoFixActions,
             detectionTimestamp: Date()
         )
-        
+
         AppLogger.shared.log("🔍 [StateDetector] Detection complete: \(state), \(issues.count) issues, \(autoFixActions.count) auto-fixes")
         return result
     }
-    
+
     // MARK: - Conflict Detection
-    
+
     func detectConflicts() async -> ConflictDetectionResult {
         AppLogger.shared.log("🔍 [StateDetector] Detecting system conflicts")
-        
+
         var conflicts: [SystemConflict] = []
-        
+
         // Check for running Kanata processes
         let kanataConflicts = await detectKanataProcessConflicts()
         conflicts.append(contentsOf: kanataConflicts)
-        
+
         // Check for Karabiner grabber conflicts
         if kanataManager.isKarabinerElementsRunning() {
             // Note: We don't get PID from isKarabinerElementsRunning, so we use a placeholder
             conflicts.append(.karabinerGrabberRunning(pid: -1))
         }
-        
+
         let canAutoResolve = !conflicts.isEmpty // We can auto-terminate processes
         let description = createConflictDescription(conflicts)
-        
+
         return ConflictDetectionResult(
             conflicts: conflicts,
             canAutoResolve: canAutoResolve,
             description: description
         )
     }
-    
+
     private func detectKanataProcessConflicts() async -> [SystemConflict] {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         task.arguments = ["-fl", "kanata"]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         var conflicts: [SystemConflict] = []
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
-            if task.terminationStatus == 0 && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+
+            if task.terminationStatus == 0, !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
-                
+
                 for line in lines {
                     let components = line.components(separatedBy: " ")
                     guard let pidString = components.first,
                           let pid = Int(pidString),
-                          components.count > 1 else {
+                          components.count > 1
+                    else {
                         continue
                     }
-                    
+
                     let command = components.dropFirst().joined(separator: " ")
-                    
+
                     // Filter out non-relevant processes
-                    if command.contains("pgrep") || 
-                       command.contains("/bin/zsh") || 
-                       command.contains("/bin/sh") {
+                    if command.contains("pgrep") ||
+                        command.contains("/bin/zsh") ||
+                        command.contains("/bin/sh")
+                    {
                         continue
                     }
-                    
+
                     // Only include actual kanata processes
-                    if command.contains("/usr/local/bin/kanata") || 
-                       command.contains("/opt/homebrew/bin/kanata") ||
-                       command.starts(with: "kanata") {
+                    if command.contains("/usr/local/bin/kanata") ||
+                        command.contains("/opt/homebrew/bin/kanata") ||
+                        command.starts(with: "kanata")
+                    {
                         conflicts.append(.kanataProcessRunning(pid: pid, command: command))
                     }
                 }
@@ -150,47 +155,47 @@ class SystemStateDetector: SystemStateDetecting {
         } catch {
             AppLogger.shared.log("❌ [StateDetector] Error detecting Kanata conflicts: \(error)")
         }
-        
+
         return conflicts
     }
-    
+
     private func createConflictDescription(_ conflicts: [SystemConflict]) -> String {
         guard !conflicts.isEmpty else { return "" }
-        
+
         var description = "Found \(conflicts.count) conflicting process\(conflicts.count == 1 ? "" : "es"):\n"
-        
+
         for conflict in conflicts {
             switch conflict {
-            case .kanataProcessRunning(let pid, let command):
+            case let .kanataProcessRunning(pid, command):
                 description += "• Process ID: \(pid) - \(command)\n"
-            case .karabinerGrabberRunning(let pid):
+            case let .karabinerGrabberRunning(pid):
                 if pid > 0 {
                     description += "• Karabiner grabber (PID: \(pid))\n"
                 } else {
                     description += "• Karabiner grabber process\n"
                 }
-            case .exclusiveDeviceAccess(let device):
+            case let .exclusiveDeviceAccess(device):
                 description += "• Exclusive access conflict: \(device)\n"
             }
         }
-        
+
         return description
     }
-    
+
     // MARK: - Permission Checking
-    
+
     func checkPermissions() async -> PermissionCheckResult {
         AppLogger.shared.log("🔍 [StateDetector] Checking system permissions")
-        
+
         var missing: [PermissionRequirement] = []
         var granted: [PermissionRequirement] = []
-        
+
         // Check Input Monitoring permissions for each app individually
         let keyPathHasInputMonitoring = kanataManager.hasInputMonitoringPermission()
         let kanataHasInputMonitoring = kanataManager.checkTCCForInputMonitoring(path: "/usr/local/bin/kanata")
-        
+
         AppLogger.shared.log("🔍 [StateDetector] Input Monitoring - KeyPath: \(keyPathHasInputMonitoring), Kanata: \(kanataHasInputMonitoring)")
-        
+
         // For Input Monitoring, we need BOTH apps to have permission for the system to work properly
         if keyPathHasInputMonitoring && kanataHasInputMonitoring {
             granted.append(.kanataInputMonitoring)
@@ -199,15 +204,15 @@ class SystemStateDetector: SystemStateDetecting {
             missing.append(.kanataInputMonitoring)
             AppLogger.shared.log("🔍 [StateDetector] ❌ Input Monitoring MISSING")
         }
-        
+
         // Check accessibility permissions for both apps
         // For KeyPath app, use the system's current accessibility check
         let keyPathAccessibility = AXIsProcessTrusted()
         let kanataAccessibility = kanataManager.checkAccessibilityForPath("/usr/local/bin/kanata")
-        
+
         AppLogger.shared.log("🔍 [StateDetector] Accessibility - KeyPath: \(keyPathAccessibility), Kanata: \(kanataAccessibility)")
-        
-        // For Accessibility, we need BOTH apps to have permission  
+
+        // For Accessibility, we need BOTH apps to have permission
         if keyPathAccessibility && kanataAccessibility {
             granted.append(.kanataAccessibility)
             AppLogger.shared.log("🔍 [StateDetector] ✅ Accessibility GRANTED")
@@ -215,81 +220,94 @@ class SystemStateDetector: SystemStateDetecting {
             missing.append(.kanataAccessibility)
             AppLogger.shared.log("🔍 [StateDetector] ❌ Accessibility MISSING")
         }
-        
+
         // Check driver extension
         if kanataManager.isKarabinerDriverExtensionEnabled() {
             granted.append(.driverExtensionEnabled)
         } else {
             missing.append(.driverExtensionEnabled)
         }
-        
+
         // Check background services
         if kanataManager.areKarabinerBackgroundServicesEnabled() {
             granted.append(.backgroundServicesEnabled)
         } else {
             missing.append(.backgroundServicesEnabled)
         }
-        
+
         let needsUserAction = !missing.isEmpty
-        
+
         return PermissionCheckResult(
             missing: missing,
             granted: granted,
             needsUserAction: needsUserAction
         )
     }
-    
+
     // MARK: - Component Checking
-    
+
     func checkComponents() async -> ComponentCheckResult {
         AppLogger.shared.log("🔍 [StateDetector] Checking system components")
-        
+
         var missing: [ComponentRequirement] = []
         var installed: [ComponentRequirement] = []
-        
-        // Check Kanata binary
-        if kanataManager.isInstalled() {
+
+        // Check package manager availability first
+        let homebrewAvailable = packageManager.checkHomebrewInstallation()
+        if homebrewAvailable {
+            installed.append(.packageManager)
+            AppLogger.shared.log("✅ [StateDetector] Package manager (Homebrew) available")
+        } else {
+            missing.append(.packageManager)
+            AppLogger.shared.log("❌ [StateDetector] Package manager (Homebrew) not available")
+        }
+
+        // Check Kanata binary using PackageManager for comprehensive detection
+        let kanataInfo = packageManager.detectKanataInstallation()
+        if kanataInfo.isInstalled {
             installed.append(.kanataBinary)
+            AppLogger.shared.log("✅ [StateDetector] Kanata found: \(kanataInfo.description)")
         } else {
             missing.append(.kanataBinary)
+            AppLogger.shared.log("❌ [StateDetector] Kanata not found")
         }
-        
+
         // Service is always available with direct execution
         installed.append(.kanataService)
-        
+
         // Check Karabiner driver
         if kanataManager.isKarabinerDriverInstalled() {
             installed.append(.karabinerDriver)
         } else {
             missing.append(.karabinerDriver)
         }
-        
+
         // Check Karabiner daemon
         if kanataManager.isKarabinerDaemonRunning() {
             installed.append(.karabinerDaemon)
         } else {
             missing.append(.karabinerDaemon)
         }
-        
+
         // Check VHIDDevice Manager components
         if vhidDeviceManager.detectInstallation() {
             installed.append(.vhidDeviceManager)
         } else {
             missing.append(.vhidDeviceManager)
         }
-        
+
         if vhidDeviceManager.detectActivation() {
             installed.append(.vhidDeviceActivation)
         } else {
             missing.append(.vhidDeviceActivation)
         }
-        
+
         if vhidDeviceManager.detectRunning() {
             installed.append(.vhidDeviceRunning)
         } else {
             missing.append(.vhidDeviceRunning)
         }
-        
+
         // Check LaunchDaemon services
         let daemonStatus = launchDaemonInstaller.getServiceStatus()
         if daemonStatus.allServicesLoaded {
@@ -297,20 +315,21 @@ class SystemStateDetector: SystemStateDetecting {
         } else {
             missing.append(.launchDaemonServices)
         }
-        
-        let canAutoInstall = !missing.isEmpty && 
-                           !missing.contains(.karabinerDriver) && // Driver requires manual installation
-                           !missing.contains(.vhidDeviceManager) // VHIDDevice Manager requires manual installation
-        
+
+        let canAutoInstall = !missing.isEmpty &&
+            !missing.contains(.karabinerDriver) && // Driver requires manual installation
+            !missing.contains(.vhidDeviceManager) && // VHIDDevice Manager requires manual installation
+            !missing.contains(.packageManager) // Package manager installation not automated
+
         return ComponentCheckResult(
             missing: missing,
             installed: installed,
             canAutoInstall: canAutoInstall
         )
     }
-    
+
     // MARK: - State Determination
-    
+
     private func determineOverallState(
         compatibility: SystemRequirements.ValidationResult,
         conflicts: ConflictDetectionResult,
@@ -319,42 +338,41 @@ class SystemStateDetector: SystemStateDetecting {
         serviceRunning: Bool,
         daemonRunning: Bool
     ) -> WizardSystemState {
-        
         // Priority order: compatibility > conflicts > missing components > missing permissions > daemon > service > ready
-        
+
         // System compatibility is the highest priority
         if !compatibility.isCompatible {
             return .initializing // Use initializing state for compatibility issues since we don't have a specific state
         }
-        
+
         if conflicts.hasConflicts {
             return .conflictsDetected(conflicts: conflicts.conflicts)
         }
-        
+
         if !components.allInstalled {
             return .missingComponents(missing: components.missing)
         }
-        
+
         if !permissions.allGranted {
             return .missingPermissions(missing: permissions.missing)
         }
-        
+
         if !daemonRunning {
             return .daemonNotRunning
         }
-        
+
         if !serviceRunning {
             return .serviceNotRunning
         }
-        
+
         return .active
     }
-    
+
     // MARK: - Issue Creation
-    
+
     private func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult) -> [WizardIssue] {
         var issues: [WizardIssue] = []
-        
+
         // Create issues for each compatibility problem
         if !result.isCompatible {
             for issue in result.issues {
@@ -369,7 +387,7 @@ class SystemStateDetector: SystemStateDetecting {
                 ))
             }
         }
-        
+
         // Add informational issue about driver type requirements (always show this)
         let driverInfo = WizardIssue(
             identifier: .component(.karabinerDriver),
@@ -381,13 +399,13 @@ class SystemStateDetector: SystemStateDetecting {
             userAction: nil
         )
         issues.append(driverInfo)
-        
+
         return issues
     }
-    
+
     private func createConflictIssues(from result: ConflictDetectionResult) -> [WizardIssue] {
         guard result.hasConflicts else { return [] }
-        
+
         // Create issues for each specific conflict
         return result.conflicts.map { conflict in
             WizardIssue(
@@ -401,20 +419,20 @@ class SystemStateDetector: SystemStateDetecting {
             )
         }
     }
-    
+
     private func createPermissionIssues(from result: PermissionCheckResult) -> [WizardIssue] {
         AppLogger.shared.log("🔍 [StateDetector] Creating issues for \(result.missing.count) missing permissions:")
         for permission in result.missing {
             AppLogger.shared.log("🔍 [StateDetector]   - Missing: \(permission)")
         }
-        
+
         return result.missing.map { permission in
             // Background services get their own category and page
             let category: WizardIssue.IssueCategory = permission == .backgroundServicesEnabled ? .backgroundServices : .permissions
             let title = permissionTitle(for: permission)
-            
+
             AppLogger.shared.log("🔍 [StateDetector] Creating issue: category=\(category), title='\(title)'")
-            
+
             return WizardIssue(
                 identifier: .permission(permission),
                 severity: .warning,
@@ -426,7 +444,7 @@ class SystemStateDetector: SystemStateDetecting {
             )
         }
     }
-    
+
     private func createComponentIssues(from result: ComponentCheckResult) -> [WizardIssue] {
         return result.missing.map { component in
             WizardIssue(
@@ -440,7 +458,7 @@ class SystemStateDetector: SystemStateDetecting {
             )
         }
     }
-    
+
     private func createDaemonIssue() -> WizardIssue {
         WizardIssue(
             identifier: .daemon,
@@ -452,47 +470,54 @@ class SystemStateDetector: SystemStateDetecting {
             userAction: nil
         )
     }
-    
-    
+
     // MARK: - Auto-Fix Action Determination
-    
+
     private func determineAutoFixActions(
         conflicts: ConflictDetectionResult,
-        permissions: PermissionCheckResult,
+        permissions _: PermissionCheckResult,
         components: ComponentCheckResult,
         daemonRunning: Bool
     ) -> [AutoFixAction] {
-        
         var actions: [AutoFixAction] = []
-        
-        if conflicts.hasConflicts && conflicts.canAutoResolve {
+
+        if conflicts.hasConflicts, conflicts.canAutoResolve {
             actions.append(.terminateConflictingProcesses)
         }
-        
+
+        // Check if we can install missing packages via Homebrew
+        let homebrewAvailable = components.installed.contains(.packageManager)
+        let kanataNeeded = components.missing.contains(.kanataBinary)
+
+        if homebrewAvailable, kanataNeeded {
+            actions.append(.installViaBrew)
+        }
+
         if components.canAutoInstall {
             actions.append(.installMissingComponents)
         }
-        
+
         if !daemonRunning {
             actions.append(.startKarabinerDaemon)
         }
-        
+
         // Check if VHIDDevice Manager needs activation
-        if components.missing.contains(.vhidDeviceActivation) && 
-           components.installed.contains(.vhidDeviceManager) {
+        if components.missing.contains(.vhidDeviceActivation),
+           components.installed.contains(.vhidDeviceManager)
+        {
             actions.append(.activateVHIDDeviceManager)
         }
-        
+
         // Check if LaunchDaemon services need installation
         if components.missing.contains(.launchDaemonServices) {
             actions.append(.installLaunchDaemonServices)
         }
-        
+
         return actions
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func permissionTitle(for permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring: return WizardConstants.Titles.kanataInputMonitoring
@@ -501,7 +526,7 @@ class SystemStateDetector: SystemStateDetecting {
         case .backgroundServicesEnabled: return WizardConstants.Titles.backgroundServicesDisabled
         }
     }
-    
+
     private func permissionDescription(for permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring:
@@ -514,7 +539,7 @@ class SystemStateDetector: SystemStateDetecting {
             return "Karabiner background services must be enabled for HID functionality. These may need to be manually added as Login Items."
         }
     }
-    
+
     private func userActionForPermission(_ permission: PermissionRequirement) -> String {
         switch permission {
         case .kanataInputMonitoring:
@@ -527,7 +552,7 @@ class SystemStateDetector: SystemStateDetecting {
             return "Add Karabiner services to Login Items in System Settings > General > Login Items & Extensions"
         }
     }
-    
+
     private func componentTitle(for component: ComponentRequirement) -> String {
         switch component {
         case .kanataBinary: return WizardConstants.Titles.kanataBinaryMissing
@@ -538,13 +563,14 @@ class SystemStateDetector: SystemStateDetecting {
         case .vhidDeviceActivation: return "VirtualHIDDevice Manager Not Activated"
         case .vhidDeviceRunning: return "VirtualHIDDevice Daemon Not Running"
         case .launchDaemonServices: return "LaunchDaemon Services Not Installed"
+        case .packageManager: return "Package Manager (Homebrew) Missing"
         }
     }
-    
+
     private func componentDescription(for component: ComponentRequirement) -> String {
         switch component {
         case .kanataBinary:
-            return "The kanata binary is not installed or not found in expected locations."
+            return "The kanata binary is not installed or not found in expected locations. Checked paths: /opt/homebrew/bin/kanata, /usr/local/bin/kanata, ~/.cargo/bin/kanata"
         case .kanataService:
             return "Kanata service configuration is missing."
         case .karabinerDriver:
@@ -559,28 +585,36 @@ class SystemStateDetector: SystemStateDetecting {
             return "The VirtualHIDDevice daemon processes are not running. This may indicate the manager needs activation or restart."
         case .launchDaemonServices:
             return "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
+        case .packageManager:
+            return "Homebrew package manager is not installed. This is needed to automatically install missing dependencies like Kanata. Install from https://brew.sh"
         }
     }
-    
+
     private func getAutoFixAction(for component: ComponentRequirement) -> AutoFixAction? {
         switch component {
-        case .karabinerDriver, .vhidDeviceManager:
+        case .karabinerDriver, .vhidDeviceManager, .packageManager:
             return nil // These require manual installation
         case .vhidDeviceActivation:
             return .activateVHIDDeviceManager
         case .launchDaemonServices:
             return .installLaunchDaemonServices
+        case .kanataBinary:
+            return .installViaBrew // Can be installed via Homebrew if available
         default:
             return .installMissingComponents
         }
     }
-    
+
     private func getUserAction(for component: ComponentRequirement) -> String? {
         switch component {
         case .karabinerDriver:
             return "Install Karabiner-Elements from website"
         case .vhidDeviceManager:
             return "Install Karabiner-VirtualHIDDevice from website"
+        case .packageManager:
+            return "Install Homebrew from https://brew.sh"
+        case .kanataBinary:
+            return "Install Homebrew, then run: brew install kanata"
         default:
             return nil
         }

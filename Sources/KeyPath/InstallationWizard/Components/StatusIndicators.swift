@@ -7,26 +7,26 @@ struct SummaryItemView: View {
     let title: String
     let status: InstallationStatus
     let onTap: (() -> Void)?
-    
+
     init(icon: String, title: String, status: InstallationStatus, onTap: (() -> Void)? = nil) {
         self.icon = icon
         self.title = title
         self.status = status
         self.onTap = onTap
     }
-    
+
     var body: some View {
         HStack(spacing: WizardDesign.Spacing.iconGap) {
             Image(systemName: icon)
                 .font(WizardDesign.Typography.subsectionTitle)
                 .foregroundColor(iconColor)
                 .frame(width: 30)
-            
+
             Text(title)
                 .font(WizardDesign.Typography.body)
-            
+
             Spacer()
-            
+
             statusIcon
         }
         .contentShape(Rectangle())
@@ -36,7 +36,7 @@ struct SummaryItemView: View {
         .background(Color.clear)
         .help(onTap != nil ? "Click to open settings" : "")
     }
-    
+
     var iconColor: Color {
         switch status {
         case .completed: return WizardDesign.Colors.success
@@ -45,7 +45,7 @@ struct SummaryItemView: View {
         case .notStarted: return WizardDesign.Colors.secondaryText
         }
     }
-    
+
     @ViewBuilder
     var statusIcon: some View {
         switch status {
@@ -74,12 +74,20 @@ struct InstallationItemView: View {
     let title: String
     let description: String
     let status: InstallationStatus
-    
+    let autoFixButton: (() -> AnyView)?
+
+    init(title: String, description: String, status: InstallationStatus, autoFixButton: (() -> AnyView)? = nil) {
+        self.title = title
+        self.description = description
+        self.status = status
+        self.autoFixButton = autoFixButton
+    }
+
     var body: some View {
         HStack(spacing: WizardDesign.Spacing.itemGap) {
             statusIcon
                 .frame(width: 24)
-            
+
             VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap / 2) {
                 Text(title)
                     .font(WizardDesign.Typography.subsectionTitle)
@@ -87,12 +95,17 @@ struct InstallationItemView: View {
                     .font(WizardDesign.Typography.caption)
                     .foregroundColor(WizardDesign.Colors.secondaryText)
             }
-            
+
             Spacer()
+
+            // Fix button area - buttons now have fixed dimensions to prevent layout jumping
+            if let autoFixButton = autoFixButton {
+                autoFixButton()
+            }
         }
         .wizardCard()
     }
-    
+
     @ViewBuilder
     var statusIcon: some View {
         switch status {
@@ -121,9 +134,9 @@ struct IssueCardView: View {
     let onAutoFix: (() -> Void)?
     let isFixing: Bool
     let kanataManager: KanataManager?
-    
+
     @State private var showingBackgroundServicesHelp = false
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
             HStack(spacing: WizardDesign.Spacing.iconGap) {
@@ -131,26 +144,26 @@ struct IssueCardView: View {
                     .font(.title2)
                     .foregroundColor(issue.severity.color)
                     .frame(width: 24)
-                
+
                 VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap / 2) {
                     Text(issue.title)
                         .font(WizardDesign.Typography.subsectionTitle)
                         .foregroundColor(.primary)
-                    
+
                     Text(issue.description)
                         .font(WizardDesign.Typography.body)
                         .foregroundColor(WizardDesign.Colors.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                
+
                 Spacer()
             }
-            
+
             if issue.autoFixAction != nil, let onAutoFix = onAutoFix {
                 HStack {
                     Spacer()
-                    
-                    WizardButton(isFixing ? "Fixing..." : "Auto-Fix", style: .secondary, isLoading: isFixing) {
+
+                    WizardButton(isFixing ? "Fixing..." : "Fix", style: .secondary, isLoading: isFixing) {
                         onAutoFix()
                     }
                 }
@@ -160,14 +173,14 @@ struct IssueCardView: View {
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
-                    
+
                     HStack {
                         Text(userAction)
                             .font(.caption)
                             .foregroundColor(.blue)
-                        
+
                         Spacer()
-                        
+
                         // Add help button for Background Services issues
                         if issue.category == .backgroundServices {
                             Button("Help") {
@@ -195,7 +208,7 @@ struct IssueCardView: View {
             }
         }
     }
-    
+
     var backgroundColor: Color {
         switch issue.severity {
         case .info:
@@ -206,7 +219,7 @@ struct IssueCardView: View {
             return Color.red.opacity(0.05)
         }
     }
-    
+
     var borderColor: Color {
         switch issue.severity {
         case .info:
@@ -224,20 +237,20 @@ struct IssueCardView: View {
 struct WizardProgressView: View {
     let progress: Double
     let description: String
-    
+
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.labelGap) {
             ProgressView(value: progress, total: 1.0)
                 .progressViewStyle(LinearProgressViewStyle(tint: WizardDesign.Colors.primaryAction))
                 .frame(height: 6)
-            
+
             HStack {
                 Text(description)
                     .font(WizardDesign.Typography.caption)
                     .foregroundColor(WizardDesign.Colors.secondaryText)
-                
+
                 Spacer()
-                
+
                 Text("\(Int(progress * 100))%")
                     .font(WizardDesign.Typography.caption)
                     .fontWeight(.medium)
@@ -252,7 +265,7 @@ struct WizardProgressView: View {
 struct PageDotsIndicator: View {
     let currentPage: WizardPage
     let onPageSelected: (WizardPage) -> Void
-    
+
     var body: some View {
         HStack(spacing: WizardDesign.Spacing.labelGap) {
             ForEach(WizardPage.allCases, id: \.self) { page in
@@ -264,8 +277,17 @@ struct PageDotsIndicator: View {
                     .onTapGesture {
                         onPageSelected(page)
                     }
+                    .accessibilityLabel("Page \(pageIndex(page) + 1): \(page.rawValue)")
+                    .accessibilityAddTraits(currentPage == page ? [.isSelected, .isButton] : .isButton)
+                    .accessibilityHint("Tap to navigate to \(page.rawValue) page")
             }
         }
         .padding(.vertical, WizardDesign.Spacing.labelGap)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Setup progress: page \(pageIndex(currentPage) + 1) of \(WizardPage.allCases.count)")
+    }
+
+    private func pageIndex(_ page: WizardPage) -> Int {
+        return WizardPage.allCases.firstIndex(of: page) ?? 0
     }
 }

@@ -5,12 +5,12 @@ struct PermissionCard: View {
     let appPath: String
     let status: InstallationStatus
     let permissionType: String
-    
+
     var body: some View {
         HStack(spacing: 16) {
             statusIcon
                 .frame(width: 30)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(appName)
                     .font(.headline)
@@ -20,15 +20,15 @@ struct PermissionCard: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            
+
             Spacer()
-            
+
             HStack(spacing: 8) {
                 Text(statusText)
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundColor(statusColor)
-                
+
                 if status == .notStarted {
                     Button("Add") {
                         openSystemPreferences()
@@ -52,7 +52,7 @@ struct PermissionCard: View {
             }
         }
     }
-    
+
     var statusIcon: some View {
         Group {
             switch status {
@@ -74,7 +74,7 @@ struct PermissionCard: View {
             }
         }
     }
-    
+
     var statusText: String {
         switch status {
         case .completed: return "Granted"
@@ -83,7 +83,7 @@ struct PermissionCard: View {
         case .notStarted: return "Not Granted"
         }
     }
-    
+
     var statusColor: Color {
         switch status {
         case .completed: return .green
@@ -92,7 +92,7 @@ struct PermissionCard: View {
         case .notStarted: return .orange
         }
     }
-    
+
     var backgroundColor: Color {
         switch status {
         case .completed: return Color.green.opacity(0.1)
@@ -100,7 +100,7 @@ struct PermissionCard: View {
         default: return Color(NSColor.controlBackgroundColor)
         }
     }
-    
+
     var borderColor: Color {
         switch status {
         case .completed: return Color.green.opacity(0.3)
@@ -109,7 +109,7 @@ struct PermissionCard: View {
         default: return Color.clear
         }
     }
-    
+
     private func openSystemPreferences() {
         if permissionType == "Input Monitoring" {
             // Press Escape to close the wizard for Input Monitoring
@@ -125,11 +125,11 @@ struct PermissionCard: View {
                 isARepeat: false,
                 keyCode: 53
             )
-            
+
             if let event = escapeEvent {
                 NSApplication.shared.postEvent(event, atStart: false)
             }
-            
+
             // Small delay to ensure wizard closes before opening settings
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
@@ -147,7 +147,7 @@ struct PermissionCard: View {
             if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
                 NSWorkspace.shared.open(url)
             }
-            
+
             // Then open Karabiner folder in Finder after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 let karabinerPath = "/Library/Application Support/org.pqrs/Karabiner-Elements/"
