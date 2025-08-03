@@ -10,7 +10,7 @@ let package = Package(
         .executable(
             name: "KeyPath",
             targets: ["KeyPath"]
-        ),
+        )
     ],
     dependencies: [
         // Add any dependencies here
@@ -28,6 +28,6 @@ let package = Package(
             name: "KeyPathTests",
             dependencies: ["KeyPath"],
             path: "Tests/KeyPathTests"
-        ),
+        )
     ]
 )
