@@ -128,54 +128,54 @@ enum WizardOperations {
     ) { progressCallback in
       // Start progress
       progressCallback(0.1)
-      
+
       // Provide more granular progress based on action type
       switch action {
       case .terminateConflictingProcesses:
         progressCallback(0.2)
         let success = await autoFixer.performAutoFix(action)
         progressCallback(0.8)
-        
+
         // Brief pause to show completion
-        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        try await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
         progressCallback(1.0)
         return success
-        
+
       case .installMissingComponents, .installViaBrew:
         // Longer operations - more detailed progress
         progressCallback(0.15)
-        
+
         // Simulate preparation phase
-        try await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+        try await Task.sleep(nanoseconds: 200_000_000)  // 0.2 seconds
         progressCallback(0.25)
-        
+
         let success = await autoFixer.performAutoFix(action)
         progressCallback(0.85)
-        
+
         // Brief pause for verification
-        try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+        try await Task.sleep(nanoseconds: 300_000_000)  // 0.3 seconds
         progressCallback(1.0)
         return success
-        
+
       case .activateVHIDDeviceManager:
         // Driver activation can take time
         progressCallback(0.2)
         let success = await autoFixer.performAutoFix(action)
         progressCallback(0.9)
-        
+
         // Allow time for driver activation to complete
-        try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        try await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
         progressCallback(1.0)
         return success
-        
+
       default:
         // Standard operations
         progressCallback(0.25)
         let success = await autoFixer.performAutoFix(action)
         progressCallback(0.9)
-        
+
         // Brief completion pause
-        try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+        try await Task.sleep(nanoseconds: 300_000_000)  // 0.3 seconds
         progressCallback(1.0)
         return success
       }
@@ -280,18 +280,18 @@ struct WizardError: LocalizedError {
     if recoveryActions.isEmpty {
       return nil
     }
-    
+
     if recoveryActions.count == 1 {
       return "Try this: \(recoveryActions[0])"
     }
-    
+
     let numberedActions = recoveryActions.enumerated().map { "\($0.offset + 1). \($0.element)" }
     return "Try these steps:\n\n" + numberedActions.joined(separator: "\n")
   }
 
   static func fromError(_ error: Error, operation: String) -> WizardError {
     let (friendlyMessage, recoveryActions) = createUserFriendlyMessage(for: operation, error: error)
-    
+
     return WizardError(
       operation: operation,
       underlying: error,
@@ -302,7 +302,7 @@ struct WizardError: LocalizedError {
 
   static func timeout(operation: String) -> WizardError {
     let (friendlyMessage, recoveryActions) = createTimeoutMessage(for: operation)
-    
+
     return WizardError(
       operation: operation,
       underlying: nil,
@@ -316,13 +316,18 @@ struct WizardError: LocalizedError {
       operation: operation,
       underlying: nil,
       userMessage: "Setup was cancelled by the user.",
-      recoveryActions: ["Click the 'Retry' button to try again", "Use manual setup if automatic setup continues to fail"]
+      recoveryActions: [
+        "Click the 'Retry' button to try again",
+        "Use manual setup if automatic setup continues to fail"
+      ]
     )
   }
 
   // MARK: - User-Friendly Message Creation
 
-  private static func createUserFriendlyMessage(for operation: String, error: Error) -> (String, [String]) {
+  private static func createUserFriendlyMessage(for operation: String, error: Error) -> (
+    String, [String]
+  ) {
     switch operation {
     case let op where op.contains("Auto Fix: Terminate Conflicting Processes"):
       return (
@@ -333,7 +338,7 @@ struct WizardError: LocalizedError {
           "Restart your Mac if processes won't stop"
         ]
       )
-      
+
     case let op where op.contains("Auto Fix: Install Missing Components"):
       return (
         "Failed to install required keyboard remapping components",
@@ -343,7 +348,7 @@ struct WizardError: LocalizedError {
           "Try installing Kanata manually using: brew install kanata"
         ]
       )
-      
+
     case let op where op.contains("Auto Fix: Start Kanata Service"):
       return (
         "The keyboard remapping service won't start",
@@ -353,7 +358,7 @@ struct WizardError: LocalizedError {
           "Try restarting your Mac"
         ]
       )
-      
+
     case let op where op.contains("Auto Fix: Activating Driver Extensions"):
       return (
         "Driver extensions need manual approval for security",
@@ -363,7 +368,7 @@ struct WizardError: LocalizedError {
           "You may need to restart your Mac after enabling"
         ]
       )
-      
+
     case let op where op.contains("System State Detection"):
       return (
         "Unable to check your system's current setup",
@@ -373,7 +378,7 @@ struct WizardError: LocalizedError {
           "Make sure no other setup processes are running"
         ]
       )
-      
+
     case let op where op.contains("Grant Permission"):
       return (
         "KeyPath needs additional system permissions to work properly",
@@ -383,14 +388,14 @@ struct WizardError: LocalizedError {
           "Make sure KeyPath and Kanata are both enabled"
         ]
       )
-      
+
     default:
       // Generic fallback with more helpful language
       return (
         "Something went wrong during setup",
         [
           "Try the operation again",
-          "Check that you have administrator privileges", 
+          "Check that you have administrator privileges",
           "Make sure no antivirus software is blocking KeyPath"
         ]
       )
@@ -408,7 +413,7 @@ struct WizardError: LocalizedError {
           "Close and reopen KeyPath after granting permissions"
         ]
       )
-      
+
     case let op where op.contains("Service"):
       return (
         "The keyboard service is taking too long to start",
@@ -418,7 +423,7 @@ struct WizardError: LocalizedError {
           "Try restarting your Mac if the problem persists"
         ]
       )
-      
+
     default:
       return (
         "The operation took longer than expected",

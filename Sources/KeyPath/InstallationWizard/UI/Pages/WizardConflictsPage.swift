@@ -258,16 +258,29 @@ struct TechnicalDetailsView: View {
 
   // Helper function to parse process information
   private func parseProcessInfo(_ text: String) -> (name: String, description: String, pid: String) {
-    // Example: "Karabiner Elements grabber running (PID: -1)"
-    if text.contains("Karabiner Elements grabber") {
-      let pidPattern = #"\(PID: ([^)]+)\)"#
-      if let pidMatch = text.range(of: pidPattern, options: .regularExpression) {
-        let pidText = String(text[pidMatch])
-        let pid = pidText.replacingOccurrences(of: "(PID: ", with: "").replacingOccurrences(
-          of: ")", with: "")
-        return ("karabiner_grabber", "Keyboard input capture daemon", pid)
+    // Extract PID using regex - handle both formats: "PID: 123" and "(PID: 123)"
+    let pidPattern = #"PID: (\d+)"#
+    var pid = "unknown"
+    if let pidMatch = text.range(of: pidPattern, options: .regularExpression) {
+      let pidText = String(text[pidMatch])
+      // Extract just the number part
+      if let numberMatch = pidText.range(of: #"\d+"#, options: .regularExpression) {
+        pid = String(pidText[numberMatch])
       }
-      return ("karabiner_grabber", "Keyboard input capture daemon", "unknown")
+    }
+
+    // Match different types of conflicts
+    if text.contains("Karabiner Elements grabber") || text.contains("karabiner_grabber") {
+      return ("karabiner_grabber", "Keyboard input capture daemon", pid)
+    } else if text.contains("VirtualHIDDevice") || text.contains("Karabiner-VirtualHIDDevice") {
+      return ("VirtualHIDDevice", "Virtual keyboard/mouse driver", pid)
+    } else if text.contains("Kanata process") || text.contains("kanata") {
+      return ("kanata", "Keyboard remapping engine", pid)
+    }
+
+    // If we have a valid PID but unknown process type, it's still better than complete unknown
+    if pid != "unknown" && pid != "-1" {
+      return ("system_process", "System process", pid)
     }
 
     // Default fallback

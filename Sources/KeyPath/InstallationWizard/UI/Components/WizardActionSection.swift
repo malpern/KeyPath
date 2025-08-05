@@ -5,7 +5,7 @@ struct WizardActionSection: View {
   let systemState: WizardSystemState
   let onStartService: () -> Void
   let onDismiss: () -> Void
-  
+
   var body: some View {
     VStack(spacing: WizardDesign.Spacing.itemGap) {
       // Status indicator
@@ -13,12 +13,12 @@ struct WizardActionSection: View {
         Image(systemName: statusIcon)
           .foregroundColor(statusColor)
           .font(.system(size: 20))
-        
+
         Text(statusMessage)
           .font(WizardDesign.Typography.status)
           .foregroundColor(statusColor)
       }
-      
+
       // Description text (if needed)
       if let description = statusDescription {
         Text(description)
@@ -26,15 +26,15 @@ struct WizardActionSection: View {
           .foregroundColor(WizardDesign.Colors.secondaryText)
           .multilineTextAlignment(.center)
       }
-      
+
       // Action button
       actionButton
     }
     .padding(.bottom, WizardDesign.Spacing.pageVertical)
   }
-  
+
   // MARK: - Status Properties
-  
+
   private var statusIcon: String {
     switch systemState {
     case .active:
@@ -47,7 +47,7 @@ struct WizardActionSection: View {
       return "gear.badge.xmark"
     }
   }
-  
+
   private var statusColor: Color {
     switch systemState {
     case .active:
@@ -60,7 +60,7 @@ struct WizardActionSection: View {
       return WizardDesign.Colors.secondaryText
     }
   }
-  
+
   private var statusMessage: String {
     switch systemState {
     case .active:
@@ -73,11 +73,11 @@ struct WizardActionSection: View {
       return "Setup Incomplete"
     }
   }
-  
+
   private var statusDescription: String? {
     switch systemState {
     case .active:
-      return nil // No description needed for success state
+      return nil  // No description needed for success state
     case .serviceNotRunning, .ready:
       return "All components are installed but the Kanata service is not active."
     case .conflictsDetected:
@@ -86,7 +86,7 @@ struct WizardActionSection: View {
       return "Complete the setup process to start using KeyPath"
     }
   }
-  
+
   @ViewBuilder
   private var actionButton: some View {
     switch systemState {
@@ -94,16 +94,16 @@ struct WizardActionSection: View {
       WizardButton("Close Setup", style: .primary) {
         onDismiss()
       }
-      
+
     case .serviceNotRunning, .ready:
       WizardButton("Start Kanata Service", style: .primary) {
         onStartService()
       }
-      
+
     case .conflictsDetected:
       // No action button for conflicts - user needs to navigate to conflicts page
       EmptyView()
-      
+
     default:
       // No action button for incomplete setup - user needs to complete steps
       EmptyView()
@@ -121,13 +121,13 @@ struct WizardActionSection_Previews: PreviewProvider {
         onStartService: {},
         onDismiss: {}
       )
-      
+
       WizardActionSection(
         systemState: .serviceNotRunning,
         onStartService: {},
         onDismiss: {}
       )
-      
+
       WizardActionSection(
         systemState: .conflictsDetected(conflicts: []),
         onStartService: {},

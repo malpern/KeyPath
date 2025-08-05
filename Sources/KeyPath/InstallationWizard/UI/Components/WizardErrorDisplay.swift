@@ -5,13 +5,13 @@ struct WizardErrorDisplay: View {
   let error: WizardError
   let onRetry: (() -> Void)?
   let onDismiss: (() -> Void)?
-  
+
   init(error: WizardError, onRetry: (() -> Void)? = nil, onDismiss: (() -> Void)? = nil) {
     self.error = error
     self.onRetry = onRetry
     self.onDismiss = onDismiss
   }
-  
+
   var body: some View {
     VStack(spacing: WizardDesign.Spacing.itemGap) {
       // Error icon and message
@@ -19,20 +19,20 @@ struct WizardErrorDisplay: View {
         Image(systemName: "exclamationmark.triangle.fill")
           .font(.system(size: 32))
           .foregroundColor(WizardDesign.Colors.error)
-        
+
         Text(error.userMessage)
           .font(WizardDesign.Typography.body)
           .multilineTextAlignment(.center)
           .foregroundColor(.primary)
       }
-      
+
       // Recovery suggestions
       if !error.recoveryActions.isEmpty {
         VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
           Text("Here's how to fix this:")
             .font(WizardDesign.Typography.subsectionTitle)
             .foregroundColor(.primary)
-          
+
           VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
             ForEach(Array(error.recoveryActions.enumerated()), id: \.offset) { index, action in
               HStack(alignment: .top, spacing: WizardDesign.Spacing.labelGap) {
@@ -41,7 +41,7 @@ struct WizardErrorDisplay: View {
                   .font(.system(size: 14, weight: .medium, design: .monospaced))
                   .foregroundColor(WizardDesign.Colors.info)
                   .frame(width: 20, alignment: .leading)
-                
+
                 // Step description
                 Text(action)
                   .font(.system(size: 14))
@@ -61,7 +61,7 @@ struct WizardErrorDisplay: View {
             .stroke(WizardDesign.Colors.info.opacity(0.2), lineWidth: 1)
         )
       }
-      
+
       // Action buttons
       HStack(spacing: WizardDesign.Spacing.elementGap) {
         if let onDismiss = onDismiss {
@@ -69,7 +69,7 @@ struct WizardErrorDisplay: View {
             onDismiss()
           }
         }
-        
+
         if let onRetry = onRetry {
           WizardButton("Try Again", style: .primary) {
             onRetry()
@@ -87,21 +87,21 @@ struct WizardErrorToast: View {
   let error: WizardError
   let isVisible: Bool
   let onDismiss: () -> Void
-  
+
   var body: some View {
     HStack(spacing: WizardDesign.Spacing.elementGap) {
       // Error icon
       Image(systemName: "exclamationmark.triangle.fill")
         .font(.system(size: 16))
         .foregroundColor(WizardDesign.Colors.error)
-      
+
       // Error message
       VStack(alignment: .leading, spacing: 4) {
         Text(error.userMessage)
           .font(.system(size: 14, weight: .medium))
           .foregroundColor(.primary)
           .multilineTextAlignment(.leading)
-        
+
         if let firstAction = error.recoveryActions.first {
           Text(firstAction)
             .font(.system(size: 12))
@@ -109,9 +109,9 @@ struct WizardErrorToast: View {
             .multilineTextAlignment(.leading)
         }
       }
-      
+
       Spacer()
-      
+
       // Dismiss button
       Button(action: onDismiss) {
         Image(systemName: "xmark")
@@ -134,19 +134,19 @@ struct WizardErrorToast: View {
 struct WizardErrorBanner: View {
   let error: WizardError
   let onRetry: (() -> Void)?
-  
+
   var body: some View {
     HStack(spacing: WizardDesign.Spacing.elementGap) {
       // Error icon
       Image(systemName: "exclamationmark.triangle.fill")
         .font(.system(size: 20))
         .foregroundColor(WizardDesign.Colors.error)
-      
+
       VStack(alignment: .leading, spacing: 4) {
         Text(error.userMessage)
           .font(WizardDesign.Typography.status)
           .foregroundColor(.primary)
-        
+
         if let suggestion = error.recoverySuggestion {
           Text(suggestion)
             .font(.caption)
@@ -154,9 +154,9 @@ struct WizardErrorBanner: View {
             .lineLimit(2)
         }
       }
-      
+
       Spacer()
-      
+
       if let onRetry = onRetry {
         Button("Retry") {
           onRetry()
@@ -193,7 +193,7 @@ struct WizardErrorDisplay_Previews: PreviewProvider {
         onRetry: {},
         onDismiss: {}
       )
-      
+
       WizardErrorBanner(
         error: WizardError(
           operation: "System State Detection",
@@ -203,7 +203,7 @@ struct WizardErrorDisplay_Previews: PreviewProvider {
         ),
         onRetry: {}
       )
-      
+
       WizardErrorToast(
         error: WizardError(
           operation: "Auto Fix: Start Service",

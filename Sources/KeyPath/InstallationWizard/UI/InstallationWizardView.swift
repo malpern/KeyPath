@@ -197,7 +197,7 @@ struct InstallationWizardView: View {
   private func operationProgressOverlay() -> some View {
     ZStack {
       Color.black.opacity(0.4)
-      
+
       WizardOperationProgress(
         operationName: getCurrentOperationName(),
         progress: getCurrentOperationProgress(),
@@ -460,7 +460,7 @@ struct InstallationWizardView: View {
     guard let operationId = asyncOperationManager.runningOperations.first else {
       return "Processing..."
     }
-    
+
     if operationId.contains("auto_fix_terminateConflictingProcesses") {
       return "Terminating Conflicting Processes"
     } else if operationId.contains("auto_fix_installMissingComponents") {
@@ -500,7 +500,7 @@ struct InstallationWizardView: View {
     guard let operationId = asyncOperationManager.runningOperations.first else {
       return true
     }
-    
+
     return operationId.contains("grant_permission") || operationId.contains("state_detection")
   }
 
@@ -561,4 +561,3 @@ class WizardAutoFixerManager: ObservableObject {
     return await autoFixer.performAutoFix(action)
   }
 }
-

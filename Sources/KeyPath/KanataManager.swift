@@ -1837,9 +1837,10 @@ class KanataManager: ObservableObject {
 
       // Verify no conflicting processes are still running
       let success = await verifyConflictingProcessesStopped()
-      
+
       if success {
-        AppLogger.shared.log("✅ [Conflict] All conflicting Karabiner processes successfully stopped")
+        AppLogger.shared.log(
+          "✅ [Conflict] All conflicting Karabiner processes successfully stopped")
       } else {
         AppLogger.shared.log("⚠️ [Conflict] Some conflicting processes may still be running")
       }
@@ -1855,49 +1856,54 @@ class KanataManager: ObservableObject {
   /// Verify that all conflicting processes have been stopped
   private func verifyConflictingProcessesStopped() async -> Bool {
     AppLogger.shared.log("🔍 [Conflict] Verifying conflicting processes have been stopped")
-    
+
     // Check for old karabiner_grabber processes
-    let grabberCheck = await checkProcessStopped(pattern: "karabiner_grabber", processName: "karabiner_grabber")
-    
+    let grabberCheck = await checkProcessStopped(
+      pattern: "karabiner_grabber", processName: "karabiner_grabber")
+
     // Check for VirtualHIDDevice processes
-    let vhidDaemonCheck = await checkProcessStopped(pattern: "Karabiner-VirtualHIDDevice-Daemon", processName: "VirtualHIDDevice Daemon")
-    let vhidDriverCheck = await checkProcessStopped(pattern: "Karabiner-DriverKit-VirtualHIDDevice", processName: "VirtualHIDDevice Driver")
-    
+    let vhidDaemonCheck = await checkProcessStopped(
+      pattern: "Karabiner-VirtualHIDDevice-Daemon", processName: "VirtualHIDDevice Daemon")
+    let vhidDriverCheck = await checkProcessStopped(
+      pattern: "Karabiner-DriverKit-VirtualHIDDevice", processName: "VirtualHIDDevice Driver")
+
     let allStopped = grabberCheck && vhidDaemonCheck && vhidDriverCheck
-    
+
     if allStopped {
       AppLogger.shared.log("✅ [Conflict] Verification complete: No conflicting processes running")
     } else {
       AppLogger.shared.log("⚠️ [Conflict] Verification failed: Some processes still running")
     }
-    
+
     return allStopped
   }
-  
+
   /// Check if a specific process pattern is stopped
   private func checkProcessStopped(pattern: String, processName: String) async -> Bool {
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
     task.arguments = ["-f", pattern]
-    
+
     let pipe = Pipe()
     task.standardOutput = pipe
     task.standardError = pipe
-    
+
     do {
       try task.run()
       task.waitUntilExit()
-      
+
       let isStopped = task.terminationStatus != 0  // pgrep returns 1 if no processes found
-      
+
       if isStopped {
         AppLogger.shared.log("✅ [Conflict] \(processName) successfully stopped")
       } else {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: data, encoding: .utf8) ?? ""
-        AppLogger.shared.log("⚠️ [Conflict] \(processName) still running: \(output.trimmingCharacters(in: .whitespacesAndNewlines))")
+        AppLogger.shared.log(
+          "⚠️ [Conflict] \(processName) still running: \(output.trimmingCharacters(in: .whitespacesAndNewlines))"
+        )
       }
-      
+
       return isStopped
     } catch {
       AppLogger.shared.log("❌ [Conflict] Error checking \(processName): \(error)")

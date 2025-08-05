@@ -5,13 +5,13 @@ struct WizardProgressIndicator: View {
   let title: String
   let progress: Double
   let isIndeterminate: Bool
-  
+
   init(title: String, progress: Double = 0.0, isIndeterminate: Bool = false) {
     self.title = title
     self.progress = progress
     self.isIndeterminate = isIndeterminate
   }
-  
+
   var body: some View {
     VStack(spacing: 12) {
       // Progress bar
@@ -21,7 +21,7 @@ struct WizardProgressIndicator: View {
           RoundedRectangle(cornerRadius: 4)
             .fill(Color(NSColor.separatorColor).opacity(0.3))
             .frame(height: 8)
-          
+
           if isIndeterminate {
             // Indeterminate animation
             IndeterminateProgressBar()
@@ -42,15 +42,15 @@ struct WizardProgressIndicator: View {
         }
       }
       .frame(height: 8)
-      
+
       // Title and percentage
       HStack {
         Text(title)
           .font(.system(size: 13))
           .foregroundColor(.secondary)
-        
+
         Spacer()
-        
+
         if !isIndeterminate {
           Text("\(Int(progress * 100))%")
             .font(.system(size: 13, design: .monospaced))
@@ -74,7 +74,7 @@ struct WizardProgressIndicator: View {
 /// Indeterminate progress animation
 struct IndeterminateProgressBar: View {
   @State private var offset: CGFloat = -1
-  
+
   var body: some View {
     GeometryReader { geometry in
       RoundedRectangle(cornerRadius: 4)
@@ -96,7 +96,7 @@ struct IndeterminateProgressBar: View {
         .onAppear {
           withAnimation(
             .linear(duration: 1.5)
-            .repeatForever(autoreverses: false)
+              .repeatForever(autoreverses: false)
           ) {
             offset = 1.0
           }
@@ -111,9 +111,9 @@ struct WizardOperationProgress: View {
   let operationName: String
   let progress: Double
   let isIndeterminate: Bool
-  
+
   @State private var rotationAngle: Double = 0
-  
+
   var body: some View {
     VStack(spacing: 20) {
       // Icon
@@ -126,12 +126,12 @@ struct WizardOperationProgress: View {
             rotationAngle = 360
           }
         }
-      
+
       // Title
       Text(operationName)
         .font(.headline)
         .multilineTextAlignment(.center)
-      
+
       // Progress indicator
       WizardProgressIndicator(
         title: getProgressDescription(),
@@ -147,7 +147,7 @@ struct WizardOperationProgress: View {
         .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
     )
   }
-  
+
   private func getProgressDescription() -> String {
     if isIndeterminate {
       return "Please wait..."
@@ -172,12 +172,12 @@ struct WizardProgressIndicator_Previews: PreviewProvider {
         title: "Installing components",
         progress: 0.45
       )
-      
+
       WizardProgressIndicator(
         title: "Checking system state",
         isIndeterminate: true
       )
-      
+
       WizardOperationProgress(
         operationName: "Terminating Conflicting Processes",
         progress: 0.6,
