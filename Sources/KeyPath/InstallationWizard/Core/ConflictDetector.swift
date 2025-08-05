@@ -63,7 +63,8 @@ class ConflictDetector {
       let output = String(data: data, encoding: .utf8) ?? ""
 
       if task.terminationStatus == 0,
-        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
 
         for line in lines {
@@ -97,6 +98,18 @@ class ConflictDetector {
   private func detectVirtualHIDDeviceConflicts() async -> [SystemConflict] {
     AppLogger.shared.log("🔍 [ConflictDetector] Checking for VirtualHIDDevice conflicts")
 
+    // Check if we've permanently disabled Karabiner conflicts
+    let markerPath = "\(NSHomeDirectory())/.keypath/karabiner-conflicts-disabled"
+    let oldMarkerPath = "\(NSHomeDirectory())/.keypath/karabiner-grabber-disabled"  // backwards compatibility
+    if FileManager.default.fileExists(atPath: markerPath)
+      || FileManager.default.fileExists(atPath: oldMarkerPath)
+    {
+      AppLogger.shared.log(
+        "ℹ️ [ConflictDetector] Karabiner conflicts permanently disabled by KeyPath - skipping VirtualHIDDevice conflict check"
+      )
+      return []
+    }
+
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
     task.arguments = ["-fl", "VirtualHIDDevice"]
@@ -115,7 +128,8 @@ class ConflictDetector {
       let output = String(data: data, encoding: .utf8) ?? ""
 
       if task.terminationStatus == 0,
-        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
 
         for line in lines {
@@ -161,11 +175,14 @@ class ConflictDetector {
   private func detectKarabinerGrabberConflicts() async -> [SystemConflict] {
     AppLogger.shared.log("🔍 [ConflictDetector] Checking for Karabiner grabber conflicts")
 
-    // First check if we've permanently disabled the grabber
-    let markerPath = "\(NSHomeDirectory())/.keypath/karabiner-grabber-disabled"
-    if FileManager.default.fileExists(atPath: markerPath) {
+    // First check if we've permanently disabled Karabiner conflicts
+    let markerPath = "\(NSHomeDirectory())/.keypath/karabiner-conflicts-disabled"
+    let oldMarkerPath = "\(NSHomeDirectory())/.keypath/karabiner-grabber-disabled"  // backwards compatibility
+    if FileManager.default.fileExists(atPath: markerPath)
+      || FileManager.default.fileExists(atPath: oldMarkerPath)
+    {
       AppLogger.shared.log(
-        "ℹ️ [ConflictDetector] karabiner_grabber permanently disabled by KeyPath - skipping conflict check"
+        "ℹ️ [ConflictDetector] Karabiner conflicts permanently disabled by KeyPath - skipping conflict check"
       )
       return []
     }
@@ -188,7 +205,8 @@ class ConflictDetector {
       let output = String(data: data, encoding: .utf8) ?? ""
 
       if task.terminationStatus == 0,
-        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
 
         for line in lines {

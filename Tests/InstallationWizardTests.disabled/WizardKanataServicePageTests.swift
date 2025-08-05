@@ -46,7 +46,7 @@ final class WizardKanataServicePageTests: XCTestCase {
       "2025-08-01 10:00:00 INFO Starting kanata",
       "2025-08-01 10:00:01 ERROR Permission denied accessing /dev/input",
       "2025-08-01 10:00:02 FATAL Config file not found: /path/to/config.kbd",
-      "2025-08-01 10:00:03 INFO Normal operation message"
+      "2025-08-01 10:00:03 INFO Normal operation message",
     ]
 
     // Test our error detection logic with realistic log patterns

@@ -411,7 +411,8 @@ class KanataManager: ObservableObject {
     case 6:
       // Exit code 6 has different causes - check for VirtualHID connection issues
       if output.contains("connect_failed asio.system:61")
-        || output.contains("connect_failed asio.system:2") {
+        || output.contains("connect_failed asio.system:2")
+      {
         diagnostics.append(
           KanataDiagnostic(
             timestamp: Date(),
@@ -708,7 +709,8 @@ class KanataManager: ObservableObject {
 
     // Prevent rapid successive starts
     if let lastAttempt = lastStartAttempt,
-      Date().timeIntervalSince(lastAttempt) < minStartInterval {
+      Date().timeIntervalSince(lastAttempt) < minStartInterval
+    {
       AppLogger.shared.log("⚠️ [Start] Ignoring rapid start attempt within \(minStartInterval)s")
       return
     }
@@ -811,7 +813,7 @@ class KanataManager: ObservableObject {
     task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
     task.arguments = [
       WizardSystemPaths.kanataActiveBinary, "--cfg", configPath, "--watch", "--debug",
-      "--log-layer-changes"
+      "--log-layer-changes",
     ]
 
     // Set environment to ensure proper execution
@@ -1223,7 +1225,7 @@ class KanataManager: ObservableObject {
       process.launchPath = "/usr/bin/sqlite3"
       process.arguments = [
         "/Library/Application Support/com.apple.TCC/TCC.db",
-        "SELECT client FROM access WHERE service='kTCCServiceAccessibility' AND auth_value=2 AND client LIKE '%kanata%';"
+        "SELECT client FROM access WHERE service='kTCCServiceAccessibility' AND auth_value=2 AND client LIKE '%kanata%';",
       ]
 
       let pipe = Pipe()
@@ -1250,7 +1252,7 @@ class KanataManager: ObservableObject {
     task.arguments = [
       "/Library/Application Support/com.apple.TCC/TCC.db",
       ".mode column",
-      "SELECT client, auth_value FROM access WHERE service='kTCCServiceAccessibility' AND client LIKE '%\(path.split(separator: "/").last ?? "")%';"
+      "SELECT client, auth_value FROM access WHERE service='kTCCServiceAccessibility' AND client LIKE '%\(path.split(separator: "/").last ?? "")%';",
     ]
 
     let pipe = Pipe()
@@ -1312,7 +1314,7 @@ class KanataManager: ObservableObject {
     task.arguments = [
       "/Library/Application Support/com.apple.TCC/TCC.db",
       ".mode column",
-      "SELECT client, auth_value FROM access WHERE service='kTCCServiceListenEvent' AND client LIKE '%\(path.split(separator: "/").last ?? "")%';"
+      "SELECT client, auth_value FROM access WHERE service='kTCCServiceListenEvent' AND client LIKE '%\(path.split(separator: "/").last ?? "")%';",
     ]
 
     let pipe = Pipe()
@@ -1362,7 +1364,8 @@ class KanataManager: ObservableObject {
 
   func openInputMonitoringSettings() {
     if let url = URL(
-      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+    {
       NSWorkspace.shared.open(url)
     }
   }
@@ -1370,12 +1373,14 @@ class KanataManager: ObservableObject {
   func openAccessibilitySettings() {
     if #available(macOS 13.0, *) {
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+      {
         NSWorkspace.shared.open(url)
       }
     } else {
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+      {
         NSWorkspace.shared.open(url)
       } else {
         NSWorkspace.shared.open(
@@ -1411,7 +1416,8 @@ class KanataManager: ObservableObject {
       let lines = output.components(separatedBy: .newlines)
       for line in lines {
         if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice")
-          && line.contains("[activated enabled]") {
+          && line.contains("[activated enabled]")
+        {
           AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
           return true
         }
@@ -1564,34 +1570,37 @@ class KanataManager: ObservableObject {
       echo "🔧 Permanently disabling conflicting Karabiner Elements services..."
       echo "ℹ️  Keeping Event Viewer and menu apps working"
 
-      # Kill only the conflicting process - karabiner_grabber
-      echo "Stopping conflicting process..."
+      # Kill conflicting processes - karabiner_grabber and VirtualHIDDevice
+      echo "Stopping conflicting processes..."
       pkill -f "karabiner_grabber" 2>/dev/null || true
-      echo "  ✓ Stopped karabiner_grabber (only process that conflicts with Kanata)"
+      pkill -f "VirtualHIDDevice" 2>/dev/null || true
+      echo "  ✓ Stopped karabiner_grabber and VirtualHIDDevice processes"
 
       echo "ℹ️  Keeping other Karabiner services running (they don't conflict)"
       echo "ℹ️  - karabiner_console_user_server: provides configuration interface"
       echo "ℹ️  - karabiner_session_monitor: monitors session changes"
 
-      # Step 1: Disable and unload all karabiner_grabber services
-      echo "Disabling karabiner_grabber services permanently..."
+      # Step 1: Disable and unload all conflicting services
+      echo "Disabling conflicting Karabiner services permanently..."
 
-      # User-level services
+      # Disable karabiner_grabber services
       launchctl disable gui/$(id -u)/org.pqrs.service.agent.karabiner_grabber 2>/dev/null || true
       launchctl bootout gui/$(id -u) org.pqrs.service.agent.karabiner_grabber 2>/dev/null || true
-
-      # System-level services
       launchctl disable system/org.pqrs.service.daemon.karabiner_grabber 2>/dev/null || true
       launchctl bootout system/org.pqrs.service.daemon.karabiner_grabber 2>/dev/null || true
-
-      # Also disable with all possible service names
       launchctl disable gui/$(id -u)/org.pqrs.Karabiner-Elements.karabiner_grabber 2>/dev/null || true
       launchctl bootout gui/$(id -u) org.pqrs.Karabiner-Elements.karabiner_grabber 2>/dev/null || true
 
-      echo "  ✓ Disabled and unloaded all karabiner_grabber services"
+      # Disable VirtualHIDDevice services
+      launchctl disable gui/$(id -u)/org.pqrs.Karabiner-VirtualHIDDevice-Daemon 2>/dev/null || true
+      launchctl bootout gui/$(id -u) org.pqrs.Karabiner-VirtualHIDDevice-Daemon 2>/dev/null || true
+      launchctl disable system/org.pqrs.Karabiner-DriverKit-VirtualHIDDevice 2>/dev/null || true
+      launchctl bootout system/org.pqrs.Karabiner-DriverKit-VirtualHIDDevice 2>/dev/null || true
 
-      # Step 2: Find and disable ALL karabiner_grabber plist files
-      echo "Disabling karabiner_grabber plist files permanently..."
+      echo "  ✓ Disabled and unloaded conflicting Karabiner services"
+
+      # Step 2: Find and disable ALL conflicting Karabiner plist files
+      echo "Disabling conflicting Karabiner plist files permanently..."
 
       # Common locations for Karabiner plist files
       PLIST_LOCATIONS=(
@@ -1604,7 +1613,17 @@ class KanataManager: ObservableObject {
 
       for location in "${PLIST_LOCATIONS[@]}"; do
           if [ -d "$location" ]; then
+              # Disable karabiner_grabber plists
               find "$location" -name "*karabiner*grabber*.plist" 2>/dev/null | while read plist; do
+                  if [ -f "$plist" ]; then
+                      echo "  📦 Backing up and disabling: $plist"
+                      cp "$plist" "$plist.keypath-backup" 2>/dev/null || true
+                      mv "$plist" "$plist.keypath-disabled" 2>/dev/null || true
+                  fi
+              done
+              
+              # Disable VirtualHIDDevice plists
+              find "$location" -name "*VirtualHIDDevice*.plist" 2>/dev/null | while read plist; do
                   if [ -f "$plist" ]; then
                       echo "  📦 Backing up and disabling: $plist"
                       cp "$plist" "$plist.keypath-backup" 2>/dev/null || true
@@ -1617,16 +1636,17 @@ class KanataManager: ObservableObject {
       # Step 3: Create a marker file to prevent automatic restart
       echo "Creating permanent disable marker..."
       mkdir -p "$HOME/.keypath"
-      echo "$(date): Karabiner grabber permanently disabled by KeyPath" > "$HOME/.keypath/karabiner-grabber-disabled"
-      echo "  ✓ Created disable marker at ~/.keypath/karabiner-grabber-disabled"
+      echo "$(date): Karabiner conflicts permanently disabled by KeyPath" > "$HOME/.keypath/karabiner-conflicts-disabled"
+      echo "  ✓ Created disable marker at ~/.keypath/karabiner-conflicts-disabled"
 
-      # Step 4: Kill any remaining karabiner_grabber processes more aggressively
-      echo "Final cleanup of any remaining karabiner_grabber processes..."
+      # Step 4: Kill any remaining conflicting processes more aggressively
+      echo "Final cleanup of any remaining conflicting processes..."
       pkill -9 -f "karabiner_grabber" 2>/dev/null || true
+      pkill -9 -f "VirtualHIDDevice" 2>/dev/null || true
       sleep 1
 
       echo "ℹ️  All Karabiner menu apps and other services remain running"
-      echo "ℹ️  Only karabiner_grabber (the keyboard grabber) has been permanently disabled"
+      echo "ℹ️  Only conflicting services (karabiner_grabber + VirtualHIDDevice) have been permanently disabled"
 
       # Step 5: Comprehensive verification
       echo ""
@@ -1824,7 +1844,7 @@ class KanataManager: ObservableObject {
     stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
     stopTask.arguments = [
       "-e",
-      "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\""
+      "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\"",
     ]
 
     do {
@@ -2301,7 +2321,7 @@ class KanataManager: ObservableObject {
       "lcmd": "lmet",
       "rcmd": "rmet",
       "leftcmd": "lmet",
-      "rightcmd": "rmet"
+      "rightcmd": "rmet",
     ]
 
     let lowercaseKey = key.lowercased()
@@ -2330,7 +2350,7 @@ class KanataManager: ObservableObject {
       "f9", "f10", "f11", "f12", "pause", "pscr", "slck", "nlck",
       "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
       "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-      "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"
+      "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
     ])
 
     if validKanataKeys.contains(sequence.lowercased()) {
@@ -2410,7 +2430,8 @@ class KanataManager: ObservableObject {
 
     for line in lines {
       if line.contains("connect_failed asio.system:2")
-        || line.contains("connect_failed asio.system:61") {
+        || line.contains("connect_failed asio.system:61")
+      {
         connectionFailureCount += 1
         AppLogger.shared.log(
           "⚠️ [LogMonitor] VirtualHID connection failure detected (\(connectionFailureCount)/\(maxConnectionFailures))"
@@ -2463,7 +2484,8 @@ class KanataManager: ObservableObject {
   // MARK: - Enhanced Config Validation and Recovery
 
   /// Validates a generated config string using Kanata's --check command
-  private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
+  private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String])
+  {
     // Write config to a temporary file for validation
     let tempConfigPath = "\(configDirectory)/temp_validation.kbd"
 
@@ -2506,7 +2528,8 @@ class KanataManager: ObservableObject {
 
   /// Uses Claude to repair a corrupted Kanata config
   private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-    async throws -> String {
+    async throws -> String
+  {
     // TODO: Integrate with Claude API using the following prompt:
     //
     // "The following Kanata keyboard configuration file is invalid and needs to be repaired:
@@ -2537,7 +2560,8 @@ class KanataManager: ObservableObject {
 
   /// Fallback rule-based repair when Claude is not available
   private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-    async throws -> String {
+    async throws -> String
+  {
     AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
     // Common repair strategies
@@ -2590,7 +2614,8 @@ class KanataManager: ObservableObject {
 
   /// Backs up a failed config and applies safe default, returning backup path
   func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-    -> String {
+    -> String
+  {
     AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
     // Create backup directory if it doesn't exist

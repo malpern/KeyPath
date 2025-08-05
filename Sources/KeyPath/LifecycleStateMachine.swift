@@ -123,41 +123,41 @@ class LifecycleStateMachine: ObservableObject {
 
     .initializing: [
       .checkRequirements: .requirementsCheck,
-      .errorOccurred: .error
+      .errorOccurred: .error,
     ],
 
     .requirementsCheck: [
       .requirementsPassed: .stopped,
       .requirementsFailed: .requirementsFailed,
-      .errorOccurred: .error
+      .errorOccurred: .error,
     ],
 
     .requirementsFailed: [
       .startInstallation: .installing,
-      .reset: .uninitialized
+      .reset: .uninitialized,
     ],
 
     .installing: [
       .installationCompleted: .stopped,
       .installationFailed: .installationFailed,
-      .errorOccurred: .error
+      .errorOccurred: .error,
     ],
 
     .installationFailed: [
       .startInstallation: .installing,
-      .reset: .uninitialized
+      .reset: .uninitialized,
     ],
 
     .stopped: [
       .startKanata: .starting,
       .configurationChanged: .configuring,
-      .reset: .uninitialized
+      .reset: .uninitialized,
     ],
 
     .starting: [
       .kanataStarted: .running,
       .kanataFailed: .error,
-      .errorOccurred: .error
+      .errorOccurred: .error,
     ],
 
     .running: [
@@ -165,36 +165,36 @@ class LifecycleStateMachine: ObservableObject {
       .restartKanata: .restarting,
       .configurationChanged: .configuring,
       .kanataFailed: .error,
-      .errorOccurred: .error
+      .errorOccurred: .error,
     ],
 
     .stopping: [
       .kanataStopped: .stopped,
-      .errorOccurred: .error
+      .errorOccurred: .error,
     ],
 
     .restarting: [
       .kanataStopped: .starting,
       .kanataStarted: .running,
-      .errorOccurred: .error
+      .errorOccurred: .error,
     ],
 
     .configuring: [
       .configurationApplied: .running,
       .configurationFailed: .configurationError,
-      .errorOccurred: .error
+      .errorOccurred: .error,
     ],
 
     .configurationError: [
       .configurationChanged: .configuring,
-      .reset: .uninitialized
+      .reset: .uninitialized,
     ],
 
     .error: [
       .reset: .uninitialized,
       .startKanata: .starting,
-      .stopKanata: .stopping
-    ]
+      .stopKanata: .stopping,
+    ],
   ]
 
   // MARK: - Public Interface
@@ -281,7 +281,7 @@ class LifecycleStateMachine: ObservableObject {
       "isOperational": currentState.isOperational,
       "isError": currentState.isError,
       "isTransitioning": currentState.isTransitioning,
-      "allowsUserActions": currentState.allowsUserActions
+      "allowsUserActions": currentState.allowsUserActions,
     ]
 
     if let lastEvent = lastEvent {

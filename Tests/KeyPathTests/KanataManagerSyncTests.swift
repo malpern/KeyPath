@@ -158,7 +158,7 @@ class KanataManagerMockTests: XCTestCase {
   func testConfigErrorHandling() {
     // Test that configuration errors are properly categorized
     let corruptedError = ConfigError.corruptedConfigDetected(errors: [
-      "Invalid syntax", "Missing closing paren"
+      "Invalid syntax", "Missing closing paren",
     ])
 
     if case .corruptedConfigDetected(let errors) = corruptedError {

@@ -296,7 +296,7 @@ class KanataLifecycleManager: ObservableObject {
     let possiblePaths = [
       "/opt/homebrew/bin/kanata",
       "/usr/local/bin/kanata",
-      "/usr/bin/kanata"
+      "/usr/bin/kanata",
     ]
 
     for path in possiblePaths {
