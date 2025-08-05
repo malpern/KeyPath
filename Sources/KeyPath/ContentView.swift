@@ -7,7 +7,11 @@ struct ContentView: View {
   @State private var isRecordingOutput = false
   @State private var recordedInput = ""
   @State private var recordedOutput = ""
-  @State private var showingInstallationWizard = false
+  @State private var showingInstallationWizard = false {
+    didSet {
+      AppLogger.shared.log("🎭 [ContentView] showingInstallationWizard changed from \(oldValue) to \(showingInstallationWizard)")
+    }
+  }
   @State private var hasCheckedRequirements = false
   @State private var showStatusMessage = false
   @State private var statusMessage = ""
@@ -73,10 +77,15 @@ struct ContentView: View {
       if simpleKanataManager == nil {
         AppLogger.shared.log("🏗️ [ContentView] Initializing SimpleKanataManager")
         simpleKanataManager = SimpleKanataManager(kanataManager: kanataManager)
+        AppLogger.shared.log("🏗️ [ContentView] SimpleKanataManager created, initial showWizard: \(simpleKanataManager?.showWizard ?? false)")
 
         // Start the auto-launch sequence
         Task {
+          AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
           await simpleKanataManager?.startAutoLaunch()
+          AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
+          AppLogger.shared.log("✅ [ContentView] Post auto-launch - showWizard: \(simpleKanataManager?.showWizard ?? false)")
+          AppLogger.shared.log("✅ [ContentView] Post auto-launch - currentState: \(simpleKanataManager?.currentState.rawValue ?? "nil")")
         }
       }
 
@@ -91,7 +100,11 @@ struct ContentView: View {
     }
     .onChange(of: simpleKanataManager?.showWizard ?? false) { shouldShow in
       AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
+      AppLogger.shared.log("🔍 [ContentView] Current simpleKanataManager state: \(simpleKanataManager?.currentState.rawValue ?? "nil")")
+      AppLogger.shared.log("🔍 [ContentView] Current errorReason: \(simpleKanataManager?.errorReason ?? "nil")")
+      AppLogger.shared.log("🔍 [ContentView] Setting showingInstallationWizard = \(shouldShow)")
       showingInstallationWizard = shouldShow
+      AppLogger.shared.log("🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
     }
     .onChange(of: kanataManager.lastConfigUpdate) { _ in
       // Show status message when config is updated externally

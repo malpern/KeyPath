@@ -138,9 +138,10 @@ class SimpleKanataManager: ObservableObject {
 
   private func attemptAutoStart() async {
     autoStartAttempts += 1
-    AppLogger.shared.log("🔄 [SimpleKanataManager] Auto-start attempt #\(autoStartAttempts)")
+    AppLogger.shared.log("🔄 [SimpleKanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) ==========")
 
     // Check if we're already running
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 0: Checking if Kanata is already running...")
     await kanataManager.updateStatus()
     if kanataManager.isRunning {
       AppLogger.shared.log("✅ [SimpleKanataManager] Kanata already running - no start needed")
@@ -148,42 +149,56 @@ class SimpleKanataManager: ObservableObject {
       startHealthMonitoring()
       return
     }
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Kanata not running, proceeding with start sequence")
 
     // Step 1: Check Kanata installation
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 1: Checking Kanata installation...")
     let kanataPath = await findKanataExecutable()
     if kanataPath.isEmpty {
+      AppLogger.shared.log("❌ [SimpleKanataManager] Step 1 FAILED: Kanata not found")
       await setNeedsHelp("Kanata not installed. Install with: brew install kanata")
       return
     }
+    AppLogger.shared.log("✅ [SimpleKanataManager] Step 1 PASSED: Kanata found at \(kanataPath)")
 
     // Step 2: Check permissions
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 2: Checking permissions...")
     if let permissionError = await checkPermissions() {
+      AppLogger.shared.log("❌ [SimpleKanataManager] Step 2 FAILED: \(permissionError)")
       await setNeedsHelp(permissionError)
       return
     }
+    AppLogger.shared.log("✅ [SimpleKanataManager] Step 2 PASSED: All permissions granted")
 
     // Step 3: Check for conflicts
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 3: Checking for conflicts...")
     if let conflictError = await checkForConflicts() {
+      AppLogger.shared.log("❌ [SimpleKanataManager] Step 3 FAILED: \(conflictError)")
       await setNeedsHelp(conflictError)
       return
     }
+    AppLogger.shared.log("✅ [SimpleKanataManager] Step 3 PASSED: No conflicts detected")
 
     // Step 4: Start Kanata
-    AppLogger.shared.log("🚀 [SimpleKanataManager] All checks passed - starting Kanata")
+    AppLogger.shared.log("🚀 [SimpleKanataManager] Step 4: All checks passed - starting Kanata")
     await kanataManager.startKanata()
 
     // Step 5: Verify it started
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 5: Waiting 2 seconds for Kanata to start...")
     try? await Task.sleep(nanoseconds: 2_000_000_000)  // Wait 2 seconds
     await kanataManager.updateStatus()
 
     if kanataManager.isRunning {
-      AppLogger.shared.log("✅ [SimpleKanataManager] Auto-start successful!")
+      AppLogger.shared.log("✅ [SimpleKanataManager] Step 5 PASSED: Auto-start successful!")
       currentState = .running
       errorReason = nil
       startHealthMonitoring()
     } else {
+      AppLogger.shared.log("❌ [SimpleKanataManager] Step 5 FAILED: Kanata did not start")
       await handleStartFailure()
     }
+    
+    AppLogger.shared.log("🔄 [SimpleKanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) COMPLETE ==========")
   }
 
   private func handleStartFailure() async {
@@ -227,14 +242,27 @@ class SimpleKanataManager: ObservableObject {
   }
 
   private func setNeedsHelp(_ reason: String) async {
-    AppLogger.shared.log("❌ [SimpleKanataManager] Needs help: \(reason)")
+    AppLogger.shared.log("❌ [SimpleKanataManager] ========== SET NEEDS HELP ==========")
+    AppLogger.shared.log("❌ [SimpleKanataManager] Reason: \(reason)")
+    AppLogger.shared.log("❌ [SimpleKanataManager] Before - showWizard: \(showWizard), currentState: \(currentState)")
+    
     currentState = .needsHelp
     errorReason = reason
     showWizard = true
     isRetryingAfterFix = false
 
+    AppLogger.shared.log("❌ [SimpleKanataManager] After - showWizard: \(showWizard), currentState: \(currentState)")
+
+    // Force UI update on main thread
+    await MainActor.run {
+      AppLogger.shared.log("🎩 [SimpleKanataManager] MainActor UI update: showWizard = \(showWizard), currentState = \(currentState)")
+      AppLogger.shared.log("🎩 [SimpleKanataManager] Published properties should now trigger SwiftUI updates")
+    }
+
     // Update permission state for change detection
     await updatePermissionState()
+    
+    AppLogger.shared.log("❌ [SimpleKanataManager] ========== SET NEEDS HELP COMPLETE ==========")
   }
 
   // MARK: - Requirement Checks
@@ -258,14 +286,22 @@ class SimpleKanataManager: ObservableObject {
   }
 
   private func checkPermissions() async -> String? {
-    if !kanataManager.hasInputMonitoringPermission() {
+    let hasInputMonitoring = kanataManager.hasInputMonitoringPermission()
+    let hasAccessibility = kanataManager.hasAccessibilityPermission()
+    
+    AppLogger.shared.log("🔐 [SimpleKanataManager] Permission check - Input Monitoring: \(hasInputMonitoring), Accessibility: \(hasAccessibility)")
+    
+    if !hasInputMonitoring {
+      AppLogger.shared.log("❌ [SimpleKanataManager] Missing Input Monitoring permission")
       return "Input Monitoring permission required - enable in System Settings > Privacy & Security"
     }
 
-    if !kanataManager.hasAccessibilityPermission() {
+    if !hasAccessibility {
+      AppLogger.shared.log("❌ [SimpleKanataManager] Missing Accessibility permission")
       return "Accessibility permission required - enable in System Settings > Privacy & Security"
     }
 
+    AppLogger.shared.log("✅ [SimpleKanataManager] All permissions granted")
     return nil
   }
 
