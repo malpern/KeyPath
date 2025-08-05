@@ -83,8 +83,15 @@ class ConflictDetector {
             continue
           }
 
+          // Skip KeyPath's own Kanata processes (identified by config file path)
+          if isKeyPathOwnedKanataProcess(command: command) {
+            AppLogger.shared.log(
+              "ℹ️ [ConflictDetector] Ignoring KeyPath's own Kanata process: PID \(pid), Command: \(command)")
+            continue
+          }
+
           AppLogger.shared.log(
-            "🔍 [ConflictDetector] Found Kanata process: PID \(pid), Command: \(command)")
+            "🔍 [ConflictDetector] Found external Kanata process: PID \(pid), Command: \(command)")
           conflicts.append(.kanataProcessRunning(pid: pid, command: command))
         }
       }
@@ -298,5 +305,24 @@ class ConflictDetector {
     case .exclusiveDeviceAccess:
       return -1  // Special case for device access conflicts (no PID)
     }
+  }
+  
+  // MARK: - KeyPath Process Identification
+  
+  /// Determines if a Kanata process belongs to KeyPath by checking its config file path
+  private func isKeyPathOwnedKanataProcess(command: String) -> Bool {
+    // KeyPath's Kanata processes use specific config file paths
+    let keyPathConfigPaths = [
+      "/usr/local/etc/kanata/keypath.kbd",  // System config path
+      "Library/Application Support/KeyPath/keypath.kbd"  // User config path (partial match)
+    ]
+    
+    for configPath in keyPathConfigPaths {
+      if command.contains(configPath) {
+        return true
+      }
+    }
+    
+    return false
   }
 }

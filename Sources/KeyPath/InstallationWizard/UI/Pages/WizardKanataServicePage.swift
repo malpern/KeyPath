@@ -6,6 +6,9 @@ struct WizardKanataServicePage: View {
   @State private var lastError: String?
   @State private var serviceStatus: ServiceStatus = .unknown
   @State private var refreshTimer: Timer?
+  
+  // Integration with SimpleKanataManager for better error context
+  @State private var simpleKanataManager: SimpleKanataManager?
 
   enum ServiceStatus: Equatable {
     case unknown
