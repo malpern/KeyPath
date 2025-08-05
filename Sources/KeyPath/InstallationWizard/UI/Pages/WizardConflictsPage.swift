@@ -35,6 +35,7 @@ struct WizardConflictsPage: View {
           conflictCount: issues.count,
           isFixing: isFixing,
           onAutoFix: onAutoFix,
+          onRefresh: onRefresh,
           issues: issues,
           kanataManager: kanataManager
         )
@@ -109,10 +110,15 @@ struct CleanConflictsCard: View {
   let conflictCount: Int
   let isFixing: Bool
   let onAutoFix: () -> Void
+  let onRefresh: () async -> Void
   let issues: [WizardIssue]
   let kanataManager: KanataManager
 
   @State private var showingDetails = false
+  @State private var isPerformingPermanentFix = false
+  @State private var showSuccessMessage = false
+  @State private var showErrorMessage = false
+  @State private var statusMessage = ""
 
   var body: some View {
     VStack(spacing: WizardDesign.Spacing.sectionGap) {
@@ -142,22 +148,47 @@ struct CleanConflictsCard: View {
         // Primary Action - Resolve Conflicts Permanently
         Button(action: {
           Task {
+            isPerformingPermanentFix = true
+
             // Try permanent fix first (what most users want)
             let success = await kanataManager.disableKarabinerElementsPermanently()
+
             if !success {
-              // Fallback to temporary fix if permanent fails
-              onAutoFix()
+              // Show error message explaining what happened
+              statusMessage = "Permanent fix cancelled or failed. Try the temporary fix below."
+              showErrorMessage = true
+
+              // Hide error message after a few seconds
+              DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                showErrorMessage = false
+              }
+            } else {
+              // Show success message
+              statusMessage =
+                "Conflicts permanently resolved! Karabiner Elements has been disabled."
+              showSuccessMessage = true
+
+              // Give user feedback that permanent fix succeeded
+              try? await Task.sleep(nanoseconds: 1_500_000_000)  // 1.5 seconds
+
+              // Trigger a refresh to update the conflict state
+              await onRefresh()
+
+              // Hide success message
+              showSuccessMessage = false
             }
+
+            isPerformingPermanentFix = false
           }
         }) {
           HStack(spacing: 8) {
-            if isFixing {
+            if isFixing || isPerformingPermanentFix {
               ProgressView()
                 .scaleEffect(0.8)
                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
             }
             Text(
-              isFixing
+              isFixing || isPerformingPermanentFix
                 ? "Resolving Conflict\(conflictCount == 1 ? "" : "s")..."
                 : "Resolve Conflict\(conflictCount == 1 ? "" : "s")"
             )
@@ -168,7 +199,7 @@ struct CleanConflictsCard: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .disabled(isFixing)
+        .disabled(isFixing || isPerformingPermanentFix)
 
         // Secondary Option - Temporary Fix
         Button(action: onAutoFix) {
@@ -177,7 +208,32 @@ struct CleanConflictsCard: View {
             .foregroundColor(.secondary)
         }
         .buttonStyle(.plain)
-        .disabled(isFixing)
+        .disabled(isFixing || isPerformingPermanentFix)
+
+        // Status Messages
+        if showSuccessMessage {
+          HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+              .foregroundColor(.green)
+            Text(statusMessage)
+              .font(.subheadline)
+              .foregroundColor(.green)
+          }
+          .padding(.top, 8)
+          .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+
+        if showErrorMessage {
+          HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+              .foregroundColor(.orange)
+            Text(statusMessage)
+              .font(.subheadline)
+              .foregroundColor(.orange)
+          }
+          .padding(.top, 8)
+          .transition(.opacity.combined(with: .move(edge: .top)))
+        }
 
         // Progressive Disclosure - Show Details Option
         VStack(spacing: WizardDesign.Spacing.itemGap) {
