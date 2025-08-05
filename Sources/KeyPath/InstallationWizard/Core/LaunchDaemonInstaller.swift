@@ -38,7 +38,7 @@ class LaunchDaemonInstaller {
       return path
     } else {
       // Fallback to Intel Homebrew path for backward compatibility
-      let fallbackPath = "/usr/local/bin/kanata"
+      let fallbackPath = WizardSystemPaths.kanataActiveBinary
       AppLogger.shared.log(
         "⚠️ [LaunchDaemon] Kanata not detected, using fallback path: \(fallbackPath)")
       return fallbackPath
@@ -46,6 +46,48 @@ class LaunchDaemonInstaller {
   }
 
   // MARK: - Installation Methods
+
+  /// Creates and installs all LaunchDaemon services with a single admin prompt
+  func createAllLaunchDaemonServices() -> Bool {
+    AppLogger.shared.log("🔧 [LaunchDaemon] Creating all LaunchDaemon services")
+
+    let kanataBinaryPath = getKanataBinaryPath()
+
+    // Generate all plist contents
+    let kanataPlist = generateKanataPlist(binaryPath: kanataBinaryPath)
+    let vhidDaemonPlist = generateVHIDDaemonPlist()
+    let vhidManagerPlist = generateVHIDManagerPlist()
+
+    // Create temporary files for all plists
+    let tempDir = NSTemporaryDirectory()
+    let kanataTempPath = "\(tempDir)\(Self.kanataServiceID).plist"
+    let vhidDaemonTempPath = "\(tempDir)\(Self.vhidDaemonServiceID).plist"
+    let vhidManagerTempPath = "\(tempDir)\(Self.vhidManagerServiceID).plist"
+
+    do {
+      // Write all plist contents to temporary files
+      try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+      try vhidDaemonPlist.write(toFile: vhidDaemonTempPath, atomically: true, encoding: .utf8)
+      try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
+
+      // Install all services with a single admin prompt
+      let success = executeAllWithAdminPrivileges(
+        kanataTemp: kanataTempPath,
+        vhidDaemonTemp: vhidDaemonTempPath,
+        vhidManagerTemp: vhidManagerTempPath
+      )
+
+      // Clean up temporary files
+      try? FileManager.default.removeItem(atPath: kanataTempPath)
+      try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
+      try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
+
+      return success
+    } catch {
+      AppLogger.shared.log("❌ [LaunchDaemon] Failed to create temporary plists: \(error)")
+      return false
+    }
+  }
 
   /// Creates and installs the Kanata LaunchDaemon service
   func createKanataLaunchDaemon() -> Bool {
@@ -288,65 +330,122 @@ class LaunchDaemonInstaller {
   private func installPlist(content: String, path: String, serviceID: String) -> Bool {
     AppLogger.shared.log("🔧 [LaunchDaemon] Installing plist: \(path)")
 
-    // Ensure LaunchDaemons directory exists
-    let launchDaemonsPath = Self.launchDaemonsPath
-    if !FileManager.default.fileExists(atPath: launchDaemonsPath) {
-      do {
-        try FileManager.default.createDirectory(
-          atPath: launchDaemonsPath, withIntermediateDirectories: true, attributes: nil)
-      } catch {
-        AppLogger.shared.log("❌ [LaunchDaemon] Failed to create LaunchDaemons directory: \(error)")
-        return false
-      }
-    }
+    // Create temporary file with plist content
+    let tempDir = NSTemporaryDirectory()
+    let tempPath = "\(tempDir)\(serviceID).plist"
 
-    // Write plist content to file
     do {
-      try content.write(toFile: path, atomically: true, encoding: .utf8)
+      // Write content to temporary file first
+      try content.write(toFile: tempPath, atomically: true, encoding: .utf8)
 
-      // Set proper ownership (root:wheel) and permissions
-      let success = setProperPermissions(path: path)
-      if success {
-        AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed plist: \(serviceID)")
-      } else {
-        AppLogger.shared.log(
-          "⚠️ [LaunchDaemon] Plist installed but permissions may be incorrect: \(serviceID)")
-      }
+      // Use admin privileges to install the plist
+      let success = executeWithAdminPrivileges(
+        tempPath: tempPath,
+        finalPath: path,
+        serviceID: serviceID
+      )
 
-      return true
+      // Clean up temporary file
+      try? FileManager.default.removeItem(atPath: tempPath)
+
+      return success
     } catch {
-      AppLogger.shared.log("❌ [LaunchDaemon] Failed to write plist \(serviceID): \(error)")
+      AppLogger.shared.log(
+        "❌ [LaunchDaemon] Failed to create temporary plist \(serviceID): \(error)")
       return false
     }
   }
 
-  private func setProperPermissions(path: String) -> Bool {
-    // Set ownership to root:wheel and permissions to 644
-    let chownTask = Process()
-    chownTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-    chownTask.arguments = ["chown", "root:wheel", path]
+  /// Execute all LaunchDaemon installations with a single administrator privileges request
+  private func executeAllWithAdminPrivileges(
+    kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
+  ) -> Bool {
+    AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install all services")
 
-    let chmodTask = Process()
-    chmodTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-    chmodTask.arguments = ["chmod", "644", path]
+    let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
+    let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+    let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
+
+    // Create a single compound command that installs all three services
+    let command = """
+      mkdir -p '\(Self.launchDaemonsPath)' && \
+      cp '\(kanataTemp)' '\(kanataFinal)' && chown root:wheel '\(kanataFinal)' && chmod 644 '\(kanataFinal)' && \
+      cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)' && \
+      cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
+      """
+
+    // Use osascript to request admin privileges with proper password dialog
+    let osascriptCommand = """
+      do shell script "\(command)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
+      """
+
+    let osascriptTask = Process()
+    osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+    osascriptTask.arguments = ["-e", osascriptCommand]
+
+    let pipe = Pipe()
+    osascriptTask.standardOutput = pipe
+    osascriptTask.standardError = pipe
 
     do {
-      try chownTask.run()
-      chownTask.waitUntilExit()
+      try osascriptTask.run()
+      osascriptTask.waitUntilExit()
 
-      try chmodTask.run()
-      chmodTask.waitUntilExit()
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      let output = String(data: data, encoding: .utf8) ?? ""
 
-      let success = chownTask.terminationStatus == 0 && chmodTask.terminationStatus == 0
-      if success {
-        AppLogger.shared.log("✅ [LaunchDaemon] Set proper permissions for: \(path)")
+      if osascriptTask.terminationStatus == 0 {
+        AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed all LaunchDaemon services")
+        return true
       } else {
-        AppLogger.shared.log("❌ [LaunchDaemon] Failed to set permissions for: \(path)")
+        AppLogger.shared.log("❌ [LaunchDaemon] Failed to install services: \(output)")
+        return false
       }
-
-      return success
     } catch {
-      AppLogger.shared.log("❌ [LaunchDaemon] Error setting permissions for \(path): \(error)")
+      AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute admin command: \(error)")
+      return false
+    }
+  }
+
+  /// Execute LaunchDaemon installation with administrator privileges using osascript
+  private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
+    -> Bool {
+    AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
+
+    // Create the command to copy the file and set proper permissions
+    let command =
+      "mkdir -p '\(Self.launchDaemonsPath)' && cp '\(tempPath)' '\(finalPath)' && chown root:wheel '\(finalPath)' && chmod 644 '\(finalPath)'"
+
+    // Use osascript to request admin privileges with proper password dialog
+    let osascriptCommand = """
+      do shell script "\(command)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
+      """
+
+    let osascriptTask = Process()
+    osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+    osascriptTask.arguments = ["-e", osascriptCommand]
+
+    let pipe = Pipe()
+    osascriptTask.standardOutput = pipe
+    osascriptTask.standardError = pipe
+
+    do {
+      try osascriptTask.run()
+      osascriptTask.waitUntilExit()
+
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      let output = String(data: data, encoding: .utf8) ?? ""
+
+      if osascriptTask.terminationStatus == 0 {
+        AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed plist: \(serviceID)")
+        return true
+      } else {
+        AppLogger.shared.log("❌ [LaunchDaemon] Failed to install plist \(serviceID): \(output)")
+        return false
+      }
+    } catch {
+      AppLogger.shared.log(
+        "❌ [LaunchDaemon] Failed to execute admin command for \(serviceID): \(error)")
       return false
     }
   }

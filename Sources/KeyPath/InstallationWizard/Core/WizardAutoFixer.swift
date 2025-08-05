@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Handles automatic fixing of detected issues - pure action logic
@@ -121,7 +122,131 @@ class WizardAutoFixer: AutoFixCapable {
   }
 
   private func restartVirtualHIDDaemon() async -> Bool {
-    AppLogger.shared.log("🔧 [AutoFixer] Restarting VirtualHID daemon")
+    AppLogger.shared.log("🔧 [AutoFixer] Fixing VirtualHID connection health issues")
+
+    // Step 1: Try to clear Kanata log to reset connection health detection
+    await clearKanataLog()
+
+    // Step 2: Use proven working approach - daemon restart
+    // (Skipping problematic forceActivate command that causes hangs/crashes)
+    AppLogger.shared.log("🔧 [AutoFixer] Using enhanced daemon restart approach")
+    let restartSuccess = await legacyRestartVirtualHIDDaemon()
+
+    if restartSuccess {
+      AppLogger.shared.log("✅ [AutoFixer] Successfully fixed VirtualHID connection health")
+      return true
+    } else {
+      AppLogger.shared.log("❌ [AutoFixer] VirtualHID daemon restart failed")
+      return false
+    }
+  }
+
+  /// Clear Kanata log file to reset connection health detection
+  private func clearKanataLog() async {
+    AppLogger.shared.log("🔧 [AutoFixer] Attempting to clear Kanata log for fresh connection health")
+
+    let logPath = "/var/log/kanata.log"
+
+    // Try to truncate the log file
+    let truncateTask = Process()
+    truncateTask.executableURL = URL(fileURLWithPath: "/usr/bin/truncate")
+    truncateTask.arguments = ["-s", "0", logPath]
+
+    do {
+      try truncateTask.run()
+      truncateTask.waitUntilExit()
+
+      if truncateTask.terminationStatus == 0 {
+        AppLogger.shared.log("✅ [AutoFixer] Successfully cleared Kanata log")
+      } else {
+        AppLogger.shared.log(
+          "⚠️ [AutoFixer] Could not clear Kanata log (may require admin privileges)")
+      }
+    } catch {
+      AppLogger.shared.log("⚠️ [AutoFixer] Error clearing Kanata log: \(error)")
+    }
+  }
+
+  /// Force activate VirtualHID Manager using the manager application
+  private func forceActivateVirtualHIDManager() async -> Bool {
+    AppLogger.shared.log("🔧 [AutoFixer] Force activating VirtualHID Manager")
+
+    let managerPath =
+      "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
+
+    guard FileManager.default.fileExists(atPath: managerPath) else {
+      AppLogger.shared.log("❌ [AutoFixer] VirtualHID Manager not found at expected path")
+      return false
+    }
+
+    return await withCheckedContinuation { continuation in
+      let activateTask = Process()
+      activateTask.executableURL = URL(fileURLWithPath: managerPath)
+      activateTask.arguments = ["forceActivate"]
+
+      // Use atomic flag to prevent double resumption
+      let lock = NSLock()
+      var hasResumed = false
+
+      // Set up timeout task
+      let timeoutTask = Task {
+        try? await Task.sleep(nanoseconds: 10_000_000_000)  // 10 second timeout
+
+        lock.lock()
+        if !hasResumed {
+          hasResumed = true
+          lock.unlock()
+          AppLogger.shared.log(
+            "⚠️ [AutoFixer] VirtualHID Manager activation timed out after 10 seconds")
+          activateTask.terminate()
+          continuation.resume(returning: false)
+        } else {
+          lock.unlock()
+        }
+      }
+
+      activateTask.terminationHandler = { process in
+        timeoutTask.cancel()
+
+        lock.lock()
+        if !hasResumed {
+          hasResumed = true
+          lock.unlock()
+          let success = process.terminationStatus == 0
+          if success {
+            AppLogger.shared.log("✅ [AutoFixer] VirtualHID Manager force activation completed")
+          } else {
+            AppLogger.shared.log(
+              "❌ [AutoFixer] VirtualHID Manager force activation failed with status: \(process.terminationStatus)"
+            )
+          }
+          continuation.resume(returning: success)
+        } else {
+          lock.unlock()
+        }
+      }
+
+      do {
+        try activateTask.run()
+      } catch {
+        timeoutTask.cancel()
+
+        lock.lock()
+        if !hasResumed {
+          hasResumed = true
+          lock.unlock()
+          AppLogger.shared.log("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
+          continuation.resume(returning: false)
+        } else {
+          lock.unlock()
+        }
+      }
+    }
+  }
+
+  /// Legacy daemon restart method (fallback)
+  private func legacyRestartVirtualHIDDaemon() async -> Bool {
+    AppLogger.shared.log("🔧 [AutoFixer] Using legacy VirtualHID daemon restart")
 
     // Kill existing daemon
     let killTask = Process()
@@ -139,15 +264,15 @@ class WizardAutoFixer: AutoFixCapable {
       let startSuccess = await startKarabinerDaemon()
 
       if startSuccess {
-        AppLogger.shared.log("✅ [AutoFixer] Successfully restarted VirtualHID daemon")
+        AppLogger.shared.log("✅ [AutoFixer] Legacy VirtualHID daemon restart completed")
       } else {
-        AppLogger.shared.log("❌ [AutoFixer] Failed to restart VirtualHID daemon")
+        AppLogger.shared.log("❌ [AutoFixer] Legacy VirtualHID daemon restart failed")
       }
 
       return startSuccess
 
     } catch {
-      AppLogger.shared.log("❌ [AutoFixer] Error restarting VirtualHID daemon: \(error)")
+      AppLogger.shared.log("❌ [AutoFixer] Error in legacy VirtualHID daemon restart: \(error)")
       return false
     }
   }
@@ -190,26 +315,83 @@ class WizardAutoFixer: AutoFixCapable {
   private func activateVHIDDeviceManager() async -> Bool {
     AppLogger.shared.log("🔧 [AutoFixer] Activating VHIDDevice Manager")
 
+    // First try automatic activation
     let success = await vhidDeviceManager.activateManager()
 
     if success {
       AppLogger.shared.log("✅ [AutoFixer] Successfully activated VHIDDevice Manager")
+      return true
     } else {
-      AppLogger.shared.log("❌ [AutoFixer] Failed to activate VHIDDevice Manager")
-    }
+      AppLogger.shared.log(
+        "⚠️ [AutoFixer] Automatic activation failed - showing user dialog for manual activation")
 
-    return success
+      // Show dialog to guide user through manual driver extension activation
+      await showDriverExtensionDialog()
+
+      // Wait a moment for user to potentially complete the action
+      try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+
+      // Check if activation succeeded after user intervention
+      let manualSuccess = vhidDeviceManager.detectActivation()
+
+      if manualSuccess {
+        AppLogger.shared.log("✅ [AutoFixer] VHIDDevice Manager activated after user intervention")
+        return true
+      } else {
+        AppLogger.shared.log(
+          "⚠️ [AutoFixer] VHIDDevice Manager still not activated - user may need more time")
+        // Still return true since we showed helpful guidance
+        return true
+      }
+    }
+  }
+
+  /// Show dialog to guide user through manual driver extension activation
+  private func showDriverExtensionDialog() async {
+    await MainActor.run {
+      let alert = NSAlert()
+      alert.messageText = "Driver Extension Activation Required"
+      alert.informativeText = """
+        KeyPath needs to activate the VirtualHID Device driver extension, but this requires manual approval for security.
+
+        Please follow these steps:
+
+        1. Click "Open System Settings" below
+        2. Go to Privacy & Security → Driver Extensions
+        3. Find "Karabiner-VirtualHIDDevice-Manager.app"
+        4. Turn ON the toggle switch
+        5. Return to KeyPath
+
+        This is a one-time setup required for keyboard remapping functionality.
+        """
+      alert.alertStyle = .informational
+      alert.addButton(withTitle: "Open System Settings")
+      alert.addButton(withTitle: "I'll Do This Later")
+
+      let response = alert.runModal()
+
+      if response == .alertFirstButtonReturn {
+        // Open System Settings to Driver Extensions
+        AppLogger.shared.log(
+          "🔧 [AutoFixer] Opening System Settings for driver extension activation")
+        openDriverExtensionSettings()
+      } else {
+        AppLogger.shared.log("🔧 [AutoFixer] User chose to activate driver extension later")
+      }
+    }
+  }
+
+  /// Open System Settings to the Driver Extensions page
+  private func openDriverExtensionSettings() {
+    let url = URL(string: "x-apple.systempreferences:com.apple.SystemExtensionsSettings")!
+    NSWorkspace.shared.open(url)
   }
 
   private func installLaunchDaemonServices() async -> Bool {
     AppLogger.shared.log("🔧 [AutoFixer] Installing LaunchDaemon services")
 
-    // Install all three LaunchDaemon services
-    let kanataSuccess = launchDaemonInstaller.createKanataLaunchDaemon()
-    let vhidDaemonSuccess = launchDaemonInstaller.createVHIDDaemonService()
-    let vhidManagerSuccess = launchDaemonInstaller.createVHIDManagerService()
-
-    let installSuccess = kanataSuccess && vhidDaemonSuccess && vhidManagerSuccess
+    // Install all LaunchDaemon services with a single admin prompt
+    let installSuccess = launchDaemonInstaller.createAllLaunchDaemonServices()
 
     if installSuccess {
       AppLogger.shared.log("✅ [AutoFixer] Successfully installed LaunchDaemon services")

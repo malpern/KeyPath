@@ -19,23 +19,24 @@ struct WizardConflictsPage: View {
 
   var body: some View {
     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-      // Header using design system
-      WizardPageHeader(
-        icon: issues.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
-        title: issues.isEmpty ? "No Conflicts Detected" : "Conflicting Processes",
-        subtitle: issues.isEmpty
-          ? "No conflicting keyboard remapping processes found. You're ready to proceed!"
-          : "Conflicting keyboard remapping processes must be stopped before continuing",
-        status: issues.isEmpty ? .success : .warning
-      )
+      // Header using design system - simplified for no conflicts case
+      if issues.isEmpty {
+        WizardPageHeader(
+          icon: "checkmark.circle.fill",
+          title: "No Conflicts Detected",
+          subtitle: "No conflicting keyboard remapping processes found. You're ready to proceed!",
+          status: .success
+        )
+      }
 
-      // Clean Conflicts Card
+      // Clean Conflicts Card - handles conflicts case with its own header
       if !issues.isEmpty {
         CleanConflictsCard(
           conflictCount: issues.count,
           isFixing: isFixing,
           onAutoFix: onAutoFix,
-          issues: issues
+          issues: issues,
+          kanataManager: kanataManager
         )
         .wizardPagePadding()
       }
@@ -65,38 +66,9 @@ struct WizardConflictsPage: View {
 
       Spacer()
 
-      // Action Buttons using design system
-      VStack(spacing: WizardDesign.Spacing.elementGap) {
-        if !issues.isEmpty && issues.first?.autoFixAction != nil {
-          Button("Terminate Conflicting Processes") {
-            onAutoFix()
-          }
-          .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isFixing))
-          .disabled(isFixing)
-
-          // Add permanent disable option for Karabiner Elements
-          if hasKarabinerConflict {
-            Button(action: {
-              Task {
-                isDisablingPermanently = true
-                let success = await kanataManager.disableKarabinerElementsPermanently()
-                if success {
-                  await onRefresh()
-                }
-                isDisablingPermanently = false
-              }
-            }) {
-              Text(
-                isDisablingPermanently ? "Disabling..." : "Permanently Disable Conflicting Services"
-              )
-            }
-            .buttonStyle(
-              WizardDesign.Component.DestructiveButton(isLoading: isDisablingPermanently)
-            )
-            .disabled(isDisablingPermanently || isFixing)
-          }
-        }
-
+      // Simple link for re-scanning with proper padding
+      HStack {
+        Spacer()
         Button(action: {
           Task {
             isScanning = true
@@ -106,12 +78,25 @@ struct WizardConflictsPage: View {
             isScanning = false
           }
         }) {
-          Text(
-            isScanning ? "Scanning..." : (issues.isEmpty ? "Re-scan for Conflicts" : "Check Again"))
+          HStack(spacing: 4) {
+            if isScanning {
+              ProgressView()
+                .scaleEffect(0.7)
+                .progressViewStyle(CircularProgressViewStyle())
+            }
+            Text(
+              isScanning
+                ? "Scanning..." : (issues.isEmpty ? "Re-scan for Conflicts" : "Check Again")
+            )
+            .font(.subheadline)
+          }
+          .foregroundColor(.blue)
         }
-        .buttonStyle(WizardDesign.Component.SecondaryButton(isLoading: isScanning))
+        .buttonStyle(.plain)
         .disabled(isFixing || isScanning)
+        Spacer()
       }
+      .padding(.bottom, 32)  // Add comfortable padding from bottom
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(WizardDesign.Colors.wizardBackground)
@@ -125,6 +110,7 @@ struct CleanConflictsCard: View {
   let isFixing: Bool
   let onAutoFix: () -> Void
   let issues: [WizardIssue]
+  let kanataManager: KanataManager
 
   @State private var showingDetails = false
 
@@ -153,17 +139,30 @@ struct CleanConflictsCard: View {
           .multilineTextAlignment(.center)
         }
 
-        // Primary Action - Large, Prominent
-        Button(action: onAutoFix) {
+        // Primary Action - Resolve Conflicts Permanently
+        Button(action: {
+          Task {
+            // Try permanent fix first (what most users want)
+            let success = await kanataManager.disableKarabinerElementsPermanently()
+            if !success {
+              // Fallback to temporary fix if permanent fails
+              onAutoFix()
+            }
+          }
+        }) {
           HStack(spacing: 8) {
             if isFixing {
               ProgressView()
                 .scaleEffect(0.8)
                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
             }
-            Text(isFixing ? "Stopping Processes..." : "Stop Conflicting Processes")
-              .font(.headline)
-              .fontWeight(.medium)
+            Text(
+              isFixing
+                ? "Resolving Conflict\(conflictCount == 1 ? "" : "s")..."
+                : "Resolve Conflict\(conflictCount == 1 ? "" : "s")"
+            )
+            .font(.headline)
+            .fontWeight(.medium)
           }
           .frame(minWidth: 240, minHeight: 44)
         }
@@ -171,13 +170,37 @@ struct CleanConflictsCard: View {
         .controlSize(.large)
         .disabled(isFixing)
 
-        // Progressive Disclosure - Show Details Option
-        DisclosureGroup("Show technical details", isExpanded: $showingDetails) {
-          TechnicalDetailsView(issues: issues)
-            .padding(.top, WizardDesign.Spacing.itemGap)
+        // Secondary Option - Temporary Fix
+        Button(action: onAutoFix) {
+          Text("Temporary Fix Only")
+            .font(.subheadline)
+            .foregroundColor(.secondary)
         }
-        .font(.subheadline)
-        .foregroundColor(.secondary)
+        .buttonStyle(.plain)
+        .disabled(isFixing)
+
+        // Progressive Disclosure - Show Details Option
+        VStack(spacing: WizardDesign.Spacing.itemGap) {
+          Button(action: {
+            withAnimation(.easeInOut(duration: 0.2)) {
+              showingDetails.toggle()
+            }
+          }) {
+            HStack(spacing: 6) {
+              Image(systemName: showingDetails ? "chevron.down" : "chevron.right")
+                .font(.caption)
+              Text(showingDetails ? "Hide technical details" : "Show technical details")
+                .font(.subheadline)
+            }
+            .foregroundColor(.secondary)
+          }
+          .buttonStyle(.plain)
+
+          if showingDetails {
+            TechnicalDetailsView(issues: issues)
+              .transition(.opacity.combined(with: .scale(scale: 0.95)))
+          }
+        }
       }
       .padding(WizardDesign.Spacing.pageVertical)
       .frame(maxWidth: 500)
@@ -198,31 +221,137 @@ struct TechnicalDetailsView: View {
 
     for issue in issues {
       if issue.category == .conflicts {
+        // Add the main description
+        details.append("Issue: \(issue.title)")
+
+        // Split description into lines and process each
         let lines = issue.description.components(separatedBy: "\n")
         for line in lines {
-          if line.contains("Process ID:") {
-            let cleanLine = line.replacingOccurrences(of: "• ", with: "")
-            details.append(cleanLine)
+          let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+          if !trimmedLine.isEmpty {
+            // Clean up bullet points and add all non-empty lines
+            let cleanLine = trimmedLine.replacingOccurrences(of: "• ", with: "")
+            if !cleanLine.isEmpty {
+              details.append("• \(cleanLine)")
+            }
           }
         }
+
+        // Add identifier info if available
+        details.append("Category: \(issue.category)")
+        details.append("Severity: \(issue.severity)")
+      }
+    }
+
+    // If no details found, show debugging info
+    if details.isEmpty {
+      details.append("Debug: Found \(issues.count) issues")
+      for (index, issue) in issues.enumerated() {
+        details.append("Issue \(index + 1): \(issue.title)")
+        details.append("Category: \(issue.category)")
+        details.append("Description preview: \(String(issue.description.prefix(100)))")
       }
     }
 
     return details
   }
 
+  // Helper function to parse process information
+  private func parseProcessInfo(_ text: String) -> (name: String, description: String, pid: String) {
+    // Example: "Karabiner Elements grabber running (PID: -1)"
+    if text.contains("Karabiner Elements grabber") {
+      let pidPattern = #"\(PID: ([^)]+)\)"#
+      if let pidMatch = text.range(of: pidPattern, options: .regularExpression) {
+        let pidText = String(text[pidMatch])
+        let pid = pidText.replacingOccurrences(of: "(PID: ", with: "").replacingOccurrences(
+          of: ")", with: "")
+        return ("karabiner_grabber", "Keyboard input capture daemon", pid)
+      }
+      return ("karabiner_grabber", "Keyboard input capture daemon", "unknown")
+    }
+
+    // Default fallback
+    return ("unknown_process", "System process", "unknown")
+  }
+
   var body: some View {
-    VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
-      ForEach(Array(processDetails.enumerated()), id: \.offset) { _, detail in
-        Text(detail)
-          .font(.caption)
-          .foregroundColor(.secondary)
-          .padding(.vertical, 4)
-          .frame(maxWidth: .infinity, alignment: .leading)
+    VStack(alignment: .leading, spacing: 0) {
+      // Header section with cleaner typography
+      VStack(alignment: .leading, spacing: 16) {
+        Text("Conflicting Processes Detected")
+          .font(.headline)
+          .fontWeight(.semibold)
+          .foregroundColor(.primary)
+
+        // Process list with monospace font
+        VStack(alignment: .leading, spacing: 12) {
+          ForEach(Array(processDetails.enumerated()), id: \.offset) { _, detail in
+            if detail.hasPrefix("•") {
+              VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .center, spacing: 12) {
+                  // Modern status indicator
+                  Circle()
+                    .fill(Color.orange)
+                    .frame(width: 6, height: 6)
+
+                  // Extract process name, description, and PID
+                  let processText = detail.replacingOccurrences(of: "• ", with: "")
+                  let (processName, processDescription, pid) = parseProcessInfo(processText)
+
+                  VStack(alignment: .leading, spacing: 2) {
+                    Text(processName)
+                      .font(.custom("Courier New", size: 14))
+                      .foregroundColor(.primary)
+                      .fixedSize(horizontal: false, vertical: true)
+
+                    Text("\(processDescription) (PID: \(pid))")
+                      .font(.custom("Courier New", size: 12))
+                      .foregroundColor(.secondary)
+                  }
+
+                  Spacer()
+                }
+              }
+            }
+          }
+        }
+      }
+      .padding(.bottom, 16)
+
+      // Metadata section with horizontal layout
+      HStack(spacing: 32) {
+        ForEach(Array(processDetails.enumerated()), id: \.offset) { _, detail in
+          if detail.hasPrefix("Category:") || detail.hasPrefix("Severity:") {
+            let components = detail.components(separatedBy: ": ")
+            if components.count == 2 {
+              VStack(alignment: .leading, spacing: 6) {
+                Text(components[0].uppercased())
+                  .font(.caption2)
+                  .fontWeight(.bold)
+                  .foregroundColor(.secondary)
+                  .tracking(0.8)
+
+                Text(components[1].capitalized)
+                  .font(.subheadline)
+                  .fontWeight(.semibold)
+                  .foregroundColor(components[1] == "error" ? .red : .orange)
+              }
+            }
+          }
+        }
+
+        Spacer()
       }
     }
-    .padding(WizardDesign.Spacing.itemGap)
-    .background(Color(.separatorColor).opacity(0.3))
-    .cornerRadius(8)
+    .padding(24)
+    .background(
+      RoundedRectangle(cornerRadius: 12)
+        .fill(Color(.controlBackgroundColor))
+        .overlay(
+          RoundedRectangle(cornerRadius: 12)
+            .strokeBorder(Color(.quaternaryLabelColor), lineWidth: 0.5)
+        )
+    )
+    .shadow(color: .black.opacity(0.02), radius: 4, x: 0, y: 1)
   }
 }

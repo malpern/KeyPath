@@ -106,6 +106,11 @@ class KanataManager: ObservableObject {
   private var lastStartAttempt: Date?
   private let minStartInterval: TimeInterval = 2.0
 
+  // Real-time log monitoring for VirtualHID connection failures
+  private var logMonitorTask: Task<Void, Never>?
+  private var connectionFailureCount = 0
+  private let maxConnectionFailures = 10  // Trigger recovery after 10 consecutive failures
+
   var configPath: String {
     "\(configDirectory)/\(configFileName)"
   }
@@ -137,12 +142,21 @@ class KanataManager: ObservableObject {
       return
     }
 
-    // TEMPORARILY DISABLED: Auto-start to debug keyboard unresponsiveness issue
-    // The wizard's "Start Using KeyPath" button will handle starting Kanata
-    AppLogger.shared.log("⚠️ [Init] Auto-start disabled - user must manually start via wizard")
+    // Auto-start kanata if all requirements are met
     AppLogger.shared.log(
       "🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)"
     )
+
+    if status.installed && status.permissions && status.driver && status.daemon {
+      AppLogger.shared.log("✅ [Init] All requirements met - auto-starting Kanata")
+      await startKanata()
+    } else {
+      AppLogger.shared.log("⚠️ [Init] Requirements not met - skipping auto-start")
+      if !status.installed { AppLogger.shared.log("  - Missing: Kanata binary") }
+      if !status.permissions { AppLogger.shared.log("  - Missing: Required permissions") }
+      if !status.driver { AppLogger.shared.log("  - Missing: VirtualHID driver") }
+      if !status.daemon { AppLogger.shared.log("  - Missing: VirtualHID daemon") }
+    }
   }
 
   // MARK: - Diagnostics
@@ -280,7 +294,7 @@ class KanataManager: ObservableObject {
     }
 
     let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/local/bin/kanata")
+    task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
     task.arguments = ["--cfg", configPath, "--check"]
 
     let pipe = Pipe()
@@ -396,7 +410,8 @@ class KanataManager: ObservableObject {
         ))
     case 6:
       // Exit code 6 has different causes - check for VirtualHID connection issues
-      if output.contains("connect_failed asio.system:61") {
+      if output.contains("connect_failed asio.system:61")
+        || output.contains("connect_failed asio.system:2") {
         diagnostics.append(
           KanataDiagnostic(
             timestamp: Date(),
@@ -513,8 +528,8 @@ class KanataManager: ObservableObject {
           severity: .critical,
           category: .system,
           title: "Kanata Not Installed",
-          description: "Kanata binary not found at /usr/local/bin/kanata",
-          technicalDetails: "Expected path: /usr/local/bin/kanata",
+          description: "Kanata binary not found at \(WizardSystemPaths.kanataActiveBinary)",
+          technicalDetails: "Expected path: \(WizardSystemPaths.kanataActiveBinary)",
           suggestedAction: "Install Kanata using: brew install kanata",
           canAutoFix: false
         ))
@@ -795,7 +810,8 @@ class KanataManager: ObservableObject {
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
     task.arguments = [
-      "/usr/local/bin/kanata", "--cfg", configPath, "--watch", "--debug", "--log-layer-changes"
+      WizardSystemPaths.kanataActiveBinary, "--cfg", configPath, "--watch", "--debug",
+      "--log-layer-changes"
     ]
 
     // Set environment to ensure proper execution
@@ -815,6 +831,9 @@ class KanataManager: ObservableObject {
     do {
       try task.run()
       kanataProcess = task
+
+      // Start real-time log monitoring for VirtualHID connection issues
+      startLogMonitoring()
 
       // Check for other Kanata processes immediately after starting
       Task.detached {
@@ -968,6 +987,9 @@ class KanataManager: ObservableObject {
     } else {
       AppLogger.shared.log("ℹ️ [Stop] No Kanata process to stop")
     }
+
+    // Stop log monitoring when Kanata stops
+    stopLogMonitoring()
 
     await updatePublishedProperties(
       isRunning: false,
@@ -1156,7 +1178,7 @@ class KanataManager: ObservableObject {
   // MARK: - Installation and Permissions
 
   func isInstalled() -> Bool {
-    let kanataPath = "/usr/local/bin/kanata"
+    let kanataPath = WizardSystemPaths.kanataActiveBinary
     return FileManager.default.fileExists(atPath: kanataPath)
   }
 
@@ -1222,7 +1244,7 @@ class KanataManager: ObservableObject {
     return false
   }
 
-  private func checkTCCForAccessibility(path: String) -> Bool {
+  func checkTCCForAccessibility(path: String) -> Bool {
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
     task.arguments = [
@@ -1260,7 +1282,7 @@ class KanataManager: ObservableObject {
     keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
   ) {
     let keyPathPath = Bundle.main.bundlePath
-    let kanataPath = "/usr/local/bin/kanata"
+    let kanataPath = WizardSystemPaths.kanataActiveBinary
 
     let keyPathHasInputMonitoring = hasInputMonitoringPermission()
     let keyPathHasAccessibility = hasAccessibilityPermission()
@@ -1518,15 +1540,11 @@ class KanataManager: ObservableObject {
         let alert = NSAlert()
         alert.messageText = "Disable Karabiner Elements?"
         alert.informativeText = """
-          KeyPath has detected that Karabiner Elements' grabber service is running, which conflicts with Kanata and prevents keyboard remapping from working properly.
+          Karabiner Elements is conflicting with Kanata.
 
-          Would you like to permanently disable the conflicting Karabiner services? This will:
-          • Stop the karabiner_grabber process (conflicts with Kanata)
-          • Stop related keyboard remapping services
-          • Keep Karabiner Event Viewer and menu apps working
-          • Allow Kanata to work without conflicts
+          Disable the conflicting services to allow KeyPath to work?
 
-          Note: This only disables the conflicting parts. You can still use Karabiner Event Viewer for debugging.
+          Note: Event Viewer and other Karabiner apps will continue working.
           """
         alert.addButton(withTitle: "Disable Conflicting Services")
         alert.addButton(withTitle: "Cancel")
@@ -1774,26 +1792,32 @@ class KanataManager: ObservableObject {
   }
 
   func killKarabinerGrabber() async -> Bool {
-    AppLogger.shared.log("🔧 [Conflict] Attempting to stop Karabiner grabber services")
+    AppLogger.shared.log("🔧 [Conflict] Attempting to stop Karabiner conflicting services")
 
-    // Karabiner has both system LaunchDaemon and user LaunchAgent services
-    // We need to stop both to fully disable the grabber
+    // Enhanced to handle both old karabiner_grabber and new VirtualHIDDevice processes
+    // We need to stop LaunchDaemon services and kill running processes
 
     let stopScript = """
-      # Stop system LaunchDaemon (runs as root)
+      # Stop old Karabiner Elements system LaunchDaemon (runs as root)
       launchctl bootout system "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" 2>/dev/null || true
 
-      # Stop user LaunchAgent
+      # Stop old Karabiner Elements user LaunchAgent
       launchctl bootout gui/$(id -u) "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" 2>/dev/null || true
 
-      # Kill any remaining processes
+      # Kill old karabiner_grabber processes
       pkill -f karabiner_grabber 2>/dev/null || true
 
-      # Wait for processes to terminate
-      sleep 1
+      # Kill VirtualHIDDevice processes that conflict with Kanata
+      pkill -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
+      pkill -f "Karabiner-DriverKit-VirtualHIDDevice" 2>/dev/null || true
 
-      # Final cleanup - kill any stubborn processes
+      # Wait for processes to terminate
+      sleep 2
+
+      # Final cleanup - force kill any stubborn processes
       pkill -9 -f karabiner_grabber 2>/dev/null || true
+      pkill -9 -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
+      pkill -9 -f "Karabiner-DriverKit-VirtualHIDDevice" 2>/dev/null || true
       """
 
     let stopTask = Process()
@@ -1809,25 +1833,15 @@ class KanataManager: ObservableObject {
       AppLogger.shared.log("🔧 [Conflict] Attempted to stop all Karabiner grabber services")
 
       // Wait a moment for cleanup
-      try await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+      try await Task.sleep(nanoseconds: 3_000_000_000)  // 3 seconds
 
-      // Verify no grabber processes are still running
-      let checkTask = Process()
-      checkTask.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-      checkTask.arguments = ["-f", "karabiner_grabber"]
-
-      let outputPipe = Pipe()
-      checkTask.standardOutput = outputPipe
-      checkTask.standardError = Pipe()
-
-      try checkTask.run()
-      checkTask.waitUntilExit()
-
-      let success = checkTask.terminationStatus != 0  // pgrep returns 1 if no processes found
+      // Verify no conflicting processes are still running
+      let success = await verifyConflictingProcessesStopped()
+      
       if success {
-        AppLogger.shared.log("✅ [Conflict] Karabiner grabber successfully stopped")
+        AppLogger.shared.log("✅ [Conflict] All conflicting Karabiner processes successfully stopped")
       } else {
-        AppLogger.shared.log("⚠️ [Conflict] Some Karabiner grabber processes may still be running")
+        AppLogger.shared.log("⚠️ [Conflict] Some conflicting processes may still be running")
       }
 
       return success
@@ -1835,6 +1849,59 @@ class KanataManager: ObservableObject {
     } catch {
       AppLogger.shared.log("❌ [Conflict] Failed to stop Karabiner grabber: \(error)")
       return false
+    }
+  }
+
+  /// Verify that all conflicting processes have been stopped
+  private func verifyConflictingProcessesStopped() async -> Bool {
+    AppLogger.shared.log("🔍 [Conflict] Verifying conflicting processes have been stopped")
+    
+    // Check for old karabiner_grabber processes
+    let grabberCheck = await checkProcessStopped(pattern: "karabiner_grabber", processName: "karabiner_grabber")
+    
+    // Check for VirtualHIDDevice processes
+    let vhidDaemonCheck = await checkProcessStopped(pattern: "Karabiner-VirtualHIDDevice-Daemon", processName: "VirtualHIDDevice Daemon")
+    let vhidDriverCheck = await checkProcessStopped(pattern: "Karabiner-DriverKit-VirtualHIDDevice", processName: "VirtualHIDDevice Driver")
+    
+    let allStopped = grabberCheck && vhidDaemonCheck && vhidDriverCheck
+    
+    if allStopped {
+      AppLogger.shared.log("✅ [Conflict] Verification complete: No conflicting processes running")
+    } else {
+      AppLogger.shared.log("⚠️ [Conflict] Verification failed: Some processes still running")
+    }
+    
+    return allStopped
+  }
+  
+  /// Check if a specific process pattern is stopped
+  private func checkProcessStopped(pattern: String, processName: String) async -> Bool {
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+    task.arguments = ["-f", pattern]
+    
+    let pipe = Pipe()
+    task.standardOutput = pipe
+    task.standardError = pipe
+    
+    do {
+      try task.run()
+      task.waitUntilExit()
+      
+      let isStopped = task.terminationStatus != 0  // pgrep returns 1 if no processes found
+      
+      if isStopped {
+        AppLogger.shared.log("✅ [Conflict] \(processName) successfully stopped")
+      } else {
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+        AppLogger.shared.log("⚠️ [Conflict] \(processName) still running: \(output.trimmingCharacters(in: .whitespacesAndNewlines))")
+      }
+      
+      return isStopped
+    } catch {
+      AppLogger.shared.log("❌ [Conflict] Error checking \(processName): \(error)")
+      return false  // Assume process is still running if we can't check
     }
   }
 
@@ -1944,7 +2011,7 @@ class KanataManager: ObservableObject {
     AppLogger.shared.log("🔧 [Installation] Starting transparent installation...")
 
     // 1. Ensure Kanata binary exists
-    let kanataBinaryPath = "/usr/local/bin/kanata"
+    let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
     if !FileManager.default.fileExists(atPath: kanataBinaryPath) {
       AppLogger.shared.log("❌ [Installation] Kanata binary not found at \(kanataBinaryPath)")
       AppLogger.shared.log("ℹ️ [Installation] Please install Kanata: brew install kanata")
@@ -2275,6 +2342,118 @@ class KanataManager: ObservableObject {
     return "(\(keys.joined(separator: " ")))"
   }
 
+  // MARK: - Real-Time VirtualHID Connection Monitoring
+
+  /// Start monitoring Kanata logs for VirtualHID connection failures
+  private func startLogMonitoring() {
+    // Cancel any existing monitoring
+    logMonitorTask?.cancel()
+
+    logMonitorTask = Task.detached { [weak self] in
+      guard let self = self else { return }
+
+      let logPath = "/var/log/kanata.log"
+      guard FileManager.default.fileExists(atPath: logPath) else {
+        AppLogger.shared.log("⚠️ [LogMonitor] Kanata log file not found at \(logPath)")
+        return
+      }
+
+      AppLogger.shared.log("🔍 [LogMonitor] Starting real-time VirtualHID connection monitoring")
+
+      // Monitor log file for connection failures
+      var lastPosition: UInt64 = 0
+
+      while !Task.isCancelled {
+        do {
+          let fileHandle = try FileHandle(forReadingFrom: URL(fileURLWithPath: logPath))
+          defer { fileHandle.closeFile() }
+
+          let fileSize = fileHandle.seekToEndOfFile()
+          if fileSize > lastPosition {
+            fileHandle.seek(toFileOffset: lastPosition)
+            let newData = fileHandle.readDataToEndOfFile()
+            lastPosition = fileSize
+
+            if let logContent = String(data: newData, encoding: .utf8) {
+              await self.analyzeLogContent(logContent)
+            }
+          }
+
+          // Check every 2 seconds
+          try await Task.sleep(nanoseconds: 2_000_000_000)
+        } catch {
+          AppLogger.shared.log("⚠️ [LogMonitor] Error reading log file: \(error)")
+          try? await Task.sleep(nanoseconds: 5_000_000_000)  // Wait 5 seconds before retry
+        }
+      }
+
+      AppLogger.shared.log("🔍 [LogMonitor] Stopped log monitoring")
+    }
+  }
+
+  /// Stop log monitoring
+  private func stopLogMonitoring() {
+    logMonitorTask?.cancel()
+    logMonitorTask = nil
+    connectionFailureCount = 0
+  }
+
+  /// Analyze new log content for VirtualHID connection issues
+  private func analyzeLogContent(_ content: String) async {
+    let lines = content.components(separatedBy: .newlines)
+
+    for line in lines {
+      if line.contains("connect_failed asio.system:2")
+        || line.contains("connect_failed asio.system:61") {
+        connectionFailureCount += 1
+        AppLogger.shared.log(
+          "⚠️ [LogMonitor] VirtualHID connection failure detected (\(connectionFailureCount)/\(maxConnectionFailures))"
+        )
+
+        if connectionFailureCount >= maxConnectionFailures {
+          AppLogger.shared.log(
+            "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery")
+          await triggerVirtualHIDRecovery()
+          connectionFailureCount = 0  // Reset counter after recovery attempt
+        }
+      } else if line.contains("driver_connected 1") {
+        // Reset failure count on successful connection
+        if connectionFailureCount > 0 {
+          AppLogger.shared.log(
+            "✅ [LogMonitor] VirtualHID connection restored - resetting failure count")
+          connectionFailureCount = 0
+        }
+      }
+    }
+  }
+
+  /// Trigger VirtualHID recovery when connection failures are detected
+  private func triggerVirtualHIDRecovery() async {
+    AppLogger.shared.log("🚨 [Recovery] VirtualHID connection failure detected in real-time")
+
+    // Create diagnostic for the UI
+    let diagnostic = KanataDiagnostic(
+      timestamp: Date(),
+      severity: .error,
+      category: .conflict,
+      title: "VirtualHID Connection Failed",
+      description:
+        "Real-time monitoring detected repeated VirtualHID connection failures. Keyboard remapping is not functioning.",
+      technicalDetails:
+        "Detected \(connectionFailureCount) consecutive asio.system connection failures",
+      suggestedAction:
+        "KeyPath will attempt automatic recovery. If issues persist, restart the application.",
+      canAutoFix: true
+    )
+
+    await MainActor.run {
+      addDiagnostic(diagnostic)
+    }
+
+    // Attempt automatic recovery
+    await attemptKeyboardRecovery()
+  }
+
   // MARK: - Enhanced Config Validation and Recovery
 
   /// Validates a generated config string using Kanata's --check command
@@ -2290,7 +2469,7 @@ class KanataManager: ObservableObject {
 
       // Use kanata --check to validate
       let task = Process()
-      task.executableURL = URL(fileURLWithPath: "/usr/local/bin/kanata")
+      task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
       task.arguments = ["--cfg", tempConfigPath, "--check"]
 
       let pipe = Pipe()

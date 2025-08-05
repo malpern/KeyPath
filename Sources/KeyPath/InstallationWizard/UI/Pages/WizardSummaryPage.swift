@@ -236,22 +236,24 @@ struct WizardSummaryPage: View {
   private func createPermissionStatusItems() -> [StatusItem] {
     var items: [StatusItem] = []
 
-    // Input Monitoring Permission
+    // Input Monitoring Permission - check both KeyPath and kanata
+    let inputMonitoringStatus = getInputMonitoringStatus()
     items.append(
       StatusItem(
         icon: "eye",
         title: WizardConstants.Titles.inputMonitoring,
-        status: stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues),
+        status: inputMonitoringStatus,
         isNavigable: true,
         targetPage: .inputMonitoring
       ))
 
-    // Accessibility Permission
+    // Accessibility Permission - check both KeyPath and kanata
+    let accessibilityStatus = getAccessibilityStatus()
     items.append(
       StatusItem(
         icon: "accessibility",
         title: WizardConstants.Titles.accessibility,
-        status: stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues),
+        status: accessibilityStatus,
         isNavigable: true,
         targetPage: .accessibility
       ))
@@ -311,9 +313,9 @@ struct WizardSummaryPage: View {
 
   private func getSystemPermissionsTargetPage() -> WizardPage {
     // Navigate to the first permission page that has issues, or inputMonitoring as default
-    if stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues) == .failed {
+    if getInputMonitoringStatus() == .failed {
       return .inputMonitoring
-    } else if stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues) == .failed {
+    } else if getAccessibilityStatus() == .failed {
       return .accessibility
     } else if !stateInterpreter.areBackgroundServicesEnabled(in: issues) {
       return .backgroundServices
@@ -321,6 +323,32 @@ struct WizardSummaryPage: View {
       // If no issues, default to first permission page
       return .inputMonitoring
     }
+  }
+
+  // MARK: - Permission Status Helpers
+
+  /// Get combined Input Monitoring status for both KeyPath and kanata
+  private func getInputMonitoringStatus() -> InstallationStatus {
+    let keyPathStatus = stateInterpreter.getPermissionStatus(.keyPathInputMonitoring, in: issues)
+    let kanataStatus = stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues)
+
+    // If either app is missing permission, the overall status is failed
+    if keyPathStatus == .failed || kanataStatus == .failed {
+      return .failed
+    }
+    return .completed
+  }
+
+  /// Get combined Accessibility status for both KeyPath and kanata
+  private func getAccessibilityStatus() -> InstallationStatus {
+    let keyPathStatus = stateInterpreter.getPermissionStatus(.keyPathAccessibility, in: issues)
+    let kanataStatus = stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues)
+
+    // If either app is missing permission, the overall status is failed
+    if keyPathStatus == .failed || kanataStatus == .failed {
+      return .failed
+    }
+    return .completed
   }
 }
 

@@ -41,6 +41,8 @@ enum WizardSystemState: Equatable {
 enum SystemConflict: Equatable {
   case kanataProcessRunning(pid: Int, command: String)
   case karabinerGrabberRunning(pid: Int)
+  case karabinerVirtualHIDDeviceRunning(pid: Int, processName: String)
+  case karabinerVirtualHIDDaemonRunning(pid: Int)
   case exclusiveDeviceAccess(device: String)
 }
 
@@ -48,6 +50,8 @@ enum SystemConflict: Equatable {
 enum PermissionRequirement: Equatable {
   case kanataInputMonitoring
   case kanataAccessibility
+  case keyPathInputMonitoring
+  case keyPathAccessibility
   case driverExtensionEnabled
   case backgroundServicesEnabled
 }

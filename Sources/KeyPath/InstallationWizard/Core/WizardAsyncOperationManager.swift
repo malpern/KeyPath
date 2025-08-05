@@ -67,6 +67,14 @@ class WizardAsyncOperationManager: ObservableObject {
     AppLogger.shared.log("🛑 [AsyncOp] All operations cancelled")
   }
 
+  /// Reset stuck operations (useful when operations don't clean up properly)
+  func resetStuckOperations() {
+    AppLogger.shared.log(
+      "🔧 [AsyncOp] Resetting \(runningOperations.count) stuck operations: \(runningOperations)")
+    runningOperations.removeAll()
+    operationProgress.removeAll()
+  }
+
   /// Check if any operations are running
   var hasRunningOperations: Bool {
     return !runningOperations.isEmpty

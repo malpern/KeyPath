@@ -28,8 +28,10 @@ class WizardNavigationEngine: WizardNavigating {
     }
 
     // 3. Permissions (check specific types using structured identifiers)
+    // Check for either KeyPath or kanata Input Monitoring issues
     let inputMonitoringIssue = issues.first(where: {
       $0.identifier == .permission(.kanataInputMonitoring)
+        || $0.identifier == .permission(.keyPathInputMonitoring)
     })
     if let issue = inputMonitoringIssue {
       AppLogger.shared.log(
@@ -40,8 +42,10 @@ class WizardNavigationEngine: WizardNavigating {
         "🔍 [NavigationEngine] No input monitoring issues found - skipping input monitoring page")
     }
 
+    // Check for either KeyPath or kanata Accessibility issues
     let accessibilityIssue = issues.first(where: {
       $0.identifier == .permission(.kanataAccessibility)
+        || $0.identifier == .permission(.keyPathAccessibility)
     })
     if let issue = accessibilityIssue {
       AppLogger.shared.log(

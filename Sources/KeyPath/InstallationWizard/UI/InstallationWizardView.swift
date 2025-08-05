@@ -11,6 +11,7 @@ struct InstallationWizardView: View {
   @StateObject private var stateInterpreter = WizardStateInterpreter()
   @StateObject private var navigationCoordinator = WizardNavigationCoordinator()
   @StateObject private var asyncOperationManager = WizardAsyncOperationManager()
+  @StateObject private var toastManager = WizardToastManager()
 
   // UI state
   @State private var isInitializing = true
@@ -34,6 +35,7 @@ struct InstallationWizardView: View {
     }
     .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
     .background(VisualEffectBackground())
+    .withToasts(toastManager)
     .onAppear {
       setupWizard()
     }
@@ -232,6 +234,14 @@ struct InstallationWizardView: View {
         continue
       }
 
+      // Skip state detection if there are pending auto-fixes to let user resolve them
+      let hasAutoFixes = currentIssues.contains { $0.autoFixAction != nil }
+      if hasAutoFixes {
+        AppLogger.shared.log(
+          "🔧 [Navigation] Skipping monitoring - auto-fixes available, letting user resolve issues")
+        continue
+      }
+
       let operation = WizardOperations.stateDetection(stateManager: stateManager)
 
       await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
@@ -268,10 +278,22 @@ struct InstallationWizardView: View {
 
       for action in autoFixableIssues {
         let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
+        let actionDescription = getAutoFixActionDescription(action)
 
         await asyncOperationManager.execute(operation: operation) { (success: Bool) in
           AppLogger.shared.log(
             "🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
+
+          // Show toast notification
+          if success {
+            Task { @MainActor in
+              toastManager.showSuccess("\(actionDescription) completed successfully")
+            }
+          } else {
+            Task { @MainActor in
+              toastManager.showError("Failed to \(actionDescription.lowercased())")
+            }
+          }
         }
       }
 
@@ -283,24 +305,80 @@ struct InstallationWizardView: View {
   private func performAutoFix(_ action: AutoFixAction) async -> Bool {
     AppLogger.shared.log("🔧 [NewWizard] Auto-fix for specific action: \(action)")
 
+    // Immediately mark auto-fix as running to prevent monitoring loop interference
+    let operationId = "auto_fix_\(String(describing: action))"
+    await MainActor.run {
+      asyncOperationManager.runningOperations.insert(operationId)
+    }
+
     let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
+    let actionDescription = getAutoFixActionDescription(action)
 
     return await withCheckedContinuation { continuation in
       Task {
+        // Remove our manual operation ID since execute() will handle it properly
+        await MainActor.run {
+          asyncOperationManager.runningOperations.remove(operationId)
+        }
+
         await asyncOperationManager.execute(
           operation: operation,
           onSuccess: { success in
             AppLogger.shared.log(
               "🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
+
+            // Show toast notification and refresh state if successful
+            if success {
+              Task { @MainActor in
+                toastManager.showSuccess("\(actionDescription) completed successfully")
+              }
+              // Refresh system state after successful auto-fix
+              Task {
+                await refreshState()
+              }
+            } else {
+              Task { @MainActor in
+                toastManager.showError("Failed to \(actionDescription.lowercased())")
+              }
+            }
+
             continuation.resume(returning: success)
           },
           onFailure: { error in
             AppLogger.shared.log(
               "❌ [NewWizard] Auto-fix \(action) error: \(error.localizedDescription)")
+
+            // Show error toast
+            Task { @MainActor in
+              toastManager.showError("Error: \(error.localizedDescription)")
+            }
+
             continuation.resume(returning: false)
           }
         )
       }
+    }
+  }
+
+  /// Get user-friendly description for auto-fix actions
+  private func getAutoFixActionDescription(_ action: AutoFixAction) -> String {
+    switch action {
+    case .terminateConflictingProcesses:
+      return "Terminate conflicting processes"
+    case .startKarabinerDaemon:
+      return "Start Karabiner daemon"
+    case .restartVirtualHIDDaemon:
+      return "Fix VirtualHID connection issues"
+    case .installMissingComponents:
+      return "Install missing components"
+    case .createConfigDirectories:
+      return "Create configuration directories"
+    case .activateVHIDDeviceManager:
+      return "Activate VirtualHID Device Manager"
+    case .installLaunchDaemonServices:
+      return "Install LaunchDaemon services"
+    case .installViaBrew:
+      return "Install packages via Homebrew"
     }
   }
 
@@ -393,7 +471,9 @@ class WizardAutoFixerManager: ObservableObject {
   private var autoFixer: WizardAutoFixer?
 
   func configure(kanataManager: KanataManager) {
+    AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with KanataManager")
     autoFixer = WizardAutoFixer(kanataManager: kanataManager)
+    AppLogger.shared.log("🔧 [AutoFixerManager] Configuration complete")
   }
 
   func canAutoFix(_ action: AutoFixAction) -> Bool {
@@ -401,7 +481,12 @@ class WizardAutoFixerManager: ObservableObject {
   }
 
   func performAutoFix(_ action: AutoFixAction) async -> Bool {
-    guard let autoFixer = autoFixer else { return false }
+    AppLogger.shared.log("🔧 [AutoFixerManager] performAutoFix called for action: \(action)")
+    guard let autoFixer = autoFixer else {
+      AppLogger.shared.log("❌ [AutoFixerManager] Internal autoFixer is nil - returning false")
+      return false
+    }
+    AppLogger.shared.log("🔧 [AutoFixerManager] Delegating to internal autoFixer")
     return await autoFixer.performAutoFix(action)
   }
 }

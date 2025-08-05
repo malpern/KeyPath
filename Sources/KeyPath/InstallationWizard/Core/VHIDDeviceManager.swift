@@ -63,6 +63,54 @@ class VHIDDeviceManager {
     }
   }
 
+  /// Checks if VirtualHID daemon is functioning correctly (not just running)
+  /// This includes checking for connection errors in Kanata logs
+  func detectConnectionHealth() -> Bool {
+    // First check if daemon is running
+    guard detectRunning() else {
+      AppLogger.shared.log("🔍 [VHIDManager] Daemon not running - connection health: false")
+      return false
+    }
+
+    // Check recent logs for connection failures
+    let logPath = "/var/log/kanata.log"
+    guard FileManager.default.fileExists(atPath: logPath) else {
+      AppLogger.shared.log("🔍 [VHIDManager] No Kanata log file - assuming connection healthy")
+      return true
+    }
+
+    do {
+      let logContent = try String(contentsOfFile: logPath)
+      let recentLines = logContent.components(separatedBy: .newlines).suffix(50)  // Check last 50 lines
+
+      let connectionFailures = recentLines.filter { line in
+        line.contains("connect_failed asio.system:2")
+          || line.contains("connect_failed asio.system:61")
+      }
+
+      let successfulConnections = recentLines.filter { line in
+        line.contains("driver_connected 1")
+      }
+
+      // If we see recent connection failures without recent successes, consider unhealthy
+      let hasRecentFailures = connectionFailures.count > 5
+      let hasRecentSuccess = !successfulConnections.isEmpty
+
+      let isHealthy = !hasRecentFailures || hasRecentSuccess
+
+      AppLogger.shared.log("🔍 [VHIDManager] Connection health check:")
+      AppLogger.shared.log("  - Recent failures: \(connectionFailures.count)")
+      AppLogger.shared.log("  - Recent successes: \(successfulConnections.count)")
+      AppLogger.shared.log("  - Health status: \(isHealthy)")
+
+      return isHealthy
+    } catch {
+      AppLogger.shared.log("⚠️ [VHIDManager] Error reading log file: \(error)")
+      // If we can't read logs, assume healthy to avoid false positives
+      return true
+    }
+  }
+
   // MARK: - Activation Methods
 
   /// Activates the VirtualHIDDevice Manager
@@ -137,11 +185,13 @@ class VHIDDeviceManager {
     let installed = detectInstallation()
     let activated = detectActivation()
     let running = detectRunning()
+    let connectionHealthy = detectConnectionHealth()
 
     return VHIDDeviceStatus(
       managerInstalled: installed,
       managerActivated: activated,
-      daemonRunning: running
+      daemonRunning: running,
+      connectionHealthy: connectionHealthy
     )
   }
 }
@@ -153,10 +203,11 @@ struct VHIDDeviceStatus {
   let managerInstalled: Bool
   let managerActivated: Bool
   let daemonRunning: Bool
+  let connectionHealthy: Bool
 
   /// True if all components are ready for use
   var isFullyOperational: Bool {
-    managerInstalled && managerActivated && daemonRunning
+    managerInstalled && managerActivated && daemonRunning && connectionHealthy
   }
 
   /// Description of current status for logging/debugging
@@ -166,6 +217,7 @@ struct VHIDDeviceStatus {
     - Manager Installed: \(managerInstalled)
     - Manager Activated: \(managerActivated)
     - Daemon Running: \(daemonRunning)
+    - Connection Healthy: \(connectionHealthy)
     - Fully Operational: \(isFullyOperational)
     """
   }

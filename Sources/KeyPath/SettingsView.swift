@@ -336,7 +336,7 @@ struct SettingsView: View {
   private func verifyKanataFunctional() async -> Bool {
     // Quick config validation test to ensure Kanata is functional
     let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/local/bin/kanata")
+    task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
     task.arguments = ["--cfg", kanataManager.configPath, "--check"]
 
     let pipe = Pipe()

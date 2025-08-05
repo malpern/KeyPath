@@ -5,6 +5,11 @@ import Foundation
 enum WizardSystemPaths {
   // MARK: - Binary Paths
 
+  /// Experimental/development kanata binary (for testing --watch fixes)
+  /// This points to the fixed kanata build with working --watch functionality
+  static let kanataExperimental =
+    "/Users/malpern/Library/CloudStorage/Dropbox/code/kanata-source/target/release/kanata"
+
   /// Primary kanata binary location (ARM Macs)
   static let kanataBinaryARM = "/opt/homebrew/bin/kanata"
 
@@ -13,6 +18,9 @@ enum WizardSystemPaths {
 
   /// Default kanata binary path for most operations
   static let kanataBinaryDefault = "/usr/local/bin/kanata"
+
+  /// Active kanata binary path - use this for all kanata operations
+  static let kanataActiveBinary = kanataExperimental
 
   /// Homebrew binary path
   static let brewBinary = "/opt/homebrew/bin/brew"

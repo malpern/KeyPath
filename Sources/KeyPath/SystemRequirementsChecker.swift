@@ -217,7 +217,7 @@ class SystemRequirementsChecker {
   private func checkKanataExecutable() async -> RequirementCheckResult {
     let possiblePaths = [
       "/opt/homebrew/bin/kanata",  // ARM Homebrew
-      "/usr/local/bin/kanata",  // Intel Homebrew
+      WizardSystemPaths.kanataActiveBinary,  // Active binary
       "/usr/bin/kanata"  // System install
     ]
 

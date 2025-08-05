@@ -171,6 +171,14 @@ struct ContentView: View {
           "🔍 [ContentView] - Input Monitoring (direct): \(inputMonitoringDirect)")
         AppLogger.shared.log("🔍 [ContentView] - Accessibility (direct): \(accessibilityDirect)")
 
+        // Debug each boolean component
+        AppLogger.shared.log("🔍 [ContentView] Boolean evaluation:")
+        AppLogger.shared.log("🔍 [ContentView] - !status.installed: \(!status.installed)")
+        AppLogger.shared.log("🔍 [ContentView] - !status.permissions: \(!status.permissions)")
+        AppLogger.shared.log("🔍 [ContentView] - !status.driver: \(!status.driver)")
+        AppLogger.shared.log("🔍 [ContentView] - !status.daemon: \(!status.daemon)")
+        AppLogger.shared.log("🔍 [ContentView] - !isRunning: \(!isRunning)")
+
         let shouldShowWizard =
           !status.installed || !status.permissions || !status.driver || !status.daemon || !isRunning
 

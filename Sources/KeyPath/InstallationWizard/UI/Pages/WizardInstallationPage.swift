@@ -8,7 +8,11 @@ struct WizardInstallationPage: View {
   let kanataManager: KanataManager
 
   var body: some View {
-    VStack(spacing: WizardDesign.Spacing.itemGap) {
+    // Debug logging for button state
+    _ = AppLogger.shared.log(
+      "🔧 [InstallationPage] Rendering with isFixing: \(isFixing), issues count: \(issues.count)")
+
+    return VStack(spacing: WizardDesign.Spacing.itemGap) {
       // Header using design system
       WizardPageHeader(
         icon: "arrow.down.circle.fill",
@@ -55,13 +59,29 @@ struct WizardInstallationPage: View {
                     style: .secondary,
                     isLoading: isFixing
                   ) {
+                    AppLogger.shared.log("🚨🚨🚨 [InstallationPage] FIX BUTTON CLICKED!!! 🚨🚨🚨")
+                    AppLogger.shared.log(
+                      "🔧 [InstallationPage] Fix button clicked for issue: '\(issue.title)'")
+                    AppLogger.shared.log(
+                      "🔧 [InstallationPage] AutoFixAction available: \(issue.autoFixAction != nil ? String(describing: issue.autoFixAction!) : "nil")"
+                    )
+                    AppLogger.shared.log("🔧 [InstallationPage] isFixing state: \(isFixing)")
+
                     if let autoFixAction = issue.autoFixAction {
+                      AppLogger.shared.log(
+                        "✅ [InstallationPage] autoFixAction exists, starting Task")
                       Task {
+                        AppLogger.shared.log(
+                          "🔧 [InstallationPage] Starting Task for auto-fix: \(autoFixAction)")
                         let success = await onAutoFix(autoFixAction)
                         AppLogger.shared.log(
                           "🔧 [InstallationPage] Auto-fix \(autoFixAction): \(success ? "success" : "failed")"
                         )
                       }
+                    } else {
+                      AppLogger.shared.log(
+                        "❌ [InstallationPage] No autoFixAction available for issue '\(issue.title)'"
+                      )
                     }
                   }
                 )
@@ -130,7 +150,8 @@ struct WizardInstallationPage: View {
     case "VirtualHIDDevice Daemon Not Running":
       return "Virtual keyboard driver daemon processes required for input capture"
     case "LaunchDaemon Services Not Installed":
-      return "System services required for background operation"
+      return
+        "Kanata service, VirtualHIDDevice daemon, and VirtualHIDDevice manager services for background operation"
     default:
       return issue.description
     }

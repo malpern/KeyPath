@@ -67,6 +67,11 @@ class PackageManager {
     return false
   }
 
+  /// Convenience method to check if the package manager (Homebrew) is installed
+  func isInstalled() -> Bool {
+    return checkHomebrewInstallation()
+  }
+
   /// Gets the Homebrew executable path
   func getHomebrewPath() -> String? {
     let homebrewPaths = [

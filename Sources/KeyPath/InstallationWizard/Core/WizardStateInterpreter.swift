@@ -132,10 +132,14 @@ class WizardStateInterpreter: ObservableObject {
     case .inputMonitoring:
       return issues.filter {
         $0.identifier == .permission(.kanataInputMonitoring)
+          || $0.identifier == .permission(.keyPathInputMonitoring)
           || $0.identifier == .permission(.driverExtensionEnabled)
       }
     case .accessibility:
-      return issues.filter { $0.identifier == .permission(.kanataAccessibility) }
+      return issues.filter {
+        $0.identifier == .permission(.kanataAccessibility)
+          || $0.identifier == .permission(.keyPathAccessibility)
+      }
     case .backgroundServices:
       return getBackgroundServiceIssues(in: issues)
     case .installation:
