@@ -30,6 +30,20 @@ class KanataLifecycleManager: ObservableObject {
   /// Whether user actions are allowed
   @Published var canPerformActions: Bool = true
 
+  // MARK: - Auto-Start Tracking
+
+  /// Whether an auto-start attempt was made
+  @Published var autoStartAttempted: Bool = false
+
+  /// Whether the auto-start attempt succeeded
+  @Published var autoStartSucceeded: Bool = false
+
+  /// Specific reason why auto-start failed (if applicable)
+  @Published var autoStartFailureReason: String?
+
+  /// Whether the system should show the wizard (only after auto-start fails)
+  @Published var shouldShowWizard: Bool = false
+
   // MARK: - Initialization
 
   init(kanataManager: KanataManager) {
