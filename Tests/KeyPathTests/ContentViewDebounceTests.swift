@@ -6,7 +6,6 @@ import XCTest
 /// Phase 1 Unit Tests: ContentView Debouncing
 /// Tests the save operation debouncing added in Phase 1.3 to prevent rapid successive saves
 class ContentViewDebounceTests: XCTestCase {
-
   var testManager: KanataManager!
 
   override func setUp() {
@@ -28,7 +27,8 @@ class ContentViewDebounceTests: XCTestCase {
     // Create test directory
     let testConfigDir = "/tmp/keypath-debounce-test-\(UUID().uuidString)"
     try FileManager.default.createDirectory(
-      atPath: testConfigDir, withIntermediateDirectories: true)
+      atPath: testConfigDir, withIntermediateDirectories: true
+    )
     defer { try? FileManager.default.removeItem(atPath: testConfigDir) }
 
     // Test that rapid configuration changes result in final state being saved
@@ -66,7 +66,8 @@ class ContentViewDebounceTests: XCTestCase {
     // Create a test directory for configuration
     let testConfigDir = "/tmp/keypath-test-\(UUID().uuidString)"
     try FileManager.default.createDirectory(
-      atPath: testConfigDir, withIntermediateDirectories: true)
+      atPath: testConfigDir, withIntermediateDirectories: true
+    )
 
     defer {
       try? FileManager.default.removeItem(atPath: testConfigDir)
@@ -129,7 +130,6 @@ class ContentViewDebounceTests: XCTestCase {
 // MARK: - Logging and Monitoring Tests
 
 class Phase1LoggingTests: XCTestCase {
-
   func testLoggingCapturesActualOperations() {
     // Test that logging captures important operational information
     let manager = KanataManager()
@@ -163,7 +163,8 @@ class Phase1LoggingTests: XCTestCase {
       XCTAssertTrue(
         message.hasPrefix("🚀") || message.hasPrefix("💾") || message.hasPrefix("🔧")
           || message.hasPrefix("🧪") || message.contains("=========="),
-        "Log message should follow Phase 1 patterns")
+        "Log message should follow Phase 1 patterns"
+      )
     }
 
     AppLogger.shared.log("✅ [Test] Phase 1 logging patterns verified")

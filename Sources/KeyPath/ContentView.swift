@@ -3,22 +3,25 @@ import SwiftUI
 struct ContentView: View {
   @StateObject private var keyboardCapture = KeyboardCapture()
   @EnvironmentObject var kanataManager: KanataManager
+  @EnvironmentObject var simpleKanataManager: SimpleKanataManager
   @State private var isRecording = false
   @State private var isRecordingOutput = false
   @State private var recordedInput = ""
   @State private var recordedOutput = ""
   @State private var showingInstallationWizard = false {
     didSet {
-      AppLogger.shared.log("🎭 [ContentView] showingInstallationWizard changed from \(oldValue) to \(showingInstallationWizard)")
+      AppLogger.shared.log(
+        "🎭 [ContentView] showingInstallationWizard changed from \(oldValue) to \(showingInstallationWizard)"
+      )
     }
   }
+
   @State private var hasCheckedRequirements = false
   @State private var showStatusMessage = false
   @State private var statusMessage = ""
   @State private var showingEmergencyAlert = false
 
-  // Simple Kanata Manager (will be initialized in onAppear to use injected kanataManager)
-  @State private var simpleKanataManager: SimpleKanataManager?
+  // Timer removed - now handled by SimpleKanataManager centrally
 
   var body: some View {
     VStack(spacing: 20) {
@@ -30,13 +33,15 @@ struct ContentView: View {
         recordedInput: $recordedInput, recordedOutput: $recordedOutput,
         isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
         kanataManager: kanataManager, keyboardCapture: keyboardCapture,
-        showStatusMessage: showStatusMessage, simpleKanataManager: simpleKanataManager)
+        showStatusMessage: showStatusMessage, simpleKanataManager: simpleKanataManager
+      )
 
       // Error Section (only show if there's an error)
       if let error = kanataManager.lastError, !kanataManager.isRunning {
         ErrorSection(
           kanataManager: kanataManager, showingInstallationWizard: $showingInstallationWizard,
-          error: error)
+          error: error
+        )
       }
 
       // Status Message - Fixed at bottom with stable layout
@@ -65,28 +70,27 @@ struct ContentView: View {
           AppLogger.shared.log("🔍 [ContentView] Installation wizard closed - triggering retry")
 
           Task {
-            await simpleKanataManager?.onWizardClosed()
+            await simpleKanataManager.onWizardClosed()
           }
         }
         .environmentObject(kanataManager)
     }
     .onAppear {
       AppLogger.shared.log("🔍 [ContentView] onAppear called")
+      AppLogger.shared.log(
+        "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(simpleKanataManager.showWizard)"
+      )
 
-      // Initialize Simple Kanata Manager
-      if simpleKanataManager == nil {
-        AppLogger.shared.log("🏗️ [ContentView] Initializing SimpleKanataManager")
-        simpleKanataManager = SimpleKanataManager(kanataManager: kanataManager)
-        AppLogger.shared.log("🏗️ [ContentView] SimpleKanataManager created, initial showWizard: \(simpleKanataManager?.showWizard ?? false)")
-
-        // Start the auto-launch sequence
-        Task {
-          AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
-          await simpleKanataManager?.startAutoLaunch()
-          AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
-          AppLogger.shared.log("✅ [ContentView] Post auto-launch - showWizard: \(simpleKanataManager?.showWizard ?? false)")
-          AppLogger.shared.log("✅ [ContentView] Post auto-launch - currentState: \(simpleKanataManager?.currentState.rawValue ?? "nil")")
-        }
+      // Start the auto-launch sequence
+      Task {
+        AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
+        await simpleKanataManager.startAutoLaunch()
+        AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
+        AppLogger.shared.log(
+          "✅ [ContentView] Post auto-launch - showWizard: \(simpleKanataManager.showWizard)")
+        AppLogger.shared.log(
+          "✅ [ContentView] Post auto-launch - currentState: \(simpleKanataManager.currentState.rawValue)"
+        )
       }
 
       if !hasCheckedRequirements {
@@ -97,14 +101,20 @@ struct ContentView: View {
       // Try to start monitoring for emergency stop sequence
       // This will silently fail if permissions aren't granted yet
       startEmergencyMonitoringIfPossible()
+
+      // Status monitoring now handled centrally by SimpleKanataManager
     }
-    .onChange(of: simpleKanataManager?.showWizard ?? false) { shouldShow in
+    .onChange(of: simpleKanataManager.showWizard) { shouldShow in
       AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
-      AppLogger.shared.log("🔍 [ContentView] Current simpleKanataManager state: \(simpleKanataManager?.currentState.rawValue ?? "nil")")
-      AppLogger.shared.log("🔍 [ContentView] Current errorReason: \(simpleKanataManager?.errorReason ?? "nil")")
+      AppLogger.shared.log(
+        "🔍 [ContentView] Current simpleKanataManager state: \(simpleKanataManager.currentState.rawValue)"
+      )
+      AppLogger.shared.log(
+        "🔍 [ContentView] Current errorReason: \(simpleKanataManager.errorReason ?? "nil")")
       AppLogger.shared.log("🔍 [ContentView] Setting showingInstallationWizard = \(shouldShow)")
       showingInstallationWizard = shouldShow
-      AppLogger.shared.log("🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
+      AppLogger.shared.log(
+        "🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
     }
     .onChange(of: kanataManager.lastConfigUpdate) { _ in
       // Show status message when config is updated externally
@@ -113,6 +123,8 @@ struct ContentView: View {
     .onDisappear {
       // Stop emergency monitoring when view disappears
       keyboardCapture.stopEmergencyMonitoring()
+
+      // Status monitoring handled centrally - no cleanup needed
     }
     .alert("Emergency Stop Activated", isPresented: $showingEmergencyAlert) {
       Button("OK") {
@@ -164,11 +176,7 @@ struct ContentView: View {
     }
   }
 
-  private func refreshSimpleKanataManager() {
-    Task {
-      await simpleKanataManager?.refreshStatus()
-    }
-  }
+  // Status monitoring functions removed - now handled centrally by SimpleKanataManager
 }
 
 struct ContentViewHeader: View {
@@ -527,7 +535,9 @@ struct RecordingSection: View {
           }
 
         case .repairFailedNeedsUserAction(
-          let originalConfig, _, let originalErrors, let repairErrors, let mappings):
+          let
+            originalConfig, _, let originalErrors, let repairErrors, let mappings
+        ):
           // Handle user action required case
           Task {
             do {

@@ -6,7 +6,6 @@ import XCTest
 /// Tests the complete user journey without manual intervention
 @MainActor
 final class AutonomousInstallationTests: XCTestCase {
-
   private var mockEnvironment: MockSystemEnvironment!
   private var mockManager: MockKanataManager!
 

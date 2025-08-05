@@ -116,7 +116,8 @@ final class LaunchDaemonInstallerTests: XCTestCase {
       }
 
       XCTAssertTrue(
-        hasLaunchDaemonComponent, "Component check should include LaunchDaemon services")
+        hasLaunchDaemonComponent, "Component check should include LaunchDaemon services"
+      )
       expectation.fulfill()
     }
 
@@ -179,11 +180,11 @@ class MockLaunchDaemonInstaller: LaunchDaemonInstaller {
     kanataLoaded: Bool = false, vhidDaemonLoaded: Bool = false, vhidManagerLoaded: Bool = false,
     installationResult: Bool = false, loadResult: Bool = false
   ) {
-    self.mockKanataLoaded = kanataLoaded
-    self.mockVHIDDaemonLoaded = vhidDaemonLoaded
-    self.mockVHIDManagerLoaded = vhidManagerLoaded
-    self.mockInstallationResult = installationResult
-    self.mockLoadResult = loadResult
+    mockKanataLoaded = kanataLoaded
+    mockVHIDDaemonLoaded = vhidDaemonLoaded
+    mockVHIDManagerLoaded = vhidManagerLoaded
+    mockInstallationResult = installationResult
+    mockLoadResult = loadResult
     super.init()
   }
 
@@ -230,7 +231,6 @@ class MockLaunchDaemonInstaller: LaunchDaemonInstaller {
 // MARK: - Mock Integration Tests
 
 final class MockLaunchDaemonInstallerTests: XCTestCase {
-
   func testMockLaunchDaemonInstaller_NoServicesLoaded() {
     let mockInstaller = MockLaunchDaemonInstaller(
       kanataLoaded: false,

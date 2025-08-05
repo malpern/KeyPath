@@ -1,8 +1,8 @@
 #!/usr/bin/env swift
 
+import ApplicationServices
 import Foundation
 import IOKit.hid
-import ApplicationServices
 
 // Test the same permission checks our app uses
 print("=== Permission Test ===")

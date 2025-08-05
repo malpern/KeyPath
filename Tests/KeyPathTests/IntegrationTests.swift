@@ -11,7 +11,6 @@ import XCTest
 /// - Phase 4: Modular components
 /// - Phase 5: Complete workflows
 class IntegrationTests: XCTestCase {
-
   var kanataManager: KanataManager!
   var lifecycleManager: KanataLifecycleManager!
   var systemChecker: SystemRequirementsChecker!
@@ -267,7 +266,8 @@ class IntegrationTests: XCTestCase {
     for template in templates {
       let config = configManager.createConfigurationFromTemplate(template)
       XCTAssertTrue(
-        config.validationResult.isValid, "Template \(template.displayName) should be valid")
+        config.validationResult.isValid, "Template \(template.displayName) should be valid"
+      )
     }
 
     AppLogger.shared.log("✅ [Integration] Phase 4 integration test passed")
@@ -365,7 +365,6 @@ class IntegrationTests: XCTestCase {
 // MARK: - Stress Testing
 
 class StressTests: XCTestCase {
-
   func testHighVolumeOperations() async throws {
     // Test system under high load
     AppLogger.shared.log("🧪 [Stress] Testing high volume operations")
@@ -417,7 +416,6 @@ class StressTests: XCTestCase {
 // MARK: - Error Injection Tests
 
 class ErrorInjectionTests: XCTestCase {
-
   func testConfigurationErrorHandling() async throws {
     // Test how system handles various configuration errors
     AppLogger.shared.log("🧪 [ErrorInjection] Testing configuration error handling")

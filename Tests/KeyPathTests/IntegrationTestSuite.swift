@@ -6,7 +6,6 @@ import XCTest
 /// Tests all components working together in realistic scenarios
 @MainActor
 final class IntegrationTestSuite: XCTestCase {
-
   private var mockEnvironment: MockSystemEnvironment!
   private var testScenarios: [TestScenario] = []
 

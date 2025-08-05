@@ -78,7 +78,8 @@ class WizardNavigationEngineTests: XCTestCase {
 
     // Then: Should navigate to accessibility
     XCTAssertEqual(
-      page, .accessibility, "Should navigate to accessibility when no input monitoring issues")
+      page, .accessibility, "Should navigate to accessibility when no input monitoring issues"
+    )
   }
 
   func testNavigationServiceNotRunning() {
@@ -204,7 +205,8 @@ class WizardNavigationEngineTests: XCTestCase {
     for (state, expectedDescription) in descriptions {
       let actualDescription = engine.progressDescription(for: state)
       XCTAssertEqual(
-        actualDescription, expectedDescription, "Description for \(state) should match")
+        actualDescription, expectedDescription, "Description for \(state) should match"
+      )
     }
   }
 
@@ -230,16 +232,19 @@ class WizardNavigationEngineTests: XCTestCase {
     // Given: Summary page with different states
     let activeButtonText = engine.primaryButtonText(for: .summary, state: .active)
     let serviceNotRunningButtonText = engine.primaryButtonText(
-      for: .summary, state: .serviceNotRunning)
+      for: .summary, state: .serviceNotRunning
+    )
     let readyButtonText = engine.primaryButtonText(for: .summary, state: .ready)
 
     // Then: Button text should vary based on state
     XCTAssertEqual(activeButtonText, "Close Setup", "Active state should show 'Close Setup'")
     XCTAssertEqual(
       serviceNotRunningButtonText, "Start Kanata Service",
-      "Service not running should show 'Start Kanata Service'")
+      "Service not running should show 'Start Kanata Service'"
+    )
     XCTAssertEqual(
-      readyButtonText, "Start Kanata Service", "Ready state should show 'Start Kanata Service'")
+      readyButtonText, "Start Kanata Service", "Ready state should show 'Start Kanata Service'"
+    )
   }
 
   // MARK: - Navigation State Tests

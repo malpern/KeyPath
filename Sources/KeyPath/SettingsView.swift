@@ -3,18 +3,21 @@ import SwiftUI
 struct SettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @EnvironmentObject var kanataManager: KanataManager
+  @EnvironmentObject var simpleKanataManager: SimpleKanataManager
   @State private var showingResetConfirmation = false
-  @State private var isDaemonRunning = false
-  @State private var isStartingDaemon = false
-  @State private var actualKanataRunning = false
   @State private var showingDiagnostics = false
+  @State private var showingInstallationWizard = false
+  // Timer removed - now handled by SimpleKanataManager centrally
 
   private var kanataServiceStatus: String {
-    if actualKanataRunning {
+    switch simpleKanataManager.currentState {
+    case .running:
       return "Running"
-    } else if kanataManager.isRunning {
+    case .starting:
       return "Starting..."
-    } else {
+    case .needsHelp:
+      return "Needs Help"
+    case .stopped:
       return "Stopped"
     }
   }
@@ -50,12 +53,6 @@ struct SettingsView: View {
             )
 
             StatusRow(
-              label: "Karabiner Daemon",
-              status: isDaemonRunning ? "Running" : "Stopped",
-              isActive: isDaemonRunning
-            )
-
-            StatusRow(
               label: "Installation",
               status: kanataManager.isCompletelyInstalled() ? "Installed" : "Not Installed",
               isActive: kanataManager.isCompletelyInstalled()
@@ -68,37 +65,14 @@ struct SettingsView: View {
           SettingsSection(title: "Service Control") {
             VStack(spacing: 10) {
               SettingsButton(
-                title: kanataManager.isRunning ? "Stop Service" : "Start Service",
-                systemImage: kanataManager.isRunning ? "stop.circle" : "play.circle",
-                action: {
-                  Task {
-                    if kanataManager.isRunning {
-                      await kanataManager.stopKanata()
-                    } else {
-                      await kanataManager.startKanata()
-                    }
-                  }
-                }
-              )
-
-              if !isDaemonRunning {
-                SettingsButton(
-                  title: isStartingDaemon ? "Starting Daemon..." : "Start Karabiner Daemon",
-                  systemImage: isStartingDaemon ? "gear" : "play.circle.fill",
-                  disabled: isStartingDaemon,
-                  action: {
-                    startDaemon()
-                  }
-                )
-              }
-
-              SettingsButton(
                 title: "Restart Service",
                 systemImage: "arrow.clockwise.circle",
-                disabled: !kanataManager.isRunning,
                 action: {
                   Task {
-                    await kanataManager.restartKanata()
+                    AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
+                    await simpleKanataManager.manualStop()
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)  // Wait 1 second
+                    await simpleKanataManager.manualStart()
                   }
                 }
               )
@@ -108,8 +82,18 @@ struct SettingsView: View {
                 systemImage: "arrow.clockwise",
                 action: {
                   Task {
-                    await refreshStatus()
+                    AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
+                    await simpleKanataManager.forceRefreshStatus()
                   }
+                }
+              )
+
+              SettingsButton(
+                title: "Run Installation Wizard",
+                systemImage: "wrench.and.screwdriver",
+                action: {
+                  AppLogger.shared.log("🎭 [SettingsView] Manual wizard trigger")
+                  showingInstallationWizard = true
                 }
               )
             }
@@ -207,23 +191,6 @@ struct SettingsView: View {
 
           Divider()
 
-          // Advanced Section
-          SettingsSection(title: "Advanced") {
-            VStack(spacing: 10) {
-              SettingsButton(
-                title: "Emergency Stop",
-                systemImage: "exclamationmark.triangle",
-                style: .destructive,
-                disabled: !kanataManager.isRunning,
-                action: {
-                  Task {
-                    await kanataManager.stopKanata()
-                  }
-                }
-              )
-            }
-          }
-
           // Issues section removed - diagnostics system provides better error reporting
         }
         .padding(.horizontal, 24)
@@ -234,8 +201,25 @@ struct SettingsView: View {
     .frame(width: 480, height: 520)
     .background(Color(NSColor.windowBackgroundColor))
     .onAppear {
+      AppLogger.shared.log("🔍 [SettingsView] onAppear called")
+
+      AppLogger.shared.log(
+        "🔍 [SettingsView] Using shared SimpleKanataManager - state: \(simpleKanataManager.currentState.rawValue)"
+      )
+      AppLogger.shared.log(
+        "🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(simpleKanataManager.showWizard)"
+      )
+
+      // Check if wizard should be shown immediately
+      if simpleKanataManager.showWizard {
+        AppLogger.shared.log("🎭 [SettingsView] Triggering wizard from Settings - Kanata needs help")
+        showingInstallationWizard = true
+      }
+
+      // Status monitoring now handled centrally by SimpleKanataManager
+      // Just do an initial status refresh
       Task {
-        await refreshStatus()
+        await simpleKanataManager.forceRefreshStatus()
       }
     }
     .alert("Reset Configuration", isPresented: $showingResetConfirmation) {
@@ -250,6 +234,30 @@ struct SettingsView: View {
     }
     .sheet(isPresented: $showingDiagnostics) {
       DiagnosticsView(kanataManager: kanataManager)
+    }
+    .sheet(isPresented: $showingInstallationWizard) {
+      InstallationWizardView()
+        .onAppear {
+          AppLogger.shared.log("🔍 [SettingsView] Installation wizard sheet is being presented")
+        }
+        .onDisappear {
+          AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
+          Task {
+            await simpleKanataManager.onWizardClosed()
+          }
+        }
+        .environmentObject(kanataManager)
+    }
+    .onDisappear {
+      AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
+      // Status monitoring handled centrally - no cleanup needed
+    }
+    .onChange(of: simpleKanataManager.showWizard) { shouldShow in
+      AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
+      AppLogger.shared.log(
+        "🔍 [SettingsView] Current simpleKanataManager state: \(simpleKanataManager.currentState.rawValue)"
+      )
+      showingInstallationWizard = shouldShow
     }
   }
 
@@ -297,79 +305,7 @@ struct SettingsView: View {
     }
   }
 
-  private func refreshStatus() async {
-    await kanataManager.updateStatus()
-    isDaemonRunning = kanataManager.isKarabinerDaemonRunning()
-
-    // Actually check if Kanata process is running and functional
-    actualKanataRunning = await checkKanataActuallyRunning()
-  }
-
-  private func checkKanataActuallyRunning() async -> Bool {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-    task.arguments = ["-f", "kanata"]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let output = String(data: data, encoding: .utf8) ?? ""
-      let hasRunningProcess = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-      // If process exists, verify it's actually functional by checking if it can validate config
-      if hasRunningProcess {
-        return await verifyKanataFunctional()
-      }
-
-      return false
-    } catch {
-      return false
-    }
-  }
-
-  private func verifyKanataFunctional() async -> Bool {
-    // Quick config validation test to ensure Kanata is functional
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
-    task.arguments = ["--cfg", kanataManager.configPath, "--check"]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      // If config validation succeeds, Kanata is functional
-      return task.terminationStatus == 0
-    } catch {
-      return false
-    }
-  }
-
-  private func startDaemon() {
-    Task {
-      isStartingDaemon = true
-      let success = await kanataManager.startKarabinerDaemon()
-
-      // Update status after attempting to start
-      await refreshStatus()
-      isStartingDaemon = false
-
-      if success {
-        AppLogger.shared.log("✅ Successfully started Karabiner daemon")
-      } else {
-        AppLogger.shared.log("❌ Failed to start Karabiner daemon")
-      }
-    }
-  }
+  // Status monitoring functions removed - now handled centrally by SimpleKanataManager
 
   private func openKeyPathLogs() {
     let logPath = "\(NSHomeDirectory())/Library/Logs/KeyPath/keypath-debug.log"

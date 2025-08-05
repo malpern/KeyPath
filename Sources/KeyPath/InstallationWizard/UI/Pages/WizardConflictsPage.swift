@@ -335,7 +335,7 @@ struct TechnicalDetailsView: View {
     }
 
     // If we have a valid PID but unknown process type, it's still better than complete unknown
-    if pid != "unknown" && pid != "-1" {
+    if pid != "unknown", pid != "-1" {
       return ("system_process", "System process", pid)
     }
 

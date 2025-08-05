@@ -171,7 +171,8 @@ class SystemRequirementsChecker {
 
     let summary = generateSummary(
       overallStatus: overallStatus, blockingCount: blockingIssues.count,
-      warningCount: warnings.count)
+      warningCount: warnings.count
+    )
 
     let report = SystemRequirementsReport(
       timestamp: Date(),

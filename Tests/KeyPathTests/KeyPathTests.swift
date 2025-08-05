@@ -4,7 +4,6 @@ import XCTest
 
 @MainActor
 final class KeyPathTests: XCTestCase {
-
   override func setUpWithError() throws {
     // Put setup code here. This method is called before the invocation of each test method in the class.
   }
@@ -20,7 +19,8 @@ final class KeyPathTests: XCTestCase {
     XCTAssertFalse(manager.isRunning)
     XCTAssertNil(manager.lastError)
     XCTAssertEqual(
-      manager.configPath, "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd")
+      manager.configPath, "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
+    )
   }
 
   func testConvertToKanataKey() throws {
@@ -331,7 +331,8 @@ final class KeyPathTests: XCTestCase {
     ]
 
     XCTAssertTrue(
-      validStatuses.contains(status), "Status should be one of the valid options: \(status)")
+      validStatuses.contains(status), "Status should be one of the valid options: \(status)"
+    )
   }
 
   func testAutoReloadFunctionality() async throws {
@@ -353,7 +354,8 @@ final class KeyPathTests: XCTestCase {
           || errorDescription.contains("permission") || errorDescription.contains("check")
           || errorDescription.contains("validate") || errorDescription.contains("launchdaemon")
           || errorDescription.contains("install"),
-        "Error should be installation-related: \(error.localizedDescription)")
+        "Error should be installation-related: \(error.localizedDescription)"
+      )
     }
   }
 
@@ -390,7 +392,8 @@ final class KeyPathTests: XCTestCase {
         if let error = manager.lastError {
           XCTAssertTrue(
             error.contains("sudo ./install-system.sh") || error.contains("install"),
-            "Should guide user to installer: \(error)")
+            "Should guide user to installer: \(error)"
+          )
         }
       }
 
@@ -400,7 +403,8 @@ final class KeyPathTests: XCTestCase {
         if let error = manager.lastError {
           XCTAssertTrue(
             error.contains("LaunchDaemon") || error.contains("install"),
-            "Should mention missing service: \(error)")
+            "Should mention missing service: \(error)"
+          )
         }
       }
     }
@@ -448,7 +452,8 @@ final class KeyPathTests: XCTestCase {
     XCTAssertFalse(status.isEmpty, "Status should not be empty")
     XCTAssertTrue(
       status.contains("✅") || status.contains("⚠️") || status.contains("❌"),
-      "Status should have clear visual indicators")
+      "Status should have clear visual indicators"
+    )
   }
 
   // MARK: - Root Privilege Tests
@@ -464,7 +469,8 @@ final class KeyPathTests: XCTestCase {
       let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
       XCTAssertTrue(
         FileManager.default.fileExists(atPath: plistPath),
-        "LaunchDaemon plist should exist")
+        "LaunchDaemon plist should exist"
+      )
     }
   }
 
@@ -489,7 +495,8 @@ final class KeyPathTests: XCTestCase {
       if let error = manager.lastError {
         XCTAssertTrue(
           error.contains("install") || error.contains("missing"),
-          "Should indicate installation needed: \(error)")
+          "Should indicate installation needed: \(error)"
+        )
       }
     }
   }
@@ -531,7 +538,8 @@ final class KeyPathTests: XCTestCase {
       XCTAssertTrue(
         errorDesc.contains("kanata") || errorDesc.contains("config")
           || errorDesc.contains("directory") || errorDesc.contains("permission"),
-        "Error should be installation-related: \(error)")
+        "Error should be installation-related: \(error)"
+      )
     }
   }
 
@@ -556,7 +564,8 @@ final class KeyPathTests: XCTestCase {
     // Should return a boolean value
     XCTAssertTrue(
       hasPermission == true || hasPermission == false,
-      "Permission check should return boolean")
+      "Permission check should return boolean"
+    )
 
     // If no permission, should be detected properly
     if !hasPermission {
@@ -565,7 +574,8 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(
           error.contains("permission") || error.contains("Input Monitoring")
             || error.contains("crash"),
-          "Should indicate permission issue: \(error)")
+          "Should indicate permission issue: \(error)"
+        )
       }
     }
   }
@@ -576,7 +586,8 @@ final class KeyPathTests: XCTestCase {
     // Test config path is correct
     XCTAssertEqual(
       manager.configPath, "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd",
-      "Config path should be in expected location")
+      "Config path should be in expected location"
+    )
 
     // Test that config includes proper attribution
     let config = manager.generateKanataConfig(input: "caps", output: "escape")

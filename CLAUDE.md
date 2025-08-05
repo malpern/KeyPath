@@ -37,7 +37,10 @@ swift build -c release
 ## Test Commands
 
 ```bash
-# All tests
+# Automated tests (with passwordless sudo setup)
+./run-tests-automated.sh
+
+# All tests (manual password entry)
 ./run-tests.sh
 
 # Unit tests only
@@ -48,6 +51,44 @@ swift test
 ./test-hot-reload.sh
 ./test-service-status.sh
 ./test-installer.sh
+```
+
+### Automated Testing Setup
+
+For CI/CD or frequent testing, use the automated test runner:
+
+```bash
+# Interactive setup (asks for confirmation)
+./run-tests-automated.sh
+
+# Automatic setup (for CI)
+KEYPATH_TESTING=true ./run-tests-automated.sh
+
+# Or with flag
+./run-tests-automated.sh --auto-setup
+```
+
+The automated runner:
+1. Sets up passwordless sudo for specific KeyPath test commands
+2. Runs all tests without password prompts
+3. Cleans up the sudo configuration afterward
+
+**Manual sudo setup for development:**
+```bash
+# Setup passwordless sudo for testing
+./Scripts/setup-test-sudoers.sh
+
+# Run tests (no passwords required)
+swift test
+
+# Cleanup when done
+./Scripts/cleanup-test-sudoers.sh
+```
+
+**Alternative with expect (if you have a password):**
+```bash
+# Using expect script for password automation
+./Scripts/run-with-password.exp "your-password" sudo /usr/bin/pkill -f kanata
 ```
 
 ## System Installation
@@ -123,3 +164,15 @@ Production builds require:
 - Developer ID signing
 - Runtime hardening
 - Notarization via `build-and-sign.sh`
+
+## Deployment Instructions
+
+When asked to deploy or prepare for deployment:
+1. Run code formatting and linting
+2. Build the release version
+3. **SKIP TESTS** unless explicitly requested (e.g., "run tests", "test before deploying")
+4. Create the app bundle
+5. Sign and notarize (if applicable)
+6. Install to /Applications
+
+This speeds up deployment by avoiding the test suite which can be time-consuming.

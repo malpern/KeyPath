@@ -112,7 +112,8 @@ class KanataLifecycleManager: ObservableObject {
       if kanataPath.isEmpty {
         AppLogger.shared.log("❌ [LifecycleManager] Kanata executable not found")
         _ = stateMachine.sendEvent(
-          .requirementsFailed, context: ["reason": "Kanata executable not found"])
+          .requirementsFailed, context: ["reason": "Kanata executable not found"]
+        )
         return
       }
 
@@ -121,7 +122,8 @@ class KanataLifecycleManager: ObservableObject {
       if !hasAccessibility {
         AppLogger.shared.log("❌ [LifecycleManager] Accessibility permissions not granted")
         _ = stateMachine.sendEvent(
-          .requirementsFailed, context: ["reason": "Accessibility permissions required"])
+          .requirementsFailed, context: ["reason": "Accessibility permissions required"]
+        )
         return
       }
 
@@ -171,7 +173,8 @@ class KanataLifecycleManager: ObservableObject {
       } else {
         AppLogger.shared.log("❌ [LifecycleManager] Installation failed")
         _ = stateMachine.sendEvent(
-          .installationFailed, context: ["reason": "Installation process failed"])
+          .installationFailed, context: ["reason": "Installation process failed"]
+        )
       }
 
     } catch {
@@ -203,7 +206,8 @@ class KanataLifecycleManager: ObservableObject {
       } else {
         AppLogger.shared.log("❌ [LifecycleManager] Kanata failed to start")
         _ = stateMachine.sendEvent(
-          .kanataFailed, context: ["reason": "Process verification failed"])
+          .kanataFailed, context: ["reason": "Process verification failed"]
+        )
       }
 
     } catch {
@@ -285,7 +289,8 @@ class KanataLifecycleManager: ObservableObject {
     } catch {
       AppLogger.shared.log("❌ [LifecycleManager] Configuration failed: \(error)")
       _ = stateMachine.sendEvent(
-        .configurationFailed, context: ["error": error.localizedDescription])
+        .configurationFailed, context: ["error": error.localizedDescription]
+      )
     }
   }
 

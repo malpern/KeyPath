@@ -5,7 +5,6 @@ import XCTest
 /// Integration tests for auto-fix functionality
 /// Tests real system behavior with minimal mocking
 class WizardAutoFixerTests: XCTestCase {
-
   var realKanataManager: KanataManager!
   var autoFixer: WizardAutoFixer!
 
@@ -210,7 +209,8 @@ class WizardAutoFixerTests: XCTestCase {
     // At least some operations should succeed or fail gracefully
     XCTAssertTrue(
       results.contains(true) || results.allSatisfy { !$0 },
-      "Should either succeed at something or fail gracefully at everything")
+      "Should either succeed at something or fail gracefully at everything"
+    )
   }
 
   func testConcurrentAutoFix() async {
@@ -228,7 +228,7 @@ class WizardAutoFixerTests: XCTestCase {
     await withTaskGroup(of: Bool.self) { group in
       for action in safeActions {
         group.addTask {
-          return await self.autoFixer.performAutoFix(action)
+          await self.autoFixer.performAutoFix(action)
         }
       }
 

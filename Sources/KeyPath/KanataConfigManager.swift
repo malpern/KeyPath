@@ -235,7 +235,8 @@ class KanataConfigManager {
 
     // Ensure directory exists
     try FileManager.default.createDirectory(
-      atPath: configDirectory, withIntermediateDirectories: true)
+      atPath: configDirectory, withIntermediateDirectories: true
+    )
 
     // Write configuration
     try configSet.generatedConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
@@ -256,13 +257,15 @@ class KanataConfigManager {
     }
 
     let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(
-      of: ":", with: "-")
+      of: ":", with: "-"
+    )
     let backupFileName = "keypath-backup-\(timestamp).kbd"
     let backupPath = "\(backupDirectory)/\(backupFileName)"
 
     // Ensure backup directory exists
     try FileManager.default.createDirectory(
-      atPath: backupDirectory, withIntermediateDirectories: true)
+      atPath: backupDirectory, withIntermediateDirectories: true
+    )
 
     // Copy current config to backup
     try FileManager.default.copyItem(atPath: configPath, toPath: backupPath)

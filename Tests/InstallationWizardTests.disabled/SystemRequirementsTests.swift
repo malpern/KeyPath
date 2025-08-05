@@ -26,7 +26,8 @@ final class SystemRequirementsTests: XCTestCase {
     // Verify version follows expected format (major.minor.patch)
     let components = version.versionString.components(separatedBy: ".")
     XCTAssertGreaterThanOrEqual(
-      components.count, 2, "Version should have at least major.minor components")
+      components.count, 2, "Version should have at least major.minor components"
+    )
 
     // Verify it's either modern, legacy, or unknown
     switch version {
@@ -98,7 +99,8 @@ final class SystemRequirementsTests: XCTestCase {
 
   func testDriverType_DisplayNames() {
     XCTAssertEqual(
-      SystemRequirements.DriverType.driverKit.displayName, "DriverKit VirtualHIDDevice")
+      SystemRequirements.DriverType.driverKit.displayName, "DriverKit VirtualHIDDevice"
+    )
     XCTAssertEqual(
       SystemRequirements.DriverType.kernelExtension.displayName, "Kernel Extension VirtualHIDDevice"
     )
@@ -249,7 +251,8 @@ final class SystemRequirementsTests: XCTestCase {
 
       // Note: We always expect at least one system requirement issue (the driver type info)
       XCTAssertTrue(
-        hasSystemRequirementIssues, "Should always include system requirement information")
+        hasSystemRequirementIssues, "Should always include system requirement information"
+      )
       expectation.fulfill()
     }
 
@@ -270,10 +273,10 @@ class MockSystemRequirements: SystemRequirements {
     version: MacOSVersion = .modern(version: "14.0.0"), isCompatible: Bool = true,
     issues: [String] = [], recommendations: [String] = []
   ) {
-    self.mockVersion = version
-    self.mockCompatibility = isCompatible
-    self.mockIssues = issues
-    self.mockRecommendations = recommendations
+    mockVersion = version
+    mockCompatibility = isCompatible
+    mockIssues = issues
+    mockRecommendations = recommendations
     super.init()
   }
 
@@ -295,7 +298,6 @@ class MockSystemRequirements: SystemRequirements {
 // MARK: - Mock Integration Tests
 
 final class MockSystemRequirementsTests: XCTestCase {
-
   func testMockSystemRequirements_ModernMacOS() {
     let mockRequirements = MockSystemRequirements(
       version: .modern(version: "14.1.0"),

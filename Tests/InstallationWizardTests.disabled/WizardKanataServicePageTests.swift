@@ -5,7 +5,6 @@ import XCTest
 /// Tests for the Kanata Service management page
 /// Following our guidelines: tests actual behavior, not implementation details
 final class WizardKanataServicePageTests: XCTestCase {
-
   var kanataManager: KanataManager!
 
   override func setUp() {
@@ -73,13 +72,16 @@ final class WizardKanataServicePageTests: XCTestCase {
 
     // When service is not running, navigation should route to service page
     let pageForNotRunning = navigationEngine.determineCurrentPage(
-      for: serviceNotRunningState, issues: [])
+      for: serviceNotRunningState, issues: []
+    )
     let pageForReady = navigationEngine.determineCurrentPage(for: readyState, issues: [])
 
     XCTAssertEqual(
-      pageForNotRunning, .service, "Should route to service page when service not running")
+      pageForNotRunning, .service, "Should route to service page when service not running"
+    )
     XCTAssertEqual(
-      pageForReady, .service, "Should route to service page when ready to start service")
+      pageForReady, .service, "Should route to service page when ready to start service"
+    )
 
     AppLogger.shared.log("✅ [Test] Navigation correctly routes to service page for service states")
   }
@@ -148,18 +150,23 @@ final class WizardKanataServicePageTests: XCTestCase {
 
     if isRunning {
       XCTAssertFalse(
-        startButtonShouldBeEnabled, "Start button should be disabled when service is running")
+        startButtonShouldBeEnabled, "Start button should be disabled when service is running"
+      )
       XCTAssertTrue(
-        stopButtonShouldBeEnabled, "Stop button should be enabled when service is running")
+        stopButtonShouldBeEnabled, "Stop button should be enabled when service is running"
+      )
     } else {
       XCTAssertTrue(
-        startButtonShouldBeEnabled, "Start button should be enabled when service is stopped")
+        startButtonShouldBeEnabled, "Start button should be enabled when service is stopped"
+      )
       XCTAssertFalse(
-        stopButtonShouldBeEnabled, "Stop button should be disabled when service is stopped")
+        stopButtonShouldBeEnabled, "Stop button should be disabled when service is stopped"
+      )
     }
 
     XCTAssertTrue(
-      restartButtonShouldBeEnabled, "Restart button should be enabled when not performing action")
+      restartButtonShouldBeEnabled, "Restart button should be enabled when not performing action"
+    )
 
     AppLogger.shared.log("✅ [Test] Service control button logic works correctly for current state")
   }
@@ -168,7 +175,6 @@ final class WizardKanataServicePageTests: XCTestCase {
 // MARK: - Service Status Enum Tests
 
 extension WizardKanataServicePageTests {
-
   func testServiceStatusEnumBehavior() {
     // Following our guidelines: test actual enum behavior that could break, not language features
 

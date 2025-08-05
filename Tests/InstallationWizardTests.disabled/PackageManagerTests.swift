@@ -52,13 +52,15 @@ final class PackageManagerTests: XCTestCase {
       XCTAssertNotNil(kanataInfo.path, "Path should not be nil when installed")
       XCTAssertNotEqual(
         kanataInfo.installationType, .notInstalled,
-        "Installation type should not be notInstalled when installed")
+        "Installation type should not be notInstalled when installed"
+      )
       XCTAssertFalse(kanataInfo.path!.isEmpty, "Path should not be empty when installed")
     } else {
       XCTAssertNil(kanataInfo.path, "Path should be nil when not installed")
       XCTAssertEqual(
         kanataInfo.installationType, .notInstalled,
-        "Installation type should be notInstalled when not installed")
+        "Installation type should be notInstalled when not installed"
+      )
     }
 
     // Verify description is always available
@@ -93,7 +95,8 @@ final class PackageManagerTests: XCTestCase {
       // Should have detected this and logged it
       XCTAssertTrue(
         info.supportedPackageManagers.isEmpty,
-        "No supported package managers should be available when Homebrew is not available")
+        "No supported package managers should be available when Homebrew is not available"
+      )
     }
   }
 
@@ -139,7 +142,7 @@ final class PackageManagerTests: XCTestCase {
     // Test that our detection logic can handle all paths
     for path in possiblePaths {
       let exists = FileManager.default.fileExists(atPath: path)
-      if exists && initialKanataInfo.isInstalled {
+      if exists, initialKanataInfo.isInstalled {
         // If a kanata binary exists and we detected it, verify the path matches
         XCTAssertEqual(initialKanataInfo.path, path, "Detection should find the correct path")
         break
@@ -235,10 +238,10 @@ class MockPackageManager: PackageManager {
     homebrewAvailable: Bool = true, kanataInstalled: Bool = false, kanataPath: String? = nil,
     installationType: KanataInstallationType = .notInstalled
   ) {
-    self.mockHomebrewAvailable = homebrewAvailable
-    self.mockKanataInstalled = kanataInstalled
-    self.mockKanataPath = kanataPath
-    self.mockInstallationType = installationType
+    mockHomebrewAvailable = homebrewAvailable
+    mockKanataInstalled = kanataInstalled
+    mockKanataPath = kanataPath
+    mockInstallationType = installationType
   }
 
   override func checkHomebrewInstallation() -> Bool {
@@ -266,7 +269,6 @@ class MockPackageManager: PackageManager {
 // MARK: - Mock Integration Tests (Only for Edge Cases)
 
 final class MockPackageManagerTests: XCTestCase {
-
   // Test edge case: System with Homebrew but no Kanata (common new user scenario)
   func testEdgeCase_HomebrewAvailable_KanataNotInstalled() {
     // This tests recommendation logic for a common edge case
@@ -282,12 +284,14 @@ final class MockPackageManagerTests: XCTestCase {
     let recommendations = mockManager.getInstallationRecommendations()
     let kanataRecommendations = recommendations.filter { $0.package.name == "Kanata" }
     XCTAssertGreaterThan(
-      kanataRecommendations.count, 0, "Should recommend Kanata when not installed")
+      kanataRecommendations.count, 0, "Should recommend Kanata when not installed"
+    )
 
     // Should recommend Homebrew installation since it's available
     let homebrewRecommendations = kanataRecommendations.filter { $0.method == .homebrew }
     XCTAssertGreaterThan(
-      homebrewRecommendations.count, 0, "Should recommend Homebrew method when available")
+      homebrewRecommendations.count, 0, "Should recommend Homebrew method when available"
+    )
   }
 
   // Test edge case: No package manager available (constrained system scenario)
@@ -333,6 +337,7 @@ final class MockPackageManagerTests: XCTestCase {
       $0.package.name == "Karabiner-Elements"
     }
     XCTAssertGreaterThan(
-      karabinerRecommendations.count, 0, "Should always recommend Karabiner-Elements")
+      karabinerRecommendations.count, 0, "Should always recommend Karabiner-Elements"
+    )
   }
 }

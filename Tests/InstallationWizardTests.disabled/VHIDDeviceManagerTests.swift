@@ -162,10 +162,10 @@ class MockVHIDDeviceManager: VHIDDeviceManager {
     installed: Bool = false, activated: Bool = false, running: Bool = false,
     activationResult: Bool = false
   ) {
-    self.mockInstalled = installed
-    self.mockActivated = activated
-    self.mockRunning = running
-    self.mockActivationResult = activationResult
+    mockInstalled = installed
+    mockActivated = activated
+    mockRunning = running
+    mockActivationResult = activationResult
     super.init()
   }
 
@@ -191,7 +191,6 @@ class MockVHIDDeviceManager: VHIDDeviceManager {
 // MARK: - Mock Integration Tests
 
 final class MockVHIDDeviceManagerTests: XCTestCase {
-
   func testMockVHIDDeviceManager_NotInstalled() {
     let mockManager = MockVHIDDeviceManager(installed: false, activated: false, running: false)
 
@@ -227,7 +226,8 @@ final class MockVHIDDeviceManagerTests: XCTestCase {
 
   func testMockVHIDDeviceManager_ActivationSuccess() async {
     let mockManager = MockVHIDDeviceManager(
-      installed: true, activated: false, running: false, activationResult: true)
+      installed: true, activated: false, running: false, activationResult: true
+    )
 
     let result = await mockManager.activateManager()
     XCTAssertTrue(result)
@@ -235,7 +235,8 @@ final class MockVHIDDeviceManagerTests: XCTestCase {
 
   func testMockVHIDDeviceManager_ActivationFailure() async {
     let mockManager = MockVHIDDeviceManager(
-      installed: false, activated: false, running: false, activationResult: false)
+      installed: false, activated: false, running: false, activationResult: false
+    )
 
     let result = await mockManager.activateManager()
     XCTAssertFalse(result)

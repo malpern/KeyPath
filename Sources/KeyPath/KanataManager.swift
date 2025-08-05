@@ -147,7 +147,7 @@ class KanataManager: ObservableObject {
       "🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)"
     )
 
-    if status.installed && status.permissions && status.driver && status.daemon {
+    if status.installed, status.permissions, status.driver, status.daemon {
       AppLogger.shared.log("✅ [Init] All requirements met - auto-starting Kanata")
       await startKanata()
     } else {
@@ -1030,7 +1030,8 @@ class KanataManager: ObservableObject {
       // Attempt Claude-powered recovery
       do {
         let repairedConfig = try await repairConfigWithClaude(
-          config: config, errors: validation.errors, mappings: keyMappings)
+          config: config, errors: validation.errors, mappings: keyMappings
+        )
         let repairedValidation = await validateGeneratedConfig(repairedConfig)
 
         if repairedValidation.isValid {
@@ -1174,12 +1175,13 @@ class KanataManager: ObservableObject {
       let output = String(data: data, encoding: .utf8) ?? ""
       let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
       let isRunning = !trimmed.isEmpty
-      
+
       // Debug logging removed - fix confirmed working
-      
+
       return isRunning
     } catch {
-      AppLogger.shared.log("🔍 [KanataManager] checkExternalKanataProcess() - pgrep failed: \(error)")
+      AppLogger.shared.log(
+        "🔍 [KanataManager] checkExternalKanataProcess() - pgrep failed: \(error)")
       return false
     }
   }
@@ -1539,7 +1541,8 @@ class KanataManager: ObservableObject {
 
     // Execute with elevated privileges
     return await executeScriptWithSudo(
-      script: script, description: "Disable Karabiner Elements Services")
+      script: script, description: "Disable Karabiner Elements Services"
+    )
   }
 
   /// Request user permission to disable Karabiner Elements
@@ -1882,13 +1885,16 @@ class KanataManager: ObservableObject {
 
     // Check for old karabiner_grabber processes
     let grabberCheck = await checkProcessStopped(
-      pattern: "karabiner_grabber", processName: "karabiner_grabber")
+      pattern: "karabiner_grabber", processName: "karabiner_grabber"
+    )
 
     // Check for VirtualHIDDevice processes
     let vhidDaemonCheck = await checkProcessStopped(
-      pattern: "Karabiner-VirtualHIDDevice-Daemon", processName: "VirtualHIDDevice Daemon")
+      pattern: "Karabiner-VirtualHIDDevice-Daemon", processName: "VirtualHIDDevice Daemon"
+    )
     let vhidDriverCheck = await checkProcessStopped(
-      pattern: "Karabiner-DriverKit-VirtualHIDDevice", processName: "VirtualHIDDevice Driver")
+      pattern: "Karabiner-DriverKit-VirtualHIDDevice", processName: "VirtualHIDDevice Driver"
+    )
 
     let allStopped = grabberCheck && vhidDaemonCheck && vhidDriverCheck
 
@@ -2073,7 +2079,8 @@ class KanataManager: ObservableObject {
     // Create config directory if it doesn't exist
     do {
       try FileManager.default.createDirectory(
-        atPath: configDirectory, withIntermediateDirectories: true, attributes: nil)
+        atPath: configDirectory, withIntermediateDirectories: true, attributes: nil
+      )
       AppLogger.shared.log("✅ [Config] Config directory created at \(configDirectory)")
     } catch {
       AppLogger.shared.log("❌ [Config] Failed to create config directory: \(error)")

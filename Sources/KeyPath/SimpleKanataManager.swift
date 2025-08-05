@@ -5,14 +5,13 @@ import SwiftUI
 /// Replaces the complex 14-state LifecycleStateMachine with 4 clear states
 @MainActor
 class SimpleKanataManager: ObservableObject {
-
   // MARK: - Simple State Model
 
   enum State: String, CaseIterable {
-    case starting = "starting"  // App launched, attempting auto-start
-    case running = "running"  // Kanata is running successfully
+    case starting  // App launched, attempting auto-start
+    case running  // Kanata is running successfully
     case needsHelp = "needs_help"  // Auto-start failed, user intervention required
-    case stopped = "stopped"  // User manually stopped
+    case stopped  // User manually stopped
 
     var displayName: String {
       switch self {
@@ -46,6 +45,7 @@ class SimpleKanataManager: ObservableObject {
 
   private let kanataManager: KanataManager
   private var healthTimer: Timer?
+  private var statusTimer: Timer?
   private let maxAutoStartAttempts = 2
   private let maxRetryAttempts = 3
   private var lastPermissionState: (input: Bool, accessibility: Bool) = (false, false)
@@ -60,6 +60,9 @@ class SimpleKanataManager: ObservableObject {
     Task {
       await updatePermissionState()
     }
+
+    // Start centralized status monitoring
+    startStatusMonitoring()
   }
 
   // MARK: - Public Interface
@@ -96,8 +99,8 @@ class SimpleKanataManager: ObservableObject {
     AppLogger.shared.log("✅ [SimpleKanataManager] Manual stop completed")
   }
 
-  /// Refresh current status
-  func refreshStatus() async {
+  /// Refresh current status (called by centralized timer only)
+  private func refreshStatus() async {
     await kanataManager.updateStatus()
 
     if kanataManager.isRunning {
@@ -123,22 +126,26 @@ class SimpleKanataManager: ObservableObject {
             "🔄 [SimpleKanataManager] Permissions changed or retry requested - attempting auto-start"
           )
           await retryAfterFix("Retrying after permission changes...")
-        } else {
-          AppLogger.shared.log(
-            "🔄 [SimpleKanataManager] In needsHelp state - attempting standard retry")
-          await attemptAutoStart()
         }
+        // Remove the else branch that was causing extra attemptAutoStart() calls
       }
     }
 
     lastHealthCheck = Date()
   }
 
+  /// Force immediate status update (for manual refresh buttons)
+  func forceRefreshStatus() async {
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Force refresh requested by UI")
+    await refreshStatus()
+  }
+
   // MARK: - Auto-Start Logic
 
   private func attemptAutoStart() async {
     autoStartAttempts += 1
-    AppLogger.shared.log("🔄 [SimpleKanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) ==========")
+    AppLogger.shared.log(
+      "🔄 [SimpleKanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) ==========")
 
     // Check if we're already running
     AppLogger.shared.log("🔄 [SimpleKanataManager] Step 0: Checking if Kanata is already running...")
@@ -149,7 +156,8 @@ class SimpleKanataManager: ObservableObject {
       startHealthMonitoring()
       return
     }
-    AppLogger.shared.log("🔄 [SimpleKanataManager] Kanata not running, proceeding with start sequence")
+    AppLogger.shared.log(
+      "🔄 [SimpleKanataManager] Kanata not running, proceeding with start sequence")
 
     // Step 1: Check Kanata installation
     AppLogger.shared.log("🔄 [SimpleKanataManager] Step 1: Checking Kanata installation...")
@@ -197,8 +205,10 @@ class SimpleKanataManager: ObservableObject {
       AppLogger.shared.log("❌ [SimpleKanataManager] Step 5 FAILED: Kanata did not start")
       await handleStartFailure()
     }
-    
-    AppLogger.shared.log("🔄 [SimpleKanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) COMPLETE ==========")
+
+    AppLogger.shared.log(
+      "🔄 [SimpleKanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) COMPLETE =========="
+    )
   }
 
   private func handleStartFailure() async {
@@ -244,28 +254,72 @@ class SimpleKanataManager: ObservableObject {
   private func setNeedsHelp(_ reason: String) async {
     AppLogger.shared.log("❌ [SimpleKanataManager] ========== SET NEEDS HELP ==========")
     AppLogger.shared.log("❌ [SimpleKanataManager] Reason: \(reason)")
-    AppLogger.shared.log("❌ [SimpleKanataManager] Before - showWizard: \(showWizard), currentState: \(currentState)")
-    
+    AppLogger.shared.log(
+      "❌ [SimpleKanataManager] Before - showWizard: \(showWizard), currentState: \(currentState)")
+
     currentState = .needsHelp
     errorReason = reason
-    showWizard = true
+
+    // Check if System Preferences is open before showing wizard
+    let systemPrefsOpen = await isSystemPreferencesOpen()
+    showWizard = !systemPrefsOpen
     isRetryingAfterFix = false
 
-    AppLogger.shared.log("❌ [SimpleKanataManager] After - showWizard: \(showWizard), currentState: \(currentState)")
+    if systemPrefsOpen {
+      AppLogger.shared.log(
+        "🔍 [SimpleKanataManager] Suppressing wizard - user is working on permissions")
+    }
+
+    AppLogger.shared.log(
+      "❌ [SimpleKanataManager] After - showWizard: \(showWizard), currentState: \(currentState)")
 
     // Force UI update on main thread
     await MainActor.run {
-      AppLogger.shared.log("🎩 [SimpleKanataManager] MainActor UI update: showWizard = \(showWizard), currentState = \(currentState)")
-      AppLogger.shared.log("🎩 [SimpleKanataManager] Published properties should now trigger SwiftUI updates")
+      AppLogger.shared.log(
+        "🎩 [SimpleKanataManager] MainActor UI update: showWizard = \(showWizard), currentState = \(currentState)"
+      )
+      AppLogger.shared.log(
+        "🎩 [SimpleKanataManager] Published properties should now trigger SwiftUI updates")
     }
 
     // Update permission state for change detection
     await updatePermissionState()
-    
+
     AppLogger.shared.log("❌ [SimpleKanataManager] ========== SET NEEDS HELP COMPLETE ==========")
   }
 
   // MARK: - Requirement Checks
+
+  /// Check if System Preferences or System Settings is currently open
+  /// This helps avoid re-triggering the wizard while user is actively fixing permissions
+  private func isSystemPreferencesOpen() async -> Bool {
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+    task.arguments = ["-f", "(System Preferences\\.app|System Settings\\.app)"]
+
+    let pipe = Pipe()
+    task.standardOutput = pipe
+    task.standardError = pipe
+
+    do {
+      try task.run()
+      task.waitUntilExit()
+
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      let output = String(data: data, encoding: .utf8) ?? ""
+      let isOpen = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+      if isOpen {
+        AppLogger.shared.log(
+          "🔍 [SimpleKanataManager] System Preferences/Settings is open - suppressing wizard")
+      }
+
+      return isOpen
+    } catch {
+      AppLogger.shared.log("❌ [SimpleKanataManager] Error checking System Preferences: \(error)")
+      return false
+    }
+  }
 
   private func findKanataExecutable() async -> String {
     let possiblePaths = [
@@ -288,9 +342,11 @@ class SimpleKanataManager: ObservableObject {
   private func checkPermissions() async -> String? {
     let hasInputMonitoring = kanataManager.hasInputMonitoringPermission()
     let hasAccessibility = kanataManager.hasAccessibilityPermission()
-    
-    AppLogger.shared.log("🔐 [SimpleKanataManager] Permission check - Input Monitoring: \(hasInputMonitoring), Accessibility: \(hasAccessibility)")
-    
+
+    AppLogger.shared.log(
+      "🔐 [SimpleKanataManager] Permission check - Input Monitoring: \(hasInputMonitoring), Accessibility: \(hasAccessibility)"
+    )
+
     if !hasInputMonitoring {
       AppLogger.shared.log("❌ [SimpleKanataManager] Missing Input Monitoring permission")
       return "Input Monitoring permission required - enable in System Settings > Privacy & Security"
@@ -331,6 +387,26 @@ class SimpleKanataManager: ObservableObject {
     }
 
     return nil
+  }
+
+  // MARK: - Centralized Monitoring
+
+  /// Start centralized status monitoring (replaces individual timers in views)
+  private func startStatusMonitoring() {
+    AppLogger.shared.log(
+      "🔄 [SimpleKanataManager] Starting centralized status monitoring (every 10 seconds)")
+
+    statusTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
+      Task {
+        await self.refreshStatus()
+      }
+    }
+  }
+
+  private func stopStatusMonitoring() {
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Stopping centralized status monitoring")
+    statusTimer?.invalidate()
+    statusTimer = nil
   }
 
   // MARK: - Health Monitoring
@@ -475,5 +551,13 @@ class SimpleKanataManager: ObservableObject {
     } else {
       return currentState.displayName
     }
+  }
+
+  // MARK: - Cleanup
+
+  deinit {
+    AppLogger.shared.log("🏗️ [SimpleKanataManager] Deinitializing - stopping timers")
+    statusTimer?.invalidate()
+    healthTimer?.invalidate()
   }
 }

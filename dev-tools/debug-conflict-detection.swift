@@ -39,8 +39,8 @@ func hasConflictingKanataProcesses() -> (hasConflicts: Bool, conflictDescription
         let lines = output.components(separatedBy: .newlines)
         let kanataLines = lines.filter {
             $0.contains("kanata-cmd") &&
-            !$0.contains("grep") &&
-            !$0.contains("KeyPath") // Don't count KeyPath's own process checks
+                !$0.contains("grep") &&
+                !$0.contains("KeyPath") // Don't count KeyPath's own process checks
         }
 
         print("🔍 [Debug] Process check completed. Found \(kanataLines.count) potential Kanata process(es)")

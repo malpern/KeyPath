@@ -5,7 +5,6 @@ import XCTest
 /// Integration tests for system state detection
 /// Tests real system behavior with minimal mocking
 class SystemStateDetectorTests: XCTestCase {
-
   var realKanataManager: KanataManager!
   var detector: SystemStateDetector!
 
@@ -23,11 +22,13 @@ class SystemStateDetectorTests: XCTestCase {
 
     // Then: Should return a valid system state
     XCTAssertNotEqual(
-      result.state, .initializing, "Should complete detection and return actual state")
+      result.state, .initializing, "Should complete detection and return actual state"
+    )
 
     // Should have detection timestamp
     XCTAssertLessThan(
-      Date().timeIntervalSince(result.detectionTimestamp), 5.0, "Detection should be recent")
+      Date().timeIntervalSince(result.detectionTimestamp), 5.0, "Detection should be recent"
+    )
 
     // State should be consistent with issues found
     switch result.state {
@@ -85,14 +86,16 @@ class SystemStateDetectorTests: XCTestCase {
     // Then: Should reflect actual system permissions
     XCTAssertFalse(
       result.granted.isEmpty || result.missing.isEmpty,
-      "Should have some permissions granted or missing")
+      "Should have some permissions granted or missing"
+    )
 
     // Permissions should be mutually exclusive
     let grantedSet = Set(result.granted)
     let missingSet = Set(result.missing)
     XCTAssertTrue(
       grantedSet.isDisjoint(with: missingSet),
-      "Permission should not be both granted and missing")
+      "Permission should not be both granted and missing"
+    )
 
     // Should cover all permission types
     let allPermissions: Set<PermissionRequirement> = [
@@ -103,7 +106,8 @@ class SystemStateDetectorTests: XCTestCase {
     let checkedPermissions = grantedSet.union(missingSet)
     XCTAssertEqual(
       checkedPermissions, allPermissions,
-      "Should check all required permissions")
+      "Should check all required permissions"
+    )
 
     print("✅ Permissions granted: \(result.granted.count)")
     print("✅ Permissions missing: \(result.missing.count)")
@@ -125,13 +129,15 @@ class SystemStateDetectorTests: XCTestCase {
     // Components should be mutually exclusive
     XCTAssertTrue(
       installedSet.isDisjoint(with: missingSet),
-      "Component should not be both installed and missing")
+      "Component should not be both installed and missing"
+    )
 
     // Should account for all components
     let checkedComponents = installedSet.union(missingSet)
     XCTAssertEqual(
       checkedComponents, allComponents,
-      "Should check all required components")
+      "Should check all required components"
+    )
 
     print("✅ Components installed: \(result.installed.count)")
     print("✅ Components missing: \(result.missing.count)")
@@ -158,7 +164,8 @@ class SystemStateDetectorTests: XCTestCase {
 
       case .startKarabinerDaemon:
         XCTAssertEqual(
-          result.state, .daemonNotRunning, "Should only suggest daemon start if not running")
+          result.state, .daemonNotRunning, "Should only suggest daemon start if not running"
+        )
 
       case .restartVirtualHIDDaemon, .createConfigDirectories:
         // These are always potentially helpful
@@ -187,7 +194,8 @@ class SystemStateDetectorTests: XCTestCase {
         XCTAssertEqual(currentPage, .inputMonitoring, "Should prioritize input monitoring")
       } else {
         XCTAssertEqual(
-          currentPage, .accessibility, "Should show accessibility if only that missing")
+          currentPage, .accessibility, "Should show accessibility if only that missing"
+        )
       }
 
     case .missingComponents:
@@ -218,7 +226,7 @@ class SystemStateDetectorTests: XCTestCase {
     await withTaskGroup(of: SystemStateResult.self) { group in
       for _ in 0..<3 {
         group.addTask {
-          return await self.detector.detectCurrentState()
+          await self.detector.detectCurrentState()
         }
       }
 

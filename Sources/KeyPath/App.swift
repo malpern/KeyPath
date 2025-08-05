@@ -4,18 +4,25 @@ import SwiftUI
 @main
 struct KeyPathApp: App {
   @StateObject private var kanataManager = KanataManager()
+  @StateObject private var simpleKanataManager: SimpleKanataManager
   @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
   init() {
+    // Create SimpleKanataManager using the same KanataManager instance
+    let manager = KanataManager()
+    _kanataManager = StateObject(wrappedValue: manager)
+    _simpleKanataManager = StateObject(wrappedValue: SimpleKanataManager(kanataManager: manager))
+
     // Ensure app shows properly in dock and menu bar
     NSApplication.shared.setActivationPolicy(.regular)
-    appDelegate.kanataManager = kanataManager
+    appDelegate.kanataManager = manager
   }
 
   var body: some Scene {
     WindowGroup {
       ContentView()
         .environmentObject(kanataManager)
+        .environmentObject(simpleKanataManager)
     }
     .windowResizability(.contentSize)
     .commands {
@@ -55,6 +62,7 @@ struct KeyPathApp: App {
     Settings {
       SettingsView()
         .environmentObject(kanataManager)
+        .environmentObject(simpleKanataManager)
     }
   }
 }

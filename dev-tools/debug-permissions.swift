@@ -1,8 +1,8 @@
 #!/usr/bin/env swift
 
+import ApplicationServices
 import Foundation
 import IOKit.hid
-import ApplicationServices
 
 print("=== Detailed Permission Debug ===")
 print("Current executable path: \(CommandLine.arguments[0])")
@@ -28,7 +28,7 @@ let testTap = CGEvent.tapCreate(
     place: .headInsertEventTap,
     options: .defaultTap,
     eventsOfInterest: CGEventMask(eventMask),
-    callback: { _, _, event, _ in return Unmanaged.passRetained(event) },
+    callback: { _, _, event, _ in Unmanaged.passRetained(event) },
     userInfo: nil
 )
 

@@ -5,7 +5,6 @@ import XCTest
 
 /// Mock system environment for autonomous testing
 class MockSystemEnvironment {
-
   // MARK: - Mock Filesystem
 
   private var mockFileSystem: [String: MockFile] = [:]
@@ -44,7 +43,8 @@ class MockSystemEnvironment {
       path: "/usr/local/bin/kanata-cmd",
       content: "mock-kanata-binary",
       permissions: "755",
-      owner: "root")
+      owner: "root"
+    )
   }
 
   func setupCompleteInstallation() {
@@ -54,17 +54,20 @@ class MockSystemEnvironment {
       path: "/usr/local/bin/kanata-cmd",
       content: "mock-kanata-binary",
       permissions: "755",
-      owner: "root")
+      owner: "root"
+    )
     addMockFile(
       path: "/Library/LaunchDaemons/com.keypath.kanata.plist",
       content: mockLaunchDaemonPlist(),
       permissions: "644",
-      owner: "root")
+      owner: "root"
+    )
     addMockFile(
       path: "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice",
       content: "mock-driver",
       permissions: "755",
-      owner: "root")
+      owner: "root"
+    )
     addMockProcess(pid: 1234, user: "root", command: "kanata-cmd", isRunning: true)
   }
 
@@ -127,8 +130,8 @@ class MockSystemEnvironment {
 
     switch action {
     case "kickstart":
-      if fileExists(atPath: "/Library/LaunchDaemons/com.keypath.kanata.plist")
-        && fileExists(atPath: "/usr/local/bin/kanata-cmd") {
+      if fileExists(atPath: "/Library/LaunchDaemons/com.keypath.kanata.plist"),
+        fileExists(atPath: "/usr/local/bin/kanata-cmd") {
         addMockProcess(pid: 1234, user: "root", command: "kanata-cmd", isRunning: true)
         return (0, "Service started successfully")
       } else {
@@ -296,7 +299,8 @@ class MockKanataManager: ObservableObject {
         domain: "MockError", code: 1,
         userInfo: [
           NSLocalizedDescriptionKey: "LaunchDaemon missing. Please run: sudo ./install-system.sh"
-        ])
+        ]
+      )
     }
 
     // Simulate config validation

@@ -60,11 +60,12 @@ class IssueGenerator {
     }
 
     // Create one issue per conflict type with all instances listed
-    return groupedConflicts.compactMap { (conflictType, conflicts) in
+    return groupedConflicts.compactMap { conflictType, conflicts in
       guard let firstConflict = conflicts.first else { return nil }
 
       let combinedDescription = createGroupedConflictDescription(
-        conflictType: conflictType, conflicts: conflicts)
+        conflictType: conflictType, conflicts: conflicts
+      )
 
       return WizardIssue(
         identifier: .conflict(firstConflict),

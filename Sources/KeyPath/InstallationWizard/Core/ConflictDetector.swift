@@ -82,6 +82,15 @@ class ConflictDetector {
             continue
           }
 
+          // Skip KeyPath's own cleanup scripts (osascript with pkill kanata)
+          if command.contains("osascript") && command.contains("pkill")
+            && command.contains("kanata") {
+            AppLogger.shared.log(
+              "ℹ️ [ConflictDetector] Ignoring KeyPath's own cleanup script: PID \(pid), Command: \(command)"
+            )
+            continue
+          }
+
           // Skip KeyPath's own Kanata processes (identified by config file path)
           if isKeyPathOwnedKanataProcess(command: command) {
             AppLogger.shared.log(

@@ -5,7 +5,6 @@ import XCTest
 /// Phase 1 Unit Tests: Synchronization and Process Management
 /// Tests the synchronization mechanisms added in Phase 1 to prevent multiple Kanata instances
 class KanataManagerSyncTests: XCTestCase {
-
   override func setUp() {
     super.setUp()
     // Clean up any existing Kanata processes before each test
@@ -44,7 +43,8 @@ class KanataManagerSyncTests: XCTestCase {
     let processCount = await countKanataProcesses()
     XCTAssertLessThanOrEqual(
       processCount, 1,
-      "Multiple Kanata processes detected: \(processCount). Synchronization failed.")
+      "Multiple Kanata processes detected: \(processCount). Synchronization failed."
+    )
 
     AppLogger.shared.log("✅ [Test] Synchronization test passed - process count: \(processCount)")
   }
@@ -64,7 +64,8 @@ class KanataManagerSyncTests: XCTestCase {
     let processCount = await countKanataProcesses()
     XCTAssertLessThanOrEqual(
       processCount, 1,
-      "Rapid start attempts created multiple processes: \(processCount)")
+      "Rapid start attempts created multiple processes: \(processCount)"
+    )
   }
 
   // MARK: - Helper Methods
@@ -113,7 +114,6 @@ class KanataManagerSyncTests: XCTestCase {
 // MARK: - Phase 1 Mock Tests (Unit Tests without System Dependencies)
 
 class KanataManagerMockTests: XCTestCase {
-
   func testKeyMappingStructure() {
     // Test the KeyMapping data structure used throughout the system
     let mapping = KeyMapping(input: "caps", output: "esc")

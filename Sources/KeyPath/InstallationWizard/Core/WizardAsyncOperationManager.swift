@@ -325,7 +325,7 @@ struct WizardError: LocalizedError {
 
   // MARK: - User-Friendly Message Creation
 
-  private static func createUserFriendlyMessage(for operation: String, error: Error) -> (
+  private static func createUserFriendlyMessage(for operation: String, error _: Error) -> (
     String, [String]
   ) {
     switch operation {

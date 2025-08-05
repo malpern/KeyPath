@@ -495,7 +495,8 @@ struct WizardPageHeader: View {
           .fill(status.color.opacity(0.1))
           .frame(
             width: WizardDesign.Layout.statusCircleSize,
-            height: WizardDesign.Layout.statusCircleSize)
+            height: WizardDesign.Layout.statusCircleSize
+          )
 
         Image(systemName: icon)
           .font(.system(size: WizardDesign.Layout.iconSize))

@@ -22,7 +22,8 @@ class AppLogger {
       try FileManager.default.createDirectory(
         atPath: logDirectory,
         withIntermediateDirectories: true,
-        attributes: nil)
+        attributes: nil
+      )
     } catch {
       // Fallback to temporary directory if creation fails
       print(

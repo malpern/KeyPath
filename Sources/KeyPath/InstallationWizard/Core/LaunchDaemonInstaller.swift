@@ -118,7 +118,8 @@ class LaunchDaemonInstaller {
     let plistPath = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
 
     return installPlist(
-      content: plistContent, path: plistPath, serviceID: Self.vhidManagerServiceID)
+      content: plistContent, path: plistPath, serviceID: Self.vhidManagerServiceID
+    )
   }
 
   /// Loads all KeyPath LaunchDaemon services

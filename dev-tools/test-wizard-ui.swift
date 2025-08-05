@@ -41,7 +41,6 @@ class TestInstaller {
                 print("🔍 [Test] Process: \(line)")
                 let components = line.components(separatedBy: " ")
                 if let pid = components.first {
-
                     // Use ps to check the user for this specific PID
                     let psTask = Process()
                     psTask.executableURL = URL(fileURLWithPath: "/bin/ps")
