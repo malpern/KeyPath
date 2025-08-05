@@ -32,6 +32,11 @@ struct InstallationWizardView: View {
             initializingOverlay()
           }
         }
+        .overlay {
+          if asyncOperationManager.hasRunningOperations {
+            operationProgressOverlay()
+          }
+        }
     }
     .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
     .background(VisualEffectBackground())
@@ -186,6 +191,21 @@ struct InstallationWizardView: View {
       }
     }
     .transition(.opacity)
+  }
+
+  @ViewBuilder
+  private func operationProgressOverlay() -> some View {
+    ZStack {
+      Color.black.opacity(0.4)
+      
+      WizardOperationProgress(
+        operationName: getCurrentOperationName(),
+        progress: getCurrentOperationProgress(),
+        isIndeterminate: isCurrentOperationIndeterminate()
+      )
+    }
+    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+    .animation(.easeInOut(duration: 0.3), value: asyncOperationManager.hasRunningOperations)
   }
 
   // MARK: - State Management
@@ -431,6 +451,57 @@ struct InstallationWizardView: View {
         showingStartConfirmation = true
       }
     }
+  }
+
+  // MARK: - Operation Progress Helpers
+
+  private func getCurrentOperationName() -> String {
+    // Get the first running operation and provide a user-friendly name
+    guard let operationId = asyncOperationManager.runningOperations.first else {
+      return "Processing..."
+    }
+    
+    if operationId.contains("auto_fix_terminateConflictingProcesses") {
+      return "Terminating Conflicting Processes"
+    } else if operationId.contains("auto_fix_installMissingComponents") {
+      return "Installing Missing Components"
+    } else if operationId.contains("auto_fix_activateVHIDDeviceManager") {
+      return "Activating Driver Extensions"
+    } else if operationId.contains("auto_fix_installViaBrew") {
+      return "Installing via Homebrew"
+    } else if operationId.contains("auto_fix_startKarabinerDaemon") {
+      return "Starting System Daemon"
+    } else if operationId.contains("auto_fix_restartVirtualHIDDaemon") {
+      return "Restarting Virtual HID Daemon"
+    } else if operationId.contains("auto_fix_installLaunchDaemonServices") {
+      return "Installing Launch Services"
+    } else if operationId.contains("auto_fix_createConfigDirectories") {
+      return "Creating Configuration Directories"
+    } else if operationId.contains("state_detection") {
+      return "Detecting System State"
+    } else if operationId.contains("start_service") {
+      return "Starting Kanata Service"
+    } else if operationId.contains("grant_permission") {
+      return "Waiting for Permission Grant"
+    } else {
+      return "Processing Operation"
+    }
+  }
+
+  private func getCurrentOperationProgress() -> Double {
+    guard let operationId = asyncOperationManager.runningOperations.first else {
+      return 0.0
+    }
+    return asyncOperationManager.getProgress(operationId)
+  }
+
+  private func isCurrentOperationIndeterminate() -> Bool {
+    // Most operations provide progress, but some like permission grants are indeterminate
+    guard let operationId = asyncOperationManager.runningOperations.first else {
+      return true
+    }
+    
+    return operationId.contains("grant_permission") || operationId.contains("state_detection")
   }
 
   // MARK: - Computed Properties
