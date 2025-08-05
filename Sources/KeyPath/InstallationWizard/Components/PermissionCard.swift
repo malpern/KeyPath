@@ -133,23 +133,20 @@ struct PermissionCard: View {
       // Small delay to ensure wizard closes before opening settings
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
         if let url = URL(
-          string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-        {
+          string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
           NSWorkspace.shared.open(url)
         }
       }
     } else if permissionType == "Accessibility" {
       // For Accessibility, open settings immediately without closing wizard
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-      {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
         NSWorkspace.shared.open(url)
       }
     } else if permissionType == "Background Services" {
       // For Background Services, open both System Settings and Finder
       // First open System Settings
-      if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
-      {
+      if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
         NSWorkspace.shared.open(url)
       }
 

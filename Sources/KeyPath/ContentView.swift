@@ -57,9 +57,12 @@ struct ContentView: View {
           AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
         }
         .onDisappear {
-          // When wizard closes, refresh the simple kanata manager to check if issues were resolved
-          AppLogger.shared.log("🔍 [ContentView] Installation wizard closed - refreshing status")
-          refreshSimpleKanataManager()
+          // When wizard closes, trigger immediate retry in SimpleKanataManager
+          AppLogger.shared.log("🔍 [ContentView] Installation wizard closed - triggering retry")
+
+          Task {
+            await simpleKanataManager?.onWizardClosed()
+          }
         }
         .environmentObject(kanataManager)
     }
@@ -83,7 +86,7 @@ struct ContentView: View {
       }
 
       // Try to start monitoring for emergency stop sequence
-      // This will silently fail if permissions aren't granted yet  
+      // This will silently fail if permissions aren't granted yet
       startEmergencyMonitoringIfPossible()
     }
     .onChange(of: simpleKanataManager?.showWizard ?? false) { shouldShow in
@@ -721,8 +724,7 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return "xmark.circle.fill"
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up")
-    {
+      || message.contains("backed up") {
       return "exclamationmark.triangle.fill"
     } else {
       return "checkmark.circle.fill"
@@ -733,8 +735,7 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return .red
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up")
-    {
+      || message.contains("backed up") {
       return .orange
     } else {
       return .green
@@ -745,8 +746,7 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return Color.red.opacity(0.1)
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up")
-    {
+      || message.contains("backed up") {
       return Color.orange.opacity(0.1)
     } else {
       return Color.green.opacity(0.1)
@@ -757,8 +757,7 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return Color.red.opacity(0.3)
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up")
-    {
+      || message.contains("backed up") {
       return Color.orange.opacity(0.3)
     } else {
       return Color.green.opacity(0.3)

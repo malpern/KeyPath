@@ -136,7 +136,7 @@ class WizardNavigationEngine: WizardNavigating {
       .installation,  // Install components after permissions
       .daemon,  // Start daemon after installation
       .service,  // Kanata service management
-      .summary,  // Final state
+      .summary  // Final state
     ]
   }
 

@@ -24,7 +24,7 @@ class WizardAutoFixerTests: XCTestCase {
       .installMissingComponents,
       .startKarabinerDaemon,
       .restartVirtualHIDDaemon,
-      .createConfigDirectories,
+      .createConfigDirectories
     ]
 
     for action in supportedActions {
@@ -175,7 +175,7 @@ class WizardAutoFixerTests: XCTestCase {
     let safeActions: [AutoFixAction] = [
       .createConfigDirectories,
       .startKarabinerDaemon,
-      .restartVirtualHIDDaemon,
+      .restartVirtualHIDDaemon
     ]
 
     for action in safeActions {
@@ -196,7 +196,7 @@ class WizardAutoFixerTests: XCTestCase {
     let actions: [AutoFixAction] = [
       .createConfigDirectories,  // Might already exist
       .startKarabinerDaemon,  // Might already be running
-      .restartVirtualHIDDaemon,  // Should work regardless
+      .restartVirtualHIDDaemon  // Should work regardless
     ]
 
     var results: [Bool] = []
@@ -220,7 +220,7 @@ class WizardAutoFixerTests: XCTestCase {
     let safeActions: [AutoFixAction] = [
       .createConfigDirectories,
       .createConfigDirectories,  // Duplicate to test idempotency
-      .restartVirtualHIDDaemon,
+      .restartVirtualHIDDaemon
     ]
 
     var results: [Bool] = []

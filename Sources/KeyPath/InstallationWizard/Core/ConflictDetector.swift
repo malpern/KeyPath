@@ -63,8 +63,7 @@ class ConflictDetector {
       let output = String(data: data, encoding: .utf8) ?? ""
 
       if task.terminationStatus == 0,
-        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      {
+        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
 
         for line in lines {
@@ -86,7 +85,8 @@ class ConflictDetector {
           // Skip KeyPath's own Kanata processes (identified by config file path)
           if isKeyPathOwnedKanataProcess(command: command) {
             AppLogger.shared.log(
-              "ℹ️ [ConflictDetector] Ignoring KeyPath's own Kanata process: PID \(pid), Command: \(command)")
+              "ℹ️ [ConflictDetector] Ignoring KeyPath's own Kanata process: PID \(pid), Command: \(command)"
+            )
             continue
           }
 
@@ -109,8 +109,7 @@ class ConflictDetector {
     let markerPath = "\(NSHomeDirectory())/.keypath/karabiner-conflicts-disabled"
     let oldMarkerPath = "\(NSHomeDirectory())/.keypath/karabiner-grabber-disabled"  // backwards compatibility
     if FileManager.default.fileExists(atPath: markerPath)
-      || FileManager.default.fileExists(atPath: oldMarkerPath)
-    {
+      || FileManager.default.fileExists(atPath: oldMarkerPath) {
       AppLogger.shared.log(
         "ℹ️ [ConflictDetector] Karabiner conflicts permanently disabled by KeyPath - skipping VirtualHIDDevice conflict check"
       )
@@ -135,8 +134,7 @@ class ConflictDetector {
       let output = String(data: data, encoding: .utf8) ?? ""
 
       if task.terminationStatus == 0,
-        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      {
+        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
 
         for line in lines {
@@ -186,8 +184,7 @@ class ConflictDetector {
     let markerPath = "\(NSHomeDirectory())/.keypath/karabiner-conflicts-disabled"
     let oldMarkerPath = "\(NSHomeDirectory())/.keypath/karabiner-grabber-disabled"  // backwards compatibility
     if FileManager.default.fileExists(atPath: markerPath)
-      || FileManager.default.fileExists(atPath: oldMarkerPath)
-    {
+      || FileManager.default.fileExists(atPath: oldMarkerPath) {
       AppLogger.shared.log(
         "ℹ️ [ConflictDetector] Karabiner conflicts permanently disabled by KeyPath - skipping conflict check"
       )
@@ -212,8 +209,7 @@ class ConflictDetector {
       let output = String(data: data, encoding: .utf8) ?? ""
 
       if task.terminationStatus == 0,
-        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-      {
+        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
 
         for line in lines {
@@ -306,9 +302,9 @@ class ConflictDetector {
       return -1  // Special case for device access conflicts (no PID)
     }
   }
-  
+
   // MARK: - KeyPath Process Identification
-  
+
   /// Determines if a Kanata process belongs to KeyPath by checking its config file path
   private func isKeyPathOwnedKanataProcess(command: String) -> Bool {
     // KeyPath's Kanata processes use specific config file paths
@@ -316,13 +312,13 @@ class ConflictDetector {
       "/usr/local/etc/kanata/keypath.kbd",  // System config path
       "Library/Application Support/KeyPath/keypath.kbd"  // User config path (partial match)
     ]
-    
+
     for configPath in keyPathConfigPaths {
       if command.contains(configPath) {
         return true
       }
     }
-    
+
     return false
   }
 }

@@ -138,7 +138,7 @@ final class IntegrationTestSuite: XCTestCase {
           let processUser = self.mockEnvironment.getProcessUser(command: "kanata")
           return processUser == "root"
         }
-      ),
+      )
     ]
   }
 

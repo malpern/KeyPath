@@ -98,7 +98,7 @@ class SystemStateDetectorTests: XCTestCase {
     let allPermissions: Set<PermissionRequirement> = [
       .keyPathInputMonitoring, .kanataInputMonitoring,
       .keyPathAccessibility, .kanataAccessibility,
-      .driverExtensionEnabled, .backgroundServicesEnabled,
+      .driverExtensionEnabled, .backgroundServicesEnabled
     ]
     let checkedPermissions = grantedSet.union(missingSet)
     XCTAssertEqual(
@@ -116,7 +116,7 @@ class SystemStateDetectorTests: XCTestCase {
 
     // Then: Should reflect actual component installation
     let allComponents: Set<ComponentRequirement> = [
-      .kanataBinary, .karabinerDriver, .karabinerDaemon,
+      .kanataBinary, .karabinerDriver, .karabinerDaemon
     ]
 
     let installedSet = Set(result.installed)

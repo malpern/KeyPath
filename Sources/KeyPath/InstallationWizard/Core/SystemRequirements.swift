@@ -221,16 +221,16 @@ class SystemRequirements {
           "Download Karabiner-Elements from the official website",
           "Install Karabiner-Elements using the provided installer",
           "Enable the DriverKit extension in System Settings > Privacy & Security > Driver Extensions",
-          "Grant necessary permissions in System Settings > Privacy & Security",
+          "Grant necessary permissions in System Settings > Privacy & Security"
         ],
         requirements: [
           "macOS 11.0 or later",
           "Admin privileges for installation",
-          "System restart may be required",
+          "System restart may be required"
         ],
         notes: [
           "DriverKit provides better security and stability than kernel extensions",
-          "No kernel extension loading required",
+          "No kernel extension loading required"
         ]
       )
 
@@ -242,18 +242,18 @@ class SystemRequirements {
           "Install Karabiner-Elements using the provided installer",
           "Allow kernel extension loading in System Preferences > Security & Privacy",
           "Restart the system to load the kernel extension",
-          "Grant necessary permissions in System Preferences > Security & Privacy",
+          "Grant necessary permissions in System Preferences > Security & Privacy"
         ],
         requirements: [
           "macOS 10.x",
           "Admin privileges for installation",
           "System restart required",
-          "Kernel extension approval required",
+          "Kernel extension approval required"
         ],
         notes: [
           "Kernel extensions require explicit user approval",
           "System restart is mandatory for kernel extension loading",
-          "Consider upgrading to macOS 11+ for DriverKit support",
+          "Consider upgrading to macOS 11+ for DriverKit support"
         ]
       )
 
@@ -262,7 +262,7 @@ class SystemRequirements {
         driverType: driverType,
         steps: [
           "Verify macOS version compatibility",
-          "Contact support for installation guidance",
+          "Contact support for installation guidance"
         ],
         requirements: [
           "Supported macOS version"
