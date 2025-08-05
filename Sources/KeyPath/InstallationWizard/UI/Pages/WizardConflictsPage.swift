@@ -296,33 +296,38 @@ struct TechnicalDetailsView: View {
           .fontWeight(.semibold)
           .foregroundColor(.primary)
 
-        // Process list with monospace font
+        // Process list with monospace font - only show lines with actual PIDs
         VStack(alignment: .leading, spacing: 12) {
           ForEach(Array(processDetails.enumerated()), id: \.offset) { _, detail in
             if detail.hasPrefix("•") {
-              VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .center, spacing: 12) {
-                  // Modern status indicator
-                  Circle()
-                    .fill(Color.orange)
-                    .frame(width: 6, height: 6)
+              let processText = detail.replacingOccurrences(of: "• ", with: "")
 
-                  // Extract process name, description, and PID
-                  let processText = detail.replacingOccurrences(of: "• ", with: "")
-                  let (processName, processDescription, pid) = parseProcessInfo(processText)
+              // Only display lines that actually contain PID information
+              if processText.contains("PID: ")
+                && processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil {
+                VStack(alignment: .leading, spacing: 4) {
+                  HStack(alignment: .center, spacing: 12) {
+                    // Modern status indicator
+                    Circle()
+                      .fill(Color.orange)
+                      .frame(width: 6, height: 6)
 
-                  VStack(alignment: .leading, spacing: 2) {
-                    Text(processName)
-                      .font(.custom("Courier New", size: 14))
-                      .foregroundColor(.primary)
-                      .fixedSize(horizontal: false, vertical: true)
+                    // Extract process name, description, and PID
+                    let (processName, processDescription, pid) = parseProcessInfo(processText)
 
-                    Text("\(processDescription) (PID: \(pid))")
-                      .font(.custom("Courier New", size: 12))
-                      .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                      Text(processName)
+                        .font(.custom("Courier New", size: 14))
+                        .foregroundColor(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                      Text("\(processDescription) (PID: \(pid))")
+                        .font(.custom("Courier New", size: 12))
+                        .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
                   }
-
-                  Spacer()
                 }
               }
             }

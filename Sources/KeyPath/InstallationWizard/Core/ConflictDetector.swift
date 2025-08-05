@@ -34,7 +34,8 @@ class ConflictDetector {
     let canAutoResolve = !conflicts.isEmpty  // We can auto-terminate processes
     let description = createConflictDescription(conflicts)
 
-    AppLogger.shared.log("🔍 [ConflictDetector] Found \(conflicts.count) conflicts after deduplication")
+    AppLogger.shared.log(
+      "🔍 [ConflictDetector] Found \(conflicts.count) conflicts after deduplication")
 
     return ConflictDetectionResult(
       conflicts: conflicts,
@@ -249,22 +250,23 @@ class ConflictDetector {
   private func deduplicateConflictsByPID(_ conflicts: [SystemConflict]) -> [SystemConflict] {
     var seenPIDs = Set<Int>()
     var deduplicatedConflicts: [SystemConflict] = []
-    
+
     for conflict in conflicts {
       let pid = extractPID(from: conflict)
-      
+
       if !seenPIDs.contains(pid) {
         seenPIDs.insert(pid)
         deduplicatedConflicts.append(conflict)
         AppLogger.shared.log("🔍 [ConflictDetector] Kept conflict: \(conflict) (PID: \(pid))")
       } else {
-        AppLogger.shared.log("🔍 [ConflictDetector] Removed duplicate conflict: \(conflict) (PID: \(pid))")
+        AppLogger.shared.log(
+          "🔍 [ConflictDetector] Removed duplicate conflict: \(conflict) (PID: \(pid))")
       }
     }
-    
+
     return deduplicatedConflicts
   }
-  
+
   private func extractPID(from conflict: SystemConflict) -> Int {
     switch conflict {
     case .kanataProcessRunning(let pid, _):
@@ -275,7 +277,7 @@ class ConflictDetector {
       return pid
     case .karabinerVirtualHIDDaemonRunning(let pid):
       return pid
-    case .exclusiveDeviceAccess(_):
+    case .exclusiveDeviceAccess:
       return -1  // Special case for device access conflicts (no PID)
     }
   }

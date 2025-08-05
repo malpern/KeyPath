@@ -46,15 +46,15 @@ class IssueGenerator {
     // Group conflicts by type to avoid duplicates
     let groupedConflicts = Dictionary(grouping: result.conflicts) { conflict in
       switch conflict {
-      case .kanataProcessRunning(_, _):
+      case .kanataProcessRunning:
         return "kanata"
-      case .karabinerGrabberRunning(_):
+      case .karabinerGrabberRunning:
         return "karabiner_grabber"
-      case .karabinerVirtualHIDDeviceRunning(_, _):
+      case .karabinerVirtualHIDDeviceRunning:
         return "karabiner_vhid"
-      case .karabinerVirtualHIDDaemonRunning(_):
+      case .karabinerVirtualHIDDaemonRunning:
         return "karabiner_daemon"
-      case .exclusiveDeviceAccess(_):
+      case .exclusiveDeviceAccess:
         return "device_access"
       }
     }
@@ -62,9 +62,10 @@ class IssueGenerator {
     // Create one issue per conflict type with all instances listed
     return groupedConflicts.compactMap { (conflictType, conflicts) in
       guard let firstConflict = conflicts.first else { return nil }
-      
-      let combinedDescription = createGroupedConflictDescription(conflictType: conflictType, conflicts: conflicts)
-      
+
+      let combinedDescription = createGroupedConflictDescription(
+        conflictType: conflictType, conflicts: conflicts)
+
       return WizardIssue(
         identifier: .conflict(firstConflict),
         severity: .error,
@@ -77,10 +78,11 @@ class IssueGenerator {
     }
   }
 
-  private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict]) -> String {
+  private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict])
+    -> String {
     let count = conflicts.count
     let plural = count > 1 ? "es" : ""
-    
+
     switch conflictType {
     case "kanata":
       var description = "Kanata process\(plural) running"
@@ -92,7 +94,7 @@ class IssueGenerator {
         }
       }
       return description.trimmingCharacters(in: .whitespacesAndNewlines)
-      
+
     case "karabiner_grabber":
       var description = "Karabiner Elements grabber process\(plural)"
       if count > 1 { description += " (\(count) instances)" }
@@ -104,7 +106,7 @@ class IssueGenerator {
       }
       description += "This process captures keyboard input and conflicts with KeyPath."
       return description
-      
+
     case "karabiner_vhid":
       var description = "Karabiner VirtualHID Device process\(plural)"
       if count > 1 { description += " (\(count) instances)" }
@@ -116,7 +118,7 @@ class IssueGenerator {
       }
       description += "Virtual device driver conflicts with KeyPath's remapping."
       return description
-      
+
     case "karabiner_daemon":
       var description = "Karabiner VirtualHIDDevice Daemon"
       if count > 1 { description += " (\(count) instances)" }
@@ -128,7 +130,7 @@ class IssueGenerator {
       }
       description += "This daemon manages virtual devices and conflicts with KeyPath."
       return description
-      
+
     case "device_access":
       var description = "Exclusive device access conflict"
       if count > 1 { description += "s (\(count) devices)" }
@@ -140,7 +142,7 @@ class IssueGenerator {
       }
       description += "Another process has exclusive access to input device(s)."
       return description
-      
+
     default:
       return "Unknown conflict type: \(conflictType)"
     }
@@ -151,13 +153,17 @@ class IssueGenerator {
     case .kanataProcessRunning(let pid, let command):
       return "Kanata process running (PID: \(pid))\nCommand: \(command)"
     case .karabinerGrabberRunning(let pid):
-      return "Karabiner Elements grabber running (PID: \(pid))\nThis process captures keyboard input and conflicts with KeyPath."
+      return
+        "Karabiner Elements grabber running (PID: \(pid))\nThis process captures keyboard input and conflicts with KeyPath."
     case .karabinerVirtualHIDDeviceRunning(let pid, let processName):
-      return "Karabiner VirtualHID Device running: \(processName) (PID: \(pid))\nThis virtual device driver conflicts with KeyPath's remapping."
+      return
+        "Karabiner VirtualHID Device running: \(processName) (PID: \(pid))\nThis virtual device driver conflicts with KeyPath's remapping."
     case .karabinerVirtualHIDDaemonRunning(let pid):
-      return "Karabiner VirtualHIDDevice Daemon running (PID: \(pid))\nThis daemon manages virtual devices and conflicts with KeyPath."
+      return
+        "Karabiner VirtualHIDDevice Daemon running (PID: \(pid))\nThis daemon manages virtual devices and conflicts with KeyPath."
     case .exclusiveDeviceAccess(let device):
-      return "Exclusive device access conflict: \(device)\nAnother process has exclusive access to this input device."
+      return
+        "Exclusive device access conflict: \(device)\nAnother process has exclusive access to this input device."
     }
   }
 
