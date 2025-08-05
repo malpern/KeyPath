@@ -114,10 +114,26 @@ class KanataLifecycleManager: ObservableObject {
       AppLogger.shared.log("✅ [LifecycleManager] All requirements satisfied")
       _ = stateMachine.sendEvent(.requirementsPassed, context: ["kanataPath": kanataPath])
 
+      // Auto-start Kanata if not already running
+      await autoStartKanataIfNeeded()
+
     } catch {
       AppLogger.shared.log("❌ [LifecycleManager] Requirements check failed: \(error)")
       stateMachine.setError("Requirements check failed: \(error.localizedDescription)")
     }
+  }
+
+  /// Automatically start Kanata if it's not running and all requirements are met
+  private func autoStartKanataIfNeeded() async {
+    // Check if Kanata is already running
+    let isRunning = await verifyKanataRunning()
+    if isRunning {
+      AppLogger.shared.log("✅ [LifecycleManager] Kanata already running - no auto-start needed")
+      return
+    }
+
+    AppLogger.shared.log("🚀 [LifecycleManager] Auto-starting Kanata service...")
+    await startKanata()
   }
 
   /// Start the installation process

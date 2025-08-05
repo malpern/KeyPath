@@ -197,6 +197,14 @@ struct ContentView: View {
         } else {
           AppLogger.shared.log("🔍 [ContentView] All requirements met - no wizard needed")
           showingInstallationWizard = false
+          
+          // If all requirements are met but Kanata isn't running, try to auto-start via lifecycle manager
+          if !isRunning && lifecycleManager != nil {
+            AppLogger.shared.log("🚀 [ContentView] Triggering auto-start via lifecycle manager")
+            Task {
+              await lifecycleManager?.checkRequirements() // This will now auto-start if needed
+            }
+          }
         }
       }
     }
