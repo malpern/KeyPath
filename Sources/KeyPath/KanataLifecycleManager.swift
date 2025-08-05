@@ -400,8 +400,8 @@ extension KanataLifecycleManager {
     return currentState == .running || currentState == .stopped
   }
 
-  /// Whether the installation wizard should be shown
-  var shouldShowWizard: Bool {
+  /// Whether the installation wizard should be shown (computed from state)
+  var shouldShowWizardComputed: Bool {
     return currentState == .requirementsFailed || currentState == .installationFailed
   }
 

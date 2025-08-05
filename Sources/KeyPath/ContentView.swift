@@ -13,8 +13,8 @@ struct ContentView: View {
   @State private var statusMessage = ""
   @State private var showingEmergencyAlert = false
 
-  // Phase 2: Lifecycle Manager (will be initialized in onAppear to use injected kanataManager)
-  @State private var lifecycleManager: KanataLifecycleManager?
+  // Simple Kanata Manager (will be initialized in onAppear to use injected kanataManager)
+  @State private var simpleKanataManager: SimpleKanataManager?
 
   var body: some View {
     VStack(spacing: 20) {
@@ -26,7 +26,7 @@ struct ContentView: View {
         recordedInput: $recordedInput, recordedOutput: $recordedOutput,
         isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
         kanataManager: kanataManager, keyboardCapture: keyboardCapture,
-        showStatusMessage: showStatusMessage, lifecycleManager: lifecycleManager)
+        showStatusMessage: showStatusMessage, simpleKanataManager: simpleKanataManager)
 
       // Error Section (only show if there's an error)
       if let error = kanataManager.lastError, !kanataManager.isRunning {
@@ -56,41 +56,39 @@ struct ContentView: View {
         .onAppear {
           AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
         }
+        .onDisappear {
+          // When wizard closes, refresh the simple kanata manager to check if issues were resolved
+          AppLogger.shared.log("🔍 [ContentView] Installation wizard closed - refreshing status")
+          refreshSimpleKanataManager()
+        }
         .environmentObject(kanataManager)
     }
     .onAppear {
       AppLogger.shared.log("🔍 [ContentView] onAppear called")
 
-      // Phase 2: Initialize lifecycle manager
-      if lifecycleManager == nil {
-        AppLogger.shared.log("🏗️ [ContentView] Initializing KanataLifecycleManager")
-        lifecycleManager = KanataLifecycleManager(kanataManager: kanataManager)
+      // Initialize Simple Kanata Manager
+      if simpleKanataManager == nil {
+        AppLogger.shared.log("🏗️ [ContentView] Initializing SimpleKanataManager")
+        simpleKanataManager = SimpleKanataManager(kanataManager: kanataManager)
 
-        // Start the lifecycle management
+        // Start the auto-launch sequence
         Task {
-          await lifecycleManager?.initialize()
+          await simpleKanataManager?.startAutoLaunch()
         }
       }
 
       if !hasCheckedRequirements {
-        AppLogger.shared.log("🔍 [ContentView] First time checking requirements")
-        checkRequirementsAndShowWizard()
+        AppLogger.shared.log("🔍 [ContentView] First time setup")
         hasCheckedRequirements = true
       }
 
       // Try to start monitoring for emergency stop sequence
-      // This will silently fail if permissions aren't granted yet
+      // This will silently fail if permissions aren't granted yet  
       startEmergencyMonitoringIfPossible()
     }
-    .onChange(of: kanataManager.isRunning) { value in
-      AppLogger.shared.log("🔍 [ContentView] isRunning changed to: \(value)")
-      if hasCheckedRequirements {
-        checkRequirementsAndShowWizard()
-      }
-    }
-    .onChange(of: kanataManager.lastError) { value in
-      AppLogger.shared.log("🔍 [ContentView] lastError changed to: \(value ?? "nil")")
-      checkRequirementsAndShowWizard()
+    .onChange(of: simpleKanataManager?.showWizard ?? false) { shouldShow in
+      AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
+      showingInstallationWizard = shouldShow
     }
     .onChange(of: kanataManager.lastConfigUpdate) { _ in
       // Show status message when config is updated externally
@@ -150,63 +148,9 @@ struct ContentView: View {
     }
   }
 
-  private func checkRequirementsAndShowWizard() {
+  private func refreshSimpleKanataManager() {
     Task {
-      await kanataManager.updateStatus()
-
-      await MainActor.run {
-        let status = kanataManager.getSystemRequirementsStatus()
-        let isRunning = kanataManager.isRunning
-
-        AppLogger.shared.log("🔍 [ContentView] SYSTEM REQUIREMENTS CHECK:")
-        AppLogger.shared.log("🔍 [ContentView] - Kanata installed: \(status.installed)")
-        AppLogger.shared.log("🔍 [ContentView] - Permissions granted: \(status.permissions)")
-        AppLogger.shared.log("🔍 [ContentView] - Karabiner driver: \(status.driver)")
-        AppLogger.shared.log("🔍 [ContentView] - Karabiner daemon: \(status.daemon)")
-        AppLogger.shared.log("🔍 [ContentView] - Kanata running: \(isRunning)")
-
-        let inputMonitoringDirect = kanataManager.hasInputMonitoringPermission()
-        let accessibilityDirect = kanataManager.hasAccessibilityPermission()
-        AppLogger.shared.log(
-          "🔍 [ContentView] - Input Monitoring (direct): \(inputMonitoringDirect)")
-        AppLogger.shared.log("🔍 [ContentView] - Accessibility (direct): \(accessibilityDirect)")
-
-        // Debug each boolean component
-        AppLogger.shared.log("🔍 [ContentView] Boolean evaluation:")
-        AppLogger.shared.log("🔍 [ContentView] - !status.installed: \(!status.installed)")
-        AppLogger.shared.log("🔍 [ContentView] - !status.permissions: \(!status.permissions)")
-        AppLogger.shared.log("🔍 [ContentView] - !status.driver: \(!status.driver)")
-        AppLogger.shared.log("🔍 [ContentView] - !status.daemon: \(!status.daemon)")
-        AppLogger.shared.log("🔍 [ContentView] - !isRunning: \(!isRunning)")
-
-        let shouldShowWizard =
-          !status.installed || !status.permissions || !status.driver || !status.daemon || !isRunning
-
-        AppLogger.shared.log("🔍 [ContentView] Should show wizard: \(shouldShowWizard)")
-
-        if shouldShowWizard {
-          AppLogger.shared.log("🔍 [ContentView] Showing installation wizard - missing requirements")
-          AppLogger.shared.log(
-            "🔍 [ContentView] Current showingInstallationWizard state: \(showingInstallationWizard)")
-
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            showingInstallationWizard = true
-            AppLogger.shared.log(
-              "🔍 [ContentView] Set showingInstallationWizard to: \(showingInstallationWizard)")
-          }
-        } else {
-          AppLogger.shared.log("🔍 [ContentView] All requirements met - no wizard needed")
-          showingInstallationWizard = false
-          
-          // If all requirements are met but Kanata isn't running, try to auto-start via lifecycle manager
-          if !isRunning && lifecycleManager != nil {
-            AppLogger.shared.log("🚀 [ContentView] Triggering auto-start via lifecycle manager")
-            Task {
-              await lifecycleManager?.checkRequirements() // This will now auto-start if needed
-            }
-          }
-        }
-      }
+      await simpleKanataManager?.refreshStatus()
     }
   }
 }
@@ -241,8 +185,8 @@ struct RecordingSection: View {
   @ObservedObject var keyboardCapture: KeyboardCapture
   let showStatusMessage: (String) -> Void
 
-  // Phase 2: Lifecycle Manager Integration
-  let lifecycleManager: KanataLifecycleManager?
+  // Simple Kanata Manager Integration
+  let simpleKanataManager: SimpleKanataManager?
   @State private var outputInactivityTimer: Timer?
   @State private var showingConfigCorruptionAlert = false
   @State private var configCorruptionDetails = ""
@@ -506,14 +450,9 @@ struct RecordingSection: View {
 
       AppLogger.shared.log("💾 [Save] Saving mapping: \(inputKey) → \(outputKey)")
 
-      // Phase 2: Use lifecycle manager if available, otherwise fall back to direct KanataManager
-      if let lifecycleManager = lifecycleManager {
-        AppLogger.shared.log("💾 [Save] Using KanataLifecycleManager for save operation")
-        await lifecycleManager.applyConfiguration(input: inputKey, output: outputKey)
-      } else {
-        AppLogger.shared.log("💾 [Save] Using direct KanataManager for save operation")
-        try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
-      }
+      // Use direct KanataManager for save operation (SimpleKanataManager handles service management)
+      AppLogger.shared.log("💾 [Save] Using direct KanataManager for save operation")
+      try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
 
       AppLogger.shared.log("💾 [Save] Configuration saved successfully")
 
