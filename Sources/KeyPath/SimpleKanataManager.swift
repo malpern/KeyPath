@@ -137,10 +137,11 @@ class SimpleKanataManager: ObservableObject {
         // CRITICAL FIX: Don't auto-retry if wizard is currently shown to user
         // This prevents timer-based retries from closing the wizard unexpectedly
         if showWizard {
-          AppLogger.shared.log("🎩 [SimpleKanataManager] Wizard active - deferring auto-retry to prevent interference")
+          AppLogger.shared.log(
+            "🎩 [SimpleKanataManager] Wizard active - deferring auto-retry to prevent interference")
           return
         }
-        
+
         // Check if permissions changed or user might have fixed things
         let permissionChanged = await checkForPermissionChanges()
 
@@ -465,11 +466,14 @@ class SimpleKanataManager: ObservableObject {
 
     // VALIDATION: Only retry if permissions are actually fixed
     let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
-    let systemStatus = PermissionService.shared.checkSystemPermissions(kanataBinaryPath: kanataBinaryPath)
-    
+    let systemStatus = PermissionService.shared.checkSystemPermissions(
+      kanataBinaryPath: kanataBinaryPath)
+
     if !systemStatus.hasAllRequiredPermissions {
       AppLogger.shared.log("🔄 [SimpleKanataManager] Permissions still missing - not retrying yet")
-      AppLogger.shared.log("📊 [SimpleKanataManager] Missing: \(systemStatus.missingPermissionError ?? "Unknown permissions")")
+      AppLogger.shared.log(
+        "📊 [SimpleKanataManager] Missing: \(systemStatus.missingPermissionError ?? "Unknown permissions")"
+      )
       return
     }
 
@@ -477,7 +481,8 @@ class SimpleKanataManager: ObservableObject {
     isRetryingAfterFix = true
 
     AppLogger.shared.log("🔄 [SimpleKanataManager] Retry attempt #\(retryCount): \(feedbackMessage)")
-    AppLogger.shared.log("✅ [SimpleKanataManager] All permissions validated - proceeding with retry")
+    AppLogger.shared.log(
+      "✅ [SimpleKanataManager] All permissions validated - proceeding with retry")
 
     // Set to starting state with user feedback
     currentState = .starting
@@ -508,20 +513,21 @@ class SimpleKanataManager: ObservableObject {
   private func checkForPermissionChanges() async -> Bool {
     // Use SAME comprehensive checking that triggers wizard (KeyPath + kanata binary)
     let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
-    let systemStatus = PermissionService.shared.checkSystemPermissions(kanataBinaryPath: kanataBinaryPath)
-    
+    let systemStatus = PermissionService.shared.checkSystemPermissions(
+      kanataBinaryPath: kanataBinaryPath)
+
     // Current comprehensive permission state
     let currentlyHasAllPermissions = systemStatus.hasAllRequiredPermissions
-    
+
     // Previous state (using stored KeyPath-only permissions as proxy)
     let previouslyHadAllPermissions = lastPermissionState.input && lastPermissionState.accessibility
-    
+
     // Update stored state with current KeyPath permissions for next comparison
     lastPermissionState = (
       systemStatus.keyPath.hasInputMonitoring,
       systemStatus.keyPath.hasAccessibility
     )
-    
+
     // Only return true if we went from "missing permissions" to "all permissions granted"
     if !previouslyHadAllPermissions && currentlyHasAllPermissions {
       AppLogger.shared.log(
@@ -529,7 +535,7 @@ class SimpleKanataManager: ObservableObject {
       )
       return true
     }
-    
+
     // Log current state for debugging
     AppLogger.shared.log(
       "📊 [SimpleKanataManager] Permission state check - Overall: \(currentlyHasAllPermissions), Previous: \(previouslyHadAllPermissions)"

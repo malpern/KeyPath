@@ -168,9 +168,9 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
     let startTime = CFAbsoluteTimeGetCurrent()
 
     // Test realistic process detection scenarios
-    for i in 0..<100 {
+    for testIndex in 0..<100 {
       let testProcess = ProcessLifecycleManager.ProcessInfo(
-        pid: pid_t(10000 + i),
+        pid: pid_t(10000 + testIndex),
         command: "/opt/homebrew/bin/kanata --cfg /usr/local/etc/kanata/keypath.kbd"
       )
       _ = processManager.isOwnedByKeyPath(testProcess)

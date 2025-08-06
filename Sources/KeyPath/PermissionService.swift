@@ -82,7 +82,9 @@ class PermissionService {
     )
 
     AppLogger.shared.log(
-      "🔐 [PermissionService] System check - KeyPath(Input: \(keyPathStatus.hasInputMonitoring), Access: \(keyPathStatus.hasAccessibility)) | Kanata(Input: \(kanataStatus.hasInputMonitoring), Access: \(kanataStatus.hasAccessibility))"
+      "🔐 [PermissionService] System check - KeyPath(Input: \(keyPathStatus.hasInputMonitoring), " +
+      "Access: \(keyPathStatus.hasAccessibility)) | " +
+      "Kanata(Input: \(kanataStatus.hasInputMonitoring), Access: \(kanataStatus.hasAccessibility))"
     )
 
     return SystemPermissionStatus(keyPath: keyPathStatus, kanata: kanataStatus)

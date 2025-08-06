@@ -137,7 +137,7 @@ struct WizardPermissionsPage: View {
   }
 
   // MARK: - Permission Status Computation
-  
+
   // Cache permission status to avoid redundant queries
   private var systemPermissionStatus: PermissionService.SystemPermissionStatus {
     // Use unified PermissionService API for consistent binary-aware permission checking
@@ -173,12 +173,12 @@ struct WizardPermissionsPage: View {
     switch permissionType {
     case .inputMonitoring:
       // Both KeyPath and kanata need Input Monitoring permission
-      return systemPermissionStatus.keyPath.hasInputMonitoring && 
-             systemPermissionStatus.kanata.hasInputMonitoring
+      return systemPermissionStatus.keyPath.hasInputMonitoring
+        && systemPermissionStatus.kanata.hasInputMonitoring
     case .accessibility:
       // Both KeyPath and kanata need Accessibility permission
-      return systemPermissionStatus.keyPath.hasAccessibility && 
-             systemPermissionStatus.kanata.hasAccessibility
+      return systemPermissionStatus.keyPath.hasAccessibility
+        && systemPermissionStatus.kanata.hasAccessibility
     }
   }
 
