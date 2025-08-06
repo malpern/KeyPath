@@ -782,34 +782,13 @@ class KanataManager: ObservableObject {
       kanataProcess = nil
     }
 
-    // Also kill any external Kanata processes to ensure clean start
-    AppLogger.shared.log("🧹 [Start] Cleaning up any external Kanata processes...")
-    let killScript =
-      "do shell script \"/usr/bin/pkill -f kanata\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard processes.\""
-
-    let killTask = Process()
-    killTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-    killTask.arguments = ["-e", killScript]
-
-    do {
-      try killTask.run()
-      killTask.waitUntilExit()
-
-      if killTask.terminationStatus == 0 {
-        AppLogger.shared.log("🧹 [Start] Cleaned up external Kanata processes")
-      } else {
-        AppLogger.shared.log("⚠️ [Start] Cleanup returned exit code: \(killTask.terminationStatus)")
-      }
-
-      // Wait a moment for processes to fully terminate
-      try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
-    } catch {
-      AppLogger.shared.log("⚠️ [Start] Error killing external Kanata processes: \(error)")
-    }
+    // ProcessLifecycleManager now handles conflict resolution - no need for manual cleanup
+    AppLogger.shared.log("ℹ️ [Start] ProcessLifecycleManager handles conflict resolution - skipping manual cleanup")
 
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
     task.arguments = [
+      "-n", // Non-interactive mode - don't prompt for password
       WizardSystemPaths.kanataActiveBinary, "--cfg", configPath, "--watch", "--debug",
       "--log-layer-changes"
     ]

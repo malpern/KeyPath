@@ -44,6 +44,7 @@ class SimpleKanataManager: ObservableObject {
   // MARK: - Dependencies
 
   private let kanataManager: KanataManager
+  private let processLifecycleManager: ProcessLifecycleManager
   private var healthTimer: Timer?
   private var statusTimer: Timer?
   private let maxAutoStartAttempts = 2
@@ -54,11 +55,15 @@ class SimpleKanataManager: ObservableObject {
 
   init(kanataManager: KanataManager) {
     self.kanataManager = kanataManager
-    AppLogger.shared.log("🏗️ [SimpleKanataManager] Initialized - starting auto-launch sequence")
+    self.processLifecycleManager = ProcessLifecycleManager(kanataManager: kanataManager)
+    AppLogger.shared.log("🏗️ [SimpleKanataManager] Initialized with ProcessLifecycleManager")
 
     // Initialize permission state
     Task {
       await updatePermissionState()
+
+      // Recover any orphaned processes from previous app runs
+      await processLifecycleManager.recoverFromCrash()
     }
 
     // Start centralized status monitoring
@@ -93,10 +98,21 @@ class SimpleKanataManager: ObservableObject {
     AppLogger.shared.log("👤 [SimpleKanataManager] Manual stop requested by user")
     stopHealthMonitoring()
 
-    await kanataManager.stopKanata()
+    // Use ProcessLifecycleManager for coordinated shutdown
+    processLifecycleManager.setIntent(.shouldBeStopped)
 
-    currentState = .stopped
-    AppLogger.shared.log("✅ [SimpleKanataManager] Manual stop completed")
+    do {
+      try await processLifecycleManager.reconcileWithIntent()
+      currentState = .stopped
+      AppLogger.shared.log(
+        "✅ [SimpleKanataManager] Manual stop completed via ProcessLifecycleManager")
+    } catch {
+      AppLogger.shared.log("⚠️ [SimpleKanataManager] ProcessLifecycleManager stop error: \(error)")
+      // Fallback to direct KanataManager
+      await kanataManager.stopKanata()
+      currentState = .stopped
+      AppLogger.shared.log("✅ [SimpleKanataManager] Manual stop completed via fallback")
+    }
   }
 
   /// Refresh current status (called by centralized timer only)
@@ -147,68 +163,73 @@ class SimpleKanataManager: ObservableObject {
     AppLogger.shared.log(
       "🔄 [SimpleKanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) ==========")
 
-    // Check if we're already running
-    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 0: Checking if Kanata is already running...")
-    await kanataManager.updateStatus()
-    if kanataManager.isRunning {
-      AppLogger.shared.log("✅ [SimpleKanataManager] Kanata already running - no start needed")
-      currentState = .running
-      startHealthMonitoring()
-      return
-    }
-    AppLogger.shared.log(
-      "🔄 [SimpleKanataManager] Kanata not running, proceeding with start sequence")
+    // Step 1: Check basic requirements
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 1: Checking requirements...")
 
-    // Step 1: Check Kanata installation
-    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 1: Checking Kanata installation...")
     let kanataPath = await findKanataExecutable()
     if kanataPath.isEmpty {
       AppLogger.shared.log("❌ [SimpleKanataManager] Step 1 FAILED: Kanata not found")
       await setNeedsHelp("Kanata not installed. Install with: brew install kanata")
       return
     }
-    AppLogger.shared.log("✅ [SimpleKanataManager] Step 1 PASSED: Kanata found at \(kanataPath)")
 
-    // Step 2: Check permissions
-    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 2: Checking permissions...")
     if let permissionError = await checkPermissions() {
-      AppLogger.shared.log("❌ [SimpleKanataManager] Step 2 FAILED: \(permissionError)")
+      AppLogger.shared.log("❌ [SimpleKanataManager] Step 1 FAILED: \(permissionError)")
       await setNeedsHelp(permissionError)
       return
     }
-    AppLogger.shared.log("✅ [SimpleKanataManager] Step 2 PASSED: All permissions granted")
 
-    // Step 3: Check for conflicts
-    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 3: Checking for conflicts...")
-    if let conflictError = await checkForConflicts() {
-      AppLogger.shared.log("❌ [SimpleKanataManager] Step 3 FAILED: \(conflictError)")
-      await setNeedsHelp(conflictError)
-      return
-    }
-    AppLogger.shared.log("✅ [SimpleKanataManager] Step 3 PASSED: No conflicts detected")
+    AppLogger.shared.log("✅ [SimpleKanataManager] Step 1 PASSED: Requirements satisfied")
 
-    // Step 4: Start Kanata
-    AppLogger.shared.log("🚀 [SimpleKanataManager] Step 4: All checks passed - starting Kanata")
-    await kanataManager.startKanata()
+    // Step 2: Use ProcessLifecycleManager for intelligent process management
+    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 2: Setting intent and reconciling...")
 
-    // Step 5: Verify it started
-    AppLogger.shared.log("🔄 [SimpleKanataManager] Step 5: Waiting 2 seconds for Kanata to start...")
-    try? await Task.sleep(nanoseconds: 2_000_000_000)  // Wait 2 seconds
-    await kanataManager.updateStatus()
+    do {
+      processLifecycleManager.setIntent(
+        .shouldBeRunning(source: "auto_start_attempt_\(autoStartAttempts)"))
+      try await processLifecycleManager.reconcileWithIntent()
 
-    if kanataManager.isRunning {
-      AppLogger.shared.log("✅ [SimpleKanataManager] Step 5 PASSED: Auto-start successful!")
-      currentState = .running
-      errorReason = nil
-      startHealthMonitoring()
-    } else {
-      AppLogger.shared.log("❌ [SimpleKanataManager] Step 5 FAILED: Kanata did not start")
-      await handleStartFailure()
+      // Step 3: Verify the result
+      AppLogger.shared.log("🔄 [SimpleKanataManager] Step 3: Verifying process state...")
+      try? await Task.sleep(nanoseconds: 2_000_000_000)  // Wait 2 seconds
+      await kanataManager.updateStatus()
+
+      if kanataManager.isRunning {
+        AppLogger.shared.log("✅ [SimpleKanataManager] Auto-start successful!")
+        currentState = .running
+        errorReason = nil
+        startHealthMonitoring()
+      } else {
+        AppLogger.shared.log("❌ [SimpleKanataManager] Auto-start failed - process not running")
+        await handleStartFailure()
+      }
+
+    } catch {
+      AppLogger.shared.log("❌ [SimpleKanataManager] ProcessLifecycleManager error: \(error)")
+      await handleProcessLifecycleError(error)
     }
 
     AppLogger.shared.log(
       "🔄 [SimpleKanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) COMPLETE =========="
     )
+  }
+
+  private func handleProcessLifecycleError(_ error: Error) async {
+    if let processError = error as? ProcessLifecycleError {
+      switch processError {
+      case .noKanataManager:
+        await setNeedsHelp("Internal error: No Kanata manager available")
+      case .processStartFailed:
+        await handleStartFailure()
+      case .processStopFailed(let underlyingError):
+        await setNeedsHelp(
+          "Failed to stop conflicting processes: \(underlyingError.localizedDescription)")
+      case .processTerminateFailed(let underlyingError):
+        await setNeedsHelp("Failed to resolve conflicts: \(underlyingError.localizedDescription)")
+      }
+    } else {
+      await setNeedsHelp("Process management error: \(error.localizedDescription)")
+    }
   }
 
   private func handleStartFailure() async {
@@ -361,33 +382,7 @@ class SimpleKanataManager: ObservableObject {
     return nil
   }
 
-  private func checkForConflicts() async -> String? {
-    // Use existing ConflictDetector
-    let conflictDetector = ConflictDetector(kanataManager: kanataManager)
-    let result = await conflictDetector.detectConflicts()
-
-    if !result.conflicts.isEmpty {
-      let conflictNames = result.conflicts.map { conflict in
-        switch conflict {
-        case .karabinerGrabberRunning:
-          return "Karabiner Elements"
-        case .karabinerVirtualHIDDeviceRunning(_, let processName):
-          return processName
-        case .karabinerVirtualHIDDaemonRunning:
-          return "Karabiner VirtualHID Daemon"
-        case .kanataProcessRunning:
-          return "Another Kanata process"
-        case .exclusiveDeviceAccess(let device):
-          return "Device conflict: \(device)"
-        }
-      }
-
-      return
-        "Conflicting processes detected: \(conflictNames.joined(separator: ", ")). These must be resolved first."
-    }
-
-    return nil
-  }
+  // checkForConflicts method removed - replaced by ProcessLifecycleManager
 
   // MARK: - Centralized Monitoring
 

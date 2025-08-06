@@ -3,11 +3,12 @@ import Foundation
 
 /// Orchestrates system state detection using specialized detector classes
 /// Coordinates between different detection areas and provides unified results
+@MainActor
 class SystemStateDetector: SystemStateDetecting {
   private let systemRequirements: SystemRequirements
   private let healthChecker: SystemHealthChecker
   private let componentDetector: ComponentDetector
-  private let conflictDetector: ConflictDetector
+  private let processLifecycleManager: ProcessLifecycleManager
   private let issueGenerator: IssueGenerator
 
   init(
@@ -29,7 +30,7 @@ class SystemStateDetector: SystemStateDetecting {
       systemRequirements: systemRequirements,
       packageManager: packageManager
     )
-    conflictDetector = ConflictDetector(kanataManager: kanataManager)
+    processLifecycleManager = ProcessLifecycleManager(kanataManager: kanataManager)
     issueGenerator = IssueGenerator()
   }
 
@@ -42,7 +43,7 @@ class SystemStateDetector: SystemStateDetecting {
     let compatibilityResult = systemRequirements.validateSystemCompatibility()
 
     // Use specialized detectors for each area
-    let conflictResult = await conflictDetector.detectConflicts()
+    let conflictResult = await detectConflictsUsingProcessLifecycleManager()
     let permissionResult = await componentDetector.checkPermissions()
     let componentResult = await componentDetector.checkComponents()
     let healthStatus = await healthChecker.performSystemHealthCheck()
@@ -181,7 +182,7 @@ class SystemStateDetector: SystemStateDetecting {
   // MARK: - SystemStateDetecting Protocol Methods
 
   func detectConflicts() async -> ConflictDetectionResult {
-    return await conflictDetector.detectConflicts()
+    return await detectConflictsUsingProcessLifecycleManager()
   }
 
   func checkPermissions() async -> PermissionCheckResult {
@@ -190,5 +191,42 @@ class SystemStateDetector: SystemStateDetecting {
 
   func checkComponents() async -> ComponentCheckResult {
     return await componentDetector.checkComponents()
+  }
+
+  // MARK: - ProcessLifecycleManager Integration
+
+  /// Adapter method to convert ProcessLifecycleManager conflicts to SystemStateDetector format
+  private func detectConflictsUsingProcessLifecycleManager() async -> ConflictDetectionResult {
+    let conflicts = await processLifecycleManager.detectConflicts()
+
+    // Convert ProcessLifecycleManager ProcessInfo to SystemConflict
+    let systemConflicts: [SystemConflict] = conflicts.externalProcesses.map { processInfo in
+      .kanataProcessRunning(pid: Int(processInfo.pid), command: processInfo.command)
+    }
+
+    let description =
+      systemConflicts.isEmpty
+      ? "No conflicts detected"
+      : "Found \(systemConflicts.count) external processes: "
+        + systemConflicts.map { conflict in
+          switch conflict {
+          case .kanataProcessRunning(let pid, _):
+            return "Kanata process (PID: \(pid))"
+          case .karabinerGrabberRunning(let pid):
+            return "Karabiner grabber (PID: \(pid))"
+          case .karabinerVirtualHIDDeviceRunning(let pid, let processName):
+            return "\(processName) (PID: \(pid))"
+          case .karabinerVirtualHIDDaemonRunning(let pid):
+            return "Karabiner daemon (PID: \(pid))"
+          case .exclusiveDeviceAccess(let device):
+            return "Device access: \(device)"
+          }
+        }.joined(separator: "; ")
+
+    return ConflictDetectionResult(
+      conflicts: systemConflicts,
+      canAutoResolve: conflicts.canAutoResolve,
+      description: description
+    )
   }
 }
