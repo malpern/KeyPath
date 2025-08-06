@@ -4,7 +4,6 @@ import XCTest
 
 @MainActor
 final class ProcessLifecycleManagerTests: XCTestCase {
-
   func testProcessOwnershipPatternMatching() async {
     let manager = ProcessLifecycleManager()
 
@@ -28,7 +27,8 @@ final class ProcessLifecycleManagerTests: XCTestCase {
     XCTAssertTrue(manager.isOwnedByKeyPath(keyPathProcess1), "Should recognize KeyPath config file")
     XCTAssertTrue(manager.isOwnedByKeyPath(keyPathProcess2), "Should recognize KeyPath user config")
     XCTAssertTrue(
-      manager.isOwnedByKeyPath(keyPathProcess3), "Should recognize KeyPath launch daemon")
+      manager.isOwnedByKeyPath(keyPathProcess3), "Should recognize KeyPath launch daemon"
+    )
 
     // Test external processes
     let externalProcess1 = ProcessLifecycleManager.ProcessInfo(
@@ -42,9 +42,11 @@ final class ProcessLifecycleManagerTests: XCTestCase {
     )
 
     XCTAssertFalse(
-      manager.isOwnedByKeyPath(externalProcess1), "Should not recognize external config")
+      manager.isOwnedByKeyPath(externalProcess1), "Should not recognize external config"
+    )
     XCTAssertFalse(
-      manager.isOwnedByKeyPath(externalProcess2), "Should not recognize external config")
+      manager.isOwnedByKeyPath(externalProcess2), "Should not recognize external config"
+    )
   }
 
   func testIntentSetting() async {

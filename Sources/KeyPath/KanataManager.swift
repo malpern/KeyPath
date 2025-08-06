@@ -783,12 +783,13 @@ class KanataManager: ObservableObject {
     }
 
     // ProcessLifecycleManager now handles conflict resolution - no need for manual cleanup
-    AppLogger.shared.log("ℹ️ [Start] ProcessLifecycleManager handles conflict resolution - skipping manual cleanup")
+    AppLogger.shared.log(
+      "ℹ️ [Start] ProcessLifecycleManager handles conflict resolution - skipping manual cleanup")
 
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
     task.arguments = [
-      "-n", // Non-interactive mode - don't prompt for password
+      "-n",  // Non-interactive mode - don't prompt for password
       WizardSystemPaths.kanataActiveBinary, "--cfg", configPath, "--watch", "--debug",
       "--log-layer-changes"
     ]

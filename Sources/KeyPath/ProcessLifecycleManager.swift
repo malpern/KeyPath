@@ -13,7 +13,6 @@ import Foundation
 /// 4. Temporal Coordination - Handle timing edge cases gracefully
 @MainActor
 class ProcessLifecycleManager: ObservableObject {
-
   // MARK: - Types
 
   struct ProcessInfo {
@@ -25,8 +24,8 @@ class ProcessLifecycleManager: ObservableObject {
     init(pid: pid_t, command: String) {
       self.pid = pid
       self.command = command
-      self.executable = command.components(separatedBy: " ").first ?? ""
-      self.startTime = Date()
+      executable = command.components(separatedBy: " ").first ?? ""
+      startTime = Date()
     }
   }
 
@@ -203,8 +202,8 @@ class ProcessLifecycleManager: ObservableObject {
       let data = pipe.fileHandleForReading.readDataToEndOfFile()
       let output = String(data: data, encoding: .utf8) ?? ""
 
-      if task.terminationStatus == 0
-        && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      if task.terminationStatus == 0,
+        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
 
         for line in lines {
@@ -367,7 +366,7 @@ class ProcessLifecycleManager: ObservableObject {
 
     switch intended {
     case .shouldBeRunning:
-      if keyPathProcesses.isEmpty && externalProcesses.isEmpty {
+      if keyPathProcesses.isEmpty, externalProcesses.isEmpty {
         // Clean slate - start new process
         actions.append(.startNew)
         AppLogger.shared.log("🆕 [ProcessLifecycleManager] Action: Start new process")

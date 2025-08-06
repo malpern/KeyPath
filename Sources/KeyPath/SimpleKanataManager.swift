@@ -55,7 +55,7 @@ class SimpleKanataManager: ObservableObject {
 
   init(kanataManager: KanataManager) {
     self.kanataManager = kanataManager
-    self.processLifecycleManager = ProcessLifecycleManager(kanataManager: kanataManager)
+    processLifecycleManager = ProcessLifecycleManager(kanataManager: kanataManager)
     AppLogger.shared.log("🏗️ [SimpleKanataManager] Initialized with ProcessLifecycleManager")
 
     // Initialize permission state
