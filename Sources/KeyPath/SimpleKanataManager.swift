@@ -68,6 +68,9 @@ class SimpleKanataManager: ObservableObject {
 
     // Start centralized status monitoring
     startStatusMonitoring()
+    
+    // Listen for KeyboardCapture permission notifications
+    setupNotificationListeners()
   }
 
   // MARK: - Public Interface
@@ -410,6 +413,33 @@ class SimpleKanataManager: ObservableObject {
     statusTimer?.invalidate()
     statusTimer = nil
   }
+  
+  // MARK: - Notification Listeners
+  
+  private func setupNotificationListeners() {
+    AppLogger.shared.log("📻 [SimpleKanataManager] Setting up notification listeners")
+    
+    // Listen for KeyboardCapture permission requests
+    NotificationCenter.default.addObserver(
+      forName: NSNotification.Name("KeyboardCapturePermissionNeeded"),
+      object: nil,
+      queue: .main
+    ) { [weak self] notification in
+      guard let self = self else { return }
+      
+      AppLogger.shared.log("📻 [SimpleKanataManager] Received KeyboardCapturePermissionNeeded notification")
+      
+      if let userInfo = notification.userInfo,
+         let reason = userInfo["reason"] as? String {
+        AppLogger.shared.log("📻 [SimpleKanataManager] Permission needed reason: \(reason)")
+      }
+      
+      // Trigger the wizard to help with accessibility permissions
+      Task {
+        await self.setNeedsHelp("Accessibility permission required for keyboard capture")
+      }
+    }
+  }
 
   // MARK: - Health Monitoring
 
@@ -582,5 +612,6 @@ class SimpleKanataManager: ObservableObject {
     AppLogger.shared.log("🏗️ [SimpleKanataManager] Deinitializing - stopping timers")
     statusTimer?.invalidate()
     healthTimer?.invalidate()
+    NotificationCenter.default.removeObserver(self)
   }
 }

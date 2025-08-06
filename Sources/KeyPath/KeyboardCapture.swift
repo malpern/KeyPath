@@ -28,10 +28,19 @@ class KeyboardCapture: ObservableObject {
     // Only start capture if we already have permissions
     // Don't prompt for permissions - let the wizard handle that
     if !hasAccessibilityPermissions() {
-      // Silently fail - user needs to grant permissions through wizard
+      // Notify that we need permissions - this should trigger the wizard
       isCapturing = false
       captureCallback = nil
       callback("⚠️ Accessibility permission required")
+      
+      // Trigger the wizard to help user fix permissions
+      NotificationCenter.default.post(
+        name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
+        object: nil,
+        userInfo: ["reason": "Accessibility permission required for keyboard capture"]
+      )
+      
+      AppLogger.shared.log("⚠️ [KeyboardCapture] Accessibility permission missing - triggering wizard")
       return
     }
 
@@ -48,11 +57,20 @@ class KeyboardCapture: ObservableObject {
     // Only start capture if we already have permissions
     // Don't prompt for permissions - let the wizard handle that
     if !hasAccessibilityPermissions() {
-      // Silently fail - user needs to grant permissions through wizard
+      // Notify that we need permissions - this should trigger the wizard
       isCapturing = false
       isContinuous = false
       captureCallback = nil
       callback("⚠️ Accessibility permission required")
+      
+      // Trigger the wizard to help user fix permissions
+      NotificationCenter.default.post(
+        name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
+        object: nil,
+        userInfo: ["reason": "Accessibility permission required for continuous keyboard capture"]
+      )
+      
+      AppLogger.shared.log("⚠️ [KeyboardCapture] Accessibility permission missing for continuous capture - triggering wizard")
       return
     }
 
