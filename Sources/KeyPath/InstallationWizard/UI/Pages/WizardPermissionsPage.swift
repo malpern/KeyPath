@@ -114,7 +114,7 @@ struct WizardPermissionsPage: View {
 
       PermissionCard(
         appName: "kanata",
-        appPath: WizardSystemPaths.kanataBinaryDefault,
+        appPath: WizardSystemPaths.kanataActiveBinary,
         status: kanataInputMonitoringStatus,
         permissionType: "Input Monitoring"
       )
@@ -129,7 +129,7 @@ struct WizardPermissionsPage: View {
 
       PermissionCard(
         appName: "kanata",
-        appPath: WizardSystemPaths.kanataBinaryDefault,
+        appPath: WizardSystemPaths.kanataActiveBinary,
         status: kanataAccessibilityStatus,
         permissionType: "Accessibility"
       )
@@ -137,34 +137,49 @@ struct WizardPermissionsPage: View {
   }
 
   // MARK: - Permission Status Computation
+  
+  // Cache permission status to avoid redundant queries
+  private var systemPermissionStatus: PermissionService.SystemPermissionStatus {
+    // Use unified PermissionService API for consistent binary-aware permission checking
+    // This ensures we check the actual kanata binary path, not just KeyPath
+    PermissionService.shared.checkSystemPermissions(
+      kanataBinaryPath: WizardSystemPaths.kanataActiveBinary
+    )
+  }
 
   private var keyPathInputMonitoringStatus: InstallationStatus {
-    // For Input Monitoring page, check only Input Monitoring permission
-    kanataManager.hasInputMonitoringPermission() ? .completed : .notStarted
+    // Use unified API for consistency across the app
+    systemPermissionStatus.keyPath.hasInputMonitoring ? .completed : .notStarted
   }
 
   private var kanataInputMonitoringStatus: InstallationStatus {
-    // Check kanata's Input Monitoring permission specifically
-    let kanataHasInputMonitoring = kanataManager.checkTCCForInputMonitoring(
-      path: WizardSystemPaths.kanataBinaryDefault)
-    return kanataHasInputMonitoring ? .completed : .notStarted
+    // Check kanata binary's actual Input Monitoring permission
+    systemPermissionStatus.kanata.hasInputMonitoring ? .completed : .notStarted
   }
 
   private var keyPathAccessibilityStatus: InstallationStatus {
-    // Check KeyPath's Accessibility permission specifically
-    kanataManager.hasAccessibilityPermission() ? .completed : .notStarted
+    // Use unified API for consistency across the app
+    systemPermissionStatus.keyPath.hasAccessibility ? .completed : .notStarted
   }
 
   private var kanataAccessibilityStatus: InstallationStatus {
-    // Check kanata's Accessibility permission specifically
-    let kanataAccessibility = kanataManager.checkAccessibilityForPath(
-      WizardSystemPaths.kanataBinaryDefault)
-    return kanataAccessibility ? .completed : .notStarted
+    // Check kanata binary's actual Accessibility permission
+    systemPermissionStatus.kanata.hasAccessibility ? .completed : .notStarted
   }
 
   private var allPermissionsGranted: Bool {
-    // Use helper method to check for relevant permission issues
-    return !hasRelevantPermissionIssues()
+    // Check if the specific permissions for this page are granted
+    // Using the unified API ensures consistency with other parts of the app
+    switch permissionType {
+    case .inputMonitoring:
+      // Both KeyPath and kanata need Input Monitoring permission
+      return systemPermissionStatus.keyPath.hasInputMonitoring && 
+             systemPermissionStatus.kanata.hasInputMonitoring
+    case .accessibility:
+      // Both KeyPath and kanata need Accessibility permission
+      return systemPermissionStatus.keyPath.hasAccessibility && 
+             systemPermissionStatus.kanata.hasAccessibility
+    }
   }
 
   /// Helper method to check for permission issues relevant to the current page

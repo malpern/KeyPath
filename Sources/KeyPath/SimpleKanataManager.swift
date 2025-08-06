@@ -134,6 +134,13 @@ class SimpleKanataManager: ObservableObject {
         AppLogger.shared.log("❌ [SimpleKanataManager] Detected Kanata stopped running")
         await handleServiceFailure("Service stopped unexpectedly")
       } else if currentState == .needsHelp {
+        // CRITICAL FIX: Don't auto-retry if wizard is currently shown to user
+        // This prevents timer-based retries from closing the wizard unexpectedly
+        if showWizard {
+          AppLogger.shared.log("🎩 [SimpleKanataManager] Wizard active - deferring auto-retry to prevent interference")
+          return
+        }
+        
         // Check if permissions changed or user might have fixed things
         let permissionChanged = await checkForPermissionChanges()
 
@@ -361,24 +368,23 @@ class SimpleKanataManager: ObservableObject {
   }
 
   private func checkPermissions() async -> String? {
-    let hasInputMonitoring = kanataManager.hasInputMonitoringPermission()
-    let hasAccessibility = kanataManager.hasAccessibilityPermission()
+    // CRITICAL FIX: Use unified PermissionService for consistent, binary-aware permission checking
+    // This ensures we check permissions for the actual kanata binary, not just KeyPath
 
-    AppLogger.shared.log(
-      "🔐 [SimpleKanataManager] Permission check - Input Monitoring: \(hasInputMonitoring), Accessibility: \(hasAccessibility)"
-    )
+    // Get the active kanata binary path (matches wizard ComponentDetector logic)
+    let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
 
-    if !hasInputMonitoring {
-      AppLogger.shared.log("❌ [SimpleKanataManager] Missing Input Monitoring permission")
-      return "Input Monitoring permission required - enable in System Settings > Privacy & Security"
+    // Use PermissionService for comprehensive permission checking
+    let systemStatus = PermissionService.shared.checkSystemPermissions(
+      kanataBinaryPath: kanataBinaryPath)
+
+    // Return the first missing permission error message
+    if let errorMessage = systemStatus.missingPermissionError {
+      AppLogger.shared.log("❌ [SimpleKanataManager] Missing permission: \(errorMessage)")
+      return errorMessage
     }
 
-    if !hasAccessibility {
-      AppLogger.shared.log("❌ [SimpleKanataManager] Missing Accessibility permission")
-      return "Accessibility permission required - enable in System Settings > Privacy & Security"
-    }
-
-    AppLogger.shared.log("✅ [SimpleKanataManager] All permissions granted")
+    AppLogger.shared.log("✅ [SimpleKanataManager] All required permissions granted")
     return nil
   }
 
@@ -447,6 +453,7 @@ class SimpleKanataManager: ObservableObject {
   // MARK: - Enhanced Auto-Retry Logic
 
   /// Retry auto-start after user has potentially fixed issues
+  /// CRITICAL FIX: Validate permissions are actually fixed before retrying
   func retryAfterFix(_ feedbackMessage: String) async {
     guard retryCount < maxRetryAttempts else {
       AppLogger.shared.log(
@@ -456,10 +463,21 @@ class SimpleKanataManager: ObservableObject {
       return
     }
 
+    // VALIDATION: Only retry if permissions are actually fixed
+    let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
+    let systemStatus = PermissionService.shared.checkSystemPermissions(kanataBinaryPath: kanataBinaryPath)
+    
+    if !systemStatus.hasAllRequiredPermissions {
+      AppLogger.shared.log("🔄 [SimpleKanataManager] Permissions still missing - not retrying yet")
+      AppLogger.shared.log("📊 [SimpleKanataManager] Missing: \(systemStatus.missingPermissionError ?? "Unknown permissions")")
+      return
+    }
+
     retryCount += 1
     isRetryingAfterFix = true
 
     AppLogger.shared.log("🔄 [SimpleKanataManager] Retry attempt #\(retryCount): \(feedbackMessage)")
+    AppLogger.shared.log("✅ [SimpleKanataManager] All permissions validated - proceeding with retry")
 
     // Set to starting state with user feedback
     currentState = .starting
@@ -486,32 +504,36 @@ class SimpleKanataManager: ObservableObject {
   }
 
   /// Detect if permissions have changed since last check
+  /// CRITICAL FIX: Use same comprehensive checking that triggered the wizard
   private func checkForPermissionChanges() async -> Bool {
-    let currentInput = kanataManager.hasInputMonitoringPermission()
-    let currentAccessibility = kanataManager.hasAccessibilityPermission()
-
-    let hadPermissions = lastPermissionState.input && lastPermissionState.accessibility
-    let hasPermissions = currentInput && currentAccessibility
-
-    // Update stored state
-    lastPermissionState = (currentInput, currentAccessibility)
-
-    // Check if permissions were just granted
-    if !hadPermissions && hasPermissions {
+    // Use SAME comprehensive checking that triggers wizard (KeyPath + kanata binary)
+    let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
+    let systemStatus = PermissionService.shared.checkSystemPermissions(kanataBinaryPath: kanataBinaryPath)
+    
+    // Current comprehensive permission state
+    let currentlyHasAllPermissions = systemStatus.hasAllRequiredPermissions
+    
+    // Previous state (using stored KeyPath-only permissions as proxy)
+    let previouslyHadAllPermissions = lastPermissionState.input && lastPermissionState.accessibility
+    
+    // Update stored state with current KeyPath permissions for next comparison
+    lastPermissionState = (
+      systemStatus.keyPath.hasInputMonitoring,
+      systemStatus.keyPath.hasAccessibility
+    )
+    
+    // Only return true if we went from "missing permissions" to "all permissions granted"
+    if !previouslyHadAllPermissions && currentlyHasAllPermissions {
       AppLogger.shared.log(
-        "✅ [SimpleKanataManager] Permissions granted! Input: \(currentInput), Accessibility: \(currentAccessibility)"
+        "✅ [SimpleKanataManager] All system permissions now granted! KeyPath(Input: \(systemStatus.keyPath.hasInputMonitoring), Access: \(systemStatus.keyPath.hasAccessibility)) | Kanata(Input: \(systemStatus.kanata.hasInputMonitoring), Access: \(systemStatus.kanata.hasAccessibility))"
       )
       return true
     }
-
-    // Check if any individual permission changed from false to true
-    if (!lastPermissionState.input && currentInput)
-      || (!lastPermissionState.accessibility && currentAccessibility) {
-      AppLogger.shared.log(
-        "✅ [SimpleKanataManager] Permission change detected - Input: \(currentInput), Accessibility: \(currentAccessibility)"
-      )
-      return true
-    }
+    
+    // Log current state for debugging
+    AppLogger.shared.log(
+      "📊 [SimpleKanataManager] Permission state check - Overall: \(currentlyHasAllPermissions), Previous: \(previouslyHadAllPermissions)"
+    )
 
     return false
   }
@@ -519,8 +541,8 @@ class SimpleKanataManager: ObservableObject {
   /// Update stored permission state
   private func updatePermissionState() async {
     lastPermissionState = (
-      kanataManager.hasInputMonitoringPermission(),
-      kanataManager.hasAccessibilityPermission()
+      PermissionService.shared.hasInputMonitoringPermission(),
+      PermissionService.shared.hasAccessibilityPermission()
     )
     AppLogger.shared.log(
       "📊 [SimpleKanataManager] Updated permission state - Input: \(lastPermissionState.input), Accessibility: \(lastPermissionState.accessibility)"

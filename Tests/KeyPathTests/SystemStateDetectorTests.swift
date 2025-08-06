@@ -8,6 +8,7 @@ class SystemStateDetectorTests: XCTestCase {
   var realKanataManager: KanataManager!
   var detector: SystemStateDetector!
 
+  @MainActor
   override func setUp() {
     super.setUp()
     realKanataManager = KanataManager()
@@ -72,6 +73,12 @@ class SystemStateDetectorTests: XCTestCase {
 
       case .exclusiveDeviceAccess(let device):
         print("✅ Found exclusive device access conflict: \(device)")
+
+      case .karabinerVirtualHIDDeviceRunning(let pid, let processName):
+        print("✅ Found Karabiner VirtualHIDDevice conflict: PID \(pid), process: \(processName)")
+
+      case .karabinerVirtualHIDDaemonRunning(let pid):
+        print("✅ Found Karabiner VirtualHID daemon conflict: PID \(pid)")
       }
     }
 
@@ -170,6 +177,18 @@ class SystemStateDetectorTests: XCTestCase {
       case .restartVirtualHIDDaemon, .createConfigDirectories:
         // These are always potentially helpful
         break
+
+      case .activateVHIDDeviceManager:
+        // Should be suggested when VHIDDevice needs activation
+        break
+
+      case .installLaunchDaemonServices:
+        // Should be suggested when LaunchDaemon services are missing
+        break
+
+      case .installViaBrew:
+        // Should be suggested when components can be installed via Homebrew
+        break
       }
     }
 
@@ -182,33 +201,35 @@ class SystemStateDetectorTests: XCTestCase {
     // When: Detecting state and determining navigation
     let result = await detector.detectCurrentState()
     let navigationEngine = WizardNavigationEngine()
-    let currentPage = navigationEngine.determineCurrentPage(for: result.state)
+    let currentPage = navigationEngine.determineCurrentPage(
+      for: result.state, issues: result.issues)
 
     // Then: Page should match system state appropriately
     switch result.state {
     case .conflictsDetected:
-      XCTAssertEqual(currentPage, .conflicts, "Should navigate to conflicts page")
+      XCTAssertEqual(currentPage, WizardPage.conflicts, "Should navigate to conflicts page")
 
     case .missingPermissions(let missing):
       if missing.contains(.keyPathInputMonitoring) || missing.contains(.kanataInputMonitoring) {
-        XCTAssertEqual(currentPage, .inputMonitoring, "Should prioritize input monitoring")
+        XCTAssertEqual(
+          currentPage, WizardPage.inputMonitoring, "Should prioritize input monitoring")
       } else {
         XCTAssertEqual(
-          currentPage, .accessibility, "Should show accessibility if only that missing"
+          currentPage, WizardPage.accessibility, "Should show accessibility if only that missing"
         )
       }
 
     case .missingComponents:
-      XCTAssertEqual(currentPage, .installation, "Should navigate to installation page")
+      XCTAssertEqual(currentPage, WizardPage.installation, "Should navigate to installation page")
 
     case .daemonNotRunning:
-      XCTAssertEqual(currentPage, .daemon, "Should navigate to daemon page")
+      XCTAssertEqual(currentPage, WizardPage.daemon, "Should navigate to daemon page")
 
     case .serviceNotRunning, .ready, .active:
-      XCTAssertEqual(currentPage, .summary, "Should show summary for final states")
+      XCTAssertEqual(currentPage, WizardPage.summary, "Should show summary for final states")
 
     case .initializing:
-      XCTAssertEqual(currentPage, .summary, "Should show summary during initialization")
+      XCTAssertEqual(currentPage, WizardPage.summary, "Should show summary during initialization")
     }
 
     print("✅ Recommended page for state \(result.state): \(currentPage)")

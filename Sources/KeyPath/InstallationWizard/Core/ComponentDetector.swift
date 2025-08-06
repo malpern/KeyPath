@@ -32,41 +32,36 @@ class ComponentDetector {
     var granted: [PermissionRequirement] = []
     var missing: [PermissionRequirement] = []
 
-    // Check Input Monitoring permissions for each app individually
-    let keyPathHasInputMonitoring = kanataManager.hasInputMonitoringPermission()
-    let kanataHasInputMonitoring = kanataManager.checkTCCForInputMonitoring(
-      path: WizardSystemPaths.kanataActiveBinary)
+    // Use unified PermissionService for consistent permission checking
+    let systemStatus = PermissionService.shared.checkSystemPermissions(
+      kanataBinaryPath: WizardSystemPaths.kanataActiveBinary)
 
-    if keyPathHasInputMonitoring {
+    // Map PermissionService results to ComponentDetector requirements
+    if systemStatus.keyPath.hasInputMonitoring {
       granted.append(.keyPathInputMonitoring)
     } else {
       missing.append(.keyPathInputMonitoring)
     }
 
-    if kanataHasInputMonitoring {
+    if systemStatus.kanata.hasInputMonitoring {
       granted.append(.kanataInputMonitoring)
     } else {
       missing.append(.kanataInputMonitoring)
     }
 
-    // Check Accessibility permissions
-    let keyPathHasAccessibility = kanataManager.hasAccessibilityPermission()
-    let kanataHasAccessibility = kanataManager.checkTCCForAccessibility(
-      path: WizardSystemPaths.kanataActiveBinary)
-
-    if keyPathHasAccessibility {
+    if systemStatus.keyPath.hasAccessibility {
       granted.append(.keyPathAccessibility)
     } else {
       missing.append(.keyPathAccessibility)
     }
 
-    if kanataHasAccessibility {
+    if systemStatus.kanata.hasAccessibility {
       granted.append(.kanataAccessibility)
     } else {
       missing.append(.kanataAccessibility)
     }
 
-    // Check system extensions
+    // Check system extensions (not part of PermissionService - different category)
     let driverEnabled = await systemRequirements.checkDriverExtensionEnabled()
     if driverEnabled {
       granted.append(.driverExtensionEnabled)
@@ -74,7 +69,7 @@ class ComponentDetector {
       missing.append(.driverExtensionEnabled)
     }
 
-    // Check background services
+    // Check background services (not part of PermissionService - different category)
     let backgroundServicesEnabled = await systemRequirements.checkBackgroundServicesEnabled()
     if backgroundServicesEnabled {
       granted.append(.backgroundServicesEnabled)

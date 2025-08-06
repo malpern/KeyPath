@@ -265,8 +265,8 @@ struct PermissionStatusSection: View {
   let onShowWizard: () -> Void
 
   var body: some View {
-    let inputMonitoring = kanataManager.hasInputMonitoringPermission()
-    let accessibility = kanataManager.hasAccessibilityPermission()
+    let inputMonitoring = PermissionService.shared.hasInputMonitoringPermission()
+    let accessibility = PermissionService.shared.hasAccessibilityPermission()
     let allPermissions = inputMonitoring && accessibility
 
     return VStack(alignment: .leading, spacing: 8) {

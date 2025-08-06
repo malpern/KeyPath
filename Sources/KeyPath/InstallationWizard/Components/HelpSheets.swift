@@ -76,15 +76,15 @@ struct PermissionDetailsSheet: View {
         var report = "=== Permission Status Report ===\n\n"
         report += "KeyPath.app:\n"
         report +=
-          "• Input Monitoring: \(kanataManager.hasInputMonitoringPermission() ? "✅ Granted" : "❌ Not Granted")\n"
+          "• Input Monitoring: \(PermissionService.shared.hasInputMonitoringPermission() ? "✅ Granted" : "❌ Not Granted")\n"
         report +=
-          "• Accessibility: \(kanataManager.hasAccessibilityPermission() ? "✅ Granted" : "❌ Not Granted")\n"
+          "• Accessibility: \(PermissionService.shared.hasAccessibilityPermission() ? "✅ Granted" : "❌ Not Granted")\n"
         report += "• TCC Database: \(keyPathHas ? "✅ Found" : "❌ Not Found")\n\n"
 
         report += "kanata (/usr/local/bin/kanata):\n"
         report += "• Input Monitoring (TCC): \(kanataHas ? "✅ Granted" : "❌ Not Granted")\n"
         report +=
-          "• Accessibility: \(kanataManager.checkAccessibilityForPath("/usr/local/bin/kanata") ? "✅ Granted" : "❌ Not Granted")\n\n"
+          "• Accessibility: \(PermissionService.shared.checkTCCForAccessibility(path: "/usr/local/bin/kanata") ? "✅ Granted" : "❌ Not Granted")\n\n"
 
         report += "=== TCC Database Details ===\n"
         report += details

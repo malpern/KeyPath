@@ -233,9 +233,9 @@ enum WizardOperations {
         let hasPermission =
           switch type {
           case .inputMonitoring:
-            kanataManager.hasInputMonitoringPermission()
+            PermissionService.shared.hasInputMonitoringPermission()
           case .accessibility:
-            kanataManager.hasAccessibilityPermission()
+            PermissionService.shared.hasAccessibilityPermission()
           }
 
         if hasPermission {

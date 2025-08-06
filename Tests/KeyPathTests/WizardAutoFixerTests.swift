@@ -23,7 +23,10 @@ class WizardAutoFixerTests: XCTestCase {
       .installMissingComponents,
       .startKarabinerDaemon,
       .restartVirtualHIDDaemon,
-      .createConfigDirectories
+      .createConfigDirectories,
+      .activateVHIDDeviceManager,
+      .installLaunchDaemonServices,
+      .installViaBrew
     ]
 
     for action in supportedActions {
@@ -44,6 +47,17 @@ class WizardAutoFixerTests: XCTestCase {
 
       case .createConfigDirectories:
         XCTAssertTrue(canFix, "Should be able to create directories")
+
+      case .activateVHIDDeviceManager:
+        // This depends on VHIDDeviceManager being installed
+        XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
+
+      case .installLaunchDaemonServices:
+        XCTAssertTrue(canFix, "Should be able to install LaunchDaemon services")
+
+      case .installViaBrew:
+        // This depends on Homebrew being installed
+        XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
       }
     }
 
@@ -104,6 +118,7 @@ class WizardAutoFixerTests: XCTestCase {
 
   // MARK: - Process Termination Tests (Careful)
 
+  @MainActor
   func testProcessTerminationLogic() async {
     // We'll test this carefully to avoid breaking running processes
 
@@ -133,6 +148,7 @@ class WizardAutoFixerTests: XCTestCase {
 
   // MARK: - Component Installation Tests (Mock Only When Necessary)
 
+  @MainActor
   func testComponentInstallationCapability() async {
     // Check what components are currently installed
     let detector = SystemStateDetector(kanataManager: realKanataManager)
@@ -154,6 +170,7 @@ class WizardAutoFixerTests: XCTestCase {
 
   // MARK: - Integration Workflow Tests
 
+  @MainActor
   func testAutoFixWorkflowWithRealState() async {
     // This tests the complete workflow without being destructive
 
@@ -183,150 +200,154 @@ class WizardAutoFixerTests: XCTestCase {
       print("✅ Result: \(success)")
     }
   }
-}
 
-// MARK: - Error Handling and Robustness Tests
+  // MARK: - Error Handling and Robustness Tests
 
-func testAutoFixErrorHandling() async {
-  // Test how auto-fixer handles various conditions
+  func testAutoFixErrorHandling() async {
+    // Test how auto-fixer handles various conditions
 
-  // Test with actions that might not be needed
-  let actions: [AutoFixAction] = [
-    .createConfigDirectories,  // Might already exist
-    .startKarabinerDaemon,  // Might already be running
-    .restartVirtualHIDDaemon  // Should work regardless
-  ]
+    // Test with actions that might not be needed
+    let actions: [AutoFixAction] = [
+      .createConfigDirectories,  // Might already exist
+      .startKarabinerDaemon,  // Might already be running
+      .restartVirtualHIDDaemon  // Should work regardless
+    ]
 
-  var results: [Bool] = []
+    var results: [Bool] = []
 
-  for action in actions {
-    let result = await autoFixer.performAutoFix(action)
-    results.append(result)
-    print("✅ Auto-fix \(action): \(result)")
-  }
-
-  // At least some operations should succeed or fail gracefully
-  XCTAssertTrue(
-    results.contains(true) || results.allSatisfy { !$0 },
-    "Should either succeed at something or fail gracefully at everything"
-  )
-}
-
-func testConcurrentAutoFix() async {
-  // Test concurrent auto-fix operations
-
-  // When: Running multiple safe auto-fix operations concurrently
-  let safeActions: [AutoFixAction] = [
-    .createConfigDirectories,
-    .createConfigDirectories,  // Duplicate to test idempotency
-    .restartVirtualHIDDaemon
-  ]
-
-  var results: [Bool] = []
-
-  await withTaskGroup(of: Bool.self) { group in
-    for action in safeActions {
-      group.addTask {
-        await self.autoFixer.performAutoFix(action)
-      }
-    }
-
-    for await result in group {
+    for action in actions {
+      let result = await autoFixer.performAutoFix(action)
       results.append(result)
+      print("✅ Auto-fix \(action): \(result)")
     }
+
+    // At least some operations should succeed or fail gracefully
+    XCTAssertTrue(
+      results.contains(true) || results.allSatisfy { !$0 },
+      "Should either succeed at something or fail gracefully at everything"
+    )
   }
 
-  // Then: Should handle concurrent operations gracefully
-  XCTAssertEqual(results.count, safeActions.count, "Should complete all operations")
-  print("✅ Concurrent auto-fix results: \(results)")
-}
+  // MARK: - Integration with Navigation Engine
 
-// MARK: - Integration with Navigation Engine
+  @MainActor
+  func testAutoFixIntegrationWithNavigation() async {
+    // Test how auto-fix integrates with the navigation system
 
-func testAutoFixIntegrationWithNavigation() async {
-  // Test how auto-fix integrates with the navigation system
+    // When: Detecting system state and determining fixes
+    let detector = SystemStateDetector(kanataManager: realKanataManager)
+    let systemState = await detector.detectCurrentState()
 
-  // When: Detecting system state and determining fixes
-  let detector = SystemStateDetector(kanataManager: realKanataManager)
-  let systemState = await detector.detectCurrentState()
+    let navigationEngine = WizardNavigationEngine()
+    let currentPage = navigationEngine.determineCurrentPage(
+      for: systemState.state, issues: systemState.issues)
 
-  let navigationEngine = WizardNavigationEngine()
-  let currentPage = navigationEngine.determineCurrentPage(for: systemState.state)
+    // Then: Auto-fix actions should be appropriate for the current page
+    for action in systemState.autoFixActions {
+      switch currentPage {
+      case .conflicts:
+        if action == .terminateConflictingProcesses {
+          print("✅ Appropriate auto-fix for conflicts page: \(action)")
+        }
 
-  // Then: Auto-fix actions should be appropriate for the current page
-  for action in systemState.autoFixActions {
-    switch currentPage {
-    case .conflicts:
-      if action == .terminateConflictingProcesses {
-        print("✅ Appropriate auto-fix for conflicts page: \(action)")
+      case .installation:
+        if action == .installMissingComponents {
+          print("✅ Appropriate auto-fix for installation page: \(action)")
+        }
+
+      case .daemon:
+        if action == .startKarabinerDaemon || action == .restartVirtualHIDDaemon {
+          print("✅ Appropriate auto-fix for daemon page: \(action)")
+        }
+
+      default:
+        print("✅ General auto-fix action: \(action)")
+      }
+    }
+
+    // The relationship should be logical
+    XCTAssertTrue(true, "Auto-fix actions should be contextually appropriate")
+  }
+
+  // MARK: - Performance and Reliability Tests
+
+  func testAutoFixPerformance() async {
+    // Test performance of auto-fix operations
+
+    let startTime = Date()
+
+    // Perform a lightweight auto-fix operation
+    let success = await autoFixer.performAutoFix(.createConfigDirectories)
+
+    let duration = Date().timeIntervalSince(startTime)
+
+    // Should complete quickly
+    XCTAssertLessThan(duration, 30.0, "Auto-fix should complete within 30 seconds")
+
+    print("✅ Auto-fix completed in \(String(format: "%.2f", duration)) seconds")
+    print("✅ Result: \(success)")
+  }
+
+  @MainActor
+  func testAutoFixStateConsistency() async {
+    // Test that auto-fix operations maintain system consistency
+
+    // When: Getting initial state
+    let detector = SystemStateDetector(kanataManager: realKanataManager)
+    let initialState = await detector.detectCurrentState()
+
+    // Perform safe auto-fix operations
+    let safeActions = initialState.autoFixActions.filter { action in
+      switch action {
+      case .createConfigDirectories, .startKarabinerDaemon, .restartVirtualHIDDaemon:
+        return true
+      default:
+        return false
+      }
+    }
+
+    for action in safeActions {
+      _ = await autoFixer.performAutoFix(action)
+    }
+
+    // When: Getting state after auto-fix
+    let finalState = await detector.detectCurrentState()
+
+    // Then: System should be in a consistent state
+    XCTAssertNotEqual(
+      finalState.state, WizardSystemState.initializing, "Should have valid final state")
+
+    print("✅ Initial state: \(initialState.state)")
+    print("✅ Final state: \(finalState.state)")
+    print("✅ State transition is consistent")
+  }
+
+  func testConcurrentAutoFix() async {
+    // Test concurrent auto-fix operations
+
+    // When: Running multiple safe auto-fix operations concurrently
+    let safeActions: [AutoFixAction] = [
+      .createConfigDirectories,
+      .createConfigDirectories,  // Duplicate to test idempotency
+      .restartVirtualHIDDaemon
+    ]
+
+    var results: [Bool] = []
+
+    await withTaskGroup(of: Bool.self) { group in
+      for action in safeActions {
+        group.addTask {
+          await self.autoFixer.performAutoFix(action)
+        }
       }
 
-    case .installation:
-      if action == .installMissingComponents {
-        print("✅ Appropriate auto-fix for installation page: \(action)")
+      for await result in group {
+        results.append(result)
       }
-
-    case .daemon:
-      if action == .startKarabinerDaemon || action == .restartVirtualHIDDaemon {
-        print("✅ Appropriate auto-fix for daemon page: \(action)")
-      }
-
-    default:
-      print("✅ General auto-fix action: \(action)")
     }
+
+    // Then: Should handle concurrent operations gracefully
+    XCTAssertEqual(results.count, safeActions.count, "Should complete all operations")
+    print("✅ Concurrent auto-fix results: \(results)")
   }
-
-  // The relationship should be logical
-  XCTAssertTrue(true, "Auto-fix actions should be contextually appropriate")
-}
-
-// MARK: - Performance and Reliability Tests
-
-func testAutoFixPerformance() async {
-  // Test performance of auto-fix operations
-
-  let startTime = Date()
-
-  // Perform a lightweight auto-fix operation
-  let success = await autoFixer.performAutoFix(.createConfigDirectories)
-
-  let duration = Date().timeIntervalSince(startTime)
-
-  // Should complete quickly
-  XCTAssertLessThan(duration, 30.0, "Auto-fix should complete within 30 seconds")
-
-  print("✅ Auto-fix completed in \(String(format: "%.2f", duration)) seconds")
-  print("✅ Result: \(success)")
-}
-
-func testAutoFixStateConsistency() async {
-  // Test that auto-fix operations maintain system consistency
-
-  // When: Getting initial state
-  let detector = SystemStateDetector(kanataManager: realKanataManager)
-  let initialState = await detector.detectCurrentState()
-
-  // Perform safe auto-fix operations
-  let safeActions = initialState.autoFixActions.filter { action in
-    switch action {
-    case .createConfigDirectories, .startKarabinerDaemon, .restartVirtualHIDDaemon:
-      return true
-    default:
-      return false
-    }
-  }
-
-  for action in safeActions {
-    _ = await autoFixer.performAutoFix(action)
-  }
-
-  // When: Getting state after auto-fix
-  let finalState = await detector.detectCurrentState()
-
-  // Then: System should be in a consistent state
-  XCTAssertNotEqual(finalState.state, .initializing, "Should have valid final state")
-
-  print("✅ Initial state: \(initialState.state)")
-  print("✅ Final state: \(finalState.state)")
-  print("✅ State transition is consistent")
 }

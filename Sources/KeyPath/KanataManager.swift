@@ -630,7 +630,8 @@ class KanataManager: ObservableObject {
 
   // Check if permission issues should trigger the wizard
   func shouldShowWizardForPermissions() -> Bool {
-    return !hasInputMonitoringPermission() || !hasAccessibilityPermission()
+    return !PermissionService.shared.hasInputMonitoringPermission()
+      || !PermissionService.shared.hasAccessibilityPermission()
   }
 
   // MARK: - Public Interface
@@ -1177,97 +1178,13 @@ class KanataManager: ObservableObject {
     return isInstalled()
   }
 
-  func hasInputMonitoringPermission() -> Bool {
-    if #available(macOS 10.15, *) {
-      let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
-      let hasAccess = accessType == kIOHIDAccessTypeGranted
-      AppLogger.shared.log(
-        "🔍 [Permission] IOHIDCheckAccess returned: \(accessType), hasAccess: \(hasAccess)")
-      return hasAccess
-    } else {
-      let hasAccess = AXIsProcessTrusted()
-      AppLogger.shared.log("🔍 [Permission] AXIsProcessTrusted (fallback) returned: \(hasAccess)")
-      return hasAccess
-    }
-  }
+  // REMOVED: hasInputMonitoringPermission() - now handled by PermissionService
 
-  func hasAccessibilityPermission() -> Bool {
-    let hasAccess = AXIsProcessTrusted()
-    AppLogger.shared.log("🔍 [Permission] AXIsProcessTrusted returned: \(hasAccess)")
-    return hasAccess
-  }
+  // REMOVED: hasAccessibilityPermission() - now handled by PermissionService
 
-  func checkAccessibilityForPath(_ path: String) -> Bool {
-    // Check if a specific binary path has accessibility permissions
-    // This is done by checking the TCC database for the specific path
-    _ = path.split(separator: "/").last ?? ""
+  // REMOVED: checkAccessibilityForPath() - now handled by PermissionService.checkTCCForAccessibility()
 
-    // First try to check using TCC database
-    let tccCheck = checkTCCForAccessibility(path: path)
-    if tccCheck {
-      return true
-    }
-
-    // If the path is kanata, we can also check if it's listed in the TCC database
-    if path.contains("kanata") {
-      let process = Process()
-      process.launchPath = "/usr/bin/sqlite3"
-      process.arguments = [
-        "/Library/Application Support/com.apple.TCC/TCC.db",
-        "SELECT client FROM access WHERE service='kTCCServiceAccessibility' AND auth_value=2 AND client LIKE '%kanata%';"
-      ]
-
-      let pipe = Pipe()
-      process.standardOutput = pipe
-
-      do {
-        try process.run()
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let result = String(data: data, encoding: .utf8) ?? ""
-        return result.contains("kanata")
-      } catch {
-        return false
-      }
-    }
-
-    return false
-  }
-
-  func checkTCCForAccessibility(path: String) -> Bool {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-    task.arguments = [
-      "/Library/Application Support/com.apple.TCC/TCC.db",
-      ".mode column",
-      "SELECT client, auth_value FROM access WHERE service='kTCCServiceAccessibility' AND client LIKE '%\(path.split(separator: "/").last ?? "")%';"
-    ]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let output = String(data: data, encoding: .utf8) ?? ""
-
-      // Check if any line contains auth_value=2 (allowed)
-      let lines = output.components(separatedBy: .newlines)
-      for line in lines {
-        if line.contains("2") {  // auth_value=2 means allowed
-          return true
-        }
-      }
-      return false
-    } catch {
-      AppLogger.shared.log("❌ [TCC] Error checking accessibility for \(path): \(error)")
-      return false
-    }
-  }
+  // REMOVED: checkTCCForAccessibility() - now handled by PermissionService
 
   func checkBothAppsHavePermissions() -> (
     keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
@@ -1275,11 +1192,12 @@ class KanataManager: ObservableObject {
     let keyPathPath = Bundle.main.bundlePath
     let kanataPath = WizardSystemPaths.kanataActiveBinary
 
-    let keyPathHasInputMonitoring = hasInputMonitoringPermission()
-    let keyPathHasAccessibility = hasAccessibilityPermission()
+    let keyPathHasInputMonitoring = PermissionService.shared.hasInputMonitoringPermission()
+    let keyPathHasAccessibility = PermissionService.shared.hasAccessibilityPermission()
 
-    let kanataHasInputMonitoring = checkTCCForInputMonitoring(path: kanataPath)
-    let kanataHasAccessibility = checkAccessibilityForPath(kanataPath)
+    let kanataHasInputMonitoring = PermissionService.shared.checkTCCForInputMonitoring(
+      path: kanataPath)
+    let kanataHasAccessibility = PermissionService.shared.checkTCCForAccessibility(path: kanataPath)
 
     let keyPathOverall = keyPathHasInputMonitoring && keyPathHasAccessibility
     let kanataOverall = kanataHasInputMonitoring && kanataHasAccessibility
@@ -1297,42 +1215,11 @@ class KanataManager: ObservableObject {
     return (keyPathOverall, kanataOverall, details)
   }
 
-  func checkTCCForInputMonitoring(path: String) -> Bool {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-    task.arguments = [
-      "/Library/Application Support/com.apple.TCC/TCC.db",
-      ".mode column",
-      "SELECT client, auth_value FROM access WHERE service='kTCCServiceListenEvent' AND client LIKE '%\(path.split(separator: "/").last ?? "")%';"
-    ]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let output = String(data: data, encoding: .utf8) ?? ""
-
-      // Check if any line contains auth_value=2 (allowed)
-      let lines = output.components(separatedBy: .newlines)
-      for line in lines {
-        if line.contains("2") {  // auth_value=2 means allowed
-          return true
-        }
-      }
-      return false
-    } catch {
-      AppLogger.shared.log("❌ [TCC] Error checking input monitoring for \(path): \(error)")
-      return false
-    }
-  }
+  // REMOVED: checkTCCForInputMonitoring() - now handled by PermissionService
 
   func hasAllRequiredPermissions() -> Bool {
-    return hasInputMonitoringPermission() && hasAccessibilityPermission()
+    return PermissionService.shared.hasInputMonitoringPermission()
+      && PermissionService.shared.hasAccessibilityPermission()
   }
 
   func hasAllSystemRequirements() -> Bool {

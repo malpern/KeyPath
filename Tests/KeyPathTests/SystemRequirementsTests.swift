@@ -222,6 +222,7 @@ final class SystemRequirementsTests: XCTestCase {
 
   // MARK: - Integration Tests
 
+  @MainActor
   func testSystemRequirements_IntegrationWithSystemStateDetector() {
     let kanataManager = KanataManager()
     let vhidManager = VHIDDeviceManager()

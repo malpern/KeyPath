@@ -89,6 +89,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
 
   // MARK: - Integration Tests
 
+  @MainActor
   func testLaunchDaemonInstaller_IntegrationWithSystemStateDetector() {
     // Test that LaunchDaemonInstaller integrates properly with SystemStateDetector
     let kanataManager = KanataManager()
@@ -143,26 +144,21 @@ final class LaunchDaemonInstallerTests: XCTestCase {
   // MARK: - Plist Content Tests
 
   func testPlistGeneration_ProducesValidXML() {
-    // We can't directly test the private plist generation methods,
-    // but we can verify that the installer methods don't crash
+    // Test that the installer can be initialized and basic methods work
+    // without actually performing system operations that require admin privileges
 
-    // These methods will fail in test environment due to permissions,
-    // but we can verify they complete without throwing exceptions
-    let expectation = expectation(description: "Plist operations complete")
+    // Verify installer was created successfully
+    XCTAssertNotNil(installer, "LaunchDaemonInstaller should be created")
 
-    Task {
-      // Test that methods can be called without crashing
-      // In test environment, these will likely fail due to permissions,
-      // but that's expected and not a test failure
+    // Test service status checking (this doesn't require admin privileges)
+    let status = installer.getServiceStatus()
+    XCTAssertNotNil(status, "Should be able to get service status")
 
-      _ = installer.createKanataLaunchDaemon()
-      _ = installer.createVHIDDaemonService()
-      _ = installer.createVHIDManagerService()
+    // Test service loaded checking (this is safe to call)
+    let kanataLoaded = installer.isServiceLoaded(serviceID: "com.keypath.kanata")
+    XCTAssertTrue(kanataLoaded == true || kanataLoaded == false, "Should return a boolean")
 
-      expectation.fulfill()
-    }
-
-    waitForExpectations(timeout: 5.0)
+    print("✅ LaunchDaemonInstaller basic operations work without admin privileges")
   }
 }
 

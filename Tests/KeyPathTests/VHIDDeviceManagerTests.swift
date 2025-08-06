@@ -64,7 +64,8 @@ final class VHIDDeviceManagerTests: XCTestCase {
     let status = VHIDDeviceStatus(
       managerInstalled: true,
       managerActivated: true,
-      daemonRunning: true
+      daemonRunning: true,
+      connectionHealthy: true
     )
 
     XCTAssertTrue(status.isFullyOperational)
@@ -74,7 +75,8 @@ final class VHIDDeviceManagerTests: XCTestCase {
     let status = VHIDDeviceStatus(
       managerInstalled: false,
       managerActivated: true,
-      daemonRunning: true
+      daemonRunning: true,
+      connectionHealthy: false
     )
 
     XCTAssertFalse(status.isFullyOperational)
@@ -84,7 +86,8 @@ final class VHIDDeviceManagerTests: XCTestCase {
     let status = VHIDDeviceStatus(
       managerInstalled: true,
       managerActivated: false,
-      daemonRunning: true
+      daemonRunning: true,
+      connectionHealthy: true
     )
 
     XCTAssertFalse(status.isFullyOperational)
@@ -94,7 +97,8 @@ final class VHIDDeviceManagerTests: XCTestCase {
     let status = VHIDDeviceStatus(
       managerInstalled: true,
       managerActivated: true,
-      daemonRunning: false
+      daemonRunning: false,
+      connectionHealthy: false
     )
 
     XCTAssertFalse(status.isFullyOperational)
@@ -116,6 +120,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
   // MARK: - Integration Tests
 
+  @MainActor
   func testVHIDDeviceManager_IntegrationWithSystemStateDetector() {
     // Test that VHIDDeviceManager integrates properly with SystemStateDetector
     let kanataManager = KanataManager()
