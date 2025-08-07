@@ -1057,7 +1057,7 @@ class KanataManager: ObservableObject {
       // Small grace period for --watch to pick up changes
       try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
       // Heuristic: if still running, force a lightweight restart to ensure new config is active
-      if await MainActor.run({ self.isRunning }) {
+      if await MainActor.run { self.isRunning } {
         AppLogger.shared.log("🔄 [Config] Fallback restart to ensure config changes apply")
         await self.restartKanata()
       }

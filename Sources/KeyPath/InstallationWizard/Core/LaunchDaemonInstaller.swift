@@ -472,7 +472,7 @@ class LaunchDaemonInstaller {
   private func removePlist(path: String, serviceID: String) -> Bool {
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-    task.arguments = ["sudo", "-n", "rm", "-f", path]
+    task.arguments = ["-n", "rm", "-f", path]
 
     do {
       try task.run()

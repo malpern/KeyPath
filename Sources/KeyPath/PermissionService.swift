@@ -164,79 +164,86 @@ class PermissionService {
     // Debug logging to see exactly what we're checking
     AppLogger.shared.log("🔍 [TCC] Checking \(service) for path: \(binaryPath)")
 
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-    task.arguments = [
+    // Check both system and user TCC databases to avoid false negatives
+    let dbPaths = [
       "/Library/Application Support/com.apple.TCC/TCC.db",
-      ".mode column",
-      // Use exact path matching to prevent false positives
-      "SELECT auth_value FROM access WHERE service='\(service)' AND client='\(binaryPath)';",
+      "\(NSHomeDirectory())/Library/Application Support/com.apple.TCC/TCC.db",
     ]
 
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
+    for dbPath in dbPaths {
+      let task = Process()
+      task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+      task.arguments = [
+        dbPath,
+        ".mode column",
+        // Use exact path matching to prevent false positives
+        "SELECT auth_value FROM access WHERE service='\(service)' AND client='\(binaryPath)';",
+      ]
 
-    do {
-      try task.run()
-      task.waitUntilExit()
+      let pipe = Pipe()
+      task.standardOutput = pipe
+      task.standardError = pipe
 
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let output = String(data: data, encoding: .utf8) ?? ""
+      do {
+        try task.run()
+        task.waitUntilExit()
 
-      // Parse the exact auth_value result (should be single row with auth_value only)
-      let cleanOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
 
-      AppLogger.shared.log(
-        "🔐 [PermissionService] TCC query for \(service) at \(binaryPath): '\(cleanOutput)'")
+        // Parse the exact auth_value result (should be single row with auth_value only)
+        let cleanOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
 
-      // Debug: Check what entries exist for kanata in TCC
-      if cleanOutput.isEmpty && binaryPath.contains("kanata") {
-        AppLogger.shared.log("⚠️ [PermissionService] No TCC entry found for kanata at path: \(binaryPath)")
-        
-        // Try to find any kanata entries in TCC
-        let findQuery = """
-          sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" \
-          "SELECT client, auth_value FROM access WHERE service = '\(service)' AND client LIKE '%kanata%';"
-        """
-        
-        let findTask = Process()
-        findTask.executableURL = URL(fileURLWithPath: "/bin/bash")
-        findTask.arguments = ["-c", findQuery]
-        let findPipe = Pipe()
-        findTask.standardOutput = findPipe
-        findTask.standardError = Pipe()
-        
-        do {
-          try findTask.run()
-          findTask.waitUntilExit()
-          let findData = findPipe.fileHandleForReading.readDataToEndOfFile()
-          let findOutput = String(data: findData, encoding: .utf8) ?? ""
-          if !findOutput.isEmpty {
-            AppLogger.shared.log("🔍 [PermissionService] Found kanata entries in TCC: \(findOutput)")
-            // Check if any of the found entries match our binary
-            let lines = findOutput.components(separatedBy: .newlines)
-            for line in lines where !line.isEmpty {
-              if line.contains("|2") {
-                AppLogger.shared.log("✅ [PermissionService] Found authorized kanata entry: \(line)")
-                // If we find an authorized kanata, consider it valid
-                return true
+        AppLogger.shared.log(
+          "🔐 [PermissionService] TCC query (db=\(dbPath)) for \(service) at \(binaryPath): '\(cleanOutput)'")
+
+        if cleanOutput == "2" {
+          return true
+        }
+
+        // Debug: If no exact entry found for kanata, scan for any kanata entries in this DB
+        if cleanOutput.isEmpty && binaryPath.contains("kanata") {
+          AppLogger.shared.log("⚠️ [PermissionService] No exact TCC entry at db=\(dbPath) for path: \(binaryPath)")
+
+          let findQuery = """
+            sqlite3 "\(dbPath)" \
+            "SELECT client, auth_value FROM access WHERE service = '\(service)' AND client LIKE '%kanata%';"
+          """
+
+          let findTask = Process()
+          findTask.executableURL = URL(fileURLWithPath: "/bin/bash")
+          findTask.arguments = ["-c", findQuery]
+          let findPipe = Pipe()
+          findTask.standardOutput = findPipe
+          findTask.standardError = Pipe()
+
+          do {
+            try findTask.run()
+            findTask.waitUntilExit()
+            let findData = findPipe.fileHandleForReading.readDataToEndOfFile()
+            let findOutput = String(data: findData, encoding: .utf8) ?? ""
+            if !findOutput.isEmpty {
+              AppLogger.shared.log("🔍 [PermissionService] Found kanata entries in TCC (db=\(dbPath)): \(findOutput)")
+              // If any kanata entry is authorized, consider permission granted
+              let lines = findOutput.components(separatedBy: .newlines)
+              for line in lines where !line.isEmpty {
+                if line.contains("|2") {
+                  AppLogger.shared.log("✅ [PermissionService] Found authorized kanata entry in db=\(dbPath): \(line)")
+                  return true
+                }
               }
             }
-          } else {
-            AppLogger.shared.log("❌ [PermissionService] No kanata entries found in TCC database for service: \(service)")
+          } catch {
+            AppLogger.shared.log("❌ [PermissionService] Error searching TCC (db=\(dbPath)): \(error)")
           }
-        } catch {
-          AppLogger.shared.log("❌ [PermissionService] Error searching for kanata in TCC: \(error)")
         }
+      } catch {
+        AppLogger.shared.log("❌ [PermissionService] TCC query failed for db=\(dbPath): \(error)")
       }
-
-      // auth_value=2 means allowed, auth_value=0 means denied, empty means no entry
-      return cleanOutput == "2"
-    } catch {
-      AppLogger.shared.log("❌ [PermissionService] TCC database error for \(binaryPath): \(error)")
-      return false
     }
+
+    // No authorized entries found in any DB
+    return false
   }
 
   // MARK: - Legacy Compatibility Methods
