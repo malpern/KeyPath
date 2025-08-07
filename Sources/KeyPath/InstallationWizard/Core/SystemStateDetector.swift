@@ -167,7 +167,8 @@ class SystemStateDetector: SystemStateDetecting {
 
     // Check if VHIDDevice Manager needs activation
     if components.missing.contains(.vhidDeviceActivation),
-      components.installed.contains(.vhidDeviceManager) {
+      components.installed.contains(.vhidDeviceManager)
+    {
       actions.append(.activateVHIDDeviceManager)
     }
 

@@ -85,7 +85,7 @@ struct IndeterminateProgressBar: View {
               .init(color: Color.blue.opacity(0.8), location: 0.25),
               .init(color: Color.blue, location: 0.5),
               .init(color: Color.blue.opacity(0.8), location: 0.75),
-              .init(color: Color.blue.opacity(0.0), location: 1.0)
+              .init(color: Color.blue.opacity(0.0), location: 1.0),
             ],
             startPoint: .leading,
             endPoint: .trailing
@@ -115,37 +115,21 @@ struct WizardOperationProgress: View {
   @State private var rotationAngle: Double = 0
 
   var body: some View {
-    VStack(spacing: 20) {
-      // Icon
-      Image(systemName: "gear")
-        .font(.system(size: 48))
-        .foregroundColor(.blue)
-        .rotationEffect(.degrees(rotationAngle))
-        .onAppear {
-          withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-            rotationAngle = 360
-          }
+    // Just the spinning gear - no text, no progress bar, minimal padding
+    Image(systemName: "gear")
+      .font(.system(size: 32))
+      .foregroundColor(.blue)
+      .rotationEffect(.degrees(rotationAngle))
+      .onAppear {
+        withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+          rotationAngle = 360
         }
-
-      // Title
-      Text(operationName)
-        .font(.headline)
-        .multilineTextAlignment(.center)
-
-      // Progress indicator
-      WizardProgressIndicator(
-        title: getProgressDescription(),
-        progress: progress,
-        isIndeterminate: isIndeterminate
+      }
+      .padding(16)
+      .background(
+        RoundedRectangle(cornerRadius: 8)
+          .fill(.regularMaterial)
       )
-      .frame(width: 300)
-    }
-    .padding(40)
-    .background(
-      RoundedRectangle(cornerRadius: 16)
-        .fill(.regularMaterial)
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-    )
   }
 
   private func getProgressDescription() -> String {

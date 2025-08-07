@@ -120,7 +120,7 @@ struct WizardInstallationPage: View {
   private func isVirtualHIDDeviceOrLaunchDaemonIssue(_ issue: WizardIssue) -> Bool {
     // Check if this is a VirtualHIDDevice or LaunchDaemon related issue
     let vhidIssues = [
-      "VirtualHIDDevice Manager Not Activated", "VirtualHIDDevice Daemon Not Running"
+      "VirtualHIDDevice Manager Not Activated", "VirtualHIDDevice Daemon Not Running",
     ]
     let launchDaemonIssues = ["LaunchDaemon Services Not Installed"]
 

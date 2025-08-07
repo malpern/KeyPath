@@ -313,7 +313,8 @@ struct TechnicalDetailsView: View {
   }
 
   // Helper function to parse process information
-  private func parseProcessInfo(_ text: String) -> (name: String, description: String, pid: String) {
+  private func parseProcessInfo(_ text: String) -> (name: String, description: String, pid: String)
+  {
     // Extract PID using regex - handle both formats: "PID: 123" and "(PID: 123)"
     let pidPattern = #"PID: (\d+)"#
     var pid = "unknown"
@@ -360,7 +361,8 @@ struct TechnicalDetailsView: View {
 
               // Only display lines that actually contain PID information
               if processText.contains("PID: ")
-                && processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil {
+                && processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil
+              {
                 VStack(alignment: .leading, spacing: 4) {
                   HStack(alignment: .center, spacing: 12) {
                     // Modern status indicator

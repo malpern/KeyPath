@@ -52,6 +52,9 @@ logs/
 kanata-source/
 kanata/
 
+# External tools - don't include full peekaboo source
+peekaboo/
+
 # Temporary test files
 *.tmp
 temp_*

@@ -5,22 +5,19 @@ import Foundation
 enum WizardSystemPaths {
   // MARK: - Binary Paths
 
-  /// Experimental/development kanata binary (for testing --watch fixes)
-  /// This points to the fixed kanata build with working --watch functionality
-  static let kanataExperimental =
-    "/Users/malpern/Library/CloudStorage/Dropbox/code/kanata-source/target/release/kanata"
+  /// Standard kanata binary location - used for both homebrew and experimental versions
+  /// Using a single standard location simplifies permission management
+  static let kanataStandardLocation = "/usr/local/bin/kanata"
 
-  /// Primary kanata binary location (ARM Macs)
+  /// Primary kanata binary location (ARM Macs with Homebrew)
   static let kanataBinaryARM = "/opt/homebrew/bin/kanata"
 
-  /// Fallback kanata binary location (Intel Macs)
-  static let kanataBinaryIntel = "/usr/local/bin/kanata"
-
-  /// Default kanata binary path for most operations
+  /// Default kanata binary path for most operations (same as standard)
   static let kanataBinaryDefault = "/usr/local/bin/kanata"
 
-  /// Active kanata binary path - use this for all kanata operations
-  static let kanataActiveBinary = kanataExperimental
+  /// Active kanata binary path - always use standard location
+  /// This ensures permissions only need to be granted once
+  static let kanataActiveBinary = kanataStandardLocation
 
   /// Homebrew binary path
   static let brewBinary = "/opt/homebrew/bin/brew"
@@ -85,12 +82,14 @@ enum WizardSystemPaths {
 
   /// Returns the best available kanata binary path
   static func detectKanataBinaryPath() -> String? {
-    let candidatePaths = [kanataBinaryARM, kanataBinaryIntel, kanataBinaryDefault]
-
-    for path in candidatePaths {
-      if FileManager.default.fileExists(atPath: path) {
-        return path
-      }
+    // Always prefer the standard location first
+    if FileManager.default.fileExists(atPath: kanataStandardLocation) {
+      return kanataStandardLocation
+    }
+    
+    // Check ARM homebrew location as fallback
+    if FileManager.default.fileExists(atPath: kanataBinaryARM) {
+      return kanataBinaryARM
     }
 
     return nil

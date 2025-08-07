@@ -82,9 +82,9 @@ class PermissionService {
     )
 
     AppLogger.shared.log(
-      "🔐 [PermissionService] System check - KeyPath(Input: \(keyPathStatus.hasInputMonitoring), " +
-      "Access: \(keyPathStatus.hasAccessibility)) | " +
-      "Kanata(Input: \(kanataStatus.hasInputMonitoring), Access: \(kanataStatus.hasAccessibility))"
+      "🔐 [PermissionService] System check - KeyPath(Input: \(keyPathStatus.hasInputMonitoring), "
+        + "Access: \(keyPathStatus.hasAccessibility)) | "
+        + "Kanata(Input: \(kanataStatus.hasInputMonitoring), Access: \(kanataStatus.hasAccessibility))"
     )
 
     return SystemPermissionStatus(keyPath: keyPathStatus, kanata: kanataStatus)
@@ -161,13 +161,16 @@ class PermissionService {
   ///   - binaryPath: Full path to the binary
   /// - Returns: True if auth_value=2 (allowed), false otherwise
   private func queryTCCDatabase(service: String, binaryPath: String) -> Bool {
+    // Debug logging to see exactly what we're checking
+    AppLogger.shared.log("🔍 [TCC] Checking \(service) for path: \(binaryPath)")
+
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
     task.arguments = [
       "/Library/Application Support/com.apple.TCC/TCC.db",
       ".mode column",
       // Use exact path matching to prevent false positives
-      "SELECT auth_value FROM access WHERE service='\(service)' AND client='\(binaryPath)';"
+      "SELECT auth_value FROM access WHERE service='\(service)' AND client='\(binaryPath)';",
     ]
 
     let pipe = Pipe()
@@ -186,6 +189,47 @@ class PermissionService {
 
       AppLogger.shared.log(
         "🔐 [PermissionService] TCC query for \(service) at \(binaryPath): '\(cleanOutput)'")
+
+      // Debug: Check what entries exist for kanata in TCC
+      if cleanOutput.isEmpty && binaryPath.contains("kanata") {
+        AppLogger.shared.log("⚠️ [PermissionService] No TCC entry found for kanata at path: \(binaryPath)")
+        
+        // Try to find any kanata entries in TCC
+        let findQuery = """
+          sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" \
+          "SELECT client, auth_value FROM access WHERE service = '\(service)' AND client LIKE '%kanata%';"
+        """
+        
+        let findTask = Process()
+        findTask.executableURL = URL(fileURLWithPath: "/bin/bash")
+        findTask.arguments = ["-c", findQuery]
+        let findPipe = Pipe()
+        findTask.standardOutput = findPipe
+        findTask.standardError = Pipe()
+        
+        do {
+          try findTask.run()
+          findTask.waitUntilExit()
+          let findData = findPipe.fileHandleForReading.readDataToEndOfFile()
+          let findOutput = String(data: findData, encoding: .utf8) ?? ""
+          if !findOutput.isEmpty {
+            AppLogger.shared.log("🔍 [PermissionService] Found kanata entries in TCC: \(findOutput)")
+            // Check if any of the found entries match our binary
+            let lines = findOutput.components(separatedBy: .newlines)
+            for line in lines where !line.isEmpty {
+              if line.contains("|2") {
+                AppLogger.shared.log("✅ [PermissionService] Found authorized kanata entry: \(line)")
+                // If we find an authorized kanata, consider it valid
+                return true
+              }
+            }
+          } else {
+            AppLogger.shared.log("❌ [PermissionService] No kanata entries found in TCC database for service: \(service)")
+          }
+        } catch {
+          AppLogger.shared.log("❌ [PermissionService] Error searching for kanata in TCC: \(error)")
+        }
+      }
 
       // auth_value=2 means allowed, auth_value=0 means denied, empty means no entry
       return cleanOutput == "2"

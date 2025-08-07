@@ -70,6 +70,13 @@ struct WizardPermissionsPage: View {
             openSettings()
           }
           .buttonStyle(WizardDesign.Component.PrimaryButton())
+          .accessibilityIdentifier(
+            "open-\(permissionType == .inputMonitoring ? "input-monitoring" : "accessibility")-settings-button"
+          )
+          .accessibilityLabel("Open \(permissionType.title) Settings")
+          .accessibilityHint(
+            "Opens System Preferences to the \(permissionType.title) section where you can grant permissions"
+          )
         }
 
         HStack(spacing: WizardDesign.Spacing.itemGap) {
@@ -77,11 +84,17 @@ struct WizardPermissionsPage: View {
             showingDetails.toggle()
           }
           .buttonStyle(.link)
+          .accessibilityIdentifier("show-details-button")
+          .accessibilityLabel("Show Details")
+          .accessibilityHint("View detailed permission information")
 
           Button("Help") {
             showingHelp = true
           }
           .buttonStyle(.link)
+          .accessibilityIdentifier("help-button")
+          .accessibilityLabel("Help")
+          .accessibilityHint("Show help information for granting permissions")
         }
       }
       .padding(.bottom, WizardDesign.Spacing.pageVertical)

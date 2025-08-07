@@ -411,7 +411,8 @@ class KanataManager: ObservableObject {
     case 6:
       // Exit code 6 has different causes - check for VirtualHID connection issues
       if output.contains("connect_failed asio.system:61")
-        || output.contains("connect_failed asio.system:2") {
+        || output.contains("connect_failed asio.system:2")
+      {
         diagnostics.append(
           KanataDiagnostic(
             timestamp: Date(),
@@ -709,7 +710,8 @@ class KanataManager: ObservableObject {
 
     // Prevent rapid successive starts
     if let lastAttempt = lastStartAttempt,
-      Date().timeIntervalSince(lastAttempt) < minStartInterval {
+      Date().timeIntervalSince(lastAttempt) < minStartInterval
+    {
       AppLogger.shared.log("⚠️ [Start] Ignoring rapid start attempt within \(minStartInterval)s")
       return
     }
@@ -792,7 +794,7 @@ class KanataManager: ObservableObject {
     task.arguments = [
       "-n",  // Non-interactive mode - don't prompt for password
       WizardSystemPaths.kanataActiveBinary, "--cfg", configPath, "--watch", "--debug",
-      "--log-layer-changes"
+      "--log-layer-changes",
     ]
 
     // Set environment to ensure proper execution
@@ -1046,8 +1048,20 @@ class KanataManager: ObservableObject {
 
     AppLogger.shared.log(
       "💾 [Config] Configuration saved with \(keyMappings.count) mappings to \(configPath)")
-    AppLogger.shared.log("🔄 [Config] Hot reload via --watch will apply changes automatically")
-    // No need to restart - kanata --watch handles this automatically!
+    AppLogger.shared.log("🔄 [Config] Hot reload via --watch should apply changes automatically")
+
+    // Fallback: If changes are not applied quickly, perform a one-shot restart
+    // This mitigates the macOS-specific file watching issue documented in WATCHBUG.md
+    Task.detached { [weak self] in
+      guard let self = self else { return }
+      // Small grace period for --watch to pick up changes
+      try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+      // Heuristic: if still running, force a lightweight restart to ensure new config is active
+      if await MainActor.run({ self.isRunning }) {
+        AppLogger.shared.log("🔄 [Config] Fallback restart to ensure config changes apply")
+        await self.restartKanata()
+      }
+    }
   }
 
   func updateStatus() async {
@@ -1240,7 +1254,8 @@ class KanataManager: ObservableObject {
 
   func openInputMonitoringSettings() {
     if let url = URL(
-      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+    {
       NSWorkspace.shared.open(url)
     }
   }
@@ -1248,12 +1263,14 @@ class KanataManager: ObservableObject {
   func openAccessibilitySettings() {
     if #available(macOS 13.0, *) {
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+      {
         NSWorkspace.shared.open(url)
       }
     } else {
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+      {
         NSWorkspace.shared.open(url)
       } else {
         NSWorkspace.shared.open(
@@ -1289,7 +1306,8 @@ class KanataManager: ObservableObject {
       let lines = output.components(separatedBy: .newlines)
       for line in lines {
         if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice")
-          && line.contains("[activated enabled]") {
+          && line.contains("[activated enabled]")
+        {
           AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
           return true
         }
@@ -1717,7 +1735,7 @@ class KanataManager: ObservableObject {
     stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
     stopTask.arguments = [
       "-e",
-      "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\""
+      "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\"",
     ]
 
     do {
@@ -2198,7 +2216,7 @@ class KanataManager: ObservableObject {
       "lcmd": "lmet",
       "rcmd": "rmet",
       "leftcmd": "lmet",
-      "rightcmd": "rmet"
+      "rightcmd": "rmet",
     ]
 
     let lowercaseKey = key.lowercased()
@@ -2227,7 +2245,7 @@ class KanataManager: ObservableObject {
       "f9", "f10", "f11", "f12", "pause", "pscr", "slck", "nlck",
       "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
       "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-      "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"
+      "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
     ])
 
     if validKanataKeys.contains(sequence.lowercased()) {
@@ -2307,7 +2325,8 @@ class KanataManager: ObservableObject {
 
     for line in lines {
       if line.contains("connect_failed asio.system:2")
-        || line.contains("connect_failed asio.system:61") {
+        || line.contains("connect_failed asio.system:61")
+      {
         connectionFailureCount += 1
         AppLogger.shared.log(
           "⚠️ [LogMonitor] VirtualHID connection failure detected (\(connectionFailureCount)/\(maxConnectionFailures))"
@@ -2360,7 +2379,8 @@ class KanataManager: ObservableObject {
   // MARK: - Enhanced Config Validation and Recovery
 
   /// Validates a generated config string using Kanata's --check command
-  private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
+  private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String])
+  {
     // Write config to a temporary file for validation
     let tempConfigPath = "\(configDirectory)/temp_validation.kbd"
 
@@ -2403,7 +2423,8 @@ class KanataManager: ObservableObject {
 
   /// Uses Claude to repair a corrupted Kanata config
   private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-    async throws -> String {
+    async throws -> String
+  {
     // TODO: Integrate with Claude API using the following prompt:
     //
     // "The following Kanata keyboard configuration file is invalid and needs to be repaired:
@@ -2434,7 +2455,8 @@ class KanataManager: ObservableObject {
 
   /// Fallback rule-based repair when Claude is not available
   private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-    async throws -> String {
+    async throws -> String
+  {
     AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
     // Common repair strategies
@@ -2487,7 +2509,8 @@ class KanataManager: ObservableObject {
 
   /// Backs up a failed config and applies safe default, returning backup path
   func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-    -> String {
+    -> String
+  {
     AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
     // Create backup directory if it doesn't exist

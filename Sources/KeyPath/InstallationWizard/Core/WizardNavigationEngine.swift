@@ -21,13 +21,7 @@ class WizardNavigationEngine: WizardNavigating {
       return .conflicts
     }
 
-    // 2. Missing components
-    if issues.contains(where: { $0.category == .installation }) {
-      AppLogger.shared.log("🔍 [NavigationEngine] → .installation (found installation issues)")
-      return .installation
-    }
-
-    // 3. Permissions (check specific types using structured identifiers)
+    // 2. Permissions (check specific types using structured identifiers) - BEFORE installation
     // Check for either KeyPath or kanata Input Monitoring issues
     let inputMonitoringIssue = issues.first(where: {
       $0.identifier == .permission(.kanataInputMonitoring)
@@ -54,6 +48,12 @@ class WizardNavigationEngine: WizardNavigating {
     } else {
       AppLogger.shared.log(
         "🔍 [NavigationEngine] No accessibility issues found - skipping accessibility page")
+    }
+
+    // 3. Missing components - AFTER permissions
+    if issues.contains(where: { $0.category == .installation }) {
+      AppLogger.shared.log("🔍 [NavigationEngine] → .installation (found installation issues)")
+      return .installation
     }
 
     // 4. Background services
@@ -136,7 +136,7 @@ class WizardNavigationEngine: WizardNavigating {
       .installation,  // Install components after permissions
       .daemon,  // Start daemon after installation
       .service,  // Kanata service management
-      .summary  // Final state
+      .summary,  // Final state
     ]
   }
 

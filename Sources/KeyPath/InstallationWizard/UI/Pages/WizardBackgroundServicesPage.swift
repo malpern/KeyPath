@@ -77,7 +77,8 @@ struct WizardBackgroundServicesPage: View {
           VStack(spacing: WizardDesign.Spacing.elementGap) {
             Button("Open System Settings") {
               if let url = URL(
-                string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+                string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
+              {
                 NSWorkspace.shared.open(url)
               }
             }

@@ -37,6 +37,9 @@ struct SettingsView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.regular)
+        .accessibilityIdentifier("settings-done-button")
+        .accessibilityLabel("Close Settings")
+        .accessibilityHint("Close the settings window")
       }
       .padding(.horizontal, 24)
       .padding(.vertical, 20)
@@ -67,6 +70,8 @@ struct SettingsView: View {
               SettingsButton(
                 title: "Restart Service",
                 systemImage: "arrow.clockwise.circle",
+                accessibilityId: "restart-service-button",
+                accessibilityHint: "Stop and restart the Kanata keyboard service",
                 action: {
                   Task {
                     AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
@@ -80,6 +85,8 @@ struct SettingsView: View {
               SettingsButton(
                 title: "Refresh Status",
                 systemImage: "arrow.clockwise",
+                accessibilityId: "refresh-status-button",
+                accessibilityHint: "Check the current status of the Kanata service",
                 action: {
                   Task {
                     AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
@@ -91,6 +98,8 @@ struct SettingsView: View {
               SettingsButton(
                 title: "Run Installation Wizard",
                 systemImage: "wrench.and.screwdriver",
+                accessibilityId: "run-installation-wizard-button",
+                accessibilityHint: "Launch the installation wizard to configure KeyPath",
                 action: {
                   AppLogger.shared.log("🎭 [SettingsView] Manual wizard trigger")
                   showingInstallationWizard = true
@@ -107,6 +116,8 @@ struct SettingsView: View {
               SettingsButton(
                 title: "Edit Configuration",
                 systemImage: "doc.text",
+                accessibilityId: "edit-configuration-button",
+                accessibilityHint: "Open the Kanata configuration file in an editor",
                 action: {
                   openConfigInZed()
                 }
@@ -116,6 +127,8 @@ struct SettingsView: View {
                 title: "Reset to Default",
                 systemImage: "arrow.counterclockwise",
                 style: .destructive,
+                accessibilityId: "reset-to-default-button",
+                accessibilityHint: "Reset all keyboard mappings to default configuration",
                 action: {
                   showingResetConfirmation = true
                 }
@@ -131,6 +144,9 @@ struct SettingsView: View {
               SettingsButton(
                 title: "Show Diagnostics",
                 systemImage: "stethoscope",
+                accessibilityId: "show-diagnostics-button",
+                accessibilityHint:
+                  "View detailed system diagnostics and troubleshooting information",
                 action: {
                   showingDiagnostics = true
                 }
@@ -141,6 +157,8 @@ struct SettingsView: View {
                 SettingsButton(
                   title: "KeyPath Logs",
                   systemImage: "doc.text",
+                  accessibilityId: "keypath-logs-button",
+                  accessibilityHint: "Open KeyPath application log files",
                   action: {
                     openKeyPathLogs()
                   }
@@ -149,6 +167,8 @@ struct SettingsView: View {
                 SettingsButton(
                   title: "Kanata Logs",
                   systemImage: "terminal",
+                  accessibilityId: "kanata-logs-button",
+                  accessibilityHint: "Open Kanata service log files",
                   action: {
                     openKanataLogs()
                   }
@@ -477,6 +497,8 @@ struct SettingsButton: View {
   let systemImage: String
   var style: ButtonStyle = .standard
   var disabled: Bool = false
+  var accessibilityId: String? = nil
+  var accessibilityHint: String? = nil
   let action: () -> Void
 
   enum ButtonStyle {
@@ -511,6 +533,11 @@ struct SettingsButton: View {
     .disabled(disabled)
     .opacity(disabled ? 0.5 : 1.0)
     .foregroundColor(style == .destructive ? .red : .primary)
+    .accessibilityIdentifier(
+      accessibilityId ?? title.lowercased().replacingOccurrences(of: " ", with: "-")
+    )
+    .accessibilityLabel(title)
+    .accessibilityHint(accessibilityHint ?? "Tap to \(title.lowercased())")
   }
 }
 

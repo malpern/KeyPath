@@ -44,6 +44,13 @@ struct InstallationWizardView: View {
     .onAppear {
       setupWizard()
     }
+    // Add keyboard navigation support for left/right arrow keys (macOS 14.0+)
+    .modifier(
+      KeyboardNavigationModifier(
+        onLeftArrow: navigateToPreviousPage,
+        onRightArrow: navigateToNextPage
+      )
+    )
     .task {
       // Monitor state changes
       await monitorSystemState()
@@ -178,34 +185,28 @@ struct InstallationWizardView: View {
 
   @ViewBuilder
   private func initializingOverlay() -> some View {
-    ZStack {
-      Color(NSColor.windowBackgroundColor)
-        .opacity(0.9)
-
-      VStack(spacing: 16) {
-        ProgressView()
-          .scaleEffect(1.2)
-        Text("Checking system status...")
-          .font(.subheadline)
-          .foregroundColor(.secondary)
-      }
-    }
-    .transition(.opacity)
+    // Ultra minimal - just system progress indicator
+    ProgressView()
+      .scaleEffect(1.0)
   }
 
   @ViewBuilder
   private func operationProgressOverlay() -> some View {
-    ZStack {
-      Color.black.opacity(0.4)
+    let operationName = getCurrentOperationName()
 
+    // Minimal overlay for system state detection - just progress indicator
+    if operationName.contains("System State Detection") {
+      ProgressView()
+        .scaleEffect(1.0)
+    } else {
+      // Minimal overlay for all operations - just the gear icon
       WizardOperationProgress(
-        operationName: getCurrentOperationName(),
+        operationName: operationName,
         progress: getCurrentOperationProgress(),
         isIndeterminate: isCurrentOperationIndeterminate()
       )
+      .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
-    .transition(.opacity.combined(with: .scale(scale: 0.95)))
-    .animation(.easeInOut(duration: 0.3), value: asyncOperationManager.hasRunningOperations)
   }
 
   // MARK: - State Management
@@ -254,13 +255,7 @@ struct InstallationWizardView: View {
         continue
       }
 
-      // Skip state detection if there are pending auto-fixes to let user resolve them
-      let hasAutoFixes = currentIssues.contains { $0.autoFixAction != nil }
-      if hasAutoFixes {
-        AppLogger.shared.log(
-          "🔧 [Navigation] Skipping monitoring - auto-fixes available, letting user resolve issues")
-        continue
-      }
+      // Note: Removed auto-fix check that was preventing navigation to permission pages
 
       let operation = WizardOperations.stateDetection(stateManager: stateManager)
 
@@ -504,6 +499,34 @@ struct InstallationWizardView: View {
     return operationId.contains("grant_permission") || operationId.contains("state_detection")
   }
 
+  // MARK: - Keyboard Navigation
+
+  /// Navigate to the previous page using keyboard left arrow
+  private func navigateToPreviousPage() {
+    let allPages = WizardPage.allCases
+    guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+      currentIndex > 0
+    else { return }
+
+    let previousPage = allPages[currentIndex - 1]
+    navigationCoordinator.navigateToPage(previousPage)
+
+    AppLogger.shared.log("⬅️ [Keyboard] Navigated to previous page: \(previousPage.displayName)")
+  }
+
+  /// Navigate to the next page using keyboard right arrow
+  private func navigateToNextPage() {
+    let allPages = WizardPage.allCases
+    guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+      currentIndex < allPages.count - 1
+    else { return }
+
+    let nextPage = allPages[currentIndex + 1]
+    navigationCoordinator.navigateToPage(nextPage)
+
+    AppLogger.shared.log("➡️ [Keyboard] Navigated to next page: \(nextPage.displayName)")
+  }
+
   // MARK: - Computed Properties
 
   private var shouldBlockClose: Bool {
@@ -516,14 +539,14 @@ struct InstallationWizardView: View {
 
 @MainActor
 class WizardStateManager: ObservableObject {
-  private var detector: SystemStateDetector?
+  private var statusChecker: SystemStatusChecker?
 
   func configure(kanataManager: KanataManager) {
-    detector = SystemStateDetector(kanataManager: kanataManager)
+    statusChecker = SystemStatusChecker(kanataManager: kanataManager)
   }
 
   func detectCurrentState() async -> SystemStateResult {
-    guard let detector = detector else {
+    guard let statusChecker = statusChecker else {
       return SystemStateResult(
         state: .initializing,
         issues: [],
@@ -531,7 +554,7 @@ class WizardStateManager: ObservableObject {
         detectionTimestamp: Date()
       )
     }
-    return await detector.detectCurrentState()
+    return await statusChecker.detectCurrentState()
   }
 }
 
@@ -559,5 +582,31 @@ class WizardAutoFixerManager: ObservableObject {
     }
     AppLogger.shared.log("🔧 [AutoFixerManager] Delegating to internal autoFixer")
     return await autoFixer.performAutoFix(action)
+  }
+}
+
+// MARK: - Keyboard Navigation Support
+
+/// ViewModifier that adds keyboard navigation support with macOS version compatibility
+struct KeyboardNavigationModifier: ViewModifier {
+  let onLeftArrow: () -> Void
+  let onRightArrow: () -> Void
+
+  func body(content: Content) -> some View {
+    if #available(macOS 14.0, *) {
+      content
+        .onKeyPress(.leftArrow) {
+          onLeftArrow()
+          return .handled
+        }
+        .onKeyPress(.rightArrow) {
+          onRightArrow()
+          return .handled
+        }
+        .focusable(true)
+    } else {
+      // For macOS 13.0, keyboard navigation isn't available
+      content
+    }
   }
 }

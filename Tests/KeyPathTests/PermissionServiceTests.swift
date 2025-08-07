@@ -119,7 +119,7 @@ final class PermissionServiceTests: XCTestCase {
     let testPaths = [
       "/usr/local/bin/kanata",
       "/opt/homebrew/bin/kanata",
-      "/nonexistent/path/kanata"
+      "/nonexistent/path/kanata",
     ]
 
     for path in testPaths {
@@ -144,7 +144,7 @@ final class PermissionServiceTests: XCTestCase {
       "/path/with'quote/kanata",
       "/path/with\"doublequote/kanata",
       "/path/with;semicolon/kanata",
-      "/path/with--comment/kanata"
+      "/path/with--comment/kanata",
     ]
 
     for path in specialPaths {

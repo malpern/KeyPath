@@ -283,15 +283,23 @@ struct PageDotsIndicator: View {
           .onTapGesture {
             onPageSelected(page)
           }
-          .accessibilityLabel("Page \(pageIndex(page) + 1): \(page.rawValue)")
+          // Enhanced accessibility labels for better automation support
+          .accessibilityLabel("Navigate to \(page.displayName)")
+          .accessibilityValue(
+            currentPage == page
+              ? "Current page" : "Page \(pageIndex(page) + 1) of \(WizardPage.allCases.count)"
+          )
           .accessibilityAddTraits(currentPage == page ? [.isSelected, .isButton] : .isButton)
-          .accessibilityHint("Tap to navigate to \(page.rawValue) page")
+          .accessibilityHint("Double-tap to go to \(page.displayName) setup step")
+          .accessibilityIdentifier(
+            "wizard-step-\(pageIndex(page) + 1)-\(page.accessibilityIdentifier)")
       }
     }
     .padding(.vertical, WizardDesign.Spacing.labelGap)
     .accessibilityElement(children: .contain)
     .accessibilityLabel(
-      "Setup progress: page \(pageIndex(currentPage) + 1) of \(WizardPage.allCases.count)")
+      "Setup navigation: currently on \(currentPage.displayName), page \(pageIndex(currentPage) + 1) of \(WizardPage.allCases.count)"
+    )
   }
 
   private func pageIndex(_ page: WizardPage) -> Int {

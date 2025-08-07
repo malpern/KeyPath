@@ -131,7 +131,8 @@ class MockSystemEnvironment {
     switch action {
     case "kickstart":
       if fileExists(atPath: "/Library/LaunchDaemons/com.keypath.kanata.plist"),
-        fileExists(atPath: "/usr/local/bin/kanata-cmd") {
+        fileExists(atPath: "/usr/local/bin/kanata-cmd")
+      {
         addMockProcess(pid: 1234, user: "root", command: "kanata-cmd", isRunning: true)
         return (0, "Service started successfully")
       } else {
@@ -242,7 +243,7 @@ class MockKanataManager: ObservableObject {
     }
 
     let result = mockEnvironment.mockLaunchctlResult(command: [
-      "kickstart", "system/com.keypath.kanata"
+      "kickstart", "system/com.keypath.kanata",
     ])
 
     await MainActor.run {

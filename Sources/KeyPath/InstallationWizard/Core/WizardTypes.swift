@@ -13,6 +13,34 @@ enum WizardPage: String, CaseIterable {
   case installation = "Install Components"
   case daemon = "Karabiner Daemon"
   case service = "Kanata Service"
+
+  /// User-friendly display name for accessibility and UI
+  var displayName: String {
+    switch self {
+    case .summary: return "Setup Overview"
+    case .conflicts: return "Resolve System Conflicts"
+    case .inputMonitoring: return "Input Monitoring Permission"
+    case .accessibility: return "Accessibility Permission"
+    case .backgroundServices: return "Background Services Permission"
+    case .installation: return "Install Required Components"
+    case .daemon: return "Karabiner Virtual HID Device"
+    case .service: return "Kanata Keyboard Service"
+    }
+  }
+
+  /// Stable identifier for automation and testing tools
+  var accessibilityIdentifier: String {
+    switch self {
+    case .summary: return "overview"
+    case .conflicts: return "conflicts"
+    case .inputMonitoring: return "input-monitoring"
+    case .accessibility: return "accessibility"
+    case .backgroundServices: return "background-services"
+    case .installation: return "installation"
+    case .daemon: return "daemon"
+    case .service: return "service"
+    }
+  }
 }
 
 /// Status of individual installation or check components

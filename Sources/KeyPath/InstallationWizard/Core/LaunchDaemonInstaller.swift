@@ -31,18 +31,10 @@ class LaunchDaemonInstaller {
 
   /// Gets the detected Kanata binary path or returns fallback
   private func getKanataBinaryPath() -> String {
-    let kanataInfo = packageManager.detectKanataInstallation()
-
-    if kanataInfo.isInstalled, let path = kanataInfo.path {
-      AppLogger.shared.log("✅ [LaunchDaemon] Using detected Kanata path: \(path)")
-      return path
-    } else {
-      // Fallback to Intel Homebrew path for backward compatibility
-      let fallbackPath = WizardSystemPaths.kanataActiveBinary
-      AppLogger.shared.log(
-        "⚠️ [LaunchDaemon] Kanata not detected, using fallback path: \(fallbackPath)")
-      return fallbackPath
-    }
+    // Unify on a single canonical binary path to align permissions and UI guidance
+    let standardPath = WizardSystemPaths.kanataActiveBinary
+    AppLogger.shared.log("✅ [LaunchDaemon] Using canonical Kanata path: \(standardPath)")
+    return standardPath
   }
 
   // MARK: - Installation Methods
@@ -410,7 +402,8 @@ class LaunchDaemonInstaller {
 
   /// Execute LaunchDaemon installation with administrator privileges using osascript
   private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-    -> Bool {
+    -> Bool
+  {
     AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
     // Create the command to copy the file and set proper permissions

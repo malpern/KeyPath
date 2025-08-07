@@ -26,7 +26,7 @@ struct ContentView: View {
   var body: some View {
     VStack(spacing: 20) {
       // Header
-      ContentViewHeader()
+      ContentViewHeader(showingInstallationWizard: $showingInstallationWizard)
 
       // Recording Section
       RecordingSection(
@@ -180,12 +180,24 @@ struct ContentView: View {
 }
 
 struct ContentViewHeader: View {
+  @Binding var showingInstallationWizard: Bool
+
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 12) {
-        Image(systemName: "keyboard")
-          .font(.largeTitle)
-          .foregroundColor(.blue)
+        Button(action: {
+          AppLogger.shared.log(
+            "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
+          showingInstallationWizard = true
+        }) {
+          Image(systemName: "keyboard")
+            .font(.largeTitle)
+            .foregroundColor(.blue)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityIdentifier("launch-installation-wizard-button")
+        .accessibilityLabel("Launch Installation Wizard")
+        .accessibilityHint("Click to open the KeyPath installation and setup wizard")
 
         Text("KeyPath")
           .font(.largeTitle)
@@ -242,6 +254,9 @@ struct RecordingSection: View {
               RoundedRectangle(cornerRadius: 8)
                 .stroke(isRecording ? Color.blue : Color.clear, lineWidth: 2)
             )
+            .accessibilityIdentifier("input-key-display")
+            .accessibilityLabel("Input key")
+            .accessibilityValue(recordedInput.isEmpty ? "No key recorded" : "Key: \(recordedInput)")
 
           Button(action: {
             if isRecording {
@@ -260,6 +275,10 @@ struct RecordingSection: View {
           .foregroundColor(.white)
           .cornerRadius(8)
           .disabled(!kanataManager.isCompletelyInstalled() && !isRecording)
+          .accessibilityIdentifier("input-key-record-button")
+          .accessibilityLabel(isRecording ? "Stop recording input key" : "Record input key")
+          .accessibilityHint(
+            isRecording ? "Stop recording the input key" : "Start recording a key to remap")
         }
       }
 
@@ -278,6 +297,10 @@ struct RecordingSection: View {
               RoundedRectangle(cornerRadius: 8)
                 .stroke(isRecordingOutput ? Color.blue : Color.clear, lineWidth: 2)
             )
+            .accessibilityIdentifier("output-key-display")
+            .accessibilityLabel("Output key")
+            .accessibilityValue(
+              recordedOutput.isEmpty ? "No key recorded" : "Key: \(recordedOutput)")
 
           Button(action: {
             if isRecordingOutput {
@@ -296,6 +319,11 @@ struct RecordingSection: View {
           .foregroundColor(.white)
           .cornerRadius(8)
           .disabled(!kanataManager.isCompletelyInstalled() && !isRecordingOutput)
+          .accessibilityIdentifier("output-key-record-button")
+          .accessibilityLabel(isRecordingOutput ? "Stop recording output key" : "Record output key")
+          .accessibilityHint(
+            isRecordingOutput
+              ? "Stop recording the output key" : "Start recording the replacement key")
         }
       }
 
@@ -316,6 +344,9 @@ struct RecordingSection: View {
         }
         .buttonStyle(.borderedProminent)
         .disabled(recordedInput.isEmpty || recordedOutput.isEmpty || isSaving)
+        .accessibilityIdentifier("save-mapping-button")
+        .accessibilityLabel(isSaving ? "Saving key mapping" : "Save key mapping")
+        .accessibilityHint("Save the input and output key mapping to your configuration")
       }
     }
     .padding()
@@ -747,7 +778,8 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return "xmark.circle.fill"
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up") {
+      || message.contains("backed up")
+    {
       return "exclamationmark.triangle.fill"
     } else {
       return "checkmark.circle.fill"
@@ -758,7 +790,8 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return .red
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up") {
+      || message.contains("backed up")
+    {
       return .orange
     } else {
       return .green
@@ -769,7 +802,8 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return Color.red.opacity(0.1)
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up") {
+      || message.contains("backed up")
+    {
       return Color.orange.opacity(0.1)
     } else {
       return Color.green.opacity(0.1)
@@ -780,7 +814,8 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return Color.red.opacity(0.3)
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up") {
+      || message.contains("backed up")
+    {
       return Color.orange.opacity(0.3)
     } else {
       return Color.green.opacity(0.3)

@@ -32,15 +32,16 @@ class KeyboardCapture: ObservableObject {
       isCapturing = false
       captureCallback = nil
       callback("⚠️ Accessibility permission required")
-      
+
       // Trigger the wizard to help user fix permissions
       NotificationCenter.default.post(
         name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
         object: nil,
         userInfo: ["reason": "Accessibility permission required for keyboard capture"]
       )
-      
-      AppLogger.shared.log("⚠️ [KeyboardCapture] Accessibility permission missing - triggering wizard")
+
+      AppLogger.shared.log(
+        "⚠️ [KeyboardCapture] Accessibility permission missing - triggering wizard")
       return
     }
 
@@ -62,15 +63,17 @@ class KeyboardCapture: ObservableObject {
       isContinuous = false
       captureCallback = nil
       callback("⚠️ Accessibility permission required")
-      
+
       // Trigger the wizard to help user fix permissions
       NotificationCenter.default.post(
         name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
         object: nil,
         userInfo: ["reason": "Accessibility permission required for continuous keyboard capture"]
       )
-      
-      AppLogger.shared.log("⚠️ [KeyboardCapture] Accessibility permission missing for continuous capture - triggering wizard")
+
+      AppLogger.shared.log(
+        "⚠️ [KeyboardCapture] Accessibility permission missing for continuous capture - triggering wizard"
+      )
       return
     }
 
@@ -169,7 +172,7 @@ class KeyboardCapture: ObservableObject {
       30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
       37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
       44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-      50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps"
+      50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps",
     ]
 
     if let keyName = keyMap[keyCode] {
@@ -274,7 +277,8 @@ class KeyboardCapture: ObservableObject {
       // Check if all three keys are pressed simultaneously
       if pressedKeys.contains(leftControlKey),
         pressedKeys.contains(spaceKey),
-        pressedKeys.contains(escapeKey) {
+        pressedKeys.contains(escapeKey)
+      {
         AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
         DispatchQueue.main.async {

@@ -203,7 +203,8 @@ class ProcessLifecycleManager: ObservableObject {
       let output = String(data: data, encoding: .utf8) ?? ""
 
       if task.terminationStatus == 0,
-        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
 
         for line in lines {
@@ -272,7 +273,8 @@ class ProcessLifecycleManager: ObservableObject {
 
     // 3. Grace period check - did we recently start something?
     if let lastStart = lastProcessStart,
-      Date().timeIntervalSince(lastStart) < graceWindow {
+      Date().timeIntervalSince(lastStart) < graceWindow
+    {
       AppLogger.shared.log(
         "🕐 [ProcessLifecycleManager] Grace period active for PID \(process.pid) - assuming KeyPath ownership"
       )
@@ -313,7 +315,7 @@ class ProcessLifecycleManager: ObservableObject {
 
       // Configuration files in KeyPath directories
       #"/Users/.*/Library/Application Support/KeyPath/"#,
-      #"/usr/local/etc/kanata/keypath"#
+      #"/usr/local/etc/kanata/keypath"#,
     ]
 
     for pattern in patterns {
@@ -354,7 +356,8 @@ class ProcessLifecycleManager: ObservableObject {
   // MARK: - Action Determination and Execution
 
   private func determineActions(current: [ProcessInfo], intended: ProcessIntent) async
-    -> [ProcessAction] {
+    -> [ProcessAction]
+  {
     var actions: [ProcessAction] = []
 
     let keyPathProcesses = current.filter { isOwnedByKeyPath($0) }
@@ -463,7 +466,8 @@ class ProcessLifecycleManager: ObservableObject {
     )
   }
 
-  private func resolveConflictWithExternalProcesses(_ externalProcesses: [ProcessInfo]) async throws {
+  private func resolveConflictWithExternalProcesses(_ externalProcesses: [ProcessInfo]) async throws
+  {
     AppLogger.shared.log(
       "⚔️ [ProcessLifecycleManager] Resolving conflict with \(externalProcesses.count) external processes"
     )

@@ -71,7 +71,7 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         "/usr/local/bin/kanata --cfg /Users/other/Documents/kanata.kbd",
         false,
         "User's custom config"
-      )
+      ),
     ]
 
     for (index, (command, shouldMatch, description)) in testCases.enumerated() {

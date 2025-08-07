@@ -136,7 +136,7 @@ final class PackageManagerTests: XCTestCase {
       "/opt/homebrew/bin/kanata",  // ARM Homebrew
       "/usr/local/bin/kanata",  // Intel Homebrew
       "/usr/local/bin/kanata",  // Manual installation
-      "\(NSHomeDirectory())/.cargo/bin/kanata"  // Rust cargo installation
+      "\(NSHomeDirectory())/.cargo/bin/kanata",  // Rust cargo installation
     ]
 
     // Test that our detection logic can handle all paths
