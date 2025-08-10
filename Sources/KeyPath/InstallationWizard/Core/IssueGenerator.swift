@@ -228,6 +228,32 @@ class IssueGenerator {
     )
   }
 
+  func createConfigPathIssues(from result: ConfigPathMismatchResult) -> [WizardIssue] {
+    var issues: [WizardIssue] = []
+
+    for mismatch in result.mismatches {
+      let issue = WizardIssue(
+        identifier: .component(.kanataService), // Use existing identifier
+        severity: .error,
+        category: .installation,
+        title: "Config Path Mismatch",
+        description: """
+          Kanata is running with a different config file than KeyPath expects.
+          
+          • Kanata process (PID \(mismatch.processPID)) is using: \(mismatch.actualConfigPath)
+          • KeyPath is saving changes to: \(mismatch.expectedConfigPath)
+          
+          This prevents hot reloading from working. When you change keyboard mappings in KeyPath, Kanata won't detect the changes because it's watching the wrong file.
+          """,
+        autoFixAction: .synchronizeConfigPaths,
+        userAction: "Use the Fix button to synchronize the config paths"
+      )
+      issues.append(issue)
+    }
+
+    return issues
+  }
+
   // MARK: - Helper Methods
 
   private func permissionTitle(for permission: PermissionRequirement) -> String {

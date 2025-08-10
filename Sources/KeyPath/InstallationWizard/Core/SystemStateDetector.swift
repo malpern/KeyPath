@@ -47,6 +47,7 @@ class SystemStateDetector: SystemStateDetecting {
     let permissionResult = await componentDetector.checkPermissions()
     let componentResult = await componentDetector.checkComponents()
     let healthStatus = await healthChecker.performSystemHealthCheck()
+    let configPathResult = await detectConfigPathMismatch()
 
     // Service and daemon status from health checker
     let serviceRunning = healthStatus.kanataServiceFunctional
@@ -69,6 +70,7 @@ class SystemStateDetector: SystemStateDetecting {
     issues.append(contentsOf: issueGenerator.createConflictIssues(from: conflictResult))
     issues.append(contentsOf: issueGenerator.createPermissionIssues(from: permissionResult))
     issues.append(contentsOf: issueGenerator.createComponentIssues(from: componentResult))
+    issues.append(contentsOf: issueGenerator.createConfigPathIssues(from: configPathResult))
 
     if !daemonRunning {
       issues.append(issueGenerator.createDaemonIssue())
@@ -79,6 +81,7 @@ class SystemStateDetector: SystemStateDetecting {
       conflicts: conflictResult,
       permissions: permissionResult,
       components: componentResult,
+      configPaths: configPathResult,
       daemonRunning: daemonRunning
     )
 
@@ -141,12 +144,18 @@ class SystemStateDetector: SystemStateDetecting {
     conflicts: ConflictDetectionResult,
     permissions _: PermissionCheckResult,
     components: ComponentCheckResult,
+    configPaths: ConfigPathMismatchResult,
     daemonRunning: Bool
   ) -> [AutoFixAction] {
     var actions: [AutoFixAction] = []
 
     if conflicts.hasConflicts, conflicts.canAutoResolve {
       actions.append(.terminateConflictingProcesses)
+    }
+    
+    // Check if config path synchronization is needed
+    if configPaths.hasMismatches, configPaths.canAutoResolve {
+      actions.append(.synchronizeConfigPaths)
     }
 
     // Check if we can install missing packages via Homebrew
@@ -229,5 +238,65 @@ class SystemStateDetector: SystemStateDetecting {
       description: description,
       managedProcesses: conflicts.managedProcesses
     )
+  }
+
+  // MARK: - Config Path Mismatch Detection
+
+  /// Detect if Kanata is running with a different config path than KeyPath expects
+  private func detectConfigPathMismatch() async -> ConfigPathMismatchResult {
+    AppLogger.shared.log("🔍 [ConfigPath] Checking for config path mismatches")
+    
+    // Get the expected KeyPath config path
+    let expectedPath = WizardSystemPaths.userConfigPath
+    
+    // Check what config path Kanata is actually using
+    let kanataProcesses = await processLifecycleManager.detectConflicts()
+    let allKanataProcesses = kanataProcesses.managedProcesses + kanataProcesses.externalProcesses
+    
+    var mismatches: [ConfigPathMismatch] = []
+    
+    for process in allKanataProcesses {
+      // Parse the command line to extract --cfg parameter
+      let command = process.command
+      if let configPath = extractConfigPath(from: command) {
+        if configPath != expectedPath {
+          let mismatch = ConfigPathMismatch(
+            processPID: process.pid,
+            processCommand: command,
+            actualConfigPath: configPath,
+            expectedConfigPath: expectedPath
+          )
+          mismatches.append(mismatch)
+          AppLogger.shared.log(
+            "⚠️ [ConfigPath] Mismatch detected - Process \(process.pid) using '\(configPath)' but KeyPath expects '\(expectedPath)'"
+          )
+        }
+      }
+    }
+    
+    if mismatches.isEmpty {
+      AppLogger.shared.log("✅ [ConfigPath] No config path mismatches detected")
+    } else {
+      AppLogger.shared.log("🚨 [ConfigPath] Found \(mismatches.count) config path mismatch(es)")
+    }
+    
+    return ConfigPathMismatchResult(
+      mismatches: mismatches,
+      canAutoResolve: !mismatches.isEmpty
+    )
+  }
+  
+  /// Extract config path from Kanata command line
+  private func extractConfigPath(from command: String) -> String? {
+    let components = command.split(separator: " ").map(String.init)
+    
+    // Look for --cfg parameter
+    for i in 0..<components.count-1 {
+      if components[i] == "--cfg" {
+        return components[i+1]
+      }
+    }
+    
+    return nil
   }
 }

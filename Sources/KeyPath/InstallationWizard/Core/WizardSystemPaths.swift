@@ -24,15 +24,20 @@ enum WizardSystemPaths {
 
   // MARK: - Configuration Paths
 
-  /// User configuration file path
+  /// User configuration file path following industry standard ~/.config/ pattern
   static var userConfigPath: String {
-    return "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
+    return "\(NSHomeDirectory())/.config/keypath/keypath.kbd"
+  }
+  
+  /// User configuration directory
+  static var userConfigDirectory: String {
+    return "\(NSHomeDirectory())/.config/keypath"
   }
 
-  /// System configuration directory
+  /// Legacy system configuration directory (no longer used)
   static let systemConfigDirectory = "/usr/local/etc/kanata"
 
-  /// System configuration file path
+  /// Legacy system configuration file path (no longer used)
   static let systemConfigPath = "/usr/local/etc/kanata/keypath.kbd"
 
   // MARK: - Log Files

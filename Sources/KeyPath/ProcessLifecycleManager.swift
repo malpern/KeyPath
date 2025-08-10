@@ -139,7 +139,7 @@ final class ProcessLifecycleManager {
     
     for process in allProcesses {
       let isOwnedPID = ownership.pid != nil && process.pid == ownership.pid
-      let isLaunchDaemonManaged = process.command.contains("/usr/local/etc/kanata/keypath.kbd")
+      let isLaunchDaemonManaged = process.command.contains("/.config/keypath/keypath.kbd")
       
       if isOwnedPID {
         managedProcesses.append(process)
@@ -274,8 +274,13 @@ final class ProcessLifecycleManager {
     if command.contains("pgrep") || command.contains("vscode") || command.contains(".cursor") {
       return false
     }
+    
+    // Skip log monitoring and other utilities that contain "kanata" in paths
+    if command.contains("tail") || command.contains("cat") || command.contains("grep") || command.contains("less") || command.contains("vim") || command.contains("nano") {
+      return false
+    }
 
-    // Look for actual kanata binary
-    return command.contains("/kanata") || command.hasPrefix("kanata")
+    // Look for actual kanata binary - be more specific
+    return command.contains("/bin/kanata") || command.hasPrefix("kanata ") || command == "kanata"
   }
 }

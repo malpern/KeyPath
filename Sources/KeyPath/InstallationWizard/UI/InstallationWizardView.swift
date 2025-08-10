@@ -422,6 +422,8 @@ struct InstallationWizardView: View {
       return "Install packages via Homebrew"
     case .repairVHIDDaemonServices:
       return "Repair VHID LaunchDaemon services"
+    case .synchronizeConfigPaths:
+      return "Fix config path mismatch between KeyPath and Kanata"
     }
   }
 

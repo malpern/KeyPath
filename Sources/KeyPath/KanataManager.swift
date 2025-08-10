@@ -95,7 +95,7 @@ class KanataManager: ObservableObject {
   @Published var lastConfigUpdate: Date = .init()
 
   private var kanataProcess: Process?
-  private let configDirectory = "\(NSHomeDirectory())/Library/Application Support/KeyPath"
+  private let configDirectory = "\(NSHomeDirectory())/.config/keypath"
   private let configFileName = "keypath.kbd"
   private var isStartingKanata = false
   private let processLifecycleManager: ProcessLifecycleManager
@@ -864,6 +864,26 @@ class KanataManager: ObservableObject {
       WizardSystemPaths.kanataActiveBinary, "--cfg", configPath, "--watch", "--debug",
       "--log-layer-changes"
     ]
+    
+    // DEBUG: Log the exact command being executed
+    let fullCommand = (["/usr/bin/sudo"] + task.arguments!).joined(separator: " ")
+    AppLogger.shared.log("🔍 [DEBUG] Starting Kanata with command:")
+    AppLogger.shared.log("🔍 [DEBUG] \(fullCommand)")
+    AppLogger.shared.log("🔍 [DEBUG] Config path: \(configPath)")
+    AppLogger.shared.log("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
+    
+    // Check if config file exists and is readable
+    let fileManager = FileManager.default
+    if !fileManager.fileExists(atPath: configPath) {
+      AppLogger.shared.log("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
+    } else {
+      AppLogger.shared.log("✅ [DEBUG] Config file exists at: \(configPath)")
+      if fileManager.isReadableFile(atPath: configPath) {
+        AppLogger.shared.log("✅ [DEBUG] Config file is readable")
+      } else {
+        AppLogger.shared.log("⚠️ [DEBUG] Config file is NOT readable")
+      }
+    }
 
     // Set environment to ensure proper execution
     task.environment = ProcessInfo.processInfo.environment
@@ -1127,19 +1147,46 @@ class KanataManager: ObservableObject {
     AppLogger.shared.log(
       "💾 [Config] Configuration saved with \(keyMappings.count) mappings to \(configPath)")
     AppLogger.shared.log("🔄 [Config] Hot reload via --watch should apply changes automatically")
-
-    // Fallback: If changes are not applied quickly, perform a one-shot restart
-    // This mitigates the macOS-specific file watching issue documented in WATCHBUG.md
-    Task.detached { [weak self] in
-      guard let self = self else { return }
-      // Small grace period for --watch to pick up changes
-      try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
-      // Heuristic: if still running, force a lightweight restart to ensure new config is active
-      if await MainActor.run { self.isRunning } {
-        AppLogger.shared.log("🔄 [Config] Fallback restart to ensure config changes apply")
-        await self.restartKanata()
+    
+    // DEBUG: Add detailed file system information for watch debugging
+    let fileManager = FileManager.default
+    do {
+      let attributes = try fileManager.attributesOfItem(atPath: configPath)
+      if let modDate = attributes[.modificationDate] as? Date {
+        AppLogger.shared.log("📁 [Config] File modification time: \(modDate)")
+        AppLogger.shared.log("📁 [Config] File size: \(attributes[.size] ?? 0) bytes")
       }
+      
+      // Check if file is readable
+      let readable = fileManager.isReadableFile(atPath: configPath)
+      AppLogger.shared.log("📁 [Config] File readable: \(readable)")
+      
+      // Log file permissions
+      if let permissions = attributes[.posixPermissions] as? NSNumber {
+        AppLogger.shared.log("📁 [Config] File permissions: \(String(permissions.intValue, radix: 8))")
+      }
+    } catch {
+      AppLogger.shared.log("⚠️ [Config] Could not read file attributes: \(error)")
     }
+    
+    // Config synchronization no longer needed - LaunchDaemon reads directly from user config
+    
+    // DEBUG: Wait and monitor for --watch detection (FALLBACK RESTART DISABLED FOR DEBUGGING)
+    AppLogger.shared.log("🔍 [DEBUG] Fallback restart disabled - testing pure --watch behavior")
+    AppLogger.shared.log("🔍 [DEBUG] Monitor Kanata logs to see if config changes are detected")
+    AppLogger.shared.log("🔍 [DEBUG] Config path being watched: \(configPath)")
+    
+    // DISABLED FOR DEBUGGING: 
+    // Task.detached { [weak self] in
+    //   guard let self = self else { return }
+    //   // Small grace period for --watch to pick up changes
+    //   try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+    //   // Heuristic: if still running, force a lightweight restart to ensure new config is active
+    //   if await MainActor.run { self.isRunning } {
+    //     AppLogger.shared.log("🔄 [Config] Fallback restart to ensure config changes apply")
+    //     await self.restartKanata()
+    //   }
+    // }
   }
 
   func updateStatus() async {
@@ -2139,17 +2186,10 @@ class KanataManager: ObservableObject {
       stepsFailed += 1
     }
 
-    // 5. Create system config for LaunchDaemon
-    AppLogger.shared.log("🔧 [Installation] Step 5/\(totalSteps): Creating system configuration...")
-    await createSystemConfigIfNeeded()
-    let systemConfigPath = WizardSystemPaths.systemConfigPath
-    if FileManager.default.fileExists(atPath: systemConfigPath) {
-      AppLogger.shared.log("✅ [Installation] Step 5 SUCCESS: System config created at \(systemConfigPath)")
-      stepsCompleted += 1
-    } else {
-      AppLogger.shared.log("❌ [Installation] Step 5 FAILED: System config missing at \(systemConfigPath)")
-      stepsFailed += 1
-    }
+    // 5. No longer needed - LaunchDaemon reads user config directly
+    AppLogger.shared.log("🔧 [Installation] Step 5/\(totalSteps): System config step skipped - LaunchDaemon uses user config directly")
+    AppLogger.shared.log("✅ [Installation] Step 5 SUCCESS: Using ~/.config/keypath path directly")
+    stepsCompleted += 1
 
     let success = stepsCompleted >= 4 // Require at least user config + binary + directories
     if success {
@@ -2186,65 +2226,7 @@ class KanataManager: ObservableObject {
     }
   }
 
-  private func createSystemConfigIfNeeded() async {
-    let systemConfigPath = WizardSystemPaths.systemConfigPath
-    let systemConfigDirectory = WizardSystemPaths.systemConfigDirectory
-    
-    // Check if system config already exists
-    if FileManager.default.fileExists(atPath: systemConfigPath) {
-      AppLogger.shared.log("✅ [Config] System config already exists at \(systemConfigPath)")
-      return
-    }
-    
-    // Ensure user config exists first
-    if !FileManager.default.fileExists(atPath: configPath) {
-      AppLogger.shared.log("⚠️ [Config] User config missing - cannot create system config")
-      return
-    }
-    
-    do {
-      // Read user config first
-      let userConfigContents = try String(contentsOfFile: configPath, encoding: .utf8)
-      
-      // Escape the config contents for shell
-      let escapedContents = userConfigContents
-        .replacingOccurrences(of: "\\", with: "\\\\")
-        .replacingOccurrences(of: "\"", with: "\\\"")
-        .replacingOccurrences(of: "\n", with: "\\n")
-      
-      // Create system config directory and file using admin privileges
-      let script = """
-        do shell script "mkdir -p '\(systemConfigDirectory)' && printf '\(escapedContents)' > '\(systemConfigPath)'" with administrator privileges
-        """
-      
-      AppLogger.shared.log("🔧 [Config] Executing admin script to create system config")
-      
-      // Execute script with admin privileges
-      if let appleScript = NSAppleScript(source: script) {
-        var error: NSDictionary?
-        let result = appleScript.executeAndReturnError(&error)
-        
-        if let error = error {
-          AppLogger.shared.log("❌ [Config] AppleScript error: \(error)")
-          AppLogger.shared.log("❌ [Config] Script was: \(script)")
-          return
-        }
-        
-        // Verify the file was actually created
-        if FileManager.default.fileExists(atPath: systemConfigPath) {
-          AppLogger.shared.log("✅ [Config] System config directory created at \(systemConfigDirectory)")
-          AppLogger.shared.log("✅ [Config] System config file created at \(systemConfigPath)")
-        } else {
-          AppLogger.shared.log("❌ [Config] System config file not found after creation attempt")
-        }
-      } else {
-        AppLogger.shared.log("❌ [Config] Failed to create AppleScript for system config creation")
-      }
-      
-    } catch {
-      AppLogger.shared.log("❌ [Config] Failed to read user config: \(error)")
-    }
-  }
+  // createSystemConfigIfNeeded() removed - no longer needed since LaunchDaemon reads user config directly
 
   /// Public wrapper to ensure a default user config exists.
   /// Returns true if the config exists after this call.
@@ -2768,15 +2750,54 @@ class KanataManager: ObservableObject {
 
   /// Saves a validated config to disk
   private func saveValidatedConfig(_ config: String) async throws {
+    // DEBUG: Log detailed file save information  
+    AppLogger.shared.log("🔍 [DEBUG] saveValidatedConfig called")
+    AppLogger.shared.log("🔍 [DEBUG] Target config path: \(configPath)")
+    AppLogger.shared.log("🔍 [DEBUG] Config size: \(config.count) characters")
+    
     let configDir = URL(fileURLWithPath: configDirectory)
     try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+    AppLogger.shared.log("🔍 [DEBUG] Config directory created/verified: \(configDirectory)")
 
     let configURL = URL(fileURLWithPath: configPath)
+    
+    // Check if file exists before writing
+    let fileExists = FileManager.default.fileExists(atPath: configPath)
+    AppLogger.shared.log("🔍 [DEBUG] Config file exists before write: \(fileExists)")
+    
+    // Get modification time before write (if file exists)
+    var beforeModTime: Date?
+    if fileExists {
+      let beforeAttributes = try? FileManager.default.attributesOfItem(atPath: configPath)
+      beforeModTime = beforeAttributes?[.modificationDate] as? Date
+      AppLogger.shared.log("🔍 [DEBUG] Modification time before write: \(beforeModTime?.description ?? "unknown")")
+    }
+    
+    // Write the config
     try config.write(to: configURL, atomically: true, encoding: .utf8)
+    AppLogger.shared.log("✅ [DEBUG] Config written to file successfully")
+    
+    // Get modification time after write
+    let afterAttributes = try FileManager.default.attributesOfItem(atPath: configPath) 
+    let afterModTime = afterAttributes[.modificationDate] as? Date
+    let fileSize = afterAttributes[.size] as? Int ?? 0
+    
+    AppLogger.shared.log("🔍 [DEBUG] Modification time after write: \(afterModTime?.description ?? "unknown")")
+    AppLogger.shared.log("🔍 [DEBUG] File size after write: \(fileSize) bytes")
+    
+    // Calculate time difference if we have both times
+    if let before = beforeModTime, let after = afterModTime {
+      let timeDiff = after.timeIntervalSince(before)
+      AppLogger.shared.log("🔍 [DEBUG] File modification time changed by: \(timeDiff) seconds")
+    }
 
     // Notify UI that config was updated
     lastConfigUpdate = Date()
+    AppLogger.shared.log("🔍 [DEBUG] lastConfigUpdate timestamp set to: \(lastConfigUpdate)")
   }
+
+  /// Synchronize config to system path for Kanata --watch compatibility
+  // synchronizeConfigToSystemPath removed - no longer needed since LaunchDaemon reads user config directly
 
   /// Backs up a failed config and applies safe default, returning backup path
   func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws

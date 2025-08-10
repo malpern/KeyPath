@@ -62,6 +62,14 @@ cat > "$CONTENTS_DIR/Info.plist" << EOF
 </plist>
 EOF
 
+# Optional: Sign for development to preserve permissions
+if command -v codesign >/dev/null 2>&1; then
+    echo "Signing app bundle for development..."
+    codesign --force --sign - --deep --preserve-metadata=identifier,entitlements,flags --timestamp=none "$APP_BUNDLE" 2>/dev/null || {
+        echo "Note: Code signing failed, permissions may reset on each build"
+    }
+fi
+
 echo "App bundle created at: $APP_BUNDLE"
 echo
 echo "To run KeyPath:"
@@ -69,3 +77,5 @@ echo "  open $APP_BUNDLE"
 echo
 echo "To install the Kanata service:"
 echo "  sudo ./install-system.sh"
+echo
+echo "Note: If permissions reset, use './build-and-sign.sh' instead for stable identity"

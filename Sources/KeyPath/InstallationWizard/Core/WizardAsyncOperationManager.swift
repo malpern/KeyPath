@@ -460,6 +460,8 @@ extension AutoFixAction {
       return "Install via Homebrew"
     case .repairVHIDDaemonServices:
       return "Repair VHID Daemon Services"
+    case .synchronizeConfigPaths:
+      return "Synchronize Config Paths"
     }
   }
 }

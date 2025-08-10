@@ -91,6 +91,8 @@ class WizardAutoFixer: AutoFixCapable {
       return packageManager.checkHomebrewInstallation()  // Only if Homebrew is available
     case .repairVHIDDaemonServices:
       return true
+    case .synchronizeConfigPaths:
+      return true  // We can always attempt to synchronize config paths
     }
   }
 
@@ -116,6 +118,8 @@ class WizardAutoFixer: AutoFixCapable {
       return await installViaBrew()
     case .repairVHIDDaemonServices:
       return await repairVHIDDaemonServices()
+    case .synchronizeConfigPaths:
+      return await synchronizeConfigPaths()
     }
   }
 
@@ -549,53 +553,22 @@ class WizardAutoFixer: AutoFixCapable {
   }
 
   private func installLaunchDaemonServices() async -> Bool {
-    AppLogger.shared.log("🔧 [AutoFixer] Installing LaunchDaemon services")
+    AppLogger.shared.log("🔧 [AutoFixer] Installing LaunchDaemon services with consolidated single-prompt method")
     
-    var stepsCompleted = 0
-    let totalSteps = 3
-
-    // Step 1: Install service files
-    AppLogger.shared.log("🔧 [AutoFixer] Step 1/\(totalSteps): Installing service configuration files...")
-    let installSuccess = launchDaemonInstaller.createAllLaunchDaemonServices()
-
-    if installSuccess {
-      AppLogger.shared.log("✅ [AutoFixer] Step 1 SUCCESS: LaunchDaemon service files installed")
-      stepsCompleted += 1
-
-      // Step 2: Create system config file (needed by LaunchDaemon)
-      AppLogger.shared.log("🔧 [AutoFixer] Step 2/\(totalSteps): Creating system config file...")
-      let configSuccess = await kanataManager.performTransparentInstallation()
-      
-      if configSuccess {
-        AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: System config file created")
-        stepsCompleted += 1
-      } else {
-        AppLogger.shared.log("❌ [AutoFixer] Step 2 FAILED: Failed to create system config file")
-      }
-
-      // Step 3: Load the services
-      AppLogger.shared.log("🔧 [AutoFixer] Step 3/\(totalSteps): Loading services into launchctl...")
-      let loadSuccess = await launchDaemonInstaller.loadServices()
-
-      if loadSuccess {
-        AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: LaunchDaemon services loaded")
-        stepsCompleted += 1
-      } else {
-        AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Failed to load LaunchDaemon services")
-      }
-
-      let success = stepsCompleted >= 2 // Require at least service files + either config or loading
-      if success {
-        AppLogger.shared.log("✅ [AutoFixer] LaunchDaemon installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)")
-      } else {
-        AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed (\(stepsCompleted)/\(totalSteps) steps completed)")
-      }
-      return success
+    // Use the new consolidated method that handles everything with a single admin prompt:
+    // - Install all LaunchDaemon plist files
+    // - Create system config directories 
+    // - Copy/create system config files
+    // - Load all services into launchctl
+    let success = launchDaemonInstaller.createConfigureAndLoadAllServices()
+    
+    if success {
+      AppLogger.shared.log("✅ [AutoFixer] LaunchDaemon installation completed successfully with single admin prompt")
     } else {
-      AppLogger.shared.log("❌ [AutoFixer] Step 1 FAILED: Failed to install LaunchDaemon service files")
-      AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed (0/\(totalSteps) steps completed)")
-      return false
+      AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed")
     }
+    
+    return success
   }
 
   private func installViaBrew() async -> Bool {
@@ -722,6 +695,71 @@ class WizardAutoFixer: AutoFixCapable {
 
     } catch {
       AppLogger.shared.log("❌ [AutoFixer] Error force terminating process \(pid): \(error)")
+      return false
+    }
+  }
+
+  // MARK: - Config Path Synchronization
+
+  /// Synchronize config paths between Kanata processes and KeyPath expectations
+  private func synchronizeConfigPaths() async -> Bool {
+    AppLogger.shared.log("🔧 [AutoFixer] Starting config path synchronization")
+    
+    do {
+      // Copy the current KeyPath config to the system location where Kanata expects it
+      let userConfigPath = WizardSystemPaths.userConfigPath
+      let systemConfigPath = WizardSystemPaths.systemConfigPath
+      
+      AppLogger.shared.log("📋 [AutoFixer] Copying config from \(userConfigPath) to \(systemConfigPath)")
+      
+      // Ensure the system directory exists
+      let systemConfigDir = URL(fileURLWithPath: systemConfigPath).deletingLastPathComponent().path
+      try FileManager.default.createDirectory(atPath: systemConfigDir, withIntermediateDirectories: true)
+      
+      // Check if source file exists
+      guard FileManager.default.fileExists(atPath: userConfigPath) else {
+        AppLogger.shared.log("❌ [AutoFixer] Source config file does not exist at \(userConfigPath)")
+        return false
+      }
+      
+      // Read the user config
+      let configContent = try String(contentsOfFile: userConfigPath)
+      AppLogger.shared.log("📄 [AutoFixer] Read \(configContent.count) characters from user config")
+      
+      // Use AppleScript to write to system location with admin privileges
+      let script = """
+        do shell script "echo '\(configContent.replacingOccurrences(of: "'", with: "\\'"))' > '\(systemConfigPath)'" with administrator privileges
+        """
+      
+      let appleScript = NSAppleScript(source: script)
+      var error: NSDictionary?
+      let result = appleScript?.executeAndReturnError(&error)
+      
+      if let error = error {
+        AppLogger.shared.log("❌ [AutoFixer] AppleScript error: \(error)")
+        return false
+      }
+      
+      // Verify the file was written
+      if FileManager.default.fileExists(atPath: systemConfigPath) {
+        let systemContent = try String(contentsOfFile: systemConfigPath)
+        let success = systemContent == configContent
+        
+        if success {
+          AppLogger.shared.log("✅ [AutoFixer] Config successfully synchronized to system location")
+          AppLogger.shared.log("🔄 [AutoFixer] Kanata should now detect config changes via --watch")
+        } else {
+          AppLogger.shared.log("❌ [AutoFixer] Config content mismatch after copy")
+        }
+        
+        return success
+      } else {
+        AppLogger.shared.log("❌ [AutoFixer] System config file was not created")
+        return false
+      }
+      
+    } catch {
+      AppLogger.shared.log("❌ [AutoFixer] Error synchronizing config paths: \(error)")
       return false
     }
   }

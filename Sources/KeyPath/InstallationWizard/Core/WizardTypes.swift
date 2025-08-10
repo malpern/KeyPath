@@ -109,6 +109,7 @@ enum AutoFixAction: Equatable {
   case installLaunchDaemonServices
   case installViaBrew  // Install missing packages via Homebrew
   case repairVHIDDaemonServices
+  case synchronizeConfigPaths  // Fix config path mismatches
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
@@ -255,6 +256,24 @@ struct ComponentCheckResult {
   var allInstalled: Bool {
     missing.isEmpty
   }
+}
+
+/// Result of config path mismatch detection
+struct ConfigPathMismatchResult {
+  let mismatches: [ConfigPathMismatch]
+  let canAutoResolve: Bool
+  
+  var hasMismatches: Bool {
+    !mismatches.isEmpty
+  }
+}
+
+/// Represents a config path mismatch between Kanata process and KeyPath expectations
+struct ConfigPathMismatch {
+  let processPID: pid_t
+  let processCommand: String
+  let actualConfigPath: String
+  let expectedConfigPath: String
 }
 
 // MARK: - Constants

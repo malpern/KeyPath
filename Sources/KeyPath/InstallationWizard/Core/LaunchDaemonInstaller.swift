@@ -14,8 +14,10 @@ class LaunchDaemonInstaller {
   private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
   private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
 
-  // Static paths for components that don't vary by system
-  private static let kanataConfigPath = "/usr/local/etc/kanata/keypath.kbd"
+  // Use user config path following industry standard ~/.config/ pattern
+  private static var kanataConfigPath: String {
+    return WizardSystemPaths.userConfigPath
+  }
   private static let vhidDaemonPath =
     "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
   private static let vhidManagerPath =
@@ -127,6 +129,49 @@ class LaunchDaemonInstaller {
     return installPlist(
       content: plistContent, path: plistPath, serviceID: Self.vhidManagerServiceID
     )
+  }
+
+  /// Creates, installs, configures, and loads all LaunchDaemon services with a single admin prompt
+  /// This method consolidates all admin operations to eliminate multiple password prompts
+  func createConfigureAndLoadAllServices() -> Bool {
+    AppLogger.shared.log("🔧 [LaunchDaemon] Creating, configuring, and loading all services with single admin prompt")
+
+    let kanataBinaryPath = getKanataBinaryPath()
+
+    // Generate all plist contents
+    let kanataPlist = generateKanataPlist(binaryPath: kanataBinaryPath)
+    let vhidDaemonPlist = generateVHIDDaemonPlist()
+    let vhidManagerPlist = generateVHIDManagerPlist()
+
+    // Create temporary files for all plists
+    let tempDir = NSTemporaryDirectory()
+    let kanataTempPath = "\(tempDir)\(Self.kanataServiceID).plist"
+    let vhidDaemonTempPath = "\(tempDir)\(Self.vhidDaemonServiceID).plist"
+    let vhidManagerTempPath = "\(tempDir)\(Self.vhidManagerServiceID).plist"
+
+    do {
+      // Write all plist contents to temporary files
+      try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+      try vhidDaemonPlist.write(toFile: vhidDaemonTempPath, atomically: true, encoding: .utf8)
+      try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
+
+      // Execute consolidated admin operations with a single prompt
+      let success = executeConsolidatedInstallation(
+        kanataTemp: kanataTempPath,
+        vhidDaemonTemp: vhidDaemonTempPath,
+        vhidManagerTemp: vhidManagerTempPath
+      )
+
+      // Clean up temporary files
+      try? FileManager.default.removeItem(atPath: kanataTempPath)
+      try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
+      try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
+
+      return success
+    } catch {
+      AppLogger.shared.log("❌ [LaunchDaemon] Failed to create temporary plists: \(error)")
+      return false
+    }
   }
 
   /// Loads all KeyPath LaunchDaemon services
@@ -264,6 +309,9 @@ class LaunchDaemonInstaller {
               <string>\(binaryPath)</string>
               <string>--cfg</string>
               <string>\(Self.kanataConfigPath)</string>
+              <string>--watch</string>
+              <string>--debug</string>
+              <string>--log-layer-changes</string>
           </array>
           <key>RunAtLoad</key>
           <true/>
@@ -507,6 +555,100 @@ class LaunchDaemonInstaller {
     } catch {
       AppLogger.shared.log(
         "❌ [LaunchDaemon] Failed to execute admin command for \(serviceID): \(error)")
+      return false
+    }
+  }
+
+  /// Execute consolidated installation with all operations in a single admin prompt
+  /// Includes: install plists, create system config directory, create system config file, and load services
+  private func executeConsolidatedInstallation(
+    kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
+  ) -> Bool {
+    AppLogger.shared.log("🔧 [LaunchDaemon] Executing consolidated installation with single admin prompt")
+    
+    if Self.isTestMode {
+      // Test mode - use file operations without admin privileges
+      do {
+        let fm = FileManager.default
+        try fm.createDirectory(atPath: Self.launchDaemonsPath, withIntermediateDirectories: true)
+        try fm.createDirectory(atPath: WizardSystemPaths.userConfigDirectory, withIntermediateDirectories: true)
+        
+        let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
+        let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+        let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
+        
+        for (src, dst) in [
+          (kanataTemp, kanataFinal), (vhidDaemonTemp, vhidDaemonFinal),
+          (vhidManagerTemp, vhidManagerFinal)
+        ] {
+          try? fm.removeItem(atPath: dst)
+          try fm.copyItem(atPath: src, toPath: dst)
+        }
+        
+        // Create a basic config file for testing
+        try "test config".write(toFile: WizardSystemPaths.userConfigPath, atomically: true, encoding: .utf8)
+        
+        AppLogger.shared.log("✅ [LaunchDaemon] (test) Consolidated installation completed")
+        return true
+      } catch {
+        AppLogger.shared.log("❌ [LaunchDaemon] (test) Failed consolidated installation: \(error)")
+        return false
+      }
+    }
+
+    let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
+    let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+    let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
+
+    // Get user config directory for initial setup
+    let userConfigDir = WizardSystemPaths.userConfigDirectory
+    let userConfigPath = WizardSystemPaths.userConfigPath
+
+    // Create a comprehensive command that does everything in one admin operation
+    let command = """
+      echo "Installing LaunchDaemon services and configuration..." && \
+      mkdir -p '\(Self.launchDaemonsPath)' && \
+      cp '\(kanataTemp)' '\(kanataFinal)' && chown root:wheel '\(kanataFinal)' && chmod 644 '\(kanataFinal)' && \
+      cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)' && \
+      cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)' && \
+      sudo -u '#501' mkdir -p '\(userConfigDir)' && \
+      if [ ! -f '\(userConfigPath)' ]; then sudo -u '#501' sh -c 'echo ";; Default KeyPath config\n(defcfg process-unmapped-keys no)\n(defsrc)\n(deflayer base)" > '\(userConfigPath)''; fi && \
+      launchctl bootstrap system '\(kanataFinal)' 2>/dev/null || echo "Kanata service already loaded" && \
+      launchctl bootstrap system '\(vhidDaemonFinal)' 2>/dev/null || echo "VHID daemon already loaded" && \
+      launchctl bootstrap system '\(vhidManagerFinal)' 2>/dev/null || echo "VHID manager already loaded" && \
+      echo "Installation completed successfully"
+      """
+
+    // Use osascript to request admin privileges with clear explanation
+    let osascriptCommand = """
+      do shell script "\(command)" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create system configuration files, and start the keyboard management services. This will only require one password prompt."
+      """
+
+    let osascriptTask = Process()
+    osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+    osascriptTask.arguments = ["-e", osascriptCommand]
+
+    let pipe = Pipe()
+    osascriptTask.standardOutput = pipe
+    osascriptTask.standardError = pipe
+
+    do {
+      try osascriptTask.run()
+      osascriptTask.waitUntilExit()
+
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      let output = String(data: data, encoding: .utf8) ?? ""
+
+      if osascriptTask.terminationStatus == 0 {
+        AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed consolidated installation")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Admin output: \(output)")
+        return true
+      } else {
+        AppLogger.shared.log("❌ [LaunchDaemon] Failed consolidated installation: \(output)")
+        return false
+      }
+    } catch {
+      AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute consolidated admin command: \(error)")
       return false
     }
   }
