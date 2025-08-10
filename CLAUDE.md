@@ -6,7 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 KeyPath is a macOS application that provides keyboard remapping using Kanata as the backend engine. It features a SwiftUI frontend and a LaunchDaemon architecture for reliable system-level key remapping.
 
-## Architecture
+## High-Level Architecture
+
+### System Design
+```
+KeyPath.app (SwiftUI) → KanataManager → launchctl → Kanata daemon
+                     ↓                              ↓
+              CGEvent Capture              VirtualHID Driver
+                     ↓                              ↓
+              User Input Recording          System-wide Remapping
+```
 
 ### Core Components
 - **KeyPath.app**: SwiftUI application for recording keypaths and managing configuration
@@ -18,8 +27,19 @@ KeyPath is a macOS application that provides keyboard remapping using Kanata as 
 - `KanataManager`: Central service coordinator, manages daemon lifecycle and configuration
 - `KeyboardCapture`: Handles CGEvent-based keyboard input recording
 - `InstallationWizard/`: Multi-step setup flow with auto-fix capabilities
+  - `WizardSystemState`: Single source of truth for system state
+  - `SystemStateDetector`: Pure functions for state detection
+  - `WizardAutoFixer`: Automated issue resolution
 - `ProcessLifecycleManager`: Manages Kanata process state and recovery
 - `PermissionService`: Handles accessibility and input monitoring permissions
+
+### Installation Wizard Flow
+The wizard follows a state-driven architecture with these key pages:
+1. **Summary** - Overview of system state
+2. **Conflicts** - Detect/resolve Karabiner conflicts
+3. **Permissions** - Input monitoring & accessibility
+4. **Components** - Kanata & Karabiner driver installation
+5. **Service** - Start the Kanata daemon
 
 ## Build Commands
 
@@ -31,10 +51,10 @@ swift build
 swift build -c release
 
 # Production build with app bundle
-./build.sh
+./Scripts/build.sh
 
 # Signed & notarized build  
-./build-and-sign.sh
+./Scripts/build-and-sign.sh
 ```
 
 ## Test Commands
@@ -169,12 +189,34 @@ KanataManager handles special key conversions:
 - `delete` → Backspace
 - Multi-char outputs → Macro sequences
 
+## Common Development Tasks
+
+### Adding a New Feature
+1. Create feature branch: `git checkout -b feature-name`
+2. Implement changes following existing patterns
+3. Run tests: `swift test`
+4. Build and test app: `./Scripts/build.sh`
+5. Create PR with description
+
+### Debugging Issues
+1. Check logs: `tail -f /var/log/kanata.log`
+2. Verify permissions: System Settings > Privacy & Security
+3. Check service status: `sudo launchctl print system/com.keypath.kanata`
+4. Run diagnostics: Use DiagnosticsView in the app
+
+### Working with the Wizard
+- State detection is in `SystemStateDetector.swift`
+- Auto-fix logic is in `WizardAutoFixer.swift`
+- UI pages are in `InstallationWizard/UI/Pages/`
+- All types are consolidated in `WizardTypes.swift`
+
 ## Troubleshooting
 
 - **Service won't start**: Check kanata path with `which kanata`
 - **Config invalid**: Test with `kanata --cfg "~/Library/Application Support/KeyPath/keypath.kbd" --check`
 - **Permissions**: Grant in System Settings > Privacy & Security
 - **Logs**: Check `/var/log/kanata.log`
+- **Emergency stop**: Ctrl+Space+Esc disables all remapping
 
 ## Code Signing
 
@@ -208,3 +250,18 @@ swiftlint --fix --quiet
 # Check for issues without fixing
 swiftlint
 ```
+
+## Safety Features
+
+1. **Emergency Stop**: Ctrl+Space+Esc immediately disables all remapping
+2. **Config Validation**: All configs are validated before application
+3. **Atomic Updates**: Configuration changes are atomic
+4. **Timeout Protection**: 30-second startup timeout prevents hangs
+5. **Process Recovery**: Automatic restart on crash via launchctl
+
+## Testing Philosophy
+
+- **Integration over unit tests** for system interactions
+- **Test against real system** - minimize mocks
+- **Fast feedback** through focused test scopes
+- Tests are in `Tests/KeyPathTests/` and integration tests use real system calls

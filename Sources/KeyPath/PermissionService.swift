@@ -210,10 +210,110 @@ class PermissionService {
     let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true]
     AXIsProcessTrustedWithOptions(options)
   }
+  
+  /// Request Input Monitoring permission programmatically (macOS 10.15+)
+  /// Returns true if permission was granted, false if denied or needs manual action
+  @available(macOS 10.15, *)
+  static func requestInputMonitoringPermission() -> Bool {
+    AppLogger.shared.log("🔐 [PermissionService] Requesting Input Monitoring permission via IOHIDRequestAccess")
+    
+    // IOHIDRequestAccess returns a Bool: true if granted, false if denied/unknown
+    let granted = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+    
+    AppLogger.shared.log("🔐 [PermissionService] IOHIDRequestAccess result: \(granted ? "granted" : "denied/unknown")")
+    
+    // Clear cache after permission request
+    PermissionService.shared.clearCache()
+    
+    return granted
+  }
+  
+  /// Detect if there might be stale KeyPath entries in Input Monitoring
+  /// This checks for common indicators of old or duplicate entries
+  static func detectPossibleStaleEntries() -> (hasStaleEntries: Bool, details: [String]) {
+    var indicators: [String] = []
+    
+    // Check if we're running from a development path
+    let bundlePath = Bundle.main.bundlePath
+    if bundlePath.contains(".build/") || bundlePath.contains("DerivedData/") {
+      indicators.append("Running from development build location")
+    }
+    
+    // Check if KeyPath is NOT in /Applications but has been before
+    if !bundlePath.hasPrefix("/Applications/") {
+      // Check if /Applications/KeyPath.app exists
+      let applicationsPath = "/Applications/KeyPath.app"
+      if FileManager.default.fileExists(atPath: applicationsPath) {
+        indicators.append("KeyPath exists in /Applications but running from \(bundlePath)")
+      }
+    }
+    
+    // Check for multiple kanata processes which might indicate permission confusion
+    // Note: This is a simplified check - ideally would use ProcessLifecycleManager.detectConflicts()
+    // but that's an async method. For now, just check if kanata is running at all.
+    let task = Process()
+    task.launchPath = "/bin/sh"
+    task.arguments = ["-c", "pgrep -x kanata | wc -l"]
+    let pipe = Pipe()
+    task.standardOutput = pipe
+    task.standardError = Pipe()
+    
+    do {
+      try task.run()
+      task.waitUntilExit()
+      
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      if let output = String(data: data, encoding: .utf8),
+         let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)),
+         count > 1 {
+        indicators.append("Multiple kanata processes detected (\(count) running)")
+      }
+    } catch {
+      // Ignore errors in detection
+    }
+    
+    // Check if permission was previously granted but now failing
+    // This often indicates a stale entry
+    let hasInputMonitoring = checkTCCForInputMonitoring(path: bundlePath)
+    if !hasInputMonitoring {
+      // Try to detect if there's a mismatch between what macOS thinks and reality
+      let homeDir = NSHomeDirectory()
+      let possibleOldPaths = [
+        "/Applications/KeyPath.app",
+        "\(homeDir)/Applications/KeyPath.app",
+        "\(homeDir)/Desktop/KeyPath.app",
+        "\(homeDir)/Downloads/KeyPath.app"
+      ]
+      
+      for oldPath in possibleOldPaths {
+        if oldPath != bundlePath && FileManager.default.fileExists(atPath: oldPath) {
+          indicators.append("Found KeyPath at \(oldPath) - may have old permissions")
+        }
+      }
+    }
+    
+    AppLogger.shared.log("🔐 [PermissionService] Stale entry detection: \(indicators.isEmpty ? "No indicators found" : indicators.joined(separator: ", "))")
+    
+    return (!indicators.isEmpty, indicators)
+  }
 
   /// Open System Settings to the Privacy & Security pane
   static func openPrivacySettings() {
     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
+      NSWorkspace.shared.open(url)
+    }
+  }
+  
+  /// Open System Settings directly to Input Monitoring
+  static func openInputMonitoringSettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+      NSWorkspace.shared.open(url)
+    }
+  }
+  
+  /// Open System Settings directly to Accessibility  
+  static func openAccessibilitySettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
       NSWorkspace.shared.open(url)
     }
   }

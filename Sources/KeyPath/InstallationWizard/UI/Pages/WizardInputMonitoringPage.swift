@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Input Monitoring permission page - dedicated page for Input Monitoring permissions
+/// Input Monitoring permission page with hybrid permission request approach
 struct WizardInputMonitoringPage: View {
   let systemState: WizardSystemState
   let issues: [WizardIssue]
@@ -8,6 +8,11 @@ struct WizardInputMonitoringPage: View {
   let onNavigateToPage: ((WizardPage) -> Void)?
   let onDismiss: (() -> Void)?
   let kanataManager: KanataManager
+  
+  @State private var showingStaleEntryCleanup = false
+  @State private var staleEntryDetails: [String] = []
+  @State private var attemptingProgrammaticRequest = false
+  @State private var programmaticRequestFailed = false
 
   var body: some View {
     VStack(spacing: WizardDesign.Spacing.sectionGap) {
@@ -20,6 +25,16 @@ struct WizardInputMonitoringPage: View {
       )
 
       VStack(spacing: WizardDesign.Spacing.elementGap) {
+        // Show cleanup instructions if stale entries detected
+        if showingStaleEntryCleanup {
+          StaleEntryCleanupInstructions(
+            staleEntryDetails: staleEntryDetails,
+            onContinue: {
+              showingStaleEntryCleanup = false
+              openInputMonitoringSettings()
+            }
+          )
+        } else {
           // KeyPath Input Monitoring Permission
           PermissionCard(
             appName: "KeyPath",
@@ -51,11 +66,18 @@ struct WizardInputMonitoringPage: View {
               }
               .font(.caption)
               .foregroundColor(.secondary)
-
-              Text("Grant this permission in System Settings > Privacy & Security > Input Monitoring")
-                .font(.caption)
-                .foregroundColor(.orange)
-                .padding(.top, 4)
+              
+              if programmaticRequestFailed {
+                Text("⚠️ Automatic permission request was denied. Please grant permission manually in System Settings.")
+                  .font(.caption)
+                  .foregroundColor(.orange)
+                  .padding(.top, 4)
+              } else {
+                Text("Click 'Grant Permission' to enable Input Monitoring")
+                  .font(.caption)
+                  .foregroundColor(.orange)
+                  .padding(.top, 4)
+              }
             }
             .padding()
             .background(Color.orange.opacity(0.1))
@@ -66,23 +88,36 @@ struct WizardInputMonitoringPage: View {
 
           // Action Buttons
           HStack(spacing: 12) {
-            // Manual Refresh Button (no auto-refresh to prevent invasive checks)
+            // Manual Refresh Button
             Button("Check Again") {
               Task {
+                programmaticRequestFailed = false
                 await onRefresh()
               }
             }
             .buttonStyle(.bordered)
+            .disabled(attemptingProgrammaticRequest)
             
             Spacer()
             
-            // Open Input Monitoring Settings Button
-            Button("Grant Permission") {
-              openInputMonitoringSettings()
+            // Smart Grant Permission Button
+            Button(action: handleGrantPermission) {
+              if attemptingProgrammaticRequest {
+                ProgressView()
+                  .scaleEffect(0.8)
+                  .frame(width: 16, height: 16)
+              } else {
+                Text(programmaticRequestFailed ? "Open Settings" : "Grant Permission")
+              }
             }
             .buttonStyle(.borderedProminent)
+            .disabled(attemptingProgrammaticRequest)
           }
+        }
       }
+    }
+    .onAppear {
+      checkForStaleEntries()
     }
   }
 
@@ -113,36 +148,166 @@ struct WizardInputMonitoringPage: View {
   }
 
   // MARK: - Actions
+  
+  private func checkForStaleEntries() {
+    let detection = PermissionService.detectPossibleStaleEntries()
+    if detection.hasStaleEntries {
+      staleEntryDetails = detection.details
+      AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Stale entries detected: \(detection.details.joined(separator: ", "))")
+    }
+  }
+  
+  private func handleGrantPermission() {
+    // First check for stale entries
+    let detection = PermissionService.detectPossibleStaleEntries()
+    
+    if detection.hasStaleEntries {
+      // Show cleanup instructions first
+      staleEntryDetails = detection.details
+      showingStaleEntryCleanup = true
+      AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
+    } else {
+      // Try programmatic request for clean installs
+      if #available(macOS 10.15, *), !programmaticRequestFailed {
+        attemptProgrammaticRequest()
+      } else {
+        // Fall back to manual process
+        openInputMonitoringSettings()
+      }
+    }
+  }
+  
+  @available(macOS 10.15, *)
+  private func attemptProgrammaticRequest() {
+    AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Attempting programmatic permission request")
+    attemptingProgrammaticRequest = true
+    
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+      let granted = PermissionService.requestInputMonitoringPermission()
+      attemptingProgrammaticRequest = false
+      
+      if granted {
+        AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Permission granted programmatically!")
+        Task {
+          await onRefresh()
+        }
+      } else {
+        AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Programmatic request denied, falling back to manual")
+        programmaticRequestFailed = true
+        // Give user a moment to see the status change before opening settings
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+          openInputMonitoringSettings()
+        }
+      }
+    }
+  }
 
   private func openInputMonitoringSettings() {
-    AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Opening Input Monitoring settings and dismissing wizard")
+    AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Opening Input Monitoring settings")
     
-    // Open System Settings > Privacy & Security > Input Monitoring
-    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
-      NSWorkspace.shared.open(url)
+    PermissionService.openInputMonitoringSettings()
+    
+    // Dismiss wizard after opening settings for better UX
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+      onDismiss?()
     }
-    
-    // Simulate pressing Escape to close the wizard after a brief delay
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-      let escapeKeyEvent = NSEvent.keyEvent(
-        with: .keyDown,
-        location: NSPoint.zero,
-        modifierFlags: [],
-        timestamp: 0,
-        windowNumber: 0,
-        context: nil,
-        characters: "\u{1B}", // Escape character
-        charactersIgnoringModifiers: "\u{1B}",
-        isARepeat: false,
-        keyCode: 53 // Escape key code
-      )
-      
-      if let escapeEvent = escapeKeyEvent {
-        NSApp.postEvent(escapeEvent, atStart: false)
+  }
+}
+
+// MARK: - Stale Entry Cleanup Instructions View
+
+struct StaleEntryCleanupInstructions: View {
+  let staleEntryDetails: [String]
+  let onContinue: () -> Void
+  
+  var body: some View {
+    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+      VStack(alignment: .leading, spacing: 8) {
+        Label("Old KeyPath Entries Detected", systemImage: "exclamationmark.triangle.fill")
+          .font(.headline)
+          .foregroundColor(.orange)
+        
+        Text("We've detected possible old or duplicate KeyPath entries that need to be cleaned up before granting new permissions.")
+          .font(.caption)
+          .foregroundColor(.secondary)
       }
       
-      // Fallback: call dismiss callback if available
-      onDismiss?()
+      // Show detected issues
+      if !staleEntryDetails.isEmpty {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Detected Issues:")
+            .font(.caption)
+            .fontWeight(.semibold)
+          
+          ForEach(staleEntryDetails, id: \.self) { detail in
+            HStack(alignment: .top, spacing: 6) {
+              Text("•")
+                .foregroundColor(.orange)
+              Text(detail)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+          }
+        }
+        .padding()
+        .background(Color.orange.opacity(0.05))
+        .cornerRadius(8)
+      }
+      
+      // Cleanup Instructions
+      VStack(alignment: .leading, spacing: 12) {
+        Text("How to Clean Up:")
+          .font(.headline)
+        
+        CleanupStep(number: 1, text: "Click 'Open Settings' below")
+        CleanupStep(number: 2, text: "Find ALL KeyPath entries in the list")
+        CleanupStep(number: 3, text: "Remove entries with ⚠️ warning icons by clicking the '-' button")
+        CleanupStep(number: 4, text: "Remove any duplicate KeyPath entries")
+        CleanupStep(number: 5, text: "Add the current KeyPath using the '+' button")
+        CleanupStep(number: 6, text: "Also add 'kanata' if needed")
+      }
+      .padding()
+      .background(Color.blue.opacity(0.05))
+      .cornerRadius(8)
+      
+      // Visual hint
+      HStack {
+        Image(systemName: "lightbulb.fill")
+          .foregroundColor(.yellow)
+        Text("Tip: Entries with warning icons are from old or moved installations")
+          .font(.caption)
+          .foregroundColor(.secondary)
+      }
+      .padding(.horizontal)
+      
+      Spacer()
+      
+      // Continue button
+      Button("Open Settings") {
+        onContinue()
+      }
+      .buttonStyle(.borderedProminent)
+      .frame(maxWidth: .infinity)
+    }
+    .padding()
+  }
+}
+
+struct CleanupStep: View {
+  let number: Int
+  let text: String
+  
+  var body: some View {
+    HStack(alignment: .top, spacing: 8) {
+      Text("\(number).")
+        .font(.caption)
+        .fontWeight(.bold)
+        .foregroundColor(.blue)
+        .frame(width: 20, alignment: .leading)
+      
+      Text(text)
+        .font(.caption)
+        .foregroundColor(.primary)
     }
   }
 }
