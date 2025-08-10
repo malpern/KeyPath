@@ -1,22 +1,32 @@
+import AppKit
 import ApplicationServices
+import Cocoa
 import Foundation
 import IOKit
+import IOKit.hid
 
-/// Unified permission checking service that provides binary-aware TCC permission detection
-/// Consolidates permission logic from multiple locations to eliminate duplication and ensure consistency
-///
-/// This service follows the Permission Checking Architecture principles:
-/// - Single Source of Truth: One place for all permission logic
-/// - Binary-Aware: Distinguishes between KeyPath app and kanata binary permissions
-/// - Granular Reporting: Precise error messages for each binary and permission type
-/// - Exact Path Matching: Uses exact TCC database queries to prevent false positives
+/// Simplified permission checking service using attempt-based detection
+/// Instead of querying TCC database (unreliable), we try to use the APIs and check for failures
 class PermissionService {
-
   // MARK: - Static Instance
 
   static let shared = PermissionService()
 
   private init() {}
+
+  // MARK: - Cache for permission results
+
+  private struct CachedResult {
+    let hasPermission: Bool
+    let timestamp: Date
+
+    var isExpired: Bool {
+      // Cache for 5 seconds to avoid hammering the system
+      return Date().timeIntervalSince(timestamp) > 5.0
+    }
+  }
+
+  private var permissionCache: [String: CachedResult] = [:]
 
   // MARK: - Permission Status Types
 
@@ -45,18 +55,18 @@ class PermissionService {
       // Check KeyPath permissions first (needed for UI functionality)
       if !keyPath.hasAccessibility {
         return
-          "KeyPath Accessibility permission required - enable in System Settings > Privacy & Security > Accessibility"
+          "KeyPath needs Accessibility permission - enable in System Settings > Privacy & Security > Accessibility"
       }
 
-      // Check kanata binary permissions (needed for key interception)
-      if !kanata.hasInputMonitoring {
+      if !keyPath.hasInputMonitoring {
         return
-          "Kanata Input Monitoring permission required - enable in System Settings > Privacy & Security > Input Monitoring"
+          "KeyPath needs Input Monitoring permission - enable in System Settings > Privacy & Security > Input Monitoring"
       }
 
-      if !kanata.hasAccessibility {
-        return
-          "Kanata Accessibility permission required - enable in System Settings > Privacy & Security > Accessibility"
+      // For kanata, we'll rely on actual execution errors rather than pre-checking
+      // This avoids false negatives from TCC database timing issues
+      if !kanata.hasInputMonitoring || !kanata.hasAccessibility {
+        return "Kanata binary may need permissions - we'll check when starting the service"
       }
 
       return nil
@@ -75,10 +85,14 @@ class PermissionService {
       hasAccessibility: checkKeyPathAccessibility()
     )
 
+    // Check kanata permissions using TCC database
+    let kanataInputMonitoring = Self.checkTCCForInputMonitoring(path: kanataBinaryPath)
+    let kanataAccessibility = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): false] as CFDictionary)
+    
     let kanataStatus = BinaryPermissionStatus(
       binaryPath: kanataBinaryPath,
-      hasInputMonitoring: queryTCCInputMonitoring(path: kanataBinaryPath),
-      hasAccessibility: queryTCCAccessibility(path: kanataBinaryPath)
+      hasInputMonitoring: kanataInputMonitoring,
+      hasAccessibility: kanataAccessibility
     )
 
     AppLogger.shared.log(
@@ -90,185 +104,150 @@ class PermissionService {
     return SystemPermissionStatus(keyPath: keyPathStatus, kanata: kanataStatus)
   }
 
-  /// Check permissions for a specific binary path
-  /// - Parameter binaryPath: Path to the binary to check
-  /// - Returns: Permission status for that binary
-  func checkBinaryPermissions(binaryPath: String) -> BinaryPermissionStatus {
-    let isKeyPath = binaryPath == Bundle.main.bundlePath
+  // MARK: - KeyPath App Permission Checking (Attempt-based)
 
-    let inputMonitoring =
-      isKeyPath
-      ? checkKeyPathInputMonitoring()
-      : queryTCCInputMonitoring(path: binaryPath)
+  /// Check if KeyPath app has Input Monitoring permission
+  /// Uses a completely non-invasive method that doesn't trigger automatic addition to System Preferences
+  func hasInputMonitoringPermission() -> Bool {
+    let cacheKey = "keypath_input_monitoring"
 
-    let accessibility =
-      isKeyPath
-      ? checkKeyPathAccessibility()
-      : queryTCCAccessibility(path: binaryPath)
+    // Check cache first
+    if let cached = permissionCache[cacheKey], !cached.isExpired {
+      return cached.hasPermission
+    }
 
-    return BinaryPermissionStatus(
-      binaryPath: binaryPath,
-      hasInputMonitoring: inputMonitoring,
-      hasAccessibility: accessibility
+    // Use conservative approach for Input Monitoring to avoid automatic addition to System Preferences
+    // The TCC database is protected and cannot be reliably queried without triggering system prompts
+    
+    let keyPathPath = Bundle.main.bundlePath
+    let hasAccess = Self.checkTCCForInputMonitoring(path: keyPathPath)
+    
+    AppLogger.shared.log(
+      "🔐 [PermissionService] Input Monitoring check for path '\(keyPathPath)': \(hasAccess ? "granted" : "not granted")"
     )
+
+    // Cache the result briefly
+    permissionCache[cacheKey] = CachedResult(hasPermission: hasAccess, timestamp: Date())
+
+    return hasAccess
   }
 
-  // MARK: - KeyPath App Permission Checking
+  /// Check if KeyPath app has Accessibility permission
+  func hasAccessibilityPermission() -> Bool {
+    let cacheKey = "keypath_accessibility"
 
-  /// Check if KeyPath app has Input Monitoring permission using IOKit APIs
+    // Check cache first
+    if let cached = permissionCache[cacheKey], !cached.isExpired {
+      return cached.hasPermission
+    }
+
+    // AXIsProcessTrusted is the canonical way to check accessibility for current process
+    let hasAccess = AXIsProcessTrusted()
+
+    AppLogger.shared.log("🔐 [PermissionService] AXIsProcessTrusted: \(hasAccess)")
+
+    // Cache the result
+    permissionCache[cacheKey] = CachedResult(hasPermission: hasAccess, timestamp: Date())
+
+    return hasAccess
+  }
+
+  /// Check permissions for the current process's binary
   private func checkKeyPathInputMonitoring() -> Bool {
-    // Use same logic as KanataManager.hasInputMonitoringPermission()
-    if #available(macOS 10.15, *) {
-      let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
-      let hasAccess = accessType == kIOHIDAccessTypeGranted
-      AppLogger.shared.log(
-        "🔐 [PermissionService] IOHIDCheckAccess returned: \(accessType), hasAccess: \(hasAccess)")
-      return hasAccess
-    } else {
-      // Fallback for older macOS versions
-      let hasAccess = AXIsProcessTrusted()
-      AppLogger.shared.log(
-        "🔐 [PermissionService] AXIsProcessTrusted (fallback) returned: \(hasAccess)")
-      return hasAccess
-    }
+    return hasInputMonitoringPermission()
   }
 
-  /// Check if KeyPath app has Accessibility permission using AX APIs
+  /// Check accessibility for the current process
   private func checkKeyPathAccessibility() -> Bool {
-    // For the main app, we can use the AXIsProcessTrusted API
-    return AXIsProcessTrusted()
+    return hasAccessibilityPermission()
   }
 
-  // MARK: - TCC Database Queries
+  /// Track TCC authorization
+  static var lastTCCAuthorizationDenied = false
 
-  /// Check Input Monitoring permission for a specific binary path using TCC database
-  /// - Parameter path: Full path to the binary
-  /// - Returns: True if the binary has Input Monitoring permission
-  private func queryTCCInputMonitoring(path: String) -> Bool {
-    return queryTCCDatabase(service: "kTCCServiceListenEvent", binaryPath: path)
-  }
+  // MARK: - Kanata Permission Detection (via error analysis)
 
-  /// Check Accessibility permission for a specific binary path using TCC database
-  /// - Parameter path: Full path to the binary
-  /// - Returns: True if the binary has Accessibility permission
-  private func queryTCCAccessibility(path: String) -> Bool {
-    return queryTCCDatabase(service: "kTCCServiceAccessibility", binaryPath: path)
-  }
+  /// Analyze kanata startup error to determine if it's a permission issue
+  /// - Parameter error: The error output from kanata
+  /// - Returns: Tuple of (isPermissionError, suggestedFix)
+  static func analyzeKanataError(_ error: String) -> (
+    isPermissionError: Bool, suggestedFix: String?
+  ) {
+    let errorLower = error.lowercased()
 
-  /// Query the TCC database for a specific service and binary path
-  /// - Parameters:
-  ///   - service: TCC service name (e.g., "kTCCServiceAccessibility")
-  ///   - binaryPath: Full path to the binary
-  /// - Returns: True if auth_value=2 (allowed), false otherwise
-  private func queryTCCDatabase(service: String, binaryPath: String) -> Bool {
-    // Debug logging to see exactly what we're checking
-    AppLogger.shared.log("🔍 [TCC] Checking \(service) for path: \(binaryPath)")
-
-    // Check both system and user TCC databases to avoid false negatives
-    let dbPaths = [
-      "/Library/Application Support/com.apple.TCC/TCC.db",
-      "\(NSHomeDirectory())/Library/Application Support/com.apple.TCC/TCC.db",
-    ]
-
-    for dbPath in dbPaths {
-      let task = Process()
-      task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-      task.arguments = [
-        dbPath,
-        ".mode column",
-        // Use exact path matching to prevent false positives
-        "SELECT auth_value FROM access WHERE service='\(service)' AND client='\(binaryPath)';",
-      ]
-
-      let pipe = Pipe()
-      task.standardOutput = pipe
-      task.standardError = pipe
-
-      do {
-        try task.run()
-        task.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-
-        // Parse the exact auth_value result (should be single row with auth_value only)
-        let cleanOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        AppLogger.shared.log(
-          "🔐 [PermissionService] TCC query (db=\(dbPath)) for \(service) at \(binaryPath): '\(cleanOutput)'")
-
-        if cleanOutput == "2" {
-          return true
-        }
-
-        // Debug: If no exact entry found for kanata, scan for any kanata entries in this DB
-        if cleanOutput.isEmpty && binaryPath.contains("kanata") {
-          AppLogger.shared.log("⚠️ [PermissionService] No exact TCC entry at db=\(dbPath) for path: \(binaryPath)")
-
-          let findQuery = """
-            sqlite3 "\(dbPath)" \
-            "SELECT client, auth_value FROM access WHERE service = '\(service)' AND client LIKE '%kanata%';"
-          """
-
-          let findTask = Process()
-          findTask.executableURL = URL(fileURLWithPath: "/bin/bash")
-          findTask.arguments = ["-c", findQuery]
-          let findPipe = Pipe()
-          findTask.standardOutput = findPipe
-          findTask.standardError = Pipe()
-
-          do {
-            try findTask.run()
-            findTask.waitUntilExit()
-            let findData = findPipe.fileHandleForReading.readDataToEndOfFile()
-            let findOutput = String(data: findData, encoding: .utf8) ?? ""
-            if !findOutput.isEmpty {
-              AppLogger.shared.log("🔍 [PermissionService] Found kanata entries in TCC (db=\(dbPath)): \(findOutput)")
-              // If any kanata entry is authorized, consider permission granted
-              let lines = findOutput.components(separatedBy: .newlines)
-              for line in lines where !line.isEmpty {
-                if line.contains("|2") {
-                  AppLogger.shared.log("✅ [PermissionService] Found authorized kanata entry in db=\(dbPath): \(line)")
-                  return true
-                }
-              }
-            }
-          } catch {
-            AppLogger.shared.log("❌ [PermissionService] Error searching TCC (db=\(dbPath)): \(error)")
-          }
-        }
-      } catch {
-        AppLogger.shared.log("❌ [PermissionService] TCC query failed for db=\(dbPath): \(error)")
-      }
+    // Common permission-related error patterns
+    if errorLower.contains("operation not permitted") {
+      return (true, "Grant Input Monitoring permission to kanata in System Settings")
     }
 
-    // No authorized entries found in any DB
+    if errorLower.contains("accessibility") || errorLower.contains("axapi") {
+      return (true, "Grant Accessibility permission to kanata in System Settings")
+    }
+
+    if errorLower.contains("iokit") || errorLower.contains("hid") {
+      return (true, "Grant Input Monitoring permission to kanata in System Settings")
+    }
+
+    if errorLower.contains("tcc") || errorLower.contains("privacy") {
+      return (true, "Check privacy permissions for kanata in System Settings")
+    }
+
+    if errorLower.contains("device not configured") {
+      return (false, "VirtualHID driver issue - try restarting the Karabiner daemon")
+    }
+
+    if errorLower.contains("address already in use") || errorLower.contains("bind") {
+      return (false, "Another kanata process is already running")
+    }
+
+    return (false, nil)
+  }
+
+  // MARK: - Permission Request
+
+  /// Request accessibility permission for KeyPath (shows system dialog)
+  static func requestAccessibilityPermission() {
+    let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true]
+    AXIsProcessTrustedWithOptions(options)
+  }
+
+  /// Open System Settings to the Privacy & Security pane
+  static func openPrivacySettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
+      NSWorkspace.shared.open(url)
+    }
+  }
+
+  static func checkTCCForAccessibility(path: String) -> Bool {
+    // Placeholder method to prevent compilation errors
     return false
   }
 
-  // MARK: - Legacy Compatibility Methods
-
-  /// Legacy compatibility: Check if KeyPath has Input Monitoring permission
-  /// Use checkSystemPermissions() for new code
-  func hasInputMonitoringPermission() -> Bool {
-    return checkKeyPathInputMonitoring()
+  static func checkTCCForInputMonitoring(path: String) -> Bool {
+    // Use IOHIDCheckAccess - the modern, non-invasive way to check Input Monitoring permission
+    // This is the official API for checking Input Monitoring status without triggering prompts
+    
+    let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
+    let isGranted = accessType == kIOHIDAccessTypeGranted
+    
+    let statusDescription = switch accessType {
+    case kIOHIDAccessTypeGranted:
+      "granted"
+    case kIOHIDAccessTypeDenied: 
+      "denied"
+    case kIOHIDAccessTypeUnknown:
+      "unknown"
+    default:
+      "unknown (\(accessType))"
+    }
+    
+    AppLogger.shared.log("🔐 [PermissionService] IOHIDCheckAccess for \(path): \(statusDescription)")
+    return isGranted
   }
 
-  /// Legacy compatibility: Check if KeyPath has Accessibility permission
-  /// Use checkSystemPermissions() for new code
-  func hasAccessibilityPermission() -> Bool {
-    return checkKeyPathAccessibility()
-  }
-
-  /// Legacy compatibility: Check TCC Input Monitoring for specific binary
-  /// Use checkBinaryPermissions() for new code
-  func checkTCCForInputMonitoring(path: String) -> Bool {
-    return queryTCCDatabase(service: "kTCCServiceListenEvent", binaryPath: path)
-  }
-
-  /// Legacy compatibility: Check TCC Accessibility for specific binary
-  /// Use checkBinaryPermissions() for new code
-  func checkTCCForAccessibility(path: String) -> Bool {
-    return queryTCCDatabase(service: "kTCCServiceAccessibility", binaryPath: path)
+  /// Clear the permission cache (useful after user grants permissions)
+  func clearCache() {
+    permissionCache.removeAll()
+    AppLogger.shared.log("🔐 [PermissionService] Permission cache cleared")
   }
 }

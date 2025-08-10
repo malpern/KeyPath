@@ -42,7 +42,7 @@ struct WizardKanataServicePage: View {
       switch self {
       case .running: return "Service is running"
       case .stopped: return "Service is stopped"
-      case .crashed(let error): return "Service crashed: \(error)"
+      case let .crashed(error): return "Service crashed: \(error)"
       case .starting: return "Service is starting..."
       case .stopping: return "Service is stopping..."
       case .unknown: return "Checking service status..."
@@ -325,12 +325,10 @@ struct WizardKanataServicePage: View {
   // MARK: - Auto Refresh
 
   private func startAutoRefresh() {
-    // Refresh every 2 seconds while on this page
-    refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-      if !isPerformingAction {
-        refreshStatus()
-      }
-    }
+    // DISABLED: This timer calls refreshStatus() which may trigger invasive permission checks
+    // that cause KeyPath to auto-add to Input Monitoring system preferences
+    
+    AppLogger.shared.log("🔄 [WizardKanataServicePage] Auto-refresh timer DISABLED to prevent invasive permission checks")
   }
 
   private func stopAutoRefresh() {

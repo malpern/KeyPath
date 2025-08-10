@@ -7,7 +7,6 @@ import XCTest
 /// TCC database queries, and system permission status reporting
 @MainActor
 final class PermissionServiceTests: XCTestCase {
-
   var permissionService: PermissionService!
 
   override func setUp() async throws {
@@ -119,7 +118,7 @@ final class PermissionServiceTests: XCTestCase {
     let testPaths = [
       "/usr/local/bin/kanata",
       "/opt/homebrew/bin/kanata",
-      "/nonexistent/path/kanata",
+      "/nonexistent/path/kanata"
     ]
 
     for path in testPaths {
@@ -127,13 +126,15 @@ final class PermissionServiceTests: XCTestCase {
       let inputResult = permissionService.checkTCCForInputMonitoring(path: path)
       XCTAssert(
         inputResult == true || inputResult == false,
-        "TCC Input Monitoring query should return boolean for \(path)")
+        "TCC Input Monitoring query should return boolean for \(path)"
+      )
 
       // Test Accessibility TCC query
       let accessResult = permissionService.checkTCCForAccessibility(path: path)
       XCTAssert(
         accessResult == true || accessResult == false,
-        "TCC Accessibility query should return boolean for \(path)")
+        "TCC Accessibility query should return boolean for \(path)"
+      )
     }
   }
 
@@ -144,7 +145,7 @@ final class PermissionServiceTests: XCTestCase {
       "/path/with'quote/kanata",
       "/path/with\"doublequote/kanata",
       "/path/with;semicolon/kanata",
-      "/path/with--comment/kanata",
+      "/path/with--comment/kanata"
     ]
 
     for path in specialPaths {
@@ -153,7 +154,8 @@ final class PermissionServiceTests: XCTestCase {
         {
           _ = permissionService.checkTCCForInputMonitoring(path: path)
           _ = permissionService.checkTCCForAccessibility(path: path)
-        }(), "TCC queries should handle special characters safely: \(path)")
+        }(), "TCC queries should handle special characters safely: \(path)"
+      )
     }
   }
 
@@ -188,10 +190,12 @@ final class PermissionServiceTests: XCTestCase {
 
     XCTAssertEqual(
       systemStatus.keyPath.hasInputMonitoring, legacyInput,
-      "Legacy and new methods should return same results for KeyPath Input Monitoring")
+      "Legacy and new methods should return same results for KeyPath Input Monitoring"
+    )
     XCTAssertEqual(
       systemStatus.keyPath.hasAccessibility, legacyAccess,
-      "Legacy and new methods should return same results for KeyPath Accessibility")
+      "Legacy and new methods should return same results for KeyPath Accessibility"
+    )
 
     // Test that TCC methods are consistent
     let directTCCInput = permissionService.checkTCCForInputMonitoring(path: testKanataPath)
@@ -199,10 +203,12 @@ final class PermissionServiceTests: XCTestCase {
 
     XCTAssertEqual(
       systemStatus.kanata.hasInputMonitoring, directTCCInput,
-      "System status and direct TCC methods should return same results for kanata Input Monitoring")
+      "System status and direct TCC methods should return same results for kanata Input Monitoring"
+    )
     XCTAssertEqual(
       systemStatus.kanata.hasAccessibility, directTCCAccess,
-      "System status and direct TCC methods should return same results for kanata Accessibility")
+      "System status and direct TCC methods should return same results for kanata Accessibility"
+    )
   }
 
   // MARK: - Error Handling Tests
@@ -216,7 +222,8 @@ final class PermissionServiceTests: XCTestCase {
         {
           _ = permissionService.checkTCCForInputMonitoring(path: path)
           _ = permissionService.checkTCCForAccessibility(path: path)
-        }(), "Should handle invalid paths gracefully: \(path)")
+        }(), "Should handle invalid paths gracefully: \(path)"
+      )
     }
   }
 

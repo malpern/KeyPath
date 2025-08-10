@@ -265,7 +265,7 @@ struct PermissionStatusSection: View {
   let onShowWizard: () -> Void
 
   var body: some View {
-    let inputMonitoring = PermissionService.shared.hasInputMonitoringPermission()
+    let inputMonitoring = false  // Disabled to prevent auto-addition to Input Monitoring
     let accessibility = PermissionService.shared.hasAccessibilityPermission()
     let allPermissions = inputMonitoring && accessibility
 

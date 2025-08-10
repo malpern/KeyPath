@@ -9,8 +9,7 @@ class WizardStateInterpreter: ObservableObject {
 
   /// Get the status of a specific permission requirement
   func getPermissionStatus(_ permission: PermissionRequirement, in issues: [WizardIssue])
-    -> InstallationStatus
-  {
+    -> InstallationStatus {
     let hasIssue = issues.contains { $0.identifier == .permission(permission) }
     return hasIssue ? .failed : .completed
   }
@@ -34,8 +33,7 @@ class WizardStateInterpreter: ObservableObject {
 
   /// Get the status of a specific component requirement
   func getComponentStatus(_ component: ComponentRequirement, in issues: [WizardIssue])
-    -> InstallationStatus
-  {
+    -> InstallationStatus {
     let hasIssue = issues.contains { $0.identifier == .component(component) }
     return hasIssue ? .failed : .completed
   }
@@ -65,7 +63,7 @@ class WizardStateInterpreter: ObservableObject {
   /// Check if there are Karabiner-related conflicts specifically
   func hasKarabinerConflict(in issues: [WizardIssue]) -> Bool {
     return issues.contains { issue in
-      if case .conflict(let conflict) = issue.identifier {
+      if case let .conflict(conflict) = issue.identifier {
         if case .karabinerGrabberRunning = conflict {
           return true
         }
@@ -132,24 +130,58 @@ class WizardStateInterpreter: ObservableObject {
     case .conflicts:
       return getConflictIssues(in: issues)
     case .inputMonitoring:
+      // Input Monitoring permission page
       return issues.filter {
         $0.identifier == .permission(.kanataInputMonitoring)
           || $0.identifier == .permission(.keyPathInputMonitoring)
-          || $0.identifier == .permission(.driverExtensionEnabled)
       }
     case .accessibility:
+      // Accessibility permission page
       return issues.filter {
         $0.identifier == .permission(.kanataAccessibility)
           || $0.identifier == .permission(.keyPathAccessibility)
+          || $0.identifier == .permission(.driverExtensionEnabled)
       }
-    case .backgroundServices:
-      return getBackgroundServiceIssues(in: issues)
-    case .installation:
-      return getComponentIssues(in: issues)
-    case .daemon:
-      return getDaemonIssues(in: issues)
+    case .karabinerComponents:
+      // Karabiner-related components and background services
+      return issues.filter { issue in
+        // Installation issues related to Karabiner
+        if issue.category == .installation {
+          switch issue.identifier {
+          case .component(.karabinerDriver),
+               .component(.karabinerDaemon),
+               .component(.vhidDeviceManager),
+               .component(.vhidDeviceActivation),
+               .component(.vhidDeviceRunning),
+               .component(.launchDaemonServices),
+               .component(.vhidDaemonMisconfigured):
+            return true
+          default:
+            return false
+          }
+        }
+        // Include daemon and background services issues
+        return issue.category == .daemon || issue.category == .backgroundServices
+      }
+    case .kanataComponents:
+      // Kanata-related components
+      return issues.filter { issue in
+        if issue.category == .installation {
+          switch issue.identifier {
+          case .component(.kanataBinary),
+               .component(.kanataService),
+               .component(.packageManager):
+            return true
+          default:
+            return false
+          }
+        }
+        return false
+      }
     case .service:
       return []  // Service page doesn't use issues, it shows real-time status
+    case .fullDiskAccess:
+      return []  // FDA page doesn't use issues, it's optional
     case .summary:
       return issues  // Summary shows all issues
     }
@@ -161,8 +193,7 @@ class WizardStateInterpreter: ObservableObject {
 
     if relevantIssues.isEmpty {
       return .completed
-    } else if relevantIssues.contains(where: { $0.severity == .critical || $0.severity == .error })
-    {
+    } else if relevantIssues.contains(where: { $0.severity == .critical || $0.severity == .error }) {
       return .failed
     } else {
       return .failed  // Warnings also indicate incomplete status

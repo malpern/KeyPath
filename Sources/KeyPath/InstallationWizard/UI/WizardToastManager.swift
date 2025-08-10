@@ -54,7 +54,7 @@ enum WizardToast: Equatable {
 
   var message: String {
     switch self {
-    case .success(let message), .error(let message), .info(let message):
+    case let .success(message), let .error(message), let .info(message):
       return message
     }
   }

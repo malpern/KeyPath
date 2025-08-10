@@ -1,24 +1,40 @@
 import AppKit
 import SwiftUI
 
-@main
-struct KeyPathApp: App {
+// Note: @main attribute moved to KeyPathCLI/main.swift for proper SPM building
+public struct KeyPathApp: App {
   @StateObject private var kanataManager = KanataManager()
   @StateObject private var simpleKanataManager: SimpleKanataManager
   @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
-  init() {
+  private let isHeadlessMode: Bool
+
+  public init() {
+    // Check if running in headless mode (started by LaunchAgent)
+    let args = ProcessInfo.processInfo.arguments
+    isHeadlessMode =
+      args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
+
     // Create SimpleKanataManager using the same KanataManager instance
     let manager = KanataManager()
     _kanataManager = StateObject(wrappedValue: manager)
     _simpleKanataManager = StateObject(wrappedValue: SimpleKanataManager(kanataManager: manager))
 
-    // Ensure app shows properly in dock and menu bar
-    NSApplication.shared.setActivationPolicy(.regular)
+    // Set activation policy based on mode
+    if isHeadlessMode {
+      // Hide from dock in headless mode
+      NSApplication.shared.setActivationPolicy(.accessory)
+      AppLogger.shared.log("🤖 [App] Running in headless mode (LaunchAgent)")
+    } else {
+      // Show in dock for normal mode
+      NSApplication.shared.setActivationPolicy(.regular)
+    }
+
     appDelegate.kanataManager = manager
+    appDelegate.isHeadlessMode = isHeadlessMode
   }
 
-  var body: some Scene {
+  public var body: some Scene {
     WindowGroup {
       ContentView()
         .environmentObject(kanataManager)
@@ -37,7 +53,7 @@ struct KeyPathApp: App {
               ),
               NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
               NSApplication.AboutPanelOptionKey.applicationVersion: "1.1",
-              NSApplication.AboutPanelOptionKey.version: "Build 2",
+              NSApplication.AboutPanelOptionKey.version: "Build 2"
             ]
           )
         }
@@ -124,6 +140,7 @@ func openConfigInEditor(kanataManager: KanataManager) {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
   var kanataManager: KanataManager?
+  var isHeadlessMode = false
 
   func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
     print("🔍 [AppDelegate] applicationShouldTerminate called")
@@ -147,8 +164,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     print("🔍 [AppDelegate] applicationDidFinishLaunching called")
     AppLogger.shared.log("🔍 [AppDelegate] applicationDidFinishLaunching called")
 
-    // Note: Kanata is already started in KanataManager.init() if requirements are met
-    // No need to start it again here
+    if isHeadlessMode {
+      AppLogger.shared.log("🤖 [AppDelegate] Headless mode - starting kanata service automatically")
+
+      // In headless mode, ensure kanata starts
+      Task {
+        // Small delay to let system settle
+        try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+
+        // Start kanata if not already running
+        if let manager = kanataManager, !manager.isRunning {
+          await manager.startKanata()
+        }
+      }
+    }
+    // Note: In normal mode, kanata is already started in KanataManager.init() if requirements are met
   }
 
   func applicationWillResignActive(_: Notification) {
@@ -156,9 +186,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_: Notification) {
-    // Ensure Kanata is stopped when the app quits.
-    Task {
-      await kanataManager?.cleanup()
-    }
+    AppLogger.shared.log(
+      "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup")
+
+    // Use synchronous cleanup to ensure kanata is stopped before app exits
+    kanataManager?.cleanupSync()
+
+    AppLogger.shared.log("✅ [AppDelegate] Cleanup complete, app terminating")
   }
 }

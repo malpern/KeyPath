@@ -219,13 +219,12 @@ class SystemRequirementsChecker {
     let possiblePaths = [
       "/opt/homebrew/bin/kanata",  // ARM Homebrew
       WizardSystemPaths.kanataActiveBinary,  // Active binary
-      "/usr/bin/kanata",  // System install
+      "/usr/bin/kanata"  // System install
     ]
 
     for path in possiblePaths {
       if FileManager.default.fileExists(atPath: path)
-        && FileManager.default.isExecutableFile(atPath: path)
-      {
+        && FileManager.default.isExecutableFile(atPath: path) {
         // Verify it's actually the Kanata executable
         let verification = await verifyKanataExecutable(at: path)
         if verification.isValid {
@@ -399,7 +398,7 @@ class SystemRequirementsChecker {
   }
 
   private func checkArchitecture() -> RequirementCheckResult {
-    let architecture = ProcessInfo.processInfo.processorCount > 0 ? "Supported" : "Unknown"
+    _ = ProcessInfo.processInfo.processorCount > 0 ? "Supported" : "Unknown"
 
     return RequirementCheckResult(
       requirement: .architecture,

@@ -1,3 +1,5 @@
+import AppKit
+import Foundation
 import SwiftUI
 
 struct PermissionCard: View {
@@ -5,17 +7,22 @@ struct PermissionCard: View {
   let appPath: String
   let status: InstallationStatus
   let permissionType: String
+  let kanataManager: KanataManager
+
+  // Fixed trailing area width so status icons/buttons align across rows
+  private let trailingAreaWidth: CGFloat = 160
 
   var body: some View {
-    HStack(spacing: 16) {
-      statusIcon
-        .frame(width: 30)
+    HStack(spacing: 12) {
+      appIcon
+        .frame(width: 24, height: 24)
 
-      VStack(alignment: .leading, spacing: 4) {
+      VStack(alignment: .leading, spacing: 2) {
         Text(appName)
-          .font(.headline)
+          .font(.system(size: 14, weight: .semibold))
+          .foregroundColor(.primary)
         Text(appPath)
-          .font(.caption)
+          .font(.system(size: 11))
           .foregroundColor(.secondary)
           .lineLimit(1)
           .truncationMode(.middle)
@@ -23,29 +30,19 @@ struct PermissionCard: View {
 
       Spacer()
 
-      HStack(spacing: 8) {
-        Text(statusText)
-          .font(.caption)
-          .fontWeight(.medium)
-          .foregroundColor(statusColor)
-
-        if status == .notStarted {
-          Button("Add") {
-            openSystemPreferences()
-          }
-          .buttonStyle(.bordered)
-          .controlSize(.mini)
-          .help("Click to open System Settings")
-        }
-      }
+      trailingStatusView
+        .frame(width: trailingAreaWidth, alignment: .trailing)
     }
-    .padding()
-    .background(backgroundColor)
-    .cornerRadius(8)
+    .frame(maxWidth: .infinity)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
+    .background(Color(nsColor: .controlBackgroundColor))
     .overlay(
-      RoundedRectangle(cornerRadius: 8)
-        .stroke(borderColor, lineWidth: 1)
+      RoundedRectangle(cornerRadius: 10)
+        .stroke(Color.gray.opacity(0.15), lineWidth: 1)
     )
+    .cornerRadius(10)
+    .contentShape(Rectangle())
     .onTapGesture {
       if status == .notStarted {
         openSystemPreferences()
@@ -53,62 +50,51 @@ struct PermissionCard: View {
     }
   }
 
-  var statusIcon: some View {
-    Group {
-      switch status {
-      case .completed:
-        Image(systemName: "checkmark.circle.fill")
-          .foregroundColor(.green)
-          .font(.title3)
-      case .inProgress:
-        ProgressView()
-          .scaleEffect(0.7)
-      case .failed:
+  @ViewBuilder
+  private var trailingStatusView: some View {
+    switch status {
+    case .completed:
+      Image(systemName: "checkmark.circle.fill")
+        .foregroundColor(.green)
+        .font(.system(size: 16, weight: .semibold))
+        .accessibilityLabel("Granted")
+    case .inProgress:
+      ProgressView()
+        .scaleEffect(0.7)
+        .accessibilityLabel("Checking")
+    case .failed:
+      Image(systemName: "exclamationmark.circle.fill")
+        .foregroundColor(.red)
+        .font(.system(size: 16, weight: .semibold))
+        .accessibilityLabel("Error")
+    case .notStarted:
+      HStack(spacing: 8) {
+        Button("Add…") {
+          openSystemPreferences()
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .help("Open System Settings to grant access")
         Image(systemName: "xmark.circle.fill")
           .foregroundColor(.red)
-          .font(.title3)
-      case .notStarted:
-        Image(systemName: "minus.circle.fill")
-          .foregroundColor(.orange)
-          .font(.title3)
+          .font(.system(size: 16, weight: .semibold))
+          .accessibilityHidden(true)
       }
     }
   }
 
-  var statusText: String {
-    switch status {
-    case .completed: return "Granted"
-    case .inProgress: return "Checking..."
-    case .failed: return "Error"
-    case .notStarted: return "Not Granted"
-    }
+  private var appIcon: some View {
+    let nsImage = NSWorkspace.shared.icon(forFile: appPath)
+    let sized = NSImage(size: NSSize(width: 20, height: 20))
+    sized.lockFocus()
+    nsImage.draw(in: NSRect(x: 0, y: 0, width: 20, height: 20))
+    sized.unlockFocus()
+    return Image(nsImage: sized)
+      .renderingMode(.original)
+      .clipShape(RoundedRectangle(cornerRadius: 4))
   }
 
-  var statusColor: Color {
-    switch status {
-    case .completed: return .green
-    case .inProgress: return .blue
-    case .failed: return .red
-    case .notStarted: return .orange
-    }
-  }
-
-  var backgroundColor: Color {
-    switch status {
-    case .completed: return Color.green.opacity(0.1)
-    case .failed: return Color.red.opacity(0.1)
-    default: return Color(NSColor.controlBackgroundColor)
-    }
-  }
-
-  var borderColor: Color {
-    switch status {
-    case .completed: return Color.green.opacity(0.3)
-    case .failed: return Color.red.opacity(0.3)
-    case .notStarted: return Color.orange.opacity(0.3)
-    default: return Color.clear
-    }
-  }
+  // status text and colors removed to avoid duplicate, wordy indicators
 
   private func openSystemPreferences() {
     if permissionType == "Input Monitoring" {
@@ -131,25 +117,27 @@ struct PermissionCard: View {
       }
 
       // Small delay to ensure wizard closes before opening settings
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
         if let url = URL(
-          string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-        {
+          string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
           NSWorkspace.shared.open(url)
+        }
+
+        // Reveal kanata binary in Finder shortly after opening settings (always reveal kanata)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+          kanataManager.revealKanataInFinder()
         }
       }
     } else if permissionType == "Accessibility" {
       // For Accessibility, open settings immediately without closing wizard
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-      {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
         NSWorkspace.shared.open(url)
       }
     } else if permissionType == "Background Services" {
       // For Background Services, open both System Settings and Finder
       // First open System Settings
-      if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
-      {
+      if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
         NSWorkspace.shared.open(url)
       }
 

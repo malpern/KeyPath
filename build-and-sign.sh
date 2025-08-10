@@ -3,8 +3,8 @@ set -e
 
 # Configuration
 APP_NAME="KeyPath"
-BUNDLE_IDENTIFIER="com.keypath.app"
-TEAM_ID="${KEYPATH_SIGNING_TEAM_ID:-REPLACE_WITH_YOUR_TEAM_ID}"  # Replace with actual Team ID
+BUNDLE_IDENTIFIER="com.keypath.KeyPath"
+SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
 
 # Build the release version
 swift build -c release --product KeyPath
@@ -42,11 +42,12 @@ cat > /Applications/${APP_NAME}.app/Contents/Info.plist << EOF
 </plist>
 EOF
 
-# Sign the app bundle only if a valid team ID is provided
-if [[ "${TEAM_ID}" != *"REPLACE_WITH_YOUR_TEAM_ID"* ]]; then
-    codesign --force --deep --sign "${TEAM_ID}" /Applications/${APP_NAME}.app
-    echo "Signed and installed ${APP_NAME} to /Applications/${APP_NAME}.app"
-else
-    echo "Skipping signing. No valid Team ID provided."
-    echo "Installed unsigned ${APP_NAME} to /Applications/${APP_NAME}.app"
-fi
+# Sign the app bundle
+echo "Signing app bundle..."
+codesign --force --deep --sign "${SIGNING_IDENTITY}" /Applications/${APP_NAME}.app
+
+# Verify signature
+echo "Verifying signature..."
+codesign -dv /Applications/${APP_NAME}.app
+
+echo "Signed and installed ${APP_NAME} to /Applications/${APP_NAME}.app"

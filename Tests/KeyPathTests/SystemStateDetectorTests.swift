@@ -33,14 +33,14 @@ class SystemStateDetectorTests: XCTestCase {
 
     // State should be consistent with issues found
     switch result.state {
-    case .conflictsDetected(let conflicts):
+    case let .conflictsDetected(conflicts):
       XCTAssertFalse(conflicts.isEmpty, "If conflicts detected, should have actual conflicts")
       XCTAssertTrue(result.hasBlockingIssues, "Conflicts should be blocking")
 
-    case .missingPermissions(let missing):
+    case let .missingPermissions(missing):
       XCTAssertFalse(missing.isEmpty, "If permissions missing, should specify which ones")
 
-    case .missingComponents(let missing):
+    case let .missingComponents(missing):
       XCTAssertFalse(missing.isEmpty, "If components missing, should specify which ones")
 
     case .active:
@@ -62,22 +62,22 @@ class SystemStateDetectorTests: XCTestCase {
     // Then: Should handle real system processes correctly
     for conflict in result.conflicts {
       switch conflict {
-      case .kanataProcessRunning(let pid, let command):
+      case let .kanataProcessRunning(pid, command):
         XCTAssertGreaterThan(pid, 0, "PID should be valid")
         XCTAssertTrue(command.contains("kanata"), "Command should contain kanata")
         XCTAssertFalse(command.contains("pgrep"), "Should filter out pgrep itself")
         print("✅ Found kanata process: PID \(pid), command: \(command)")
 
-      case .karabinerGrabberRunning(let pid):
+      case let .karabinerGrabberRunning(pid):
         print("✅ Found Karabiner Elements grabber conflict: PID \(pid)")
 
-      case .exclusiveDeviceAccess(let device):
+      case let .exclusiveDeviceAccess(device):
         print("✅ Found exclusive device access conflict: \(device)")
 
-      case .karabinerVirtualHIDDeviceRunning(let pid, let processName):
+      case let .karabinerVirtualHIDDeviceRunning(pid, processName):
         print("✅ Found Karabiner VirtualHIDDevice conflict: PID \(pid), process: \(processName)")
 
-      case .karabinerVirtualHIDDaemonRunning(let pid):
+      case let .karabinerVirtualHIDDaemonRunning(pid):
         print("✅ Found Karabiner VirtualHID daemon conflict: PID \(pid)")
       }
     }
@@ -108,7 +108,7 @@ class SystemStateDetectorTests: XCTestCase {
     let allPermissions: Set<PermissionRequirement> = [
       .keyPathInputMonitoring, .kanataInputMonitoring,
       .keyPathAccessibility, .kanataAccessibility,
-      .driverExtensionEnabled, .backgroundServicesEnabled,
+      .driverExtensionEnabled, .backgroundServicesEnabled
     ]
     let checkedPermissions = grantedSet.union(missingSet)
     XCTAssertEqual(
@@ -127,7 +127,7 @@ class SystemStateDetectorTests: XCTestCase {
 
     // Then: Should reflect actual component installation
     let allComponents: Set<ComponentRequirement> = [
-      .kanataBinary, .karabinerDriver, .karabinerDaemon,
+      .kanataBinary, .karabinerDriver, .karabinerDaemon
     ]
 
     let installedSet = Set(result.installed)
@@ -160,12 +160,12 @@ class SystemStateDetectorTests: XCTestCase {
     for action in result.autoFixActions {
       switch action {
       case .terminateConflictingProcesses:
-        if case .conflictsDetected(let conflicts) = result.state {
+        if case let .conflictsDetected(conflicts) = result.state {
           XCTAssertFalse(conflicts.isEmpty, "Should only suggest termination if conflicts exist")
         }
 
       case .installMissingComponents:
-        if case .missingComponents(let missing) = result.state {
+        if case let .missingComponents(missing) = result.state {
           XCTAssertFalse(missing.isEmpty, "Should only suggest installation if components missing")
         }
 
@@ -189,6 +189,10 @@ class SystemStateDetectorTests: XCTestCase {
       case .installViaBrew:
         // Should be suggested when components can be installed via Homebrew
         break
+
+      case .repairVHIDDaemonServices:
+        // Should be suggested when VHID misconfiguration detected
+        break
       }
     }
 
@@ -202,17 +206,19 @@ class SystemStateDetectorTests: XCTestCase {
     let result = await detector.detectCurrentState()
     let navigationEngine = WizardNavigationEngine()
     let currentPage = navigationEngine.determineCurrentPage(
-      for: result.state, issues: result.issues)
+      for: result.state, issues: result.issues
+    )
 
     // Then: Page should match system state appropriately
     switch result.state {
     case .conflictsDetected:
       XCTAssertEqual(currentPage, WizardPage.conflicts, "Should navigate to conflicts page")
 
-    case .missingPermissions(let missing):
+    case let .missingPermissions(missing):
       if missing.contains(.keyPathInputMonitoring) || missing.contains(.kanataInputMonitoring) {
         XCTAssertEqual(
-          currentPage, WizardPage.inputMonitoring, "Should prioritize input monitoring")
+          currentPage, WizardPage.inputMonitoring, "Should prioritize input monitoring"
+        )
       } else {
         XCTAssertEqual(
           currentPage, WizardPage.accessibility, "Should show accessibility if only that missing"
@@ -296,12 +302,12 @@ class SystemStateDetectorTests: XCTestCase {
 
     // Then: Detection should be consistent with manager state
     switch result.state {
-    case .missingComponents(let missing):
+    case let .missingComponents(missing):
       if missing.contains(.kanataBinary) {
         XCTAssertFalse(isInstalled, "Should detect missing binary correctly")
       }
 
-    case .missingPermissions(let missing):
+    case let .missingPermissions(missing):
       if missing.contains(.keyPathInputMonitoring) {
         XCTAssertFalse(hasInputMonitoring, "Should detect missing input monitoring")
       }

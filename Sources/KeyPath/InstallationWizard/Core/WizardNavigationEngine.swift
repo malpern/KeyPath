@@ -3,6 +3,14 @@ import OSLog
 
 /// Handles wizard navigation logic based on system state
 class WizardNavigationEngine: WizardNavigating {
+  // Track if we've shown the FDA page
+  private var hasShownFullDiskAccessPage = false
+
+  /// Reset navigation state for a fresh wizard run
+  func resetNavigationState() {
+    hasShownFullDiskAccessPage = false
+  }
+
   // MARK: - Main Navigation Logic
 
   /// Primary navigation method - determines the current page based on system state and issues
@@ -15,58 +23,88 @@ class WizardNavigationEngine: WizardNavigating {
       AppLogger.shared.log("🔍 [NavigationEngine]   - \(issue.category): \(issue.title)")
     }
 
-    // 1. Conflicts (highest priority)
+    // 0. Full Disk Access (optional but helpful - show early if not checked)
+    // Show FDA page if we haven't shown it yet AND we're not in active state
+    if !hasShownFullDiskAccessPage && state != .active {
+      AppLogger.shared.log(
+        "🔍 [NavigationEngine] → .fullDiskAccess (first run - optional FDA check)")
+      hasShownFullDiskAccessPage = true
+      return .fullDiskAccess
+    }
+
+    // 1. Conflicts (highest priority after FDA)
     if issues.contains(where: { $0.category == .conflicts }) {
       AppLogger.shared.log("🔍 [NavigationEngine] → .conflicts (found conflicts)")
       return .conflicts
     }
 
-    // 2. Permissions (check specific types using structured identifiers) - BEFORE installation
-    // Check for either KeyPath or kanata Input Monitoring issues
-    let inputMonitoringIssue = issues.first(where: {
-      $0.identifier == .permission(.kanataInputMonitoring)
-        || $0.identifier == .permission(.keyPathInputMonitoring)
-    })
-    if let issue = inputMonitoringIssue {
-      AppLogger.shared.log(
-        "🔍 [NavigationEngine] → .inputMonitoring (found input monitoring issue: '\(issue.title)')")
+    // 2. Permission Issues - navigate to first missing permission
+    let inputMonitoringIssues = issues.contains { issue in
+      if case .permission(let permissionType) = issue.identifier {
+        return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
+      }
+      return false
+    }
+    let accessibilityIssues = issues.contains { issue in
+      if case .permission(let permissionType) = issue.identifier {
+        return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
+      }
+      return false
+    }
+    
+    if inputMonitoringIssues {
+      AppLogger.shared.log("🔍 [NavigationEngine] → .inputMonitoring (found Input Monitoring issues)")
       return .inputMonitoring
-    } else {
-      AppLogger.shared.log(
-        "🔍 [NavigationEngine] No input monitoring issues found - skipping input monitoring page")
-    }
-
-    // Check for either KeyPath or kanata Accessibility issues
-    let accessibilityIssue = issues.first(where: {
-      $0.identifier == .permission(.kanataAccessibility)
-        || $0.identifier == .permission(.keyPathAccessibility)
-    })
-    if let issue = accessibilityIssue {
-      AppLogger.shared.log(
-        "🔍 [NavigationEngine] → .accessibility (found accessibility issue: '\(issue.title)')")
+    } else if accessibilityIssues {
+      AppLogger.shared.log("🔍 [NavigationEngine] → .accessibility (found Accessibility issues)")
       return .accessibility
-    } else {
+    }
+
+    // 3. Karabiner Components - driver, VirtualHID, background services
+    let hasKarabinerIssues = issues.contains { issue in
+      // Installation issues related to Karabiner
+      if issue.category == .installation {
+        switch issue.identifier {
+        case .component(.karabinerDriver),
+          .component(.karabinerDaemon),
+          .component(.vhidDeviceManager),
+          .component(.vhidDeviceActivation),
+          .component(.vhidDeviceRunning),
+          .component(.launchDaemonServices),
+          .component(.vhidDaemonMisconfigured):
+          return true
+        default:
+          return false
+        }
+      }
+      // Daemon and background services issues
+      return issue.category == .daemon || issue.category == .backgroundServices
+    }
+
+    if hasKarabinerIssues {
       AppLogger.shared.log(
-        "🔍 [NavigationEngine] No accessibility issues found - skipping accessibility page")
+        "🔍 [NavigationEngine] → .karabinerComponents (found Karabiner-related issues)")
+      return .karabinerComponents
     }
 
-    // 3. Missing components - AFTER permissions
-    if issues.contains(where: { $0.category == .installation }) {
-      AppLogger.shared.log("🔍 [NavigationEngine] → .installation (found installation issues)")
-      return .installation
+    // 4. Kanata Components - binary and service
+    let hasKanataIssues = issues.contains { issue in
+      if issue.category == .installation {
+        switch issue.identifier {
+        case .component(.kanataBinary),
+          .component(.kanataService),
+          .component(.packageManager):
+          return true
+        default:
+          return false
+        }
+      }
+      return false
     }
 
-    // 4. Background services
-    if issues.contains(where: { $0.category == .backgroundServices }) {
-      AppLogger.shared.log(
-        "🔍 [NavigationEngine] → .backgroundServices (found background services issues)")
-      return .backgroundServices
-    }
-
-    // 5. Daemon issues
-    if issues.contains(where: { $0.category == .daemon }) {
-      AppLogger.shared.log("🔍 [NavigationEngine] → .daemon (found daemon issues)")
-      return .daemon
+    if hasKanataIssues {
+      AppLogger.shared.log("🔍 [NavigationEngine] → .kanataComponents (found Kanata-related issues)")
+      return .kanataComponents
     }
 
     // 6. Service state check (directly from WizardSystemState)
@@ -129,14 +167,14 @@ class WizardNavigationEngine: WizardNavigating {
   /// Returns the typical ordering of pages for a complete setup flow
   func getPageOrder() -> [WizardPage] {
     return [
+      .summary,  // Overview
+      .fullDiskAccess,  // Optional FDA for better diagnostics
       .conflicts,  // Must resolve conflicts first
-      .inputMonitoring,  // Permissions before installation
-      .accessibility,  // Second permission type
-      .backgroundServices,  // Background services setup
-      .installation,  // Install components after permissions
-      .daemon,  // Start daemon after installation
-      .service,  // Kanata service management
-      .summary,  // Final state
+      .inputMonitoring,  // Input Monitoring permission
+      .accessibility,  // Accessibility permission
+      .karabinerComponents,  // Karabiner driver and VirtualHID setup
+      .kanataComponents,  // Kanata binary and service setup
+      .service  // Start keyboard service
     ]
   }
 
@@ -151,16 +189,14 @@ class WizardNavigationEngine: WizardNavigating {
     switch page {
     case .conflicts:
       return true  // Cannot proceed with conflicts
-    case .installation:
+    case .karabinerComponents, .kanataComponents:
       return true  // Cannot use without components
     case .inputMonitoring, .accessibility:
       return false  // Can proceed but functionality limited
-    case .backgroundServices:
-      return false  // Can proceed but services won't auto-start
-    case .daemon:
-      return false  // Can auto-start
     case .service:
       return false  // Can manage service state
+    case .fullDiskAccess:
+      return false  // Optional, not blocking
     case .summary:
       return false  // Final state
     }
@@ -192,17 +228,17 @@ class WizardNavigationEngine: WizardNavigating {
     case .conflicts:
       return "Resolve Conflicts"
     case .inputMonitoring:
-      return "Open Settings"
-    case .accessibility:
-      return "Open Settings"
-    case .backgroundServices:
       return "Open System Settings"
-    case .installation:
-      return "Install Components"
-    case .daemon:
-      return "Start Daemon"
+    case .accessibility:
+      return "Open System Settings"
+    case .karabinerComponents:
+      return "Install Karabiner Components"
+    case .kanataComponents:
+      return "Install Kanata Components"
     case .service:
-      return "Manage Service"
+      return "Start Keyboard Service"
+    case .fullDiskAccess:
+      return "Grant Full Disk Access"
     case .summary:
       switch state {
       case .active:
@@ -225,23 +261,21 @@ class WizardNavigationEngine: WizardNavigating {
 
     switch page {
     case .conflicts:
-      if case .conflictsDetected(let conflicts) = state {
+      if case let .conflictsDetected(conflicts) = state {
         return !conflicts.isEmpty
       }
       return false
     case .inputMonitoring, .accessibility:
       return true  // Can always open settings
-    case .backgroundServices:
-      return true  // Can always open system settings
-    case .installation:
-      if case .missingComponents(let missing) = state {
+    case .karabinerComponents, .kanataComponents:
+      if case let .missingComponents(missing) = state {
         return !missing.isEmpty
       }
-      return false
-    case .daemon:
-      return state == .daemonNotRunning
+      return true  // Can always try to install components
     case .service:
       return true  // Can always manage service
+    case .fullDiskAccess:
+      return true  // Can always try to grant FDA
     case .summary:
       return true
     }

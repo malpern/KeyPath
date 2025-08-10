@@ -27,7 +27,7 @@ class SystemRequirements {
 
     var versionString: String {
       switch self {
-      case .legacy(let version), .modern(let version), .unknown(let version):
+      case let .legacy(version), let .modern(version), let .unknown(version):
         return version
       }
     }
@@ -141,17 +141,17 @@ class SystemRequirements {
 
     // Check macOS version compatibility
     switch macosVersion {
-    case .modern(let version):
+    case let .modern(version):
       AppLogger.shared.log("✅ [SystemRequirements] Modern macOS detected: \(version)")
       recommendations.append("Use Karabiner-Elements DriverKit version for optimal compatibility")
 
-    case .legacy(let version):
+    case let .legacy(version):
       AppLogger.shared.log("⚠️ [SystemRequirements] Legacy macOS detected: \(version)")
       issues.append("macOS 10.x detected - legacy kernel extension support required")
       recommendations.append("Consider upgrading to macOS 11 or later for better driver support")
       recommendations.append("Use Karabiner-Elements with kernel extension support")
 
-    case .unknown(let version):
+    case let .unknown(version):
       AppLogger.shared.log("❌ [SystemRequirements] Unknown macOS version: \(version)")
       issues.append("Unknown macOS version detected: \(version)")
       isCompatible = false
@@ -221,16 +221,16 @@ class SystemRequirements {
           "Download Karabiner-Elements from the official website",
           "Install Karabiner-Elements using the provided installer",
           "Enable the DriverKit extension in System Settings > Privacy & Security > Driver Extensions",
-          "Grant necessary permissions in System Settings > Privacy & Security",
+          "Grant necessary permissions in System Settings > Privacy & Security"
         ],
         requirements: [
           "macOS 11.0 or later",
           "Admin privileges for installation",
-          "System restart may be required",
+          "System restart may be required"
         ],
         notes: [
           "DriverKit provides better security and stability than kernel extensions",
-          "No kernel extension loading required",
+          "No kernel extension loading required"
         ]
       )
 
@@ -242,18 +242,18 @@ class SystemRequirements {
           "Install Karabiner-Elements using the provided installer",
           "Allow kernel extension loading in System Preferences > Security & Privacy",
           "Restart the system to load the kernel extension",
-          "Grant necessary permissions in System Preferences > Security & Privacy",
+          "Grant necessary permissions in System Preferences > Security & Privacy"
         ],
         requirements: [
           "macOS 10.x",
           "Admin privileges for installation",
           "System restart required",
-          "Kernel extension approval required",
+          "Kernel extension approval required"
         ],
         notes: [
           "Kernel extensions require explicit user approval",
           "System restart is mandatory for kernel extension loading",
-          "Consider upgrading to macOS 11+ for DriverKit support",
+          "Consider upgrading to macOS 11+ for DriverKit support"
         ]
       )
 
@@ -262,7 +262,7 @@ class SystemRequirements {
         driverType: driverType,
         steps: [
           "Verify macOS version compatibility",
-          "Contact support for installation guidance",
+          "Contact support for installation guidance"
         ],
         requirements: [
           "Supported macOS version"

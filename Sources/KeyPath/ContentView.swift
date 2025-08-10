@@ -60,14 +60,32 @@ struct ContentView: View {
     .padding()
     .frame(width: 500)
     .fixedSize(horizontal: false, vertical: true)
-    .sheet(isPresented: $showingInstallationWizard) {
+    .sheet(
+      isPresented: Binding(
+        get: {
+          let shouldShow = simpleKanataManager.showWizard
+          if shouldShow != showingInstallationWizard {
+            AppLogger.shared.log(
+              "🎭 [ContentView] Wizard state change: \(showingInstallationWizard) -> \(shouldShow)")
+          }
+          showingInstallationWizard = shouldShow
+          return shouldShow
+        },
+        set: { newValue in
+          AppLogger.shared.log("🎭 [ContentView] Sheet binding set to: \(newValue)")
+          showingInstallationWizard = newValue
+        }
+      )
+    ) {
       InstallationWizardView()
         .onAppear {
           AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
         }
         .onDisappear {
-          // When wizard closes, trigger immediate retry in SimpleKanataManager
-          AppLogger.shared.log("🔍 [ContentView] Installation wizard closed - triggering retry")
+          // When wizard closes, call SimpleKanataManager to handle the closure
+          AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
+          AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
+          AppLogger.shared.log("🎭 [ContentView] Calling simpleKanataManager.onWizardClosed()")
 
           Task {
             await simpleKanataManager.onWizardClosed()
@@ -537,7 +555,7 @@ struct RecordingSection: View {
       // Handle specific config errors
       if let configError = error as? ConfigError {
         switch configError {
-        case .corruptedConfigDetected(let errors):
+        case let .corruptedConfigDetected(errors):
           configCorruptionDetails = """
             Configuration corruption detected:
 
@@ -551,7 +569,7 @@ struct RecordingSection: View {
             showStatusMessage("⚠️ Config repaired automatically")
           }
 
-        case .claudeRepairFailed(let reason):
+        case let .claudeRepairFailed(reason):
           configCorruptionDetails = """
             Configuration repair failed:
 
@@ -565,9 +583,8 @@ struct RecordingSection: View {
             showStatusMessage("❌ Config repair failed - using safe fallback")
           }
 
-        case .repairFailedNeedsUserAction(
-          let
-            originalConfig, _, let originalErrors, let repairErrors, let mappings
+        case let .repairFailedNeedsUserAction(
+          originalConfig, _, originalErrors, repairErrors, mappings
         ):
           // Handle user action required case
           Task {
@@ -642,13 +659,30 @@ struct ErrorSection: View {
         Button("Fix Issues") {
           Task {
             AppLogger.shared.log(
-              "🔄 [UI] Fix Issues button clicked - attempting to restart Kanata service")
+              "🔄 [UI] Fix Issues button clicked - attempting to fix configuration and restart")
+
+            // Create a default user config if missing
+            let created = await kanataManager.createDefaultUserConfigIfMissing()
+
+            if created {
+              await MainActor.run {
+                kanataManager.lastError = nil
+              }
+              AppLogger.shared.log(
+                "✅ [UI] Created default config at ~/Library/Application Support/KeyPath/keypath.kbd"
+              )
+            } else {
+              // Still not fixed – open wizard to guide the user
+              showingInstallationWizard = true
+            }
+
+            // Try starting after config creation
             await kanataManager.startKanata()
             await kanataManager.updateStatus()
             AppLogger.shared.log(
               "🔄 [UI] Fix Issues completed - service status: \(kanataManager.isRunning)")
           }
-          showingInstallationWizard = true
+          // Only open wizard above if needed
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
@@ -778,8 +812,7 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return "xmark.circle.fill"
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up")
-    {
+      || message.contains("backed up") {
       return "exclamationmark.triangle.fill"
     } else {
       return "checkmark.circle.fill"
@@ -790,8 +823,7 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return .red
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up")
-    {
+      || message.contains("backed up") {
       return .orange
     } else {
       return .green
@@ -802,8 +834,7 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return Color.red.opacity(0.1)
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up")
-    {
+      || message.contains("backed up") {
       return Color.orange.opacity(0.1)
     } else {
       return Color.green.opacity(0.1)
@@ -814,8 +845,7 @@ struct StatusMessageView: View {
     if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
       return Color.red.opacity(0.3)
     } else if message.contains("⚠️") || message.contains("Config repaired")
-      || message.contains("backed up")
-    {
+      || message.contains("backed up") {
       return Color.orange.opacity(0.3)
     } else {
       return Color.green.opacity(0.3)

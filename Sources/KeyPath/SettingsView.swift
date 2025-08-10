@@ -211,6 +211,13 @@ struct SettingsView: View {
 
           Divider()
 
+          // Startup Settings (LaunchAgent)
+          SettingsSection(title: "Startup") {
+            LaunchAgentSettingsView()
+          }
+
+          Divider()
+
           // Issues section removed - diagnostics system provides better error reporting
         }
         .padding(.horizontal, 24)
@@ -497,8 +504,8 @@ struct SettingsButton: View {
   let systemImage: String
   var style: ButtonStyle = .standard
   var disabled: Bool = false
-  var accessibilityId: String? = nil
-  var accessibilityHint: String? = nil
+  var accessibilityId: String?
+  var accessibilityHint: String?
   let action: () -> Void
 
   enum ButtonStyle {

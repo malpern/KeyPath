@@ -74,6 +74,10 @@ enum WizardSystemPaths {
   static let accessibilitySettings =
     "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 
+  /// Full Disk Access settings URL (needed to read TCC.db for kanata detection)
+  static let fullDiskAccessSettings =
+    "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+
   /// Login Items settings URL (macOS 13+)
   static let loginItemsSettings =
     "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
@@ -86,7 +90,7 @@ enum WizardSystemPaths {
     if FileManager.default.fileExists(atPath: kanataStandardLocation) {
       return kanataStandardLocation
     }
-    
+
     // Check ARM homebrew location as fallback
     if FileManager.default.fileExists(atPath: kanataBinaryARM) {
       return kanataBinaryARM

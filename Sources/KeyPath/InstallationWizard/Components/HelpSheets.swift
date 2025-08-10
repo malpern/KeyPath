@@ -76,15 +76,15 @@ struct PermissionDetailsSheet: View {
         var report = "=== Permission Status Report ===\n\n"
         report += "KeyPath.app:\n"
         report +=
-          "• Input Monitoring: \(PermissionService.shared.hasInputMonitoringPermission() ? "✅ Granted" : "❌ Not Granted")\n"
+          "• Input Monitoring: ❌ Not Granted (check disabled to prevent auto-addition)\n"
         report +=
           "• Accessibility: \(PermissionService.shared.hasAccessibilityPermission() ? "✅ Granted" : "❌ Not Granted")\n"
         report += "• TCC Database: \(keyPathHas ? "✅ Found" : "❌ Not Found")\n\n"
 
         report += "kanata (/usr/local/bin/kanata):\n"
         report += "• Input Monitoring (TCC): \(kanataHas ? "✅ Granted" : "❌ Not Granted")\n"
-        report +=
-          "• Accessibility: \(PermissionService.shared.checkTCCForAccessibility(path: "/usr/local/bin/kanata") ? "✅ Granted" : "❌ Not Granted")\n\n"
+        // Accessibility check removed - now handled by attempt-based detection
+        report += "• Accessibility: Will verify on actual use\n\n"
 
         report += "=== TCC Database Details ===\n"
         report += details
@@ -154,6 +154,25 @@ struct InputMonitoringHelpSheet: View {
           .padding()
           .background(Color(NSColor.controlBackgroundColor))
           .cornerRadius(8)
+
+          if PermissionService.lastTCCAuthorizationDenied {
+            VStack(alignment: .leading, spacing: 8) {
+              HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                  .foregroundColor(.orange)
+                Text("To verify kanata’s permission, please grant Full Disk Access to KeyPath.")
+              }
+              Button("Open Full Disk Access Settings") {
+                if let url = URL(string: WizardSystemPaths.fullDiskAccessSettings) {
+                  NSWorkspace.shared.open(url)
+                }
+              }
+              .buttonStyle(.bordered)
+            }
+            .padding()
+            .background(Color.orange.opacity(0.08))
+            .cornerRadius(8)
+          }
 
           VStack(spacing: 12) {
             Button("Check Permission Status") {
@@ -370,8 +389,7 @@ struct BackgroundServicesHelpSheet: View {
             HStack(spacing: 12) {
               Button("Open System Settings") {
                 if let url = URL(
-                  string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
-                {
+                  string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
                   NSWorkspace.shared.open(url)
                 }
               }

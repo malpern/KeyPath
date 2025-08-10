@@ -6,7 +6,6 @@ import XCTest
 /// These tests ensure the wizard is triggered correctly and NOT triggered inappropriately
 @MainActor
 final class WizardTriggeringTests: XCTestCase {
-
   // MARK: - Wizard State Validation
 
   func testWizardStateConsistency() async {
@@ -20,9 +19,11 @@ final class WizardTriggeringTests: XCTestCase {
 
     // Both should start with consistent state
     XCTAssertEqual(
-      simpleManager1.currentState, .starting, "Manager 1 should start in starting state")
+      simpleManager1.currentState, .starting, "Manager 1 should start in starting state"
+    )
     XCTAssertEqual(
-      simpleManager2.currentState, .starting, "Manager 2 should start in starting state")
+      simpleManager2.currentState, .starting, "Manager 2 should start in starting state"
+    )
 
     XCTAssertFalse(simpleManager1.showWizard, "Manager 1 should not show wizard initially")
     XCTAssertFalse(simpleManager2.showWizard, "Manager 2 should not show wizard initially")
@@ -103,7 +104,8 @@ final class WizardTriggeringTests: XCTestCase {
 
     // These properties should always be accessible
     XCTAssertTrue(
-      errorReason == nil || !errorReason!.isEmpty, "Error reason should be nil or non-empty")
+      errorReason == nil || !errorReason!.isEmpty, "Error reason should be nil or non-empty"
+    )
     XCTAssertTrue(showWizard == true || showWizard == false, "ShowWizard should be boolean")
   }
 
@@ -218,7 +220,8 @@ final class WizardTriggeringTests: XCTestCase {
     XCTAssertTrue(retryCount >= 0, "Retry count should be non-negative")
     XCTAssertTrue(
       isRetryingAfterFix == true || isRetryingAfterFix == false,
-      "IsRetryingAfterFix should be boolean")
+      "IsRetryingAfterFix should be boolean"
+    )
 
     // lastHealthCheck can be nil initially
     if let healthCheck = lastHealthCheck {

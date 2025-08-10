@@ -78,12 +78,55 @@ class SimpleKanataManager: ObservableObject {
   /// Start the automatic Kanata launch sequence
   func startAutoLaunch() async {
     AppLogger.shared.log("🚀 [SimpleKanataManager] ========== AUTO-LAUNCH START ==========")
+
+    // Check if we've already shown the wizard before
+    let hasShownWizardBefore = UserDefaults.standard.bool(forKey: "KeyPath.HasShownWizard")
+    AppLogger.shared.log(
+      "🔍 [SimpleKanataManager] KeyPath.HasShownWizard flag: \(hasShownWizardBefore)")
+
+    if hasShownWizardBefore {
+      AppLogger.shared.log(
+        "ℹ️ [SimpleKanataManager] Wizard already shown before - skipping auto-wizard, attempting quiet start"
+      )
+      AppLogger.shared.log(
+        "🤫 [SimpleKanataManager] This means NO wizard will auto-show, only manual access via button"
+      )
+      // Try to start silently without showing wizard
+      await attemptQuietStart()
+    } else {
+      AppLogger.shared.log(
+        "🆕 [SimpleKanataManager] First launch detected - proceeding with normal auto-launch")
+      AppLogger.shared.log(
+        "🆕 [SimpleKanataManager] This means wizard MAY auto-show if system needs help")
+      currentState = .starting
+      errorReason = nil
+      showWizard = false
+      autoStartAttempts = 0
+      await attemptAutoStart()
+    }
+
+    AppLogger.shared.log("🚀 [SimpleKanataManager] ========== AUTO-LAUNCH COMPLETE ==========")
+  }
+
+  /// Attempt to start quietly without showing wizard (for subsequent app launches)
+  private func attemptQuietStart() async {
+    AppLogger.shared.log("🤫 [SimpleKanataManager] ========== QUIET START ATTEMPT ==========")
     currentState = .starting
     errorReason = nil
-    showWizard = false
+    showWizard = false  // Never show wizard on quiet starts
     autoStartAttempts = 0
 
+    // Try to start, but if it fails, just show error state without wizard
     await attemptAutoStart()
+
+    // If we ended up in needsHelp state, don't show wizard - just stay in error state
+    if currentState == .needsHelp {
+      AppLogger.shared.log(
+        "🤫 [SimpleKanataManager] Quiet start failed - staying in error state without wizard")
+      showWizard = false  // Explicitly ensure wizard doesn't show
+    }
+
+    AppLogger.shared.log("🤫 [SimpleKanataManager] ========== QUIET START COMPLETE ==========")
   }
 
   /// Manual start requested by user (from wizard)
@@ -232,10 +275,10 @@ class SimpleKanataManager: ObservableObject {
         await setNeedsHelp("Internal error: No Kanata manager available")
       case .processStartFailed:
         await handleStartFailure()
-      case .processStopFailed(let underlyingError):
+      case let .processStopFailed(underlyingError):
         await setNeedsHelp(
           "Failed to stop conflicting processes: \(underlyingError.localizedDescription)")
-      case .processTerminateFailed(let underlyingError):
+      case let .processTerminateFailed(underlyingError):
         await setNeedsHelp("Failed to resolve conflicts: \(underlyingError.localizedDescription)")
       }
     } else {
@@ -294,16 +337,44 @@ class SimpleKanataManager: ObservableObject {
 
     // Check if System Preferences is open before showing wizard
     let systemPrefsOpen = await isSystemPreferencesOpen()
-    showWizard = !systemPrefsOpen
+    AppLogger.shared.log("🔍 [SimpleKanataManager] System Preferences open: \(systemPrefsOpen)")
+
+    // Check if we've already shown the wizard before
+    let hasShownWizardBefore = UserDefaults.standard.bool(forKey: "KeyPath.HasShownWizard")
+    AppLogger.shared.log("🔍 [SimpleKanataManager] HasShownWizard flag: \(hasShownWizardBefore)")
+
+    // Decision logic
+    let shouldShowWizard = !systemPrefsOpen && !hasShownWizardBefore
+    AppLogger.shared.log(
+      "🔍 [SimpleKanataManager] Wizard decision: !systemPrefs(\(systemPrefsOpen)) && !hasShownBefore(\(hasShownWizardBefore)) = \(shouldShowWizard)"
+    )
+
+    // Only show wizard if: not in System Prefs AND haven't shown wizard before
+    showWizard = shouldShowWizard
     isRetryingAfterFix = false
 
     if systemPrefsOpen {
       AppLogger.shared.log(
-        "🔍 [SimpleKanataManager] Suppressing wizard - user is working on permissions")
+        "🔍 [SimpleKanataManager] WIZARD SUPPRESSED: User is working on permissions in System Preferences"
+      )
+    } else if hasShownWizardBefore {
+      AppLogger.shared.log(
+        "🔍 [SimpleKanataManager] WIZARD SUPPRESSED: Already shown before (one-time only policy)")
+    } else {
+      AppLogger.shared.log(
+        "🎭 [SimpleKanataManager] WIZARD WILL BE SHOWN: First time and not in System Preferences")
+    }
+
+    // Mark that we've shown the wizard (or would have shown it)
+    if showWizard {
+      UserDefaults.standard.set(true, forKey: "KeyPath.HasShownWizard")
+      AppLogger.shared.log(
+        "📝 [SimpleKanataManager] MARKED WIZARD AS SHOWN - future launches will suppress wizard")
     }
 
     AppLogger.shared.log(
-      "❌ [SimpleKanataManager] After - showWizard: \(showWizard), currentState: \(currentState)")
+      "❌ [SimpleKanataManager] Final state - showWizard: \(showWizard), currentState: \(currentState)"
+    )
 
     // Force UI update on main thread
     await MainActor.run {
@@ -325,39 +396,26 @@ class SimpleKanataManager: ObservableObject {
   /// Check if System Preferences or System Settings is currently open
   /// This helps avoid re-triggering the wizard while user is actively fixing permissions
   private func isSystemPreferencesOpen() async -> Bool {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-    task.arguments = ["-f", "(System Preferences\\.app|System Settings\\.app)"]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let output = String(data: data, encoding: .utf8) ?? ""
-      let isOpen = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-      if isOpen {
+    // Suppress only if System Settings is frontmost (not merely running in background)
+    return await MainActor.run {
+      let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+      let isFrontmostSettings = (frontmost == "com.apple.systempreferences")
+      if isFrontmostSettings {
         AppLogger.shared.log(
-          "🔍 [SimpleKanataManager] System Preferences/Settings is open - suppressing wizard")
+          "🔍 [SimpleKanataManager] System Settings is frontmost - suppressing wizard")
+      } else {
+        AppLogger.shared.log(
+          "🔍 [SimpleKanataManager] System Settings not frontmost - wizard may be shown")
       }
-
-      return isOpen
-    } catch {
-      AppLogger.shared.log("❌ [SimpleKanataManager] Error checking System Preferences: \(error)")
-      return false
+      return isFrontmostSettings
     }
   }
 
   private func findKanataExecutable() async -> String {
     let possiblePaths = [
+      "/usr/local/bin/kanata",  // canonical path for KeyPath
       "/opt/homebrew/bin/kanata",
-      "/usr/local/bin/kanata",
-      "/usr/bin/kanata",
+      "/usr/bin/kanata"
     ]
 
     for path in possiblePaths {
@@ -398,14 +456,12 @@ class SimpleKanataManager: ObservableObject {
 
   /// Start centralized status monitoring (replaces individual timers in views)
   private func startStatusMonitoring() {
+    // DISABLED: This timer was calling refreshStatus() every 10 seconds, which triggers
+    // invasive permission checks that cause KeyPath to auto-add to Input Monitoring
+    // User reported: "I STILL can't remove KeyPath from the Input Monitoring list"
+    
     AppLogger.shared.log(
-      "🔄 [SimpleKanataManager] Starting centralized status monitoring (every 10 seconds)")
-
-    statusTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
-      Task {
-        await self.refreshStatus()
-      }
-    }
+      "🔄 [SimpleKanataManager] Status monitoring timer DISABLED to prevent invasive permission checks")
   }
 
   private func stopStatusMonitoring() {
@@ -431,8 +487,7 @@ class SimpleKanataManager: ObservableObject {
         "📻 [SimpleKanataManager] Received KeyboardCapturePermissionNeeded notification")
 
       if let userInfo = notification.userInfo,
-        let reason = userInfo["reason"] as? String
-      {
+        let reason = userInfo["reason"] as? String {
         AppLogger.shared.log("📻 [SimpleKanataManager] Permission needed reason: \(reason)")
       }
 
@@ -446,13 +501,10 @@ class SimpleKanataManager: ObservableObject {
   // MARK: - Health Monitoring
 
   private func startHealthMonitoring() {
-    AppLogger.shared.log("💓 [SimpleKanataManager] Starting health monitoring")
-
-    healthTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { _ in
-      Task {
-        await self.performHealthCheck()
-      }
-    }
+    // DISABLED: This health check timer also calls updateStatus() via performHealthCheck()
+    // which triggers invasive permission checks that cause KeyPath to auto-add to Input Monitoring
+    
+    AppLogger.shared.log("💓 [SimpleKanataManager] Health monitoring timer DISABLED to prevent invasive permission checks")
   }
 
   private func stopHealthMonitoring() {
@@ -533,11 +585,12 @@ class SimpleKanataManager: ObservableObject {
   /// Called when wizard closes to trigger immediate retry
   func onWizardClosed() async {
     AppLogger.shared.log("🎩 [SimpleKanataManager] Wizard closed - checking if retry is needed")
+    AppLogger.shared.log("🎩 [SimpleKanataManager] Current state: \(currentState)")
 
-    if currentState == .needsHelp {
-      AppLogger.shared.log("🔄 [SimpleKanataManager] Triggering immediate retry after wizard close")
-      await retryAfterFix("Retrying after wizard changes...")
-    }
+    // Don't retry after wizard close - let user handle things manually
+    // The wizard was already shown once, let the user fix issues and manually start
+    AppLogger.shared.log(
+      "🎩 [SimpleKanataManager] Skipping retry - user closed wizard, let them handle manually")
   }
 
   /// Detect if permissions have changed since last check

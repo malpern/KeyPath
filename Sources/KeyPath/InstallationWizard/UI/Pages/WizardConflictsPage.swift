@@ -363,7 +363,7 @@ struct TechnicalDetailsView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       // Header section
-      Text("🔧 Process Details (NEW UI)")
+      Text("Process Details")
         .font(.headline)
         .fontWeight(.semibold)
         .foregroundColor(.primary)

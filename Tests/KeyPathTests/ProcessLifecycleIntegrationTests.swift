@@ -6,7 +6,6 @@ import XCTest
 /// These tests cover the self-detection prevention and real-world scenarios we solved
 @MainActor
 final class ProcessLifecycleIntegrationTests: XCTestCase {
-
   var processManager: ProcessLifecycleManager!
 
   override func setUp() async throws {
@@ -71,7 +70,7 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         "/usr/local/bin/kanata --cfg /Users/other/Documents/kanata.kbd",
         false,
         "User's custom config"
-      ),
+      )
     ]
 
     for (index, (command, shouldMatch, description)) in testCases.enumerated() {
@@ -114,7 +113,8 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
 
     XCTAssertTrue(conflicts.canAutoResolve, "KeyPath-owned processes should not create conflicts")
     XCTAssertEqual(
-      conflicts.externalProcesses.count, 0, "Should not detect own processes as conflicts")
+      conflicts.externalProcesses.count, 0, "Should not detect own processes as conflicts"
+    )
 
     // Step 3: Verify process is recognized as KeyPath-owned
     XCTAssertTrue(

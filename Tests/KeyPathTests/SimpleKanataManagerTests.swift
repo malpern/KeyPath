@@ -6,7 +6,6 @@ import XCTest
 /// These tests address the specific issues we solved: timer consolidation and wizard triggering
 @MainActor
 final class SimpleKanataManagerTests: XCTestCase {
-
   // MARK: - Public Interface Tests
 
   func testStateTransitions() async {
@@ -59,11 +58,14 @@ final class SimpleKanataManagerTests: XCTestCase {
     // Specific state behavior tests
     XCTAssertTrue(SimpleKanataManager.State.running.isWorking, "Running state should be working")
     XCTAssertFalse(
-      SimpleKanataManager.State.starting.isWorking, "Starting state should not be working")
+      SimpleKanataManager.State.starting.isWorking, "Starting state should not be working"
+    )
     XCTAssertTrue(
-      SimpleKanataManager.State.needsHelp.needsUserAction, "NeedsHelp should need user action")
+      SimpleKanataManager.State.needsHelp.needsUserAction, "NeedsHelp should need user action"
+    )
     XCTAssertFalse(
-      SimpleKanataManager.State.running.needsUserAction, "Running should not need user action")
+      SimpleKanataManager.State.running.needsUserAction, "Running should not need user action"
+    )
   }
 
   func testPublicPropertiesExist() {

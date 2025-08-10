@@ -13,6 +13,7 @@ struct WizardSystemStatusOverview: View {
         WizardStatusItem(
           icon: item.icon,
           title: item.title,
+          subtitle: item.subtitle,
           status: item.status,
           isNavigable: item.isNavigable,
           action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil
@@ -30,6 +31,7 @@ struct WizardSystemStatusOverview: View {
                 WizardStatusItem(
                   icon: subItem.icon,
                   title: subItem.title,
+                  subtitle: subItem.subtitle,
                   status: subItem.status,
                   isNavigable: subItem.isNavigable,
                   action: subItem.isNavigable ? { onNavigateToPage?(subItem.targetPage) } : nil
@@ -47,50 +49,84 @@ struct WizardSystemStatusOverview: View {
   private var statusItems: [StatusItemModel] {
     var items: [StatusItemModel] = []
 
-    // 1. Conflicts Check
+    // 1. Full Disk Access (Optional but recommended) 
+    let hasFullDiskAccess = checkFullDiskAccess()
+    items.append(
+      StatusItemModel(
+        id: "full-disk-access",
+        icon: "folder.badge.gearshape",
+        title: "Full Disk Access (Optional)",
+        status: hasFullDiskAccess ? .completed : .notStarted,
+        isNavigable: true,
+        targetPage: .fullDiskAccess
+      ))
+
+    // 2. System Conflicts
     let hasConflicts = issues.contains { $0.category == .conflicts }
     items.append(
       StatusItemModel(
         id: "conflicts",
         icon: "exclamationmark.triangle",
-        title: "No Conflicts",
+        title: "Resolve System Conflicts",
         status: hasConflicts ? .failed : .completed,
         isNavigable: true,
         targetPage: .conflicts
       ))
 
-    // 2. System Permissions (with expandable sub-items when failed)
-    let permissionStatus = getPermissionStatus()
-    let permissionSubItems = permissionStatus == .failed ? getPermissionSubItems() : []
+    // 3. Input Monitoring Permission
+    let inputMonitoringStatus = getInputMonitoringStatus()
     items.append(
       StatusItemModel(
-        id: "permissions",
-        icon: "lock.shield",
-        title: "System Permissions",
-        status: permissionStatus,
+        id: "input-monitoring",
+        icon: "eye",
+        title: "Input Monitoring Permission",
+        status: inputMonitoringStatus,
         isNavigable: true,
-        targetPage: getPermissionTargetPage(),
-        subItems: permissionSubItems
+        targetPage: .inputMonitoring
       ))
 
-    // 3. Binary Installation
-    let hasInstallationIssues = issues.contains { $0.category == .installation }
+    // 4. Accessibility Permission
+    let accessibilityStatus = getAccessibilityStatus()
     items.append(
       StatusItemModel(
-        id: "installation",
-        icon: "keyboard",
-        title: "Binary Installation",
-        status: hasInstallationIssues ? .failed : .completed,
+        id: "accessibility",
+        icon: "accessibility",
+        title: "Accessibility Permission",
+        status: accessibilityStatus,
         isNavigable: true,
-        targetPage: .installation
+        targetPage: .accessibility
       ))
 
-    // 4. System Service
+    // 5. Karabiner Driver Setup
+    let karabinerStatus = getKarabinerComponentsStatus()
+    items.append(
+      StatusItemModel(
+        id: "karabiner-components",
+        icon: "keyboard.macwindow",
+        title: "Karabiner Driver Setup",
+        status: karabinerStatus,
+        isNavigable: true,
+        targetPage: .karabinerComponents
+      ))
+
+    // 6. Kanata Engine Setup
+    let kanataComponentsStatus = getKanataComponentsStatus()
+    items.append(
+      StatusItemModel(
+        id: "kanata-components",
+        icon: "cpu.fill",
+        title: "Kanata Engine Setup",
+        status: kanataComponentsStatus,
+        isNavigable: true,
+        targetPage: .kanataComponents
+      ))
+
+    // 7. Start Keyboard Service
     items.append(
       StatusItemModel(
         id: "service",
-        icon: "play",
-        title: "Kanata Service",
+        icon: "play.fill",
+        title: "Start Keyboard Service",
         status: getServiceStatus(),
         isNavigable: true,
         targetPage: .service
@@ -101,81 +137,88 @@ struct WizardSystemStatusOverview: View {
 
   // MARK: - Status Helpers
 
-  private func getPermissionStatus() -> InstallationStatus {
-    let hasPermissionIssues = stateInterpreter.hasAnyPermissionIssues(in: issues)
-    let hasBackgroundServiceIssues = !stateInterpreter.areBackgroundServicesEnabled(in: issues)
-
-    return (hasPermissionIssues || hasBackgroundServiceIssues) ? .failed : .completed
-  }
-
-  private func getPermissionSubItems() -> [StatusItemModel] {
-    var subItems: [StatusItemModel] = []
-
-    // Input Monitoring
-    let inputStatus = getInputMonitoringStatus()
-    if inputStatus == .failed {
-      subItems.append(
-        StatusItemModel(
-          id: "input-monitoring",
-          icon: "eye",
-          title: "Input Monitoring",
-          status: inputStatus,
-          isNavigable: true,
-          targetPage: .inputMonitoring
-        ))
+  private func checkFullDiskAccess() -> Bool {
+    // Use the same non-invasive check as WizardFullDiskAccessPage to maintain consistency
+    // This prevents automatic addition to System Preferences while giving accurate status
+    
+    let testPath = "\(NSHomeDirectory())/Library/Preferences/com.apple.finder.plist"
+    
+    if FileManager.default.isReadableFile(atPath: testPath) {
+      // Try a very light read operation
+      if let data = try? Data(contentsOf: URL(fileURLWithPath: testPath), options: .mappedIfSafe) {
+        if data.count > 0 {
+          AppLogger.shared.log("🔐 [WizardSystemStatusOverview] FDA detected via non-invasive check")
+          return true
+        }
+      }
     }
-
-    // Accessibility
-    let accessibilityStatus = getAccessibilityStatus()
-    if accessibilityStatus == .failed {
-      subItems.append(
-        StatusItemModel(
-          id: "accessibility",
-          icon: "accessibility",
-          title: "Accessibility",
-          status: accessibilityStatus,
-          isNavigable: true,
-          targetPage: .accessibility
-        ))
-    }
-
-    // Background Services
-    if !stateInterpreter.areBackgroundServicesEnabled(in: issues) {
-      subItems.append(
-        StatusItemModel(
-          id: "background-services",
-          icon: "gear.badge",
-          title: "Background Services",
-          status: .failed,
-          isNavigable: true,
-          targetPage: .backgroundServices
-        ))
-    }
-
-    return subItems
+    
+    AppLogger.shared.log("🔐 [WizardSystemStatusOverview] FDA not detected (non-invasive check)")
+    return false
   }
 
   private func getInputMonitoringStatus() -> InstallationStatus {
-    let keyPathStatus = stateInterpreter.getPermissionStatus(.keyPathInputMonitoring, in: issues)
-    let kanataStatus = stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues)
-    return (keyPathStatus == .failed || kanataStatus == .failed) ? .failed : .completed
+    let hasInputMonitoringIssues = issues.contains { issue in
+      if case .permission(let permissionType) = issue.identifier {
+        return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
+      }
+      return false
+    }
+    return hasInputMonitoringIssues ? .failed : .completed
   }
 
   private func getAccessibilityStatus() -> InstallationStatus {
-    let keyPathStatus = stateInterpreter.getPermissionStatus(.keyPathAccessibility, in: issues)
-    let kanataStatus = stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues)
-    return (keyPathStatus == .failed || kanataStatus == .failed) ? .failed : .completed
+    let hasAccessibilityIssues = issues.contains { issue in
+      if case .permission(let permissionType) = issue.identifier {
+        return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
+      }
+      return false
+    }
+    return hasAccessibilityIssues ? .failed : .completed
   }
 
-  private func getPermissionTargetPage() -> WizardPage {
-    if getInputMonitoringStatus() == .failed {
-      return .inputMonitoring
-    } else if getAccessibilityStatus() == .failed {
-      return .accessibility
-    } else if !stateInterpreter.areBackgroundServicesEnabled(in: issues) {
-      return .backgroundServices
+  private func getKarabinerComponentsStatus() -> InstallationStatus {
+    // Check for Karabiner-related issues
+    let hasKarabinerIssues = issues.contains { issue in
+      // Installation issues related to Karabiner
+      if issue.category == .installation {
+        switch issue.identifier {
+        case .component(.karabinerDriver),
+          .component(.karabinerDaemon),
+          .component(.vhidDeviceManager),
+          .component(.vhidDeviceActivation),
+          .component(.vhidDeviceRunning),
+          .component(.launchDaemonServices),
+          .component(.vhidDaemonMisconfigured):
+          return true
+        default:
+          return false
+        }
+      }
+      // Include daemon and background services issues
+      return issue.category == .daemon || issue.category == .backgroundServices
     }
-    return .inputMonitoring
+
+    return hasKarabinerIssues ? .failed : .completed
+  }
+
+  private func getKanataComponentsStatus() -> InstallationStatus {
+    // Check for Kanata-related issues
+    let hasKanataIssues = issues.contains { issue in
+      if issue.category == .installation {
+        switch issue.identifier {
+        case .component(.kanataBinary),
+          .component(.kanataService),
+          .component(.packageManager):
+          return true
+        default:
+          return false
+        }
+      }
+      return false
+    }
+
+    return hasKanataIssues ? .failed : .completed
   }
 
   private func getServiceStatus() -> InstallationStatus {
@@ -190,6 +233,7 @@ struct WizardSystemStatusOverview: View {
       return .notStarted
     }
   }
+
 }
 
 // MARK: - Status Item Model
@@ -198,6 +242,7 @@ private struct StatusItemModel {
   let id: String
   let icon: String
   let title: String
+  let subtitle: String?
   let status: InstallationStatus
   let isNavigable: Bool
   let targetPage: WizardPage
@@ -207,6 +252,7 @@ private struct StatusItemModel {
     id: String,
     icon: String,
     title: String,
+    subtitle: String? = nil,
     status: InstallationStatus,
     isNavigable: Bool = false,
     targetPage: WizardPage = .summary,
@@ -215,6 +261,7 @@ private struct StatusItemModel {
     self.id = id
     self.icon = icon
     self.title = title
+    self.subtitle = subtitle
     self.status = status
     self.isNavigable = isNavigable
     self.targetPage = targetPage

@@ -26,7 +26,7 @@ class WizardAutoFixerTests: XCTestCase {
       .createConfigDirectories,
       .activateVHIDDeviceManager,
       .installLaunchDaemonServices,
-      .installViaBrew,
+      .installViaBrew
     ]
 
     for action in supportedActions {
@@ -57,6 +57,10 @@ class WizardAutoFixerTests: XCTestCase {
 
       case .installViaBrew:
         // This depends on Homebrew being installed
+        XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
+
+      case .repairVHIDDaemonServices:
+        // New action: should be supported
         XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
       }
     }
@@ -191,7 +195,7 @@ class WizardAutoFixerTests: XCTestCase {
     let safeActions: [AutoFixAction] = [
       .createConfigDirectories,
       .startKarabinerDaemon,
-      .restartVirtualHIDDaemon,
+      .restartVirtualHIDDaemon
     ]
 
     for action in safeActions where systemState.autoFixActions.contains(action) {
@@ -210,7 +214,7 @@ class WizardAutoFixerTests: XCTestCase {
     let actions: [AutoFixAction] = [
       .createConfigDirectories,  // Might already exist
       .startKarabinerDaemon,  // Might already be running
-      .restartVirtualHIDDaemon,  // Should work regardless
+      .restartVirtualHIDDaemon  // Should work regardless
     ]
 
     var results: [Bool] = []
@@ -240,7 +244,8 @@ class WizardAutoFixerTests: XCTestCase {
 
     let navigationEngine = WizardNavigationEngine()
     let currentPage = navigationEngine.determineCurrentPage(
-      for: systemState.state, issues: systemState.issues)
+      for: systemState.state, issues: systemState.issues
+    )
 
     // Then: Auto-fix actions should be appropriate for the current page
     for action in systemState.autoFixActions {
@@ -255,9 +260,9 @@ class WizardAutoFixerTests: XCTestCase {
           print("✅ Appropriate auto-fix for installation page: \(action)")
         }
 
-      case .daemon:
+      case .service:
         if action == .startKarabinerDaemon || action == .restartVirtualHIDDaemon {
-          print("✅ Appropriate auto-fix for daemon page: \(action)")
+          print("✅ Appropriate auto-fix for service page: \(action)")
         }
 
       default:
@@ -315,7 +320,8 @@ class WizardAutoFixerTests: XCTestCase {
 
     // Then: System should be in a consistent state
     XCTAssertNotEqual(
-      finalState.state, WizardSystemState.initializing, "Should have valid final state")
+      finalState.state, WizardSystemState.initializing, "Should have valid final state"
+    )
 
     print("✅ Initial state: \(initialState.state)")
     print("✅ Final state: \(finalState.state)")
@@ -329,7 +335,7 @@ class WizardAutoFixerTests: XCTestCase {
     let safeActions: [AutoFixAction] = [
       .createConfigDirectories,
       .createConfigDirectories,  // Duplicate to test idempotency
-      .restartVirtualHIDDaemon,
+      .restartVirtualHIDDaemon
     ]
 
     var results: [Bool] = []

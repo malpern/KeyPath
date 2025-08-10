@@ -33,8 +33,7 @@ class AppLogger {
     }
   }
 
-  func log(_ message: String, file: String = #file, function: String = #function, line: Int = #line)
-  {
+  func log(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
     let timestamp = dateFormatter.string(from: Date())
     let fileName = (file as NSString).lastPathComponent
 

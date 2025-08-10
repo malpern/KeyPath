@@ -9,9 +9,9 @@ class WizardNavigationCoordinator: ObservableObject {
   @Published var currentPage: WizardPage = .summary
   @Published var userInteractionMode = false
 
-  // MARK: - Private Properties
+  // MARK: - Properties
 
-  private let navigationEngine = WizardNavigationEngine()
+  let navigationEngine = WizardNavigationEngine()
   private var lastPageChangeTime = Date()
   private let autoNavigationGracePeriod: TimeInterval = 10.0
 

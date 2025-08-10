@@ -8,15 +8,18 @@ KeyPath is a macOS application that provides keyboard remapping using Kanata as 
 
 ## Architecture
 
-### Components
+### Core Components
 - **KeyPath.app**: SwiftUI application for recording keypaths and managing configuration
 - **LaunchDaemon**: System service (`com.keypath.kanata`) that runs Kanata
-- **File-based config**: Updates via `/usr/local/etc/kanata/keypath.kbd`
+- **Configuration**: User config at `~/Library/Application Support/KeyPath/keypath.kbd`
+- **System Integration**: Uses CGEvent taps for key capture and launchctl for service management
 
-### Critical Files
-- `Sources/KeyPath/KanataManager.swift`: Service management via launchctl
-- `Sources/KeyPath/KeyboardCapture.swift`: CGEvent-based key recording
-- `Sources/KeyPath/InstallationWizardView.swift`: Multi-step installation flow
+### Key Manager Classes
+- `KanataManager`: Central service coordinator, manages daemon lifecycle and configuration
+- `KeyboardCapture`: Handles CGEvent-based keyboard input recording
+- `InstallationWizard/`: Multi-step setup flow with auto-fix capabilities
+- `ProcessLifecycleManager`: Manages Kanata process state and recovery
+- `PermissionService`: Handles accessibility and input monitoring permissions
 
 ## Build Commands
 
@@ -37,20 +40,23 @@ swift build -c release
 ## Test Commands
 
 ```bash
+# Run a single test
+swift test --filter TestClassName.testMethodName
+
+# Unit tests only
+swift test
+
 # Automated tests (with passwordless sudo setup)
 ./run-tests-automated.sh
 
 # All tests (manual password entry)
 ./run-tests.sh
 
-# Unit tests only
-swift test
-
-# Integration tests
-./test-kanata-system.sh
-./test-hot-reload.sh
-./test-service-status.sh
-./test-installer.sh
+# Individual integration tests
+./test-kanata-system.sh   # Tests Kanata service operations
+./test-hot-reload.sh      # Tests config hot-reload functionality
+./test-service-status.sh  # Tests service status detection
+./test-installer.sh       # Tests installation wizard
 ```
 
 ### Automated Testing Setup
@@ -91,14 +97,26 @@ swift test
 ./Scripts/run-with-password.exp "your-password" sudo /usr/bin/pkill -f kanata
 ```
 
-## System Installation
+## Installation & Deployment
 
+### Install to /Applications
 ```bash
-# Install LaunchDaemon service
-sudo ./install-system.sh
+# Build and copy to Applications
+./Scripts/build.sh
+cp -r build/KeyPath.app /Applications/
+
+# Or for signed/notarized build
+./Scripts/build-and-sign.sh
+cp -r dist/KeyPath.app /Applications/
+```
+
+### System Service Installation
+```bash
+# Note: install-system.sh doesn't exist - service is managed by the app
+# The app handles LaunchDaemon installation via InstallationWizard
 
 # Uninstall everything
-sudo ./uninstall.sh
+sudo ./Scripts/uninstall.sh
 ```
 
 ## Service Management
@@ -168,11 +186,25 @@ Production builds require:
 ## Deployment Instructions
 
 When asked to deploy or prepare for deployment:
-1. Run code formatting and linting
-2. Build the release version
-3. **SKIP TESTS** unless explicitly requested (e.g., "run tests", "test before deploying")
-4. Create the app bundle
-5. Sign and notarize (if applicable)
-6. Install to /Applications
+1. Format code with Swift formatter (if SwiftFormat is available)
+2. Fix linting issues with SwiftLint (if available): `swiftlint --fix --quiet`
+3. Build the release version: `swift build -c release`
+4. **SKIP TESTS** unless explicitly requested (e.g., "run tests", "test before deploying")
+5. Create app bundle: `./Scripts/build.sh`
+6. Sign and notarize (if signing identity available): `./Scripts/build-and-sign.sh`
+7. Install to /Applications: `cp -r build/KeyPath.app /Applications/`
 
 This speeds up deployment by avoiding the test suite which can be time-consuming.
+
+## Code Quality Commands
+
+```bash
+# Format Swift code (if SwiftFormat installed)
+swiftformat Sources/ Tests/ --swiftversion 5.9
+
+# Lint and auto-fix (if SwiftLint installed)
+swiftlint --fix --quiet
+
+# Check for issues without fixing
+swiftlint
+```

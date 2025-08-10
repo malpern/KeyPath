@@ -19,6 +19,56 @@ class WizardAutoFixer: AutoFixCapable {
     self.packageManager = packageManager
   }
 
+  // MARK: - Error Analysis
+
+  /// Analyze a kanata startup error and provide guidance
+  func analyzeStartupError(_ error: String) -> (issue: WizardIssue?, canAutoFix: Bool) {
+    let analysis = PermissionService.analyzeKanataError(error)
+
+    if analysis.isPermissionError {
+      let issue = WizardIssue(
+        identifier: .permission(.kanataInputMonitoring),
+        severity: .error,
+        category: .permissions,
+        title: "Permission Required",
+        description: analysis.suggestedFix ?? "Grant permissions to kanata in System Settings",
+        autoFixAction: nil,
+        userAction: analysis.suggestedFix
+      )
+      return (issue, false)  // Permissions can't be auto-fixed
+    }
+
+    // Check for conflict errors
+    if error.lowercased().contains("address already in use") {
+      let issue = WizardIssue(
+        identifier: .conflict(.kanataProcessRunning(pid: 0, command: "unknown")),
+        severity: .error,
+        category: .conflicts,
+        title: "Process Conflict",
+        description: "Another kanata process is already running",
+        autoFixAction: .terminateConflictingProcesses,
+        userAction: "Stop the conflicting process"
+      )
+      return (issue, true)  // Conflicts can be auto-fixed
+    }
+
+    // Check for VirtualHID errors
+    if error.lowercased().contains("device not configured") {
+      let issue = WizardIssue(
+        identifier: .component(.vhidDeviceRunning),
+        severity: .error,
+        category: .permissions,
+        title: "VirtualHID Issue",
+        description: "Karabiner VirtualHID driver needs to be restarted",
+        autoFixAction: .startKarabinerDaemon,
+        userAction: "Restart the Karabiner daemon"
+      )
+      return (issue, true)  // Can auto-fix
+    }
+
+    return (nil, false)
+  }
+
   // MARK: - AutoFixCapable Protocol
 
   func canAutoFix(_ action: AutoFixAction) -> Bool {
@@ -39,6 +89,8 @@ class WizardAutoFixer: AutoFixCapable {
       return true  // We can attempt to install LaunchDaemon services
     case .installViaBrew:
       return packageManager.checkHomebrewInstallation()  // Only if Homebrew is available
+    case .repairVHIDDaemonServices:
+      return true
     }
   }
 
@@ -62,42 +114,137 @@ class WizardAutoFixer: AutoFixCapable {
       return await installLaunchDaemonServices()
     case .installViaBrew:
       return await installViaBrew()
+    case .repairVHIDDaemonServices:
+      return await repairVHIDDaemonServices()
     }
+  }
+
+  // MARK: - Reset Everything (Nuclear Option)
+
+  /// Reset everything - kill all processes, clean up PID files, clear caches
+  func resetEverything() async -> Bool {
+    AppLogger.shared.log("💣 [AutoFixer] RESET EVERYTHING - Nuclear option activated")
+
+    // 1. Kill ALL kanata processes (owned or not)
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+    task.arguments = ["/usr/bin/pkill", "-9", "-f", "kanata"]
+
+    do {
+      try task.run()
+      task.waitUntilExit()
+      AppLogger.shared.log("💥 [AutoFixer] Killed all kanata processes")
+    } catch {
+      AppLogger.shared.log("⚠️ [AutoFixer] Failed to kill processes: \(error)")
+    }
+
+    // 2. Remove PID file
+    try? PIDFileManager.removePID()
+    AppLogger.shared.log("🗑️ [AutoFixer] Removed PID file")
+
+    // 3. Clear permission cache
+    PermissionService.shared.clearCache()
+    AppLogger.shared.log("🗳️ [AutoFixer] Cleared permission cache")
+
+    // 4. Reset kanata manager state
+    await kanataManager.stopKanata()
+    kanataManager.lastError = nil
+    kanataManager.diagnostics.removeAll()
+    AppLogger.shared.log("🔄 [AutoFixer] Reset KanataManager state")
+
+    // 5. Wait for system to settle
+    try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+
+    AppLogger.shared.log("✅ [AutoFixer] Reset complete - system should be in clean state")
+    return true
   }
 
   // MARK: - Individual Auto-Fix Actions
 
   private func terminateConflictingProcesses() async -> Bool {
-    AppLogger.shared.log("🔧 [AutoFixer] Terminating conflicting processes")
+    AppLogger.shared.log("🔧 [AutoFixer] Terminating conflicting kanata processes")
 
-    // First try temporary fix (just killing processes)
-    let temporarySuccess = await kanataManager.killKarabinerGrabber()
+    // Use ProcessLifecycleManager to find external kanata processes
+    let processManager = await ProcessLifecycleManager(kanataManager: kanataManager)
+    let conflicts = await processManager.detectConflicts()
 
-    if temporarySuccess {
-      AppLogger.shared.log(
-        "✅ [AutoFixer] Successfully terminated conflicting processes (temporary)")
-
-      // Wait for processes to fully terminate
-      try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
-
-      // Check if Karabiner Elements is installed and offer permanent disable
-      if await isKarabinerElementsInstalled() {
-        let permanentSuccess = await kanataManager.disableKarabinerElementsPermanently()
-        if permanentSuccess {
-          AppLogger.shared.log(
-            "✅ [AutoFixer] Successfully disabled Karabiner Elements permanently - effective immediately"
-          )
-          AppLogger.shared.log("ℹ️ [AutoFixer] No restart required - conflicts resolved permanently")
-        } else {
-          AppLogger.shared.log(
-            "⚠️ [AutoFixer] Temporary fix applied, but permanent disable was declined or failed")
-        }
-      }
-
+    if conflicts.externalProcesses.isEmpty {
+      AppLogger.shared.log("✅ [AutoFixer] No external kanata processes to terminate")
       return true
+    }
+
+    // Kill each external process by PID (best-effort)
+    var allTerminated = true
+    for proc in conflicts.externalProcesses {
+      let ok = await killProcessByPID(proc.pid)
+      allTerminated = allTerminated && ok
+    }
+
+    // Give the system a moment to settle, then re-check
+    try? await Task.sleep(nanoseconds: 800_000_000)
+    let after = await processManager.detectConflicts()
+    let remaining = after.externalProcesses.count
+
+    if remaining == 0 {
+      AppLogger.shared.log("✅ [AutoFixer] Conflicting kanata processes terminated")
+      return true
+    }
+
+    AppLogger.shared.log(
+      "⚠️ [AutoFixer] Still seeing \(remaining) external kanata process(es) after termination attempt"
+    )
+    return false
+  }
+
+  /// Try to kill a process by PID with a non-privileged signal; fallback to admin if needed
+  private func killProcessByPID(_ pid: pid_t) async -> Bool {
+    AppLogger.shared.log("🔧 [AutoFixer] Killing process PID=\(pid)")
+
+    // First try without sudo
+    if runCommand("/bin/kill", ["-TERM", String(pid)]) == 0 {
+      AppLogger.shared.log("✅ [AutoFixer] Sent SIGTERM to PID=\(pid)")
     } else {
-      AppLogger.shared.log("❌ [AutoFixer] Failed to terminate conflicting processes")
-      return false
+      // Fallback with admin privileges via osascript
+      let script =
+        "do shell script \"/bin/kill -TERM \(pid)\" with administrator privileges with prompt \"KeyPath needs to stop a conflicting Kanata process.\""
+      if runCommand("/usr/bin/osascript", ["-e", script]) == 0 {
+        AppLogger.shared.log("✅ [AutoFixer] Sent SIGTERM (admin) to PID=\(pid)")
+      } else {
+        AppLogger.shared.log("❌ [AutoFixer] Failed to signal PID=\(pid)")
+        return false
+      }
+    }
+
+    // Wait a bit and verify it exited
+    try? await Task.sleep(nanoseconds: 500_000_000)
+    let verify = runCommand("/bin/kill", ["-0", String(pid)])
+    if verify != 0 {
+      AppLogger.shared.log("✅ [AutoFixer] PID=\(pid) no longer running")
+      return true
+    }
+
+    // Force kill
+    _ = runCommand("/bin/kill", ["-9", String(pid)])
+    try? await Task.sleep(nanoseconds: 300_000_000)
+    let still = runCommand("/bin/kill", ["-0", String(pid)])
+    let success = still != 0
+    AppLogger.shared.log(
+      success
+        ? "✅ [AutoFixer] Force killed PID=\(pid)"
+        : "❌ [AutoFixer] PID=\(pid) still running after SIGKILL")
+    return success
+  }
+
+  private func runCommand(_ path: String, _ args: [String]) -> Int32 {
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: path)
+    task.arguments = args
+    do {
+      try task.run()
+      task.waitUntilExit()
+      return task.terminationStatus
+    } catch {
+      return -1
     }
   }
 
@@ -127,10 +274,13 @@ class WizardAutoFixer: AutoFixCapable {
     // Step 1: Try to clear Kanata log to reset connection health detection
     await clearKanataLog()
 
-    // Step 2: Use proven working approach - daemon restart
-    // (Skipping problematic forceActivate command that causes hangs/crashes)
-    AppLogger.shared.log("🔧 [AutoFixer] Using enhanced daemon restart approach")
-    let restartSuccess = await legacyRestartVirtualHIDDaemon()
+    // Step 2: Prefer DriverKit daemon start; fall back to legacy restart if needed
+    AppLogger.shared.log("🔧 [AutoFixer] Attempting DriverKit daemon start")
+    var restartSuccess = await startKarabinerDaemon()
+    if !restartSuccess {
+      AppLogger.shared.log("⚠️ [AutoFixer] DriverKit start failed, using legacy restart")
+      restartSuccess = await legacyRestartVirtualHIDDaemon()
+    }
 
     if restartSuccess {
       AppLogger.shared.log("✅ [AutoFixer] Successfully fixed VirtualHID connection health")
@@ -139,6 +289,17 @@ class WizardAutoFixer: AutoFixCapable {
       AppLogger.shared.log("❌ [AutoFixer] VirtualHID daemon restart failed")
       return false
     }
+  }
+
+  private func repairVHIDDaemonServices() async -> Bool {
+    AppLogger.shared.log("🔧 [AutoFixer] Repairing VHID LaunchDaemon services")
+    let success = await launchDaemonInstaller.repairVHIDDaemonServices()
+    if success {
+      AppLogger.shared.log("✅ [AutoFixer] Repaired VHID LaunchDaemon services")
+    } else {
+      AppLogger.shared.log("❌ [AutoFixer] Failed to repair VHID LaunchDaemon services")
+    }
+    return success
   }
 
   /// Clear Kanata log file to reset connection health detection
@@ -389,74 +550,111 @@ class WizardAutoFixer: AutoFixCapable {
 
   private func installLaunchDaemonServices() async -> Bool {
     AppLogger.shared.log("🔧 [AutoFixer] Installing LaunchDaemon services")
+    
+    var stepsCompleted = 0
+    let totalSteps = 3
 
-    // Install all LaunchDaemon services with a single admin prompt
+    // Step 1: Install service files
+    AppLogger.shared.log("🔧 [AutoFixer] Step 1/\(totalSteps): Installing service configuration files...")
     let installSuccess = launchDaemonInstaller.createAllLaunchDaemonServices()
 
     if installSuccess {
-      AppLogger.shared.log("✅ [AutoFixer] Successfully installed LaunchDaemon services")
+      AppLogger.shared.log("✅ [AutoFixer] Step 1 SUCCESS: LaunchDaemon service files installed")
+      stepsCompleted += 1
 
-      // Load the services
+      // Step 2: Create system config file (needed by LaunchDaemon)
+      AppLogger.shared.log("🔧 [AutoFixer] Step 2/\(totalSteps): Creating system config file...")
+      let configSuccess = await kanataManager.performTransparentInstallation()
+      
+      if configSuccess {
+        AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: System config file created")
+        stepsCompleted += 1
+      } else {
+        AppLogger.shared.log("❌ [AutoFixer] Step 2 FAILED: Failed to create system config file")
+      }
+
+      // Step 3: Load the services
+      AppLogger.shared.log("🔧 [AutoFixer] Step 3/\(totalSteps): Loading services into launchctl...")
       let loadSuccess = await launchDaemonInstaller.loadServices()
 
       if loadSuccess {
-        AppLogger.shared.log("✅ [AutoFixer] Successfully loaded LaunchDaemon services")
-        return true
+        AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: LaunchDaemon services loaded")
+        stepsCompleted += 1
       } else {
-        AppLogger.shared.log("❌ [AutoFixer] Failed to load LaunchDaemon services")
-        return false
+        AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Failed to load LaunchDaemon services")
       }
+
+      let success = stepsCompleted >= 2 // Require at least service files + either config or loading
+      if success {
+        AppLogger.shared.log("✅ [AutoFixer] LaunchDaemon installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)")
+      } else {
+        AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed (\(stepsCompleted)/\(totalSteps) steps completed)")
+      }
+      return success
     } else {
-      AppLogger.shared.log("❌ [AutoFixer] Failed to install LaunchDaemon services")
+      AppLogger.shared.log("❌ [AutoFixer] Step 1 FAILED: Failed to install LaunchDaemon service files")
+      AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed (0/\(totalSteps) steps completed)")
       return false
     }
   }
 
   private func installViaBrew() async -> Bool {
     AppLogger.shared.log("🔧 [AutoFixer] Installing packages via Homebrew")
+    
+    var stepsCompleted = 0
+    var stepsFailed = 0
+    let totalSteps = 3
 
-    // First, check if Homebrew is available
+    // Step 1: Check if Homebrew is available
+    AppLogger.shared.log("🔧 [AutoFixer] Step 1/\(totalSteps): Checking Homebrew availability...")
     guard packageManager.checkHomebrewInstallation() else {
-      AppLogger.shared.log("❌ [AutoFixer] Homebrew not available for package installation")
+      AppLogger.shared.log("❌ [AutoFixer] Step 1 FAILED: Homebrew not available for package installation")
       return false
     }
+    AppLogger.shared.log("✅ [AutoFixer] Step 1 SUCCESS: Homebrew is available")
+    stepsCompleted += 1
 
-    // Check what packages need to be installed
+    // Step 2: Check what packages need to be installed
+    AppLogger.shared.log("🔧 [AutoFixer] Step 2/\(totalSteps): Detecting current package installation...")
     let kanataInfo = packageManager.detectKanataInstallation()
-    var installationSuccessful = true
+    AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Package detection complete")
+    stepsCompleted += 1
 
-    // Install Kanata if needed
+    // Step 3: Install Kanata if needed
+    AppLogger.shared.log("🔧 [AutoFixer] Step 3/\(totalSteps): Installing Kanata package...")
     if !kanataInfo.isInstalled {
-      AppLogger.shared.log("🔧 [AutoFixer] Installing Kanata via Homebrew")
       let result = await packageManager.installKanataViaBrew()
 
       switch result {
       case .success:
-        AppLogger.shared.log("✅ [AutoFixer] Successfully installed Kanata via Homebrew")
-      case .failure(let reason):
-        AppLogger.shared.log("❌ [AutoFixer] Failed to install Kanata: \(reason)")
-        installationSuccessful = false
+        AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: Kanata installed via Homebrew")
+        stepsCompleted += 1
+      case let .failure(reason):
+        AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Failed to install Kanata - \(reason)")
+        stepsFailed += 1
       case .homebrewNotAvailable:
-        AppLogger.shared.log("❌ [AutoFixer] Homebrew not available for Kanata installation")
-        installationSuccessful = false
+        AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Homebrew not available for Kanata installation")
+        stepsFailed += 1
       case .packageNotFound:
-        AppLogger.shared.log("❌ [AutoFixer] Kanata package not found in Homebrew")
-        installationSuccessful = false
+        AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Kanata package not found in Homebrew")
+        stepsFailed += 1
       case .userCancelled:
-        AppLogger.shared.log("⚠️ [AutoFixer] Kanata installation cancelled by user")
+        AppLogger.shared.log("⚠️ [AutoFixer] Step 3 CANCELLED: Kanata installation cancelled by user")
         return false
       }
     } else {
-      AppLogger.shared.log("ℹ️ [AutoFixer] Kanata already installed: \(kanataInfo.description)")
+      AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: Kanata already installed - \(kanataInfo.description)")
+      stepsCompleted += 1
     }
 
-    if installationSuccessful {
-      AppLogger.shared.log("✅ [AutoFixer] Successfully completed Homebrew package installation")
+    let success = stepsFailed == 0
+    if success {
+      AppLogger.shared.log("✅ [AutoFixer] Homebrew installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)")
     } else {
-      AppLogger.shared.log("❌ [AutoFixer] Some packages failed to install via Homebrew")
+      AppLogger.shared.log("❌ [AutoFixer] Homebrew installation failed (\(stepsFailed) steps failed, \(stepsCompleted)/\(totalSteps) completed)")
     }
 
-    return installationSuccessful
+    return success
   }
 
   // MARK: - Helper Methods

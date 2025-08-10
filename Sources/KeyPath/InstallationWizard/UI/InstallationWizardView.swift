@@ -22,7 +22,7 @@ struct InstallationWizardView: View {
     VStack(spacing: 0) {
       // Header with page dots - always visible with fixed height
       wizardHeader()
-        .frame(height: 120)  // Fixed height for header
+        .frame(height: 90)  // Reduced height for header
 
       // Page Content takes remaining space
       pageContent()
@@ -41,6 +41,7 @@ struct InstallationWizardView: View {
     .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
     .background(VisualEffectBackground())
     .withToasts(toastManager)
+    .environmentObject(navigationCoordinator)
     .onAppear {
       setupWizard()
     }
@@ -76,27 +77,36 @@ struct InstallationWizardView: View {
 
   @ViewBuilder
   private func wizardHeader() -> some View {
-    VStack(spacing: 12) {
-      HStack {
-        Image(systemName: "keyboard")
-          .font(.system(size: 32))
-          .foregroundColor(.blue)
+    VStack(spacing: 8) {  // Reduced spacing
+      HStack(alignment: .top) {
+        HStack(spacing: 8) {
+          Image(systemName: "keyboard")
+            .font(.system(size: 24))  // Smaller icon
+            .foregroundColor(.blue)
 
-        Text("KeyPath Setup")
-          .font(.title2)
-          .fontWeight(.bold)
+          Text("KeyPath Setup")
+            .font(.title3)  // Smaller title
+            .fontWeight(.bold)
+        }
 
         Spacer()
 
-        Button("✕") {
-          dismiss()
+        // Build timestamp and close button
+        VStack(alignment: .trailing, spacing: 2) {
+          Text("Build: \(getBuildTimestamp())")
+            .font(.caption2)
+            .foregroundColor(.secondary)
+
+          Button("✕") {
+            dismiss()
+          }
+          .buttonStyle(.plain)
+          .font(.title3)  // Smaller close button
+          .foregroundColor(shouldBlockClose ? .gray : .secondary)
+          .keyboardShortcut(.cancelAction)
+          .disabled(shouldBlockClose)
+          .accessibilityLabel("Close setup wizard")
         }
-        .buttonStyle(.plain)
-        .font(.title2)
-        .foregroundColor(shouldBlockClose ? .gray : .secondary)
-        .keyboardShortcut(.cancelAction)
-        .disabled(shouldBlockClose)
-        .accessibilityLabel("Close setup wizard")
         .accessibilityHint(
           shouldBlockClose
             ? "Setup must be completed before closing" : "Close the KeyPath setup wizard")
@@ -107,7 +117,9 @@ struct InstallationWizardView: View {
         AppLogger.shared.log(
           "🔍 [NewWizard] User manually navigated to \(page) - entering user interaction mode")
       }
+      .fixedSize(horizontal: false, vertical: true)  // Prevent dots from expanding
     }
+    .fixedSize(horizontal: false, vertical: true)  // Keep header at fixed height
     .padding()
     .background(Color(NSColor.controlBackgroundColor))
   }
@@ -128,6 +140,8 @@ struct InstallationWizardView: View {
               navigationCoordinator.navigateToPage(page)
             }
           )
+        case .fullDiskAccess:
+          WizardFullDiskAccessPage()
         case .conflicts:
           WizardConflictsPage(
             issues: currentIssues.filter { $0.category == .conflicts },
@@ -137,36 +151,42 @@ struct InstallationWizardView: View {
             kanataManager: kanataManager
           )
         case .inputMonitoring:
-          WizardPermissionsPage(
-            permissionType: .inputMonitoring,
+          WizardInputMonitoringPage(
+            systemState: systemState,
             issues: currentIssues.filter { $0.category == .permissions },
+            onRefresh: refreshState,
+            onNavigateToPage: { page in
+              navigationCoordinator.navigateToPage(page)
+            },
+            onDismiss: {
+              dismiss()
+            },
             kanataManager: kanataManager
           )
         case .accessibility:
-          WizardPermissionsPage(
-            permissionType: .accessibility,
+          WizardAccessibilityPage(
+            systemState: systemState,
             issues: currentIssues.filter { $0.category == .permissions },
+            onRefresh: refreshState,
+            onNavigateToPage: { page in
+              navigationCoordinator.navigateToPage(page)
+            },
+            onDismiss: {
+              dismiss()
+            },
             kanataManager: kanataManager
           )
-        case .daemon:
-          WizardDaemonPage(
-            issues: currentIssues.filter { $0.category == .daemon },
+        case .karabinerComponents:
+          WizardKarabinerComponentsPage(
+            issues: currentIssues,
             isFixing: asyncOperationManager.hasRunningOperations,
             onAutoFix: performAutoFix,
             onRefresh: refreshState,
             kanataManager: kanataManager
           )
-        case .backgroundServices:
-          WizardBackgroundServicesPage(
-            issues: currentIssues.filter { $0.category == .backgroundServices },
-            isFixing: asyncOperationManager.hasRunningOperations,
-            onAutoFix: performAutoFix,
-            onRefresh: refreshState,
-            kanataManager: kanataManager
-          )
-        case .installation:
-          WizardInstallationPage(
-            issues: currentIssues.filter { $0.category == .installation },
+        case .kanataComponents:
+          WizardKanataComponentsPage(
+            issues: currentIssues,
             isFixing: asyncOperationManager.hasRunningOperations,
             onAutoFix: performAutoFix,
             onRefresh: refreshState,
@@ -214,6 +234,9 @@ struct InstallationWizardView: View {
   private func setupWizard() {
     AppLogger.shared.log("🔍 [NewWizard] Setting up wizard with new architecture")
 
+    // Always reset navigation state for fresh run
+    navigationCoordinator.navigationEngine.resetNavigationState()
+
     // Configure state manager
     stateManager.configure(kanataManager: kanataManager)
     autoFixer.configure(kanataManager: kanataManager)
@@ -231,7 +254,8 @@ struct InstallationWizardView: View {
     await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
       systemState = result.state
       currentIssues = result.issues
-      navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
+      // Start at summary page - no auto navigation
+      // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
       withAnimation {
         isInitializing = false
@@ -270,8 +294,8 @@ struct InstallationWizardView: View {
           "🔍 [Navigation] Current: \(navigationCoordinator.currentPage), Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
         )
 
-        // Use navigation coordinator for auto-navigation logic
-        navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
+        // No auto-navigation - stay on current page
+        // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
         if oldState != systemState || oldPage != navigationCoordinator.currentPage {
           AppLogger.shared.log(
@@ -342,22 +366,24 @@ struct InstallationWizardView: View {
             AppLogger.shared.log(
               "🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
 
-            // Show toast notification and refresh state if successful
+            // Show toast notification
             if success {
               Task { @MainActor in
                 toastManager.showSuccess("\(actionDescription) completed successfully")
               }
-              // Refresh system state after successful auto-fix
-              Task {
+              // Refresh system state after successful auto-fix, then return success
+              Task { 
+                // Small delay to let filesystem operations settle (especially after admin operations)
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
                 await refreshState()
+                continuation.resume(returning: success)
               }
             } else {
               Task { @MainActor in
                 toastManager.showError("Failed to \(actionDescription.lowercased())")
               }
+              continuation.resume(returning: success)
             }
-
-            continuation.resume(returning: success)
           },
           onFailure: { error in
             AppLogger.shared.log(
@@ -394,17 +420,25 @@ struct InstallationWizardView: View {
       return "Install LaunchDaemon services"
     case .installViaBrew:
       return "Install packages via Homebrew"
+    case .repairVHIDDaemonServices:
+      return "Repair VHID LaunchDaemon services"
     }
   }
 
   private func refreshState() async {
-    AppLogger.shared.log("🔍 [NewWizard] Refreshing system state")
+    AppLogger.shared.log("🔍 [NewWizard] Refreshing system state with cache clear")
 
+    // Clear any cached state that might be stale
+    PermissionService.shared.clearCache()
+    
     let operation = WizardOperations.stateDetection(stateManager: stateManager)
 
     await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
       systemState = result.state
       currentIssues = result.issues
+      AppLogger.shared.log(
+        "🔍 [NewWizard] Refresh complete - Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
+      )
     }
   }
 
@@ -532,6 +566,13 @@ struct InstallationWizardView: View {
   private var shouldBlockClose: Bool {
     // Block close if there are critical conflicts
     currentIssues.contains { $0.severity == .critical }
+  }
+
+  private func getBuildTimestamp() -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "MM/dd HH:mm"
+    // Use compile time if available, otherwise current time
+    return formatter.string(from: Date())
   }
 }
 

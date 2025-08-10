@@ -6,7 +6,6 @@ import XCTest
 /// These tests verify the ContentView + SettingsView timer conflicts have been resolved
 @MainActor
 final class UIIntegrationTests: XCTestCase {
-
   // MARK: - Timer Consolidation Tests
 
   func testMultipleUIComponentsShareState() async {
@@ -226,10 +225,12 @@ final class UIIntegrationTests: XCTestCase {
 
     // Values should be accessible (and may have changed)
     XCTAssertTrue(
-      initialState == finalState || initialState != finalState, "State should be trackable")
+      initialState == finalState || initialState != finalState, "State should be trackable"
+    )
     XCTAssertTrue(
       initialWizardState == finalWizardState || initialWizardState != finalWizardState,
-      "Wizard state should be trackable")
+      "Wizard state should be trackable"
+    )
     XCTAssertTrue(
       (initialErrorReason == nil && finalErrorReason == nil)
         || (initialErrorReason != nil && finalErrorReason != nil)

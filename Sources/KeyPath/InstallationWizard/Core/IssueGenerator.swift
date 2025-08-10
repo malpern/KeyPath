@@ -6,8 +6,7 @@ class IssueGenerator {
   // MARK: - Issue Creation
 
   func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult)
-    -> [WizardIssue]
-  {
+    -> [WizardIssue] {
     var issues: [WizardIssue] = []
 
     // Create issues for each compatibility problem
@@ -81,8 +80,7 @@ class IssueGenerator {
   }
 
   private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict])
-    -> String
-  {
+    -> String {
     let count = conflicts.count
     let plural = count > 1 ? "es" : ""
 
@@ -92,7 +90,7 @@ class IssueGenerator {
       if count > 1 { description += " (\(count) instances)" }
       description += ":\n"
       for conflict in conflicts {
-        if case .kanataProcessRunning(let pid, let command) = conflict {
+        if case let .kanataProcessRunning(pid, command) = conflict {
           description += "• PID: \(pid) - \(command)\n"
         }
       }
@@ -103,7 +101,7 @@ class IssueGenerator {
       if count > 1 { description += " (\(count) instances)" }
       description += ":\n"
       for conflict in conflicts {
-        if case .karabinerGrabberRunning(let pid) = conflict {
+        if case let .karabinerGrabberRunning(pid) = conflict {
           description += "• PID: \(pid) - Keyboard input capture daemon\n"
         }
       }
@@ -115,7 +113,7 @@ class IssueGenerator {
       if count > 1 { description += " (\(count) instances)" }
       description += ":\n"
       for conflict in conflicts {
-        if case .karabinerVirtualHIDDeviceRunning(let pid, let processName) = conflict {
+        if case let .karabinerVirtualHIDDeviceRunning(pid, processName) = conflict {
           description += "• PID: \(pid) - \(processName)\n"
         }
       }
@@ -127,7 +125,7 @@ class IssueGenerator {
       if count > 1 { description += " (\(count) instances)" }
       description += ":\n"
       for conflict in conflicts {
-        if case .karabinerVirtualHIDDaemonRunning(let pid) = conflict {
+        if case let .karabinerVirtualHIDDaemonRunning(pid) = conflict {
           description += "• PID: \(pid) - VirtualHIDDevice daemon\n"
         }
       }
@@ -139,7 +137,7 @@ class IssueGenerator {
       if count > 1 { description += "s (\(count) devices)" }
       description += ":\n"
       for conflict in conflicts {
-        if case .exclusiveDeviceAccess(let device) = conflict {
+        if case let .exclusiveDeviceAccess(device) = conflict {
           description += "• \(device)\n"
         }
       }
@@ -153,18 +151,18 @@ class IssueGenerator {
 
   private func createIndividualConflictDescription(_ conflict: SystemConflict) -> String {
     switch conflict {
-    case .kanataProcessRunning(let pid, let command):
+    case let .kanataProcessRunning(pid, command):
       return "Kanata process running (PID: \(pid))\nCommand: \(command)"
-    case .karabinerGrabberRunning(let pid):
+    case let .karabinerGrabberRunning(pid):
       return
         "Karabiner Elements grabber running (PID: \(pid))\nThis process captures keyboard input and conflicts with KeyPath."
-    case .karabinerVirtualHIDDeviceRunning(let pid, let processName):
+    case let .karabinerVirtualHIDDeviceRunning(pid, processName):
       return
         "Karabiner VirtualHID Device running: \(processName) (PID: \(pid))\nThis virtual device driver conflicts with KeyPath's remapping."
-    case .karabinerVirtualHIDDaemonRunning(let pid):
+    case let .karabinerVirtualHIDDaemonRunning(pid):
       return
         "Karabiner VirtualHIDDevice Daemon running (PID: \(pid))\nThis daemon manages virtual devices and conflicts with KeyPath."
-    case .exclusiveDeviceAccess(let device):
+    case let .exclusiveDeviceAccess(device):
       return
         "Exclusive device access conflict: \(device)\nAnother process has exclusive access to this input device."
     }
@@ -287,7 +285,8 @@ class IssueGenerator {
     case .karabinerDaemon: return WizardConstants.Titles.daemonNotRunning
     case .vhidDeviceManager: return "VirtualHIDDevice Manager Missing"
     case .vhidDeviceActivation: return "VirtualHIDDevice Manager Not Activated"
-    case .vhidDeviceRunning: return "VirtualHIDDevice Daemon Not Running"
+    case .vhidDeviceRunning: return "VirtualHIDDevice Daemon"
+    case .vhidDaemonMisconfigured: return "VirtualHIDDevice Daemon Misconfigured"
     case .launchDaemonServices: return "LaunchDaemon Services Not Installed"
     case .packageManager: return "Package Manager (Homebrew) Missing"
     }
@@ -313,6 +312,9 @@ class IssueGenerator {
     case .vhidDeviceRunning:
       return
         "The VirtualHIDDevice daemon is not running properly or has connection issues. This may indicate the manager needs activation, restart, or there are VirtualHID connection failures preventing keyboard remapping."
+    case .vhidDaemonMisconfigured:
+      return
+        "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
     case .launchDaemonServices:
       return
         "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
@@ -330,10 +332,14 @@ class IssueGenerator {
       return .activateVHIDDeviceManager
     case .vhidDeviceRunning:
       return .restartVirtualHIDDaemon
+    case .vhidDaemonMisconfigured:
+      return .repairVHIDDaemonServices
     case .launchDaemonServices:
       return .installLaunchDaemonServices
     case .kanataBinary:
       return .installViaBrew  // Can be installed via Homebrew if available
+    case .kanataService:
+      return .installLaunchDaemonServices  // Service configuration files
     default:
       return .installMissingComponents
     }

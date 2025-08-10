@@ -7,25 +7,25 @@ enum WizardDesign {
 
   enum Spacing {
     /// Large vertical spacing for page sections
-    static let pageVertical: CGFloat = 32
+    static let pageVertical: CGFloat = 20  // Reduced from 32
 
     /// Medium spacing between major sections
-    static let sectionGap: CGFloat = 24
+    static let sectionGap: CGFloat = 16  // Reduced from 24
 
     /// Standard spacing between related items
-    static let itemGap: CGFloat = 16
+    static let itemGap: CGFloat = 12  // Reduced from 16
 
     /// Small spacing for tightly grouped elements
-    static let elementGap: CGFloat = 12
+    static let elementGap: CGFloat = 8  // Reduced from 12
 
     /// Minimal spacing for labels and values
-    static let labelGap: CGFloat = 8
+    static let labelGap: CGFloat = 6  // Reduced from 8
 
     /// Card internal padding
-    static let cardPadding: CGFloat = 20
+    static let cardPadding: CGFloat = 16  // Reduced from 20
 
     /// Button internal padding
-    static let buttonPadding: CGFloat = 16
+    static let buttonPadding: CGFloat = 12  // Reduced from 16
 
     /// Icon spacing from text
     static let iconGap: CGFloat = 12
@@ -39,7 +39,7 @@ enum WizardDesign {
     static let pageWidth: CGFloat = 700
 
     /// Standard wizard page height
-    static let pageHeight: CGFloat = 750
+    static let pageHeight: CGFloat = 680  // Reduced from 750 to fit content
 
     /// Maximum content width for readability
     static let maxContentWidth: CGFloat = 400
@@ -66,7 +66,10 @@ enum WizardDesign {
     static let iconSizeSmall: CGFloat = 16
 
     /// Status circle size
-    static let statusCircleSize: CGFloat = 80
+    static let statusCircleSize: CGFloat = 60  // Reduced from 80
+    
+    /// Standard corner radius for wizard components
+    static let cornerRadius: CGFloat = 8
   }
 
   // MARK: - Colors
@@ -247,11 +250,12 @@ enum WizardDesign {
         }
         .font(WizardDesign.Typography.button)
         .foregroundColor(WizardDesign.Colors.primaryAction)
-        .frame(width: 80, height: 26)  // Fixed dimensions (20% height reduction)
-        .background(Color.clear)
-        .overlay(
+        .frame(minWidth: 120, minHeight: 26)  // Match primary button dimensions
+        .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
+        .padding(.vertical, WizardDesign.Spacing.elementGap)
+        .background(
           RoundedRectangle(cornerRadius: 8)
-            .stroke(WizardDesign.Colors.primaryAction, lineWidth: 1)
+            .stroke(WizardDesign.Colors.primaryAction, lineWidth: 1.5)
         )
         .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
         .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
@@ -380,16 +384,18 @@ struct WizardButton: View {
 struct WizardStatusItem: View {
   let icon: String
   let title: String
+  let subtitle: String?
   let status: InstallationStatus
   let isNavigable: Bool
   let action: (() -> Void)?
 
   init(
-    icon: String, title: String, status: InstallationStatus, isNavigable: Bool = false,
+    icon: String, title: String, subtitle: String? = nil, status: InstallationStatus, isNavigable: Bool = false,
     action: (() -> Void)? = nil
   ) {
     self.icon = icon
     self.title = title
+    self.subtitle = subtitle
     self.status = status
     self.isNavigable = isNavigable
     self.action = action
@@ -409,10 +415,18 @@ struct WizardStatusItem: View {
         .font(.system(size: 16))
         .frame(width: 20)
 
-      // Title
-      Text(title)
-        .font(WizardDesign.Typography.body)
-        .foregroundColor(.primary)
+      // Title and subtitle
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .font(WizardDesign.Typography.body)
+          .foregroundColor(.primary)
+        
+        if let subtitle = subtitle {
+          Text(subtitle)
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+      }
 
       Spacer()
 
@@ -499,7 +513,7 @@ struct WizardPageHeader: View {
           )
 
         Image(systemName: icon)
-          .font(.system(size: WizardDesign.Layout.iconSize))
+          .font(.system(size: 32))  // Reduced from iconSize (48)
           .foregroundColor(status.color)
           .symbolRenderingMode(.multicolor)
       }
@@ -516,7 +530,7 @@ struct WizardPageHeader: View {
         .multilineTextAlignment(.center)
         .wizardContentSpacing()
     }
-    .padding(.top, WizardDesign.Spacing.pageVertical)
+    .padding(.top, 12)  // Reduced padding
     .accessibilityElement(children: .combine)
     .accessibilityLabel("\(title). \(subtitle)")
     .accessibilityAddTraits(.isHeader)

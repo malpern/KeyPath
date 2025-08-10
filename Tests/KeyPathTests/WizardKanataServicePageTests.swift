@@ -45,7 +45,7 @@ final class WizardKanataServicePageTests: XCTestCase {
       "2025-08-01 10:00:00 INFO Starting kanata",
       "2025-08-01 10:00:01 ERROR Permission denied accessing /dev/input",
       "2025-08-01 10:00:02 FATAL Config file not found: /path/to/config.kbd",
-      "2025-08-01 10:00:03 INFO Normal operation message",
+      "2025-08-01 10:00:03 INFO Normal operation message"
     ]
 
     // Test our error detection logic with realistic log patterns
@@ -186,7 +186,7 @@ extension WizardKanataServicePageTests {
     XCTAssertNotEqual(crashedStatus, runningStatus, "Different service states should not be equal")
 
     // Test that error information is preserved (this could actually fail if implementation changes)
-    if case .crashed(let error) = crashedStatus {
+    if case let .crashed(error) = crashedStatus {
       XCTAssertEqual(error, "Permission denied", "Crashed status should preserve error message")
     } else {
       XCTFail("Crashed status should contain error information")

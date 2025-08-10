@@ -9,7 +9,7 @@ class LaunchDaemonInstaller {
 
   // MARK: - Constants
 
-  private static let launchDaemonsPath = "/Library/LaunchDaemons"
+  private static let launchDaemonsPath: String = LaunchDaemonInstaller.resolveLaunchDaemonsPath()
   private static let kanataServiceID = "com.keypath.kanata"
   private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
   private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
@@ -17,7 +17,7 @@ class LaunchDaemonInstaller {
   // Static paths for components that don't vary by system
   private static let kanataConfigPath = "/usr/local/etc/kanata/keypath.kbd"
   private static let vhidDaemonPath =
-    "/Library/Application Support/org.pqrs/Karabiner-VirtualHIDDevice/bin/karabiner_vhid_daemon"
+    "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
   private static let vhidManagerPath =
     "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
 
@@ -25,6 +25,21 @@ class LaunchDaemonInstaller {
 
   init(packageManager: PackageManager = PackageManager()) {
     self.packageManager = packageManager
+  }
+
+  // MARK: - Env/Test helpers
+
+  private static let isTestMode: Bool = {
+    let env = ProcessInfo.processInfo.environment
+    return env["KEYPATH_TEST_MODE"] == "1"
+  }()
+
+  private static func resolveLaunchDaemonsPath() -> String {
+    let env = ProcessInfo.processInfo.environment
+    if let override = env["KEYPATH_LAUNCH_DAEMONS_DIR"], !override.isEmpty {
+      return override
+    }
+    return "/Library/LaunchDaemons"
   }
 
   // MARK: - Path Detection Methods
@@ -137,6 +152,9 @@ class LaunchDaemonInstaller {
   /// Loads a specific LaunchDaemon service
   private func loadService(serviceID: String) async -> Bool {
     AppLogger.shared.log("🔧 [LaunchDaemon] Loading service: \(serviceID)")
+    if Self.isTestMode {
+      return FileManager.default.fileExists(atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
+    }
 
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
@@ -169,6 +187,7 @@ class LaunchDaemonInstaller {
   /// Unloads a specific LaunchDaemon service
   private func unloadService(serviceID: String) async -> Bool {
     AppLogger.shared.log("🔧 [LaunchDaemon] Unloading service: \(serviceID)")
+    if Self.isTestMode { return true }
 
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
@@ -201,6 +220,14 @@ class LaunchDaemonInstaller {
 
   /// Checks if a LaunchDaemon service is currently loaded
   func isServiceLoaded(serviceID: String) -> Bool {
+    if Self.isTestMode {
+      let exists = FileManager.default.fileExists(
+        atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
+      AppLogger.shared.log(
+        "🔍 [LaunchDaemon] (test) Service \(serviceID) considered loaded: \(exists)")
+      return exists
+    }
+
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
     task.arguments = ["list", serviceID]
@@ -331,12 +358,31 @@ class LaunchDaemonInstaller {
       // Write content to temporary file first
       try content.write(toFile: tempPath, atomically: true, encoding: .utf8)
 
-      // Use admin privileges to install the plist
-      let success = executeWithAdminPrivileges(
-        tempPath: tempPath,
-        finalPath: path,
-        serviceID: serviceID
-      )
+      // Use admin privileges to install the plist (unless in test mode)
+      let success: Bool
+      if Self.isTestMode {
+        do {
+          try FileManager.default.createDirectory(
+            atPath: (path as NSString).deletingLastPathComponent,
+            withIntermediateDirectories: true,
+            attributes: nil
+          )
+          try FileManager.default.removeItem(atPath: path)
+        } catch { /* ignore if not exists */  }
+        do {
+          try FileManager.default.copyItem(atPath: tempPath, toPath: path)
+          success = true
+        } catch {
+          AppLogger.shared.log("❌ [LaunchDaemon] (test) copy failed: \(error)")
+          success = false
+        }
+      } else {
+        success = executeWithAdminPrivileges(
+          tempPath: tempPath,
+          finalPath: path,
+          serviceID: serviceID
+        )
+      }
 
       // Clean up temporary file
       try? FileManager.default.removeItem(atPath: tempPath)
@@ -354,6 +400,28 @@ class LaunchDaemonInstaller {
     kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
   ) -> Bool {
     AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install all services")
+    if Self.isTestMode {
+      do {
+        let fm = FileManager.default
+        try fm.createDirectory(atPath: Self.launchDaemonsPath, withIntermediateDirectories: true)
+        let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
+        let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+        let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
+        for (src, dst) in [
+          (kanataTemp, kanataFinal), (vhidDaemonTemp, vhidDaemonFinal),
+          (vhidManagerTemp, vhidManagerFinal)
+        ] {
+          try? fm.removeItem(atPath: dst)
+          try fm.copyItem(atPath: src, toPath: dst)
+        }
+        AppLogger.shared.log(
+          "✅ [LaunchDaemon] (test) Installed all plists to \(Self.launchDaemonsPath)")
+        return true
+      } catch {
+        AppLogger.shared.log("❌ [LaunchDaemon] (test) Failed to install plists: \(error)")
+        return false
+      }
+    }
 
     let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
     let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
@@ -402,8 +470,7 @@ class LaunchDaemonInstaller {
 
   /// Execute LaunchDaemon installation with administrator privileges using osascript
   private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-    -> Bool
-  {
+    -> Bool {
     AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
     // Create the command to copy the file and set proper permissions
@@ -504,6 +571,60 @@ class LaunchDaemonInstaller {
       vhidDaemonServiceLoaded: vhidDaemonLoaded,
       vhidManagerServiceLoaded: vhidManagerLoaded
     )
+  }
+
+  /// Verifies that the installed VHID LaunchDaemon plist points to the DriverKit daemon path
+  func isVHIDDaemonConfiguredCorrectly() -> Bool {
+    let plistPath = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+    guard let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
+      AppLogger.shared.log("🔍 [LaunchDaemon] VHID plist not found or unreadable at: \(plistPath)")
+      return false
+    }
+
+    if let args = dict["ProgramArguments"] as? [String], let first = args.first {
+      let ok = first == Self.vhidDaemonPath
+      AppLogger.shared.log(
+        "🔍 [LaunchDaemon] VHID plist ProgramArguments[0]=\(first) | expected=\(Self.vhidDaemonPath) | ok=\(ok)"
+      )
+      return ok
+    }
+    AppLogger.shared.log("🔍 [LaunchDaemon] VHID plist ProgramArguments missing or malformed")
+    return false
+  }
+
+  /// Repairs VHID daemon and manager services by reinstalling plists with correct DriverKit paths and reloading
+  func repairVHIDDaemonServices() async -> Bool {
+    AppLogger.shared.log("🔧 [LaunchDaemon] Repairing VHID LaunchDaemon services (DriverKit paths)")
+
+    // Unload services if present
+    _ = await unloadService(serviceID: Self.vhidDaemonServiceID)
+    _ = await unloadService(serviceID: Self.vhidManagerServiceID)
+
+    // Reinstall plists with correct content
+    let vhidDaemonPlist = generateVHIDDaemonPlist()
+    let vhidManagerPlist = generateVHIDManagerPlist()
+    let daemonPlistPath = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+    let managerPlistPath = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
+
+    let daemonInstall = installPlist(
+      content: vhidDaemonPlist, path: daemonPlistPath, serviceID: Self.vhidDaemonServiceID)
+    let managerInstall = installPlist(
+      content: vhidManagerPlist, path: managerPlistPath, serviceID: Self.vhidManagerServiceID)
+
+    guard daemonInstall && managerInstall else {
+      AppLogger.shared.log("❌ [LaunchDaemon] Failed to install repaired VHID plists")
+      return false
+    }
+
+    // Load services
+    let daemonLoad = await loadService(serviceID: Self.vhidDaemonServiceID)
+    let managerLoad = await loadService(serviceID: Self.vhidManagerServiceID)
+
+    let ok = daemonLoad && managerLoad && isVHIDDaemonConfiguredCorrectly()
+    AppLogger.shared.log(
+      "🔍 [LaunchDaemon] Repair result: loadedDaemon=\(daemonLoad), loadedManager=\(managerLoad), configured=\(isVHIDDaemonConfiguredCorrectly())"
+    )
+    return ok
   }
 }
 
