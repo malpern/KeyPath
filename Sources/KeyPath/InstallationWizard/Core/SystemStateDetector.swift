@@ -167,8 +167,7 @@ class SystemStateDetector: SystemStateDetecting {
 
     // Check if VHIDDevice Manager needs activation
     if components.missing.contains(.vhidDeviceActivation),
-      components.installed.contains(.vhidDeviceManager)
-    {
+      components.installed.contains(.vhidDeviceManager) {
       actions.append(.activateVHIDDeviceManager)
     }
 
@@ -211,15 +210,15 @@ class SystemStateDetector: SystemStateDetecting {
       : "Found \(systemConflicts.count) external processes: "
         + systemConflicts.map { conflict in
           switch conflict {
-          case .kanataProcessRunning(let pid, _):
+          case let .kanataProcessRunning(pid, _):
             return "Kanata process (PID: \(pid))"
-          case .karabinerGrabberRunning(let pid):
+          case let .karabinerGrabberRunning(pid):
             return "Karabiner grabber (PID: \(pid))"
-          case .karabinerVirtualHIDDeviceRunning(let pid, let processName):
+          case let .karabinerVirtualHIDDeviceRunning(pid, processName):
             return "\(processName) (PID: \(pid))"
-          case .karabinerVirtualHIDDaemonRunning(let pid):
+          case let .karabinerVirtualHIDDaemonRunning(pid):
             return "Karabiner daemon (PID: \(pid))"
-          case .exclusiveDeviceAccess(let device):
+          case let .exclusiveDeviceAccess(device):
             return "Device access: \(device)"
           }
         }.joined(separator: "; ")
@@ -227,7 +226,8 @@ class SystemStateDetector: SystemStateDetecting {
     return ConflictDetectionResult(
       conflicts: systemConflicts,
       canAutoResolve: conflicts.canAutoResolve,
-      description: description
+      description: description,
+      managedProcesses: conflicts.managedProcesses
     )
   }
 }

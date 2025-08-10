@@ -6,25 +6,25 @@ import SwiftUI
 /// Represents the current page in the installation wizard
 enum WizardPage: String, CaseIterable {
   case summary = "Summary"
+  case fullDiskAccess = "Full Disk Access"
   case conflicts = "Resolve Conflicts"
-  case inputMonitoring = "Input Monitoring Permission"
-  case accessibility = "Accessibility Permission"
-  case backgroundServices = "Background Services"
-  case installation = "Install Components"
-  case daemon = "Karabiner Daemon"
-  case service = "Kanata Service"
+  case inputMonitoring = "Input Monitoring"
+  case accessibility = "Accessibility"
+  case karabinerComponents = "Karabiner Components"
+  case kanataComponents = "Kanata Components"
+  case service = "Start Service"
 
   /// User-friendly display name for accessibility and UI
   var displayName: String {
     switch self {
     case .summary: return "Setup Overview"
+    case .fullDiskAccess: return "Full Disk Access (Optional)"
     case .conflicts: return "Resolve System Conflicts"
     case .inputMonitoring: return "Input Monitoring Permission"
     case .accessibility: return "Accessibility Permission"
-    case .backgroundServices: return "Background Services Permission"
-    case .installation: return "Install Required Components"
-    case .daemon: return "Karabiner Virtual HID Device"
-    case .service: return "Kanata Keyboard Service"
+    case .karabinerComponents: return "Karabiner Driver Setup"
+    case .kanataComponents: return "Kanata Engine Setup"
+    case .service: return "Start Keyboard Service"
     }
   }
 
@@ -32,12 +32,12 @@ enum WizardPage: String, CaseIterable {
   var accessibilityIdentifier: String {
     switch self {
     case .summary: return "overview"
+    case .fullDiskAccess: return "full-disk-access"
     case .conflicts: return "conflicts"
     case .inputMonitoring: return "input-monitoring"
     case .accessibility: return "accessibility"
-    case .backgroundServices: return "background-services"
-    case .installation: return "installation"
-    case .daemon: return "daemon"
+    case .karabinerComponents: return "karabiner-components"
+    case .kanataComponents: return "kanata-components"
     case .service: return "service"
     }
   }
@@ -95,6 +95,7 @@ enum ComponentRequirement: Equatable {
   case vhidDeviceRunning
   case launchDaemonServices
   case packageManager  // Homebrew or other package manager
+  case vhidDaemonMisconfigured
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -107,6 +108,7 @@ enum AutoFixAction: Equatable {
   case activateVHIDDeviceManager
   case installLaunchDaemonServices
   case installViaBrew  // Install missing packages via Homebrew
+  case repairVHIDDaemonServices
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
@@ -219,9 +221,17 @@ struct ConflictDetectionResult {
   let conflicts: [SystemConflict]
   let canAutoResolve: Bool
   let description: String
+  let managedProcesses: [ProcessLifecycleManager.ProcessInfo]
 
   var hasConflicts: Bool {
     !conflicts.isEmpty
+  }
+  
+  init(conflicts: [SystemConflict], canAutoResolve: Bool, description: String, managedProcesses: [ProcessLifecycleManager.ProcessInfo] = []) {
+    self.conflicts = conflicts
+    self.canAutoResolve = canAutoResolve
+    self.description = description
+    self.managedProcesses = managedProcesses
   }
 }
 

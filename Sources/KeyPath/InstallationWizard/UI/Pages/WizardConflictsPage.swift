@@ -67,9 +67,25 @@ struct WizardConflictsPage: View {
 
       Spacer()
 
-      // Simple link for re-scanning with proper padding
+      // Action buttons at bottom
       HStack {
+        // Reset button for nuclear option
+        Button("Reset Everything") {
+          Task {
+            isScanning = true
+            let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
+            await autoFixer.resetEverything()
+            await onRefresh()
+            isScanning = false
+          }
+        }
+        .buttonStyle(WizardDesign.Component.DestructiveButton())
+        .disabled(isFixing || isScanning)
+        .help("Kill all processes, clear PID files, and reset to clean state")
+
         Spacer()
+
+        // Re-scan button
         Button(action: {
           Task {
             isScanning = true
@@ -93,14 +109,19 @@ struct WizardConflictsPage: View {
           }
           .foregroundColor(.blue)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WizardDesign.Component.SecondaryButton())
         .disabled(isFixing || isScanning)
+
         Spacer()
       }
       .padding(.bottom, 32)  // Add comfortable padding from bottom
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(WizardDesign.Colors.wizardBackground)
+    .task {
+      // Force a refresh when the page appears to avoid stale conflict snapshots
+      await onRefresh()
+    }
   }
 }
 
@@ -197,17 +218,15 @@ struct CleanConflictsCard: View {
           }
           .frame(minWidth: 240, minHeight: 44)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
+        .buttonStyle(WizardDesign.Component.PrimaryButton())
         .disabled(isFixing || isPerformingPermanentFix)
 
         // Secondary Option - Temporary Fix
         Button(action: onAutoFix) {
           Text("Temporary Fix Only")
             .font(.subheadline)
-            .foregroundColor(.secondary)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(WizardDesign.Component.SecondaryButton())
         .disabled(isFixing || isPerformingPermanentFix)
 
         // Status Messages
@@ -250,10 +269,10 @@ struct CleanConflictsCard: View {
             }
             .foregroundColor(.secondary)
           }
-          .buttonStyle(.plain)
+          .buttonStyle(.link)
 
           if showingDetails {
-            TechnicalDetailsView(issues: issues)
+            TechnicalDetailsView(issues: issues, kanataManager: kanataManager)
               .transition(.opacity.combined(with: .scale(scale: 0.95)))
           }
         }
@@ -271,6 +290,9 @@ struct CleanConflictsCard: View {
 
 struct TechnicalDetailsView: View {
   let issues: [WizardIssue]
+  let kanataManager: KanataManager
+  @State private var conflictDetectionResult: ConflictDetectionResult? = nil
+  @State private var isLoadingConflicts = false
 
   private var processDetails: [String] {
     var details: [String] = []
@@ -292,10 +314,6 @@ struct TechnicalDetailsView: View {
             }
           }
         }
-
-        // Add identifier info if available
-        details.append("Category: \(issue.category)")
-        details.append("Severity: \(issue.severity)")
       }
     }
 
@@ -304,7 +322,6 @@ struct TechnicalDetailsView: View {
       details.append("Debug: Found \(issues.count) issues")
       for (index, issue) in issues.enumerated() {
         details.append("Issue \(index + 1): \(issue.title)")
-        details.append("Category: \(issue.category)")
         details.append("Description preview: \(String(issue.description.prefix(100)))")
       }
     }
@@ -313,8 +330,7 @@ struct TechnicalDetailsView: View {
   }
 
   // Helper function to parse process information
-  private func parseProcessInfo(_ text: String) -> (name: String, description: String, pid: String)
-  {
+  private func parseProcessInfo(_ text: String) -> (name: String, description: String, pid: String) {
     // Extract PID using regex - handle both formats: "PID: 123" and "(PID: 123)"
     let pidPattern = #"PID: (\d+)"#
     var pid = "unknown"
@@ -345,78 +361,84 @@ struct TechnicalDetailsView: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      // Header section with cleaner typography
-      VStack(alignment: .leading, spacing: 16) {
-        Text("Conflicting Processes Detected")
-          .font(.headline)
-          .fontWeight(.semibold)
-          .foregroundColor(.primary)
+    VStack(alignment: .leading, spacing: 16) {
+      // Header section
+      Text("🔧 Process Details (NEW UI)")
+        .font(.headline)
+        .fontWeight(.semibold)
+        .foregroundColor(.primary)
 
-        // Process list with monospace font - only show lines with actual PIDs
-        VStack(alignment: .leading, spacing: 12) {
-          ForEach(Array(processDetails.enumerated()), id: \.offset) { _, detail in
-            if detail.hasPrefix("•") {
-              let processText = detail.replacingOccurrences(of: "• ", with: "")
+      if isLoadingConflicts {
+        HStack {
+          ProgressView()
+            .scaleEffect(0.7)
+          Text("Detecting processes...")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+      } else {
+        // Show managed processes with green checks
+        if let result = conflictDetectionResult, !result.managedProcesses.isEmpty {
+          VStack(alignment: .leading, spacing: 8) {
+            Text("KeyPath Managed Processes")
+              .font(.subheadline)
+              .fontWeight(.medium)
+              .foregroundColor(.green)
 
-              // Only display lines that actually contain PID information
-              if processText.contains("PID: ")
-                && processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil
-              {
-                VStack(alignment: .leading, spacing: 4) {
-                  HStack(alignment: .center, spacing: 12) {
-                    // Modern status indicator
-                    Circle()
-                      .fill(Color.orange)
-                      .frame(width: 6, height: 6)
+            ForEach(result.managedProcesses.indices, id: \.self) { index in
+              let process = result.managedProcesses[index]
+              ProcessRow(
+                processName: "kanata",
+                processDescription: "Keyboard remapping engine (managed)",
+                pid: String(process.pid),
+                statusColor: .green,
+                statusIcon: "checkmark.circle.fill"
+              )
+            }
+          }
+        }
 
-                    // Extract process name, description, and PID
-                    let (processName, processDescription, pid) = parseProcessInfo(processText)
+        // Show external conflicts with red X
+        if !processDetails.isEmpty {
+          VStack(alignment: .leading, spacing: 8) {
+            if conflictDetectionResult?.managedProcesses.isEmpty == false {
+              Divider()
+                .padding(.vertical, 4)
+            }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                      Text(processName)
-                        .font(.custom("Courier New", size: 14))
-                        .foregroundColor(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
+            Text("External Conflicts")
+              .font(.subheadline)
+              .fontWeight(.medium)
+              .foregroundColor(.red)
 
-                      Text("\(processDescription) (PID: \(pid))")
-                        .font(.custom("Courier New", size: 12))
-                        .foregroundColor(.secondary)
-                    }
+            ForEach(Array(processDetails.enumerated()), id: \.offset) { _, detail in
+              if detail.hasPrefix("•") {
+                let processText = detail.replacingOccurrences(of: "• ", with: "")
 
-                    Spacer()
-                  }
+                // Only display lines that actually contain PID information
+                if processText.contains("PID: ")
+                  && processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil {
+                  let (processName, processDescription, pid) = parseProcessInfo(processText)
+                  ProcessRow(
+                    processName: processName,
+                    processDescription: processDescription,
+                    pid: pid,
+                    statusColor: .red,
+                    statusIcon: "xmark.circle.fill"
+                  )
                 }
               }
             }
           }
         }
-      }
-      .padding(.bottom, 16)
 
-      // Metadata section with horizontal layout
-      HStack(spacing: 32) {
-        ForEach(Array(processDetails.enumerated()), id: \.offset) { _, detail in
-          if detail.hasPrefix("Category:") || detail.hasPrefix("Severity:") {
-            let components = detail.components(separatedBy: ": ")
-            if components.count == 2 {
-              VStack(alignment: .leading, spacing: 6) {
-                Text(components[0].uppercased())
-                  .font(.caption2)
-                  .fontWeight(.bold)
-                  .foregroundColor(.secondary)
-                  .tracking(0.8)
-
-                Text(components[1].capitalized)
-                  .font(.subheadline)
-                  .fontWeight(.semibold)
-                  .foregroundColor(components[1] == "error" ? .red : .orange)
-              }
-            }
-          }
+        // If no processes found
+        if conflictDetectionResult?.managedProcesses.isEmpty != false && processDetails.isEmpty {
+          Text("No processes detected")
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .italic()
         }
-
-        Spacer()
       }
     }
     .padding(24)
@@ -429,5 +451,57 @@ struct TechnicalDetailsView: View {
         )
     )
     .shadow(color: .black.opacity(0.02), radius: 4, x: 0, y: 1)
+    .task {
+      await loadConflictDetails()
+    }
+  }
+
+  private func loadConflictDetails() async {
+    isLoadingConflicts = true
+    let processLifecycleManager = ProcessLifecycleManager(kanataManager: kanataManager)
+    let conflicts = await processLifecycleManager.detectConflicts()
+    
+    await MainActor.run {
+      conflictDetectionResult = ConflictDetectionResult(
+        conflicts: [],
+        canAutoResolve: conflicts.canAutoResolve,
+        description: "",
+        managedProcesses: conflicts.managedProcesses
+      )
+      isLoadingConflicts = false
+    }
+  }
+}
+
+// MARK: - Process Row Component
+
+struct ProcessRow: View {
+  let processName: String
+  let processDescription: String
+  let pid: String
+  let statusColor: Color
+  let statusIcon: String
+
+  var body: some View {
+    HStack(alignment: .center, spacing: 12) {
+      // Status indicator
+      Image(systemName: statusIcon)
+        .foregroundColor(statusColor)
+        .font(.system(size: 16, weight: .medium))
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(processName)
+          .font(.custom("Courier New", size: 14))
+          .foregroundColor(.primary)
+          .fixedSize(horizontal: false, vertical: true)
+
+        Text("\(processDescription) (PID: \(pid))")
+          .font(.custom("Courier New", size: 12))
+          .foregroundColor(.secondary)
+      }
+
+      Spacer()
+    }
+    .padding(.vertical, 2)
   }
 }

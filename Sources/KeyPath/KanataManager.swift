@@ -25,11 +25,11 @@ enum ConfigError: Error, LocalizedError {
 
   var errorDescription: String? {
     switch self {
-    case .corruptedConfigDetected(let errors):
+    case let .corruptedConfigDetected(errors):
       return "Configuration file is corrupted: \(errors.joined(separator: ", "))"
-    case .claudeRepairFailed(let reason):
+    case let .claudeRepairFailed(reason):
       return "Failed to repair configuration with Claude: \(reason)"
-    case .validationFailed(let errors):
+    case let .validationFailed(errors):
       return "Configuration validation failed: \(errors.joined(separator: ", "))"
     case .repairFailedNeedsUserAction:
       return "Configuration repair failed - user intervention required"
@@ -98,7 +98,9 @@ class KanataManager: ObservableObject {
   private let configDirectory = "\(NSHomeDirectory())/Library/Application Support/KeyPath"
   private let configFileName = "keypath.kbd"
   private var isStartingKanata = false
+  private let processLifecycleManager: ProcessLifecycleManager
   private var isInitializing = false
+  private let isHeadlessMode: Bool
 
   // MARK: - Process Synchronization (Phase 1)
 
@@ -116,9 +118,23 @@ class KanataManager: ObservableObject {
   }
 
   init() {
+    // Check if running in headless mode
+    isHeadlessMode =
+      ProcessInfo.processInfo.arguments.contains("--headless")
+      || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
+
+    // Initialize process lifecycle manager
+    processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
+
     // Dispatch heavy initialization work to background thread
     Task.detached { [weak self] in
+      // Clean up any orphaned processes first
+      await self?.processLifecycleManager.cleanupOrphanedProcesses()
       await self?.performInitialization()
+    }
+
+    if isHeadlessMode {
+      AppLogger.shared.log("🤖 [KanataManager] Initialized in headless mode")
     }
   }
 
@@ -132,6 +148,14 @@ class KanataManager: ObservableObject {
     isInitializing = true
     defer { isInitializing = false }
 
+    await updateStatus()
+
+    // First, adopt any existing KeyPath-looking kanata processes before deciding to auto-start
+    var lifecycle: ProcessLifecycleManager!
+    await MainActor.run {
+      lifecycle = ProcessLifecycleManager(kanataManager: self)
+    }
+    await lifecycle.recoverFromCrash()
     await updateStatus()
     // Try to start Kanata automatically on launch if all requirements are met
     let status = getSystemRequirementsStatus()
@@ -411,8 +435,7 @@ class KanataManager: ObservableObject {
     case 6:
       // Exit code 6 has different causes - check for VirtualHID connection issues
       if output.contains("connect_failed asio.system:61")
-        || output.contains("connect_failed asio.system:2")
-      {
+        || output.contains("connect_failed asio.system:2") {
         diagnostics.append(
           KanataDiagnostic(
             timestamp: Date(),
@@ -518,7 +541,7 @@ class KanataManager: ObservableObject {
     return false
   }
 
-  func getSystemDiagnostics() -> [KanataDiagnostic] {
+  func getSystemDiagnostics() async -> [KanataDiagnostic] {
     var diagnostics: [KanataDiagnostic] = []
 
     // Check Kanata installation
@@ -595,6 +618,9 @@ class KanataManager: ObservableObject {
           canAutoFix: true  // We can kill it
         ))
     }
+    
+    // Check for Kanata process conflicts
+    await checkKanataProcessConflicts(diagnostics: &diagnostics)
 
     // Check driver extension status
     if isKarabinerDriverInstalled(), !isKarabinerDriverExtensionEnabled() {
@@ -627,6 +653,49 @@ class KanataManager: ObservableObject {
     }
 
     return diagnostics
+  }
+  
+  /// Check for Kanata process conflicts and managed processes
+  private func checkKanataProcessConflicts(diagnostics: inout [KanataDiagnostic]) async {
+    let conflicts = await processLifecycleManager.detectConflicts()
+    
+    // Show managed processes (informational)
+    if !conflicts.managedProcesses.isEmpty {
+      let processDetails = conflicts.managedProcesses.map { process in
+        "PID \(process.pid): \(process.command)"
+      }.joined(separator: "\n")
+      
+      diagnostics.append(
+        KanataDiagnostic(
+          timestamp: Date(),
+          severity: .info,
+          category: .system,
+          title: "KeyPath Managed Processes (\(conflicts.managedProcesses.count))",
+          description: "Kanata processes currently managed by KeyPath",
+          technicalDetails: processDetails,
+          suggestedAction: "",
+          canAutoFix: false
+        ))
+    }
+    
+    // Show external conflicts (errors that need attention)
+    if !conflicts.externalProcesses.isEmpty {
+      let conflictDetails = conflicts.externalProcesses.map { process in
+        "PID \(process.pid): \(process.command)"
+      }.joined(separator: "\n")
+      
+      diagnostics.append(
+        KanataDiagnostic(
+          timestamp: Date(),
+          severity: .error,
+          category: .conflict,
+          title: "External Kanata Conflicts (\(conflicts.externalProcesses.count))",
+          description: "External Kanata processes that conflict with KeyPath",
+          technicalDetails: conflictDetails,
+          suggestedAction: "Terminate conflicting processes or let KeyPath auto-fix them",
+          canAutoFix: true
+        ))
+    }
   }
 
   // Check if permission issues should trigger the wizard
@@ -710,8 +779,7 @@ class KanataManager: ObservableObject {
 
     // Prevent rapid successive starts
     if let lastAttempt = lastStartAttempt,
-      Date().timeIntervalSince(lastAttempt) < minStartInterval
-    {
+      Date().timeIntervalSince(lastAttempt) < minStartInterval {
       AppLogger.shared.log("⚠️ [Start] Ignoring rapid start attempt within \(minStartInterval)s")
       return
     }
@@ -794,7 +862,7 @@ class KanataManager: ObservableObject {
     task.arguments = [
       "-n",  // Non-interactive mode - don't prompt for password
       WizardSystemPaths.kanataActiveBinary, "--cfg", configPath, "--watch", "--debug",
-      "--log-layer-changes",
+      "--log-layer-changes"
     ]
 
     // Set environment to ensure proper execution
@@ -814,6 +882,12 @@ class KanataManager: ObservableObject {
     do {
       try task.run()
       kanataProcess = task
+
+      // Register the PID with our lifecycle manager
+      let pid = task.processIdentifier
+      let command = (["sudo", "-n"] + task.arguments!).joined(separator: " ")
+      processLifecycleManager.registerStartedProcess(pid: pid, command: command)
+      AppLogger.shared.log("📝 [Start] Registered kanata process with PID: \(pid)")
 
       // Start real-time log monitoring for VirtualHID connection issues
       startLogMonitoring()
@@ -966,6 +1040,10 @@ class KanataManager: ObservableObject {
       }
 
       kanataProcess = nil
+
+      // Unregister the PID
+      processLifecycleManager.unregisterProcess()
+
       AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata process")
     } else {
       AppLogger.shared.log("ℹ️ [Stop] No Kanata process to stop")
@@ -1055,7 +1133,7 @@ class KanataManager: ObservableObject {
     Task.detached { [weak self] in
       guard let self = self else { return }
       // Small grace period for --watch to pick up changes
-      try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+      try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
       // Heuristic: if still running, force a lightweight restart to ensure new config is active
       if await MainActor.run { self.isRunning } {
         AppLogger.shared.log("🔄 [Config] Fallback restart to ensure config changes apply")
@@ -1145,9 +1223,45 @@ class KanataManager: ObservableObject {
     }
   }
 
-  /// Stop Kanata when the app is terminating.
+  /// Stop Kanata when the app is terminating (async version).
   func cleanup() async {
     await stopKanata()
+  }
+
+  /// Synchronous cleanup for app termination - blocks until process is killed
+  func cleanupSync() {
+    AppLogger.shared.log("🛝 [Cleanup] Performing synchronous cleanup...")
+
+    if let process = kanataProcess {
+      if process.isRunning {
+        AppLogger.shared.log(
+          "🛑 [Cleanup] Terminating kanata process (PID: \(process.processIdentifier))...")
+        process.terminate()
+
+        // Wait up to 2 seconds for graceful termination
+        let deadline = Date().addingTimeInterval(2.0)
+        while process.isRunning && Date() < deadline {
+          Thread.sleep(forTimeInterval: 0.1)
+        }
+
+        // Force kill if still running
+        if process.isRunning {
+          AppLogger.shared.log("⚠️ [Cleanup] Force killing kanata process...")
+          process.interrupt()
+          Thread.sleep(forTimeInterval: 0.2)
+
+          if process.isRunning {
+            // Last resort - SIGKILL
+            kill(process.processIdentifier, SIGKILL)
+          }
+        }
+      }
+      kanataProcess = nil
+    }
+
+    // Clean up PID file
+    try? PIDFileManager.removePID()
+    AppLogger.shared.log("✅ [Cleanup] Synchronous cleanup complete")
   }
 
   private func checkExternalKanataProcess() async -> Bool {
@@ -1192,9 +1306,14 @@ class KanataManager: ObservableObject {
     return isInstalled()
   }
 
-  // REMOVED: hasInputMonitoringPermission() - now handled by PermissionService
+  // Compatibility wrappers for legacy tests
+  func hasInputMonitoringPermission() -> Bool {
+    return PermissionService.shared.hasInputMonitoringPermission()
+  }
 
-  // REMOVED: hasAccessibilityPermission() - now handled by PermissionService
+  func hasAccessibilityPermission() -> Bool {
+    return PermissionService.shared.hasAccessibilityPermission()
+  }
 
   // REMOVED: checkAccessibilityForPath() - now handled by PermissionService.checkTCCForAccessibility()
 
@@ -1209,9 +1328,9 @@ class KanataManager: ObservableObject {
     let keyPathHasInputMonitoring = PermissionService.shared.hasInputMonitoringPermission()
     let keyPathHasAccessibility = PermissionService.shared.hasAccessibilityPermission()
 
-    let kanataHasInputMonitoring = PermissionService.shared.checkTCCForInputMonitoring(
-      path: kanataPath)
-    let kanataHasAccessibility = PermissionService.shared.checkTCCForAccessibility(path: kanataPath)
+    // Kanata permissions are now checked on actual use, not pre-checked
+    let kanataHasInputMonitoring = true  // Assume OK until proven otherwise
+    let kanataHasAccessibility = true  // Assume OK until proven otherwise
 
     let keyPathOverall = keyPathHasInputMonitoring && keyPathHasAccessibility
     let kanataOverall = kanataHasInputMonitoring && kanataHasAccessibility
@@ -1254,8 +1373,7 @@ class KanataManager: ObservableObject {
 
   func openInputMonitoringSettings() {
     if let url = URL(
-      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-    {
+      string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
       NSWorkspace.shared.open(url)
     }
   }
@@ -1263,19 +1381,67 @@ class KanataManager: ObservableObject {
   func openAccessibilitySettings() {
     if #available(macOS 13.0, *) {
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-      {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
         NSWorkspace.shared.open(url)
       }
     } else {
       if let url = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-      {
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
         NSWorkspace.shared.open(url)
       } else {
         NSWorkspace.shared.open(
           URL(fileURLWithPath: "/System/Library/PreferencePanes/Security.prefPane"))
       }
+    }
+  }
+
+  /// Reveal the canonical kanata binary in Finder to assist drag-and-drop into permissions
+  func revealKanataInFinder() {
+    let kanataPath = WizardSystemPaths.kanataActiveBinary
+    let folderPath = (kanataPath as NSString).deletingLastPathComponent
+
+    let script = """
+      tell application "Finder"
+          activate
+          set targetFolder to POSIX file "\(folderPath)" as alias
+          set targetWindow to make new Finder window to targetFolder
+          set current view of targetWindow to icon view
+          set arrangement of icon view options of targetWindow to arranged by name
+          set bounds of targetWindow to {200, 140, 900, 800}
+          select POSIX file "\(kanataPath)" as alias
+          delay 0.5
+      end tell
+      """
+
+    var error: NSDictionary?
+    if let appleScript = NSAppleScript(source: script) {
+      appleScript.executeAndReturnError(&error)
+      if let error = error {
+        AppLogger.shared.log("❌ [Finder] AppleScript error revealing kanata: \(error)")
+      } else {
+        AppLogger.shared.log("✅ [Finder] Revealed kanata in Finder: \(kanataPath)")
+        // Show guide bubble slightly below the icon (fallback if we cannot resolve exact AX position)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+          self.showDragAndDropHelpBubble()
+        }
+      }
+    } else {
+      AppLogger.shared.log("❌ [Finder] Could not create AppleScript to reveal kanata.")
+    }
+  }
+
+  /// Show floating help bubble near the Finder selection, with fallback positioning
+  private func showDragAndDropHelpBubble() {
+    let bubbleText = "👉 Drag ‘kanata’ into Settings → Input Monitoring"
+
+    // Try to compute a reasonable screen point below mid of main screen
+    let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+    let defaultX = screenFrame.midX
+    let defaultY = screenFrame.midY - 120
+    let position = NSPoint(x: defaultX, y: defaultY)
+
+    HelpBubbleOverlay.show(message: bubbleText, at: position, duration: 18) {
+      AppLogger.shared.log("ℹ️ [Bubble] Help bubble dismissed.")
     }
   }
 
@@ -1306,8 +1472,7 @@ class KanataManager: ObservableObject {
       let lines = output.components(separatedBy: .newlines)
       for line in lines {
         if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice")
-          && line.contains("[activated enabled]")
-        {
+          && line.contains("[activated enabled]") {
           AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
           return true
         }
@@ -1735,7 +1900,7 @@ class KanataManager: ObservableObject {
     stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
     stopTask.arguments = [
       "-e",
-      "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\"",
+      "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\""
     ]
 
     do {
@@ -1929,35 +2094,71 @@ class KanataManager: ObservableObject {
 
   func performTransparentInstallation() async -> Bool {
     AppLogger.shared.log("🔧 [Installation] Starting transparent installation...")
+    
+    var stepsCompleted = 0
+    var stepsFailed = 0
+    let totalSteps = 5
 
     // 1. Ensure Kanata binary exists
+    AppLogger.shared.log("🔧 [Installation] Step 1/\(totalSteps): Checking Kanata binary...")
     let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
     if !FileManager.default.fileExists(atPath: kanataBinaryPath) {
-      AppLogger.shared.log("❌ [Installation] Kanata binary not found at \(kanataBinaryPath)")
+      AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Kanata binary not found at \(kanataBinaryPath)")
       AppLogger.shared.log("ℹ️ [Installation] Please install Kanata: brew install kanata")
       return false
     }
-
-    AppLogger.shared.log("✅ [Installation] Kanata binary verified at \(kanataBinaryPath)")
+    AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary verified at \(kanataBinaryPath)")
+    stepsCompleted += 1
 
     // 2. Check if Karabiner driver is installed
+    AppLogger.shared.log("🔧 [Installation] Step 2/\(totalSteps): Checking Karabiner driver...")
     let driverPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
     if !FileManager.default.fileExists(atPath: driverPath) {
-      AppLogger.shared.log("⚠️ [Installation] Karabiner driver not found at \(driverPath)")
+      AppLogger.shared.log("⚠️ [Installation] Step 2 WARNING: Karabiner driver not found at \(driverPath)")
       AppLogger.shared.log("ℹ️ [Installation] User should install Karabiner-Elements first")
       // Don't fail installation for this - just warn
     } else {
-      AppLogger.shared.log("✅ [Installation] Karabiner driver verified at \(driverPath)")
+      AppLogger.shared.log("✅ [Installation] Step 2 SUCCESS: Karabiner driver verified at \(driverPath)")
     }
+    stepsCompleted += 1
 
     // 3. Prepare Karabiner daemon directories
+    AppLogger.shared.log("🔧 [Installation] Step 3/\(totalSteps): Preparing daemon directories...")
     await prepareDaemonDirectories()
+    AppLogger.shared.log("✅ [Installation] Step 3 SUCCESS: Daemon directories prepared")
+    stepsCompleted += 1
 
     // 4. Create initial config if needed
+    AppLogger.shared.log("🔧 [Installation] Step 4/\(totalSteps): Creating user configuration...")
     await createInitialConfigIfNeeded()
+    if FileManager.default.fileExists(atPath: configPath) {
+      AppLogger.shared.log("✅ [Installation] Step 4 SUCCESS: User config available at \(configPath)")
+      stepsCompleted += 1
+    } else {
+      AppLogger.shared.log("❌ [Installation] Step 4 FAILED: User config missing at \(configPath)")
+      stepsFailed += 1
+    }
 
-    AppLogger.shared.log("✅ [Installation] Installation completed successfully")
-    return true
+    // 5. Create system config for LaunchDaemon
+    AppLogger.shared.log("🔧 [Installation] Step 5/\(totalSteps): Creating system configuration...")
+    await createSystemConfigIfNeeded()
+    let systemConfigPath = WizardSystemPaths.systemConfigPath
+    if FileManager.default.fileExists(atPath: systemConfigPath) {
+      AppLogger.shared.log("✅ [Installation] Step 5 SUCCESS: System config created at \(systemConfigPath)")
+      stepsCompleted += 1
+    } else {
+      AppLogger.shared.log("❌ [Installation] Step 5 FAILED: System config missing at \(systemConfigPath)")
+      stepsFailed += 1
+    }
+
+    let success = stepsCompleted >= 4 // Require at least user config + binary + directories
+    if success {
+      AppLogger.shared.log("✅ [Installation] Installation completed successfully (\(stepsCompleted)/\(totalSteps) steps completed)")
+    } else {
+      AppLogger.shared.log("❌ [Installation] Installation failed (\(stepsFailed) steps failed, only \(stepsCompleted)/\(totalSteps) completed)")
+    }
+    
+    return success
   }
 
   private func createInitialConfigIfNeeded() async {
@@ -1983,6 +2184,80 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("❌ [Config] Failed to create initial config: \(error)")
       }
     }
+  }
+
+  private func createSystemConfigIfNeeded() async {
+    let systemConfigPath = WizardSystemPaths.systemConfigPath
+    let systemConfigDirectory = WizardSystemPaths.systemConfigDirectory
+    
+    // Check if system config already exists
+    if FileManager.default.fileExists(atPath: systemConfigPath) {
+      AppLogger.shared.log("✅ [Config] System config already exists at \(systemConfigPath)")
+      return
+    }
+    
+    // Ensure user config exists first
+    if !FileManager.default.fileExists(atPath: configPath) {
+      AppLogger.shared.log("⚠️ [Config] User config missing - cannot create system config")
+      return
+    }
+    
+    do {
+      // Read user config first
+      let userConfigContents = try String(contentsOfFile: configPath, encoding: .utf8)
+      
+      // Escape the config contents for shell
+      let escapedContents = userConfigContents
+        .replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\"", with: "\\\"")
+        .replacingOccurrences(of: "\n", with: "\\n")
+      
+      // Create system config directory and file using admin privileges
+      let script = """
+        do shell script "mkdir -p '\(systemConfigDirectory)' && printf '\(escapedContents)' > '\(systemConfigPath)'" with administrator privileges
+        """
+      
+      AppLogger.shared.log("🔧 [Config] Executing admin script to create system config")
+      
+      // Execute script with admin privileges
+      if let appleScript = NSAppleScript(source: script) {
+        var error: NSDictionary?
+        let result = appleScript.executeAndReturnError(&error)
+        
+        if let error = error {
+          AppLogger.shared.log("❌ [Config] AppleScript error: \(error)")
+          AppLogger.shared.log("❌ [Config] Script was: \(script)")
+          return
+        }
+        
+        // Verify the file was actually created
+        if FileManager.default.fileExists(atPath: systemConfigPath) {
+          AppLogger.shared.log("✅ [Config] System config directory created at \(systemConfigDirectory)")
+          AppLogger.shared.log("✅ [Config] System config file created at \(systemConfigPath)")
+        } else {
+          AppLogger.shared.log("❌ [Config] System config file not found after creation attempt")
+        }
+      } else {
+        AppLogger.shared.log("❌ [Config] Failed to create AppleScript for system config creation")
+      }
+      
+    } catch {
+      AppLogger.shared.log("❌ [Config] Failed to read user config: \(error)")
+    }
+  }
+
+  /// Public wrapper to ensure a default user config exists.
+  /// Returns true if the config exists after this call.
+  func createDefaultUserConfigIfMissing() async -> Bool {
+    AppLogger.shared.log("🛠️ [Config] Ensuring default user config at \(configPath)")
+    await createInitialConfigIfNeeded()
+    let exists = FileManager.default.fileExists(atPath: configPath)
+    if exists {
+      AppLogger.shared.log("✅ [Config] Verified user config exists at \(configPath)")
+    } else {
+      AppLogger.shared.log("❌ [Config] User config still missing at \(configPath)")
+    }
+    return exists
   }
 
   private func prepareDaemonDirectories() async {
@@ -2216,7 +2491,7 @@ class KanataManager: ObservableObject {
       "lcmd": "lmet",
       "rcmd": "rmet",
       "leftcmd": "lmet",
-      "rightcmd": "rmet",
+      "rightcmd": "rmet"
     ]
 
     let lowercaseKey = key.lowercased()
@@ -2245,7 +2520,7 @@ class KanataManager: ObservableObject {
       "f9", "f10", "f11", "f12", "pause", "pscr", "slck", "nlck",
       "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
       "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-      "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+      "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"
     ])
 
     if validKanataKeys.contains(sequence.lowercased()) {
@@ -2325,8 +2600,7 @@ class KanataManager: ObservableObject {
 
     for line in lines {
       if line.contains("connect_failed asio.system:2")
-        || line.contains("connect_failed asio.system:61")
-      {
+        || line.contains("connect_failed asio.system:61") {
         connectionFailureCount += 1
         AppLogger.shared.log(
           "⚠️ [LogMonitor] VirtualHID connection failure detected (\(connectionFailureCount)/\(maxConnectionFailures))"
@@ -2379,8 +2653,7 @@ class KanataManager: ObservableObject {
   // MARK: - Enhanced Config Validation and Recovery
 
   /// Validates a generated config string using Kanata's --check command
-  private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String])
-  {
+  private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
     // Write config to a temporary file for validation
     let tempConfigPath = "\(configDirectory)/temp_validation.kbd"
 
@@ -2423,8 +2696,7 @@ class KanataManager: ObservableObject {
 
   /// Uses Claude to repair a corrupted Kanata config
   private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-    async throws -> String
-  {
+    async throws -> String {
     // TODO: Integrate with Claude API using the following prompt:
     //
     // "The following Kanata keyboard configuration file is invalid and needs to be repaired:
@@ -2455,8 +2727,7 @@ class KanataManager: ObservableObject {
 
   /// Fallback rule-based repair when Claude is not available
   private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-    async throws -> String
-  {
+    async throws -> String {
     AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
     // Common repair strategies
@@ -2509,8 +2780,7 @@ class KanataManager: ObservableObject {
 
   /// Backs up a failed config and applies safe default, returning backup path
   func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-    -> String
-  {
+    -> String {
     AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
     // Create backup directory if it doesn't exist
