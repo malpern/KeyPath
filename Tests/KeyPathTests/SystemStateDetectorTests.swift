@@ -108,7 +108,7 @@ class SystemStateDetectorTests: XCTestCase {
     let allPermissions: Set<PermissionRequirement> = [
       .keyPathInputMonitoring, .kanataInputMonitoring,
       .keyPathAccessibility, .kanataAccessibility,
-      .driverExtensionEnabled, .backgroundServicesEnabled
+      .driverExtensionEnabled, .serviceEnabled
     ]
     let checkedPermissions = grantedSet.union(missingSet)
     XCTAssertEqual(
@@ -171,7 +171,7 @@ class SystemStateDetectorTests: XCTestCase {
 
       case .startKarabinerDaemon:
         XCTAssertEqual(
-          result.state, .daemonNotRunning, "Should only suggest daemon start if not running"
+          result.state, .serviceNotRunning, "Should only suggest daemon start if not running"
         )
 
       case .restartVirtualHIDDaemon, .createConfigDirectories:
@@ -226,10 +226,10 @@ class SystemStateDetectorTests: XCTestCase {
       }
 
     case .missingComponents:
-      XCTAssertEqual(currentPage, WizardPage.installation, "Should navigate to installation page")
+      XCTAssertEqual(currentPage, WizardPage.kanataComponents, "Should navigate to installation page")
 
-    case .daemonNotRunning:
-      XCTAssertEqual(currentPage, WizardPage.daemon, "Should navigate to daemon page")
+    case .serviceNotRunning:
+      XCTAssertEqual(currentPage, WizardPage.service, "Should navigate to daemon page")
 
     case .serviceNotRunning, .ready, .active:
       XCTAssertEqual(currentPage, WizardPage.summary, "Should show summary for final states")
@@ -315,7 +315,7 @@ class SystemStateDetectorTests: XCTestCase {
         XCTAssertFalse(hasAccessibility, "Should detect missing accessibility")
       }
 
-    case .daemonNotRunning:
+    case .serviceNotRunning:
       XCTAssertFalse(isDaemonRunning, "Should detect daemon not running")
 
     default:

@@ -62,6 +62,10 @@ class WizardAutoFixerTests: XCTestCase {
       case .repairVHIDDaemonServices:
         // New action: should be supported
         XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
+        
+      case .synchronizeConfigPaths:
+        // Config path synchronization
+        XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
       }
     }
 
@@ -255,7 +259,7 @@ class WizardAutoFixerTests: XCTestCase {
           print("✅ Appropriate auto-fix for conflicts page: \(action)")
         }
 
-      case .installation:
+      case .kanataComponents, .karabinerComponents:
         if action == .installMissingComponents {
           print("✅ Appropriate auto-fix for installation page: \(action)")
         }

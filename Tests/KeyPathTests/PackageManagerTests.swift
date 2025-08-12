@@ -51,14 +51,14 @@ final class PackageManagerTests: XCTestCase {
     if kanataInfo.isInstalled {
       XCTAssertNotNil(kanataInfo.path, "Path should not be nil when installed")
       XCTAssertNotEqual(
-        kanataInfo.installationType, .notInstalled,
+        kanataInfo.kanataComponentsType, .notInstalled,
         "Installation type should not be notInstalled when installed"
       )
       XCTAssertFalse(kanataInfo.path!.isEmpty, "Path should not be empty when installed")
     } else {
       XCTAssertNil(kanataInfo.path, "Path should be nil when not installed")
       XCTAssertEqual(
-        kanataInfo.installationType, .notInstalled,
+        kanataInfo.kanataComponentsType, .notInstalled,
         "Installation type should be notInstalled when not installed"
       )
     }
@@ -327,8 +327,8 @@ final class MockPackageManagerTests: XCTestCase {
 
     let kanataInfo = mockManager.detectKanataInstallation()
     XCTAssertTrue(kanataInfo.isInstalled)
-    XCTAssertEqual(kanataInfo.installationType, .cargo)
-    XCTAssertEqual(kanataInfo.installationType.displayName, "Cargo (Rust)")
+    XCTAssertEqual(kanataInfo.kanataComponentsType, .cargo)
+    XCTAssertEqual(kanataInfo.kanataComponentsType.displayName, "Cargo (Rust)")
     XCTAssertTrue(kanataInfo.path!.contains("/.cargo/bin/"))
 
     // Cargo installation should still trigger Karabiner-Elements recommendation

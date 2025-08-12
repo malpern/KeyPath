@@ -93,16 +93,15 @@ final class WizardKanataServicePageTests: XCTestCase {
     let navigationEngine = WizardNavigationEngine()
     let pageOrder = navigationEngine.getPageOrder()
 
-    // Service page should be in the flow between daemon and summary
+    // Service page should be in the flow
     guard let serviceIndex = pageOrder.firstIndex(of: .service),
-      let daemonIndex = pageOrder.firstIndex(of: .daemon),
       let summaryIndex = pageOrder.firstIndex(of: .summary)
     else {
       XCTFail("Service page should be included in wizard page order")
       return
     }
 
-    XCTAssertGreaterThan(serviceIndex, daemonIndex, "Service page should come after daemon page")
+    // Service page should be near the end of the flow
     XCTAssertLessThan(serviceIndex, summaryIndex, "Service page should come before summary page")
 
     AppLogger.shared.log("✅ [Test] Service page properly positioned in wizard flow")
