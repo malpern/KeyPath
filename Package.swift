@@ -33,6 +33,9 @@ let package = Package(
             name: "KeyPath",
             dependencies: [],
             path: "Sources/KeyPath",
+            exclude: [
+                "Info.plist"
+            ],
             resources: [
                 .process("Resources")
             ],
