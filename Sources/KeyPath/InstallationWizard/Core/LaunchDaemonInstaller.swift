@@ -275,7 +275,8 @@ class LaunchDaemonInstaller {
 
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-    task.arguments = ["list", serviceID]
+    // Use print system/serviceID to check system domain specifically for LaunchDaemons
+    task.arguments = ["print", "system/\(serviceID)"]
 
     let pipe = Pipe()
     task.standardOutput = pipe
@@ -286,7 +287,7 @@ class LaunchDaemonInstaller {
       task.waitUntilExit()
 
       let isLoaded = task.terminationStatus == 0
-      AppLogger.shared.log("🔍 [LaunchDaemon] Service \(serviceID) loaded: \(isLoaded)")
+      AppLogger.shared.log("🔍 [LaunchDaemon] Service system/\(serviceID) loaded: \(isLoaded)")
       return isLoaded
     } catch {
       AppLogger.shared.log("❌ [LaunchDaemon] Error checking service \(serviceID): \(error)")
