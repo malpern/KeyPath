@@ -3,6 +3,7 @@ import ApplicationServices
 import Cocoa
 import Foundation
 import IOKit
+
 class PermissionService {
     // MARK: - Static Instance
 
@@ -261,7 +262,8 @@ class PermissionService {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8),
                let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)),
-               count > 1 {
+               count > 1
+            {
                 indicators.append("Multiple kanata processes detected (\(count) running)")
             }
         } catch {
@@ -278,7 +280,7 @@ class PermissionService {
                 "/Applications/KeyPath.app",
                 "\(homeDir)/Applications/KeyPath.app",
                 "\(homeDir)/Desktop/KeyPath.app",
-                "\(homeDir)/Downloads/KeyPath.app"
+                "\(homeDir)/Downloads/KeyPath.app",
             ]
 
             for oldPath in possibleOldPaths {
@@ -322,7 +324,7 @@ class PermissionService {
             AppLogger.shared.log("🔐 [PermissionService] AXIsProcessTrusted for current process: \(hasAccess)")
             return hasAccess
         }
-        
+
         // For other binaries (like kanata), use API-based permission checking
         return checkBinaryPermission(for: path, service: "Accessibility")
     }
@@ -333,15 +335,15 @@ class PermissionService {
         if path == currentProcessPath {
             let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
             let isGranted = accessType == kIOHIDAccessTypeGranted
-            
+
             AppLogger.shared.log("🔐 [PermissionService] IOHIDCheckAccess for current process: \(isGranted ? "granted" : "not granted")")
             return isGranted
         }
-        
+
         // For other binaries (like kanata), use API-based permission checking
         return checkBinaryPermission(for: path, service: "InputMonitoring")
     }
-    
+
     /// Check if a binary has permission using macOS APIs
     /// - Parameters:
     ///   - path: Full path to the binary
@@ -350,32 +352,32 @@ class PermissionService {
     private static func checkBinaryPermission(for path: String, service: String) -> Bool {
         // For other binaries (not current process), we can't directly check their TCC status
         // without Full Disk Access. Instead, we use a practical approach:
-        
+
         // 1. Try to detect if the binary has been granted permission by attempting a test operation
         // 2. For kanata specifically, we can check if it's able to create input events
-        
+
         if service == "InputMonitoring" {
             return checkInputMonitoringForBinary(at: path)
         } else if service == "Accessibility" {
             return checkAccessibilityForBinary(at: path)
         }
-        
+
         return false
     }
-    
+
     /// Check Input Monitoring permission for a binary by testing its capabilities
     private static func checkInputMonitoringForBinary(at path: String) -> Bool {
         // For kanata, we can check if it can successfully initialize without permission errors
         if path.contains("kanata") {
             return testKanataInputAccess(at: path)
         }
-        
+
         // For other binaries, we can't reliably test without running them
         // Return false to be safe
         AppLogger.shared.log("🔐 [PermissionService] Cannot check Input Monitoring for non-kanata binary: \(path)")
         return false
     }
-    
+
     /// Check Accessibility permission for a binary
     private static func checkAccessibilityForBinary(at path: String) -> Bool {
         // Similar to Input Monitoring, we can't check other processes' accessibility permissions
@@ -385,33 +387,33 @@ class PermissionService {
             // (they're usually granted together for keyboard remappers)
             return testKanataInputAccess(at: path)
         }
-        
+
         return false
     }
-    
+
     /// Test if kanata has the necessary permissions by checking if the service is running successfully
-    private static func testKanataInputAccess(at path: String) -> Bool {
+    private static func testKanataInputAccess(at _: String) -> Bool {
         // Check if kanata service is currently running and healthy
         // If it's running without permission errors, it likely has the required permissions
-        
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         task.arguments = ["-f", "kanata.*--cfg.*--watch"]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = Pipe()
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
             let pids = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            
+
             let isRunning = task.terminationStatus == 0 && !pids.isEmpty
-            
+
             if isRunning {
                 // If kanata is running, check the log for recent permission errors
                 return !hasRecentPermissionErrors()
@@ -421,48 +423,48 @@ class PermissionService {
                 AppLogger.shared.log("🔐 [PermissionService] Kanata not running - cannot determine permission status")
                 return false
             }
-            
+
         } catch {
             AppLogger.shared.log("⚠️ [PermissionService] Failed to check kanata process: \(error)")
             return false
         }
     }
-    
+
     /// Check if there are recent permission errors in kanata logs
     private static func hasRecentPermissionErrors() -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/tail")
         task.arguments = ["-n", "50", "/var/log/kanata.log"]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = Pipe()
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             // Look for permission-related errors in recent logs
             let permissionErrors = [
                 "privilege violation",
-                "operation not permitted", 
+                "operation not permitted",
                 "iokit/common",
-                "IOHIDDeviceOpen error"
+                "IOHIDDeviceOpen error",
             ]
-            
+
             for error in permissionErrors {
                 if output.lowercased().contains(error.lowercased()) {
                     AppLogger.shared.log("🔐 [PermissionService] Found permission error in logs: \(error)")
                     return true
                 }
             }
-            
+
             AppLogger.shared.log("🔐 [PermissionService] No recent permission errors found in kanata logs")
             return false
-            
+
         } catch {
             AppLogger.shared.log("⚠️ [PermissionService] Failed to read kanata logs: \(error)")
             // If we can't read logs, assume there might be permission issues

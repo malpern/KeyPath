@@ -15,11 +15,9 @@ enum WizardSystemPaths {
     /// Default kanata binary path for most operations (same as standard)
     static let kanataBinaryDefault = "/usr/local/bin/kanata"
 
-    /// Active kanata binary path - dynamically detect the actual location
-    /// This ensures we use the correct binary regardless of installation method
-    static var kanataActiveBinary: String {
-        detectKanataBinaryPath() ?? kanataStandardLocation
-    }
+    /// Active kanata binary path - always use standard location
+    /// This ensures permissions only need to be granted once
+    static let kanataActiveBinary = kanataStandardLocation
 
     /// Homebrew binary path
     static let brewBinary = "/opt/homebrew/bin/brew"

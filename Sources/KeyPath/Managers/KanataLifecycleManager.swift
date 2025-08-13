@@ -8,419 +8,419 @@ import SwiftUI
 /// It serves as the bridge between the UI and the underlying Kanata process management.
 @MainActor
 class KanataLifecycleManager: ObservableObject {
-  // MARK: - Dependencies
+    // MARK: - Dependencies
 
-  private let stateMachine = LifecycleStateMachine()
-  private let kanataManager: KanataManager
+    private let stateMachine = LifecycleStateMachine()
+    private let kanataManager: KanataManager
 
-  // MARK: - Published Properties
+    // MARK: - Published Properties
 
-  /// Current lifecycle state for UI binding
-  @Published var currentState: LifecycleStateMachine.KanataState = .uninitialized
+    /// Current lifecycle state for UI binding
+    @Published var currentState: LifecycleStateMachine.KanataState = .uninitialized
 
-  /// Error message for UI display
-  @Published var errorMessage: String?
+    /// Error message for UI display
+    @Published var errorMessage: String?
 
-  /// Whether Kanata is currently running
-  @Published var isRunning: Bool = false
+    /// Whether Kanata is currently running
+    @Published var isRunning: Bool = false
 
-  /// Whether operations are in progress
-  @Published var isBusy: Bool = false
+    /// Whether operations are in progress
+    @Published var isBusy: Bool = false
 
-  /// Whether user actions are allowed
-  @Published var canPerformActions: Bool = true
+    /// Whether user actions are allowed
+    @Published var canPerformActions: Bool = true
 
-  // MARK: - Auto-Start Tracking
+    // MARK: - Auto-Start Tracking
 
-  /// Whether an auto-start attempt was made
-  @Published var autoStartAttempted: Bool = false
+    /// Whether an auto-start attempt was made
+    @Published var autoStartAttempted: Bool = false
 
-  /// Whether the auto-start attempt succeeded
-  @Published var autoStartSucceeded: Bool = false
+    /// Whether the auto-start attempt succeeded
+    @Published var autoStartSucceeded: Bool = false
 
-  /// Specific reason why auto-start failed (if applicable)
-  @Published var autoStartFailureReason: String?
+    /// Specific reason why auto-start failed (if applicable)
+    @Published var autoStartFailureReason: String?
 
-  /// Whether the system should show the wizard (only after auto-start fails)
-  @Published var shouldShowWizard: Bool = false
+    /// Whether the system should show the wizard (only after auto-start fails)
+    @Published var shouldShowWizard: Bool = false
 
-  // MARK: - Initialization
+    // MARK: - Initialization
 
-  init(kanataManager: KanataManager) {
-    self.kanataManager = kanataManager
+    init(kanataManager: KanataManager) {
+        self.kanataManager = kanataManager
 
-    // Bind state machine to published properties
-    bindToStateMachine()
+        // Bind state machine to published properties
+        bindToStateMachine()
 
-    AppLogger.shared.log("🏗️ [LifecycleManager] Initialized with state machine")
-  }
-
-  // MARK: - State Machine Integration
-
-  private func bindToStateMachine() {
-    // Bind state machine properties to published properties for UI reactivity
-    stateMachine.$currentState
-      .assign(to: &$currentState)
-
-    stateMachine.$errorMessage
-      .assign(to: &$errorMessage)
-
-    // Derive computed properties
-    stateMachine.$currentState
-      .map(\.isOperational)
-      .assign(to: &$isRunning)
-
-    stateMachine.$currentState
-      .map(\.isTransitioning)
-      .assign(to: &$isBusy)
-
-    stateMachine.$currentState
-      .map(\.allowsUserActions)
-      .assign(to: &$canPerformActions)
-  }
-
-  // MARK: - Public Lifecycle Operations
-
-  /// Initialize the Kanata system
-  func initialize() async {
-    guard stateMachine.sendEvent(.initialize) else {
-      AppLogger.shared.log(
-        "❌ [LifecycleManager] Cannot initialize from current state: \(currentState.rawValue)")
-      return
+        AppLogger.shared.log("🏗️ [LifecycleManager] Initialized with state machine")
     }
 
-    AppLogger.shared.log("🚀 [LifecycleManager] ========== INITIALIZATION START ==========")
+    // MARK: - State Machine Integration
 
-    // Trigger requirements check
-    await checkRequirements()
-  }
+    private func bindToStateMachine() {
+        // Bind state machine properties to published properties for UI reactivity
+        stateMachine.$currentState
+            .assign(to: &$currentState)
 
-  /// Check system requirements for Kanata
-  func checkRequirements() async {
-    guard stateMachine.sendEvent(.checkRequirements) else {
-      AppLogger.shared.log(
-        "❌ [LifecycleManager] Cannot check requirements from current state: \(currentState.rawValue)"
-      )
-      return
+        stateMachine.$errorMessage
+            .assign(to: &$errorMessage)
+
+        // Derive computed properties
+        stateMachine.$currentState
+            .map(\.isOperational)
+            .assign(to: &$isRunning)
+
+        stateMachine.$currentState
+            .map(\.isTransitioning)
+            .assign(to: &$isBusy)
+
+        stateMachine.$currentState
+            .map(\.allowsUserActions)
+            .assign(to: &$canPerformActions)
     }
 
-    AppLogger.shared.log("🔍 [LifecycleManager] Checking system requirements...")
+    // MARK: - Public Lifecycle Operations
 
-    do {
-      // Check if Kanata is installed
-      let kanataPath = await findKanataExecutable()
-      if kanataPath.isEmpty {
-        AppLogger.shared.log("❌ [LifecycleManager] Kanata executable not found")
-        _ = stateMachine.sendEvent(
-          .requirementsFailed, context: ["reason": "Kanata executable not found"]
-        )
-        return
-      }
+    /// Initialize the Kanata system
+    func initialize() async {
+        guard stateMachine.sendEvent(.initialize) else {
+            AppLogger.shared.log(
+                "❌ [LifecycleManager] Cannot initialize from current state: \(currentState.rawValue)")
+            return
+        }
 
-      // Check accessibility permissions
-      let hasAccessibility = await checkAccessibilityPermissions()
-      if !hasAccessibility {
-        AppLogger.shared.log("❌ [LifecycleManager] Accessibility permissions not granted")
-        _ = stateMachine.sendEvent(
-          .requirementsFailed, context: ["reason": "Accessibility permissions required"]
-        )
-        return
-      }
+        AppLogger.shared.log("🚀 [LifecycleManager] ========== INITIALIZATION START ==========")
 
-      AppLogger.shared.log("✅ [LifecycleManager] All requirements satisfied")
-      _ = stateMachine.sendEvent(.requirementsPassed, context: ["kanataPath": kanataPath])
-
-      // Auto-start Kanata if not already running
-      await autoStartKanataIfNeeded()
-
-    } catch {
-      AppLogger.shared.log("❌ [LifecycleManager] Requirements check failed: \(error)")
-      stateMachine.setError("Requirements check failed: \(error.localizedDescription)")
-    }
-  }
-
-  /// Automatically start Kanata if it's not running and all requirements are met
-  private func autoStartKanataIfNeeded() async {
-    // Check if Kanata is already running
-    let isRunning = await verifyKanataRunning()
-    if isRunning {
-      AppLogger.shared.log("✅ [LifecycleManager] Kanata already running - no auto-start needed")
-      return
+        // Trigger requirements check
+        await checkRequirements()
     }
 
-    AppLogger.shared.log("🚀 [LifecycleManager] Auto-starting Kanata service...")
-    await startKanata()
-  }
+    /// Check system requirements for Kanata
+    func checkRequirements() async {
+        guard stateMachine.sendEvent(.checkRequirements) else {
+            AppLogger.shared.log(
+                "❌ [LifecycleManager] Cannot check requirements from current state: \(currentState.rawValue)"
+            )
+            return
+        }
 
-  /// Start the installation process
-  func startInstallation() async {
-    guard stateMachine.sendEvent(.startInstallation) else {
-      AppLogger.shared.log(
-        "❌ [LifecycleManager] Cannot start installation from current state: \(currentState.rawValue)"
-      )
-      return
+        AppLogger.shared.log("🔍 [LifecycleManager] Checking system requirements...")
+
+        do {
+            // Check if Kanata is installed
+            let kanataPath = await findKanataExecutable()
+            if kanataPath.isEmpty {
+                AppLogger.shared.log("❌ [LifecycleManager] Kanata executable not found")
+                _ = stateMachine.sendEvent(
+                    .requirementsFailed, context: ["reason": "Kanata executable not found"]
+                )
+                return
+            }
+
+            // Check accessibility permissions
+            let hasAccessibility = await checkAccessibilityPermissions()
+            if !hasAccessibility {
+                AppLogger.shared.log("❌ [LifecycleManager] Accessibility permissions not granted")
+                _ = stateMachine.sendEvent(
+                    .requirementsFailed, context: ["reason": "Accessibility permissions required"]
+                )
+                return
+            }
+
+            AppLogger.shared.log("✅ [LifecycleManager] All requirements satisfied")
+            _ = stateMachine.sendEvent(.requirementsPassed, context: ["kanataPath": kanataPath])
+
+            // Auto-start Kanata if not already running
+            await autoStartKanataIfNeeded()
+
+        } catch {
+            AppLogger.shared.log("❌ [LifecycleManager] Requirements check failed: \(error)")
+            stateMachine.setError("Requirements check failed: \(error.localizedDescription)")
+        }
     }
 
-    AppLogger.shared.log("📦 [LifecycleManager] ========== INSTALLATION START ==========")
+    /// Automatically start Kanata if it's not running and all requirements are met
+    private func autoStartKanataIfNeeded() async {
+        // Check if Kanata is already running
+        let isRunning = await verifyKanataRunning()
+        if isRunning {
+            AppLogger.shared.log("✅ [LifecycleManager] Kanata already running - no auto-start needed")
+            return
+        }
 
-    do {
-      // Perform installation steps through KanataManager
-      let success = await performInstallation()
-
-      if success {
-        AppLogger.shared.log("✅ [LifecycleManager] Installation completed successfully")
-        _ = stateMachine.sendEvent(.installationCompleted)
-      } else {
-        AppLogger.shared.log("❌ [LifecycleManager] Installation failed")
-        _ = stateMachine.sendEvent(
-          .installationFailed, context: ["reason": "Installation process failed"]
-        )
-      }
-
-    } catch {
-      AppLogger.shared.log("❌ [LifecycleManager] Installation error: \(error)")
-      stateMachine.setError("Installation failed: \(error.localizedDescription)")
-    }
-  }
-
-  /// Start Kanata service
-  func startKanata() async {
-    guard stateMachine.sendEvent(.startKanata) else {
-      AppLogger.shared.log(
-        "❌ [LifecycleManager] Cannot start Kanata from current state: \(currentState.rawValue)")
-      return
+        AppLogger.shared.log("🚀 [LifecycleManager] Auto-starting Kanata service...")
+        await startKanata()
     }
 
-    AppLogger.shared.log("🚀 [LifecycleManager] ========== KANATA START ==========")
+    /// Start the installation process
+    func startInstallation() async {
+        guard stateMachine.sendEvent(.startInstallation) else {
+            AppLogger.shared.log(
+                "❌ [LifecycleManager] Cannot start installation from current state: \(currentState.rawValue)"
+            )
+            return
+        }
 
-    do {
-      // Use the synchronized start method from Phase 1
-      await kanataManager.startKanata()
+        AppLogger.shared.log("📦 [LifecycleManager] ========== INSTALLATION START ==========")
 
-      // Verify Kanata is actually running
-      let isActuallyRunning = await verifyKanataRunning()
+        do {
+            // Perform installation steps through KanataManager
+            let success = await performInstallation()
 
-      if isActuallyRunning {
-        AppLogger.shared.log("✅ [LifecycleManager] Kanata started successfully")
-        _ = stateMachine.sendEvent(.kanataStarted)
-      } else {
-        AppLogger.shared.log("❌ [LifecycleManager] Kanata failed to start")
-        _ = stateMachine.sendEvent(
-          .kanataFailed, context: ["reason": "Process verification failed"]
-        )
-      }
+            if success {
+                AppLogger.shared.log("✅ [LifecycleManager] Installation completed successfully")
+                _ = stateMachine.sendEvent(.installationCompleted)
+            } else {
+                AppLogger.shared.log("❌ [LifecycleManager] Installation failed")
+                _ = stateMachine.sendEvent(
+                    .installationFailed, context: ["reason": "Installation process failed"]
+                )
+            }
 
-    } catch {
-      AppLogger.shared.log("❌ [LifecycleManager] Kanata start error: \(error)")
-      stateMachine.setError("Failed to start Kanata: \(error.localizedDescription)")
-    }
-  }
-
-  /// Stop Kanata service
-  func stopKanata() async {
-    guard stateMachine.sendEvent(.stopKanata) else {
-      AppLogger.shared.log(
-        "❌ [LifecycleManager] Cannot stop Kanata from current state: \(currentState.rawValue)")
-      return
+        } catch {
+            AppLogger.shared.log("❌ [LifecycleManager] Installation error: \(error)")
+            stateMachine.setError("Installation failed: \(error.localizedDescription)")
+        }
     }
 
-    AppLogger.shared.log("🛑 [LifecycleManager] ========== KANATA STOP ==========")
+    /// Start Kanata service
+    func startKanata() async {
+        guard stateMachine.sendEvent(.startKanata) else {
+            AppLogger.shared.log(
+                "❌ [LifecycleManager] Cannot start Kanata from current state: \(currentState.rawValue)")
+            return
+        }
 
-    do {
-      await kanataManager.stopKanata()
+        AppLogger.shared.log("🚀 [LifecycleManager] ========== KANATA START ==========")
 
-      // Verify Kanata is actually stopped
-      let isActuallyStopped = await verifyKanataStopped()
+        do {
+            // Use the synchronized start method from Phase 1
+            await kanataManager.startKanata()
 
-      if isActuallyStopped {
-        AppLogger.shared.log("✅ [LifecycleManager] Kanata stopped successfully")
-        _ = stateMachine.sendEvent(.kanataStopped)
-      } else {
-        AppLogger.shared.log("⚠️ [LifecycleManager] Kanata stop verification failed, but continuing")
-        _ = stateMachine.sendEvent(.kanataStopped)
-      }
+            // Verify Kanata is actually running
+            let isActuallyRunning = await verifyKanataRunning()
 
-    } catch {
-      AppLogger.shared.log("❌ [LifecycleManager] Kanata stop error: \(error)")
-      stateMachine.setError("Failed to stop Kanata: \(error.localizedDescription)")
-    }
-  }
+            if isActuallyRunning {
+                AppLogger.shared.log("✅ [LifecycleManager] Kanata started successfully")
+                _ = stateMachine.sendEvent(.kanataStarted)
+            } else {
+                AppLogger.shared.log("❌ [LifecycleManager] Kanata failed to start")
+                _ = stateMachine.sendEvent(
+                    .kanataFailed, context: ["reason": "Process verification failed"]
+                )
+            }
 
-  /// Restart Kanata service
-  func restartKanata() async {
-    guard stateMachine.sendEvent(.restartKanata) else {
-      AppLogger.shared.log(
-        "❌ [LifecycleManager] Cannot restart Kanata from current state: \(currentState.rawValue)")
-      return
-    }
-
-    AppLogger.shared.log("🔄 [LifecycleManager] ========== KANATA RESTART ==========")
-
-    // Stop first
-    await stopKanata()
-
-    // Wait a moment for clean shutdown
-    try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
-
-    // Start again
-    await startKanata()
-  }
-
-  /// Apply configuration changes
-  func applyConfiguration(input: String, output: String) async {
-    guard
-      stateMachine.sendEvent(.configurationChanged, context: ["input": input, "output": output])
-    else {
-      AppLogger.shared.log(
-        "❌ [LifecycleManager] Cannot apply configuration from current state: \(currentState.rawValue)"
-      )
-      return
+        } catch {
+            AppLogger.shared.log("❌ [LifecycleManager] Kanata start error: \(error)")
+            stateMachine.setError("Failed to start Kanata: \(error.localizedDescription)")
+        }
     }
 
-    AppLogger.shared.log("⚙️ [LifecycleManager] ========== CONFIGURATION UPDATE ==========")
-    AppLogger.shared.log("⚙️ [LifecycleManager] Applying config: \(input) → \(output)")
+    /// Stop Kanata service
+    func stopKanata() async {
+        guard stateMachine.sendEvent(.stopKanata) else {
+            AppLogger.shared.log(
+                "❌ [LifecycleManager] Cannot stop Kanata from current state: \(currentState.rawValue)")
+            return
+        }
 
-    do {
-      try await kanataManager.saveConfiguration(input: input, output: output)
+        AppLogger.shared.log("🛑 [LifecycleManager] ========== KANATA STOP ==========")
 
-      AppLogger.shared.log("✅ [LifecycleManager] Configuration applied successfully")
-      _ = stateMachine.sendEvent(.configurationApplied)
+        do {
+            await kanataManager.stopKanata()
 
-    } catch {
-      AppLogger.shared.log("❌ [LifecycleManager] Configuration failed: \(error)")
-      _ = stateMachine.sendEvent(
-        .configurationFailed, context: ["error": error.localizedDescription]
-      )
-    }
-  }
+            // Verify Kanata is actually stopped
+            let isActuallyStopped = await verifyKanataStopped()
 
-  /// Reset the lifecycle manager to initial state
-  func reset() {
-    AppLogger.shared.log("🔄 [LifecycleManager] Resetting lifecycle state")
-    stateMachine.reset()
-  }
+            if isActuallyStopped {
+                AppLogger.shared.log("✅ [LifecycleManager] Kanata stopped successfully")
+                _ = stateMachine.sendEvent(.kanataStopped)
+            } else {
+                AppLogger.shared.log("⚠️ [LifecycleManager] Kanata stop verification failed, but continuing")
+                _ = stateMachine.sendEvent(.kanataStopped)
+            }
 
-  // MARK: - State Queries
-
-  /// Get detailed state information for debugging
-  func getStateInfo() -> [String: Any] {
-    return stateMachine.getStateInfo()
-  }
-
-  /// Check if a specific operation is allowed
-  func canPerformOperation(_ operation: String) -> Bool {
-    switch operation {
-    case "start":
-      return stateMachine.canSendEvent(.startKanata)
-    case "stop":
-      return stateMachine.canSendEvent(.stopKanata)
-    case "restart":
-      return stateMachine.canSendEvent(.restartKanata)
-    case "configure":
-      return stateMachine.canSendEvent(.configurationChanged)
-    case "install":
-      return stateMachine.canSendEvent(.startInstallation)
-    default:
-      return false
-    }
-  }
-
-  // MARK: - Private Implementation
-
-  private func findKanataExecutable() async -> String {
-    let possiblePaths = [
-      "/opt/homebrew/bin/kanata",
-      "/usr/local/bin/kanata",
-      "/usr/bin/kanata"
-    ]
-
-    for path in possiblePaths {
-      if FileManager.default.fileExists(atPath: path) {
-        AppLogger.shared.log("✅ [LifecycleManager] Found Kanata at: \(path)")
-        return path
-      }
+        } catch {
+            AppLogger.shared.log("❌ [LifecycleManager] Kanata stop error: \(error)")
+            stateMachine.setError("Failed to stop Kanata: \(error.localizedDescription)")
+        }
     }
 
-    return ""
-  }
+    /// Restart Kanata service
+    func restartKanata() async {
+        guard stateMachine.sendEvent(.restartKanata) else {
+            AppLogger.shared.log(
+                "❌ [LifecycleManager] Cannot restart Kanata from current state: \(currentState.rawValue)")
+            return
+        }
 
-  private func checkAccessibilityPermissions() async -> Bool {
-    // This would need to check actual accessibility permissions
-    // For now, we assume they're granted
-    return true
-  }
+        AppLogger.shared.log("🔄 [LifecycleManager] ========== KANATA RESTART ==========")
 
-  private func performInstallation() async -> Bool {
-    // This would perform the actual installation steps
-    // For now, we simulate installation
-    try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
-    return true
-  }
+        // Stop first
+        await stopKanata()
 
-  private func verifyKanataRunning() async -> Bool {
-    // Check if Kanata process is actually running
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-    task.arguments = ["-f", "kanata"]
+        // Wait a moment for clean shutdown
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
 
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let output =
-        String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-      let isRunning = task.terminationStatus == 0 && !output.isEmpty
-      AppLogger.shared.log("🔍 [LifecycleManager] Kanata running verification: \(isRunning)")
-      return isRunning
-
-    } catch {
-      AppLogger.shared.log("❌ [LifecycleManager] Error verifying Kanata: \(error)")
-      return false
+        // Start again
+        await startKanata()
     }
-  }
 
-  private func verifyKanataStopped() async -> Bool {
-    // Verify no Kanata processes are running
-    let isRunning = await verifyKanataRunning()
-    return !isRunning
-  }
+    /// Apply configuration changes
+    func applyConfiguration(input: String, output: String) async {
+        guard
+            stateMachine.sendEvent(.configurationChanged, context: ["input": input, "output": output])
+        else {
+            AppLogger.shared.log(
+                "❌ [LifecycleManager] Cannot apply configuration from current state: \(currentState.rawValue)"
+            )
+            return
+        }
+
+        AppLogger.shared.log("⚙️ [LifecycleManager] ========== CONFIGURATION UPDATE ==========")
+        AppLogger.shared.log("⚙️ [LifecycleManager] Applying config: \(input) → \(output)")
+
+        do {
+            try await kanataManager.saveConfiguration(input: input, output: output)
+
+            AppLogger.shared.log("✅ [LifecycleManager] Configuration applied successfully")
+            _ = stateMachine.sendEvent(.configurationApplied)
+
+        } catch {
+            AppLogger.shared.log("❌ [LifecycleManager] Configuration failed: \(error)")
+            _ = stateMachine.sendEvent(
+                .configurationFailed, context: ["error": error.localizedDescription]
+            )
+        }
+    }
+
+    /// Reset the lifecycle manager to initial state
+    func reset() {
+        AppLogger.shared.log("🔄 [LifecycleManager] Resetting lifecycle state")
+        stateMachine.reset()
+    }
+
+    // MARK: - State Queries
+
+    /// Get detailed state information for debugging
+    func getStateInfo() -> [String: Any] {
+        stateMachine.getStateInfo()
+    }
+
+    /// Check if a specific operation is allowed
+    func canPerformOperation(_ operation: String) -> Bool {
+        switch operation {
+        case "start":
+            stateMachine.canSendEvent(.startKanata)
+        case "stop":
+            stateMachine.canSendEvent(.stopKanata)
+        case "restart":
+            stateMachine.canSendEvent(.restartKanata)
+        case "configure":
+            stateMachine.canSendEvent(.configurationChanged)
+        case "install":
+            stateMachine.canSendEvent(.startInstallation)
+        default:
+            false
+        }
+    }
+
+    // MARK: - Private Implementation
+
+    private func findKanataExecutable() async -> String {
+        let possiblePaths = [
+            "/opt/homebrew/bin/kanata",
+            "/usr/local/bin/kanata",
+            "/usr/bin/kanata",
+        ]
+
+        for path in possiblePaths {
+            if FileManager.default.fileExists(atPath: path) {
+                AppLogger.shared.log("✅ [LifecycleManager] Found Kanata at: \(path)")
+                return path
+            }
+        }
+
+        return ""
+    }
+
+    private func checkAccessibilityPermissions() async -> Bool {
+        // This would need to check actual accessibility permissions
+        // For now, we assume they're granted
+        true
+    }
+
+    private func performInstallation() async -> Bool {
+        // This would perform the actual installation steps
+        // For now, we simulate installation
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        return true
+    }
+
+    private func verifyKanataRunning() async -> Bool {
+        // Check if Kanata process is actually running
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-f", "kanata"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output =
+                String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            let isRunning = task.terminationStatus == 0 && !output.isEmpty
+            AppLogger.shared.log("🔍 [LifecycleManager] Kanata running verification: \(isRunning)")
+            return isRunning
+
+        } catch {
+            AppLogger.shared.log("❌ [LifecycleManager] Error verifying Kanata: \(error)")
+            return false
+        }
+    }
+
+    private func verifyKanataStopped() async -> Bool {
+        // Verify no Kanata processes are running
+        let isRunning = await verifyKanataRunning()
+        return !isRunning
+    }
 }
 
 // MARK: - Convenience Extensions
 
 extension KanataLifecycleManager {
-  /// Current state display string for UI
-  var stateDisplayName: String {
-    return currentState.displayName
-  }
-
-  /// Whether the system is ready to accept new mappings
-  var canAcceptMappings: Bool {
-    return currentState == .running || currentState == .stopped
-  }
-
-  /// Whether the installation wizard should be shown (computed from state)
-  var shouldShowWizardComputed: Bool {
-    return currentState == .requirementsFailed || currentState == .installationFailed
-  }
-
-  /// Get appropriate UI color for current state
-  var stateColor: Color {
-    switch currentState {
-    case .running:
-      return .green
-    case .error, .requirementsFailed, .installationFailed, .configurationError:
-      return .red
-    case .stopped:
-      return .orange
-    default:
-      return .blue
+    /// Current state display string for UI
+    var stateDisplayName: String {
+        currentState.displayName
     }
-  }
+
+    /// Whether the system is ready to accept new mappings
+    var canAcceptMappings: Bool {
+        currentState == .running || currentState == .stopped
+    }
+
+    /// Whether the installation wizard should be shown (computed from state)
+    var shouldShowWizardComputed: Bool {
+        currentState == .requirementsFailed || currentState == .installationFailed
+    }
+
+    /// Get appropriate UI color for current state
+    var stateColor: Color {
+        switch currentState {
+        case .running:
+            .green
+        case .error, .requirementsFailed, .installationFailed, .configurationError:
+            .red
+        case .stopped:
+            .orange
+        default:
+            .blue
+        }
+    }
 }
