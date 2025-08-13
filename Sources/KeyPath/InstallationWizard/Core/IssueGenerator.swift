@@ -310,6 +310,7 @@ class IssueGenerator {
         case .vhidDeviceRunning: "VirtualHIDDevice Daemon"
         case .vhidDaemonMisconfigured: "VirtualHIDDevice Daemon Misconfigured"
         case .launchDaemonServices: "LaunchDaemon Services Not Installed"
+        case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .packageManager: "Package Manager (Homebrew) Missing"
         }
     }
@@ -334,6 +335,8 @@ class IssueGenerator {
             "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
         case .launchDaemonServices:
             "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
+        case .launchDaemonServicesUnhealthy:
+            "LaunchDaemon services are loaded but crashing or failing. This usually indicates a configuration problem or permission issue that can be fixed by restarting the services."
         case .packageManager:
             "Homebrew package manager is not installed. This is needed to automatically install missing dependencies like Kanata. Install from https://brew.sh"
         }
@@ -351,6 +354,8 @@ class IssueGenerator {
             .repairVHIDDaemonServices
         case .launchDaemonServices:
             .installLaunchDaemonServices
+        case .launchDaemonServicesUnhealthy:
+            .restartUnhealthyServices
         case .kanataBinary:
             .installViaBrew // Can be installed via Homebrew if available
         case .kanataService:

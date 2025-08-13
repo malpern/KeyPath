@@ -32,7 +32,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
   func testNavigationPriorityInstallationSecond() {
     // Given: System has component issues but no conflicts
-    let componentIssue = createTestIssue(category: .component, title: "Kanata Binary Missing")
+    let componentIssue = createTestIssue(category: .installation, title: "Kanata Binary Missing")
     let permissionIssue = createTestIssue(category: .permissions, title: "Test Permission")
     let issues = [componentIssue, permissionIssue]
 
@@ -272,7 +272,7 @@ class WizardNavigationEngineTests: XCTestCase {
   func testNextPageLogic() {
     // Given: Current page and system state with issues
     let currentPage = WizardPage.conflicts
-    let issues = [createTestIssue(category: .kanataComponents, title: "Kanata Binary Missing")]
+    let issues = [createTestIssue(category: .installation, title: "Kanata Binary Missing")]
     let systemState = WizardSystemState.missingComponents(missing: [])
 
     // When: Getting next page
@@ -285,7 +285,7 @@ class WizardNavigationEngineTests: XCTestCase {
   func testNextPageWhenAlreadyOnTarget() {
     // Given: Already on the target page
     let currentPage = WizardPage.kanataComponents
-    let issues = [createTestIssue(category: .kanataComponents, title: "Kanata Binary Missing")]
+    let issues = [createTestIssue(category: .installation, title: "Kanata Binary Missing")]
     let systemState = WizardSystemState.missingComponents(missing: [])
 
     // When: Getting next page

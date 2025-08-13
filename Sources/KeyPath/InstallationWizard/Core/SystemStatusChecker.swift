@@ -218,12 +218,25 @@ class SystemStatusChecker {
             }
         }
 
-        // Check LaunchDaemon services - use proper service status method
+        // Check LaunchDaemon services - handle mixed scenarios properly (same logic as ComponentDetector)
         let daemonStatus = launchDaemonInstaller.getServiceStatus()
-        if daemonStatus.allServicesLoaded {
+        if daemonStatus.allServicesHealthy {
             installed.append(.launchDaemonServices)
         } else {
-            missing.append(.launchDaemonServices)
+            // Check if any services are loaded but unhealthy (priority over not installed)
+            let hasLoadedButUnhealthy = (daemonStatus.kanataServiceLoaded && !daemonStatus.kanataServiceHealthy) ||
+                                       (daemonStatus.vhidDaemonServiceLoaded && !daemonStatus.vhidDaemonServiceHealthy) ||
+                                       (daemonStatus.vhidManagerServiceLoaded && !daemonStatus.vhidManagerServiceHealthy)
+            
+            if hasLoadedButUnhealthy {
+                // At least one service is loaded but crashing - prioritize restart over install
+                missing.append(.launchDaemonServicesUnhealthy)
+                AppLogger.shared.log("🔍 [SystemStatusChecker] MIXED SCENARIO: Some LaunchDaemon services loaded but unhealthy: \(daemonStatus.description)")
+            } else {
+                // No services are loaded/installed
+                missing.append(.launchDaemonServices)
+                AppLogger.shared.log("🔍 [SystemStatusChecker] LaunchDaemon services not installed: \(daemonStatus.description)")
+            }
         }
 
         // Verify VHID daemon plist is correctly configured to DriverKit path
@@ -248,10 +261,15 @@ class SystemStatusChecker {
         let serviceStatus = launchDaemonInstaller.getServiceStatus()
         let systemConfigExists = FileManager.default.fileExists(atPath: WizardSystemPaths.systemConfigPath)
 
-        if serviceStatus.kanataServiceLoaded, systemConfigExists {
+        if serviceStatus.kanataServiceLoaded, systemConfigExists, serviceStatus.kanataServiceHealthy {
+            // Service is loaded, config exists, AND service is healthy
             installed.append(.kanataService)
-            AppLogger.shared.log("✅ [SystemStatusChecker] Kanata service: service loaded AND config file exists")
+            AppLogger.shared.log("✅ [SystemStatusChecker] Kanata service: service loaded, healthy AND config file exists")
+        } else if serviceStatus.kanataServiceLoaded && !serviceStatus.kanataServiceHealthy {
+            // Service loaded but unhealthy - let LaunchDaemonServicesUnhealthy handle this
+            AppLogger.shared.log("🔍 [SystemStatusChecker] Kanata service loaded but unhealthy - will be handled by LaunchDaemonServicesUnhealthy")
         } else {
+            // Service not loaded or config missing  
             missing.append(.kanataService)
             let reason = !serviceStatus.kanataServiceLoaded ? "service not loaded" : "config file missing"
             AppLogger.shared.log("❌ [SystemStatusChecker] Kanata service missing: \(reason)")
@@ -446,16 +464,19 @@ class SystemStatusChecker {
             return .daemonNotRunning
         }
 
+        // Check if Kanata is running, regardless of health
+        // This ensures consistency between summary and detail pages
+        if kanataManager.isRunning {
+            return .active  // Show as active even if unhealthy
+        }
+        
+        // If not running but everything else is ready
         if !health.isKanataFunctional {
             return .serviceNotRunning
         }
 
-        // All good!
-        if kanataManager.isRunning {
-            return .active
-        } else {
-            return .ready
-        }
+        // All components installed but service not running
+        return .ready
     }
 
     // MARK: - Debug Methods

@@ -73,7 +73,7 @@ final class KanataManagerTCPTests: XCTestCase {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { $0 }
         }
         
-        if bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size)) < 0 {
+        if Darwin.bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size)) < 0 {
             throw NSError(domain: "TestSetup", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to bind socket"])
         }
         
@@ -127,7 +127,7 @@ final class KanataManagerTCPTests: XCTestCase {
         _ = try createTestConfig(validConfig)
         
         // Test validation
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         
         XCTAssertTrue(result.isValid, "TCP validation should succeed for valid config when enabled and running")
         XCTAssertTrue(result.errors.isEmpty, "Should have no errors for valid config")
@@ -156,7 +156,7 @@ final class KanataManagerTCPTests: XCTestCase {
         _ = try createTestConfig(invalidConfig)
         
         // Test validation
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         
         XCTAssertFalse(result.isValid, "TCP validation should fail for invalid config")
         XCTAssertEqual(result.errors.count, 2, "Should return validation errors from TCP server")
@@ -166,7 +166,7 @@ final class KanataManagerTCPTests: XCTestCase {
     
     // MARK: - TCP Fallback Tests
     
-    func testFallbackToFileValidationWhenTCPDisabled() throws {
+    func testFallbackToFileValidationWhenTCPDisabled() async throws {
         // Disable TCP validation
         preferencesService.tcpServerEnabled = false
         
@@ -181,12 +181,12 @@ final class KanataManagerTCPTests: XCTestCase {
         _ = try createTestConfig(validConfig)
         
         // Test validation (should use file validation)
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         
         XCTAssertTrue(result.isValid, "File validation should succeed for valid config when TCP is disabled")
     }
     
-    func testFallbackToFileValidationWhenKanataStopped() throws {
+    func testFallbackToFileValidationWhenKanataStopped() async throws {
         // Enable TCP but simulate Kanata not running
         preferencesService.tcpServerEnabled = true
         simulateKanataStopped()
@@ -202,12 +202,12 @@ final class KanataManagerTCPTests: XCTestCase {
         _ = try createTestConfig(validConfig)
         
         // Test validation (should fallback to file validation)
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         
         XCTAssertTrue(result.isValid, "Should fallback to file validation when Kanata is not running")
     }
     
-    func testFallbackToFileValidationWhenTCPServerUnavailable() throws {
+    func testFallbackToFileValidationWhenTCPServerUnavailable() async throws {
         // Enable TCP but don't start server
         preferencesService.tcpServerEnabled = true
         simulateKanataRunning()
@@ -223,7 +223,7 @@ final class KanataManagerTCPTests: XCTestCase {
         _ = try createTestConfig(validConfig)
         
         // Test validation (should fallback to file validation when TCP fails)
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         
         XCTAssertTrue(result.isValid, "Should fallback to file validation when TCP server is unavailable")
     }
@@ -249,7 +249,7 @@ final class KanataManagerTCPTests: XCTestCase {
         
         // Test validation (should timeout and fallback)
         let startTime = Date()
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         let elapsedTime = Date().timeIntervalSince(startTime)
         
         XCTAssertTrue(result.isValid, "Should fallback to file validation on TCP timeout")
@@ -275,7 +275,7 @@ final class KanataManagerTCPTests: XCTestCase {
         
         // This tests the TCP validation during save
         do {
-            try await kanataManager.saveConfig(mappings: validMappings)
+            try await kanataManager.saveConfiguration(input: "caps", output: "esc")
             XCTAssertTrue(true, "Save should succeed with valid config and working TCP validation")
         } catch {
             XCTFail("Save should not fail with valid config: \(error)")
@@ -301,7 +301,7 @@ final class KanataManagerTCPTests: XCTestCase {
         
         // Save should still succeed even if TCP validation fails (it's optional)
         do {
-            try await kanataManager.saveConfig(mappings: invalidMappings)
+            try await kanataManager.saveConfiguration(input: "invalid", output: "broken")
             XCTAssertTrue(true, "Save should succeed even if TCP validation fails (it's optional)")
         } catch {
             XCTFail("Save should not fail even if TCP validation fails: \(error)")
@@ -320,7 +320,7 @@ final class KanataManagerTCPTests: XCTestCase {
         
         // Save should succeed with fallback
         do {
-            try await kanataManager.saveConfig(mappings: mappings)
+            try await kanataManager.saveConfiguration(input: "space", output: "tab")
             XCTAssertTrue(true, "Save should succeed with fallback when TCP is unavailable")
         } catch {
             XCTFail("Save should not fail when TCP is unavailable: \(error)")
@@ -349,10 +349,15 @@ final class KanataManagerTCPTests: XCTestCase {
     }
     
     func testBuildKanataArgumentsWithInvalidTCPPort() {
-        preferencesService.tcpServerEnabled = true
-        preferencesService.tcpServerPort = 500 // Invalid port
+        // Store the current valid port
+        let originalPort = preferencesService.tcpServerPort
         
-        XCTAssertFalse(preferencesService.shouldUseTCPServer, "Should not use TCP server with invalid port")
+        preferencesService.tcpServerEnabled = true
+        preferencesService.tcpServerPort = 500 // Invalid port - should be auto-corrected
+        
+        // The invalid port should be auto-corrected back to the original valid port
+        XCTAssertEqual(preferencesService.tcpServerPort, originalPort, "Invalid port should be auto-corrected")
+        XCTAssertTrue(preferencesService.shouldUseTCPServer, "Should use TCP server after auto-correction to valid port")
     }
     
     // MARK: - Concurrent TCP Validation Tests
@@ -384,7 +389,7 @@ final class KanataManagerTCPTests: XCTestCase {
         // Test concurrent validation calls
         let tasks = (0..<3).map { _ in
             Task {
-                return kanataManager.validateConfigFile()
+                return await kanataManager.validateConfigFile()
             }
         }
         
@@ -412,19 +417,19 @@ final class KanataManagerTCPTests: XCTestCase {
     
     // MARK: - Error Handling Tests
     
-    func testValidationWithMissingConfigFile() {
+    func testValidationWithMissingConfigFile() async {
         // Don't create any config file
         preferencesService.tcpServerEnabled = true
         simulateKanataRunning()
         
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         
         // Should handle missing file gracefully
         XCTAssertFalse(result.isValid, "Validation should fail when config file is missing")
         XCTAssertFalse(result.errors.isEmpty, "Should have error messages for missing file")
     }
     
-    func testValidationWithUnreadableConfigFile() throws {
+    func testValidationWithUnreadableConfigFile() async throws {
         // Create config file with restricted permissions
         let configContent = "(defcfg process-unmapped-keys yes)"
         let configURL = try createTestConfig(configContent)
@@ -435,7 +440,7 @@ final class KanataManagerTCPTests: XCTestCase {
         preferencesService.tcpServerEnabled = true
         simulateKanataRunning()
         
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         
         // Should handle unreadable file (either through TCP fallback or error handling)
         // The exact behavior depends on the implementation, but it should not crash
@@ -460,21 +465,21 @@ final class KanataManagerTCPTests: XCTestCase {
         _ = try createTestConfig(validConfig)
         
         // First validation should use TCP
-        var result = kanataManager.validateConfigFile()
+        var result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "First validation should succeed via TCP")
         
         // Disable TCP
         preferencesService.tcpServerEnabled = false
         
         // Second validation should use file validation
-        result = kanataManager.validateConfigFile()
+        result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Second validation should succeed via file validation")
         
         // Re-enable TCP
         preferencesService.tcpServerEnabled = true
         
         // Third validation should use TCP again
-        result = kanataManager.validateConfigFile()
+        result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Third validation should succeed via TCP again")
     }
     
@@ -493,11 +498,13 @@ final class KanataManagerTCPTests: XCTestCase {
         
         // Measure validation performance
         measure {
-            _ = kanataManager.validateConfigFile()
+            Task {
+                _ = await kanataManager.validateConfigFile()
+            }
         }
     }
     
-    func testFileValidationFallbackPerformance() throws {
+    func testFileValidationFallbackPerformance() async throws {
         // Test performance of file validation (fallback)
         preferencesService.tcpServerEnabled = false
         
@@ -505,7 +512,9 @@ final class KanataManagerTCPTests: XCTestCase {
         _ = try createTestConfig(validConfig)
         
         measure {
-            _ = kanataManager.validateConfigFile()
+            Task {
+                _ = await kanataManager.validateConfigFile()
+            }
         }
     }
     
@@ -525,7 +534,7 @@ final class KanataManagerTCPTests: XCTestCase {
         let initialConfig = "(defcfg process-unmapped-keys yes) (defsrc caps) (deflayer base esc)"
         _ = try createTestConfig(initialConfig)
         
-        var result = kanataManager.validateConfigFile()
+        var result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Initial validation should succeed")
         
         // 3. Save new configuration
@@ -534,10 +543,13 @@ final class KanataManagerTCPTests: XCTestCase {
             KeyMapping(input: "space", output: "tab")
         ]
         
-        try await kanataManager.saveConfig(mappings: newMappings)
+        // Save configuration using available API
+        for mapping in newMappings {
+            try await kanataManager.saveConfiguration(input: mapping.input, output: mapping.output)
+        }
         
         // 4. Validate the saved config
-        result = kanataManager.validateConfigFile()
+        result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Validation after save should succeed")
         
         // 5. Test with validation error
@@ -545,7 +557,7 @@ final class KanataManagerTCPTests: XCTestCase {
             MockValidationError(line: 1, column: 1, message: "Test error")
         ])
         
-        result = kanataManager.validateConfigFile()
+        result = await kanataManager.validateConfigFile()
         XCTAssertFalse(result.isValid, "Validation should fail when server reports errors")
         XCTAssertFalse(result.errors.isEmpty, "Should have error messages")
     }

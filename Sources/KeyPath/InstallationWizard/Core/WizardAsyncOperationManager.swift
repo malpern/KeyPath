@@ -462,6 +462,8 @@ extension AutoFixAction {
             "Repair VHID Daemon Services"
         case .synchronizeConfigPaths:
             "Synchronize Config Paths"
+        case .restartUnhealthyServices:
+            "Restart Unhealthy Services"
         }
     }
 }

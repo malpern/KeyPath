@@ -81,12 +81,10 @@ actor MockKanataTCPServer {
     }
     
     private func processRequest(connection: NWConnection, connectionId: ObjectIdentifier, data: Data?, error: Error?) async {
-        defer {
+        
+        guard error == nil, let _ = data else {
             connections.removeValue(forKey: connectionId)
             connection.cancel()
-        }
-        
-        guard error == nil, let data = data else {
             return
         }
         
@@ -107,11 +105,18 @@ actor MockKanataTCPServer {
             do {
                 responseData = try JSONEncoder().encode(response)
             } catch {
+                connections.removeValue(forKey: connectionId)
+                connection.cancel()
                 return
             }
         }
         
-        connection.send(content: responseData, completion: .contentProcessed { _ in })
+        // Send response and wait for completion before closing connection
+        connection.send(content: responseData, completion: .contentProcessed { [weak self] _ in
+            // Clean up connection after send completes
+            self?.connections.removeValue(forKey: connectionId)
+            connection.cancel()
+        })
     }
 }
 

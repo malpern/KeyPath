@@ -20,7 +20,8 @@ final class SettingsViewTCPTests: XCTestCase {
         originalTCPSettings = (preferencesService.tcpServerEnabled, preferencesService.tcpServerPort)
         
         // Initialize components
-        simpleKanataManager = SimpleKanataManager()
+        let kanataManager = KanataManager()
+        simpleKanataManager = SimpleKanataManager(kanataManager: kanataManager)
         
         // Setup mock server
         let serverPort = try findAvailablePort()
@@ -60,7 +61,7 @@ final class SettingsViewTCPTests: XCTestCase {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { $0 }
         }
         
-        if bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size)) < 0 {
+        if Darwin.bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size)) < 0 {
             throw NSError(domain: "TestSetup", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to bind socket"])
         }
         
@@ -78,9 +79,10 @@ final class SettingsViewTCPTests: XCTestCase {
         return Int(UInt16(boundAddr.sin_port).byteSwapped)
     }
     
-    private func createSettingsView() -> SettingsView {
-        return SettingsView(simpleKanataManager: simpleKanataManager)
-            .environmentObject(preferencesService)
+    private func createSettingsView() -> some View {
+        return SettingsView()
+            .environmentObject(KanataManager())
+            .environmentObject(simpleKanataManager)
     }
     
     // MARK: - TCP Toggle Tests
@@ -166,7 +168,6 @@ final class SettingsViewTCPTests: XCTestCase {
     
     func testTCPStatusWhenDisabled() {
         preferencesService.tcpServerEnabled = false
-        simpleKanataManager.setState(.stopped)
         
         let settingsView = createSettingsView()
         

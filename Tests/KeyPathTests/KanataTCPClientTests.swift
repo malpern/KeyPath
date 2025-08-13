@@ -45,7 +45,7 @@ final class KanataTCPClientTests: XCTestCase {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { $0 }
         }
         
-        if bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size)) < 0 {
+        if Darwin.bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size)) < 0 {
             throw NSError(domain: "TestSetup", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to bind socket"])
         }
         

@@ -134,6 +134,7 @@ struct InstallationWizardView: View {
                         systemState: systemState,
                         issues: currentIssues,
                         stateInterpreter: stateInterpreter,
+                        kanataManager: kanataManager,
                         onStartService: startKanataService,
                         onDismiss: { dismiss() },
                         onNavigateToPage: { page in
@@ -330,7 +331,8 @@ struct InstallationWizardView: View {
                         }
                     } else {
                         Task { @MainActor in
-                            toastManager.showError("Failed to \(actionDescription.lowercased())")
+                            let errorMessage = getDetailedErrorMessage(for: action, actionDescription: actionDescription)
+                            toastManager.showError(errorMessage)
                         }
                     }
                 }
@@ -424,6 +426,8 @@ struct InstallationWizardView: View {
             "Repair VHID LaunchDaemon services"
         case .synchronizeConfigPaths:
             "Fix config path mismatch between KeyPath and Kanata"
+        case .restartUnhealthyServices:
+            "Restart failing system services"
         }
     }
 
@@ -514,6 +518,8 @@ struct InstallationWizardView: View {
             return "Starting Kanata Service"
         } else if operationId.contains("grant_permission") {
             return "Waiting for Permission Grant"
+        } else if operationId.contains("auto_fix_restartUnhealthyServices") {
+            return "Restarting Failing Services"
         } else {
             return "Processing Operation"
         }
@@ -533,6 +539,28 @@ struct InstallationWizardView: View {
         }
 
         return operationId.contains("grant_permission") || operationId.contains("state_detection")
+    }
+    
+    /// Get detailed error message for specific auto-fix failures
+    private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String) -> String {
+        switch action {
+        case .installLaunchDaemonServices:
+            return "Failed to install system services. Check that you provided admin password and try again."
+        case .activateVHIDDeviceManager:
+            return "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
+        case .installViaBrew:
+            return "Failed to install packages via Homebrew. Check your internet connection or install manually."
+        case .startKarabinerDaemon:
+            return "Failed to start system daemon. Check System Settings > Privacy & Security > System Extensions."
+        case .createConfigDirectories:
+            return "Failed to create configuration directories. Check file system permissions."
+        case .restartVirtualHIDDaemon:
+            return "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
+        case .restartUnhealthyServices:
+            return "Failed to fix system services. Check that you provided admin password and all required permissions are granted."
+        default:
+            return "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
+        }
     }
 
     // MARK: - Keyboard Navigation

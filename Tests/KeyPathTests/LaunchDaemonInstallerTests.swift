@@ -43,7 +43,10 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     let status = LaunchDaemonStatus(
       kanataServiceLoaded: true,
       vhidDaemonServiceLoaded: true,
-      vhidManagerServiceLoaded: true
+      vhidManagerServiceLoaded: true,
+      kanataServiceHealthy: true,
+      vhidDaemonServiceHealthy: true,
+      vhidManagerServiceHealthy: true
     )
 
     XCTAssertTrue(status.allServicesLoaded)
@@ -53,7 +56,10 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     let status = LaunchDaemonStatus(
       kanataServiceLoaded: false,
       vhidDaemonServiceLoaded: true,
-      vhidManagerServiceLoaded: true
+      vhidManagerServiceLoaded: true,
+      kanataServiceHealthy: false,
+      vhidDaemonServiceHealthy: true,
+      vhidManagerServiceHealthy: true
     )
 
     XCTAssertFalse(status.allServicesLoaded)
@@ -63,7 +69,10 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     let status = LaunchDaemonStatus(
       kanataServiceLoaded: true,
       vhidDaemonServiceLoaded: false,
-      vhidManagerServiceLoaded: true
+      vhidManagerServiceLoaded: true,
+      kanataServiceHealthy: true,
+      vhidDaemonServiceHealthy: false,
+      vhidManagerServiceHealthy: true
     )
 
     XCTAssertFalse(status.allServicesLoaded)
@@ -73,7 +82,10 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     let status = LaunchDaemonStatus(
       kanataServiceLoaded: true,
       vhidDaemonServiceLoaded: true,
-      vhidManagerServiceLoaded: false
+      vhidManagerServiceLoaded: false,
+      kanataServiceHealthy: true,
+      vhidDaemonServiceHealthy: true,
+      vhidManagerServiceHealthy: false
     )
 
     XCTAssertFalse(status.allServicesLoaded)
@@ -188,7 +200,10 @@ class MockLaunchDaemonInstaller: LaunchDaemonInstaller {
     return LaunchDaemonStatus(
       kanataServiceLoaded: mockKanataLoaded,
       vhidDaemonServiceLoaded: mockVHIDDaemonLoaded,
-      vhidManagerServiceLoaded: mockVHIDManagerLoaded
+      vhidManagerServiceLoaded: mockVHIDManagerLoaded,
+      kanataServiceHealthy: true,
+      vhidDaemonServiceHealthy: true,
+      vhidManagerServiceHealthy: true
     )
   }
 

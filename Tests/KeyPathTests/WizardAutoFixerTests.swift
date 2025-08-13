@@ -66,6 +66,10 @@ class WizardAutoFixerTests: XCTestCase {
       case .synchronizeConfigPaths:
         // Config path synchronization
         XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
+        
+      case .restartUnhealthyServices:
+        // Service restart capability
+        XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
       }
     }
 

@@ -76,7 +76,7 @@ final class TCPIntegrationTests: XCTestCase {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { $0 }
         }
         
-        if bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size)) < 0 {
+        if Darwin.bind(socket, addrPtr, socklen_t(MemoryLayout<sockaddr_in>.size)) < 0 {
             throw NSError(domain: "TestSetup", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to bind socket"])
         }
         
@@ -134,7 +134,7 @@ final class TCPIntegrationTests: XCTestCase {
         // Simulate Kanata running for TCP validation
         kanataManager.isRunning = true
         
-        let validationResult = kanataManager.validateConfigFile()
+        let validationResult = await kanataManager.validateConfigFile()
         XCTAssertTrue(validationResult.isValid, "Configuration validation should succeed")
         
         // 6. Test plist generation includes TCP arguments
@@ -166,7 +166,7 @@ final class TCPIntegrationTests: XCTestCase {
         """
         try createTestConfig(testConfig)
         
-        let validationResult = kanataManager.validateConfigFile()
+        let validationResult = await kanataManager.validateConfigFile()
         XCTAssertTrue(validationResult.isValid, "File validation should succeed when TCP is disabled")
         
         // 4. Test plist generation excludes TCP arguments
@@ -217,7 +217,7 @@ final class TCPIntegrationTests: XCTestCase {
                 switch index % 4 {
                 case 0:
                     // Validation
-                    return kanataManager.validateConfigFile().isValid
+                    return await kanataManager.validateConfigFile().isValid
                 case 1:
                     // Status check
                     let client = KanataTCPClient(port: preferencesService.tcpServerPort)
@@ -305,7 +305,7 @@ final class TCPIntegrationTests: XCTestCase {
             
             for _ in 0..<validationCount {
                 Task {
-                    _ = kanataManager.validateConfigFile()
+                    _ = await kanataManager.validateConfigFile()
                     expectation.fulfill()
                 }
             }
@@ -344,7 +344,7 @@ final class TCPIntegrationTests: XCTestCase {
         // Perform sustained operations
         for _ in 0..<1000 {
             // Mix of different operations
-            _ = kanataManager.validateConfigFile()
+            _ = await kanataManager.validateConfigFile()
             _ = preferencesService.shouldUseTCPServer
             _ = preferencesService.tcpEndpoint
             
@@ -373,20 +373,20 @@ final class TCPIntegrationTests: XCTestCase {
         try await mockTCPServer.start()
         await mockTCPServer.setValidationResponse(success: true, errors: [])
         
-        var result = kanataManager.validateConfigFile()
+        var result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Initial TCP validation should succeed")
         
         // 2. Stop server (simulate failure)
         await mockTCPServer.stop()
         
-        result = kanataManager.validateConfigFile()
+        result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Should fallback to file validation when TCP fails")
         
         // 3. Restart server (simulate recovery)
         try await mockTCPServer.start()
         await mockTCPServer.setValidationResponse(success: true, errors: [])
         
-        result = kanataManager.validateConfigFile()
+        result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Should recover and use TCP validation again")
     }
     
@@ -405,7 +405,7 @@ final class TCPIntegrationTests: XCTestCase {
         let invalidConfig = "(defcfg invalid-option yes)"
         try createTestConfig(invalidConfig)
         
-        var result = kanataManager.validateConfigFile()
+        var result = await kanataManager.validateConfigFile()
         XCTAssertFalse(result.isValid, "Invalid config should fail validation")
         
         // 2. Fix config
@@ -414,7 +414,7 @@ final class TCPIntegrationTests: XCTestCase {
         let validConfig = "(defcfg process-unmapped-keys yes) (defsrc caps) (deflayer base esc)"
         try createTestConfig(validConfig)
         
-        result = kanataManager.validateConfigFile()
+        result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Valid config should pass validation after fix")
     }
     
@@ -448,14 +448,16 @@ final class TCPIntegrationTests: XCTestCase {
         
         // 5. Save configuration (includes TCP validation)
         do {
-            try await kanataManager.saveConfig(mappings: mappings)
+            for mapping in mappings {
+                try await kanataManager.saveConfiguration(input: mapping.input, output: mapping.output)
+            }
             XCTAssertTrue(true, "Configuration save should succeed")
         } catch {
             XCTFail("Configuration save should not fail: \(error)")
         }
         
         // 6. Validate final configuration
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Final configuration should be valid")
     }
     
@@ -503,17 +505,17 @@ final class TCPIntegrationTests: XCTestCase {
         )
         
         kanataManager.isRunning = true
-        let result = kanataManager.validateConfigFile()
+        let result = await kanataManager.validateConfigFile()
         XCTAssertTrue(result.isValid, "Complex configuration should validate successfully")
         
         // 5. Test disabling TCP temporarily
         preferencesService.tcpServerEnabled = false
-        let fileResult = kanataManager.validateConfigFile()
+        let fileResult = await kanataManager.validateConfigFile()
         XCTAssertTrue(fileResult.isValid, "Should fallback to file validation")
         
         // 6. Re-enable TCP
         preferencesService.tcpServerEnabled = true
-        let tcpResult = kanataManager.validateConfigFile()
+        let tcpResult = await kanataManager.validateConfigFile()
         XCTAssertTrue(tcpResult.isValid, "Should return to TCP validation")
     }
     
@@ -541,7 +543,7 @@ final class TCPIntegrationTests: XCTestCase {
                 
                 switch operationType {
                 case 0:
-                    _ = kanataManager.validateConfigFile()
+                    _ = await kanataManager.validateConfigFile()
                 case 1:
                     let client = KanataTCPClient(port: preferencesService.tcpServerPort)
                     _ = await client.checkServerStatus()

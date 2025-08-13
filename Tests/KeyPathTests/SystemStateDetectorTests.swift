@@ -108,7 +108,7 @@ class SystemStateDetectorTests: XCTestCase {
     let allPermissions: Set<PermissionRequirement> = [
       .keyPathInputMonitoring, .kanataInputMonitoring,
       .keyPathAccessibility, .kanataAccessibility,
-      .driverExtensionEnabled, .serviceEnabled
+      .driverExtensionEnabled, .backgroundServicesEnabled
     ]
     let checkedPermissions = grantedSet.union(missingSet)
     XCTAssertEqual(
@@ -193,6 +193,14 @@ class SystemStateDetectorTests: XCTestCase {
       case .repairVHIDDaemonServices:
         // Should be suggested when VHID misconfiguration detected
         break
+
+      case .synchronizeConfigPaths:
+        // Should be suggested when config paths need synchronization
+        break
+
+      case .restartUnhealthyServices:
+        // Should be suggested when services are unhealthy
+        break
       }
     }
 
@@ -228,10 +236,10 @@ class SystemStateDetectorTests: XCTestCase {
     case .missingComponents:
       XCTAssertEqual(currentPage, WizardPage.kanataComponents, "Should navigate to installation page")
 
-    case .serviceNotRunning:
+    case .serviceNotRunning, .daemonNotRunning:
       XCTAssertEqual(currentPage, WizardPage.service, "Should navigate to daemon page")
 
-    case .serviceNotRunning, .ready, .active:
+    case .ready, .active:
       XCTAssertEqual(currentPage, WizardPage.summary, "Should show summary for final states")
 
     case .initializing:

@@ -94,6 +94,7 @@ enum ComponentRequirement: Equatable {
     case vhidDeviceActivation
     case vhidDeviceRunning
     case launchDaemonServices
+    case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case packageManager // Homebrew or other package manager
     case vhidDaemonMisconfigured
 }
@@ -110,6 +111,7 @@ enum AutoFixAction: Equatable {
     case installViaBrew // Install missing packages via Homebrew
     case repairVHIDDaemonServices
     case synchronizeConfigPaths // Fix config path mismatches
+    case restartUnhealthyServices // Restart services that are loaded but crashed
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation

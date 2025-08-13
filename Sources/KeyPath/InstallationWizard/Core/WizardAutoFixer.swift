@@ -93,6 +93,8 @@ class WizardAutoFixer: AutoFixCapable {
             true
         case .synchronizeConfigPaths:
             true // We can always attempt to synchronize config paths
+        case .restartUnhealthyServices:
+            true // We can always attempt to restart unhealthy services
         }
     }
 
@@ -120,6 +122,8 @@ class WizardAutoFixer: AutoFixCapable {
             return await repairVHIDDaemonServices()
         case .synchronizeConfigPaths:
             return await synchronizeConfigPaths()
+        case .restartUnhealthyServices:
+            return await restartUnhealthyServices()
         }
     }
 
@@ -762,5 +766,35 @@ class WizardAutoFixer: AutoFixCapable {
             AppLogger.shared.log("❌ [AutoFixer] Error synchronizing config paths: \(error)")
             return false
         }
+    }
+    
+    private func restartUnhealthyServices() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] *** MIXED SCENARIO FIX TRIGGERED *** Fixing unhealthy LaunchDaemon services")
+        AppLogger.shared.log("🔧 [AutoFixer] This means the new logic is working - will install missing + restart unhealthy")
+        
+        // Get current status to determine what needs to be done
+        let status = launchDaemonInstaller.getServiceStatus()
+        
+        // Step 1: Install any missing services first
+        if !status.allServicesLoaded {
+            AppLogger.shared.log("🔧 [AutoFixer] Some services not loaded, installing missing LaunchDaemon services first")
+            let installSuccess = launchDaemonInstaller.createConfigureAndLoadAllServices()
+            if !installSuccess {
+                AppLogger.shared.log("❌ [AutoFixer] Failed to install missing services")
+                return false
+            }
+            AppLogger.shared.log("✅ [AutoFixer] Installed missing services")
+        }
+        
+        // Step 2: Restart any unhealthy services
+        let restartSuccess = await launchDaemonInstaller.restartUnhealthyServices()
+        
+        if restartSuccess {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully fixed unhealthy LaunchDaemon services")
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to restart unhealthy services")
+        }
+        
+        return restartSuccess
     }
 }
