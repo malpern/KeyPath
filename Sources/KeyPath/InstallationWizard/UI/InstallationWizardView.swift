@@ -71,6 +71,17 @@ struct InstallationWizardView: View {
                 )
             }
         }
+        .alert("Close Setup Wizard?", isPresented: $showingCloseConfirmation) {
+            Button("Cancel", role: .cancel) {
+                showingCloseConfirmation = false
+            }
+            Button("Close Anyway", role: .destructive) {
+                dismiss()
+            }
+        } message: {
+            let criticalCount = currentIssues.filter { $0.severity == .critical }.count
+            Text("There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?")
+        }
     }
 
     // MARK: - UI Components
@@ -98,18 +109,15 @@ struct InstallationWizardView: View {
                         .foregroundColor(.secondary)
 
                     Button("✕") {
-                        dismiss()
+                        handleCloseButtonTapped()
                     }
                     .buttonStyle(.plain)
                     .font(.title3) // Smaller close button
-                    .foregroundColor(shouldBlockClose ? .gray : .secondary)
+                    .foregroundColor(.secondary)
                     .keyboardShortcut(.cancelAction)
-                    .disabled(shouldBlockClose)
                     .accessibilityLabel("Close setup wizard")
                 }
-                .accessibilityHint(
-                    shouldBlockClose
-                        ? "Setup must be completed before closing" : "Close the KeyPath setup wizard")
+                .accessibilityHint("Close the KeyPath setup wizard")
             }
 
             PageDotsIndicator(currentPage: navigationCoordinator.currentPage) { page in
@@ -478,6 +486,19 @@ struct InstallationWizardView: View {
 
     @State private var showingStartConfirmation = false
     @State private var startConfirmationResult: CheckedContinuation<Bool, Never>?
+    @State private var showingCloseConfirmation = false
+
+    private func handleCloseButtonTapped() {
+        let criticalIssues = currentIssues.filter { $0.severity == .critical }
+        
+        if criticalIssues.isEmpty {
+            // No critical issues, close immediately
+            dismiss()
+        } else {
+            // Show confirmation dialog for critical issues
+            showingCloseConfirmation = true
+        }
+    }
 
     private func showStartConfirmation() async -> Bool {
         await withCheckedContinuation { continuation in
@@ -592,11 +613,6 @@ struct InstallationWizardView: View {
     }
 
     // MARK: - Computed Properties
-
-    private var shouldBlockClose: Bool {
-        // Block close if there are critical conflicts
-        currentIssues.contains { $0.severity == .critical }
-    }
 
     private func getBuildTimestamp() -> String {
         let formatter = DateFormatter()
