@@ -154,11 +154,15 @@ sudo launchctl print system/com.keypath.kanata
 
 # View logs
 tail -f /var/log/kanata.log
+
+# Check if TCP server is running (if enabled)
+netstat -an | grep LISTEN | grep 37000  # or your chosen port
 ```
 
 ### Configuration
 - User config: `~/Library/Application Support/KeyPath/keypath.kbd`
 - Hot reload: Service restarts automatically via KanataManager when config changes
+- TCP server: Add `--port <port>` to Kanata launch arguments to enable external integrations
 
 ## Dependencies
 
@@ -177,6 +181,38 @@ tail -f /var/log/kanata.log
 (defsrc caps)
 (deflayer base esc)
 ```
+
+### TCP Server Configuration
+
+Kanata supports a TCP server for external integrations and monitoring. The TCP server allows:
+- Polling current layer information
+- Receiving layer change events  
+- Sending commands to change layers programmatically
+
+**Enable TCP Server:**
+```bash
+# Start kanata with TCP server on port 37000 (example)
+/usr/local/bin/kanata --cfg /path/to/config.kbd --port 37000
+
+# TCP server listens on localhost only by default for security
+# Connect with netcat for testing: nc 127.0.0.1 37000
+```
+
+**Common TCP Server Usage:**
+- **Port Range**: Commonly uses ports 37000-37005 or custom ports like 1111, 5829
+- **Client Connection**: `nc 127.0.0.1 <port>` or programmatic TCP clients
+- **Layer Monitoring**: Get current active layer information
+- **Layer Switching**: Send JSON commands to change layers
+- **Script Integration**: Useful for status bars, desktop widgets, automation
+
+**Security Note**: TCP server only listens on localhost (127.0.0.1) by default. Be careful with rapid connections as too many open connections can crash Kanata with "Too many open files" error.
+
+**IMPORTANT: TCP Configuration Method**
+- TCP server is configured via **command line arguments only** (`--port <port>`)
+- **NOT** configured in the `.kbd` config file
+- The `.kbd` file only contains keyboard mappings, layers, and key definitions
+- KeyPath should store TCP preferences in app settings and modify launch arguments
+- No need to regenerate or modify `.kbd` files for TCP functionality
 
 ## Key Mapping
 

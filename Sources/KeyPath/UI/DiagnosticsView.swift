@@ -576,7 +576,12 @@ struct ConfigStatusSection: View {
     }
 
     private func validateConfig() {
-        configValidation = kanataManager.validateConfigFile()
+        Task {
+            let result = await kanataManager.validateConfigFile()
+            await MainActor.run {
+                configValidation = result
+            }
+        }
     }
 }
 

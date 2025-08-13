@@ -4,9 +4,12 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataManager: KanataManager
     @EnvironmentObject var simpleKanataManager: SimpleKanataManager
+    @ObservedObject private var preferences = PreferencesService.shared
     @State private var showingResetConfirmation = false
     @State private var showingDiagnostics = false
     @State private var showingInstallationWizard = false
+    @State private var showingTCPPortAlert = false
+    @State private var tempTCPPort = ""
     // Timer removed - now handled by SimpleKanataManager centrally
 
     private var kanataServiceStatus: String {
@@ -211,6 +214,47 @@ struct SettingsView: View {
 
                     Divider()
 
+                    // TCP Server Configuration
+                    SettingsSection(title: "TCP Server") {
+                        VStack(spacing: 12) {
+                            HStack {
+                                Toggle("Enable TCP Server", isOn: $preferences.tcpServerEnabled)
+                                    .help("Enable TCP server for config validation. Required for live config checking.")
+                                
+                                Spacer()
+                            }
+                            
+                            if preferences.tcpServerEnabled {
+                                HStack {
+                                    Text("Port:")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.secondary)
+                                    
+                                    Button("\(preferences.tcpServerPort)") {
+                                        tempTCPPort = String(preferences.tcpServerPort)
+                                        showingTCPPortAlert = true
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .help("Click to change TCP port (1024-65535)")
+                                    
+                                    Spacer()
+                                    
+                                    Text("Status: \(getTCPServerStatus())")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            Text("TCP server enables real-time config validation without restarting Kanata.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+
+                    Divider()
+
                     // Startup Settings (LaunchAgent)
                     SettingsSection(title: "Startup") {
                         LaunchAgentSettingsView()
@@ -248,6 +292,9 @@ struct SettingsView: View {
             Task {
                 await simpleKanataManager.forceRefreshStatus()
             }
+            
+            // Check TCP server status
+            checkTCPServerStatus()
         }
         .alert("Reset Configuration", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -258,6 +305,32 @@ struct SettingsView: View {
             Text(
                 "This will reset your Kanata configuration to default with no custom mappings. All current key mappings will be lost. This action cannot be undone."
             )
+        }
+        .alert("Change TCP Port", isPresented: $showingTCPPortAlert) {
+            TextField("Port (1024-65535)", text: $tempTCPPort)
+                .textFieldStyle(.roundedBorder)
+            
+            Button("Cancel", role: .cancel) {
+                tempTCPPort = ""
+            }
+            
+            Button("Apply") {
+                if let port = Int(tempTCPPort), preferences.isValidTCPPort(port) {
+                    preferences.tcpServerPort = port
+                    AppLogger.shared.log("🔧 [SettingsView] TCP port changed to: \(port)")
+                    
+                    // Suggest service restart if Kanata is running
+                    if simpleKanataManager.currentState == .running {
+                        AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for TCP port change")
+                    }
+                    
+                    // Refresh TCP status
+                    checkTCPServerStatus()
+                }
+                tempTCPPort = ""
+            }
+        } message: {
+            Text("Enter a port number between 1024 and 65535. If Kanata is running, you'll need to restart the service for the change to take effect.")
         }
         .sheet(isPresented: $showingDiagnostics) {
             DiagnosticsView(kanataManager: kanataManager)
@@ -285,6 +358,14 @@ struct SettingsView: View {
                 "🔍 [SettingsView] Current simpleKanataManager state: \(simpleKanataManager.currentState.rawValue)"
             )
             showingInstallationWizard = shouldShow
+        }
+        .onChange(of: preferences.tcpServerEnabled) { _ in
+            // Refresh TCP status when enabled/disabled
+            checkTCPServerStatus()
+        }
+        .onChange(of: simpleKanataManager.currentState) { _ in
+            // Refresh TCP status when Kanata state changes
+            checkTCPServerStatus()
         }
     }
 
@@ -443,6 +524,33 @@ struct SettingsView: View {
                         NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
                         AppLogger.shared.log("📁 Opened KeyPath logs folder")
                     }
+                }
+            }
+        }
+    }
+    
+    @State private var tcpServerStatus = "Unknown"
+    
+    private func getTCPServerStatus() -> String {
+        if !preferences.tcpServerEnabled {
+            return "Disabled"
+        }
+        
+        return tcpServerStatus
+    }
+    
+    private func checkTCPServerStatus() {
+        Task {
+            if preferences.tcpServerEnabled && simpleKanataManager.currentState == .running {
+                let client = KanataTCPClient(port: preferences.tcpServerPort)
+                let isAvailable = await client.checkServerStatus()
+                
+                await MainActor.run {
+                    tcpServerStatus = isAvailable ? "Connected" : "Not Connected"
+                }
+            } else {
+                await MainActor.run {
+                    tcpServerStatus = "Not Running"
                 }
             }
         }

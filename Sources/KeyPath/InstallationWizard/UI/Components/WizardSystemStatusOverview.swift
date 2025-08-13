@@ -6,6 +6,8 @@ struct WizardSystemStatusOverview: View {
     let issues: [WizardIssue]
     let stateInterpreter: WizardStateInterpreter
     let onNavigateToPage: ((WizardPage) -> Void)?
+    // Authoritative signal for service status - ensures consistency with detail page
+    let kanataIsRunning: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
@@ -189,6 +191,7 @@ struct WizardSystemStatusOverview: View {
                      .component(.vhidDeviceActivation),
                      .component(.vhidDeviceRunning),
                      .component(.launchDaemonServices),
+                     .component(.launchDaemonServicesUnhealthy),  // Include unhealthy state
                      .component(.vhidDaemonMisconfigured):
                     return true
                 default:
@@ -222,15 +225,22 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getServiceStatus() -> InstallationStatus {
+        // Use the authoritative signal - if Kanata process is running, show as completed
+        // This ensures consistency with the detail page regardless of health status
+        if kanataIsRunning {
+            return .completed
+        }
+        
+        // Fallback to system state when not running
         switch systemState {
         case .active:
-            .completed
-        case .serviceNotRunning, .ready:
-            .failed
+            return .completed  // Redundant but safe
         case .initializing:
-            .inProgress
+            return .inProgress
+        case .serviceNotRunning, .ready:
+            return .notStarted
         default:
-            .notStarted
+            return .notStarted
         }
     }
 }
@@ -286,7 +296,8 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
                 ),
             ],
             stateInterpreter: WizardStateInterpreter(),
-            onNavigateToPage: { _ in }
+            onNavigateToPage: { _ in },
+            kanataIsRunning: true  // Show running in preview
         )
         .padding()
     }

@@ -294,11 +294,73 @@ class LaunchDaemonInstaller {
             return false
         }
     }
+    
+    /// Checks if a LaunchDaemon service is running healthily (not just loaded)
+    func isServiceHealthy(serviceID: String) -> Bool {
+        if Self.isTestMode {
+            let exists = FileManager.default.fileExists(
+                atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
+            AppLogger.shared.log(
+                "🔍 [LaunchDaemon] (test) Service \(serviceID) considered healthy: \(exists)")
+            return exists
+        }
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["list", serviceID]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            guard task.terminationStatus == 0 else {
+                AppLogger.shared.log("🔍 [LaunchDaemon] Service \(serviceID) not loaded")
+                return false
+            }
+
+            // Parse the output to check exit status
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            // Robust extraction from property-list-like format
+            let lastExitCode = output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+);"#) ?? 0
+            let pid = output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+);"#)
+            let hasPID = (pid != nil)
+
+            // Minimal KeepAlive semantics:
+            // - Manager is a one-shot (no KeepAlive required to be running)
+            // - Others (Kanata, VHID Daemon) should be running (PID present) and last exit 0
+            let isOneShot = (serviceID == Self.vhidManagerServiceID)
+
+            let healthy: Bool = isOneShot
+                ? (lastExitCode == 0)                               // one-shot OK without PID if exit was clean
+                : (hasPID && lastExitCode == 0)                     // keep-alive services must be running and clean
+
+            AppLogger.shared.log("🔍 [LaunchDaemon] Service \(serviceID) pid=\(pid?.description ?? "nil") lastExit=\(lastExitCode) oneShot=\(isOneShot) healthy=\(healthy)")
+            return healthy
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error checking service health \(serviceID): \(error)")
+            return false
+        }
+    }
 
     // MARK: - Plist Generation
 
     private func generateKanataPlist(binaryPath: String) -> String {
-        """
+        let arguments = buildKanataPlistArguments(binaryPath: binaryPath)
+        
+        var argumentsXML = ""
+        for arg in arguments {
+            argumentsXML += "                <string>\(arg)</string>\n"
+        }
+        // Ensure proper indentation for the XML
+        argumentsXML = argumentsXML.trimmingCharacters(in: .newlines)
+        
+        return """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -307,12 +369,7 @@ class LaunchDaemonInstaller {
             <string>\(Self.kanataServiceID)</string>
             <key>ProgramArguments</key>
             <array>
-                <string>\(binaryPath)</string>
-                <string>--cfg</string>
-                <string>\(Self.kanataConfigPath)</string>
-                <string>--watch</string>
-                <string>--debug</string>
-                <string>--log-layer-changes</string>
+            \(argumentsXML)
             </array>
             <key>RunAtLoad</key>
             <true/>
@@ -709,11 +766,18 @@ class LaunchDaemonInstaller {
         let kanataLoaded = isServiceLoaded(serviceID: Self.kanataServiceID)
         let vhidDaemonLoaded = isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerLoaded = isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+        
+        let kanataHealthy = isServiceHealthy(serviceID: Self.kanataServiceID)
+        let vhidDaemonHealthy = isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
+        let vhidManagerHealthy = isServiceHealthy(serviceID: Self.vhidManagerServiceID)
 
         return LaunchDaemonStatus(
             kanataServiceLoaded: kanataLoaded,
             vhidDaemonServiceLoaded: vhidDaemonLoaded,
-            vhidManagerServiceLoaded: vhidManagerLoaded
+            vhidManagerServiceLoaded: vhidManagerLoaded,
+            kanataServiceHealthy: kanataHealthy,
+            vhidDaemonServiceHealthy: vhidDaemonHealthy,
+            vhidManagerServiceHealthy: vhidManagerHealthy
         )
     }
 
@@ -734,6 +798,58 @@ class LaunchDaemonInstaller {
         }
         AppLogger.shared.log("🔍 [LaunchDaemon] VHID plist ProgramArguments missing or malformed")
         return false
+    }
+
+    /// Restarts services with admin privileges using launchctl kickstart
+    private func restartServicesWithAdmin(_ serviceIDs: [String]) -> Bool {
+        if Self.isTestMode { return true }
+        guard !serviceIDs.isEmpty else { return true }
+
+        let cmds = serviceIDs.map { "launchctl kickstart -k system/\($0)" }.joined(separator: " && ")
+        let script = """
+        do shell script "\(cmds)" with administrator privileges with prompt "KeyPath needs to restart failing system services."
+        """
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
+        do {
+            try task.run()
+            task.waitUntilExit()
+            return task.terminationStatus == 0
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] kickstart admin failed: \(error)")
+            return false
+        }
+    }
+
+    /// Restarts unhealthy services using privileged launchctl kickstart
+    func restartUnhealthyServices() async -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Restarting unhealthy services")
+
+        let status = getServiceStatus()
+        var toRestart: [String] = []
+
+        if status.kanataServiceLoaded && !status.kanataServiceHealthy {
+            toRestart.append(Self.kanataServiceID)
+        }
+        if status.vhidDaemonServiceLoaded && !status.vhidDaemonServiceHealthy {
+            toRestart.append(Self.vhidDaemonServiceID)
+        }
+        if status.vhidManagerServiceLoaded && !status.vhidManagerServiceHealthy {
+            toRestart.append(Self.vhidManagerServiceID)
+        }
+
+        guard !toRestart.isEmpty else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] No unhealthy services found to restart")
+            return true
+        }
+
+        let ok = restartServicesWithAdmin(toRestart)
+        AppLogger.shared.log(ok
+                             ? "✅ [LaunchDaemon] Restarted failing services via kickstart"
+                             : "❌ [LaunchDaemon] Failed to restart services via kickstart")
+        return ok
     }
 
     /// Repairs VHID daemon and manager services by reinstalling plists with correct DriverKit paths and reloading
@@ -772,6 +888,30 @@ class LaunchDaemonInstaller {
         )
         return ok
     }
+    
+    // MARK: - Argument Building
+    
+    /// Builds Kanata command line arguments for LaunchDaemon plist including TCP port when enabled
+    private func buildKanataPlistArguments(binaryPath: String) -> [String] {
+        var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
+        
+        // Add TCP port if enabled and valid
+        let tcpConfig = PreferencesService.tcpSnapshot()
+        if tcpConfig.shouldUseTCPServer {
+            arguments.append("--port")
+            arguments.append(String(tcpConfig.port))
+            AppLogger.shared.log("🌐 [LaunchDaemon] TCP server enabled on port \(tcpConfig.port)")
+        } else {
+            AppLogger.shared.log("🌐 [LaunchDaemon] TCP server disabled")
+        }
+        
+        arguments.append("--watch")
+        arguments.append("--debug")
+        arguments.append("--log-layer-changes")
+        
+        AppLogger.shared.log("🔧 [LaunchDaemon] Built plist arguments: \(arguments.joined(separator: " "))")
+        return arguments
+    }
 }
 
 // MARK: - Supporting Types
@@ -781,20 +921,47 @@ struct LaunchDaemonStatus {
     let kanataServiceLoaded: Bool
     let vhidDaemonServiceLoaded: Bool
     let vhidManagerServiceLoaded: Bool
+    let kanataServiceHealthy: Bool
+    let vhidDaemonServiceHealthy: Bool
+    let vhidManagerServiceHealthy: Bool
 
     /// True if all required services are loaded
     var allServicesLoaded: Bool {
         kanataServiceLoaded && vhidDaemonServiceLoaded && vhidManagerServiceLoaded
+    }
+    
+    /// True if all required services are healthy (loaded and running properly)
+    var allServicesHealthy: Bool {
+        kanataServiceHealthy && vhidDaemonServiceHealthy && vhidManagerServiceHealthy
     }
 
     /// Description of current status for logging/debugging
     var description: String {
         """
         LaunchDaemon Status:
-        - Kanata Service: \(kanataServiceLoaded)
-        - VHIDDevice Daemon: \(vhidDaemonServiceLoaded)
-        - VHIDDevice Manager: \(vhidManagerServiceLoaded)
+        - Kanata Service: loaded=\(kanataServiceLoaded) healthy=\(kanataServiceHealthy)
+        - VHIDDevice Daemon: loaded=\(vhidDaemonServiceLoaded) healthy=\(vhidDaemonServiceHealthy)
+        - VHIDDevice Manager: loaded=\(vhidManagerServiceLoaded) healthy=\(vhidManagerServiceHealthy)
         - All Services Loaded: \(allServicesLoaded)
+        - All Services Healthy: \(allServicesHealthy)
         """
+    }
+}
+
+// MARK: - Helper Extensions
+
+fileprivate extension String {
+    func firstMatchInt(pattern: String) -> Int? {
+        do {
+            let rx = try NSRegularExpression(pattern: pattern)
+            let nsRange = NSRange(startIndex..., in: self)
+            guard let m = rx.firstMatch(in: self, range: nsRange), m.numberOfRanges >= 2,
+                  let range = Range(m.range(at: 1), in: self) else {
+                return nil
+            }
+            return Int(self[range])
+        } catch {
+            return nil
+        }
     }
 }

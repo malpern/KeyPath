@@ -312,14 +312,79 @@ class KanataManager: ObservableObject {
         await startKanata()
     }
 
-    func validateConfigFile() -> (isValid: Bool, errors: [String]) {
+    func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
         guard FileManager.default.fileExists(atPath: configPath) else {
             return (false, ["Config file does not exist at: \(configPath)"])
         }
 
+        // Try TCP validation first if enabled and Kanata is running
+        let tcpConfig = PreferencesService.tcpSnapshot()
+        if tcpConfig.shouldUseTCPServer && isRunning {
+            AppLogger.shared.log("🌐 [Validation] Attempting TCP validation")
+            if let tcpResult = await validateConfigViaTCP() {
+                return tcpResult
+            } else {
+                AppLogger.shared.log("🌐 [Validation] TCP validation unavailable, falling back to file-based validation")
+            }
+        }
+
+        // Fallback to traditional file-based validation
+        AppLogger.shared.log("📄 [Validation] Using file-based validation")
+        return validateConfigViaFile()
+    }
+    
+    /// Validate configuration via TCP with proper async timeout
+    private func validateConfigViaTCP() async -> (isValid: Bool, errors: [String])? {
+        do {
+            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
+            let tcpConfig = PreferencesService.tcpSnapshot()
+            let client = KanataTCPClient(port: tcpConfig.port)
+            
+            // Use proper async timeout with Task cancellation
+            let tcpResult = try await withThrowingTaskGroup(of: TCPValidationResult.self) { group in
+                group.addTask {
+                    await client.validateConfig(configContent)
+                }
+                
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                    throw TCPError.timeout
+                }
+                
+                // Return the first result (either validation or timeout)
+                let result = try await group.next()!
+                group.cancelAll()
+                return result
+            }
+            
+            switch tcpResult {
+            case .success:
+                return (true, [])
+            case .failure(let configErrors):
+                let errorMessages = configErrors.map { $0.description }
+                return (false, errorMessages)
+            case .networkError(let message):
+                AppLogger.shared.log("❌ [TCP Validation] Network error: \(message)")
+                return nil // Signal fallback needed
+            }
+            
+        } catch is CancellationError {
+            AppLogger.shared.log("⏰ [TCP Validation] Cancelled - falling back to file validation")
+            return nil
+        } catch TCPError.timeout {
+            AppLogger.shared.log("⏰ [TCP Validation] Timeout - falling back to file validation")
+            return nil
+        } catch {
+            AppLogger.shared.log("❌ [TCP Validation] Failed to read config file: \(error)")
+            return nil
+        }
+    }
+    
+    /// Traditional file-based validation method
+    private func validateConfigViaFile() -> (isValid: Bool, errors: [String]) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
-        task.arguments = ["--cfg", configPath, "--check"]
+        task.arguments = buildKanataArguments(configPath: configPath, checkOnly: true)
 
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -802,7 +867,7 @@ class KanataManager: ObservableObject {
         defer { isStartingKanata = false }
 
         // Pre-flight checks
-        let validation = validateConfigFile()
+        let validation = await validateConfigFile()
         if !validation.isValid {
             let diagnostic = KanataDiagnostic(
                 timestamp: Date(),
@@ -861,11 +926,7 @@ class KanataManager: ObservableObject {
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = [
-            "-n", // Non-interactive mode - don't prompt for password
-            WizardSystemPaths.kanataActiveBinary, "--cfg", configPath, "--watch", "--debug",
-            "--log-layer-changes",
-        ]
+        task.arguments = ["-n"] + buildKanataArguments(configPath: configPath)
 
         // DEBUG: Log the exact command being executed
         let fullCommand = (["/usr/bin/sudo"] + task.arguments!).joined(separator: " ")
@@ -2655,7 +2716,7 @@ class KanataManager: ObservableObject {
             // Use kanata --check to validate
             let task = Process()
             task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
-            task.arguments = ["--cfg", tempConfigPath, "--check"]
+            task.arguments = buildKanataArguments(configPath: tempConfigPath, checkOnly: true)
 
             let pipe = Pipe()
             task.standardOutput = pipe
@@ -2763,6 +2824,27 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("🔍 [DEBUG] saveValidatedConfig called")
         AppLogger.shared.log("🔍 [DEBUG] Target config path: \(configPath)")
         AppLogger.shared.log("🔍 [DEBUG] Config size: \(config.count) characters")
+        
+        // Perform final validation via TCP if available
+        let tcpConfig = PreferencesService.tcpSnapshot()
+        if tcpConfig.shouldUseTCPServer && isRunning {
+            AppLogger.shared.log("🌐 [SaveConfig] Performing final TCP validation before save")
+            
+            let client = KanataTCPClient(port: tcpConfig.port)
+            let validationResult = await client.validateConfig(config)
+            
+            switch validationResult {
+            case .success:
+                AppLogger.shared.log("✅ [SaveConfig] TCP validation passed")
+            case .failure(let errors):
+                let errorMessages = errors.map { $0.description }.joined(separator: ", ")
+                AppLogger.shared.log("❌ [SaveConfig] TCP validation failed: \(errorMessages)")
+                throw ConfigError.validationFailed(errors: errors.map { $0.description })
+            case .networkError(let message):
+                AppLogger.shared.log("⚠️ [SaveConfig] TCP validation unavailable: \(message) - proceeding with save")
+                // Continue with save since TCP validation is optional
+            }
+        }
 
         let configDir = URL(fileURLWithPath: configDirectory)
         try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
@@ -2903,5 +2985,33 @@ class KanataManager: ObservableObject {
                 }
             }
         }
+    }
+    
+    // MARK: - Kanata Arguments Builder
+    
+    /// Builds Kanata command line arguments including TCP port when enabled
+    private func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
+        var arguments = [WizardSystemPaths.kanataActiveBinary, "--cfg", configPath]
+        
+        // Add TCP port if enabled and valid
+        let tcpConfig = PreferencesService.tcpSnapshot()
+        if tcpConfig.shouldUseTCPServer {
+            arguments.append("--port")
+            arguments.append(String(tcpConfig.port))
+            AppLogger.shared.log("🌐 [KanataArgs] TCP server enabled on port \(tcpConfig.port)")
+        } else {
+            AppLogger.shared.log("🌐 [KanataArgs] TCP server disabled")
+        }
+        
+        if checkOnly {
+            arguments.append("--check")
+        } else {
+            arguments.append("--watch")
+            arguments.append("--debug")
+            arguments.append("--log-layer-changes")
+        }
+        
+        AppLogger.shared.log("🔧 [KanataArgs] Built arguments: \(arguments.joined(separator: " "))")
+        return arguments
     }
 }
