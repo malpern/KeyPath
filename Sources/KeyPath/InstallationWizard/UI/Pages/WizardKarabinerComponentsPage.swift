@@ -120,6 +120,7 @@ struct WizardKarabinerComponentsPage: View {
           .component(.vhidDeviceActivation),
           .component(.vhidDeviceRunning),
           .component(.launchDaemonServices),
+          .component(.launchDaemonServicesUnhealthy),
           .component(.vhidDaemonMisconfigured):
           return true
         default:
@@ -170,6 +171,8 @@ struct WizardKarabinerComponentsPage: View {
       return "VirtualHIDDevice Daemon Configuration"
     case "LaunchDaemon Services Not Installed":
       return "LaunchDaemon Services"
+    case "LaunchDaemon Services Failing":
+      return "LaunchDaemon Services"
     case "Karabiner Daemon Not Running":
       return "Karabiner Daemon"
     case "Driver Extension Disabled":
@@ -191,6 +194,8 @@ struct WizardKarabinerComponentsPage: View {
       return "The installed LaunchDaemon points to a legacy path and needs updating"
     case "LaunchDaemon Services Not Installed":
       return "System launch services for VirtualHIDDevice daemon and manager"
+    case "LaunchDaemon Services Failing":
+      return "LaunchDaemon services are loaded but crashing or failing and need to be restarted"
     case "Karabiner Daemon Not Running":
       return "The Karabiner Virtual HID Device Daemon needs to be running"
     case "Driver Extension Disabled":
