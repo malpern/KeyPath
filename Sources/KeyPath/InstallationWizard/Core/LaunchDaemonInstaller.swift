@@ -827,16 +827,16 @@ class LaunchDaemonInstaller {
     func restartUnhealthyServices() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Restarting unhealthy services")
 
-        let status = getServiceStatus()
+        let initialStatus = getServiceStatus()
         var toRestart: [String] = []
 
-        if status.kanataServiceLoaded && !status.kanataServiceHealthy {
+        if initialStatus.kanataServiceLoaded && !initialStatus.kanataServiceHealthy {
             toRestart.append(Self.kanataServiceID)
         }
-        if status.vhidDaemonServiceLoaded && !status.vhidDaemonServiceHealthy {
+        if initialStatus.vhidDaemonServiceLoaded && !initialStatus.vhidDaemonServiceHealthy {
             toRestart.append(Self.vhidDaemonServiceID)
         }
-        if status.vhidManagerServiceLoaded && !status.vhidManagerServiceHealthy {
+        if initialStatus.vhidManagerServiceLoaded && !initialStatus.vhidManagerServiceHealthy {
             toRestart.append(Self.vhidManagerServiceID)
         }
 
@@ -845,11 +845,51 @@ class LaunchDaemonInstaller {
             return true
         }
 
-        let ok = restartServicesWithAdmin(toRestart)
-        AppLogger.shared.log(ok
-                             ? "✅ [LaunchDaemon] Restarted failing services via kickstart"
-                             : "❌ [LaunchDaemon] Failed to restart services via kickstart")
-        return ok
+        AppLogger.shared.log("🔧 [LaunchDaemon] Services to restart: \(toRestart)")
+        
+        // Step 1: Execute the restart command
+        let restartOk = restartServicesWithAdmin(toRestart)
+        if !restartOk {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute restart commands")
+            return false
+        }
+        
+        AppLogger.shared.log("✅ [LaunchDaemon] Restart commands executed successfully")
+        
+        // Step 2: Wait for services to start up
+        AppLogger.shared.log("⏳ [LaunchDaemon] Waiting for services to start up...")
+        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+        
+        // Step 3: Re-check service health to verify they're actually working
+        let finalStatus = getServiceStatus()
+        var stillUnhealthy: [String] = []
+        
+        if toRestart.contains(Self.kanataServiceID) && !finalStatus.kanataServiceHealthy {
+            stillUnhealthy.append(Self.kanataServiceID)
+        }
+        if toRestart.contains(Self.vhidDaemonServiceID) && !finalStatus.vhidDaemonServiceHealthy {
+            stillUnhealthy.append(Self.vhidDaemonServiceID)
+        }
+        if toRestart.contains(Self.vhidManagerServiceID) && !finalStatus.vhidManagerServiceHealthy {
+            stillUnhealthy.append(Self.vhidManagerServiceID)
+        }
+        
+        if stillUnhealthy.isEmpty {
+            AppLogger.shared.log("✅ [LaunchDaemon] All restarted services are now healthy")
+            return true
+        } else {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Some services are still unhealthy after restart: \(stillUnhealthy)")
+            AppLogger.shared.log("💡 [LaunchDaemon] This likely indicates permission issues rather than restart failure")
+            
+            // Log specific details for debugging
+            for serviceID in stillUnhealthy {
+                if serviceID == Self.kanataServiceID {
+                    AppLogger.shared.log("🔍 [LaunchDaemon] Kanata service may be missing Input Monitoring permissions")
+                }
+            }
+            
+            return false
+        }
     }
 
     /// Repairs VHID daemon and manager services by reinstalling plists with correct DriverKit paths and reloading
