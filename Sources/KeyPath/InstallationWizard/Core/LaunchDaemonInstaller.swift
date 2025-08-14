@@ -30,6 +30,30 @@ class LaunchDaemonInstaller {
         self.packageManager = packageManager
     }
 
+    // MARK: - Warm-up tracking (to distinguish "starting" from "failed")
+
+    private static var lastKickstartTimes: [String: Date] = [:]
+    private static let healthyWarmupWindow: TimeInterval = 2.0
+
+    private func markRestartTime(for serviceIDs: [String]) {
+        let now = Date()
+        for id in serviceIDs {
+            Self.lastKickstartTimes[id] = now
+        }
+    }
+
+    // Expose read access across instances
+    static func wasRecentlyRestarted(_ serviceID: String, within seconds: TimeInterval? = nil) -> Bool {
+        guard let last = lastKickstartTimes[serviceID] else { return false }
+        let window = seconds ?? healthyWarmupWindow
+        return Date().timeIntervalSince(last) < window
+    }
+
+    static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow) -> Bool {
+        let now = Date()
+        return lastKickstartTimes.values.contains { now.timeIntervalSince($0) < seconds }
+    }
+
     // MARK: - Env/Test helpers
 
     private static let isTestMode: Bool = {
@@ -43,6 +67,13 @@ class LaunchDaemonInstaller {
             return override
         }
         return "/Library/LaunchDaemons"
+    }
+
+    /// Escapes a shell command string for safe embedding in AppleScript
+    private func escapeForAppleScript(_ command: String) -> String {
+        var escaped = command.replacingOccurrences(of: "\\", with: "\\\\")
+        escaped = escaped.replacingOccurrences(of: "\"", with: "\\\"")
+        return escaped
     }
 
     // MARK: - Path Detection Methods
@@ -135,7 +166,11 @@ class LaunchDaemonInstaller {
     /// Creates, installs, configures, and loads all LaunchDaemon services with a single admin prompt
     /// This method consolidates all admin operations to eliminate multiple password prompts
     func createConfigureAndLoadAllServices() -> Bool {
-        AppLogger.shared.log("🔧 [LaunchDaemon] Creating, configuring, and loading all services with single admin prompt")
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] *** ENTRY POINT *** createConfigureAndLoadAllServices() called")
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] Creating, configuring, and loading all services with single admin prompt")
+        AppLogger.shared.log("🔧 [LaunchDaemon] This method SHOULD trigger osascript password prompt")
 
         let kanataBinaryPath = getKanataBinaryPath()
 
@@ -219,6 +254,8 @@ class LaunchDaemonInstaller {
 
             if task.terminationStatus == 0 {
                 AppLogger.shared.log("✅ [LaunchDaemon] Successfully loaded service: \(serviceID)")
+                // Loading triggers program start; mark warm-up
+                markRestartTime(for: [serviceID])
                 return true
             } else {
                 AppLogger.shared.log("❌ [LaunchDaemon] Failed to load service \(serviceID): \(output)")
@@ -276,7 +313,7 @@ class LaunchDaemonInstaller {
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["list", serviceID]
+        task.arguments = ["print", "system/\(serviceID)"]
 
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -285,18 +322,19 @@ class LaunchDaemonInstaller {
         do {
             try task.run()
             task.waitUntilExit()
-
             let isLoaded = task.terminationStatus == 0
-            AppLogger.shared.log("🔍 [LaunchDaemon] Service \(serviceID) loaded: \(isLoaded)")
+            AppLogger.shared.log("🔍 [LaunchDaemon] (system) Service \(serviceID) loaded: \(isLoaded)")
             return isLoaded
         } catch {
             AppLogger.shared.log("❌ [LaunchDaemon] Error checking service \(serviceID): \(error)")
             return false
         }
     }
-    
+
     /// Checks if a LaunchDaemon service is running healthily (not just loaded)
     func isServiceHealthy(serviceID: String) -> Bool {
+        AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH CHECK (system/print) for: \(serviceID)")
+
         if Self.isTestMode {
             let exists = FileManager.default.fileExists(
                 atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
@@ -307,7 +345,7 @@ class LaunchDaemonInstaller {
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["list", serviceID]
+        task.arguments = ["print", "system/\(serviceID)"]
 
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -318,30 +356,40 @@ class LaunchDaemonInstaller {
             task.waitUntilExit()
 
             guard task.terminationStatus == 0 else {
-                AppLogger.shared.log("🔍 [LaunchDaemon] Service \(serviceID) not loaded")
+                AppLogger.shared.log("🔍 [LaunchDaemon] \(serviceID) not found in system domain")
                 return false
             }
 
-            // Parse the output to check exit status
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
-            // Robust extraction from property-list-like format
-            let lastExitCode = output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+);"#) ?? 0
-            let pid = output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+);"#)
-            let hasPID = (pid != nil)
 
-            // Improved KeepAlive semantics:
-            // - Manager is a one-shot (no KeepAlive required to be running)
-            // - Others (Kanata, VHID Daemon) should be running (PID present)
-            // - For keep-alive services, allow recent restarts (PID present is more important than lastExitCode == 0)
+            // Extract details from 'launchctl print' output
+            let state = output.firstMatchString(pattern: #"state\s*=\s*([A-Za-z]+)"#)?.lowercased()
+            let pid = output.firstMatchInt(pattern: #"\bpid\s*=\s*([0-9]+)"#)
+                ?? output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+)"#)
+            let lastExit =
+                output.firstMatchInt(pattern: #"last exit (?:status|code)\s*=\s*(-?\d+)"#)
+                    ?? output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+)"#)
+
             let isOneShot = (serviceID == Self.vhidManagerServiceID)
+            let isRunningLike = (state == "running" || state == "launching")
+            let hasPID = (pid != nil)
+            let inWarmup = Self.wasRecentlyRestarted(serviceID)
 
-            let healthy: Bool = isOneShot
-                ? (lastExitCode == 0)                               // one-shot OK without PID if exit was clean
-                : hasPID                                            // keep-alive services healthy if running (PID present)
+            var healthy = false
+            if isOneShot {
+                // One-shot: OK if clean exit or (still running) or within warm-up window
+                if let lastExit, lastExit == 0 { healthy = true } else if isRunningLike || hasPID { healthy = true } else if inWarmup { healthy = true } // starting up
+                else { healthy = false }
+            } else {
+                // KeepAlive jobs should be running. Allow starting states or warm-up.
+                if isRunningLike || hasPID { healthy = true } else if inWarmup { healthy = true } // starting up
+                else { healthy = false }
+            }
 
-            AppLogger.shared.log("🔍 [LaunchDaemon] Service \(serviceID) pid=\(pid?.description ?? "nil") lastExit=\(lastExitCode) oneShot=\(isOneShot) healthy=\(healthy)")
+            AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH ANALYSIS \(serviceID):")
+            AppLogger.shared.log("    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)")
+
             return healthy
         } catch {
             AppLogger.shared.log("❌ [LaunchDaemon] Error checking service health \(serviceID): \(error)")
@@ -353,14 +401,14 @@ class LaunchDaemonInstaller {
 
     private func generateKanataPlist(binaryPath: String) -> String {
         let arguments = buildKanataPlistArguments(binaryPath: binaryPath)
-        
+
         var argumentsXML = ""
         for arg in arguments {
             argumentsXML += "                <string>\(arg)</string>\n"
         }
         // Ensure proper indentation for the XML
         argumentsXML = argumentsXML.trimmingCharacters(in: .newlines)
-        
+
         return """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -516,7 +564,7 @@ class LaunchDaemonInstaller {
                 let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
                 for (src, dst) in [
                     (kanataTemp, kanataFinal), (vhidDaemonTemp, vhidDaemonFinal),
-                    (vhidManagerTemp, vhidManagerFinal),
+                    (vhidManagerTemp, vhidManagerFinal)
                 ] {
                     try? fm.removeItem(atPath: dst)
                     try fm.copyItem(atPath: src, toPath: dst)
@@ -543,8 +591,9 @@ class LaunchDaemonInstaller {
         """
 
         // Use osascript to request admin privileges with proper password dialog
+        let escapedCommand = escapeForAppleScript(command)
         let osascriptCommand = """
-        do shell script "\(command)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
+        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
         """
 
         let osascriptTask = Process()
@@ -577,8 +626,7 @@ class LaunchDaemonInstaller {
 
     /// Execute LaunchDaemon installation with administrator privileges using osascript
     private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-        -> Bool
-    {
+        -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
         // Create the command to copy the file and set proper permissions
@@ -586,8 +634,9 @@ class LaunchDaemonInstaller {
             "mkdir -p '\(Self.launchDaemonsPath)' && cp '\(tempPath)' '\(finalPath)' && chown root:wheel '\(finalPath)' && chmod 644 '\(finalPath)'"
 
         // Use osascript to request admin privileges with proper password dialog
+        let escapedCommand = escapeForAppleScript(command)
         let osascriptCommand = """
-        do shell script "\(command)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
+        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install LaunchDaemon services for keyboard management."
         """
 
         let osascriptTask = Process()
@@ -624,14 +673,17 @@ class LaunchDaemonInstaller {
     private func executeConsolidatedInstallation(
         kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
     ) -> Bool {
-        AppLogger.shared.log("🔧 [LaunchDaemon] Executing consolidated installation with single admin prompt")
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] Executing consolidated installation with single admin prompt")
 
         if Self.isTestMode {
             // Test mode - use file operations without admin privileges
             do {
                 let fm = FileManager.default
                 try fm.createDirectory(atPath: Self.launchDaemonsPath, withIntermediateDirectories: true)
-                try fm.createDirectory(atPath: WizardSystemPaths.userConfigDirectory, withIntermediateDirectories: true)
+                try fm.createDirectory(
+                    atPath: WizardSystemPaths.userConfigDirectory, withIntermediateDirectories: true
+                )
 
                 let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
                 let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
@@ -639,14 +691,16 @@ class LaunchDaemonInstaller {
 
                 for (src, dst) in [
                     (kanataTemp, kanataFinal), (vhidDaemonTemp, vhidDaemonFinal),
-                    (vhidManagerTemp, vhidManagerFinal),
+                    (vhidManagerTemp, vhidManagerFinal)
                 ] {
                     try? fm.removeItem(atPath: dst)
                     try fm.copyItem(atPath: src, toPath: dst)
                 }
 
                 // Create a basic config file for testing
-                try "test config".write(toFile: WizardSystemPaths.userConfigPath, atomically: true, encoding: .utf8)
+                try "test config".write(
+                    toFile: WizardSystemPaths.userConfigPath, atomically: true, encoding: .utf8
+                )
 
                 AppLogger.shared.log("✅ [LaunchDaemon] (test) Consolidated installation completed")
                 return true
@@ -666,23 +720,38 @@ class LaunchDaemonInstaller {
 
         // Create a comprehensive command that does everything in one admin operation
         let command = """
-        echo "Installing LaunchDaemon services and configuration..." && \
-        mkdir -p '\(Self.launchDaemonsPath)' && \
-        cp '\(kanataTemp)' '\(kanataFinal)' && chown root:wheel '\(kanataFinal)' && chmod 644 '\(kanataFinal)' && \
-        cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)' && \
-        cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)' && \
-        sudo -u '#501' mkdir -p '\(userConfigDir)' && \
-        if [ ! -f '\(userConfigPath)' ]; then sudo -u '#501' sh -c 'echo ";; Default KeyPath config\n(defcfg process-unmapped-keys no)\n(defsrc)\n(deflayer base)" > '\(userConfigPath)''; fi && \
-        launchctl bootstrap system '\(kanataFinal)' 2>/dev/null || echo "Kanata service already loaded" && \
-        launchctl bootstrap system '\(vhidDaemonFinal)' 2>/dev/null || echo "VHID daemon already loaded" && \
-        launchctl bootstrap system '\(vhidManagerFinal)' 2>/dev/null || echo "VHID manager already loaded" && \
-        echo "Installation completed successfully"
+        /bin/echo Installing LaunchDaemon services and configuration... && \
+        /bin/mkdir -p '\(Self.launchDaemonsPath)' && \
+        /usr/bin/install -m 0644 -o root -g wheel '\(kanataTemp)' '\(kanataFinal)' && \
+        /usr/bin/install -m 0644 -o root -g wheel '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && \
+        /usr/bin/install -m 0644 -o root -g wheel '\(vhidManagerTemp)' '\(vhidManagerFinal)' && \
+        CONSOLE_UID="$(/usr/bin/stat -f %u /dev/console)" && \
+        CONSOLE_GID="$(/usr/bin/id -g $CONSOLE_UID)" && \
+        /usr/bin/install -d -m 0755 -o $CONSOLE_UID -g $CONSOLE_GID '\(userConfigDir)' && \
+        if [ ! -f '\(userConfigPath)' ]; then \
+          /usr/bin/printf "%s\\n" ";; Default KeyPath config" "(defcfg process-unmapped-keys no)" "(defsrc)" "(deflayer base)" | /usr/bin/tee '\(userConfigPath)' >/dev/null && \
+          /usr/sbin/chown $CONSOLE_UID:$CONSOLE_GID '\(userConfigPath)'; \
+        fi && \
+        /bin/launchctl bootstrap system '\(kanataFinal)' 2>/dev/null || /bin/echo Kanata service already loaded && \
+        /bin/launchctl bootstrap system '\(vhidDaemonFinal)' 2>/dev/null || /bin/echo VHID daemon already loaded && \
+        /bin/launchctl bootstrap system '\(vhidManagerFinal)' 2>/dev/null || /bin/echo VHID manager already loaded && \
+        /bin/echo Installation completed successfully
         """
 
         // Use osascript to request admin privileges with clear explanation
+        AppLogger.shared.log("🔐 [LaunchDaemon] *** ABOUT TO EXECUTE OSASCRIPT FOR ADMIN PRIVILEGES ***")
+        AppLogger.shared.log("🔐 [LaunchDaemon] This should show a password dialog to the user")
+        AppLogger.shared.log("🔐 [LaunchDaemon] isTestMode = \(Self.isTestMode)")
+        
+        // Escape the command for safe AppleScript embedding
+        let escapedCommand = escapeForAppleScript(command)
+        
         let osascriptCommand = """
-        do shell script "\(command)" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create system configuration files, and start the keyboard management services. This will only require one password prompt."
+        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services. This will be a single prompt."
         """
+
+        AppLogger.shared.log("🔐 [LaunchDaemon] osascript command length: \(osascriptCommand.count) characters")
+        AppLogger.shared.log("🔐 [LaunchDaemon] Starting osascript process...")
 
         let osascriptTask = Process()
         osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -693,22 +762,31 @@ class LaunchDaemonInstaller {
         osascriptTask.standardError = pipe
 
         do {
+            AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript.run()...")
             try osascriptTask.run()
+            AppLogger.shared.log("🔐 [LaunchDaemon] osascript.run() succeeded, now waiting for completion...")
             osascriptTask.waitUntilExit()
+            AppLogger.shared.log("🔐 [LaunchDaemon] osascript completed with status: \(osascriptTask.terminationStatus)")
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
+            AppLogger.shared.log("🔐 [LaunchDaemon] osascript output: \(output)")
 
             if osascriptTask.terminationStatus == 0 {
                 AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed consolidated installation")
                 AppLogger.shared.log("🔧 [LaunchDaemon] Admin output: \(output)")
+                // Mark warm-up for all services we just installed+bootstrapped
+                markRestartTime(for: [Self.kanataServiceID, Self.vhidDaemonServiceID, Self.vhidManagerServiceID])
                 return true
             } else {
                 AppLogger.shared.log("❌ [LaunchDaemon] Failed consolidated installation: \(output)")
+                AppLogger.shared.log("❌ [LaunchDaemon] Exit status was: \(osascriptTask.terminationStatus)")
                 return false
             }
         } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute consolidated admin command: \(error)")
+            AppLogger.shared.log(
+                "❌ [LaunchDaemon] Failed to execute consolidated admin command: \(error)")
+            AppLogger.shared.log("❌ [LaunchDaemon] This means osascript.run() threw an exception")
             return false
         }
     }
@@ -767,7 +845,7 @@ class LaunchDaemonInstaller {
         let kanataLoaded = isServiceLoaded(serviceID: Self.kanataServiceID)
         let vhidDaemonLoaded = isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerLoaded = isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-        
+
         let kanataHealthy = isServiceHealthy(serviceID: Self.kanataServiceID)
         let vhidDaemonHealthy = isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerHealthy = isServiceHealthy(serviceID: Self.vhidManagerServiceID)
@@ -803,23 +881,63 @@ class LaunchDaemonInstaller {
 
     /// Restarts services with admin privileges using launchctl kickstart
     private func restartServicesWithAdmin(_ serviceIDs: [String]) -> Bool {
-        if Self.isTestMode { return true }
-        guard !serviceIDs.isEmpty else { return true }
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] *** ENHANCED RESTART *** Restarting services: \(serviceIDs)")
+
+        if Self.isTestMode {
+            AppLogger.shared.log("🔧 [LaunchDaemon] Test mode - simulating successful restart")
+            return true
+        }
+        guard !serviceIDs.isEmpty else {
+            AppLogger.shared.log("🔧 [LaunchDaemon] No services to restart - returning success")
+            return true
+        }
 
         let cmds = serviceIDs.map { "launchctl kickstart -k system/\($0)" }.joined(separator: " && ")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Executing admin command: \(cmds)")
+
+        let escapedCmds = escapeForAppleScript(cmds)
         let script = """
-        do shell script "\(cmds)" with administrator privileges with prompt "KeyPath needs to restart failing system services."
+        do shell script "\(escapedCmds)" with administrator privileges with prompt "KeyPath needs to restart failing system services."
         """
+
+        AppLogger.shared.log("🔧 [LaunchDaemon] Running osascript with admin privileges...")
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         task.arguments = ["-e", script]
+
+        // Capture both stdout and stderr for debugging
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        task.standardOutput = outputPipe
+        task.standardError = errorPipe
+
         do {
             try task.run()
             task.waitUntilExit()
-            return task.terminationStatus == 0
+
+            // Read output and error streams
+            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: outputData, encoding: .utf8) ?? "(no output)"
+            let error = String(data: errorData, encoding: .utf8) ?? "(no error)"
+
+            AppLogger.shared.log(
+                "🔧 [LaunchDaemon] osascript termination status: \(task.terminationStatus)")
+            AppLogger.shared.log("🔧 [LaunchDaemon] osascript stdout: \(output)")
+            AppLogger.shared.log("🔧 [LaunchDaemon] osascript stderr: \(error)")
+
+            let success = task.terminationStatus == 0
+            AppLogger.shared.log(
+                "🔧 [LaunchDaemon] Admin restart command result: \(success ? "SUCCESS" : "FAILED")")
+            if success {
+                // Mark warm-up start time for those services
+                markRestartTime(for: serviceIDs)
+            }
+            return success
         } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] kickstart admin failed: \(error)")
+            AppLogger.shared.log("❌ [LaunchDaemon] kickstart admin failed with exception: \(error)")
             return false
         }
     }
@@ -833,19 +951,19 @@ class LaunchDaemonInstaller {
         var toInstall: [String] = []
 
         // Categorize services by what they need
-        if initialStatus.kanataServiceLoaded && !initialStatus.kanataServiceHealthy {
+        if initialStatus.kanataServiceLoaded, !initialStatus.kanataServiceHealthy {
             toRestart.append(Self.kanataServiceID)
         } else if !initialStatus.kanataServiceLoaded {
             toInstall.append(Self.kanataServiceID)
         }
-        
-        if initialStatus.vhidDaemonServiceLoaded && !initialStatus.vhidDaemonServiceHealthy {
+
+        if initialStatus.vhidDaemonServiceLoaded, !initialStatus.vhidDaemonServiceHealthy {
             toRestart.append(Self.vhidDaemonServiceID)
         } else if !initialStatus.vhidDaemonServiceLoaded {
             toInstall.append(Self.vhidDaemonServiceID)
         }
-        
-        if initialStatus.vhidManagerServiceLoaded && !initialStatus.vhidManagerServiceHealthy {
+
+        if initialStatus.vhidManagerServiceLoaded, !initialStatus.vhidManagerServiceHealthy {
             toRestart.append(Self.vhidManagerServiceID)
         } else if !initialStatus.vhidManagerServiceLoaded {
             toInstall.append(Self.vhidManagerServiceID)
@@ -860,7 +978,7 @@ class LaunchDaemonInstaller {
                 return false
             }
             AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed missing services")
-            
+
             // Wait for installation to settle
             try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
         }
@@ -872,81 +990,101 @@ class LaunchDaemonInstaller {
         }
 
         AppLogger.shared.log("🔧 [LaunchDaemon] Services to restart: \(toRestart)")
-        
+
         // Step 3: Diagnose issues before restarting
         await diagnoseServiceFailures(toRestart)
-        
+
         // Step 4: Execute the restart command
         let restartOk = restartServicesWithAdmin(toRestart)
         if !restartOk {
             AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute restart commands")
             return false
         }
-        
+
         AppLogger.shared.log("✅ [LaunchDaemon] Restart commands executed successfully")
-        
-        // Step 5: Wait for services to start up
-        AppLogger.shared.log("⏳ [LaunchDaemon] Waiting for services to start up...")
-        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-        
-        // Step 6: Re-check service health to verify they're actually working
+
+        // Step 5: Wait for services to start up (poll up to 10 seconds)
+        AppLogger.shared.log("⏳ [LaunchDaemon] Waiting for services to start up (polling)...")
+        let timeout: TimeInterval = 10.0
+        let interval: UInt64 = 500_000_000 // 0.5s
+        var elapsed: TimeInterval = 0
+
+        while elapsed < timeout {
+            let status = getServiceStatus()
+            var allRecovered = true
+            if toRestart.contains(Self.kanataServiceID), !status.kanataServiceHealthy { allRecovered = false }
+            if toRestart.contains(Self.vhidDaemonServiceID), !status.vhidDaemonServiceHealthy { allRecovered = false }
+            if toRestart.contains(Self.vhidManagerServiceID), !status.vhidManagerServiceHealthy { allRecovered = false }
+
+            if allRecovered {
+                AppLogger.shared.log("✅ [LaunchDaemon] Services recovered during polling")
+                break
+            }
+
+            try? await Task.sleep(nanoseconds: interval)
+            elapsed += 0.5
+        }
+
+        // Step 6: Final verification
         let finalStatus = getServiceStatus()
         var stillUnhealthy: [String] = []
-        
-        if toRestart.contains(Self.kanataServiceID) && !finalStatus.kanataServiceHealthy {
+
+        if toRestart.contains(Self.kanataServiceID), !finalStatus.kanataServiceHealthy {
             stillUnhealthy.append(Self.kanataServiceID)
         }
-        if toRestart.contains(Self.vhidDaemonServiceID) && !finalStatus.vhidDaemonServiceHealthy {
+        if toRestart.contains(Self.vhidDaemonServiceID), !finalStatus.vhidDaemonServiceHealthy {
             stillUnhealthy.append(Self.vhidDaemonServiceID)
         }
-        if toRestart.contains(Self.vhidManagerServiceID) && !finalStatus.vhidManagerServiceHealthy {
+        if toRestart.contains(Self.vhidManagerServiceID), !finalStatus.vhidManagerServiceHealthy {
             stillUnhealthy.append(Self.vhidManagerServiceID)
         }
-        
+
         if stillUnhealthy.isEmpty {
             AppLogger.shared.log("✅ [LaunchDaemon] All restarted services are now healthy")
             return true
         } else {
-            AppLogger.shared.log("⚠️ [LaunchDaemon] Some services are still unhealthy after restart: \(stillUnhealthy)")
-            
+            AppLogger.shared.log(
+                "⚠️ [LaunchDaemon] Some services are still unhealthy after restart: \(stillUnhealthy)")
+
             // Provide detailed diagnosis with actionable guidance
             await diagnoseServiceFailures(stillUnhealthy)
-            
+
             // Return success because we successfully:
             // 1. Restarted the services
             // 2. Diagnosed the underlying issues
             // 3. Provided specific guidance for manual resolution
-            AppLogger.shared.log("✅ [LaunchDaemon] Fix completed successfully - services restarted and issues diagnosed")
+            AppLogger.shared.log(
+                "✅ [LaunchDaemon] Fix completed successfully - services restarted and issues diagnosed")
             return true
         }
     }
-    
+
     /// Diagnose why services are still failing after restart attempt
     private func diagnoseServiceFailures(_ serviceIDs: [String]) async {
         AppLogger.shared.log("🔍 [LaunchDaemon] Diagnosing service failure reasons...")
-        
+
         for serviceID in serviceIDs {
             await diagnoseSpecificServiceFailure(serviceID)
         }
     }
-    
+
     /// Diagnose a specific service failure by checking launchctl details
     private func diagnoseSpecificServiceFailure(_ serviceID: String) async {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
         task.arguments = ["print", "system/\(serviceID)"]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             if task.terminationStatus == 0 {
                 await analyzeServiceStatus(serviceID, output: output)
             } else {
@@ -956,49 +1094,66 @@ class LaunchDaemonInstaller {
             AppLogger.shared.log("❌ [LaunchDaemon] Error checking \(serviceID) status: \(error)")
         }
     }
-    
+
     /// Analyze service status output to determine failure reason
     private func analyzeServiceStatus(_ serviceID: String, output: String) async {
         AppLogger.shared.log("🔍 [LaunchDaemon] Analyzing \(serviceID) status...")
-        
+
         // For Kanata service, also check the actual logs for detailed error messages
         if serviceID == Self.kanataServiceID {
             await analyzeKanataLogs()
         }
-        
+
         // Check for common exit reasons
         if output.contains("OS_REASON_CODESIGNING") {
             AppLogger.shared.log("❌ [LaunchDaemon] \(serviceID) is failing due to CODE SIGNING issues")
             if serviceID == Self.kanataServiceID {
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: KeyPath requires Input Monitoring permission for the kanata binary. Grant permission in System Settings > Privacy & Security > Input Monitoring")
-                AppLogger.shared.log("💡 [LaunchDaemon] If permission is already granted, try using KeyPath's Installation Wizard to reinstall kanata with proper code signing")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: KeyPath requires Input Monitoring permission for the kanata binary. Grant permission in System Settings > Privacy & Security > Input Monitoring"
+                )
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] If permission is already granted, try using KeyPath's Installation Wizard to reinstall kanata with proper code signing"
+                )
             } else {
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: The binary needs to be properly code signed or requires system permissions")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: The binary needs to be properly code signed or requires system permissions"
+                )
             }
-            
+
             if serviceID == Self.kanataServiceID {
                 await checkKanataCodeSigning()
             }
         } else if output.contains("OS_REASON_EXEC") {
-            AppLogger.shared.log("❌ [LaunchDaemon] \(serviceID) executable not found or cannot be executed")
+            AppLogger.shared.log(
+                "❌ [LaunchDaemon] \(serviceID) executable not found or cannot be executed")
             if serviceID == Self.kanataServiceID {
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Kanata binary may be missing. Use KeyPath's Installation Wizard to install kanata automatically")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Kanata binary may be missing. Use KeyPath's Installation Wizard to install kanata automatically"
+                )
             } else {
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Check that the binary exists and has correct permissions")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Check that the binary exists and has correct permissions")
             }
         } else if output.contains("Permission denied") || output.contains("OS_REASON_PERMISSIONS") {
             AppLogger.shared.log("❌ [LaunchDaemon] \(serviceID) failing due to permission issues")
             if serviceID == Self.kanataServiceID {
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Grant Input Monitoring permission to kanata in System Settings > Privacy & Security > Input Monitoring")
-                AppLogger.shared.log("💡 [LaunchDaemon] You may also need Accessibility permission if using advanced features")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Grant Input Monitoring permission to kanata in System Settings > Privacy & Security > Input Monitoring"
+                )
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] You may also need Accessibility permission if using advanced features")
             } else {
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Grant required permissions in System Settings > Privacy & Security")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Grant required permissions in System Settings > Privacy & Security"
+                )
             }
         } else if output.contains("job state = exited") {
             AppLogger.shared.log("⚠️ [LaunchDaemon] \(serviceID) is exiting unexpectedly")
-            
+
             // Extract exit reason if present
-            if let exitReasonMatch = output.range(of: #"last exit reason = (.*)"#, options: .regularExpression) {
+            if let exitReasonMatch = output.range(
+                of: #"last exit reason = (.*)"#, options: .regularExpression
+            ) {
                 let exitReason = String(output[exitReasonMatch])
                 AppLogger.shared.log("🔍 [LaunchDaemon] Exit reason: \(exitReason)")
             }
@@ -1006,34 +1161,45 @@ class LaunchDaemonInstaller {
             AppLogger.shared.log("⚠️ [LaunchDaemon] \(serviceID) unhealthy for unclear reason")
             if serviceID == Self.kanataServiceID {
                 AppLogger.shared.log("💡 [LaunchDaemon] Check kanata logs: tail -f /var/log/kanata.log")
-                AppLogger.shared.log("💡 [LaunchDaemon] Try using KeyPath's Installation Wizard to fix any configuration issues")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] Try using KeyPath's Installation Wizard to fix any configuration issues"
+                )
             } else {
                 AppLogger.shared.log("💡 [LaunchDaemon] Check system logs for more details")
             }
         }
     }
-    
+
     /// Analyze Kanata logs for specific error patterns
     private func analyzeKanataLogs() async {
         AppLogger.shared.log("🔍 [LaunchDaemon] Analyzing Kanata logs for error patterns...")
-        
+
         do {
             let logContent = try String(contentsOfFile: "/var/log/kanata.log")
-            let lastLines = logContent.components(separatedBy: .newlines).suffix(50).joined(separator: "\n")
-            
+            let lastLines = logContent.components(separatedBy: .newlines).suffix(50).joined(
+                separator: "\n")
+
             if lastLines.contains("IOHIDDeviceOpen error: (iokit/common) not permitted") {
                 AppLogger.shared.log("❌ [LaunchDaemon] DIAGNOSIS: Kanata lacks Input Monitoring permission")
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Grant Input Monitoring permission to kanata binary in System Settings > Privacy & Security > Input Monitoring")
-                AppLogger.shared.log("💡 [LaunchDaemon] TIP: Look for 'kanata' in the list or add '/usr/local/bin/kanata' manually")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Grant Input Monitoring permission to kanata binary in System Settings > Privacy & Security > Input Monitoring"
+                )
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] TIP: Look for 'kanata' in the list or add '/usr/local/bin/kanata' manually"
+                )
             } else if lastLines.contains("failed to parse file") {
                 AppLogger.shared.log("❌ [LaunchDaemon] DIAGNOSIS: Configuration file has syntax errors")
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Fix configuration syntax or reset to a minimal valid config")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Fix configuration syntax or reset to a minimal valid config")
             } else if lastLines.contains("No such file or directory") {
                 AppLogger.shared.log("❌ [LaunchDaemon] DIAGNOSIS: Configuration file missing")
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Ensure config file exists at expected location")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Ensure config file exists at expected location")
             } else if lastLines.contains("Device not configured") {
                 AppLogger.shared.log("❌ [LaunchDaemon] DIAGNOSIS: VirtualHID device not available")
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Restart VirtualHID daemon or enable Karabiner driver extension")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Restart VirtualHID daemon or enable Karabiner driver extension"
+                )
             } else {
                 AppLogger.shared.log("🔍 [LaunchDaemon] No specific error pattern found in recent logs")
                 AppLogger.shared.log("📋 [LaunchDaemon] Recent log snippet: \(lastLines.prefix(200))...")
@@ -1042,36 +1208,41 @@ class LaunchDaemonInstaller {
             AppLogger.shared.log("⚠️ [LaunchDaemon] Could not read kanata logs: \(error)")
         }
     }
-    
+
     /// Check kanata binary code signing status
     private func checkKanataCodeSigning() async {
         let kanataPath = getKanataBinaryPath()
         guard FileManager.default.fileExists(atPath: kanataPath) else {
-            AppLogger.shared.log("❌ [LaunchDaemon] Cannot check code signing - kanata binary not found at \(kanataPath)")
+            AppLogger.shared.log(
+                "❌ [LaunchDaemon] Cannot check code signing - kanata binary not found at \(kanataPath)")
             return
         }
-        
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
         task.arguments = ["-v", "-v", kanataPath]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             if task.terminationStatus == 0 {
                 AppLogger.shared.log("✅ [LaunchDaemon] Kanata binary appears to be properly signed")
-                AppLogger.shared.log("💡 [LaunchDaemon] Issue may be missing Input Monitoring permission - check System Settings")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] Issue may be missing Input Monitoring permission - check System Settings"
+                )
             } else {
                 AppLogger.shared.log("❌ [LaunchDaemon] Kanata binary code signing issue: \(output)")
-                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Use KeyPath's Installation Wizard to ensure proper kanata installation and permissions, or manually grant Input Monitoring permission")
+                AppLogger.shared.log(
+                    "💡 [LaunchDaemon] SOLUTION: Use KeyPath's Installation Wizard to ensure proper kanata installation and permissions, or manually grant Input Monitoring permission"
+                )
             }
         } catch {
             AppLogger.shared.log("❌ [LaunchDaemon] Error checking kanata code signing: \(error)")
@@ -1114,13 +1285,13 @@ class LaunchDaemonInstaller {
         )
         return ok
     }
-    
+
     // MARK: - Argument Building
-    
+
     /// Builds Kanata command line arguments for LaunchDaemon plist including TCP port when enabled
     private func buildKanataPlistArguments(binaryPath: String) -> [String] {
         var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
-        
+
         // Add TCP port if enabled and valid
         let tcpConfig = PreferencesService.tcpSnapshot()
         if tcpConfig.shouldUseTCPServer {
@@ -1130,12 +1301,13 @@ class LaunchDaemonInstaller {
         } else {
             AppLogger.shared.log("🌐 [LaunchDaemon] TCP server disabled")
         }
-        
+
         arguments.append("--watch")
         arguments.append("--debug")
         arguments.append("--log-layer-changes")
-        
-        AppLogger.shared.log("🔧 [LaunchDaemon] Built plist arguments: \(arguments.joined(separator: " "))")
+
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] Built plist arguments: \(arguments.joined(separator: " "))")
         return arguments
     }
 }
@@ -1155,7 +1327,7 @@ struct LaunchDaemonStatus {
     var allServicesLoaded: Bool {
         kanataServiceLoaded && vhidDaemonServiceLoaded && vhidManagerServiceLoaded
     }
-    
+
     /// True if all required services are healthy (loaded and running properly)
     var allServicesHealthy: Bool {
         kanataServiceHealthy && vhidDaemonServiceHealthy && vhidManagerServiceHealthy
@@ -1176,16 +1348,32 @@ struct LaunchDaemonStatus {
 
 // MARK: - Helper Extensions
 
-fileprivate extension String {
+private extension String {
     func firstMatchInt(pattern: String) -> Int? {
         do {
             let rx = try NSRegularExpression(pattern: pattern)
             let nsRange = NSRange(startIndex..., in: self)
             guard let m = rx.firstMatch(in: self, range: nsRange), m.numberOfRanges >= 2,
-                  let range = Range(m.range(at: 1), in: self) else {
+                  let range = Range(m.range(at: 1), in: self)
+            else {
                 return nil
             }
             return Int(self[range])
+        } catch {
+            return nil
+        }
+    }
+
+    func firstMatchString(pattern: String) -> String? {
+        do {
+            let rx = try NSRegularExpression(pattern: pattern)
+            let nsRange = NSRange(startIndex..., in: self)
+            guard let m = rx.firstMatch(in: self, range: nsRange), m.numberOfRanges >= 2,
+                  let range = Range(m.range(at: 1), in: self)
+            else {
+                return nil
+            }
+            return String(self[range])
         } catch {
             return nil
         }

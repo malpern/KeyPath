@@ -24,8 +24,14 @@ class AppLogger {
     private var flushTimer: Timer?
 
     private init() {
-        // Set log directory to user's home directory for reliable access
-        logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
+        // Set log directory to project directory for easy access during development
+        let projectPath = "/Volumes/FlashGordon/Dropbox/code/KeyPath"
+        if FileManager.default.fileExists(atPath: projectPath) {
+            logDirectory = projectPath + "/logs"
+        } else {
+            // Fallback to user directory if project path not available
+            logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
+        }
 
         dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -39,13 +45,16 @@ class AppLogger {
             )
         } catch {
             // Fallback to temporary directory if creation fails
-            print("Error creating log directory at \(logDirectory): \(error.localizedDescription). Falling back to temporary directory.")
+            print(
+                "Error creating log directory at \(logDirectory): \(error.localizedDescription). Falling back to temporary directory."
+            )
             logDirectory = NSTemporaryDirectory()
         }
 
         // Start automatic flush timer
         DispatchQueue.main.async {
-            self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) { _ in
+            self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) {
+                _ in
                 self.flushBuffer()
             }
         }
@@ -66,14 +75,9 @@ class AppLogger {
         // Always print to console for immediate feedback during development
         Swift.print(logMessage)
 
-        // Add to buffer for file writing
+        // Write immediately for debugging (no buffering)
         bufferQueue.async {
-            self.messageBuffer.append(logMessage)
-
-            // Auto-flush if buffer is full
-            if self.messageBuffer.count >= self.bufferSize {
-                self.flushBufferUnsafe()
-            }
+            self.writeLogMessageDirectly(logMessage)
         }
     }
 
@@ -97,6 +101,32 @@ class AppLogger {
         messageBuffer.removeAll()
 
         guard let data = messages.data(using: .utf8) else { return }
+
+        // Write to file
+        if FileManager.default.fileExists(atPath: logPath) {
+            // Append to existing file
+            do {
+                let fileHandle = try FileHandle(forWritingTo: URL(fileURLWithPath: logPath))
+                fileHandle.seekToEndOfFile()
+                fileHandle.write(data)
+                fileHandle.closeFile()
+            } catch {
+                // Fallback: try to create new file
+                try? data.write(to: URL(fileURLWithPath: logPath))
+            }
+        } else {
+            // Create new file
+            try? data.write(to: URL(fileURLWithPath: logPath))
+        }
+    }
+
+    /// Write a single log message directly to file (no buffering)
+    private func writeLogMessageDirectly(_ message: String) {
+        // Check if rotation is needed before writing
+        rotateIfNeeded()
+
+        let logEntry = message + "\n"
+        guard let data = logEntry.data(using: .utf8) else { return }
 
         // Write to file
         if FileManager.default.fileExists(atPath: logPath) {
