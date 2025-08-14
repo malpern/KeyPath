@@ -1,0 +1,79 @@
+;; Valid non-trivial kanata configuration
+;; Features: multiple layers, tap-dance, aliases, and key combinations
+
+(defcfg
+  process-unmapped-keys yes
+  danger-enable-cmd yes
+  sequence-timeout 2000
+  sequence-input-mode visible-backspaced
+)
+
+;; Source layout - full keyboard minus numpad
+(defsrc
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+;; Aliases for complex behaviors
+(defalias
+  ;; Layer switches
+  num  (layer-toggle numbers)
+  sym  (layer-toggle symbols)
+  nav  (layer-toggle navigation)
+  
+  ;; Tap-dance sequences
+  caps-esc (tap-dance 200 (esc @nav))
+  sft-caps (tap-dance 150 (lsft caps))
+  
+  ;; Hold-tap combinations
+  a-nav    (tap-hold 200 200 a @nav)
+  s-sym    (tap-hold 200 200 s @sym) 
+  d-num    (tap-hold 200 200 d @num)
+  
+  ;; Space cadet shifts
+  lsft-9   (tap-hold 200 200 9 lsft)
+  rsft-0   (tap-hold 200 200 0 rsft)
+  
+  ;; Simple macros
+  term     (macro t e r m i n a l)
+  browser  (macro b r o w s e r)
+)
+
+;; Base layer with home row mods and tap-dance
+(deflayer base
+  grv  1    2    3    4    5    6    7    8    @lsft-9 @rsft-0 -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  @caps-esc @a-nav @s-sym @d-num f g    h    j    k    l    ;    '    ret
+  @sft-caps z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+;; Numbers and function keys layer
+(deflayer numbers
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12  del
+  tab  1    2    3    4    5    6    7    8    9    0    S--  S-=  \
+  _    S-1  S-2  S-3  S-4  S-5  S-6  S-7  S-8  -    =    grv  ret
+  _    _    _    _    _    _    _    _    S-,  S-.  S-/  _
+  _    _    _              _              _    _    _
+)
+
+;; Symbols layer
+(deflayer symbols
+  S-grv _   _    _    _    _    _    _    _    _    _    _    _    _
+  _    S-1  S-2  S-3  S-4  S-5  S-6  S-7  S-8  S-9  S-0  S-[  S-]  S-\
+  _    1    2    3    4    5    6    7    8    9    0    _    _
+  _    _    _    _    _    _    _    _    S-,  S-.  S-/  _
+  _    _    _              _              _    _    _
+)
+
+;; Navigation layer with vim-like movement
+(deflayer navigation
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    end  _    @term _   pgup _    _    _    _    _    _
+  _    home _    _    _    _    left down up   rght _    _    _
+  _    _    _    _    _    _        _    _    _    pgdn _    _
+  _    _    _              _              _    _    _
+)

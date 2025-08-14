@@ -1,0 +1,71 @@
+;; Invalid kanata configuration with multiple errors
+;; This config has syntax errors, undefined references, and logical inconsistencies
+
+(defcfg
+  process-unmapped-keys maybe  ;; ERROR: invalid boolean value
+  invalid-option true          ;; ERROR: unknown configuration option
+  sequence-timeout "200"       ;; ERROR: string instead of number
+)
+
+;; Source with duplicate keys
+(defsrc
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    grv    ;; ERROR: grv duplicated
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+;; Aliases with errors
+(defalias
+  ;; Undefined layer reference
+  badlayer (layer-toggle nonexistent)  ;; ERROR: undefined layer
+  
+  ;; Invalid tap-dance syntax
+  bad-tap  (tap-dance 200)             ;; ERROR: missing actions
+  
+  ;; Circular reference
+  circ1    @circ2                       ;; ERROR: circular alias reference
+  circ2    @circ1
+  
+  ;; Invalid hold-tap parameters
+  bad-hold (tap-hold -100 200 a b)     ;; ERROR: negative timeout
+  
+  ;; Undefined key
+  bad-key  nonexistentkey               ;; ERROR: undefined key name
+  
+  ;; Invalid command syntax
+  bad-cmd  (cmd)                        ;; ERROR: empty command
+)
+
+;; Chord with invalid syntax
+(defchords qwerty abc                   ;; ERROR: invalid timeout format
+  (q u) qu
+  (missing-action)                      ;; ERROR: chord without action
+)
+
+;; Base layer with mismatched key count
+(deflayer base
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps @bad-key @badlayer d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .              ;; ERROR: missing keys
+  lctl lmet lalt           spc            ralt rmet          ;; ERROR: missing rctl
+)
+
+;; Layer with too many keys
+(deflayer toomany
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12  del  extra1 extra2  ;; ERROR: too many keys
+  tab  1    2    3    4    5    6    7    8    9    0    _    +    \
+  _    !    @    #    $    %    ^    &    *    -    =    `    ret
+  _    _    _    _    _    _    _    _    <    >    ?    _
+  _    _    _              _              _    _    _
+)
+
+;; Layer referencing undefined alias
+(deflayer badlayer
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    @undefined1 @undefined2 _  _    _    _    _    _    _    _    _    _    _  ;; ERROR: undefined aliases
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _              _              _    _    _
