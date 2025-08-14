@@ -9,6 +9,7 @@ struct WizardSummaryPage: View {
     let onStartService: () -> Void
     let onDismiss: () -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
+    let isInitializing: Bool
 
     var body: some View {
         GeometryReader { geometry in
@@ -29,7 +30,8 @@ struct WizardSummaryPage: View {
                         issues: issues,
                         stateInterpreter: stateInterpreter,
                         onNavigateToPage: onNavigateToPage,
-                        kanataIsRunning: kanataManager.isRunning
+                        kanataIsRunning: kanataManager.isRunning,
+                        isInitializing: isInitializing
                     )
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                 }

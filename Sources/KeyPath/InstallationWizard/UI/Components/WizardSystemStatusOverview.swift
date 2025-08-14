@@ -8,6 +8,8 @@ struct WizardSystemStatusOverview: View {
     let onNavigateToPage: ((WizardPage) -> Void)?
     // Authoritative signal for service status - ensures consistency with detail page
     let kanataIsRunning: Bool
+    // Flag to indicate if this is the initial check
+    let isInitializing: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
@@ -58,7 +60,7 @@ struct WizardSystemStatusOverview: View {
                 id: "full-disk-access",
                 icon: "folder.badge.gearshape",
                 title: "Full Disk Access (Optional)",
-                status: hasFullDiskAccess ? .completed : .notStarted,
+                status: isInitializing ? .inProgress : (hasFullDiskAccess ? .completed : .notStarted),
                 isNavigable: true,
                 targetPage: .fullDiskAccess
             ))
@@ -70,7 +72,7 @@ struct WizardSystemStatusOverview: View {
                 id: "conflicts",
                 icon: "exclamationmark.triangle",
                 title: "Resolve System Conflicts",
-                status: hasConflicts ? .failed : .completed,
+                status: isInitializing ? .inProgress : (hasConflicts ? .failed : .completed),
                 isNavigable: true,
                 targetPage: .conflicts
             ))
@@ -173,6 +175,9 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getInputMonitoringStatus() -> InstallationStatus {
+        if isInitializing {
+            return .inProgress
+        }
         let hasInputMonitoringIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
@@ -183,6 +188,9 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getAccessibilityStatus() -> InstallationStatus {
+        if isInitializing {
+            return .inProgress
+        }
         let hasAccessibilityIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
@@ -193,6 +201,9 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getKarabinerComponentsStatus() -> InstallationStatus {
+        if isInitializing {
+            return .inProgress
+        }
         // Check for Karabiner-related issues
         let hasKarabinerIssues = issues.contains { issue in
             // Installation issues related to Karabiner
@@ -219,6 +230,9 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getKanataComponentsStatus() -> InstallationStatus {
+        if isInitializing {
+            return .inProgress
+        }
         // Check for Kanata-related issues
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
@@ -238,6 +252,9 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getTCPServerStatus() -> InstallationStatus {
+        if isInitializing {
+            return .inProgress
+        }
         // Check for TCP server issues
         let hasTCPServerIssues = issues.contains { issue in
             if case .component(.kanataTCPServer) = issue.identifier {
@@ -257,6 +274,9 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getServiceStatus() -> InstallationStatus {
+        if isInitializing {
+            return .inProgress
+        }
         // Use the authoritative signal - if Kanata process is running, show as completed
         // This ensures consistency with the detail page regardless of health status
         if kanataIsRunning {
@@ -329,7 +349,8 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
             ],
             stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: { _ in },
-            kanataIsRunning: true // Show running in preview
+            kanataIsRunning: true, // Show running in preview
+            isInitializing: false // Show final state in preview
         )
         .padding()
     }

@@ -149,7 +149,8 @@ struct InstallationWizardView: View {
                         onDismiss: { dismiss() },
                         onNavigateToPage: { page in
                             navigationCoordinator.navigateToPage(page)
-                        }
+                        },
+                        isInitializing: isInitializing
                     )
                 case .fullDiskAccess:
                     WizardFullDiskAccessPage()
