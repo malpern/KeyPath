@@ -390,7 +390,8 @@ struct InstallationWizardView: View {
                             }
                         } else {
                             Task { @MainActor in
-                                toastManager.showError("Failed to \(actionDescription.lowercased())")
+                                let errorMessage = getDetailedErrorMessage(for: action, actionDescription: actionDescription)
+                                toastManager.showError(errorMessage)
                             }
                             continuation.resume(returning: success)
                         }
@@ -578,7 +579,7 @@ struct InstallationWizardView: View {
         case .restartVirtualHIDDaemon:
             return "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
         case .restartUnhealthyServices:
-            return "Services were restarted successfully. Any remaining issues have been diagnosed with specific solutions provided in the logs:\n\n• If kanata fails: Grant Input Monitoring permission in System Settings > Privacy & Security > Input Monitoring\n• If VirtualHID fails: Enable Karabiner driver extension in System Settings > Privacy & Security > System Extensions\n• If config errors: Use KeyPath to create a new valid configuration\n\nThe 'Fix' operation completed - check the diagnostic logs above for specific next steps."
+            return "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n• Missing services could not be installed\n• System permission denied for service restart\n\nTry the Fix button again and provide admin password when prompted."
         default:
             return "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
         }
