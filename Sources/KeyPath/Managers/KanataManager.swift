@@ -1210,13 +1210,24 @@ class KanataManager: ObservableObject {
         let config = generateKanataConfigWithMappings(keyMappings)
 
         // Validate the generated config before saving
+        AppLogger.shared.log("🔍 [Validation-PreSave] ========== PRE-SAVE VALIDATION BEGIN ==========")
+        AppLogger.shared.log("🔍 [Validation-PreSave] Validating config before save...")
+        AppLogger.shared.log("🔍 [Validation-PreSave] Config has \(keyMappings.count) mappings")
+        
+        let preSaveStart = Date()
         let validation = await validateGeneratedConfig(config)
+        let preSaveDuration = Date().timeIntervalSince(preSaveStart)
+        AppLogger.shared.log("⏱️ [Validation-PreSave] Validation completed in \(String(format: "%.3f", preSaveDuration)) seconds")
+        
         if !validation.isValid {
             // Check if we're in a testing environment
             let isInTestingEnvironment = NSClassFromString("XCTestCase") != nil
 
-            AppLogger.shared.log(
-                "❌ [Config] Generated config is invalid: \(validation.errors.joined(separator: ", "))")
+            AppLogger.shared.log("❌ [Validation-PreSave] Config validation FAILED")
+            AppLogger.shared.log("❌ [Validation-PreSave] Found \(validation.errors.count) errors:")
+            for (index, error) in validation.errors.enumerated() {
+                AppLogger.shared.log("   Error \(index + 1): \(error)")
+            }
 
             // In testing environments, be more permissive with validation failures
             // since kanata might not run properly in test context
@@ -1264,7 +1275,11 @@ class KanataManager: ObservableObject {
                     throw ConfigError.preSaveValidationFailed(errors: validation.errors, config: config)
                 }
             }
+        } else {
+            AppLogger.shared.log("✅ [Validation-PreSave] Config validation PASSED")
         }
+        
+        AppLogger.shared.log("🔍 [Validation-PreSave] ========== PRE-SAVE VALIDATION END ==========")
 
         // Config is valid, save it
         try await saveValidatedConfig(config)
@@ -2488,63 +2503,95 @@ class KanataManager: ObservableObject {
 
     /// Load and validate existing configuration with fallback to default
     private func loadExistingMappings() async {
+        AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION BEGIN ==========")
         keyMappings.removeAll()
 
         guard FileManager.default.fileExists(atPath: configPath) else {
-            AppLogger.shared.log("ℹ️ [Config] No existing config file found, starting with empty mappings")
+            AppLogger.shared.log("ℹ️ [Validation] No existing config file found at: \(configPath)")
+            AppLogger.shared.log("ℹ️ [Validation] Starting with empty mappings")
+            AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
             return
         }
 
         do {
+            AppLogger.shared.log("📖 [Validation] Reading config file from: \(configPath)")
             let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
+            AppLogger.shared.log("📖 [Validation] Config file size: \(configContent.count) characters")
             
             // Validate the existing config before loading
-            AppLogger.shared.log("🔍 [Config] Validating existing configuration...")
+            AppLogger.shared.log("🔍 [Validation] Starting validation of existing configuration...")
+            let validationStart = Date()
             let validation = await validateGeneratedConfig(configContent)
+            let validationDuration = Date().timeIntervalSince(validationStart)
+            AppLogger.shared.log("⏱️ [Validation] Validation completed in \(String(format: "%.3f", validationDuration)) seconds")
             
             if validation.isValid {
                 // Config is valid, load mappings normally
+                AppLogger.shared.log("✅ [Validation] Config validation PASSED")
                 keyMappings = parseKanataConfig(configContent)
-                AppLogger.shared.log("✅ [Config] Loaded \(keyMappings.count) valid existing mappings")
+                AppLogger.shared.log("✅ [Validation] Successfully loaded \(keyMappings.count) existing mappings:")
+                for (index, mapping) in keyMappings.enumerated() {
+                    AppLogger.shared.log("   \(index + 1). \(mapping.input) → \(mapping.output)")
+                }
             } else {
                 // Config is invalid, handle with fallback
-                AppLogger.shared.log("❌ [Config] Existing config is invalid: \(validation.errors.joined(separator: ", "))")
+                AppLogger.shared.log("❌ [Validation] Config validation FAILED with \(validation.errors.count) errors:")
+                for (index, error) in validation.errors.enumerated() {
+                    AppLogger.shared.log("   Error \(index + 1): \(error)")
+                }
+                AppLogger.shared.log("🔄 [Validation] Initiating fallback to default configuration...")
                 await handleInvalidStartupConfig(configContent: configContent, errors: validation.errors)
             }
         } catch {
-            AppLogger.shared.log("❌ [Config] Failed to load existing config: \(error)")
+            AppLogger.shared.log("❌ [Validation] Failed to load existing config: \(error)")
+            AppLogger.shared.log("❌ [Validation] Error type: \(type(of: error))")
             keyMappings = []
         }
+        
+        AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
     }
     
     /// Handle invalid startup configuration with backup and fallback
     private func handleInvalidStartupConfig(configContent: String, errors: [String]) async {
+        AppLogger.shared.log("🛡️ [Validation] Handling invalid startup configuration...")
+        
         // Create backup of invalid config
         let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let backupPath = "\(configDirectory)/invalid-config-backup-\(timestamp).kbd"
         
+        AppLogger.shared.log("💾 [Validation] Creating backup of invalid config...")
         do {
             try configContent.write(toFile: backupPath, atomically: true, encoding: .utf8)
-            AppLogger.shared.log("💾 [Config] Backed up invalid config to: \(backupPath)")
+            AppLogger.shared.log("💾 [Validation] Successfully backed up invalid config to: \(backupPath)")
+            AppLogger.shared.log("💾 [Validation] Backup file size: \(configContent.count) characters")
         } catch {
-            AppLogger.shared.log("❌ [Config] Failed to backup invalid config: \(error)")
+            AppLogger.shared.log("❌ [Validation] Failed to backup invalid config: \(error)")
+            AppLogger.shared.log("❌ [Validation] Backup path attempted: \(backupPath)")
         }
         
         // Generate default configuration
+        AppLogger.shared.log("🔧 [Validation] Generating default fallback configuration...")
         let defaultMapping = KeyMapping(input: "caps", output: "esc")
         let defaultConfig = generateKanataConfigWithMappings([defaultMapping])
+        AppLogger.shared.log("🔧 [Validation] Default config generated with mapping: caps → esc")
         
         do {
+            AppLogger.shared.log("📝 [Validation] Writing default config to: \(configPath)")
             try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
             keyMappings = [defaultMapping]
-            AppLogger.shared.log("✅ [Config] Replaced invalid config with default (caps -> esc)")
+            AppLogger.shared.log("✅ [Validation] Successfully replaced invalid config with default")
+            AppLogger.shared.log("✅ [Validation] New config has \(keyMappings.count) mapping(s)")
             
             // Schedule user notification about the fallback
+            AppLogger.shared.log("📢 [Validation] Scheduling user notification about config fallback...")
             await scheduleConfigValidationNotification(originalErrors: errors, backupPath: backupPath)
         } catch {
-            AppLogger.shared.log("❌ [Config] Failed to write default config: \(error)")
+            AppLogger.shared.log("❌ [Validation] Failed to write default config: \(error)")
+            AppLogger.shared.log("❌ [Validation] Config path: \(configPath)")
             keyMappings = []
         }
+        
+        AppLogger.shared.log("🛡️ [Validation] Invalid startup config handling complete")
     }
     
     /// Schedule notification to inform user about config validation issues
@@ -2972,34 +3019,55 @@ class KanataManager: ObservableObject {
 
     /// Validates a generated config string using Kanata's --check command
     private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
+        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
+        AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
+        
         // First try TCP validation if server is available
         if let tcpPort = await getTCPPort() {
+            AppLogger.shared.log("🌐 [Validation] TCP port configured: \(tcpPort)")
             let tcpClient = KanataTCPClient(port: tcpPort)
             
             // Check if TCP server is available
+            AppLogger.shared.log("🌐 [Validation] Checking TCP server availability on port \(tcpPort)...")
             if await tcpClient.checkServerStatus() {
-                AppLogger.shared.log("🌐 [Validation] Using TCP validation on port \(tcpPort)")
+                AppLogger.shared.log("🌐 [Validation] TCP server is AVAILABLE, using TCP validation")
+                let tcpStart = Date()
                 let result = await tcpClient.validateConfig(config)
+                let tcpDuration = Date().timeIntervalSince(tcpStart)
+                AppLogger.shared.log("⏱️ [Validation] TCP validation completed in \(String(format: "%.3f", tcpDuration)) seconds")
                 
                 switch result {
                 case .success:
+                    AppLogger.shared.log("✅ [Validation] TCP validation PASSED")
+                    AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (true, [])
                 case .failure(let tcpErrors):
+                    AppLogger.shared.log("❌ [Validation] TCP validation FAILED with \(tcpErrors.count) errors:")
                     let errorStrings = tcpErrors.map { $0.description }
+                    for (index, error) in errorStrings.enumerated() {
+                        AppLogger.shared.log("   Error \(index + 1): \(error)")
+                    }
+                    AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (false, errorStrings)
                 case .networkError(let error):
-                    AppLogger.shared.log("⚠️ [Validation] TCP validation failed: \(error), falling back to CLI")
+                    AppLogger.shared.log("⚠️ [Validation] TCP validation network error: \(error)")
+                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
                     // Fall through to CLI validation
                 }
             } else {
-                AppLogger.shared.log("⚠️ [Validation] TCP server not available, falling back to CLI")
+                AppLogger.shared.log("⚠️ [Validation] TCP server NOT available on port \(tcpPort)")
+                AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
             }
         } else {
-            AppLogger.shared.log("⚠️ [Validation] No TCP port configured, using CLI validation")
+            AppLogger.shared.log("ℹ️ [Validation] No TCP port configured or TCP disabled")
+            AppLogger.shared.log("ℹ️ [Validation] Using CLI validation as primary method")
         }
         
         // Fallback to CLI validation
-        return await validateConfigWithCLI(config)
+        AppLogger.shared.log("🖥️ [Validation] Starting CLI validation...")
+        let cliResult = await validateConfigWithCLI(config)
+        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+        return cliResult
     }
     
     /// Get TCP port for validation if TCP server is enabled
@@ -3012,42 +3080,67 @@ class KanataManager: ObservableObject {
     }
     
     private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
+        AppLogger.shared.log("🖥️ [Validation-CLI] Starting CLI validation process...")
+        
         // Write config to a temporary file for validation
         let tempConfigPath = "\(configDirectory)/temp_validation.kbd"
+        AppLogger.shared.log("📝 [Validation-CLI] Creating temp config file: \(tempConfigPath)")
 
         do {
             let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
             let configDir = URL(fileURLWithPath: configDirectory)
             try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
             try config.write(to: tempConfigURL, atomically: true, encoding: .utf8)
+            AppLogger.shared.log("📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)")
 
             // Use kanata --check to validate
+            let kanataBinary = WizardSystemPaths.kanataActiveBinary
+            AppLogger.shared.log("🔧 [Validation-CLI] Using kanata binary: \(kanataBinary)")
+            
             let task = Process()
-            task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
-            task.arguments = buildKanataArguments(configPath: tempConfigPath, checkOnly: true)
+            task.executableURL = URL(fileURLWithPath: kanataBinary)
+            let arguments = buildKanataArguments(configPath: tempConfigPath, checkOnly: true)
+            task.arguments = arguments
+            AppLogger.shared.log("🔧 [Validation-CLI] Command: \(kanataBinary) \(arguments.joined(separator: " "))")
 
             let pipe = Pipe()
             task.standardOutput = pipe
             task.standardError = pipe
 
+            let cliStart = Date()
             try task.run()
             task.waitUntilExit()
+            let cliDuration = Date().timeIntervalSince(cliStart)
+            AppLogger.shared.log("⏱️ [Validation-CLI] CLI validation completed in \(String(format: "%.3f", cliDuration)) seconds")
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
+            
+            AppLogger.shared.log("📋 [Validation-CLI] Exit code: \(task.terminationStatus)")
+            if !output.isEmpty {
+                AppLogger.shared.log("📋 [Validation-CLI] Output: \(output.prefix(500))...")
+            }
 
             // Clean up temp file
             try? FileManager.default.removeItem(at: tempConfigURL)
+            AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
 
             if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
                 return (true, [])
             } else {
                 let errors = parseKanataErrors(output)
+                AppLogger.shared.log("❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
+                for (index, error) in errors.enumerated() {
+                    AppLogger.shared.log("   Error \(index + 1): \(error)")
+                }
                 return (false, errors)
             }
         } catch {
             // Clean up temp file on error
             try? FileManager.default.removeItem(atPath: tempConfigPath)
+            AppLogger.shared.log("❌ [Validation-CLI] Validation process failed: \(error)")
+            AppLogger.shared.log("❌ [Validation-CLI] Error type: \(type(of: error))")
             return (false, ["Validation failed: \(error.localizedDescription)"])
         }
     }
@@ -3200,22 +3293,39 @@ class KanataManager: ObservableObject {
         }
 
         // Post-save validation: verify the file was saved correctly
-        AppLogger.shared.log("🔍 [Config] Performing post-save validation...")
+        AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
+        AppLogger.shared.log("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
         do {
             let savedContent = try String(contentsOfFile: configPath, encoding: .utf8)
+            AppLogger.shared.log("📖 [Validation-PostSave] Successfully read saved file (\(savedContent.count) characters)")
+            
+            let postSaveStart = Date()
             let postSaveValidation = await validateGeneratedConfig(savedContent)
+            let postSaveDuration = Date().timeIntervalSince(postSaveStart)
+            AppLogger.shared.log("⏱️ [Validation-PostSave] Validation completed in \(String(format: "%.3f", postSaveDuration)) seconds")
             
             if postSaveValidation.isValid {
-                AppLogger.shared.log("✅ [Config] Post-save validation passed - config saved successfully")
+                AppLogger.shared.log("✅ [Validation-PostSave] Post-save validation PASSED")
+                AppLogger.shared.log("✅ [Validation-PostSave] Config saved and verified successfully")
             } else {
-                AppLogger.shared.log("❌ [Config] Post-save validation failed: \(postSaveValidation.errors.joined(separator: ", "))")
+                AppLogger.shared.log("❌ [Validation-PostSave] Post-save validation FAILED")
+                AppLogger.shared.log("❌ [Validation-PostSave] Found \(postSaveValidation.errors.count) errors:")
+                for (index, error) in postSaveValidation.errors.enumerated() {
+                    AppLogger.shared.log("   Error \(index + 1): \(error)")
+                }
+                AppLogger.shared.log("🎭 [Validation-PostSave] Showing error dialog to user...")
                 await showValidationErrorDialog(title: "Save Verification Failed", errors: postSaveValidation.errors)
+                AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
                 throw ConfigError.postSaveValidationFailed(errors: postSaveValidation.errors)
             }
         } catch {
-            AppLogger.shared.log("❌ [Config] Failed to read saved config for validation: \(error)")
+            AppLogger.shared.log("❌ [Validation-PostSave] Failed to read saved config: \(error)")
+            AppLogger.shared.log("❌ [Validation-PostSave] Error type: \(type(of: error))")
+            AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
             throw error
         }
+        
+        AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
 
         // Notify UI that config was updated
         lastConfigUpdate = Date()
