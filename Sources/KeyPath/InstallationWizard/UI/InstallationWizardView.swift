@@ -319,10 +319,22 @@ struct InstallationWizardView: View {
 
     private func performAutoFix() {
         Task {
-            AppLogger.shared.log("🔍 [NewWizard] Auto-fix started")
-
+            AppLogger.shared.log("🔍 [NewWizard] *** FIX BUTTON CLICKED *** Auto-fix started - BUILD VERSION CHECK")
+            AppLogger.shared.log("🔍 [NewWizard] TIMESTAMP: \(Date())")
+            AppLogger.shared.log("🔍 [NewWizard] Current issues: \(currentIssues.count) total")
+            
+            // Log each current issue for debugging
+            for (index, issue) in currentIssues.enumerated() {
+                if let autoFixAction = issue.autoFixAction {
+                    AppLogger.shared.log("🔍 [NewWizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
+                } else {
+                    AppLogger.shared.log("🔍 [NewWizard] Issue \(index): \(issue.identifier) -> AutoFix: nil")
+                }
+            }
+            
             // Find issues that can be auto-fixed
             let autoFixableIssues = currentIssues.compactMap(\.autoFixAction)
+            AppLogger.shared.log("🔍 [NewWizard] Auto-fixable actions found: \(autoFixableIssues)")
 
             for action in autoFixableIssues {
                 let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
@@ -339,7 +351,10 @@ struct InstallationWizardView: View {
                         }
                     } else {
                         Task { @MainActor in
+                            AppLogger.shared.log("❌ [NewWizard] Auto-fix FAILED for action: \(action)")
+                            AppLogger.shared.log("❌ [NewWizard] Action description: \(actionDescription)")
                             let errorMessage = getDetailedErrorMessage(for: action, actionDescription: actionDescription)
+                            AppLogger.shared.log("❌ [NewWizard] Generated error message: \(errorMessage)")
                             toastManager.showError(errorMessage)
                         }
                     }
@@ -414,30 +429,36 @@ struct InstallationWizardView: View {
 
     /// Get user-friendly description for auto-fix actions
     private func getAutoFixActionDescription(_ action: AutoFixAction) -> String {
+        AppLogger.shared.log("🔍 [ActionDescription] getAutoFixActionDescription called for: \(action)")
+        
+        let description: String
         switch action {
         case .terminateConflictingProcesses:
-            "Terminate conflicting processes"
+            description = "Terminate conflicting processes"
         case .startKarabinerDaemon:
-            "Start Karabiner daemon"
+            description = "Start Karabiner daemon"
         case .restartVirtualHIDDaemon:
-            "Fix VirtualHID connection issues"
+            description = "Fix VirtualHID connection issues"
         case .installMissingComponents:
-            "Install missing components"
+            description = "Install missing components"
         case .createConfigDirectories:
-            "Create configuration directories"
+            description = "Create configuration directories"
         case .activateVHIDDeviceManager:
-            "Activate VirtualHID Device Manager"
+            description = "Activate VirtualHID Device Manager"
         case .installLaunchDaemonServices:
-            "Install LaunchDaemon services"
+            description = "Install LaunchDaemon services"
         case .installViaBrew:
-            "Install packages via Homebrew"
+            description = "Install packages via Homebrew"
         case .repairVHIDDaemonServices:
-            "Repair VHID LaunchDaemon services"
+            description = "Repair VHID LaunchDaemon services"
         case .synchronizeConfigPaths:
-            "Fix config path mismatch between KeyPath and Kanata"
+            description = "Fix config path mismatch between KeyPath and Kanata"
         case .restartUnhealthyServices:
-            "Restart failing system services"
+            description = "Restart failing system services"
         }
+        
+        AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")
+        return description
     }
 
     private func refreshState() async {
@@ -565,24 +586,31 @@ struct InstallationWizardView: View {
     
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String) -> String {
+        AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
+        AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
+        
+        let message: String
         switch action {
         case .installLaunchDaemonServices:
-            return "Failed to install system services. Check that you provided admin password and try again."
+            message = "Failed to install system services. Check that you provided admin password and try again."
         case .activateVHIDDeviceManager:
-            return "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
+            message = "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
         case .installViaBrew:
-            return "Failed to install packages via Homebrew. Check your internet connection or install manually."
+            message = "Failed to install packages via Homebrew. Check your internet connection or install manually."
         case .startKarabinerDaemon:
-            return "Failed to start system daemon. Check System Settings > Privacy & Security > System Extensions."
+            message = "Failed to start system daemon. Check System Settings > Privacy & Security > System Extensions."
         case .createConfigDirectories:
-            return "Failed to create configuration directories. Check file system permissions."
+            message = "Failed to create configuration directories. Check file system permissions."
         case .restartVirtualHIDDaemon:
-            return "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
+            message = "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
         case .restartUnhealthyServices:
-            return "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n• Missing services could not be installed\n• System permission denied for service restart\n\nTry the Fix button again and provide admin password when prompted."
+            message = "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n• Missing services could not be installed\n• System permission denied for service restart\n\nTry the Fix button again and provide admin password when prompted."
         default:
-            return "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
+            message = "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
         }
+        
+        AppLogger.shared.log("🔍 [ErrorMessage] Returning message: \(message)")
+        return message
     }
 
     // MARK: - Keyboard Navigation
