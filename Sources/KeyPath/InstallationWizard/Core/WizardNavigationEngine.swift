@@ -53,7 +53,8 @@ class WizardNavigationEngine: WizardNavigating {
         }
 
         if inputMonitoringIssues {
-            AppLogger.shared.log("🔍 [NavigationEngine] → .inputMonitoring (found Input Monitoring issues)")
+            AppLogger.shared.log(
+                "🔍 [NavigationEngine] → .inputMonitoring (found Input Monitoring issues)")
             return .inputMonitoring
         } else if accessibilityIssues {
             AppLogger.shared.log("🔍 [NavigationEngine] → .accessibility (found Accessibility issues)")
@@ -174,7 +175,7 @@ class WizardNavigationEngine: WizardNavigating {
             .accessibility, // Accessibility permission
             .karabinerComponents, // Karabiner driver and VirtualHID setup
             .kanataComponents, // Kanata binary and service setup
-            .service, // Start keyboard service
+            .service // Start keyboard service
         ]
     }
 

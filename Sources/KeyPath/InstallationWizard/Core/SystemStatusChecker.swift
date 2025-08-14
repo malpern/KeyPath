@@ -286,6 +286,16 @@ class SystemStatusChecker {
             AppLogger.shared.log("❌ [SystemStatusChecker] Kanata service missing: \(reason)")
         }
 
+        // Check Kanata TCP server status
+        let tcpServerWorking = await checkTCPServerStatus()
+        if tcpServerWorking {
+            installed.append(.kanataTCPServer)
+            AppLogger.shared.log("✅ [SystemStatusChecker] Kanata TCP server: responding")
+        } else {
+            missing.append(.kanataTCPServer)
+            AppLogger.shared.log("❌ [SystemStatusChecker] Kanata TCP server: not responding")
+        }
+
         AppLogger.shared.log("🔍 [SystemStatusChecker] Component check complete:")
         AppLogger.shared.log("  - Installed: \(installed.count) components")
         AppLogger.shared.log("  - Missing: \(missing.count) components")
@@ -486,6 +496,32 @@ class SystemStatusChecker {
 
         // All components installed but service not running
         return .ready
+    }
+
+    // MARK: - TCP Server Status
+
+    /// Check if Kanata TCP server is responding
+    private func checkTCPServerStatus() async -> Bool {
+        let tcpConfig = PreferencesService.tcpSnapshot()
+        
+        // If TCP is disabled in preferences, consider it as not working
+        guard tcpConfig.shouldUseTCPServer else {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server disabled in preferences")
+            return false
+        }
+        
+        // Check if kanata service is actually running with TCP port
+        guard kanataManager.isRunning else {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] Kanata not running - TCP server unavailable")
+            return false
+        }
+        
+        // Use KanataTCPClient to check server status
+        let client = KanataTCPClient(port: tcpConfig.port, timeout: 2.0)
+        let serverResponding = await client.checkServerStatus()
+        
+        AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - \(serverResponding ? "responding" : "not responding")")
+        return serverResponding
     }
 
     // MARK: - Debug Methods

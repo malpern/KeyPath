@@ -212,12 +212,14 @@ class PermissionService {
     /// Returns true if permission was granted, false if denied or needs manual action
     @available(macOS 10.15, *)
     static func requestInputMonitoringPermission() -> Bool {
-        AppLogger.shared.log("🔐 [PermissionService] Requesting Input Monitoring permission via IOHIDRequestAccess")
+        AppLogger.shared.log(
+            "🔐 [PermissionService] Requesting Input Monitoring permission via IOHIDRequestAccess")
 
         // IOHIDRequestAccess returns a Bool: true if granted, false if denied/unknown
         let granted = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
 
-        AppLogger.shared.log("🔐 [PermissionService] IOHIDRequestAccess result: \(granted ? "granted" : "denied/unknown")")
+        AppLogger.shared.log(
+            "🔐 [PermissionService] IOHIDRequestAccess result: \(granted ? "granted" : "denied/unknown")")
 
         // Clear cache after permission request
         PermissionService.shared.clearCache()
@@ -262,8 +264,7 @@ class PermissionService {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8),
                let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)),
-               count > 1
-            {
+               count > 1 {
                 indicators.append("Multiple kanata processes detected (\(count) running)")
             }
         } catch {
@@ -280,7 +281,7 @@ class PermissionService {
                 "/Applications/KeyPath.app",
                 "\(homeDir)/Applications/KeyPath.app",
                 "\(homeDir)/Desktop/KeyPath.app",
-                "\(homeDir)/Downloads/KeyPath.app",
+                "\(homeDir)/Downloads/KeyPath.app"
             ]
 
             for oldPath in possibleOldPaths {
@@ -290,7 +291,9 @@ class PermissionService {
             }
         }
 
-        AppLogger.shared.log("🔐 [PermissionService] Stale entry detection: \(indicators.isEmpty ? "No indicators found" : indicators.joined(separator: ", "))")
+        AppLogger.shared.log(
+            "🔐 [PermissionService] Stale entry detection: \(indicators.isEmpty ? "No indicators found" : indicators.joined(separator: ", "))"
+        )
 
         return (!indicators.isEmpty, indicators)
     }
@@ -304,14 +307,16 @@ class PermissionService {
 
     /// Open System Settings directly to Input Monitoring
     static func openInputMonitoringSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+        if let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }
     }
 
     /// Open System Settings directly to Accessibility
     static func openAccessibilitySettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        if let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -321,7 +326,8 @@ class PermissionService {
         let currentProcessPath = Bundle.main.bundlePath
         if path == currentProcessPath {
             let hasAccess = AXIsProcessTrusted()
-            AppLogger.shared.log("🔐 [PermissionService] AXIsProcessTrusted for current process: \(hasAccess)")
+            AppLogger.shared.log(
+                "🔐 [PermissionService] AXIsProcessTrusted for current process: \(hasAccess)")
             return hasAccess
         }
 
@@ -336,7 +342,9 @@ class PermissionService {
             let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
             let isGranted = accessType == kIOHIDAccessTypeGranted
 
-            AppLogger.shared.log("🔐 [PermissionService] IOHIDCheckAccess for current process: \(isGranted ? "granted" : "not granted")")
+            AppLogger.shared.log(
+                "🔐 [PermissionService] IOHIDCheckAccess for current process: \(isGranted ? "granted" : "not granted")"
+            )
             return isGranted
         }
 
@@ -374,7 +382,8 @@ class PermissionService {
 
         // For other binaries, we can't reliably test without running them
         // Return false to be safe
-        AppLogger.shared.log("🔐 [PermissionService] Cannot check Input Monitoring for non-kanata binary: \(path)")
+        AppLogger.shared.log(
+            "🔐 [PermissionService] Cannot check Input Monitoring for non-kanata binary: \(path)")
         return false
     }
 
@@ -418,10 +427,19 @@ class PermissionService {
                 // If kanata is running, check the log for recent permission errors
                 return !hasRecentPermissionErrors()
             } else {
-                // If not running, we can't determine permission status
-                // Default to requiring permission grant to be safe
-                AppLogger.shared.log("🔐 [PermissionService] Kanata not running - cannot determine permission status")
-                return false
+                // If not running, check if it's supposed to be running (LaunchDaemon exists)
+                // and if there are recent permission errors in logs
+                if hasRecentPermissionErrors() {
+                    AppLogger.shared.log(
+                        "🔐 [PermissionService] Kanata not running but permission errors found in logs")
+                    return false
+                } else {
+                    // If not running and no recent errors, we can't determine permission status
+                    // Default to requiring permission grant to be safe
+                    AppLogger.shared.log(
+                        "🔐 [PermissionService] Kanata not running - cannot determine permission status")
+                    return false
+                }
             }
 
         } catch {
@@ -452,7 +470,7 @@ class PermissionService {
                 "privilege violation",
                 "operation not permitted",
                 "iokit/common",
-                "IOHIDDeviceOpen error",
+                "IOHIDDeviceOpen error"
             ]
 
             for error in permissionErrors {

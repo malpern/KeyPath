@@ -251,7 +251,6 @@ struct RecordingSection: View {
 
     // MARK: - Phase 1: Save Operation Debouncing
 
-    @State private var isSaving = false
     @State private var saveDebounceTimer: Timer?
     private let saveDebounceDelay: TimeInterval = 0.5
 
@@ -352,18 +351,19 @@ struct RecordingSection: View {
                     debouncedSave()
                 }) {
                     HStack {
-                        if isSaving {
+                        if kanataManager.saveStatus.isActive {
                             ProgressView()
                                 .scaleEffect(0.8)
                                 .frame(width: 16, height: 16)
                         }
-                        Text(isSaving ? "Saving..." : "Save")
+                        Text(kanataManager.saveStatus.message.isEmpty ? "Save" : kanataManager.saveStatus.message)
                     }
+                    .frame(minWidth: 100)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(recordedInput.isEmpty || recordedOutput.isEmpty || isSaving)
+                .disabled(recordedInput.isEmpty || recordedOutput.isEmpty || kanataManager.saveStatus.isActive)
                 .accessibilityIdentifier("save-mapping-button")
-                .accessibilityLabel(isSaving ? "Saving key mapping" : "Save key mapping")
+                .accessibilityLabel(kanataManager.saveStatus.message.isEmpty ? "Save key mapping" : kanataManager.saveStatus.message)
                 .accessibilityHint("Save the input and output key mapping to your configuration")
             }
         }
@@ -521,8 +521,7 @@ struct RecordingSection: View {
         // Cancel any existing timer
         saveDebounceTimer?.invalidate()
 
-        // Show saving state immediately for user feedback
-        isSaving = true
+        // Show saving state immediately for user feedback via KanataManager.saveStatus
         AppLogger.shared.log("💾 [Save] Debounced save initiated - starting timer")
 
         // Create new timer
@@ -550,14 +549,13 @@ struct RecordingSection: View {
 
             AppLogger.shared.log("💾 [Save] Configuration saved successfully")
 
-            // Show status message
+            // Show status message and clear the form
             await MainActor.run {
                 showStatusMessage("Key mapping saved: \(inputKey) → \(outputKey)")
 
                 // Clear the form
                 recordedInput = ""
                 recordedOutput = ""
-                isSaving = false
             }
 
             // Update status
@@ -568,10 +566,7 @@ struct RecordingSection: View {
         } catch {
             AppLogger.shared.log("❌ [Save] Error during save operation: \(error)")
 
-            // Reset saving state
-            await MainActor.run {
-                isSaving = false
-            }
+            // Error handling will be managed by KanataManager's saveStatus
 
             // Handle specific config errors
             if let configError = error as? ConfigError {

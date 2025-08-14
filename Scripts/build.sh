@@ -65,7 +65,7 @@ EOF
 # Optional: Sign for development to preserve permissions
 if command -v codesign >/dev/null 2>&1; then
     echo "Signing app bundle for development..."
-    codesign --force --sign - --deep --preserve-metadata=identifier,entitlements,flags --timestamp=none "$APP_BUNDLE" 2>/dev/null || {
+    codesign --force --sign - --entitlements kanata.entitlements --deep --timestamp=none "$APP_BUNDLE" 2>/dev/null || {
         echo "Note: Code signing failed, permissions may reset on each build"
     }
 fi

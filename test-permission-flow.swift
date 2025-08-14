@@ -44,7 +44,7 @@ task.standardError = Pipe()
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     if let output = String(data: data, encoding: .utf8),
        let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)),
@@ -67,7 +67,7 @@ if indicators.isEmpty {
 print("\n2️⃣ Testing IOHIDRequestAccess Availability:")
 if #available(macOS 10.15, *) {
     print("   ✅ IOHIDRequestAccess is available on this system")
-    
+
     // Check current permission status
     let currentStatus = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
     let statusString: String = {
@@ -82,13 +82,13 @@ if #available(macOS 10.15, *) {
             return "Other (\(currentStatus))"
         }
     }()
-    
+
     print("   Current Input Monitoring status: \(statusString)")
-    
+
     if currentStatus != kIOHIDAccessTypeGranted {
         print("\n3️⃣ Testing Permission Request Flow:")
         print("   Based on detection results, the wizard would:")
-        
+
         if !indicators.isEmpty {
             print("   1. Show cleanup instructions for stale entries")
             print("   2. Guide user to System Settings")

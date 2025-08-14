@@ -13,7 +13,7 @@ let sourcesPath = "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath"
 // Key files to examine for Fix button execution flow
 let keyFiles = [
     "InstallationWizard/UI/InstallationWizardView.swift",
-    "InstallationWizard/Core/WizardAutoFixer.swift", 
+    "InstallationWizard/Core/WizardAutoFixer.swift",
     "InstallationWizard/Core/WizardAsyncOperationManager.swift",
     "InstallationWizard/Core/LaunchDaemonInstaller.swift"
 ]
@@ -35,7 +35,7 @@ grep1.standardOutput = Pipe()
 do {
     try grep1.run()
     grep1.waitUntilExit()
-    
+
     if let data = try (grep1.standardOutput as? Pipe)?.fileHandleForReading.readToEnd(),
        let output = String(data: data, encoding: .utf8) {
         print("FOUND 'Failed to restart' patterns:")
@@ -56,7 +56,7 @@ grep2.standardOutput = Pipe()
 do {
     try grep2.run()
     grep2.waitUntilExit()
-    
+
     if let data = try (grep2.standardOutput as? Pipe)?.fileHandleForReading.readToEnd(),
        let output = String(data: data, encoding: .utf8) {
         print("FOUND launchDaemonServicesUnhealthy mapping:")
@@ -77,7 +77,7 @@ grep3.standardOutput = Pipe()
 do {
     try grep3.run()
     grep3.waitUntilExit()
-    
+
     if let data = try (grep3.standardOutput as? Pipe)?.fileHandleForReading.readToEnd(),
        let output = String(data: data, encoding: .utf8) {
         print("FOUND toastManager.showError patterns:")
@@ -89,7 +89,7 @@ do {
 
 print("\n💡 DEBUGGING RECOMMENDATIONS:")
 print("1. Check Console.app logs during Fix button click")
-print("2. Look for lines containing '[AutoFixer]' and '[NewWizard]'") 
+print("2. Look for lines containing '[AutoFixer]' and '[NewWizard]'")
 print("3. Verify which error message generation path is being taken")
 print("4. Check if our getDetailedErrorMessage() method is actually called")
 

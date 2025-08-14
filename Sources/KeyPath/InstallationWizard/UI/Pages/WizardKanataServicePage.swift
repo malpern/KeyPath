@@ -328,7 +328,9 @@ struct WizardKanataServicePage: View {
         // DISABLED: This timer calls refreshStatus() which may trigger invasive permission checks
         // that cause KeyPath to auto-add to Input Monitoring system preferences
 
-        AppLogger.shared.log("🔄 [WizardKanataServicePage] Auto-refresh timer DISABLED to prevent invasive permission checks")
+        AppLogger.shared.log(
+            "🔄 [WizardKanataServicePage] Auto-refresh timer DISABLED to prevent invasive permission checks"
+        )
     }
 
     private func stopAutoRefresh() {

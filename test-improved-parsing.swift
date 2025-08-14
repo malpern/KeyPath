@@ -30,34 +30,34 @@ task.standardError = pipe
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     print("=== Improved Service Health Detection Test ===")
     print("Exit Code:", task.terminationStatus)
-    
+
     if task.terminationStatus == 0 {
         print("Service is loaded. Testing improved parsing...")
-        
+
         // Test the improved regex parsing
         let lastExitCode = output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+);"#) ?? 0
         let pid = output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+);"#)
         let hasPID = (pid != nil)
-        
+
         print("Last Exit Code: \(lastExitCode)")
         print("PID: \(pid?.description ?? "nil")")
         print("Has PID: \(hasPID)")
-        
+
         // Test KeepAlive semantics (Kanata is keep-alive, not one-shot)
         let isOneShot = false // Kanata is keep-alive
         let healthy: Bool = isOneShot
             ? (lastExitCode == 0)                               // one-shot OK without PID if exit was clean
             : (hasPID && lastExitCode == 0)                     // keep-alive services must be running and clean
-        
+
         print("Is One-Shot: \(isOneShot)")
         print("Healthy: \(healthy)")
-        
+
         if healthy {
             print("✅ Service is healthy")
         } else {
@@ -68,7 +68,7 @@ do {
     } else {
         print("❌ Service not loaded")
     }
-    
+
 } catch {
     print("Error: \(error)")
 }

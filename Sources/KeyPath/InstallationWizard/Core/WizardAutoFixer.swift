@@ -557,17 +557,24 @@ class WizardAutoFixer: AutoFixCapable {
     }
 
     private func installLaunchDaemonServices() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Installing LaunchDaemon services with consolidated single-prompt method")
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] *** ENTRY POINT *** installLaunchDaemonServices() called")
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] Installing LaunchDaemon services with consolidated single-prompt method")
+        AppLogger.shared.log("🔧 [AutoFixer] About to call launchDaemonInstaller.createConfigureAndLoadAllServices()")
 
         // Use the new consolidated method that handles everything with a single admin prompt:
         // - Install all LaunchDaemon plist files
         // - Create system config directories
         // - Copy/create system config files
         // - Load all services into launchctl
+        AppLogger.shared.log("🔧 [AutoFixer] Calling createConfigureAndLoadAllServices() now...")
         let success = launchDaemonInstaller.createConfigureAndLoadAllServices()
+        AppLogger.shared.log("🔧 [AutoFixer] createConfigureAndLoadAllServices() returned: \(success)")
 
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] LaunchDaemon installation completed successfully with single admin prompt")
+            AppLogger.shared.log(
+                "✅ [AutoFixer] LaunchDaemon installation completed successfully with single admin prompt")
         } else {
             AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed")
         }
@@ -585,14 +592,16 @@ class WizardAutoFixer: AutoFixCapable {
         // Step 1: Check if Homebrew is available
         AppLogger.shared.log("🔧 [AutoFixer] Step 1/\(totalSteps): Checking Homebrew availability...")
         guard packageManager.checkHomebrewInstallation() else {
-            AppLogger.shared.log("❌ [AutoFixer] Step 1 FAILED: Homebrew not available for package installation")
+            AppLogger.shared.log(
+                "❌ [AutoFixer] Step 1 FAILED: Homebrew not available for package installation")
             return false
         }
         AppLogger.shared.log("✅ [AutoFixer] Step 1 SUCCESS: Homebrew is available")
         stepsCompleted += 1
 
         // Step 2: Check what packages need to be installed
-        AppLogger.shared.log("🔧 [AutoFixer] Step 2/\(totalSteps): Detecting current package installation...")
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] Step 2/\(totalSteps): Detecting current package installation...")
         let kanataInfo = packageManager.detectKanataInstallation()
         AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Package detection complete")
         stepsCompleted += 1
@@ -610,25 +619,32 @@ class WizardAutoFixer: AutoFixCapable {
                 AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Failed to install Kanata - \(reason)")
                 stepsFailed += 1
             case .homebrewNotAvailable:
-                AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Homebrew not available for Kanata installation")
+                AppLogger.shared.log(
+                    "❌ [AutoFixer] Step 3 FAILED: Homebrew not available for Kanata installation")
                 stepsFailed += 1
             case .packageNotFound:
                 AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Kanata package not found in Homebrew")
                 stepsFailed += 1
             case .userCancelled:
-                AppLogger.shared.log("⚠️ [AutoFixer] Step 3 CANCELLED: Kanata installation cancelled by user")
+                AppLogger.shared.log(
+                    "⚠️ [AutoFixer] Step 3 CANCELLED: Kanata installation cancelled by user")
                 return false
             }
         } else {
-            AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: Kanata already installed - \(kanataInfo.description)")
+            AppLogger.shared.log(
+                "✅ [AutoFixer] Step 3 SUCCESS: Kanata already installed - \(kanataInfo.description)")
             stepsCompleted += 1
         }
 
         let success = stepsFailed == 0
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] Homebrew installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)")
+            AppLogger.shared.log(
+                "✅ [AutoFixer] Homebrew installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)"
+            )
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Homebrew installation failed (\(stepsFailed) steps failed, \(stepsCompleted)/\(totalSteps) completed)")
+            AppLogger.shared.log(
+                "❌ [AutoFixer] Homebrew installation failed (\(stepsFailed) steps failed, \(stepsCompleted)/\(totalSteps) completed)"
+            )
         }
 
         return success
@@ -714,11 +730,14 @@ class WizardAutoFixer: AutoFixCapable {
             let userConfigPath = WizardSystemPaths.userConfigPath
             let systemConfigPath = WizardSystemPaths.systemConfigPath
 
-            AppLogger.shared.log("📋 [AutoFixer] Copying config from \(userConfigPath) to \(systemConfigPath)")
+            AppLogger.shared.log(
+                "📋 [AutoFixer] Copying config from \(userConfigPath) to \(systemConfigPath)")
 
             // Ensure the system directory exists
             let systemConfigDir = URL(fileURLWithPath: systemConfigPath).deletingLastPathComponent().path
-            try FileManager.default.createDirectory(atPath: systemConfigDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                atPath: systemConfigDir, withIntermediateDirectories: true
+            )
 
             // Check if source file exists
             guard FileManager.default.fileExists(atPath: userConfigPath) else {
@@ -767,41 +786,104 @@ class WizardAutoFixer: AutoFixCapable {
             return false
         }
     }
-    
+
     private func restartUnhealthyServices() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] *** MIXED SCENARIO FIX TRIGGERED *** Fixing unhealthy LaunchDaemon services")
-        AppLogger.shared.log("🔧 [AutoFixer] This means the new logic is working - will install missing + restart unhealthy")
-        
+        // IMMEDIATE crash-proof logging
+        Swift.print("*** IMMEDIATE DEBUG *** restartUnhealthyServices() called at \(Date())")
+        try? "*** IMMEDIATE DEBUG *** restartUnhealthyServices() called at \(Date())\n".write(
+            to: URL(fileURLWithPath: NSHomeDirectory() + "/restart-services-debug.txt"), atomically: true,
+            encoding: .utf8
+        )
+
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] *** ENHANCED DEBUGGING *** restartUnhealthyServices() called")
+        AppLogger.shared.log("🔧 [AutoFixer] Timestamp: \(Date())")
+        AppLogger.shared.log("🔧 [AutoFixer] Thread: \(Thread.isMainThread ? "Main" : "Background")")
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] This means the new logic is working - will install missing + restart unhealthy"
+        )
+
         // Get current status to determine what needs to be done
+        AppLogger.shared.log("🔧 [AutoFixer] Step 1: Getting current service status...")
         let status = launchDaemonInstaller.getServiceStatus()
-        
+
+        AppLogger.shared.log("🔧 [AutoFixer] Current status breakdown:")
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] - Kanata loaded: \(status.kanataServiceLoaded), healthy: \(status.kanataServiceHealthy)"
+        )
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] - VHID Daemon loaded: \(status.vhidDaemonServiceLoaded), healthy: \(status.vhidDaemonServiceHealthy)"
+        )
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] - VHID Manager loaded: \(status.vhidManagerServiceLoaded), healthy: \(status.vhidManagerServiceHealthy)"
+        )
+        AppLogger.shared.log("🔧 [AutoFixer] - All services loaded: \(status.allServicesLoaded)")
+        AppLogger.shared.log("🔧 [AutoFixer] - All services healthy: \(status.allServicesHealthy)")
+
         // Step 1: Install any missing services first
         if !status.allServicesLoaded {
-            AppLogger.shared.log("🔧 [AutoFixer] Some services not loaded, installing missing LaunchDaemon services first")
+            AppLogger.shared.log(
+                "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services first"
+            )
             let installSuccess = launchDaemonInstaller.createConfigureAndLoadAllServices()
+            AppLogger.shared.log("🔧 [AutoFixer] Installation result: \(installSuccess)")
             if !installSuccess {
                 AppLogger.shared.log("❌ [AutoFixer] Failed to install missing services")
                 return false
             }
             AppLogger.shared.log("✅ [AutoFixer] Installed missing services")
+        } else {
+            AppLogger.shared.log(
+                "🔧 [AutoFixer] Step 2: All services already loaded, skipping installation")
         }
-        
+
         // Step 2: Restart any unhealthy services
-        AppLogger.shared.log("🔧 [AutoFixer] Calling comprehensive restart method on LaunchDaemonInstaller")
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] Step 3: Calling comprehensive restart method on LaunchDaemonInstaller")
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] About to call: launchDaemonInstaller.restartUnhealthyServices()")
+
         let restartSuccess = await launchDaemonInstaller.restartUnhealthyServices()
-        AppLogger.shared.log("🔧 [AutoFixer] LaunchDaemonInstaller.restartUnhealthyServices() returned: \(restartSuccess)")
-        
+
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] Step 4: LaunchDaemonInstaller.restartUnhealthyServices() returned: \(restartSuccess)"
+        )
+        AppLogger.shared.log("🔧 [AutoFixer] Checking final service status after restart...")
+
+        let finalStatus = launchDaemonInstaller.getServiceStatus()
+        AppLogger.shared.log("🔧 [AutoFixer] Final status breakdown:")
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] - Kanata loaded: \(finalStatus.kanataServiceLoaded), healthy: \(finalStatus.kanataServiceHealthy)"
+        )
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] - VHID Daemon loaded: \(finalStatus.vhidDaemonServiceLoaded), healthy: \(finalStatus.vhidDaemonServiceHealthy)"
+        )
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] - VHID Manager loaded: \(finalStatus.vhidManagerServiceLoaded), healthy: \(finalStatus.vhidManagerServiceHealthy)"
+        )
+        AppLogger.shared.log("🔧 [AutoFixer] - All services healthy: \(finalStatus.allServicesHealthy)")
+
         if restartSuccess {
             AppLogger.shared.log("✅ [AutoFixer] Successfully fixed unhealthy LaunchDaemon services")
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to fix unhealthy services - likely admin command execution failed")
+            AppLogger.shared.log("❌ [AutoFixer] Failed to fix unhealthy services - analyzing cause...")
             AppLogger.shared.log("❌ [AutoFixer] This usually means:")
             AppLogger.shared.log("❌ [AutoFixer] 1. Admin password was not provided when prompted")
             AppLogger.shared.log("❌ [AutoFixer] 2. Missing services installation failed")
             AppLogger.shared.log("❌ [AutoFixer] 3. launchctl restart commands were denied by system")
-            AppLogger.shared.log("💡 [AutoFixer] SOLUTION: Try the Fix button again and provide admin password when prompted")
+            AppLogger.shared.log(
+                "❌ [AutoFixer] 4. Services restarted but are still unhealthy (permission/config issues)")
+            AppLogger.shared.log(
+                "💡 [AutoFixer] SOLUTION: Try the Fix button again and provide admin password when prompted")
         }
-        
+
+        AppLogger.shared.log(
+            "🔧 [AutoFixer] *** restartUnhealthyServices() COMPLETE *** Returning: \(restartSuccess)")
+        Swift.print("*** IMMEDIATE DEBUG *** restartUnhealthyServices() returning: \(restartSuccess)")
+        try? "*** IMMEDIATE DEBUG *** restartUnhealthyServices() returning: \(restartSuccess)\n".write(
+            to: URL(fileURLWithPath: NSHomeDirectory() + "/restart-services-debug.txt"),
+            atomically: false, encoding: .utf8
+        )
         return restartSuccess
     }
 }

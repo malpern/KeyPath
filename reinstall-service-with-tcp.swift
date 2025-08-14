@@ -1,0 +1,28 @@
+#!/usr/bin/env swift
+
+import Foundation
+
+print("🔧 Reinstalling Kanata service with TCP support...")
+print("This will create a new plist with --port 37000 argument")
+print("")
+print("You have two options:")
+print("")
+print("Option A (Recommended): Use KeyPath App")
+print("  1. Run: open /Applications/KeyPath.app")
+print("  2. Installation wizard will detect missing service")
+print("  3. Click 'Fix' button to reinstall with TCP support")
+print("")
+print("Option B: Manual plist creation")
+print("  1. Open KeyPath app")
+print("  2. Go to Installation Wizard")
+print("  3. Navigate to 'Service' page")
+print("  4. Click 'Install Services' button")
+print("")
+print("Expected result after installation:")
+print("  - Service will include: --port 37000")
+print("  - TCP server will listen on localhost:37000") 
+print("  - Wizard summary will show TCP server as ✅")
+print("")
+print("To verify after installation:")
+print("  lsof -i -P -n | grep 37000")
+print("  ps aux | grep kanata")

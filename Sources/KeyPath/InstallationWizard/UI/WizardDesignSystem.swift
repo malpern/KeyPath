@@ -390,7 +390,8 @@ struct WizardStatusItem: View {
     let action: (() -> Void)?
 
     init(
-        icon: String, title: String, subtitle: String? = nil, status: InstallationStatus, isNavigable: Bool = false,
+        icon: String, title: String, subtitle: String? = nil, status: InstallationStatus,
+        isNavigable: Bool = false,
         action: (() -> Void)? = nil
     ) {
         self.icon = icon

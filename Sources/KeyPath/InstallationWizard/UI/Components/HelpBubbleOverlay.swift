@@ -61,13 +61,13 @@ enum HelpBubbleOverlay {
 
         // Dismiss on any mouse click (global + local to be safe)
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [
-            .leftMouseDown, .rightMouseDown, .otherMouseDown,
+            .leftMouseDown, .rightMouseDown, .otherMouseDown
         ]) { _ in
             dismiss()
             onDismiss?()
         }
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [
-            .leftMouseDown, .rightMouseDown, .otherMouseDown,
+            .leftMouseDown, .rightMouseDown, .otherMouseDown
         ]) { event in
             dismiss()
             onDismiss?()

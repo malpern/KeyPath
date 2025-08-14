@@ -53,7 +53,7 @@ public struct KeyPathApp: App {
                             ),
                             NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
                             NSApplication.AboutPanelOptionKey.applicationVersion: "1.1",
-                            NSApplication.AboutPanelOptionKey.version: "Build 2",
+                            NSApplication.AboutPanelOptionKey.version: "Build 2"
                         ]
                     )
                 }

@@ -5,7 +5,7 @@ import Foundation
 print("🔄 Updating Kanata service to use ~/.config/keypath/keypath.kbd...")
 
 let serviceID = "com.keypath.kanata"
-let oldConfigPath = "/usr/local/etc/kanata/keypath.kbd"  
+let oldConfigPath = "/usr/local/etc/kanata/keypath.kbd"
 let newConfigPath = "/Users/malpern/.config/keypath/keypath.kbd"
 
 // Stop and remove old service, then install new service with correct config path
@@ -68,34 +68,34 @@ task.standardError = pipe
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     if task.terminationStatus == 0 {
         print("✅ Kanata service updated successfully!")
         print("📍 Now using: \(newConfigPath)")
         print("🔍 Output: \(output)")
-        
+
         // Verify new service is running
         sleep(2)
         let checkTask = Process()
         checkTask.executableURL = URL(fileURLWithPath: "/bin/ps")
         checkTask.arguments = ["aux"]
-        
+
         let checkPipe = Pipe()
         checkTask.standardOutput = checkPipe
-        
+
         try checkTask.run()
         checkTask.waitUntilExit()
-        
+
         let checkData = checkPipe.fileHandleForReading.readDataToEndOfFile()
         let checkOutput = String(data: checkData, encoding: .utf8) ?? ""
-        
-        let kanataLines = checkOutput.components(separatedBy: .newlines).filter { 
+
+        let kanataLines = checkOutput.components(separatedBy: .newlines).filter {
             $0.contains("kanata") && !$0.contains("grep") && $0.contains("/usr/local/bin/kanata")
         }
-        
+
         if !kanataLines.isEmpty {
             print("\n🎯 New Kanata service status:")
             for line in kanataLines {
@@ -105,7 +105,7 @@ do {
                 }
             }
         }
-        
+
     } else {
         print("❌ Failed to update service: \(output)")
     }

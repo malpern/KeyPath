@@ -10,46 +10,46 @@ let services = ["com.keypath.kanata", "com.keypath.vhiddaemon", "com.keypath.vhi
 
 for serviceID in services {
     print("\n--- Testing \(serviceID) ---")
-    
+
     // 1. Test if service is loaded (launchctl list serviceID returns 0)
     let loadedTask = Process()
     loadedTask.executableURL = URL(fileURLWithPath: "/bin/launchctl")
     loadedTask.arguments = ["list", serviceID]
-    
+
     let loadedPipe = Pipe()
     loadedTask.standardOutput = loadedPipe
     loadedTask.standardError = loadedPipe
-    
+
     do {
         try loadedTask.run()
         loadedTask.waitUntilExit()
-        
+
         let isLoaded = loadedTask.terminationStatus == 0
         print("Loaded: \(isLoaded)")
-        
+
         if isLoaded {
             // 2. Test health detection
             let data = loadedPipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             // Use our improved regex parsing
             let lastExitCode = extractInt(from: output, pattern: #""LastExitStatus"\s*=\s*(-?\d+);"#) ?? 0
             let pid = extractInt(from: output, pattern: #""PID"\s*=\s*([0-9]+);"#)
             let hasPID = (pid != nil)
-            
+
             print("PID: \(pid?.description ?? "nil")")
             print("Last Exit Code: \(lastExitCode)")
             print("Has PID: \(hasPID)")
-            
+
             // Apply KeepAlive semantics
             let isOneShot = (serviceID == "com.keypath.vhidmanager")
             let healthy: Bool = isOneShot
                 ? (lastExitCode == 0)                    // one-shot OK without PID if exit was clean
                 : (hasPID && lastExitCode == 0)          // keep-alive services must be running and clean
-            
+
             print("One-shot service: \(isOneShot)")
             print("Healthy: \(healthy)")
-            
+
             // Determine what the wizard should show
             if healthy {
                 print("🔵 Should show: INSTALLED (green)")
@@ -63,7 +63,7 @@ for serviceID in services {
         } else {
             print("🔴 Service not loaded - should show as 'Not Installed'")
         }
-        
+
     } catch {
         print("Error checking service: \(error)")
     }

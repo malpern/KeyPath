@@ -68,10 +68,10 @@ task.standardError = pipe
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     if task.terminationStatus == 0 {
         print("✅ Service updated successfully!")
         print("Output: \(output)")

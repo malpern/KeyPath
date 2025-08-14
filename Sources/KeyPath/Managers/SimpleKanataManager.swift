@@ -415,7 +415,7 @@ class SimpleKanataManager: ObservableObject {
         let possiblePaths = [
             "/usr/local/bin/kanata", // canonical path for KeyPath
             "/opt/homebrew/bin/kanata",
-            "/usr/bin/kanata",
+            "/usr/bin/kanata"
         ]
 
         for path in possiblePaths {
@@ -461,7 +461,8 @@ class SimpleKanataManager: ObservableObject {
         // User reported: "I STILL can't remove KeyPath from the Input Monitoring list"
 
         AppLogger.shared.log(
-            "🔄 [SimpleKanataManager] Status monitoring timer DISABLED to prevent invasive permission checks")
+            "🔄 [SimpleKanataManager] Status monitoring timer DISABLED to prevent invasive permission checks"
+        )
     }
 
     private func stopStatusMonitoring() {
@@ -487,8 +488,7 @@ class SimpleKanataManager: ObservableObject {
                 "📻 [SimpleKanataManager] Received KeyboardCapturePermissionNeeded notification")
 
             if let userInfo = notification.userInfo,
-               let reason = userInfo["reason"] as? String
-            {
+               let reason = userInfo["reason"] as? String {
                 AppLogger.shared.log("📻 [SimpleKanataManager] Permission needed reason: \(reason)")
             }
 
@@ -505,7 +505,9 @@ class SimpleKanataManager: ObservableObject {
         // DISABLED: This health check timer also calls updateStatus() via performHealthCheck()
         // which triggers invasive permission checks that cause KeyPath to auto-add to Input Monitoring
 
-        AppLogger.shared.log("💓 [SimpleKanataManager] Health monitoring timer DISABLED to prevent invasive permission checks")
+        AppLogger.shared.log(
+            "💓 [SimpleKanataManager] Health monitoring timer DISABLED to prevent invasive permission checks"
+        )
     }
 
     private func stopHealthMonitoring() {

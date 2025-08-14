@@ -21,13 +21,13 @@ task.standardError = pipe
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     print("Exit code: \(task.terminationStatus)")
     print("Output: \(output)")
-    
+
     if task.terminationStatus == 0 {
         print("✅ Command succeeded - service should be restarted")
     } else {
@@ -37,7 +37,7 @@ do {
             print("   KeyPath should prompt for admin password via AppleScript")
         }
     }
-    
+
 } catch {
     print("Error running command: \(error)")
 }
@@ -58,11 +58,11 @@ checkTask.standardError = checkPipe
 do {
     try checkTask.run()
     checkTask.waitUntilExit()
-    
+
     if checkTask.terminationStatus == 0 {
         let data = checkPipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: data, encoding: .utf8) ?? ""
-        
+
         // Parse new status
         func extractInt(from text: String, pattern: String) -> Int? {
             do {
@@ -78,16 +78,16 @@ do {
                 return nil
             }
         }
-        
+
         let newExitCode = extractInt(from: output, pattern: #""LastExitStatus"\s*=\s*(-?\d+);"#) ?? 0
         let newPid = extractInt(from: output, pattern: #""PID"\s*=\s*([0-9]+);"#)
-        
+
         print("New PID: \(newPid?.description ?? "nil")")
         print("New Exit Code: \(newExitCode)")
-        
+
         let isHealthy = (newPid != nil && newExitCode == 0)
         print("Now Healthy: \(isHealthy)")
-        
+
         if isHealthy {
             print("🎉 SUCCESS: Service is now running healthy!")
         } else {

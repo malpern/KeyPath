@@ -18,13 +18,13 @@ task.standardError = pipe
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     if task.terminationStatus == 0 {
         print("✅ Successfully retrieved service status")
-        
+
         // Check for code signing issues
         if output.contains("OS_REASON_CODESIGNING") {
             print("❌ DETECTED: Code signing issue - this is what our improved diagnosis will catch!")
@@ -36,17 +36,17 @@ do {
         } else {
             print("ℹ️ Service appears to be in normal state")
         }
-        
+
         // Show key parts of the status for verification
         let lines = output.components(separatedBy: .newlines)
         for line in lines {
-            if line.contains("last exit reason") || 
-               line.contains("job state") || 
+            if line.contains("last exit reason") ||
+               line.contains("job state") ||
                line.contains("runs =") {
                 print("🔍 Key info: \(line.trimmingCharacters(in: .whitespaces))")
             }
         }
-        
+
     } else {
         print("❌ Could not get service status: \(output)")
     }

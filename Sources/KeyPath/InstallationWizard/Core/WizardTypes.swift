@@ -97,6 +97,7 @@ enum ComponentRequirement: Equatable {
     case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case packageManager // Homebrew or other package manager
     case vhidDaemonMisconfigured
+    case kanataTCPServer // TCP server for Kanata communication and config validation
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -230,7 +231,10 @@ struct ConflictDetectionResult {
         !conflicts.isEmpty
     }
 
-    init(conflicts: [SystemConflict], canAutoResolve: Bool, description: String, managedProcesses: [ProcessLifecycleManager.ProcessInfo] = []) {
+    init(
+        conflicts: [SystemConflict], canAutoResolve: Bool, description: String,
+        managedProcesses: [ProcessLifecycleManager.ProcessInfo] = []
+    ) {
         self.conflicts = conflicts
         self.canAutoResolve = canAutoResolve
         self.description = description

@@ -9,7 +9,7 @@ print("========================================")
 // This simulates what PermissionService.shared.checkSystemPermissions() should return
 print("Expected for fresh app in /Applications:")
 print("  - KeyPath Input Monitoring: FALSE")
-print("  - KeyPath Accessibility: FALSE") 
+print("  - KeyPath Accessibility: FALSE")
 print("  - Kanata Input Monitoring: FALSE")
 print("  - Kanata Accessibility: FALSE")
 print("")

@@ -13,11 +13,11 @@ func swift_retainCount(_: AnyObject) -> UInt
 class LaunchDaemonInstaller {
     static let kanataServiceID = "com.keypath.kanata"
     static let launchDaemonsPath = "/Library/LaunchDaemons"
-    
+
     func isKanataServiceConfiguredCorrectly() -> Bool {
         let plistPath = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
         print("📋 Checking plist at: \(plistPath)")
-        
+
         guard let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
             print("❌ Plist not found or unreadable")
             return false
@@ -32,18 +32,18 @@ class LaunchDaemonInstaller {
         for (index, arg) in args.enumerated() {
             print("  [\(index)] \(arg)")
         }
-        
+
         // Check for required arguments
         let hasPortFlag = args.contains("--port")
         let hasPortValue = args.contains("5829")
-        
+
         print("\n🔍 Validation Results:")
         print("  - Port flag (--port): \(hasPortFlag)")
         print("  - Port value (5829): \(hasPortValue)")
-        
+
         let isCorrect = hasPortFlag && hasPortValue
         print("  - Overall result: \(isCorrect ? "✅ CORRECT" : "❌ NEEDS UPDATE")")
-        
+
         return isCorrect
     }
 }

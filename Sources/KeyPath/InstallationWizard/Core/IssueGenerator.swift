@@ -6,8 +6,7 @@ class IssueGenerator {
     // MARK: - Issue Creation
 
     func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult)
-        -> [WizardIssue]
-    {
+        -> [WizardIssue] {
         var issues: [WizardIssue] = []
 
         // Create issues for each compatibility problem
@@ -81,8 +80,7 @@ class IssueGenerator {
     }
 
     private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict])
-        -> String
-    {
+        -> String {
         let count = conflicts.count
         let plural = count > 1 ? "es" : ""
 
@@ -312,6 +310,7 @@ class IssueGenerator {
         case .launchDaemonServices: "LaunchDaemon Services Not Installed"
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .packageManager: "Package Manager (Homebrew) Missing"
+        case .kanataTCPServer: "TCP Server Not Responding"
         }
     }
 
@@ -339,6 +338,8 @@ class IssueGenerator {
             "LaunchDaemon services are loaded but crashing or failing. This usually indicates a configuration problem or permission issue that can be fixed by restarting the services."
         case .packageManager:
             "Homebrew package manager is not installed. This is needed to automatically install missing dependencies like Kanata. Install from https://brew.sh"
+        case .kanataTCPServer:
+            "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
         }
     }
 
@@ -360,6 +361,8 @@ class IssueGenerator {
             .installViaBrew // Can be installed via Homebrew if available
         case .kanataService:
             .installLaunchDaemonServices // Service configuration files
+        case .kanataTCPServer:
+            .restartUnhealthyServices // TCP server requires service restart with updated config
         default:
             .installMissingComponents
         }

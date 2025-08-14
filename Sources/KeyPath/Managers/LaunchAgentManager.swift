@@ -6,256 +6,257 @@ import Foundation
 /// This ensures proper cleanup on logout/shutdown
 @MainActor
 final class LaunchAgentManager {
-  // MARK: - Constants
+    // MARK: - Constants
 
-  static let agentIdentifier = "com.keypath.agent"
-  static let agentPlistName = "\(agentIdentifier).plist"
+    static let agentIdentifier = "com.keypath.agent"
+    static let agentPlistName = "\(agentIdentifier).plist"
 
-  static var agentPlistPath: String {
-    return "\(NSHomeDirectory())/Library/LaunchAgents/\(agentPlistName)"
-  }
-
-  static var appBundlePath: String {
-    return Bundle.main.bundlePath
-  }
-
-  static var executablePath: String {
-    return Bundle.main.executablePath ?? "\(appBundlePath)/Contents/MacOS/KeyPath"
-  }
-
-  // MARK: - LaunchAgent Status
-
-  /// Check if LaunchAgent is installed
-  static func isInstalled() -> Bool {
-    return FileManager.default.fileExists(atPath: agentPlistPath)
-  }
-
-  /// Check if LaunchAgent is loaded
-  static func isLoaded() -> Bool {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-    task.arguments = ["list", agentIdentifier]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-      return task.terminationStatus == 0
-    } catch {
-      AppLogger.shared.log("❌ [LaunchAgent] Failed to check load status: \(error)")
-      return false
-    }
-  }
-
-  /// Check if LaunchAgent is running
-  static func isRunning() -> Bool {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-    task.arguments = ["print", "gui/\(getuid())/\(agentIdentifier)"]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      if task.terminationStatus == 0 {
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-        return output.contains("state = running")
-      }
-    } catch {
-      AppLogger.shared.log("❌ [LaunchAgent] Failed to check running status: \(error)")
+    static var agentPlistPath: String {
+        "\(NSHomeDirectory())/Library/LaunchAgents/\(agentPlistName)"
     }
 
-    return false
-  }
-
-  // MARK: - LaunchAgent Management
-
-  /// Install LaunchAgent plist
-  static func install() throws {
-    AppLogger.shared.log("📝 [LaunchAgent] Installing LaunchAgent...")
-
-    // Create LaunchAgents directory if it doesn't exist
-    let launchAgentsDir = (agentPlistPath as NSString).deletingLastPathComponent
-    if !FileManager.default.fileExists(atPath: launchAgentsDir) {
-      try FileManager.default.createDirectory(
-        atPath: launchAgentsDir,
-        withIntermediateDirectories: true,
-        attributes: nil
-      )
+    static var appBundlePath: String {
+        Bundle.main.bundlePath
     }
 
-    // Create plist content
-    let plistContent = createPlistContent()
-
-    // Write plist file
-    try plistContent.write(
-      to: URL(fileURLWithPath: agentPlistPath), atomically: true, encoding: .utf8)
-
-    // Set proper permissions
-    let attributes = [FileAttributeKey.posixPermissions: 0o644]
-    try FileManager.default.setAttributes(attributes, ofItemAtPath: agentPlistPath)
-
-    AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent installed at \(agentPlistPath)")
-  }
-
-  /// Load LaunchAgent
-  static func load() throws {
-    AppLogger.shared.log("🚀 [LaunchAgent] Loading LaunchAgent...")
-
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-    task.arguments = ["load", agentPlistPath]
-
-    try task.run()
-    task.waitUntilExit()
-
-    if task.terminationStatus != 0 {
-      throw LaunchAgentError.loadFailed
+    static var executablePath: String {
+        Bundle.main.executablePath ?? "\(appBundlePath)/Contents/MacOS/KeyPath"
     }
 
-    AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent loaded")
-  }
+    // MARK: - LaunchAgent Status
 
-  /// Unload LaunchAgent
-  static func unload() throws {
-    AppLogger.shared.log("🛑 [LaunchAgent] Unloading LaunchAgent...")
-
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-    task.arguments = ["unload", agentPlistPath]
-
-    try task.run()
-    task.waitUntilExit()
-
-    if task.terminationStatus != 0 {
-      throw LaunchAgentError.unloadFailed
+    /// Check if LaunchAgent is installed
+    static func isInstalled() -> Bool {
+        FileManager.default.fileExists(atPath: agentPlistPath)
     }
 
-    AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent unloaded")
-  }
+    /// Check if LaunchAgent is loaded
+    static func isLoaded() -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["list", agentIdentifier]
 
-  /// Remove LaunchAgent plist
-  static func uninstall() throws {
-    AppLogger.shared.log("🗑️ [LaunchAgent] Uninstalling LaunchAgent...")
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
 
-    // Unload first if loaded
-    if isLoaded() {
-      try unload()
+        do {
+            try task.run()
+            task.waitUntilExit()
+            return task.terminationStatus == 0
+        } catch {
+            AppLogger.shared.log("❌ [LaunchAgent] Failed to check load status: \(error)")
+            return false
+        }
     }
 
-    // Remove plist file
-    if FileManager.default.fileExists(atPath: agentPlistPath) {
-      try FileManager.default.removeItem(atPath: agentPlistPath)
+    /// Check if LaunchAgent is running
+    static func isRunning() -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["print", "gui/\(getuid())/\(agentIdentifier)"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            if task.terminationStatus == 0 {
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                return output.contains("state = running")
+            }
+        } catch {
+            AppLogger.shared.log("❌ [LaunchAgent] Failed to check running status: \(error)")
+        }
+
+        return false
     }
 
-    AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent uninstalled")
-  }
+    // MARK: - LaunchAgent Management
 
-  /// Enable LaunchAgent (install and load)
-  static func enable() async throws {
-    // Install if not already installed
-    if !isInstalled() {
-      try install()
+    /// Install LaunchAgent plist
+    static func install() throws {
+        AppLogger.shared.log("📝 [LaunchAgent] Installing LaunchAgent...")
+
+        // Create LaunchAgents directory if it doesn't exist
+        let launchAgentsDir = (agentPlistPath as NSString).deletingLastPathComponent
+        if !FileManager.default.fileExists(atPath: launchAgentsDir) {
+            try FileManager.default.createDirectory(
+                atPath: launchAgentsDir,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+        }
+
+        // Create plist content
+        let plistContent = createPlistContent()
+
+        // Write plist file
+        try plistContent.write(
+            to: URL(fileURLWithPath: agentPlistPath), atomically: true, encoding: .utf8
+        )
+
+        // Set proper permissions
+        let attributes = [FileAttributeKey.posixPermissions: 0o644]
+        try FileManager.default.setAttributes(attributes, ofItemAtPath: agentPlistPath)
+
+        AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent installed at \(agentPlistPath)")
     }
 
-    // Load if not already loaded
-    if !isLoaded() {
-      try load()
+    /// Load LaunchAgent
+    static func load() throws {
+        AppLogger.shared.log("🚀 [LaunchAgent] Loading LaunchAgent...")
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["load", agentPlistPath]
+
+        try task.run()
+        task.waitUntilExit()
+
+        if task.terminationStatus != 0 {
+            throw LaunchAgentError.loadFailed
+        }
+
+        AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent loaded")
     }
 
-    AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent enabled")
-  }
+    /// Unload LaunchAgent
+    static func unload() throws {
+        AppLogger.shared.log("🛑 [LaunchAgent] Unloading LaunchAgent...")
 
-  /// Disable LaunchAgent (unload but keep installed)
-  static func disable() async throws {
-    if isLoaded() {
-      try unload()
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["unload", agentPlistPath]
+
+        try task.run()
+        task.waitUntilExit()
+
+        if task.terminationStatus != 0 {
+            throw LaunchAgentError.unloadFailed
+        }
+
+        AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent unloaded")
     }
 
-    AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent disabled")
-  }
+    /// Remove LaunchAgent plist
+    static func uninstall() throws {
+        AppLogger.shared.log("🗑️ [LaunchAgent] Uninstalling LaunchAgent...")
 
-  // MARK: - Private Helpers
+        // Unload first if loaded
+        if isLoaded() {
+            try unload()
+        }
 
-  /// Create LaunchAgent plist content
-  private static func createPlistContent() -> String {
-    return """
-      <?xml version="1.0" encoding="UTF-8"?>
-      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-      <plist version="1.0">
-      <dict>
-          <key>Label</key>
-          <string>\(agentIdentifier)</string>
+        // Remove plist file
+        if FileManager.default.fileExists(atPath: agentPlistPath) {
+            try FileManager.default.removeItem(atPath: agentPlistPath)
+        }
 
-          <key>ProgramArguments</key>
-          <array>
-              <string>\(executablePath)</string>
-              <string>--headless</string>
-          </array>
+        AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent uninstalled")
+    }
 
-          <key>RunAtLoad</key>
-          <true/>
+    /// Enable LaunchAgent (install and load)
+    static func enable() async throws {
+        // Install if not already installed
+        if !isInstalled() {
+            try install()
+        }
 
-          <key>KeepAlive</key>
-          <dict>
-              <key>SuccessfulExit</key>
-              <false/>
-              <key>Crashed</key>
-              <true/>
-          </dict>
+        // Load if not already loaded
+        if !isLoaded() {
+            try load()
+        }
 
-          <key>ProcessType</key>
-          <string>Background</string>
+        AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent enabled")
+    }
 
-          <key>StandardOutPath</key>
-          <string>/tmp/keypath-agent.log</string>
+    /// Disable LaunchAgent (unload but keep installed)
+    static func disable() async throws {
+        if isLoaded() {
+            try unload()
+        }
 
-          <key>StandardErrorPath</key>
-          <string>/tmp/keypath-agent.error.log</string>
+        AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent disabled")
+    }
 
-          <key>WorkingDirectory</key>
-          <string>\(NSHomeDirectory())</string>
+    // MARK: - Private Helpers
 
-          <key>EnvironmentVariables</key>
-          <dict>
-              <key>KEYPATH_HEADLESS</key>
-              <string>1</string>
-          </dict>
+    /// Create LaunchAgent plist content
+    private static func createPlistContent() -> String {
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>\(agentIdentifier)</string>
 
-          <key>ThrottleInterval</key>
-          <integer>10</integer>
-      </dict>
-      </plist>
-      """
-  }
+            <key>ProgramArguments</key>
+            <array>
+                <string>\(executablePath)</string>
+                <string>--headless</string>
+            </array>
+
+            <key>RunAtLoad</key>
+            <true/>
+
+            <key>KeepAlive</key>
+            <dict>
+                <key>SuccessfulExit</key>
+                <false/>
+                <key>Crashed</key>
+                <true/>
+            </dict>
+
+            <key>ProcessType</key>
+            <string>Background</string>
+
+            <key>StandardOutPath</key>
+            <string>/tmp/keypath-agent.log</string>
+
+            <key>StandardErrorPath</key>
+            <string>/tmp/keypath-agent.error.log</string>
+
+            <key>WorkingDirectory</key>
+            <string>\(NSHomeDirectory())</string>
+
+            <key>EnvironmentVariables</key>
+            <dict>
+                <key>KEYPATH_HEADLESS</key>
+                <string>1</string>
+            </dict>
+
+            <key>ThrottleInterval</key>
+            <integer>10</integer>
+        </dict>
+        </plist>
+        """
+    }
 }
 
 // MARK: - Error Types
 
 enum LaunchAgentError: LocalizedError {
-  case loadFailed
-  case unloadFailed
-  case notInstalled
-  case alreadyLoaded
+    case loadFailed
+    case unloadFailed
+    case notInstalled
+    case alreadyLoaded
 
-  var errorDescription: String? {
-    switch self {
-    case .loadFailed:
-      return "Failed to load LaunchAgent"
-    case .unloadFailed:
-      return "Failed to unload LaunchAgent"
-    case .notInstalled:
-      return "LaunchAgent is not installed"
-    case .alreadyLoaded:
-      return "LaunchAgent is already loaded"
+    var errorDescription: String? {
+        switch self {
+        case .loadFailed:
+            "Failed to load LaunchAgent"
+        case .unloadFailed:
+            "Failed to unload LaunchAgent"
+        case .notInstalled:
+            "LaunchAgent is not installed"
+        case .alreadyLoaded:
+            "LaunchAgent is already loaded"
+        }
     }
-  }
 }

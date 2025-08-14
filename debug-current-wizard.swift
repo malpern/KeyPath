@@ -10,54 +10,54 @@ print("\n1. Service Status Detection:")
 
 let services = [
     ("com.keypath.kanata", "Kanata", false),
-    ("com.keypath.vhiddaemon", "VHID Daemon", false), 
+    ("com.keypath.vhiddaemon", "VHID Daemon", false),
     ("com.keypath.vhidmanager", "VHID Manager", true)  // true = one-shot
 ]
 
 var loadedCount = 0
-var healthyCount = 0 
+var healthyCount = 0
 var loadedButUnhealthyCount = 0
 
 for (serviceID, name, isOneShot) in services {
     print("\n--- \(name) (\(serviceID)) ---")
-    
+
     // Test loaded status
     let loadedTask = Process()
     loadedTask.executableURL = URL(fileURLWithPath: "/bin/launchctl")
     loadedTask.arguments = ["list", serviceID]
-    
+
     let pipe = Pipe()
     loadedTask.standardOutput = pipe
     loadedTask.standardError = pipe
-    
+
     do {
         try loadedTask.run()
         loadedTask.waitUntilExit()
-        
+
         let isLoaded = loadedTask.terminationStatus == 0
         print("Loaded: \(isLoaded)")
-        
+
         if isLoaded {
             loadedCount += 1
-            
+
             // Parse health
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             let lastExitCode = extractInt(from: output, pattern: #""LastExitStatus"\s*=\s*(-?\d+);"#) ?? 0
             let pid = extractInt(from: output, pattern: #""PID"\s*=\s*([0-9]+);"#)
             let hasPID = (pid != nil)
-            
+
             print("PID: \(pid?.description ?? "nil")")
             print("Last Exit Code: \(lastExitCode)")
-            
+
             // Apply health logic
             let healthy: Bool = isOneShot
                 ? (lastExitCode == 0)                    // one-shot OK without PID if exit was clean
                 : (hasPID && lastExitCode == 0)          // keep-alive services must be running and clean
-            
+
             print("Healthy: \(healthy)")
-            
+
             if healthy {
                 healthyCount += 1
             } else {
@@ -67,7 +67,7 @@ for (serviceID, name, isOneShot) in services {
         } else {
             print("❌ Not loaded")
         }
-        
+
     } catch {
         print("Error: \(error)")
     }
@@ -97,7 +97,7 @@ if allServicesHealthy {
     print("   Fix action: 'Restart failing system services'")
     print("   Auto-fix: restartUnhealthyServices")
 } else {
-    print("🔴 Result: Should show 'LaunchDaemon Services Not Installed'")  
+    print("🔴 Result: Should show 'LaunchDaemon Services Not Installed'")
     print("   Fix action: 'Install LaunchDaemon services'")
     print("   Auto-fix: installLaunchDaemonServices")
 }
@@ -120,6 +120,6 @@ func extractInt(from text: String, pattern: String) -> Int? {
 
 print("\n3. Next Steps to Debug:")
 print("- Launch KeyPath and check if wizard shows the expected classification above")
-print("- Check logs in ~/Library/Logs/KeyPath/ for ComponentDetector messages") 
+print("- Check logs in ~/Library/Logs/KeyPath/ for ComponentDetector messages")
 print("- Try clicking Fix and see if it triggers the right auto-fix action")
 print("- Look for admin password prompts during the fix")

@@ -66,6 +66,18 @@ struct WizardKanataComponentsPage: View {
                                                 fixingIssues.insert(issue.id)
 
                                                 Task {
+                                                    // IMMEDIATE crash-proof logging for REAL Fix button click in Kanata page
+                                                    Swift.print(
+                                                        "*** IMMEDIATE DEBUG *** REAL Fix button clicked in WizardKanataComponentsPage for action: \(autoFixAction) at \(Date())"
+                                                    )
+                                                    try?
+                                                        "*** IMMEDIATE DEBUG *** REAL Fix button clicked in WizardKanataComponentsPage for action: \(autoFixAction) at \(Date())\n"
+                                                        .write(
+                                                            to: URL(
+                                                                fileURLWithPath: NSHomeDirectory() + "/kanata-fix-button-debug.txt"),
+                                                            atomically: true, encoding: .utf8
+                                                        )
+
                                                     let success = await onAutoFix(autoFixAction)
 
                                                     // Remove this issue from fixing state

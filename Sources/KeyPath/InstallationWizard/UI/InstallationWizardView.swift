@@ -80,7 +80,9 @@ struct InstallationWizardView: View {
             }
         } message: {
             let criticalCount = currentIssues.filter { $0.severity == .critical }.count
-            Text("There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?")
+            Text(
+                "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
+            )
         }
     }
 
@@ -318,55 +320,90 @@ struct InstallationWizardView: View {
     // MARK: - Actions
 
     private func performAutoFix() {
+        // IMMEDIATE crash-proof logging with multiple output methods
+        Swift.print("*** IMMEDIATE DEBUG *** Fix button clicked at \(Date())")
+        try? "*** IMMEDIATE DEBUG *** Fix button clicked at \(Date())\n".write(
+            to: URL(fileURLWithPath: NSHomeDirectory() + "/fix-button-debug.txt"), atomically: true,
+            encoding: .utf8
+        )
+
         Task {
-            AppLogger.shared.log("🔍 [NewWizard] *** FIX BUTTON CLICKED *** Auto-fix started - BUILD VERSION CHECK")
-            AppLogger.shared.log("🔍 [NewWizard] TIMESTAMP: \(Date())")
-            AppLogger.shared.log("🔍 [NewWizard] Current issues: \(currentIssues.count) total")
-            
-            // Log each current issue for debugging
-            for (index, issue) in currentIssues.enumerated() {
-                if let autoFixAction = issue.autoFixAction {
-                    AppLogger.shared.log("🔍 [NewWizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
-                } else {
-                    AppLogger.shared.log("🔍 [NewWizard] Issue \(index): \(issue.identifier) -> AutoFix: nil")
-                }
-            }
-            
-            // Find issues that can be auto-fixed
-            let autoFixableIssues = currentIssues.compactMap(\.autoFixAction)
-            AppLogger.shared.log("🔍 [NewWizard] Auto-fixable actions found: \(autoFixableIssues)")
+            do {
+                AppLogger.shared.log(
+                    "🔍 [NewWizard] *** FIX BUTTON CLICKED *** Auto-fix started - BUILD VERSION CHECK")
+                Swift.print("*** CRASH-PROOF *** AppLogger.log called successfully")
+                AppLogger.shared.log("🔍 [NewWizard] TIMESTAMP: \(Date())")
+                AppLogger.shared.log("🔍 [NewWizard] Current issues: \(currentIssues.count) total")
 
-            for action in autoFixableIssues {
-                let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
-                let actionDescription = getAutoFixActionDescription(action)
-
-                await asyncOperationManager.execute(operation: operation) { (success: Bool) in
-                    AppLogger.shared.log(
-                        "🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
-
-                    // Show toast notification
-                    if success {
-                        Task { @MainActor in
-                            toastManager.showSuccess("\(actionDescription) completed successfully")
-                        }
+                // Log each current issue for debugging
+                for (index, issue) in currentIssues.enumerated() {
+                    if let autoFixAction = issue.autoFixAction {
+                        AppLogger.shared.log(
+                            "🔍 [NewWizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
                     } else {
-                        Task { @MainActor in
-                            AppLogger.shared.log("❌ [NewWizard] Auto-fix FAILED for action: \(action)")
-                            AppLogger.shared.log("❌ [NewWizard] Action description: \(actionDescription)")
-                            let errorMessage = getDetailedErrorMessage(for: action, actionDescription: actionDescription)
-                            AppLogger.shared.log("❌ [NewWizard] Generated error message: \(errorMessage)")
-                            toastManager.showError(errorMessage)
+                        AppLogger.shared.log(
+                            "🔍 [NewWizard] Issue \(index): \(issue.identifier) -> AutoFix: nil")
+                    }
+                }
+
+                // Find issues that can be auto-fixed
+                let autoFixableIssues = currentIssues.compactMap(\.autoFixAction)
+                AppLogger.shared.log("🔍 [NewWizard] Auto-fixable actions found: \(autoFixableIssues)")
+
+                for action in autoFixableIssues {
+                    let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
+                    let actionDescription = getAutoFixActionDescription(action)
+
+                    await asyncOperationManager.execute(operation: operation) { (success: Bool) in
+                        AppLogger.shared.log(
+                            "🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
+
+                        // Show toast notification
+                        if success {
+                            Task { @MainActor in
+                                toastManager.showSuccess("\(actionDescription) completed successfully")
+                            }
+                        } else {
+                            Task { @MainActor in
+                                AppLogger.shared.log("❌ [NewWizard] Auto-fix FAILED for action: \(action)")
+                                AppLogger.shared.log("❌ [NewWizard] Action description: \(actionDescription)")
+                                let errorMessage = getDetailedErrorMessage(
+                                    for: action, actionDescription: actionDescription
+                                )
+                                AppLogger.shared.log("❌ [NewWizard] Generated error message: \(errorMessage)")
+                                toastManager.showError(errorMessage)
+                            }
                         }
                     }
                 }
-            }
 
-            // Refresh state after auto-fix attempts
-            await refreshState()
+                // Refresh state after auto-fix attempts
+                await refreshState()
+
+                AppLogger.shared.log("🔍 [NewWizard] *** PERFORMAUTOFIX COMPLETED SUCCESSFULLY ***")
+                Swift.print("*** CRASH-PROOF *** performAutoFix completed successfully")
+
+            } catch {
+                AppLogger.shared.log("❌ [NewWizard] *** EXCEPTION IN PERFORMAUTOFIX *** \(error)")
+                Swift.print("*** CRASH-PROOF *** Exception in performAutoFix: \(error)")
+                try? "*** EXCEPTION *** performAutoFix failed: \(error)\n".write(
+                    to: URL(fileURLWithPath: NSHomeDirectory() + "/fix-button-debug.txt"), atomically: false,
+                    encoding: .utf8
+                )
+            }
         }
     }
 
     private func performAutoFix(_ action: AutoFixAction) async -> Bool {
+        // IMMEDIATE crash-proof logging for ACTUAL Fix button
+        Swift.print(
+            "*** IMMEDIATE DEBUG *** ACTUAL Fix button clicked for action: \(action) at \(Date())")
+        try? "*** IMMEDIATE DEBUG *** ACTUAL Fix button clicked for action: \(action) at \(Date())\n"
+            .write(
+                to: URL(fileURLWithPath: NSHomeDirectory() + "/actual-fix-button-debug.txt"),
+                atomically: true, encoding: .utf8
+            )
+
         AppLogger.shared.log("🔧 [NewWizard] Auto-fix for specific action: \(action)")
 
         // Immediately mark auto-fix as running to prevent monitoring loop interference
@@ -398,14 +435,18 @@ struct InstallationWizardView: View {
                             }
                             // Refresh system state after successful auto-fix, then return success
                             Task {
-                                // Small delay to let filesystem operations settle (especially after admin operations)
-                                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                                // Shorter delay - we have warm-up window to handle startup
+                                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
                                 await refreshState()
                                 continuation.resume(returning: success)
                             }
                         } else {
+                            // Clear permission cache on failure - might be stale permission status
+                            PermissionService.shared.clearCache()
                             Task { @MainActor in
-                                let errorMessage = getDetailedErrorMessage(for: action, actionDescription: actionDescription)
+                                let errorMessage = getDetailedErrorMessage(
+                                    for: action, actionDescription: actionDescription
+                                )
                                 toastManager.showError(errorMessage)
                             }
                             continuation.resume(returning: success)
@@ -430,33 +471,32 @@ struct InstallationWizardView: View {
     /// Get user-friendly description for auto-fix actions
     private func getAutoFixActionDescription(_ action: AutoFixAction) -> String {
         AppLogger.shared.log("🔍 [ActionDescription] getAutoFixActionDescription called for: \(action)")
-        
-        let description: String
-        switch action {
+
+        let description = switch action {
         case .terminateConflictingProcesses:
-            description = "Terminate conflicting processes"
+            "Terminate conflicting processes"
         case .startKarabinerDaemon:
-            description = "Start Karabiner daemon"
+            "Start Karabiner daemon"
         case .restartVirtualHIDDaemon:
-            description = "Fix VirtualHID connection issues"
+            "Fix VirtualHID connection issues"
         case .installMissingComponents:
-            description = "Install missing components"
+            "Install missing components"
         case .createConfigDirectories:
-            description = "Create configuration directories"
+            "Create configuration directories"
         case .activateVHIDDeviceManager:
-            description = "Activate VirtualHID Device Manager"
+            "Activate VirtualHID Device Manager"
         case .installLaunchDaemonServices:
-            description = "Install LaunchDaemon services"
+            "Install LaunchDaemon services"
         case .installViaBrew:
-            description = "Install packages via Homebrew"
+            "Install packages via Homebrew"
         case .repairVHIDDaemonServices:
-            description = "Repair VHID LaunchDaemon services"
+            "Repair VHID LaunchDaemon services"
         case .synchronizeConfigPaths:
-            description = "Fix config path mismatch between KeyPath and Kanata"
+            "Fix config path mismatch between KeyPath and Kanata"
         case .restartUnhealthyServices:
-            description = "Restart failing system services"
+            "Restart failing system services"
         }
-        
+
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")
         return description
     }
@@ -512,7 +552,7 @@ struct InstallationWizardView: View {
 
     private func handleCloseButtonTapped() {
         let criticalIssues = currentIssues.filter { $0.severity == .critical }
-        
+
         if criticalIssues.isEmpty {
             // No critical issues, close immediately
             dismiss()
@@ -583,32 +623,32 @@ struct InstallationWizardView: View {
 
         return operationId.contains("grant_permission") || operationId.contains("state_detection")
     }
-    
+
     /// Get detailed error message for specific auto-fix failures
-    private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String) -> String {
+    private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
+        -> String {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
-        
-        let message: String
-        switch action {
+
+        let message = switch action {
         case .installLaunchDaemonServices:
-            message = "Failed to install system services. Check that you provided admin password and try again."
+            "Failed to install system services. Check that you provided admin password and try again."
         case .activateVHIDDeviceManager:
-            message = "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
+            "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
         case .installViaBrew:
-            message = "Failed to install packages via Homebrew. Check your internet connection or install manually."
+            "Failed to install packages via Homebrew. Check your internet connection or install manually."
         case .startKarabinerDaemon:
-            message = "Failed to start system daemon. Check System Settings > Privacy & Security > System Extensions."
+            "Failed to start system daemon. Check System Settings > Privacy & Security > System Extensions."
         case .createConfigDirectories:
-            message = "Failed to create configuration directories. Check file system permissions."
+            "Failed to create configuration directories. Check file system permissions."
         case .restartVirtualHIDDaemon:
-            message = "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
+            "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
         case .restartUnhealthyServices:
-            message = "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n• Missing services could not be installed\n• System permission denied for service restart\n\nTry the Fix button again and provide admin password when prompted."
+            "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n• Missing services could not be installed\n• System permission denied for service restart\n\nTry the Fix button again and provide admin password when prompted."
         default:
-            message = "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
+            "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
         }
-        
+
         AppLogger.shared.log("🔍 [ErrorMessage] Returning message: \(message)")
         return message
     }

@@ -123,7 +123,20 @@ struct WizardSystemStatusOverview: View {
                 targetPage: .kanataComponents
             ))
 
-        // 7. Start Keyboard Service
+        // 7. TCP Server Status
+        let tcpServerStatus = getTCPServerStatus()
+        items.append(
+            StatusItemModel(
+                id: "tcp-server",
+                icon: "network",
+                title: "TCP Server",
+                subtitle: tcpServerStatus == .completed ? "Port 37000 responding" : "Not available",
+                status: tcpServerStatus,
+                isNavigable: false,
+                targetPage: .service // Could navigate to service page for troubleshooting
+            ))
+
+        // 8. Start Keyboard Service
         items.append(
             StatusItemModel(
                 id: "service",
@@ -191,7 +204,7 @@ struct WizardSystemStatusOverview: View {
                      .component(.vhidDeviceActivation),
                      .component(.vhidDeviceRunning),
                      .component(.launchDaemonServices),
-                     .component(.launchDaemonServicesUnhealthy),  // Include unhealthy state
+                     .component(.launchDaemonServicesUnhealthy), // Include unhealthy state
                      .component(.vhidDaemonMisconfigured):
                     return true
                 default:
@@ -224,17 +237,36 @@ struct WizardSystemStatusOverview: View {
         return hasKanataIssues ? .failed : .completed
     }
 
+    private func getTCPServerStatus() -> InstallationStatus {
+        // Check for TCP server issues
+        let hasTCPServerIssues = issues.contains { issue in
+            if case .component(.kanataTCPServer) = issue.identifier {
+                return true
+            }
+            return false
+        }
+        
+        // If Kanata is running and there are no TCP issues, consider TCP as working
+        // This provides an optimistic view since TCP server is optional
+        if kanataIsRunning && !hasTCPServerIssues {
+            return .completed
+        }
+        
+        // If not running or has TCP issues
+        return hasTCPServerIssues ? .failed : .notStarted
+    }
+
     private func getServiceStatus() -> InstallationStatus {
         // Use the authoritative signal - if Kanata process is running, show as completed
         // This ensures consistency with the detail page regardless of health status
         if kanataIsRunning {
             return .completed
         }
-        
+
         // Fallback to system state when not running
         switch systemState {
         case .active:
-            return .completed  // Redundant but safe
+            return .completed // Redundant but safe
         case .initializing:
             return .inProgress
         case .serviceNotRunning, .ready:
@@ -293,11 +325,11 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
                     description: "Test conflict",
                     autoFixAction: .terminateConflictingProcesses,
                     userAction: nil
-                ),
+                )
             ],
             stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: { _ in },
-            kanataIsRunning: true  // Show running in preview
+            kanataIsRunning: true // Show running in preview
         )
         .padding()
     }

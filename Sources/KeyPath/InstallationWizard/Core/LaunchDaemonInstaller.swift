@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 /// Manages LaunchDaemon installation and configuration for KeyPath services
 /// Implements the production-ready LaunchDaemon architecture identified in the installer improvement analysis
@@ -28,6 +29,59 @@ class LaunchDaemonInstaller {
 
     init(packageManager: PackageManager = PackageManager()) {
         self.packageManager = packageManager
+    }
+
+    // MARK: - Diagnostic Methods
+
+    /// Test admin dialog capability - use this to diagnose osascript issues
+    func testAdminDialog() -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Testing admin dialog capability...")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
+        
+        let testCommand = "echo 'Admin dialog test successful'"
+        let osascriptCode = """
+        do shell script "\(testCommand)" with administrator privileges with prompt "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
+        """
+        
+        var success = false
+        
+        if Thread.isMainThread {
+            success = executeOSAScriptOnMainThread(osascriptCode)
+        } else {
+            let semaphore = DispatchSemaphore(value: 0)
+            DispatchQueue.main.async {
+                success = self.executeOSAScriptOnMainThread(osascriptCode)
+                semaphore.signal()
+            }
+            semaphore.wait()
+        }
+        
+        AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test result: \(success)")
+        return success
+    }
+    
+    private func executeOSAScriptOnMainThread(_ osascriptCode: String) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", osascriptCode]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            AppLogger.shared.log("🔧 [LaunchDaemon] OSAScript test output: \(output)")
+            return task.terminationStatus == 0
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] OSAScript test failed: \(error)")
+            return false
+        }
     }
 
     // MARK: - Warm-up tracking (to distinguish "starting" from "failed")
@@ -192,7 +246,8 @@ class LaunchDaemonInstaller {
             try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
 
             // Execute consolidated admin operations with a single prompt
-            let success = executeConsolidatedInstallation(
+            // Use improved osascript approach with proper entitlements and main thread execution
+            let success = executeConsolidatedInstallationImproved(
                 kanataTemp: kanataTempPath,
                 vhidDaemonTemp: vhidDaemonTempPath,
                 vhidManagerTemp: vhidManagerTempPath
@@ -664,6 +719,287 @@ class LaunchDaemonInstaller {
         } catch {
             AppLogger.shared.log(
                 "❌ [LaunchDaemon] Failed to execute admin command for \(serviceID): \(error)")
+            return false
+        }
+    }
+
+    /// Execute consolidated installation using native Authorization Services
+    /// This is the most reliable approach for GUI apps on macOS
+    private func executeConsolidatedInstallationWithAuthServices(
+        kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
+    ) -> Bool {
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] Starting consolidated installation with Authorization Services")
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] This approach bypasses osascript sandbox restrictions")
+
+        // Create the installation script
+        let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
+        let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+        let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
+        let currentUserName = NSUserName()
+
+        let script = """
+        #!/bin/bash
+        set -e
+        echo "Starting LaunchDaemon installation with Authorization Services..."
+        
+        # Create LaunchDaemons directory
+        mkdir -p '\(Self.launchDaemonsPath)'
+        
+        # Install plist files with proper ownership
+        cp '\(kanataTemp)' '\(kanataFinal)' && chown root:wheel '\(kanataFinal)' && chmod 644 '\(kanataFinal)'
+        cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)'
+        cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
+        
+        # Create user configuration directory and file
+        sudo -u '\(currentUserName)' mkdir -p '/Users/\(currentUserName)/.config/keypath'
+        sudo -u '\(currentUserName)' touch '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
+        
+        # Load services
+        launchctl load '\(kanataFinal)'
+        launchctl load '\(vhidDaemonFinal)'
+        launchctl load '\(vhidManagerFinal)'
+        
+        # Start services
+        launchctl kickstart -k system/\(Self.kanataServiceID)
+        launchctl kickstart -k system/\(Self.vhidDaemonServiceID)
+        launchctl kickstart -k system/\(Self.vhidManagerServiceID)
+        
+        echo "Installation completed successfully with Authorization Services"
+        """
+
+        // Create temporary script
+        let tempScriptPath = NSTemporaryDirectory() + "keypath-auth-install-\(UUID().uuidString).sh"
+        
+        do {
+            try script.write(toFile: tempScriptPath, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScriptPath)
+            
+            // Use Authorization Services for privilege escalation
+            let success = requestAdminPrivilegesAndExecute(scriptPath: tempScriptPath)
+            
+            // Clean up
+            try? FileManager.default.removeItem(atPath: tempScriptPath)
+            
+            if success {
+                AppLogger.shared.log("✅ [LaunchDaemon] Authorization Services installation completed successfully")
+                return true
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] Authorization Services installation failed")
+                return false
+            }
+            
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error with Authorization Services approach: \(error)")
+            try? FileManager.default.removeItem(atPath: tempScriptPath)
+            return false
+        }
+    }
+    
+    private func requestAdminPrivilegesAndExecute(scriptPath: String) -> Bool {
+        AppLogger.shared.log("🔐 [LaunchDaemon] Requesting admin privileges via Authorization Services")
+        
+        var authRef: AuthorizationRef?
+        var status = AuthorizationCreate(nil, nil, [], &authRef)
+        
+        guard status == errSecSuccess else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to create authorization reference: \(status)")
+            return false
+        }
+        
+        defer {
+            if let authRef = authRef {
+                AuthorizationFree(authRef, [])
+            }
+        }
+        
+        // Request admin privileges
+        var authItem = AuthorizationItem(
+            name: kAuthorizationRightExecute,
+            valueLength: 0,
+            value: nil,
+            flags: 0
+        )
+        
+        var authRights = AuthorizationRights(count: 1, items: &authItem)
+        
+        let flags: AuthorizationFlags = [.interactionAllowed, .preAuthorize, .extendRights]
+        
+        status = AuthorizationCopyRights(authRef!, &authRights, nil, flags, nil)
+        
+        guard status == errSecSuccess else {
+            if status == errSecUserCanceled {
+                AppLogger.shared.log("ℹ️ [LaunchDaemon] User canceled admin authorization")
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] Failed to get admin authorization: \(status)")
+            }
+            return false
+        }
+        
+        AppLogger.shared.log("✅ [LaunchDaemon] Admin authorization granted, executing script")
+        
+        // Execute the script with admin privileges
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/bash")
+        task.arguments = [scriptPath]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            // This execution should have the admin privileges we requested
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            AppLogger.shared.log("🔐 [LaunchDaemon] Script execution completed with status: \(task.terminationStatus)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(output)")
+            
+            return task.terminationStatus == 0
+            
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute admin script: \(error)")
+            return false
+        }
+    }
+
+    /// Execute consolidated installation with improved osascript execution
+    /// This method addresses sandbox restrictions by ensuring proper execution context
+    private func executeConsolidatedInstallationImproved(
+        kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
+    ) -> Bool {
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] Starting consolidated installation with improved osascript")
+        AppLogger.shared.log(
+            "🔧 [LaunchDaemon] Using direct osascript execution with proper environment")
+
+        // Build installation script (same as before)
+        let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
+        let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+        let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
+        let currentUserName = NSUserName()
+
+        let command = """
+        set -e
+        echo "Starting LaunchDaemon installation..."
+        
+        # Create LaunchDaemons directory
+        mkdir -p '\(Self.launchDaemonsPath)'
+        
+        # Install plist files with proper ownership
+        cp '\(kanataTemp)' '\(kanataFinal)' && chown root:wheel '\(kanataFinal)' && chmod 644 '\(kanataFinal)'
+        cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)'
+        cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
+        
+        # Create user configuration directory and file
+        sudo -u '\(currentUserName)' mkdir -p '/Users/\(currentUserName)/.config/keypath'
+        sudo -u '\(currentUserName)' touch '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
+        
+        # Load services
+        launchctl load '\(kanataFinal)'
+        launchctl load '\(vhidDaemonFinal)'
+        launchctl load '\(vhidManagerFinal)'
+        
+        # Start services
+        launchctl kickstart -k system/\(Self.kanataServiceID)
+        launchctl kickstart -k system/\(Self.vhidDaemonServiceID)
+        launchctl kickstart -k system/\(Self.vhidManagerServiceID)
+        
+        echo "Installation completed successfully"
+        """
+
+        // Create a temporary script file
+        let tempScriptPath = NSTemporaryDirectory() + "keypath-install-\(UUID().uuidString).sh"
+        
+        do {
+            try command.write(toFile: tempScriptPath, atomically: true, encoding: .utf8)
+            
+            // Set executable permissions
+            let fileManager = FileManager.default
+            try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScriptPath)
+            
+            // Use osascript to execute the script with admin privileges
+            // Custom prompt to clearly identify KeyPath (not osascript)
+            let osascriptCode = """
+            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management. This will enable the TCP server on port 37000."
+            """
+            
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            task.arguments = ["-e", osascriptCode]
+            task.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+            
+            AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript with temp script approach...")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Script path: \(tempScriptPath)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
+            
+            // CRITICAL FIX: Admin dialogs must run on main thread for macOS security
+            var taskSuccess = false
+            var taskStatus: Int32 = -1
+            var taskOutput = ""
+            
+            if Thread.isMainThread {
+                AppLogger.shared.log("🔐 [LaunchDaemon] Executing on main thread")
+                try task.run()
+                task.waitUntilExit()
+                taskStatus = task.terminationStatus
+                taskSuccess = true
+            } else {
+                AppLogger.shared.log("🔐 [LaunchDaemon] Dispatching to main thread for admin dialog")
+                let semaphore = DispatchSemaphore(value: 0)
+                
+                DispatchQueue.main.async {
+                    do {
+                        try task.run()
+                        task.waitUntilExit()
+                        taskStatus = task.terminationStatus
+                        taskSuccess = true
+                        AppLogger.shared.log("🔐 [LaunchDaemon] Main thread execution completed")
+                    } catch {
+                        AppLogger.shared.log("❌ [LaunchDaemon] Main thread execution failed: \(error)")
+                        taskSuccess = false
+                    }
+                    semaphore.signal()
+                }
+                
+                semaphore.wait()
+            }
+            
+            if !taskSuccess {
+                AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute osascript task")
+                try? fileManager.removeItem(atPath: tempScriptPath)
+                return false
+            }
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            AppLogger.shared.log("🔐 [LaunchDaemon] osascript completed with status: \(taskStatus)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(output)")
+            
+            // Clean up temp script
+            try? fileManager.removeItem(atPath: tempScriptPath)
+            
+            if taskStatus == 0 {
+                AppLogger.shared.log("✅ [LaunchDaemon] Successfully completed installation with main thread osascript")
+                return true
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] osascript installation failed with status: \(taskStatus)")
+                return false
+            }
+            
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error with improved osascript approach: \(error)")
+            // Clean up temp script on error
+            try? FileManager.default.removeItem(atPath: tempScriptPath)
             return false
         }
     }

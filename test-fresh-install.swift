@@ -22,7 +22,7 @@ let mockPlistArgs = [
     "--cfg",
     userConfigPath,
     "--watch",
-    "--debug", 
+    "--debug",
     "--log-layer-changes"
 ]
 
@@ -34,7 +34,7 @@ for (index, arg) in mockPlistArgs.enumerated() {
 // Verify current actual config exists at new location
 if FileManager.default.fileExists(atPath: userConfigPath) {
     print("\n✅ Current config exists at correct ~/.config/keypath location")
-    
+
     // Show a snippet of the config
     if let config = try? String(contentsOfFile: userConfigPath) {
         let lines = config.components(separatedBy: .newlines)

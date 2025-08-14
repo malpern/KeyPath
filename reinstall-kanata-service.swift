@@ -101,26 +101,26 @@ loadTask.arguments = ["load", plistPath]
 do {
     try loadTask.run()
     loadTask.waitUntilExit()
-    
+
     if loadTask.terminationStatus == 0 {
         print("✅ Successfully loaded Kanata service with --watch, --debug, --log-layer-changes flags")
         print("🔍 You should now see hot reloading working when you change keyboard mappings")
-        
+
         // Show the running process
         sleep(2)
         let psTask = Process()
         psTask.launchPath = "/bin/ps"
         psTask.arguments = ["aux"]
-        
+
         let pipe = Pipe()
         psTask.standardOutput = pipe
-        
+
         try psTask.run()
         psTask.waitUntilExit()
-        
+
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: data, encoding: .utf8) ?? ""
-        
+
         let kanataLines = output.components(separatedBy: .newlines).filter { $0.contains("kanata") && !$0.contains("grep") }
         if !kanataLines.isEmpty {
             print("\n📊 Kanata process status:")
@@ -128,7 +128,7 @@ do {
                 print("   \(line)")
             }
         }
-        
+
     } else {
         print("❌ Failed to load service")
         exit(1)

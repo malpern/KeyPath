@@ -8,22 +8,22 @@ class LaunchDaemonInstaller {
     private static let kanataServiceID = "com.keypath.kanata"
     private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
     private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
-    
+
     func getServiceStatus() -> LaunchDaemonStatus {
         print("🔍 [DEBUG] Checking service status with NEW logic...")
-        
+
         let kanataLoaded = isServiceLoaded(serviceID: Self.kanataServiceID)
         let vhidDaemonLoaded = isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerLoaded = isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-        
+
         let kanataHealthy = isServiceHealthy(serviceID: Self.kanataServiceID)
         let vhidDaemonHealthy = isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerHealthy = isServiceHealthy(serviceID: Self.vhidManagerServiceID)
-        
+
         print("   Kanata: loaded=\(kanataLoaded) healthy=\(kanataHealthy)")
         print("   VHIDDaemon: loaded=\(vhidDaemonLoaded) healthy=\(vhidDaemonHealthy)")
         print("   VHIDManager: loaded=\(vhidManagerLoaded) healthy=\(vhidManagerHealthy)")
-        
+
         return LaunchDaemonStatus(
             kanataServiceLoaded: kanataLoaded,
             vhidDaemonServiceLoaded: vhidDaemonLoaded,
@@ -33,20 +33,20 @@ class LaunchDaemonInstaller {
             vhidManagerServiceHealthy: vhidManagerHealthy
         )
     }
-    
+
     private func isServiceLoaded(serviceID: String) -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
         task.arguments = ["list", serviceID]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let isLoaded = task.terminationStatus == 0
             print("     isServiceLoaded(\(serviceID)): \(isLoaded)")
             return isLoaded
@@ -55,41 +55,41 @@ class LaunchDaemonInstaller {
             return false
         }
     }
-    
+
     private func isServiceHealthy(serviceID: String) -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
         task.arguments = ["list", serviceID]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             guard task.terminationStatus == 0 else {
                 print("     isServiceHealthy(\(serviceID)): false (not loaded)")
                 return false
             }
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             let lastExitCode = output.firstMatchInt(pattern: #""LastExitStatus"\s*=\s*(-?\d+);"#) ?? 0
             let pid = output.firstMatchInt(pattern: #""PID"\s*=\s*([0-9]+);"#)
             let hasPID = (pid != nil)
-            
+
             // NEW LOGIC: Improved KeepAlive semantics:
             // - Manager is a one-shot (no KeepAlive required to be running)
             // - Others (Kanata, VHID Daemon) should be running (PID present)
             // - For keep-alive services, PID present is more important than lastExitCode == 0
             let isOneShot = (serviceID == Self.vhidManagerServiceID)
-            let healthy: Bool = isOneShot 
+            let healthy: Bool = isOneShot
                 ? (lastExitCode == 0)                               // one-shot OK without PID if exit was clean
                 : hasPID                                            // keep-alive services healthy if running (PID present)
-            
+
             print("     isServiceHealthy(\(serviceID)): \(healthy) (pid=\(pid?.description ?? "nil") lastExit=\(lastExitCode) oneShot=\(isOneShot)) [NEW LOGIC]")
             return healthy
         } catch {
@@ -106,7 +106,7 @@ struct LaunchDaemonStatus {
     let kanataServiceHealthy: Bool
     let vhidDaemonServiceHealthy: Bool
     let vhidManagerServiceHealthy: Bool
-    
+
     var allServicesHealthy: Bool {
         kanataServiceHealthy && vhidDaemonServiceHealthy && vhidManagerServiceHealthy
     }
@@ -142,7 +142,7 @@ if status.allServicesHealthy {
 } else {
     print("⚠️ Some services still considered unhealthy with new logic")
     print("   kanataServiceHealthy: \(status.kanataServiceHealthy)")
-    print("   vhidDaemonServiceHealthy: \(status.vhidDaemonServiceHealthy)") 
+    print("   vhidDaemonServiceHealthy: \(status.vhidDaemonServiceHealthy)")
     print("   vhidManagerServiceHealthy: \(status.vhidManagerServiceHealthy)")
 }
 

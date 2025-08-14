@@ -291,7 +291,7 @@ struct CleanConflictsCard: View {
 struct TechnicalDetailsView: View {
     let issues: [WizardIssue]
     let kanataManager: KanataManager
-    @State private var conflictDetectionResult: ConflictDetectionResult? = nil
+    @State private var conflictDetectionResult: ConflictDetectionResult?
     @State private var isLoadingConflicts = false
 
     private var processDetails: [String] {
@@ -417,8 +417,7 @@ struct TechnicalDetailsView: View {
 
                                 // Only display lines that actually contain PID information
                                 if processText.contains("PID: "),
-                                   processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil
-                                {
+                                   processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil {
                                     let (processName, processDescription, pid) = parseProcessInfo(processText)
                                     ProcessRow(
                                         processName: processName,

@@ -16,7 +16,7 @@ do {
             for (index, arg) in programArguments.enumerated() {
                 print("  [\(index)] \(arg)")
             }
-            
+
             if programArguments.contains("--port") {
                 print("\n✅ TCP server flag found!")
             } else {

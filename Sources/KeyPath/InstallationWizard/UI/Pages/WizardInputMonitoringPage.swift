@@ -20,7 +20,9 @@ struct WizardInputMonitoringPage: View {
             WizardPageHeader(
                 icon: !hasInputMonitoringIssues ? "checkmark.circle.fill" : "eye",
                 title: !hasInputMonitoringIssues ? "Input Monitoring Granted" : "Input Monitoring Required",
-                subtitle: !hasInputMonitoringIssues ? "KeyPath has the necessary Input Monitoring permission." : "KeyPath needs Input Monitoring permission to capture keyboard events for remapping.",
+                subtitle: !hasInputMonitoringIssues
+                    ? "KeyPath has the necessary Input Monitoring permission."
+                    : "KeyPath needs Input Monitoring permission to capture keyboard events for remapping.",
                 status: !hasInputMonitoringIssues ? .success : .warning
             )
 
@@ -68,10 +70,12 @@ struct WizardInputMonitoringPage: View {
                             .foregroundColor(.secondary)
 
                             if programmaticRequestFailed {
-                                Text("⚠️ Automatic permission request was denied. Please grant permission manually in System Settings.")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                                    .padding(.top, 4)
+                                Text(
+                                    "⚠️ Automatic permission request was denied. Please grant permission manually in System Settings."
+                                )
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .padding(.top, 4)
                             } else {
                                 Text("Click 'Grant Permission' to enable Input Monitoring")
                                     .font(.caption)
@@ -153,7 +157,9 @@ struct WizardInputMonitoringPage: View {
         let detection = PermissionService.detectPossibleStaleEntries()
         if detection.hasStaleEntries {
             staleEntryDetails = detection.details
-            AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Stale entries detected: \(detection.details.joined(separator: ", "))")
+            AppLogger.shared.log(
+                "🔐 [WizardInputMonitoringPage] Stale entries detected: \(detection.details.joined(separator: ", "))"
+            )
         }
     }
 
@@ -165,7 +171,8 @@ struct WizardInputMonitoringPage: View {
             // Show cleanup instructions first
             staleEntryDetails = detection.details
             showingStaleEntryCleanup = true
-            AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
+            AppLogger.shared.log(
+                "🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
         } else {
             // Try programmatic request for clean installs
             if #available(macOS 10.15, *), !programmaticRequestFailed {
@@ -192,7 +199,8 @@ struct WizardInputMonitoringPage: View {
                     await onRefresh()
                 }
             } else {
-                AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Programmatic request denied, falling back to manual")
+                AppLogger.shared.log(
+                    "🔐 [WizardInputMonitoringPage] Programmatic request denied, falling back to manual")
                 programmaticRequestFailed = true
                 // Give user a moment to see the status change before opening settings
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -227,9 +235,11 @@ struct StaleEntryCleanupInstructions: View {
                     .font(.headline)
                     .foregroundColor(.orange)
 
-                Text("We've detected possible old or duplicate KeyPath entries that need to be cleaned up before granting new permissions.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text(
+                    "We've detected possible old or duplicate KeyPath entries that need to be cleaned up before granting new permissions."
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
 
             // Show detected issues
@@ -261,7 +271,9 @@ struct StaleEntryCleanupInstructions: View {
 
                 CleanupStep(number: 1, text: "Click 'Open Settings' below")
                 CleanupStep(number: 2, text: "Find ALL KeyPath entries in the list")
-                CleanupStep(number: 3, text: "Remove entries with ⚠️ warning icons by clicking the '-' button")
+                CleanupStep(
+                    number: 3, text: "Remove entries with ⚠️ warning icons by clicking the '-' button"
+                )
                 CleanupStep(number: 4, text: "Remove any duplicate KeyPath entries")
                 CleanupStep(number: 5, text: "Add the current KeyPath using the '+' button")
                 CleanupStep(number: 6, text: "Also add 'kanata' if needed")
@@ -327,7 +339,7 @@ struct WizardInputMonitoringPage_Previews: PreviewProvider {
                     description: "KeyPath needs Input Monitoring permission to capture keyboard events.",
                     autoFixAction: nil,
                     userAction: "Grant permission in System Settings > Privacy & Security > Input Monitoring"
-                ),
+                )
             ],
             onRefresh: {},
             onNavigateToPage: nil,

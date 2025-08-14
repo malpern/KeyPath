@@ -143,24 +143,47 @@ class ComponentDetector {
 
         // Check LaunchDaemon services - handle mixed scenarios properly
         let daemonStatus = launchDaemonInstaller.getServiceStatus()
+        
+        // Check Kanata service configuration specifically
+        if daemonStatus.kanataServiceLoaded && daemonStatus.kanataServiceHealthy {
+            installed.append(.kanataService)
+        } else {
+            missing.append(.kanataService)
+        }
         if daemonStatus.allServicesHealthy {
             installed.append(.launchDaemonServices)
         } else {
             // Check if any services are loaded but unhealthy (priority over not installed)
-            let hasLoadedButUnhealthy = (daemonStatus.kanataServiceLoaded && !daemonStatus.kanataServiceHealthy) ||
-                                       (daemonStatus.vhidDaemonServiceLoaded && !daemonStatus.vhidDaemonServiceHealthy) ||
-                                       (daemonStatus.vhidManagerServiceLoaded && !daemonStatus.vhidManagerServiceHealthy)
-            
+            let hasLoadedButUnhealthy =
+                (daemonStatus.kanataServiceLoaded && !daemonStatus.kanataServiceHealthy)
+                    || (daemonStatus.vhidDaemonServiceLoaded && !daemonStatus.vhidDaemonServiceHealthy)
+                    || (daemonStatus.vhidManagerServiceLoaded && !daemonStatus.vhidManagerServiceHealthy)
+
             if hasLoadedButUnhealthy {
-                // At least one service is loaded but crashing - prioritize restart over install
-                missing.append(.launchDaemonServicesUnhealthy)
-                AppLogger.shared.log("🔍 [ComponentDetector] MIXED SCENARIO: Some LaunchDaemon services loaded but unhealthy: \(daemonStatus.description)")
-                AppLogger.shared.log("🔍 [ComponentDetector] *** WILL TRIGGER: LaunchDaemon Services Failing -> restartUnhealthyServices ***")
+                // If we just restarted, treat as warming-up instead of unhealthy
+                if LaunchDaemonInstaller.hadRecentRestart() {
+                    installed.append(.launchDaemonServices)
+                    AppLogger.shared.log(
+                        "ℹ️ [ComponentDetector] LaunchDaemon services recently restarted; treating as warming up (not unhealthy). Status: \(daemonStatus.description)"
+                    )
+                } else {
+                    // At least one service is loaded but crashing - prioritize restart over install
+                    missing.append(.launchDaemonServicesUnhealthy)
+                    AppLogger.shared.log(
+                        "🔍 [ComponentDetector] MIXED SCENARIO: Some LaunchDaemon services loaded but unhealthy: \(daemonStatus.description)"
+                    )
+                    AppLogger.shared.log(
+                        "🔍 [ComponentDetector] *** WILL TRIGGER: LaunchDaemon Services Failing -> restartUnhealthyServices ***"
+                    )
+                }
             } else {
                 // No services are loaded/installed
                 missing.append(.launchDaemonServices)
-                AppLogger.shared.log("🔍 [ComponentDetector] LaunchDaemon services not installed: \(daemonStatus.description)")
-                AppLogger.shared.log("🔍 [ComponentDetector] *** WILL TRIGGER: LaunchDaemon Services Not Installed -> installLaunchDaemonServices ***")
+                AppLogger.shared.log(
+                    "🔍 [ComponentDetector] LaunchDaemon services not installed: \(daemonStatus.description)")
+                AppLogger.shared.log(
+                    "🔍 [ComponentDetector] *** WILL TRIGGER: LaunchDaemon Services Not Installed -> installLaunchDaemonServices ***"
+                )
             }
         }
 

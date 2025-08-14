@@ -121,6 +121,34 @@ class KanataManager: ObservableObject {
     @Published var validationAlertTitle = ""
     @Published var validationAlertMessage = ""
     @Published var validationAlertActions: [ValidationAlertAction] = []
+    
+    // Save progress feedback
+    @Published var saveStatus: SaveStatus = .idle
+    
+    enum SaveStatus {
+        case idle
+        case saving
+        case validating
+        case success
+        case failed(String)
+        
+        var message: String {
+            switch self {
+            case .idle: return ""
+            case .saving: return "Saving..."
+            case .validating: return "Validating..."
+            case .success: return "✅ Done"
+            case .failed(let error): return "❌ Config Invalid: \(error)"
+            }
+        }
+        
+        var isActive: Bool {
+            switch self {
+            case .idle: return false
+            default: return true
+            }
+        }
+    }
 
     private var kanataProcess: Process?
     private let configDirectory = "\(NSHomeDirectory())/.config/keypath"
@@ -1194,6 +1222,11 @@ class KanataManager: ObservableObject {
     }
 
     func saveConfiguration(input: String, output: String) async throws {
+        // Set saving status
+        await MainActor.run {
+            saveStatus = .saving
+        }
+        
         // Parse existing mappings from config file
         await loadExistingMappings()
 
@@ -1209,80 +1242,29 @@ class KanataManager: ObservableObject {
         // Generate config with all mappings
         let config = generateKanataConfigWithMappings(keyMappings)
 
-        // Validate the generated config before saving
-        AppLogger.shared.log("🔍 [Validation-PreSave] ========== PRE-SAVE VALIDATION BEGIN ==========")
-        AppLogger.shared.log("🔍 [Validation-PreSave] Validating config before save...")
-        AppLogger.shared.log("🔍 [Validation-PreSave] Config has \(keyMappings.count) mappings")
+        // Skip pre-save validation for performance - rely on post-save verification
+        AppLogger.shared.log("⚡ [Config] Skipping pre-save validation for faster saves - using post-save verification")
         
-        let preSaveStart = Date()
-        let validation = await validateGeneratedConfig(config)
-        let preSaveDuration = Date().timeIntervalSince(preSaveStart)
-        AppLogger.shared.log("⏱️ [Validation-PreSave] Validation completed in \(String(format: "%.3f", preSaveDuration)) seconds")
-        
-        if !validation.isValid {
-            // Check if we're in a testing environment
-            let isInTestingEnvironment = NSClassFromString("XCTestCase") != nil
-
-            AppLogger.shared.log("❌ [Validation-PreSave] Config validation FAILED")
-            AppLogger.shared.log("❌ [Validation-PreSave] Found \(validation.errors.count) errors:")
-            for (index, error) in validation.errors.enumerated() {
-                AppLogger.shared.log("   Error \(index + 1): \(error)")
+        do {
+            // Save directly and validate afterwards
+            try await saveValidatedConfig(config)
+            
+            // Set success status
+            await MainActor.run {
+                saveStatus = .success
             }
-
-            // In testing environments, be more permissive with validation failures
-            // since kanata might not run properly in test context
-            if isInTestingEnvironment, validation.errors.isEmpty {
-                AppLogger.shared.log(
-                    "⚠️ [Config] Validation failed in test environment but no specific errors - proceeding with save"
-                )
-                try await saveValidatedConfig(config)
-                return
+            
+            // Reset to idle after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.saveStatus = .idle
             }
-
-            // Attempt Claude-powered recovery
-            do {
-                let repairedConfig = try await repairConfigWithClaude(
-                    config: config, errors: validation.errors, mappings: keyMappings
-                )
-                let repairedValidation = await validateGeneratedConfig(repairedConfig)
-
-                if repairedValidation.isValid {
-                    AppLogger.shared.log("✅ [Config] Claude successfully repaired the config")
-                    try await saveValidatedConfig(repairedConfig)
-                    return
-                } else if isInTestingEnvironment {
-                    // In testing environment, allow saves even if repair validation fails
-                    AppLogger.shared.log(
-                        "⚠️ [Config] Repair validation failed in test environment - proceeding with repaired config"
-                    )
-                    try await saveValidatedConfig(repairedConfig)
-                    return
-                } else {
-                    AppLogger.shared.log("❌ [Config] Claude repair failed, showing user dialog")
-                    await showValidationErrorDialog(title: "Configuration Repair Failed", errors: repairedValidation.errors)
-                    throw ConfigError.preSaveValidationFailed(errors: repairedValidation.errors, config: repairedConfig)
-                }
-            } catch {
-                if isInTestingEnvironment {
-                    // In testing environment, allow saves even if repair fails
-                    AppLogger.shared.log(
-                        "⚠️ [Config] Repair failed in test environment - proceeding with original config")
-                    try await saveValidatedConfig(config)
-                    return
-                } else {
-                    AppLogger.shared.log("❌ [Config] Claude repair failed: \(error)")
-                    await showValidationErrorDialog(title: "Configuration Validation Failed", errors: validation.errors, config: config)
-                    throw ConfigError.preSaveValidationFailed(errors: validation.errors, config: config)
-                }
+        } catch {
+            // Set error status
+            await MainActor.run {
+                saveStatus = .failed(error.localizedDescription)
             }
-        } else {
-            AppLogger.shared.log("✅ [Validation-PreSave] Config validation PASSED")
+            throw error
         }
-        
-        AppLogger.shared.log("🔍 [Validation-PreSave] ========== PRE-SAVE VALIDATION END ==========")
-
-        // Config is valid, save it
-        try await saveValidatedConfig(config)
 
         AppLogger.shared.log(
             "💾 [Config] Configuration saved with \(keyMappings.count) mappings to \(configPath)")
@@ -3276,6 +3258,12 @@ class KanataManager: ObservableObject {
         // Write the config
         try config.write(to: configURL, atomically: true, encoding: .utf8)
         AppLogger.shared.log("✅ [DEBUG] Config written to file successfully")
+        
+        // Add a small delay to ensure kanata's file watcher reads the complete file
+        // This prevents race conditions where kanata reads a truncated file during hot reload
+        AppLogger.shared.log("⏱️ [DEBUG] Adding 100ms delay for file watcher stability...")
+        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        AppLogger.shared.log("⏱️ [DEBUG] File watcher delay completed")
 
         // Get modification time after write
         let afterAttributes = try FileManager.default.attributesOfItem(atPath: configPath)
@@ -3293,6 +3281,10 @@ class KanataManager: ObservableObject {
         }
 
         // Post-save validation: verify the file was saved correctly
+        await MainActor.run {
+            saveStatus = .validating
+        }
+        
         AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
         AppLogger.shared.log("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
         do {

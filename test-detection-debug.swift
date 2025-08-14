@@ -10,7 +10,7 @@ print("===================================")
 class TestLaunchDaemonInstaller {
     static let kanataServiceID = "com.keypath.kanata"
     static let launchDaemonsPath = "/Library/LaunchDaemons"
-    
+
     func getServiceStatus() -> Bool {
         // Check if plist file exists (this is what isServiceLoaded likely checks)
         let plistPath = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
@@ -18,11 +18,11 @@ class TestLaunchDaemonInstaller {
         print("📁 Service plist exists: \(exists)")
         return exists // Simplified - just checking one service
     }
-    
+
     func isKanataServiceConfiguredCorrectly() -> Bool {
         let plistPath = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
         print("🔍 Checking configuration at: \(plistPath)")
-        
+
         guard let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
             print("❌ Could not read plist")
             return false
@@ -35,11 +35,11 @@ class TestLaunchDaemonInstaller {
 
         let hasPortFlag = args.contains("--port")
         let hasPortValue = args.contains("5829")
-        
+
         print("📋 Current args: \(args)")
         print("🔍 Has --port flag: \(hasPortFlag)")
         print("🔍 Has 5829 value: \(hasPortValue)")
-        
+
         return hasPortFlag && hasPortValue
     }
 }

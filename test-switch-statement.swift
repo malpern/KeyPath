@@ -21,13 +21,13 @@ enum AutoFixAction: Equatable {
 func testErrorMessageGeneration() {
     print("🔍 Testing AutoFixAction switch statement behavior")
     print(String(repeating: "=", count: 50))
-    
+
     let action = AutoFixAction.restartUnhealthyServices
     let actionDescription = "Restart failing system services"
-    
+
     print("Action: \(action)")
     print("Action description: \(actionDescription)")
-    
+
     let message: String
     switch action {
     case .installLaunchDaemonServices:
@@ -47,9 +47,9 @@ func testErrorMessageGeneration() {
     default:
         message = "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
     }
-    
+
     print("Generated message: \(message)")
-    
+
     if message.contains("Failed to restart failing system services") {
         print("❌ ISSUE FOUND: Switch fell through to default case!")
     } else if message.contains("Failed to restart system services. This usually means:") {

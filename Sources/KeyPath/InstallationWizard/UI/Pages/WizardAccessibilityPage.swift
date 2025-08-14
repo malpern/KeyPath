@@ -15,7 +15,9 @@ struct WizardAccessibilityPage: View {
             WizardPageHeader(
                 icon: !hasAccessibilityIssues ? "checkmark.circle.fill" : "accessibility",
                 title: !hasAccessibilityIssues ? "Accessibility Granted" : "Accessibility Required",
-                subtitle: !hasAccessibilityIssues ? "KeyPath has the necessary Accessibility permission." : "KeyPath needs Accessibility permission to monitor keyboard events and provide emergency stop functionality.",
+                subtitle: !hasAccessibilityIssues
+                    ? "KeyPath has the necessary Accessibility permission."
+                    : "KeyPath needs Accessibility permission to monitor keyboard events and provide emergency stop functionality.",
                 status: !hasAccessibilityIssues ? .success : .warning
             )
 
@@ -45,7 +47,10 @@ struct WizardAccessibilityPage: View {
                             .foregroundColor(.primary)
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Label("Emergency stop sequence detection (Cmd+Opt+Ctrl+Shift+K)", systemImage: "exclamationmark.triangle")
+                            Label(
+                                "Emergency stop sequence detection (Cmd+Opt+Ctrl+Shift+K)",
+                                systemImage: "exclamationmark.triangle"
+                            )
                             Label("Monitor system keyboard events", systemImage: "keyboard")
                             Label("Provide safe fallback when Kanata encounters issues", systemImage: "shield")
                         }
@@ -115,10 +120,12 @@ struct WizardAccessibilityPage: View {
     // MARK: - Actions
 
     private func openAccessibilitySettings() {
-        AppLogger.shared.log("🔐 [WizardAccessibilityPage] Opening Accessibility settings and dismissing wizard")
+        AppLogger.shared.log(
+            "🔐 [WizardAccessibilityPage] Opening Accessibility settings and dismissing wizard")
 
         // Open System Settings > Privacy & Security > Accessibility
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        if let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
 
@@ -162,7 +169,7 @@ struct WizardAccessibilityPage_Previews: PreviewProvider {
                     description: "KeyPath needs Accessibility permission to monitor keyboard events.",
                     autoFixAction: nil,
                     userAction: "Grant permission in System Settings > Privacy & Security > Accessibility"
-                ),
+                )
             ],
             onRefresh: {},
             onNavigateToPage: nil,

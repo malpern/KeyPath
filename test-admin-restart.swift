@@ -28,36 +28,36 @@ print("Running command...")
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     print("Exit code: \(task.terminationStatus)")
     print("Output: '\(output)'")
-    
+
     if task.terminationStatus == 0 {
         print("✅ Admin restart succeeded!")
-        
+
         // Wait and check service status
         print("\nWaiting 3 seconds for service to restart...")
         Thread.sleep(forTimeInterval: 3.0)
-        
+
         // Check service status
         let checkTask = Process()
         checkTask.executableURL = URL(fileURLWithPath: "/bin/launchctl")
         checkTask.arguments = ["list", "com.keypath.kanata"]
-        
+
         let checkPipe = Pipe()
         checkTask.standardOutput = checkPipe
         checkTask.standardError = checkPipe
-        
+
         try checkTask.run()
         checkTask.waitUntilExit()
-        
+
         if checkTask.terminationStatus == 0 {
             let data = checkPipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             func extractInt(from text: String, pattern: String) -> Int? {
                 do {
                     let rx = try NSRegularExpression(pattern: pattern)
@@ -72,14 +72,14 @@ do {
                     return nil
                 }
             }
-            
+
             let exitCode = extractInt(from: output, pattern: #""LastExitStatus"\s*=\s*(-?\d+);"#) ?? 0
             let pid = extractInt(from: output, pattern: #""PID"\s*=\s*([0-9]+);"#)
-            
+
             print("After restart:")
             print("PID: \(pid?.description ?? "nil")")
             print("Exit Code: \(exitCode)")
-            
+
             let isHealthy = (pid != nil && exitCode == 0)
             if isHealthy {
                 print("🎉 SUCCESS: Kanata service is now healthy!")
@@ -90,7 +90,7 @@ do {
                 print("   This suggests a deeper issue with kanata configuration.")
             }
         }
-        
+
     } else {
         print("❌ Admin restart failed")
         if output.contains("User canceled") || output.contains("cancelled") {
@@ -99,14 +99,14 @@ do {
             print("   Other error: \(output)")
         }
     }
-    
+
 } catch {
     print("Error running AppleScript: \(error)")
 }
 
 print("\n=== Analysis ===")
 print("If admin restart succeeded:")
-print("- The AppleScript approach works")  
+print("- The AppleScript approach works")
 print("- Issue is in KeyPath wizard not calling this method")
 print("If admin restart failed:")
 print("- Need to check AppleScript command construction")
