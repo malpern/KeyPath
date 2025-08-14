@@ -242,7 +242,7 @@ class SystemRequirementsChecker {
             requirement: .kanataExecution,
             status: .missing,
             details: "Kanata executable not found in standard locations",
-            actionRequired: "Install Kanata via Homebrew: brew install kanata"
+            actionRequired: "KeyPath will install Kanata automatically via the Installation Wizard"
         )
     }
 

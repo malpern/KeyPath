@@ -187,7 +187,7 @@ struct WizardErrorDisplay_Previews: PreviewProvider {
                     recoveryActions: [
                         "Check your internet connection",
                         "Make sure you have administrator privileges",
-                        "Try installing Kanata manually using: brew install kanata",
+                        "Use KeyPath's Installation Wizard to install Kanata automatically",
                     ]
                 ),
                 onRetry: {},

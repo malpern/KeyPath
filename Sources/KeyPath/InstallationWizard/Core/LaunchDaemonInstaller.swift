@@ -879,16 +879,133 @@ class LaunchDaemonInstaller {
             return true
         } else {
             AppLogger.shared.log("⚠️ [LaunchDaemon] Some services are still unhealthy after restart: \(stillUnhealthy)")
-            AppLogger.shared.log("💡 [LaunchDaemon] This likely indicates permission issues rather than restart failure")
             
-            // Log specific details for debugging
-            for serviceID in stillUnhealthy {
-                if serviceID == Self.kanataServiceID {
-                    AppLogger.shared.log("🔍 [LaunchDaemon] Kanata service may be missing Input Monitoring permissions")
-                }
-            }
+            // Diagnose specific failure reasons for each service
+            await diagnoseServiceFailures(stillUnhealthy)
             
             return false
+        }
+    }
+    
+    /// Diagnose why services are still failing after restart attempt
+    private func diagnoseServiceFailures(_ serviceIDs: [String]) async {
+        AppLogger.shared.log("🔍 [LaunchDaemon] Diagnosing service failure reasons...")
+        
+        for serviceID in serviceIDs {
+            await diagnoseSpecificServiceFailure(serviceID)
+        }
+    }
+    
+    /// Diagnose a specific service failure by checking launchctl details
+    private func diagnoseSpecificServiceFailure(_ serviceID: String) async {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["print", "system/\(serviceID)"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            if task.terminationStatus == 0 {
+                await analyzeServiceStatus(serviceID, output: output)
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] Could not get status for \(serviceID): \(output)")
+            }
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error checking \(serviceID) status: \(error)")
+        }
+    }
+    
+    /// Analyze service status output to determine failure reason
+    private func analyzeServiceStatus(_ serviceID: String, output: String) async {
+        AppLogger.shared.log("🔍 [LaunchDaemon] Analyzing \(serviceID) status...")
+        
+        // Check for common exit reasons
+        if output.contains("OS_REASON_CODESIGNING") {
+            AppLogger.shared.log("❌ [LaunchDaemon] \(serviceID) is failing due to CODE SIGNING issues")
+            if serviceID == Self.kanataServiceID {
+                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: KeyPath requires Input Monitoring permission for the kanata binary. Grant permission in System Settings > Privacy & Security > Input Monitoring")
+                AppLogger.shared.log("💡 [LaunchDaemon] If permission is already granted, try using KeyPath's Installation Wizard to reinstall kanata with proper code signing")
+            } else {
+                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: The binary needs to be properly code signed or requires system permissions")
+            }
+            
+            if serviceID == Self.kanataServiceID {
+                await checkKanataCodeSigning()
+            }
+        } else if output.contains("OS_REASON_EXEC") {
+            AppLogger.shared.log("❌ [LaunchDaemon] \(serviceID) executable not found or cannot be executed")
+            if serviceID == Self.kanataServiceID {
+                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Kanata binary may be missing. Use KeyPath's Installation Wizard to install kanata automatically")
+            } else {
+                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Check that the binary exists and has correct permissions")
+            }
+        } else if output.contains("Permission denied") || output.contains("OS_REASON_PERMISSIONS") {
+            AppLogger.shared.log("❌ [LaunchDaemon] \(serviceID) failing due to permission issues")
+            if serviceID == Self.kanataServiceID {
+                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Grant Input Monitoring permission to kanata in System Settings > Privacy & Security > Input Monitoring")
+                AppLogger.shared.log("💡 [LaunchDaemon] You may also need Accessibility permission if using advanced features")
+            } else {
+                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Grant required permissions in System Settings > Privacy & Security")
+            }
+        } else if output.contains("job state = exited") {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] \(serviceID) is exiting unexpectedly")
+            
+            // Extract exit reason if present
+            if let exitReasonMatch = output.range(of: #"last exit reason = (.*)"#, options: .regularExpression) {
+                let exitReason = String(output[exitReasonMatch])
+                AppLogger.shared.log("🔍 [LaunchDaemon] Exit reason: \(exitReason)")
+            }
+        } else {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] \(serviceID) unhealthy for unclear reason")
+            if serviceID == Self.kanataServiceID {
+                AppLogger.shared.log("💡 [LaunchDaemon] Check kanata logs: tail -f /var/log/kanata.log")
+                AppLogger.shared.log("💡 [LaunchDaemon] Try using KeyPath's Installation Wizard to fix any configuration issues")
+            } else {
+                AppLogger.shared.log("💡 [LaunchDaemon] Check system logs for more details")
+            }
+        }
+    }
+    
+    /// Check kanata binary code signing status
+    private func checkKanataCodeSigning() async {
+        let kanataPath = getKanataBinaryPath()
+        guard FileManager.default.fileExists(atPath: kanataPath) else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Cannot check code signing - kanata binary not found at \(kanataPath)")
+            return
+        }
+        
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        task.arguments = ["-v", "-v", kanataPath]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [LaunchDaemon] Kanata binary appears to be properly signed")
+                AppLogger.shared.log("💡 [LaunchDaemon] Issue may be missing Input Monitoring permission - check System Settings")
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] Kanata binary code signing issue: \(output)")
+                AppLogger.shared.log("💡 [LaunchDaemon] SOLUTION: Use KeyPath's Installation Wizard to ensure proper kanata installation and permissions, or manually grant Input Monitoring permission")
+            }
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error checking kanata code signing: \(error)")
         }
     }
 

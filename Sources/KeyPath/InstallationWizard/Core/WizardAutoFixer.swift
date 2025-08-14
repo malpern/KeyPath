@@ -792,7 +792,11 @@ class WizardAutoFixer: AutoFixCapable {
         if restartSuccess {
             AppLogger.shared.log("✅ [AutoFixer] Successfully fixed unhealthy LaunchDaemon services")
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to restart unhealthy services")
+            AppLogger.shared.log("❌ [AutoFixer] Failed to fix unhealthy services - check detailed diagnosis above")
+            AppLogger.shared.log("💡 [AutoFixer] Most common solutions:")
+            AppLogger.shared.log("💡 [AutoFixer] 1. Grant Input Monitoring permission to kanata in System Settings > Privacy & Security")
+            AppLogger.shared.log("💡 [AutoFixer] 2. Use KeyPath's Installation Wizard to reinstall components with proper permissions")
+            AppLogger.shared.log("💡 [AutoFixer] 3. Enable Karabiner driver extension in System Settings > Privacy & Security > Driver Extensions")
         }
         
         return restartSuccess

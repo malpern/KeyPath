@@ -374,7 +374,7 @@ class IssueGenerator {
         case .packageManager:
             "Install Homebrew from https://brew.sh"
         case .kanataBinary:
-            "Install Homebrew, then run: brew install kanata"
+            "Use the Installation Wizard to install Kanata automatically"
         default:
             nil
         }
@@ -387,7 +387,7 @@ class IssueGenerator {
         case .packageManager:
             "Install Homebrew from https://brew.sh"
         case .kanataBinary:
-            "Install Homebrew, then run: brew install kanata"
+            "Use the Installation Wizard to install Kanata automatically"
         default:
             nil
         }

@@ -635,7 +635,7 @@ class KanataManager: ObservableObject {
                     title: "Kanata Not Installed",
                     description: "Kanata binary not found at \(WizardSystemPaths.kanataActiveBinary)",
                     technicalDetails: "Expected path: \(WizardSystemPaths.kanataActiveBinary)",
-                    suggestedAction: "Install Kanata using: brew install kanata",
+                    suggestedAction: "Use KeyPath's Installation Wizard to install Kanata automatically",
                     canAutoFix: false
                 ))
         }
@@ -2251,16 +2251,53 @@ class KanataManager: ObservableObject {
         var stepsFailed = 0
         let totalSteps = 5
 
-        // 1. Ensure Kanata binary exists
-        AppLogger.shared.log("🔧 [Installation] Step 1/\(totalSteps): Checking Kanata binary...")
+        // 1. Ensure Kanata binary exists - install if missing
+        AppLogger.shared.log("🔧 [Installation] Step 1/\(totalSteps): Checking/installing Kanata binary...")
         let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
         if !FileManager.default.fileExists(atPath: kanataBinaryPath) {
-            AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Kanata binary not found at \(kanataBinaryPath)")
-            AppLogger.shared.log("ℹ️ [Installation] Please install Kanata: brew install kanata")
-            return false
+            AppLogger.shared.log("⚠️ [Installation] Kanata binary not found at \(kanataBinaryPath) - attempting auto-install...")
+            
+            // Try to install kanata via PackageManager
+            let packageManager = PackageManager()
+            if packageManager.checkHomebrewInstallation() {
+                AppLogger.shared.log("🔧 [Installation] Installing Kanata via Homebrew...")
+                let installResult = await packageManager.installKanataViaBrew()
+                
+                switch installResult {
+                case .success:
+                    AppLogger.shared.log("✅ [Installation] Successfully installed Kanata via Homebrew")
+                    if FileManager.default.fileExists(atPath: kanataBinaryPath) {
+                        AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary auto-installed and verified")
+                        stepsCompleted += 1
+                    } else {
+                        AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Installation reported success but binary not found")
+                        stepsFailed += 1
+                    }
+                case .failure(let reason):
+                    AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Kanata auto-install failed - \(reason)")
+                    AppLogger.shared.log("💡 [Installation] KeyPath tried to install Kanata automatically but failed. You may need to install manually with: brew install kanata")
+                    stepsFailed += 1
+                case .homebrewNotAvailable:
+                    AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Cannot auto-install - Homebrew not available")
+                    AppLogger.shared.log("💡 [Installation] Install Homebrew from https://brew.sh then run: brew install kanata")
+                    stepsFailed += 1
+                case .packageNotFound:
+                    AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Kanata package not found in Homebrew")
+                    AppLogger.shared.log("💡 [Installation] Try updating Homebrew: brew update && brew install kanata")
+                    stepsFailed += 1
+                case .userCancelled:
+                    AppLogger.shared.log("⚠️ [Installation] Step 1 CANCELLED: User cancelled Kanata installation")
+                    return false
+                }
+            } else {
+                AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Cannot auto-install - Homebrew not found")
+                AppLogger.shared.log("💡 [Installation] Install Homebrew from https://brew.sh then KeyPath can install Kanata automatically")
+                stepsFailed += 1
+            }
+        } else {
+            AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary already exists at \(kanataBinaryPath)")
+            stepsCompleted += 1
         }
-        AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary verified at \(kanataBinaryPath)")
-        stepsCompleted += 1
 
         // 2. Check if Karabiner driver is installed
         AppLogger.shared.log("🔧 [Installation] Step 2/\(totalSteps): Checking Karabiner driver...")

@@ -578,7 +578,7 @@ struct InstallationWizardView: View {
         case .restartVirtualHIDDaemon:
             return "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
         case .restartUnhealthyServices:
-            return "Services restarted successfully but are still failing. This usually indicates missing permissions - check that Kanata has Input Monitoring permission in System Settings > Privacy & Security."
+            return "Services are still failing after restart. This usually indicates either:\n• Missing Input Monitoring permission for kanata\n• Code signing issues with the kanata binary\n• Missing system driver extensions\n\nCheck System Settings > Privacy & Security and see app logs for specific diagnosis."
         default:
             return "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
         }
