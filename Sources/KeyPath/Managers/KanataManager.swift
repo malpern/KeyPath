@@ -100,7 +100,7 @@ struct ValidationAlertAction {
     let title: String
     let style: ActionStyle
     let action: () -> Void
-    
+
     enum ActionStyle {
         case `default`
         case cancel
@@ -115,37 +115,37 @@ class KanataManager: ObservableObject {
     @Published var diagnostics: [KanataDiagnostic] = []
     @Published var lastProcessExitCode: Int32?
     @Published var lastConfigUpdate: Date = .init()
-    
+
     // Validation-specific UI state
     @Published var showingValidationAlert = false
     @Published var validationAlertTitle = ""
     @Published var validationAlertMessage = ""
     @Published var validationAlertActions: [ValidationAlertAction] = []
-    
+
     // Save progress feedback
     @Published var saveStatus: SaveStatus = .idle
-    
+
     enum SaveStatus {
         case idle
         case saving
         case validating
         case success
         case failed(String)
-        
+
         var message: String {
             switch self {
-            case .idle: return ""
-            case .saving: return "Saving..."
-            case .validating: return "Validating..."
-            case .success: return "✅ Done"
-            case .failed(let error): return "❌ Config Invalid: \(error)"
+            case .idle: ""
+            case .saving: "Saving..."
+            case .validating: "Validating..."
+            case .success: "✅ Done"
+            case let .failed(error): "❌ Config Invalid: \(error)"
             }
         }
-        
+
         var isActive: Bool {
             switch self {
-            case .idle: return false
-            default: return true
+            case .idle: false
+            default: true
             }
         }
     }
@@ -1226,7 +1226,7 @@ class KanataManager: ObservableObject {
         await MainActor.run {
             saveStatus = .saving
         }
-        
+
         // Parse existing mappings from config file
         await loadExistingMappings()
 
@@ -1244,16 +1244,16 @@ class KanataManager: ObservableObject {
 
         // Skip pre-save validation for performance - rely on post-save verification
         AppLogger.shared.log("⚡ [Config] Skipping pre-save validation for faster saves - using post-save verification")
-        
+
         do {
             // Save directly and validate afterwards
             try await saveValidatedConfig(config)
-            
+
             // Set success status
             await MainActor.run {
                 saveStatus = .success
             }
-            
+
             // Reset to idle after a delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.saveStatus = .idle
@@ -1300,11 +1300,11 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("🔍 [Config] Config path being watched: \(configPath)")
 
         Task.detached { [weak self] in
-            guard let self = self else { return }
-            
+            guard let self else { return }
+
             // Small grace period for --watch to attempt reload
-            try? await Task.sleep(nanoseconds: 500_000_000)  // 500ms - enough time for hot reload attempt
-            
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms - enough time for hot reload attempt
+
             // Fallback restart if service is still running (hot reload likely failed)
             if await MainActor.run { self.isRunning } {
                 AppLogger.shared.log("🔄 [Config] Performing fallback restart to ensure config changes apply")
@@ -2501,14 +2501,14 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("📖 [Validation] Reading config file from: \(configPath)")
             let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log("📖 [Validation] Config file size: \(configContent.count) characters")
-            
+
             // Validate the existing config before loading
             AppLogger.shared.log("🔍 [Validation] Starting validation of existing configuration...")
             let validationStart = Date()
             let validation = await validateGeneratedConfig(configContent)
             let validationDuration = Date().timeIntervalSince(validationStart)
             AppLogger.shared.log("⏱️ [Validation] Validation completed in \(String(format: "%.3f", validationDuration)) seconds")
-            
+
             if validation.isValid {
                 // Config is valid, load mappings normally
                 AppLogger.shared.log("✅ [Validation] Config validation PASSED")
@@ -2531,18 +2531,18 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("❌ [Validation] Error type: \(type(of: error))")
             keyMappings = []
         }
-        
+
         AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
     }
-    
+
     /// Handle invalid startup configuration with backup and fallback
     private func handleInvalidStartupConfig(configContent: String, errors: [String]) async {
         AppLogger.shared.log("🛡️ [Validation] Handling invalid startup configuration...")
-        
+
         // Create backup of invalid config
         let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let backupPath = "\(configDirectory)/invalid-config-backup-\(timestamp).kbd"
-        
+
         AppLogger.shared.log("💾 [Validation] Creating backup of invalid config...")
         do {
             try configContent.write(toFile: backupPath, atomically: true, encoding: .utf8)
@@ -2552,20 +2552,20 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("❌ [Validation] Failed to backup invalid config: \(error)")
             AppLogger.shared.log("❌ [Validation] Backup path attempted: \(backupPath)")
         }
-        
+
         // Generate default configuration
         AppLogger.shared.log("🔧 [Validation] Generating default fallback configuration...")
         let defaultMapping = KeyMapping(input: "caps", output: "esc")
         let defaultConfig = generateKanataConfigWithMappings([defaultMapping])
         AppLogger.shared.log("🔧 [Validation] Default config generated with mapping: caps → esc")
-        
+
         do {
             AppLogger.shared.log("📝 [Validation] Writing default config to: \(configPath)")
             try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
             keyMappings = [defaultMapping]
             AppLogger.shared.log("✅ [Validation] Successfully replaced invalid config with default")
             AppLogger.shared.log("✅ [Validation] New config has \(keyMappings.count) mapping(s)")
-            
+
             // Schedule user notification about the fallback
             AppLogger.shared.log("📢 [Validation] Scheduling user notification about config fallback...")
             await scheduleConfigValidationNotification(originalErrors: errors, backupPath: backupPath)
@@ -2574,28 +2574,28 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("❌ [Validation] Config path: \(configPath)")
             keyMappings = []
         }
-        
+
         AppLogger.shared.log("🛡️ [Validation] Invalid startup config handling complete")
     }
-    
+
     /// Schedule notification to inform user about config validation issues
     private func scheduleConfigValidationNotification(originalErrors: [String], backupPath: String) async {
         AppLogger.shared.log("📢 [Config] Showing validation error dialog to user")
-        
+
         await MainActor.run {
             validationAlertTitle = "Configuration File Invalid"
             validationAlertMessage = """
             KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.
-            
+
             Errors found:
             \(originalErrors.joined(separator: "\n• "))
-            
+
             Your original configuration has been backed up to:
             \(backupPath)
-            
+
             KeyPath is now using a default configuration (Caps Lock → Escape).
             """
-            
+
             validationAlertActions = [
                 ValidationAlertAction(title: "OK", style: .default) { [weak self] in
                     self?.showingValidationAlert = false
@@ -2605,30 +2605,30 @@ class KanataManager: ObservableObject {
                     self?.showingValidationAlert = false
                 }
             ]
-            
+
             showingValidationAlert = true
         }
     }
-    
+
     /// Show validation error dialog with options to cancel or revert to default
-    private func showValidationErrorDialog(title: String, errors: [String], config: String? = nil) async {
+    private func showValidationErrorDialog(title: String, errors: [String], config _: String? = nil) async {
         await MainActor.run {
             validationAlertTitle = title
             validationAlertMessage = """
             KeyPath found errors in the configuration:
-            
+
             \(errors.joined(separator: "\n• "))
-            
+
             What would you like to do?
             """
-            
+
             var actions: [ValidationAlertAction] = []
-            
+
             // Cancel option
             actions.append(ValidationAlertAction(title: "Cancel", style: .cancel) { [weak self] in
                 self?.showingValidationAlert = false
             })
-            
+
             // Revert to default option
             actions.append(ValidationAlertAction(title: "Use Default Config", style: .destructive) { [weak self] in
                 Task {
@@ -2638,19 +2638,19 @@ class KanataManager: ObservableObject {
                     }
                 }
             })
-            
+
             validationAlertActions = actions
             showingValidationAlert = true
         }
     }
-    
+
     /// Revert to a safe default configuration
     private func revertToDefaultConfig() async {
         AppLogger.shared.log("🔄 [Config] Reverting to default configuration")
-        
+
         let defaultMapping = KeyMapping(input: "caps", output: "esc")
         let defaultConfig = generateKanataConfigWithMappings([defaultMapping])
-        
+
         do {
             try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
             await MainActor.run {
@@ -3005,12 +3005,12 @@ class KanataManager: ObservableObject {
     private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
-        
+
         // First try TCP validation if server is available
         if let tcpPort = await getTCPPort() {
             AppLogger.shared.log("🌐 [Validation] TCP port configured: \(tcpPort)")
             let tcpClient = KanataTCPClient(port: tcpPort)
-            
+
             // Check if TCP server is available
             AppLogger.shared.log("🌐 [Validation] Checking TCP server availability on port \(tcpPort)...")
             if await tcpClient.checkServerStatus() {
@@ -3019,21 +3019,21 @@ class KanataManager: ObservableObject {
                 let result = await tcpClient.validateConfig(config)
                 let tcpDuration = Date().timeIntervalSince(tcpStart)
                 AppLogger.shared.log("⏱️ [Validation] TCP validation completed in \(String(format: "%.3f", tcpDuration)) seconds")
-                
+
                 switch result {
                 case .success:
                     AppLogger.shared.log("✅ [Validation] TCP validation PASSED")
                     AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (true, [])
-                case .failure(let tcpErrors):
+                case let .failure(tcpErrors):
                     AppLogger.shared.log("❌ [Validation] TCP validation FAILED with \(tcpErrors.count) errors:")
-                    let errorStrings = tcpErrors.map { $0.description }
+                    let errorStrings = tcpErrors.map(\.description)
                     for (index, error) in errorStrings.enumerated() {
                         AppLogger.shared.log("   Error \(index + 1): \(error)")
                     }
                     AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (false, errorStrings)
-                case .networkError(let error):
+                case let .networkError(error):
                     AppLogger.shared.log("⚠️ [Validation] TCP validation network error: \(error)")
                     AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
                     // Fall through to CLI validation
@@ -3046,14 +3046,14 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("ℹ️ [Validation] No TCP port configured or TCP disabled")
             AppLogger.shared.log("ℹ️ [Validation] Using CLI validation as primary method")
         }
-        
+
         // Fallback to CLI validation
         AppLogger.shared.log("🖥️ [Validation] Starting CLI validation...")
         let cliResult = await validateConfigWithCLI(config)
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
         return cliResult
     }
-    
+
     /// Get TCP port for validation if TCP server is enabled
     private func getTCPPort() async -> Int? {
         let preferences = await PreferencesService.shared
@@ -3062,10 +3062,10 @@ class KanataManager: ObservableObject {
         }
         return await preferences.tcpServerPort
     }
-    
+
     private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🖥️ [Validation-CLI] Starting CLI validation process...")
-        
+
         // Write config to a temporary file for validation
         let tempConfigPath = "\(configDirectory)/temp_validation.kbd"
         AppLogger.shared.log("📝 [Validation-CLI] Creating temp config file: \(tempConfigPath)")
@@ -3080,7 +3080,7 @@ class KanataManager: ObservableObject {
             // Use kanata --check to validate
             let kanataBinary = WizardSystemPaths.kanataActiveBinary
             AppLogger.shared.log("🔧 [Validation-CLI] Using kanata binary: \(kanataBinary)")
-            
+
             let task = Process()
             task.executableURL = URL(fileURLWithPath: kanataBinary)
             let arguments = buildKanataArguments(configPath: tempConfigPath, checkOnly: true)
@@ -3099,7 +3099,7 @@ class KanataManager: ObservableObject {
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             AppLogger.shared.log("📋 [Validation-CLI] Exit code: \(task.terminationStatus)")
             if !output.isEmpty {
                 AppLogger.shared.log("📋 [Validation-CLI] Output: \(output.prefix(500))...")
@@ -3260,7 +3260,7 @@ class KanataManager: ObservableObject {
         // Write the config
         try config.write(to: configURL, atomically: true, encoding: .utf8)
         AppLogger.shared.log("✅ [DEBUG] Config written to file successfully")
-        
+
         // Add a small delay to ensure kanata's file watcher reads the complete file
         // This prevents race conditions where kanata reads a truncated file during hot reload
         AppLogger.shared.log("⏱️ [DEBUG] Adding 100ms delay for file watcher stability...")
@@ -3286,18 +3286,18 @@ class KanataManager: ObservableObject {
         await MainActor.run {
             saveStatus = .validating
         }
-        
+
         AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
         AppLogger.shared.log("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
         do {
             let savedContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log("📖 [Validation-PostSave] Successfully read saved file (\(savedContent.count) characters)")
-            
+
             let postSaveStart = Date()
             let postSaveValidation = await validateGeneratedConfig(savedContent)
             let postSaveDuration = Date().timeIntervalSince(postSaveStart)
             AppLogger.shared.log("⏱️ [Validation-PostSave] Validation completed in \(String(format: "%.3f", postSaveDuration)) seconds")
-            
+
             if postSaveValidation.isValid {
                 AppLogger.shared.log("✅ [Validation-PostSave] Post-save validation PASSED")
                 AppLogger.shared.log("✅ [Validation-PostSave] Config saved and verified successfully")
@@ -3318,7 +3318,7 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
             throw error
         }
-        
+
         AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
 
         // Notify UI that config was updated

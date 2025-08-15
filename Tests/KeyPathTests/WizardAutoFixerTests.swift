@@ -8,10 +8,12 @@ class WizardAutoFixerTests: XCTestCase {
     var realKanataManager: KanataManager!
     var autoFixer: WizardAutoFixer!
 
+    @MainActor
     override func setUp() {
         super.setUp()
         realKanataManager = KanataManager()
-        autoFixer = WizardAutoFixer(kanataManager: realKanataManager)
+        let toastManager = WizardToastManager()
+        autoFixer = WizardAutoFixer(kanataManager: realKanataManager, toastManager: toastManager)
     }
 
     // MARK: - Auto-Fix Capability Tests (Real System)
@@ -26,7 +28,9 @@ class WizardAutoFixerTests: XCTestCase {
             .createConfigDirectories,
             .activateVHIDDeviceManager,
             .installLaunchDaemonServices,
-            .installViaBrew
+            .installViaBrew,
+            .adoptOrphanedProcess,
+            .replaceOrphanedProcess
         ]
 
         for action in supportedActions {
@@ -70,6 +74,14 @@ class WizardAutoFixerTests: XCTestCase {
             case .restartUnhealthyServices:
                 // Service restart capability
                 XCTAssertTrue(canFix == true || canFix == false, "Should return a valid capability")
+
+            case .adoptOrphanedProcess:
+                // Orphaned process adoption
+                XCTAssertTrue(canFix, "Should be able to adopt orphaned processes")
+
+            case .replaceOrphanedProcess:
+                // Orphaned process replacement
+                XCTAssertTrue(canFix, "Should be able to replace orphaned processes")
             }
         }
 
@@ -363,5 +375,268 @@ class WizardAutoFixerTests: XCTestCase {
         // Then: Should handle concurrent operations gracefully
         XCTAssertEqual(results.count, safeActions.count, "Should complete all operations")
         print("✅ Concurrent auto-fix results: \(results)")
+    }
+
+    // MARK: - Orphaned Process Auto-Fix Integration Tests
+
+    @MainActor
+    func testOrphanedProcessAutoFixIntegration() async {
+        // Test the complete orphaned process auto-fix workflow
+
+        // Create mock LaunchDaemonInstaller that simulates different scenarios
+        let testScenarios: [(description: String, mockInstaller: MockLaunchDaemonInstaller, expectableActions: [AutoFixAction])] = [
+            (
+                "No plist, services not loaded - should support adoption",
+                MockLaunchDaemonInstaller(
+                    kanataLoaded: false,
+                    vhidDaemonLoaded: false,
+                    vhidManagerLoaded: false,
+                    installationResult: true,
+                    loadResult: true
+                ),
+                [.adoptOrphanedProcess, .replaceOrphanedProcess]
+            ),
+            (
+                "Plist present but not loaded - should support replacement",
+                MockLaunchDaemonInstaller(
+                    kanataLoaded: false,
+                    vhidDaemonLoaded: true,
+                    vhidManagerLoaded: true,
+                    installationResult: true,
+                    loadResult: true
+                ),
+                [.replaceOrphanedProcess]
+            ),
+            (
+                "All services loaded - should support replacement",
+                MockLaunchDaemonInstaller(
+                    kanataLoaded: true,
+                    vhidDaemonLoaded: true,
+                    vhidManagerLoaded: true,
+                    installationResult: true,
+                    loadResult: true
+                ),
+                [.replaceOrphanedProcess]
+            )
+        ]
+
+        for (description, mockInstaller, expectableActions) in testScenarios {
+            print("\n🧪 Testing scenario: \(description)")
+
+            // Create auto-fixer with mocked installer
+            let testAutoFixer = WizardAutoFixer(
+                kanataManager: realKanataManager,
+                launchDaemonInstaller: mockInstaller,
+                toastManager: WizardToastManager()
+            )
+
+            // Test that orphaned process actions are supported
+            for action in expectableActions {
+                let canAutoFix = testAutoFixer.canAutoFix(action)
+                XCTAssertTrue(
+                    canAutoFix,
+                    "\(description): Should be able to auto-fix \(action)"
+                )
+                print("✅ Can auto-fix \(action): \(canAutoFix)")
+            }
+
+            // Test actual auto-fix execution (safe operations)
+            for action in expectableActions {
+                let result = await testAutoFixer.performAutoFix(action)
+                print("✅ Auto-fix \(action) result: \(result)")
+                // Note: We can't assert success because this depends on actual system state
+                // The test is primarily to verify no crashes and proper capability detection
+            }
+        }
+    }
+
+    @MainActor
+    func testOrphanedProcessAutoFixWithSystemStateDetector() async {
+        // Test integration between SystemStateDetector and WizardAutoFixer for orphaned processes
+
+        // Create mock installer that simulates orphaned process scenario
+        let mockInstaller = MockLaunchDaemonInstaller(
+            kanataLoaded: false,
+            vhidDaemonLoaded: true,
+            vhidManagerLoaded: true,
+            installationResult: true,
+            loadResult: true
+        )
+
+        // Create detector with mock installer
+        let detector = SystemStateDetector(
+            kanataManager: realKanataManager,
+            launchDaemonInstaller: mockInstaller
+        )
+
+        // Create auto-fixer with same mock installer
+        let testAutoFixer = WizardAutoFixer(
+            kanataManager: realKanataManager,
+            launchDaemonInstaller: mockInstaller,
+            toastManager: WizardToastManager()
+        )
+
+        // Simulate orphaned process detection
+        let mockProcess = ProcessLifecycleManager.ProcessInfo(
+            pid: 1234,
+            command: "/usr/local/bin/kanata --cfg \(WizardSystemPaths.userConfigPath)"
+        )
+
+        // Test orphaned process detection logic
+        let autoFixAction = await detector.testComputeOrphanedProcessAutoFixWithMocks(
+            externalProcesses: [mockProcess],
+            managedProcesses: [],
+            plistPresent: false,
+            serviceLoaded: false
+        )
+
+        XCTAssertEqual(
+            autoFixAction, .adoptOrphanedProcess,
+            "Should recommend adoption for orphaned process using expected config"
+        )
+
+        // Test that auto-fixer can handle the recommended action
+        if let action = autoFixAction {
+            let canAutoFix = testAutoFixer.canAutoFix(action)
+            XCTAssertTrue(canAutoFix, "Auto-fixer should support recommended action")
+
+            let result = await testAutoFixer.performAutoFix(action)
+            print("✅ Orphaned process auto-fix result: \(result)")
+        }
+    }
+
+    @MainActor
+    func testOrphanedProcessAutoFixErrorHandling() async {
+        // Test error handling in orphaned process auto-fix scenarios
+
+        // Create mock installer that simulates failures
+        let failingMockInstaller = MockLaunchDaemonInstaller(
+            kanataLoaded: false,
+            vhidDaemonLoaded: false,
+            vhidManagerLoaded: false,
+            installationResult: false, // Installation fails
+            loadResult: false // Loading fails
+        )
+
+        let testAutoFixer = WizardAutoFixer(
+            kanataManager: realKanataManager,
+            launchDaemonInstaller: failingMockInstaller,
+            toastManager: WizardToastManager()
+        )
+
+        // Test that auto-fixer handles failures gracefully
+        let orphanedActions: [AutoFixAction] = [.adoptOrphanedProcess, .replaceOrphanedProcess]
+
+        for action in orphanedActions {
+            // Should still report capability (capability != success guarantee)
+            let canAutoFix = testAutoFixer.canAutoFix(action)
+            XCTAssertTrue(canAutoFix, "Should report capability even if underlying operations might fail")
+
+            // Test that failed operations don't crash
+            let result = await testAutoFixer.performAutoFix(action)
+            // Don't assert success/failure - just verify no crashes
+            print("✅ Auto-fix \(action) with failing installer: \(result)")
+        }
+    }
+
+    @MainActor
+    func testOrphanedProcessAutoFixWorkflowIntegration() async {
+        // Test the complete workflow from detection to auto-fix to verification
+
+        print("\n🧪 Testing complete orphaned process workflow")
+
+        // Step 1: Create mock installer simulating no services loaded
+        let mockInstaller = MockLaunchDaemonInstaller(
+            kanataLoaded: false,
+            vhidDaemonLoaded: false,
+            vhidManagerLoaded: false,
+            installationResult: true,
+            loadResult: true
+        )
+
+        // Step 2: Detect system state with orphaned process scenario
+        let detector = SystemStateDetector(
+            kanataManager: realKanataManager,
+            launchDaemonInstaller: mockInstaller
+        )
+
+        // Step 3: Simulate orphaned process and test detection
+        let orphanedProcess = ProcessLifecycleManager.ProcessInfo(
+            pid: 9999,
+            command: "/usr/local/bin/kanata --cfg \(WizardSystemPaths.userConfigPath) --verbose"
+        )
+
+        let detectedAction = await detector.testComputeOrphanedProcessAutoFixWithMocks(
+            externalProcesses: [orphanedProcess],
+            managedProcesses: [],
+            plistPresent: false,
+            serviceLoaded: false
+        )
+
+        XCTAssertNotNil(detectedAction, "Should detect orphaned process requiring action")
+        print("✅ Step 1 - Detection: Recommended action = \(String(describing: detectedAction))")
+
+        // Step 4: Test auto-fix capability and execution
+        let autoFixer = WizardAutoFixer(
+            kanataManager: realKanataManager,
+            launchDaemonInstaller: mockInstaller,
+            toastManager: WizardToastManager()
+        )
+
+        if let action = detectedAction {
+            let canFix = autoFixer.canAutoFix(action)
+            XCTAssertTrue(canFix, "Should be able to perform detected auto-fix")
+            print("✅ Step 2 - Capability: Can auto-fix = \(canFix)")
+
+            let fixResult = await autoFixer.performAutoFix(action)
+            print("✅ Step 3 - Execution: Auto-fix result = \(fixResult)")
+
+            // Step 5: Verify workflow completion
+            print("✅ Step 4 - Verification: Workflow completed without crashes")
+        }
+    }
+
+    @MainActor
+    func testOrphanedProcessAutoFixConcurrency() async {
+        // Test concurrent orphaned process auto-fix operations
+
+        let mockInstaller = MockLaunchDaemonInstaller(
+            kanataLoaded: false,
+            vhidDaemonLoaded: true,
+            vhidManagerLoaded: true,
+            installationResult: true,
+            loadResult: true
+        )
+
+        let autoFixer = WizardAutoFixer(
+            kanataManager: realKanataManager,
+            launchDaemonInstaller: mockInstaller,
+            toastManager: WizardToastManager()
+        )
+
+        // Test concurrent execution of orphaned process actions
+        let actions: [AutoFixAction] = [
+            .adoptOrphanedProcess,
+            .replaceOrphanedProcess,
+            .adoptOrphanedProcess // Duplicate to test serialization
+        ]
+
+        var results: [Bool] = []
+
+        await withTaskGroup(of: Bool.self) { group in
+            for action in actions {
+                group.addTask {
+                    await autoFixer.performAutoFix(action)
+                }
+            }
+
+            for await result in group {
+                results.append(result)
+            }
+        }
+
+        // Verify all operations completed without crashes
+        XCTAssertEqual(results.count, actions.count, "All concurrent operations should complete")
+        print("✅ Concurrent orphaned process auto-fix results: \(results)")
     }
 }

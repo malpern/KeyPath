@@ -7,16 +7,21 @@ class WizardAutoFixer: AutoFixCapable {
     private let vhidDeviceManager: VHIDDeviceManager
     private let launchDaemonInstaller: LaunchDaemonInstaller
     private let packageManager: PackageManager
+    private let toastManager: WizardToastManager
+    private let autoFixSync = ProcessSynchronizationActor()
 
     init(
-        kanataManager: KanataManager, vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
+        kanataManager: KanataManager,
+        vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
-        packageManager: PackageManager = PackageManager()
+        packageManager: PackageManager = PackageManager(),
+        toastManager: WizardToastManager
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.launchDaemonInstaller = launchDaemonInstaller
         self.packageManager = packageManager
+        self.toastManager = toastManager
     }
 
     // MARK: - Error Analysis
@@ -95,10 +100,20 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to synchronize config paths
         case .restartUnhealthyServices:
             true // We can always attempt to restart unhealthy services
+        case .adoptOrphanedProcess:
+            true // We can always attempt to adopt an orphaned process
+        case .replaceOrphanedProcess:
+            true // We can always attempt to replace an orphaned process
         }
     }
 
     func performAutoFix(_ action: AutoFixAction) async -> Bool {
+        await autoFixSync.synchronize {
+            await self._performAutoFix(action)
+        }
+    }
+
+    private func _performAutoFix(_ action: AutoFixAction) async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Attempting auto-fix: \(action)")
 
         switch action {
@@ -124,6 +139,10 @@ class WizardAutoFixer: AutoFixCapable {
             return await synchronizeConfigPaths()
         case .restartUnhealthyServices:
             return await restartUnhealthyServices()
+        case .adoptOrphanedProcess:
+            return await adoptOrphanedProcess()
+        case .replaceOrphanedProcess:
+            return await replaceOrphanedProcess()
         }
     }
 
@@ -885,5 +904,81 @@ class WizardAutoFixer: AutoFixCapable {
             atomically: false, encoding: .utf8
         )
         return restartSuccess
+    }
+
+    // MARK: - Orphaned Process Auto-Fix Actions
+
+    /// Adopt an existing orphaned Kanata process by installing LaunchDaemon management
+    private func adoptOrphanedProcess() async -> Bool {
+        AppLogger.shared.log("🔗 [AutoFixer] Starting orphaned process adoption")
+
+        // Show user feedback
+        await MainActor.run {
+            toastManager.showInfo("🔗 Connecting existing Kanata process to KeyPath management...")
+        }
+
+        // Install LaunchDaemon service files without loading/starting them (no interference with running process)
+        AppLogger.shared.log("🔗 [AutoFixer] Installing LaunchDaemon service files for future management")
+        let installSuccess = launchDaemonInstaller.createAllLaunchDaemonServicesInstallOnly()
+
+        if installSuccess {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully adopted orphaned Kanata process")
+            await MainActor.run {
+                toastManager.showSuccess("✅ Adopted existing process - LaunchDaemon will manage future lifecycle")
+            }
+            return true
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to adopt orphaned process")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to install management files")
+            }
+            return false
+        }
+    }
+
+    /// Replace an orphaned Kanata process with a properly managed one
+    private func replaceOrphanedProcess() async -> Bool {
+        AppLogger.shared.log("🔄 [AutoFixer] Starting orphaned process replacement")
+
+        await MainActor.run {
+            toastManager.showInfo("🔄 Replacing with managed service (brief interruption)...")
+        }
+
+        // Step 1: Kill existing process
+        AppLogger.shared.log("🔄 [AutoFixer] Step 1: Terminating orphaned Kanata process")
+        await MainActor.run {
+            toastManager.showInfo("⏹️ Stopping orphaned Kanata process...")
+        }
+
+        let terminateSuccess = await terminateConflictingProcesses()
+
+        if !terminateSuccess {
+            AppLogger.shared.log("⚠️ [AutoFixer] Warning: Failed to cleanly terminate orphaned process")
+            await MainActor.run {
+                toastManager.showError("⚠️ Could not cleanly stop existing process - proceeding anyway")
+            }
+        }
+
+        // Step 2: Install and start managed service
+        AppLogger.shared.log("🔄 [AutoFixer] Step 2: Installing and starting managed Kanata service")
+        await MainActor.run {
+            toastManager.showInfo("🚀 Starting managed Kanata service...")
+        }
+
+        let installSuccess = await installLaunchDaemonServices()
+
+        if installSuccess {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully replaced orphaned process with managed service")
+            await MainActor.run {
+                toastManager.showSuccess("✅ Replaced with managed service - all mappings restored")
+            }
+            return true
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to start managed service")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to start managed service - manual restart may be needed")
+            }
+            return false
+        }
     }
 }

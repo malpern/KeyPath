@@ -143,9 +143,9 @@ class ComponentDetector {
 
         // Check LaunchDaemon services - handle mixed scenarios properly
         let daemonStatus = launchDaemonInstaller.getServiceStatus()
-        
+
         // Check Kanata service configuration specifically
-        if daemonStatus.kanataServiceLoaded && daemonStatus.kanataServiceHealthy {
+        if daemonStatus.kanataServiceLoaded, daemonStatus.kanataServiceHealthy {
             installed.append(.kanataService)
         } else {
             missing.append(.kanataService)

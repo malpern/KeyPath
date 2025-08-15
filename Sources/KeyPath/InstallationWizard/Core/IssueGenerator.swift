@@ -311,6 +311,7 @@ class IssueGenerator {
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .packageManager: "Package Manager (Homebrew) Missing"
         case .kanataTCPServer: "TCP Server Not Responding"
+        case .orphanedKanataProcess: "Orphaned Kanata Process"
         }
     }
 
@@ -340,6 +341,16 @@ class IssueGenerator {
             "Homebrew package manager is not installed. This is needed to automatically install missing dependencies like Kanata. Install from https://brew.sh"
         case .kanataTCPServer:
             "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
+        case .orphanedKanataProcess:
+            """
+            Kanata is running outside of LaunchDaemon management. This prevents reliable lifecycle control and hot-reload functionality.
+
+            KeyPath can fix this by either:
+            • **Adopt** (Recommended): Install management without interrupting your current session
+            • **Replace**: Stop current process and start a managed one (cleaner but interrupts current mappings)
+
+            The wizard will automatically choose the best option based on your configuration.
+            """
         }
     }
 
@@ -363,6 +374,8 @@ class IssueGenerator {
             .installLaunchDaemonServices // Service configuration files
         case .kanataTCPServer:
             .restartUnhealthyServices // TCP server requires service restart with updated config
+        case .orphanedKanataProcess:
+            .adoptOrphanedProcess // Default to adopting the orphaned process
         default:
             .installMissingComponents
         }

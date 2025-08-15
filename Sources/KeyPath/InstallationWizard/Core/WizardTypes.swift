@@ -98,6 +98,7 @@ enum ComponentRequirement: Equatable {
     case packageManager // Homebrew or other package manager
     case vhidDaemonMisconfigured
     case kanataTCPServer // TCP server for Kanata communication and config validation
+    case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -113,6 +114,8 @@ enum AutoFixAction: Equatable {
     case repairVHIDDaemonServices
     case synchronizeConfigPaths // Fix config path mismatches
     case restartUnhealthyServices // Restart services that are loaded but crashed
+    case adoptOrphanedProcess // Install LaunchDaemon to manage existing process
+    case replaceOrphanedProcess // Kill orphaned process and start managed one
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
