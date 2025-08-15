@@ -22,23 +22,23 @@ final class WizardNavigationTests: XCTestCase {
         let testCases = [
             TestCase(
                 issues: [
-                    createIssue(.conflict(.karabinerRunning), severity: .critical),
-                    createIssue(.permission(.inputMonitoring), severity: .critical)
+                    createIssue(.conflict(.karabinerGrabberRunning(pid: 123)), severity: .critical),
+                    createIssue(.permission(.kanataInputMonitoring), severity: .critical)
                 ],
                 expectedPage: .conflicts,
                 description: "Conflicts should be handled before permissions"
             ),
             TestCase(
                 issues: [
-                    createIssue(.permission(.inputMonitoring), severity: .critical),
-                    createIssue(.component(.kanataNotInstalled), severity: .error)
+                    createIssue(.permission(.kanataInputMonitoring), severity: .critical),
+                    createIssue(.component(.kanataBinary), severity: .error)
                 ],
                 expectedPage: .inputMonitoring,
                 description: "Critical permissions before component errors"
             ),
             TestCase(
                 issues: [
-                    createIssue(.component(.kanataNotInstalled), severity: .error),
+                    createIssue(.component(.kanataBinary), severity: .error),
                     createIssue(.component(.karabinerDriver), severity: .warning)
                 ],
                 expectedPage: .kanataComponents,
@@ -46,8 +46,8 @@ final class WizardNavigationTests: XCTestCase {
             ),
             TestCase(
                 issues: [
-                    createIssue(.service(.notRunning), severity: .warning),
-                    createIssue(.service(.tcpServerNotResponding), severity: .info)
+                    createIssue(.daemon, severity: .warning),
+                    createIssue(.daemon, severity: .info)
                 ],
                 expectedPage: .service,
                 description: "Service issues should navigate to service page"
@@ -60,8 +60,8 @@ final class WizardNavigationTests: XCTestCase {
         ]
 
         for testCase in testCases {
-            let targetPage = engine.determineTargetPage(
-                for: .needsConfiguration,
+            let targetPage = engine.determineCurrentPage(
+                for: .missingPermissions(missing: []),
                 issues: testCase.issues
             )
             XCTAssertEqual(
@@ -109,19 +109,19 @@ final class WizardNavigationTests: XCTestCase {
             ValidationTest(
                 fromPage: .summary,
                 toPage: .service,
-                systemState: .notInstalled,
+                systemState: .missingComponents(missing: []),
                 shouldAllow: false // Can't configure service if nothing installed
             ),
             ValidationTest(
                 fromPage: .summary,
                 toPage: .service,
-                systemState: .configurationComplete,
+                systemState: .ready,
                 shouldAllow: true // Can configure service when ready
             ),
             ValidationTest(
                 fromPage: .conflicts,
                 toPage: .inputMonitoring,
-                systemState: .needsConfiguration,
+                systemState: .missingPermissions(missing: []),
                 shouldAllow: true // Can always go to permissions
             )
         ]
@@ -153,8 +153,8 @@ final class WizardNavigationTests: XCTestCase {
         XCTAssertEqual(coordinator.currentPage, .kanataComponents)
 
         // Auto-navigation should be suppressed during user interaction
-        let issues = [createIssue(.conflict(.karabinerRunning), severity: .critical)]
-        coordinator.autoNavigateIfNeeded(for: .needsHelp, issues: issues)
+        let issues = [createIssue(.conflict(.karabinerGrabberRunning(pid: 123)), severity: .critical)]
+        coordinator.autoNavigateIfNeeded(for: .conflictsDetected(conflicts: []), issues: issues)
 
         XCTAssertEqual(coordinator.currentPage, .kanataComponents, "Should not auto-navigate during user interaction")
     }
@@ -186,19 +186,19 @@ final class WizardNavigationTests: XCTestCase {
         // Test state detection and transition
         mockManager.mockKanataInstalled = false
         var state = await stateManager.detectCurrentState()
-        XCTAssertEqual(state.state, .notInstalled)
+        XCTAssertEqual(state.state, .missingComponents(missing: []))
 
         // Simulate installation
         mockManager.mockKanataInstalled = true
         mockManager.mockDriversInstalled = true
         state = await stateManager.detectCurrentState()
-        XCTAssertNotEqual(state.state, .notInstalled)
+        XCTAssertNotEqual(state.state, .missingComponents(missing: []))
 
         // Simulate full configuration
         mockManager.mockServiceRunning = true
         mockManager.mockPermissionsGranted = true
         state = await stateManager.detectCurrentState()
-        XCTAssertEqual(state.state, .fullyOperational)
+        XCTAssertEqual(state.state, .active)
     }
 
     func testAsyncOperationManagement() async throws {
@@ -207,11 +207,10 @@ final class WizardNavigationTests: XCTestCase {
         // Test operation tracking
         XCTAssertFalse(operationManager.hasRunningOperations)
 
-        let operation = WizardOperation(
+        let operation = AsyncOperation(
             id: "test_operation",
             name: "Test Operation",
-            canRunConcurrently: false,
-            execute: {
+            execute: { _ in
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
                 return true
             }
@@ -219,7 +218,11 @@ final class WizardNavigationTests: XCTestCase {
 
         // Start operation
         let task = Task {
-            await operationManager.execute(operation: operation) { (_: Bool) in }
+            await operationManager.execute(
+                operation: operation,
+                onSuccess: { (_: Bool) in },
+                onFailure: { _ in }
+            )
         }
 
         // Check running state
@@ -310,8 +313,8 @@ final class WizardNavigationTests: XCTestCase {
 
         // Test close with critical issues
         let criticalIssues = [
-            createIssue(.permission(.inputMonitoring), severity: .critical),
-            createIssue(.component(.kanataNotInstalled), severity: .critical)
+            createIssue(.permission(.kanataInputMonitoring), severity: .critical),
+            createIssue(.component(.kanataBinary), severity: .critical)
         ]
 
         let shouldConfirm = coordinator.shouldConfirmClose(withIssues: criticalIssues)
@@ -349,14 +352,24 @@ final class WizardNavigationTests: XCTestCase {
 
 // MARK: - Helper Functions
 
-private func createIssue(_ identifier: WizardIssueIdentifier, severity: WizardIssueSeverity = .error) -> WizardIssue {
-    WizardIssue(
+private func createIssue(_ identifier: IssueIdentifier, severity: WizardIssue.IssueSeverity = .error) -> WizardIssue {
+    let category: WizardIssue.IssueCategory = {
+        switch identifier {
+        case .permission: return .permissions
+        case .component: return .installation
+        case .conflict: return .conflicts
+        case .daemon: return .daemon
+        }
+    }()
+    
+    return WizardIssue(
         identifier: identifier,
-        category: identifier.category,
         severity: severity,
+        category: category,
         title: "Test Issue",
-        message: "Test message",
-        autoFixAction: nil
+        description: "Test message",
+        autoFixAction: nil,
+        userAction: nil
     )
 }
 
@@ -410,7 +423,7 @@ extension WizardNavigationCoordinator {
     func canNavigate(from: WizardPage, to: WizardPage, withState: WizardSystemState) -> Bool {
         // Simplified validation logic
         switch (from, to, withState) {
-        case (_, .service, .notInstalled):
+        case (_, .service, .missingComponents):
             false
         default:
             true

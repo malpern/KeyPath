@@ -11,7 +11,7 @@ final class KeyRemapUIAutomationTests: XCTestCase {
     var keyboardCapture: KeyboardCapture!
     
     override func setUp() async throws {
-        await super.setUp()
+        try await super.setUp()
         
         // Set up the managers
         kanataManager = KanataManager()
@@ -27,7 +27,7 @@ final class KeyRemapUIAutomationTests: XCTestCase {
         simpleKanataManager = nil
         keyboardCapture = nil
         
-        await super.tearDown()
+        try await super.tearDown()
     }
     
     // MARK: - Key Remap UI Automation Tests

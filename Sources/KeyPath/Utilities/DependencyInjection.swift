@@ -51,7 +51,7 @@ extension EnvironmentValues {
 
 /// EnvironmentKey for PreferencesService (DI)
 private struct PreferencesServiceKey: EnvironmentKey {
-    static var defaultValue: PreferencesService = PreferencesService.shared
+    static var defaultValue: PreferencesService = .shared
 }
 
 extension EnvironmentValues {

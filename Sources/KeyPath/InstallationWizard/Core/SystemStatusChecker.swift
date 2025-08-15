@@ -3,7 +3,7 @@ import Foundation
 
 /// Unified system status checker that consolidates all detection logic
 /// Replaces: ComponentDetector, SystemHealthChecker, SystemRequirements, SystemStateDetector
-/// 
+///
 /// ENHANCED WITH FUNCTIONAL PERMISSION VERIFICATION:
 /// - Detects actual Kanata permission failures by analyzing service logs
 /// - Checks for IOHIDDeviceOpen errors and device access failures
@@ -140,11 +140,11 @@ class SystemStatusChecker {
         let functionalVerification = PermissionService.shared.verifyKanataFunctionalPermissions(
             at: WizardSystemPaths.kanataActiveBinary
         )
-        
+
         AppLogger.shared.log(
             "🔍 [SystemStatusChecker] Kanata functional verification: method=\(functionalVerification.verificationMethod), confidence=\(functionalVerification.confidence), hasAll=\(functionalVerification.hasAllRequiredPermissions)"
         )
-        
+
         // Log any error details for debugging
         if !functionalVerification.errorDetails.isEmpty {
             AppLogger.shared.log(
@@ -153,49 +153,49 @@ class SystemStatusChecker {
                 AppLogger.shared.log("  - \(error)")
             }
         }
-        
+
         // Only grant permissions if functional verification is confident they work
-        if functionalVerification.hasInputMonitoring && 
-           functionalVerification.confidence != .low && 
-           functionalVerification.confidence != .unknown {
+        if functionalVerification.hasInputMonitoring &&
+            functionalVerification.confidence != .low &&
+            functionalVerification.confidence != .unknown {
             granted.append(.kanataInputMonitoring)
         } else {
             missing.append(.kanataInputMonitoring)
             AppLogger.shared.log(
                 "❌ [SystemStatusChecker] Kanata Input Monitoring: functional verification failed")
         }
-        
-        if functionalVerification.hasAccessibility && 
-           functionalVerification.confidence != .low && 
-           functionalVerification.confidence != .unknown {
+
+        if functionalVerification.hasAccessibility &&
+            functionalVerification.confidence != .low &&
+            functionalVerification.confidence != .unknown {
             granted.append(.kanataAccessibility)
         } else {
             missing.append(.kanataAccessibility)
             AppLogger.shared.log(
                 "❌ [SystemStatusChecker] Kanata Accessibility: functional verification failed")
         }
-        
+
         // For low confidence results, fall back to TCC database but warn about uncertainty
         if functionalVerification.confidence == .low || functionalVerification.confidence == .unknown {
             AppLogger.shared.log(
                 "⚠️ [SystemStatusChecker] Low confidence verification - falling back to TCC database with warning")
-            
+
             // Check TCC database as fallback
             let tccInputMonitoring = PermissionService.checkTCCForInputMonitoring(
                 path: WizardSystemPaths.kanataActiveBinary)
             let tccAccessibility = PermissionService.checkTCCForAccessibility(
                 path: WizardSystemPaths.kanataActiveBinary)
-            
+
             // Only override missing permissions if TCC says they're granted
             // This prevents completely blocking the wizard on detection failures
-            if tccInputMonitoring && !granted.contains(.kanataInputMonitoring) {
+            if tccInputMonitoring, !granted.contains(.kanataInputMonitoring) {
                 granted.append(.kanataInputMonitoring)
                 missing.removeAll { $0 == .kanataInputMonitoring }
                 AppLogger.shared.log(
                     "ℹ️ [SystemStatusChecker] TCC fallback: granted kanata Input Monitoring")
             }
-            
-            if tccAccessibility && !granted.contains(.kanataAccessibility) {
+
+            if tccAccessibility, !granted.contains(.kanataAccessibility) {
                 granted.append(.kanataAccessibility)
                 missing.removeAll { $0 == .kanataAccessibility }
                 AppLogger.shared.log(

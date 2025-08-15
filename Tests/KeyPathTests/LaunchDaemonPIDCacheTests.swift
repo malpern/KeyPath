@@ -9,13 +9,13 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
     var cache: LaunchDaemonPIDCache!
 
     override func setUp() async throws {
-        await super.setUp()
+        try await super.setUp()
         cache = LaunchDaemonPIDCache()
     }
 
     override func tearDown() async throws {
         cache = nil
-        await super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Basic Cache Functionality Tests
@@ -273,7 +273,7 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
         // Results should be consistent
         let uniqueResults = Set(results.compactMap { $0 })
         if !results.compactMap({ $0 }).isEmpty {
-            XCTAssertLessOrEqual(
+            XCTAssertLessThanOrEqual(
                 uniqueResults.count, 1,
                 "Rapid fetches should return consistent results"
             )

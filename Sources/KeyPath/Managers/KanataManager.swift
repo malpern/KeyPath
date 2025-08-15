@@ -150,7 +150,7 @@ class KanataManager: ObservableObject {
         }
     }
 
-    private var kanataProcess: Process?
+    // Removed kanataProcess: Process? - now using LaunchDaemon service exclusively
     private let configDirectory = "\(NSHomeDirectory())/.config/keypath"
     private let configFileName = "keypath.kbd"
     private var isStartingKanata = false
@@ -926,10 +926,9 @@ class KanataManager: ObservableObject {
 
         // Check if already running or starting
         if isRunning || isStartingKanata {
-            let currentPID = kanataProcess?.processIdentifier ?? -1
             AppLogger.shared.log("⚠️ [Start] Kanata is already running or starting - skipping start")
             AppLogger.shared.log(
-                "⚠️ [Start] Current state: isRunning=\(isRunning), isStartingKanata=\(isStartingKanata), PID=\(currentPID)"
+                "⚠️ [Start] Current state: isRunning=\(isRunning), isStartingKanata=\(isStartingKanata)"
             )
             return
         }
@@ -985,124 +984,124 @@ class KanataManager: ObservableObject {
             }
         }
 
-        // Stop existing process if running
-        if let existingProcess = kanataProcess, existingProcess.isRunning {
-            AppLogger.shared.log("🛑 [Start] Terminating existing Kanata process...")
-            existingProcess.terminate()
-            kanataProcess = nil
-        }
-
-        // ProcessLifecycleManager now handles conflict resolution - no need for manual cleanup
-        AppLogger.shared.log(
-            "ℹ️ [Start] ProcessLifecycleManager handles conflict resolution - skipping manual cleanup")
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["-n"] + buildKanataArguments(configPath: configPath)
-
-        // DEBUG: Log the exact command being executed
-        let fullCommand = (["/usr/bin/sudo"] + task.arguments!).joined(separator: " ")
-        AppLogger.shared.log("🔍 [DEBUG] Starting Kanata with command:")
-        AppLogger.shared.log("🔍 [DEBUG] \(fullCommand)")
-        AppLogger.shared.log("🔍 [DEBUG] Config path: \(configPath)")
-        AppLogger.shared.log("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
+        // Check for and resolve any existing conflicting processes
+        AppLogger.shared.log("🔍 [Start] Checking for conflicting Kanata processes...")
+        await resolveProcessConflicts()
 
         // Check if config file exists and is readable
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: configPath) {
             AppLogger.shared.log("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
+            await updatePublishedProperties(
+                isRunning: false,
+                lastProcessExitCode: 1,
+                lastError: "Configuration file not found: \(configPath)"
+            )
+            return
         } else {
             AppLogger.shared.log("✅ [DEBUG] Config file exists at: \(configPath)")
-            if fileManager.isReadableFile(atPath: configPath) {
-                AppLogger.shared.log("✅ [DEBUG] Config file is readable")
-            } else {
+            if !fileManager.isReadableFile(atPath: configPath) {
                 AppLogger.shared.log("⚠️ [DEBUG] Config file is NOT readable")
+                await updatePublishedProperties(
+                    isRunning: false,
+                    lastProcessExitCode: 1,
+                    lastError: "Configuration file not readable: \(configPath)"
+                )
+                return
             }
         }
 
-        // Set environment to ensure proper execution
-        task.environment = ProcessInfo.processInfo.environment
-
-        // Capture both stdout and stderr for diagnostics
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        task.standardOutput = outputPipe
-        task.standardError = errorPipe
-
-        // Also log to file
-        let logPath = "\(NSHomeDirectory())/Library/Logs/KeyPath/kanata.log"
-        let logDirectory = URL(fileURLWithPath: logPath).deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: logDirectory, withIntermediateDirectories: true)
+        // Use LaunchDaemon service management exclusively
+        AppLogger.shared.log("🚀 [Start] Starting Kanata via LaunchDaemon service...")
+        AppLogger.shared.log("🔍 [DEBUG] Config path: \(configPath)")
+        AppLogger.shared.log("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
 
         do {
-            try task.run()
-            kanataProcess = task
+            // Start the LaunchDaemon service
+            let success = await startLaunchDaemonService()
+            
+            if success {
+                // Wait a moment for service to initialize
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                
+                // Verify service started successfully
+                let serviceStatus = await checkLaunchDaemonStatus()
+                if let pid = serviceStatus.pid {
+                    AppLogger.shared.log("📝 [Start] LaunchDaemon service started with PID: \(pid)")
+                    
+                    // Register with lifecycle manager
+                    let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
+                    await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
 
-            // Register the PID with our lifecycle manager
-            let pid = task.processIdentifier
-            let command = (["sudo", "-n"] + task.arguments!).joined(separator: " ")
-            await processLifecycleManager.registerStartedProcess(pid: pid, command: command)
-            AppLogger.shared.log("📝 [Start] Registered kanata process with PID: \(pid)")
-
-            // Start real-time log monitoring for VirtualHID connection issues
-            startLogMonitoring()
-
-            // Check for other Kanata processes immediately after starting
-            Task.detached {
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                let psTask = Process()
-                psTask.executableURL = URL(fileURLWithPath: "/bin/ps")
-                psTask.arguments = ["aux"]
-                let pipe = Pipe()
-                psTask.standardOutput = pipe
-                try? psTask.run()
-                psTask.waitUntilExit()
-
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                let kanataProcesses = output.components(separatedBy: .newlines).filter {
-                    $0.contains("kanata") && !$0.contains("grep")
+                    // Start real-time log monitoring for VirtualHID connection issues
+                    startLogMonitoring()
+                    
+                    // Check for process conflicts after starting
+                    await verifyNoProcessConflicts()
+                    
+                    // Update state and clear old diagnostics when successfully starting
+                    await updatePublishedProperties(
+                        isRunning: true,
+                        lastProcessExitCode: nil,
+                        lastError: nil,
+                        shouldClearDiagnostics: true
+                    )
+                    
+                    AppLogger.shared.log("✅ [Start] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
+                    AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
+                    
+                } else {
+                    // Service started but no PID found - may still be initializing
+                    AppLogger.shared.log("⚠️ [Start] LaunchDaemon service started but PID not yet available")
+                    
+                    // Update state to indicate running
+                    await updatePublishedProperties(
+                        isRunning: true,
+                        lastProcessExitCode: nil,
+                        lastError: nil,
+                        shouldClearDiagnostics: true
+                    )
+                    
+                    AppLogger.shared.log("✅ [Start] LaunchDaemon service started successfully")
+                    AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
                 }
-
-                AppLogger.shared.log(
-                    "🔍 [ProcessCheck] Found \(kanataProcesses.count) Kanata processes after start:")
-                for (index, process) in kanataProcesses.enumerated() {
-                    AppLogger.shared.log("🔍 [ProcessCheck] [\(index)] \(process)")
-                }
+            } else {
+                // Failed to start LaunchDaemon service
+                await updatePublishedProperties(
+                    isRunning: false,
+                    lastProcessExitCode: 1,
+                    lastError: "Failed to start LaunchDaemon service"
+                )
+                AppLogger.shared.log("❌ [Start] Failed to start LaunchDaemon service")
+                
+                let diagnostic = KanataDiagnostic(
+                    timestamp: Date(),
+                    severity: .error,
+                    category: .process,
+                    title: "LaunchDaemon Start Failed",
+                    description: "Failed to start Kanata LaunchDaemon service.",
+                    technicalDetails: "launchctl kickstart command failed",
+                    suggestedAction: "Check LaunchDaemon installation and permissions",
+                    canAutoFix: true
+                )
+                addDiagnostic(diagnostic)
             }
-            // Update state and clear old diagnostics when successfully starting
-            await updatePublishedProperties(
-                isRunning: true,
-                lastProcessExitCode: nil,
-                lastError: nil,
-                shouldClearDiagnostics: true
-            )
-
-            AppLogger.shared.log(
-                "✅ [Start] Successfully started Kanata process (PID: \(task.processIdentifier))")
-            AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
-
-            // Monitor process in background
-            Task {
-                await monitorKanataProcess(task, outputPipe: outputPipe, errorPipe: errorPipe)
-            }
-
         } catch {
             await updatePublishedProperties(
                 isRunning: false,
-                lastProcessExitCode: lastProcessExitCode,
-                lastError: "Failed to start Kanata: \(error.localizedDescription)"
+                lastProcessExitCode: 1,
+                lastError: "Exception during LaunchDaemon start: \(error.localizedDescription)"
             )
-            AppLogger.shared.log("❌ [Start] Failed to start Kanata: \(error.localizedDescription)")
+            AppLogger.shared.log("❌ [Start] Exception during LaunchDaemon start: \(error.localizedDescription)")
 
             let diagnostic = KanataDiagnostic(
                 timestamp: Date(),
                 severity: .error,
                 category: .process,
-                title: "Process Start Failed",
-                description: "Failed to launch Kanata process.",
+                title: "LaunchDaemon Start Exception",
+                description: "Exception occurred while starting Kanata LaunchDaemon service.",
                 technicalDetails: error.localizedDescription,
-                suggestedAction: "Check if Kanata is installed and permissions are granted",
+                suggestedAction: "Check system logs and LaunchDaemon configuration",
                 canAutoFix: false
             )
             addDiagnostic(diagnostic)
@@ -1111,108 +1110,225 @@ class KanataManager: ObservableObject {
         await updateStatus()
     }
 
-    private func monitorKanataProcess(_ process: Process, outputPipe: Pipe, errorPipe: Pipe) async {
-        AppLogger.shared.log(
-            "👁️ [Monitor] Starting process monitoring for PID \(process.processIdentifier)")
+    // MARK: - LaunchDaemon Service Management
 
-        // Monitor output in real-time while process is running
-        Task.detached { [weak self] in
-            let outputHandle = outputPipe.fileHandleForReading
-            let errorHandle = errorPipe.fileHandleForReading
-
-            // Set up async reading for real-time debug output
-            outputHandle.readabilityHandler = { handle in
-                let data = handle.availableData
-                if !data.isEmpty {
-                    let output = String(data: data, encoding: .utf8) ?? ""
-                    AppLogger.shared.log(
-                        "🔍 [Debug/Output] \(output.trimmingCharacters(in: .whitespacesAndNewlines))")
-                }
+    /// Start the Kanata LaunchDaemon service using launchctl
+    private func startLaunchDaemonService() async -> Bool {
+        AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service...")
+        
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = ["launchctl", "kickstart", "-k", "system/com.keypath.kanata"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            let success = task.terminationStatus == 0
+            AppLogger.shared.log("🚀 [LaunchDaemon] launchctl kickstart result: \(success ? "SUCCESS" : "FAILED")")
+            
+            if !output.isEmpty {
+                AppLogger.shared.log("🚀 [LaunchDaemon] Output: \(output)")
             }
-
-            errorHandle.readabilityHandler = { handle in
-                let data = handle.availableData
-                if !data.isEmpty {
-                    let error = String(data: data, encoding: .utf8) ?? ""
-                    AppLogger.shared.log(
-                        "🔍 [Debug/Error] \(error.trimmingCharacters(in: .whitespacesAndNewlines))")
-                }
-            }
+            
+            return success
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute launchctl kickstart: \(error)")
+            return false
         }
-
-        // Wait for process to exit (this will block until process terminates)
-        process.waitUntilExit()
-
-        let exitCode = process.terminationStatus
-        AppLogger.shared.log("📊 [Monitor] Kanata process exited with code: \(exitCode)")
-
-        // Capture output and error streams
-        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-
-        let outputString = String(data: outputData, encoding: .utf8) ?? ""
-        let errorString = String(data: errorData, encoding: .utf8) ?? ""
-        let combinedOutput = "\(outputString)\n\(errorString)".trimmingCharacters(
-            in: .whitespacesAndNewlines)
-
-        AppLogger.shared.log("📋 [Monitor] Process output: \(combinedOutput)")
-
-        // Update state
-        if kanataProcess?.processIdentifier == process.processIdentifier {
-            kanataProcess = nil
-        }
-
-        // Diagnose the failure if it wasn't a normal shutdown
-        let errorMessage: String?
-        if exitCode != 0, exitCode != -15 { // -15 is SIGTERM (normal shutdown)
-            diagnoseKanataFailure(exitCode, combinedOutput)
-            errorMessage = "Kanata exited with code \(exitCode)"
-        } else {
-            errorMessage = nil
-        }
-
-        await updatePublishedProperties(
-            isRunning: false,
-            lastProcessExitCode: exitCode,
-            lastError: errorMessage
-        )
-
-        // Update status after process exits
-        await updateStatus()
     }
 
-    func stopKanata() async {
-        AppLogger.shared.log("🛑 [Stop] Stopping Kanata process...")
-
-        if let process = kanataProcess, process.isRunning {
-            process.terminate()
-            // Wait a moment for graceful termination
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-            // Force kill if still running
-            if process.isRunning {
-                process.interrupt()
+    /// Check the status of the LaunchDaemon service
+    private func checkLaunchDaemonStatus() async -> (isRunning: Bool, pid: Int?) {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = ["launchctl", "print", "system/com.keypath.kanata"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            // Parse the output to find the PID
+            if task.terminationStatus == 0 {
+                // Look for "pid = XXXX" in the output
+                let lines = output.components(separatedBy: .newlines)
+                for line in lines {
+                    if line.contains("pid =") {
+                        let components = line.components(separatedBy: "=")
+                        if components.count >= 2,
+                           let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
+                           let pid = Int(pidString) {
+                            AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
+                            return (true, pid)
+                        }
+                    }
+                }
+                // Service loaded but no PID found (may be starting)
+                AppLogger.shared.log("🔍 [LaunchDaemon] Service loaded but PID not found")
+                return (true, nil)
+            } else {
+                AppLogger.shared.log("🔍 [LaunchDaemon] Service not loaded or failed")
+                return (false, nil)
             }
-
-            kanataProcess = nil
-
-            // Unregister the PID
-            await processLifecycleManager.unregisterProcess()
-
-            AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata process")
-        } else {
-            AppLogger.shared.log("ℹ️ [Stop] No Kanata process to stop")
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to check service status: \(error)")
+            return (false, nil)
         }
+    }
 
-        // Stop log monitoring when Kanata stops
-        stopLogMonitoring()
+    /// Resolve any conflicting Kanata processes before starting
+    private func resolveProcessConflicts() async {
+        AppLogger.shared.log("🔍 [Conflict] Checking for conflicting Kanata processes...")
+        
+        let conflicts = await processLifecycleManager.detectConflicts()
+        let allProcesses = conflicts.managedProcesses + conflicts.externalProcesses
+        
+        if !allProcesses.isEmpty {
+            AppLogger.shared.log("⚠️ [Conflict] Found \(allProcesses.count) existing Kanata processes")
+            
+            for processInfo in allProcesses {
+                AppLogger.shared.log("⚠️ [Conflict] Process PID \(processInfo.pid): \(processInfo.command)")
+                
+                // Kill non-LaunchDaemon processes
+                if !processInfo.command.contains("launchd") && !processInfo.command.contains("system/com.keypath.kanata") {
+                    AppLogger.shared.log("🔄 [Conflict] Killing non-LaunchDaemon process: \(processInfo.pid)")
+                    await killProcess(pid: Int(processInfo.pid))
+                }
+            }
+        } else {
+            AppLogger.shared.log("✅ [Conflict] No conflicting processes found")
+        }
+    }
 
-        await updatePublishedProperties(
-            isRunning: false,
-            lastProcessExitCode: lastProcessExitCode,
-            lastError: nil
-        )
-        await updateStatus()
+    /// Verify no process conflicts exist after starting
+    private func verifyNoProcessConflicts() async {
+        // Wait a moment for any conflicts to surface
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        let conflicts = await processLifecycleManager.detectConflicts()
+        let allProcesses = conflicts.managedProcesses + conflicts.externalProcesses
+        
+        AppLogger.shared.log("🔍 [Verify] Found \(allProcesses.count) total Kanata processes after start")
+        
+        var launchDaemonCount = 0
+        var userProcessCount = 0
+        
+        for processInfo in allProcesses {
+            if processInfo.command.contains("launchd") || processInfo.command.contains("system/com.keypath.kanata") {
+                launchDaemonCount += 1
+            } else {
+                userProcessCount += 1
+                AppLogger.shared.log("⚠️ [Verify] Unexpected user process: PID \(processInfo.pid) - \(processInfo.command)")
+            }
+        }
+        
+        AppLogger.shared.log("🔍 [Verify] LaunchDaemon processes: \(launchDaemonCount), User processes: \(userProcessCount)")
+        
+        if userProcessCount > 0 {
+            AppLogger.shared.log("⚠️ [Verify] WARNING: \(userProcessCount) user processes detected - potential conflicts!")
+        } else {
+            AppLogger.shared.log("✅ [Verify] Clean single-process architecture confirmed")
+        }
+    }
+
+    /// Stop the Kanata LaunchDaemon service using launchctl
+    private func stopLaunchDaemonService() async -> Bool {
+        AppLogger.shared.log("🛑 [LaunchDaemon] Stopping Kanata service...")
+        
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = ["launchctl", "kill", "TERM", "system/com.keypath.kanata"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            let success = task.terminationStatus == 0
+            AppLogger.shared.log("🛑 [LaunchDaemon] launchctl kill result: \(success ? "SUCCESS" : "FAILED")")
+            
+            if !output.isEmpty {
+                AppLogger.shared.log("🛑 [LaunchDaemon] Output: \(output)")
+            }
+            
+            // Wait a moment for graceful shutdown
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            
+            return success
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute launchctl kill: \(error)")
+            return false
+        }
+    }
+
+    /// Kill a specific process by PID
+    private func killProcess(pid: Int) async {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = ["kill", "-TERM", String(pid)]
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [Kill] Successfully killed process \(pid)")
+            } else {
+                AppLogger.shared.log("⚠️ [Kill] Failed to kill process \(pid) (may have already exited)")
+            }
+        } catch {
+            AppLogger.shared.log("❌ [Kill] Exception killing process \(pid): \(error)")
+        }
+    }
+
+    // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service management
+
+    func stopKanata() async {
+        AppLogger.shared.log("🛑 [Stop] Stopping Kanata LaunchDaemon service...")
+
+        // Stop the LaunchDaemon service
+        let success = await stopLaunchDaemonService()
+        
+        if success {
+            AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata LaunchDaemon service")
+            
+            // Unregister from lifecycle manager
+            await processLifecycleManager.unregisterProcess()
+            
+            // Stop log monitoring when Kanata stops
+            stopLogMonitoring()
+            
+            await updatePublishedProperties(
+                isRunning: false,
+                lastProcessExitCode: nil,
+                lastError: nil
+            )
+        } else {
+            AppLogger.shared.log("⚠️ [Stop] Failed to stop Kanata LaunchDaemon service")
+            
+            // Still update status to reflect current state
+            await updateStatus()
+        }
     }
 
     func restartKanata() async {
@@ -1352,47 +1468,46 @@ class KanataManager: ObservableObject {
     }
 
     private func performUpdateStatus() async {
-        // Check if our process is still running
-        if let process = kanataProcess {
-            let processRunning = process.isRunning
-            if isRunning != processRunning {
-                AppLogger.shared.log("⚠️ [Status] Process state changed: \(processRunning)")
+        // Check LaunchDaemon service status instead of direct process
+        let serviceStatus = await checkLaunchDaemonStatus()
+        let serviceRunning = serviceStatus.isRunning
+        
+        if isRunning != serviceRunning {
+            AppLogger.shared.log("⚠️ [Status] LaunchDaemon service state changed: \(serviceRunning)")
+            
+            if serviceRunning {
+                // Service is running - clear any stale errors
                 await updatePublishedProperties(
-                    isRunning: processRunning,
+                    isRunning: serviceRunning,
+                    lastProcessExitCode: nil,
+                    lastError: nil,
+                    shouldClearDiagnostics: true
+                )
+                AppLogger.shared.log("🔄 [Status] LaunchDaemon service running - cleared stale diagnostics")
+                
+                if let pid = serviceStatus.pid {
+                    AppLogger.shared.log("✅ [Status] LaunchDaemon service PID: \(pid)")
+                    
+                    // Update lifecycle manager with current service PID
+                    let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
+                    await processLifecycleManager.registerStartedProcess(pid: pid, command: "launchd: \(command)")
+                }
+            } else {
+                // Service is not running
+                await updatePublishedProperties(
+                    isRunning: serviceRunning,
                     lastProcessExitCode: lastProcessExitCode,
                     lastError: lastError
                 )
-                if !processRunning {
-                    kanataProcess = nil
-                }
-            }
-        } else {
-            // No process tracked, check if any kanata is running externally
-            let externalRunning = await checkExternalKanataProcess()
-            if isRunning != externalRunning {
-                AppLogger.shared.log("⚠️ [Status] External kanata process detected: \(externalRunning)")
-
-                // Clear exit code, error message, and stale diagnostics when we detect external process is running
-                // This prevents showing stale information for currently running processes
-                if externalRunning {
-                    await updatePublishedProperties(
-                        isRunning: externalRunning,
-                        lastProcessExitCode: nil,
-                        lastError: nil,
-                        shouldClearDiagnostics: true
-                    )
-                    AppLogger.shared.log(
-                        "🔄 [Status] Cleared stale exit code, error, and diagnostics - external process is running"
-                    )
-                } else {
-                    await updatePublishedProperties(
-                        isRunning: externalRunning,
-                        lastProcessExitCode: lastProcessExitCode,
-                        lastError: lastError
-                    )
-                }
+                AppLogger.shared.log("⚠️ [Status] LaunchDaemon service is not running")
+                
+                // Clean up lifecycle manager
+                await processLifecycleManager.unregisterProcess()
             }
         }
+        
+        // Check for any conflicting processes
+        await verifyNoProcessConflicts()
     }
 
     /// Stop Kanata when the app is terminating (async version).

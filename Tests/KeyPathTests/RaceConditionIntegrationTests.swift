@@ -11,7 +11,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
     var processManager: ProcessLifecycleManager!
 
     override func setUp() async throws {
-        await super.setUp()
+        try await super.setUp()
         kanataManager = KanataManager()
         detector = SystemStateDetector(kanataManager: kanataManager)
         processManager = ProcessLifecycleManager(kanataManager: kanataManager)
@@ -21,7 +21,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
         detector = nil
         processManager = nil
         kanataManager = nil
-        await super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Core Race Condition Scenario Tests

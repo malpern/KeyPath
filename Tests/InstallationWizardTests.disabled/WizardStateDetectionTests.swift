@@ -243,14 +243,21 @@ final class WizardStateDetectionTests: XCTestCase {
         ]
 
         for testCase in testCases {
-            let result = detector.computeOrphanedProcessAutoFixWithMocks(
-                orphanedProcess: testCase.orphanedProcess,
-                configPath: testCase.configPath,
-                launchDaemonInstalled: testCase.launchDaemonInstalled
+            // Transform test case data to match actual method signature
+            let externalProcesses = testCase.orphanedProcess != nil ? [testCase.orphanedProcess!] : []
+            let managedProcesses: [ProcessLifecycleManager.ProcessInfo] = []
+            let plistPresent = testCase.launchDaemonInstalled
+            let serviceLoaded = false // Test assumes service not loaded
+            
+            let result = await detector.testComputeOrphanedProcessAutoFixWithMocks(
+                externalProcesses: externalProcesses,
+                managedProcesses: managedProcesses,
+                plistPresent: plistPresent,
+                serviceLoaded: serviceLoaded
             )
 
             XCTAssertEqual(
-                result.autoFix,
+                result,
                 testCase.expectedAction,
                 "Failed: \(testCase.name)"
             )
@@ -266,9 +273,9 @@ final class WizardStateDetectionTests: XCTestCase {
         )
 
         // Run multiple concurrent state detections
-        async let state1 = detector.detectSystemState()
-        async let state2 = detector.detectSystemState()
-        async let state3 = detector.detectSystemState()
+        async let state1 = detector.detectCurrentState()
+        async let state2 = detector.detectCurrentState()
+        async let state3 = detector.detectCurrentState()
 
         let states = await [state1, state2, state3]
 
@@ -280,11 +287,11 @@ final class WizardStateDetectionTests: XCTestCase {
     func testStateTransitionValidation() async throws {
         // Test valid state transitions
         let validTransitions: [(WizardSystemState, WizardSystemState)] = [
-            (.notInstalled, .needsConfiguration),
-            (.needsConfiguration, .partiallyConfigured),
-            (.partiallyConfigured, .configurationComplete),
-            (.configurationComplete, .fullyOperational),
-            (.fullyOperational, .needsHelp) // Can regress if issues arise
+            (.initializing, .missingComponents(missing: [])),
+            (.missingComponents(missing: []), .missingPermissions(missing: [])),
+            (.missingPermissions(missing: []), .ready),
+            (.ready, .active),
+            (.active, .conflictsDetected(conflicts: [])) // Can regress if issues arise
         ]
 
         for (from, to) in validTransitions {
@@ -296,8 +303,8 @@ final class WizardStateDetectionTests: XCTestCase {
 
         // Test invalid transitions
         let invalidTransitions: [(WizardSystemState, WizardSystemState)] = [
-            (.fullyOperational, .notInstalled), // Can't uninstall to nothing
-            (.notInstalled, .fullyOperational) // Can't skip all steps
+            (.active, .initializing), // Can't go back to initialization from active
+            (.initializing, .active) // Can't skip all steps
         ]
 
         for (from, to) in invalidTransitions {
@@ -312,15 +319,19 @@ final class WizardStateDetectionTests: XCTestCase {
     private func isValidTransition(from: WizardSystemState, to: WizardSystemState) -> Bool {
         // Define valid state transition rules
         switch (from, to) {
-        case (.notInstalled, .needsConfiguration),
-             (.needsConfiguration, .partiallyConfigured),
-             (.partiallyConfigured, .configurationComplete),
-             (.configurationComplete, .fullyOperational):
+        case (.initializing, .missingComponents),
+             (.missingComponents, .missingPermissions),
+             (.missingPermissions, .ready),
+             (.ready, .active):
             true
-        case (_, .needsHelp):
-            true // Can always need help
-        case (.needsHelp, _):
-            true // Can recover from needing help
+        case (_, .conflictsDetected):
+            true // Can always detect conflicts
+        case (.conflictsDetected, _):
+            true // Can recover from conflicts
+        case (_, .daemonNotRunning), (_, .serviceNotRunning):
+            true // Services can stop at any time
+        case (.daemonNotRunning, .ready), (.serviceNotRunning, .ready):
+            true // Can recover service issues
         default:
             false
         }

@@ -1,6 +1,6 @@
 import Foundation
-import SwiftUI
 import Observation
+import SwiftUI
 
 /// Manages async operations throughout the wizard with consistent patterns and error handling
 @Observable

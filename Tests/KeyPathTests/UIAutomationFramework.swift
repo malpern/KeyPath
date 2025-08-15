@@ -275,18 +275,13 @@ public class UIAutomationFramework {
 
 // MARK: - Supporting Types
 
-/// Represents a key mapping configuration
-public struct KeyMapping {
-    public let input: String
-    public let output: String
-    
-    public var description: String {
+/// Represents a key mapping configuration  
+// Note: KeyMapping is imported from the main KeyPath module via @testable import
+
+// Extension to add description property for test compatibility
+extension KeyMapping {
+    var description: String {
         "\(input) → \(output)"
-    }
-    
-    public init(input: String, output: String) {
-        self.input = input
-        self.output = output
     }
 }
 
@@ -410,13 +405,13 @@ public class MockKeyboardCapture: KeyboardCapture {
     private var continuousCallback: ((String) -> Void)?
     private var simulationDelay: TimeInterval = 0.1
     
-    public override func startCapture(onKeyCapture: @escaping (String) -> Void) {
-        inputCallback = onKeyCapture
+    public override func startCapture(callback: @escaping (String) -> Void) {
+        inputCallback = callback
         AppLogger.shared.log("🎭 [MockKeyCapture] Started input capture")
     }
     
-    public override func startContinuousCapture(onKeyCapture: @escaping (String) -> Void) {
-        continuousCallback = onKeyCapture
+    public override func startContinuousCapture(callback: @escaping (String) -> Void) {
+        continuousCallback = callback
         AppLogger.shared.log("🎭 [MockKeyCapture] Started continuous capture")
     }
     

@@ -63,14 +63,14 @@ swift build -c release
 # Run a single test
 swift test --filter TestClassName.testMethodName
 
+# Run all tests (may prompt for passwords)
+./run-tests.sh
+
 # Unit tests only
 swift test
 
-# Automated tests (with passwordless sudo setup)
-./run-tests-automated.sh
-
-# All tests (manual password entry)
-./run-tests.sh
+# Force manual tests (requires password entry)
+KEYPATH_MANUAL_TESTS=true ./run-tests.sh
 
 # Individual integration tests
 ./test-kanata-system.sh   # Tests Kanata service operations
@@ -79,37 +79,14 @@ swift test
 ./test-installer.sh       # Tests installation wizard
 ```
 
-### Automated Testing Setup
+### Testing Notes
 
-For CI/CD or frequent testing, use the automated test runner:
+Integration tests may require administrator privileges for:
+- Managing launchctl services
+- Creating/modifying system files
+- Running kanata with required permissions
 
-```bash
-# Interactive setup (asks for confirmation)
-./run-tests-automated.sh
-
-# Automatic setup (for CI)
-KEYPATH_TESTING=true ./run-tests-automated.sh
-
-# Or with flag
-./run-tests-automated.sh --auto-setup
-```
-
-The automated runner:
-1. Sets up passwordless sudo for specific KeyPath test commands
-2. Runs all tests without password prompts
-3. Cleans up the sudo configuration afterward
-
-**Manual sudo setup for development:**
-```bash
-# Setup passwordless sudo for testing
-./Scripts/setup-test-sudoers.sh
-
-# Run tests (no passwords required)
-swift test
-
-# Cleanup when done
-./Scripts/cleanup-test-sudoers.sh
-```
+For frequent testing, you may want to set up passwordless sudo locally (not recommended for production environments).
 
 **Alternative with expect (if you have a password):**
 ```bash

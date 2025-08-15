@@ -186,8 +186,8 @@ class MockSystemEnvironment {
     }
 }
 
-/// Mock KanataManager for testing
-class MockKanataManager: ObservableObject {
+/// Mock KanataManager for testing (environment-specific)
+class MockEnvironmentKanataManager: ObservableObject {
     private let mockEnvironment: MockSystemEnvironment
 
     @Published var isRunning: Bool = false

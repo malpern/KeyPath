@@ -9,14 +9,14 @@ final class RealUIAutomationTest: XCTestCase {
     var kanataManager: KanataManager!
     
     override func setUp() async throws {
-        await super.setUp()
+        try await super.setUp()
         kanataManager = KanataManager()
         AppLogger.shared.log("🧪 [RealUIAutomation] Starting real UI automation test")
     }
     
     override func tearDown() async throws {
         kanataManager = nil
-        await super.tearDown()
+        try await super.tearDown()
     }
     
     func testFullUIWorkflowWithValidation() async throws {
@@ -117,12 +117,4 @@ final class RealUIAutomationTest: XCTestCase {
         }
     }
 }
-
-// Extension for testing support
-extension KanataManager {
-    /// Verify config file exists (for testing)
-    func verifyConfigExists() async -> Bool {
-        let configPath = WizardSystemPaths.userConfigPath
-        return FileManager.default.fileExists(atPath: configPath)
-    }
-}
+    // End of file

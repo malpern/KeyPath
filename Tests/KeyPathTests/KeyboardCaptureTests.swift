@@ -7,11 +7,11 @@ import Foundation
 final class KeyboardCaptureTests: XCTestCase {
     var capture: KeyboardCapture!
     var receivedNotifications: [Notification] = []
-    
+
     override func setUpWithError() throws {
         capture = KeyboardCapture()
         receivedNotifications.removeAll()
-        
+
         // Set up notification observer
         NotificationCenter.default.addObserver(
             self,
@@ -20,28 +20,28 @@ final class KeyboardCaptureTests: XCTestCase {
             object: nil
         )
     }
-    
+
     override func tearDownWithError() throws {
         capture.stopCapture()
         capture.stopEmergencyMonitoring()
         capture = nil
-        
+
         NotificationCenter.default.removeObserver(self)
     }
-    
+
     @objc private func notificationReceived(_ notification: Notification) {
         receivedNotifications.append(notification)
     }
-    
+
     // MARK: - Initialization Tests
-    
+
     func testKeyboardCaptureInitialization() throws {
         XCTAssertNotNil(capture)
         XCTAssertFalse(capture.checkAccessibilityPermissionsSilently() || !capture.checkAccessibilityPermissionsSilently(), "Should return boolean")
     }
-    
+
     // MARK: - Key Code Mapping Tests
-    
+
     func testKeyCodeToStringMapping() throws {
         // Test known key mappings
         let testCases: [(Int64, String)] = [
@@ -56,23 +56,23 @@ final class KeyboardCaptureTests: XCTestCase {
             (46, "m"), (47, "."), (48, "tab"), (49, "space"), (50, "`"),
             (51, "delete"), (53, "escape"), (58, "caps"), (59, "caps")
         ]
-        
+
         for (keyCode, expected) in testCases {
             let result = capture.keyCodeToString(keyCode)
             XCTAssertEqual(result, expected, "Key code \(keyCode) should map to '\(expected)'")
         }
     }
-    
+
     func testUnknownKeyCodeMapping() throws {
         // Test unknown key codes
         let unknownKeyCodes: [Int64] = [999, 100, 200, 300, -1, 1000]
-        
+
         for keyCode in unknownKeyCodes {
             let result = capture.keyCodeToString(keyCode)
             XCTAssertEqual(result, "key\(keyCode)", "Unknown key code \(keyCode) should map to 'key\(keyCode)'")
         }
     }
-    
+
     func testKeyCodeEdgeCases() throws {
         // Test edge cases
         let edgeCases: [(Int64, String)] = [
@@ -81,21 +81,21 @@ final class KeyboardCaptureTests: XCTestCase {
             (0, "a"), // Should be 'a', not 'key0'
             (10, "key10") // Gap in mapping
         ]
-        
+
         for (keyCode, expected) in edgeCases {
             let result = capture.keyCodeToString(keyCode)
             XCTAssertEqual(result, expected, "Edge case key code \(keyCode) should map to '\(expected)'")
         }
     }
-    
+
     // MARK: - Permission Tests
-    
+
     func testAccessibilityPermissionCheck() throws {
         // Test that permission check returns a boolean without prompting
         let hasPermissions = capture.checkAccessibilityPermissionsSilently()
         XCTAssertTrue(hasPermissions == true || hasPermissions == false, "Should return boolean value")
     }
-    
+
     func testPermissionRequestExplicitly() throws {
         // Test explicit permission request
         // This will show a system dialog if permissions aren't granted
@@ -103,28 +103,28 @@ final class KeyboardCaptureTests: XCTestCase {
         capture.requestPermissionsExplicitly()
         XCTAssertTrue(true, "Explicit permission request should complete without crashing")
     }
-    
+
     // MARK: - Capture Lifecycle Tests
-    
+
     func testSingleKeyCaptureLifecycle() throws {
         var capturedKeys: [String] = []
         let expectation = expectation(description: "Single key capture")
-        
+
         // Test starting capture
         capture.startCapture { key in
             capturedKeys.append(key)
             expectation.fulfill()
         }
-        
+
         // If we don't have permissions, should post notification
         if !capture.checkAccessibilityPermissionsSilently() {
             // Wait for notification
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 expectation.fulfill()
             }
-            
+
             wait(for: [expectation], timeout: 1.0)
-            
+
             XCTAssertEqual(receivedNotifications.count, 1, "Should post permission notification")
             XCTAssertEqual(receivedNotifications[0].name.rawValue, "KeyboardCapturePermissionNeeded")
             XCTAssertEqual(capturedKeys.count, 1, "Should capture permission warning")
@@ -135,33 +135,33 @@ final class KeyboardCaptureTests: XCTestCase {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 expectation.fulfill()
             }
-            
+
             wait(for: [expectation], timeout: 1.0)
         }
-        
+
         // Test stopping capture
         capture.stopCapture()
         XCTAssertTrue(true, "Stop capture should complete without error")
     }
-    
+
     func testContinuousCaptureLifecycle() throws {
         var capturedKeys: [String] = []
         let expectation = expectation(description: "Continuous capture")
-        
+
         // Test starting continuous capture
         capture.startContinuousCapture { key in
             capturedKeys.append(key)
             expectation.fulfill()
         }
-        
+
         // If we don't have permissions, should post notification
         if !capture.checkAccessibilityPermissionsSilently() {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 expectation.fulfill()
             }
-            
+
             wait(for: [expectation], timeout: 1.0)
-            
+
             XCTAssertEqual(receivedNotifications.count, 1, "Should post permission notification")
             XCTAssertEqual(capturedKeys.count, 1, "Should capture permission warning")
             XCTAssertTrue(capturedKeys[0].contains("continuous"), "Should mention continuous capture")
@@ -169,56 +169,56 @@ final class KeyboardCaptureTests: XCTestCase {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 expectation.fulfill()
             }
-            
+
             wait(for: [expectation], timeout: 1.0)
         }
-        
+
         // Test stopping capture
         capture.stopCapture()
         XCTAssertTrue(true, "Stop continuous capture should complete without error")
     }
-    
+
     func testCaptureAlreadyRunning() throws {
         var captureCount = 0
-        
+
         // Start first capture
         capture.startCapture { _ in
             captureCount += 1
         }
-        
+
         // Try to start second capture - should be ignored
         capture.startCapture { _ in
             captureCount += 1
         }
-        
+
         // Give time for any async operations
         Thread.sleep(forTimeInterval: 0.1)
-        
+
         // If no permissions, should have received permission warning once
         // If has permissions, no immediate captures expected
         capture.stopCapture()
         XCTAssertTrue(true, "Multiple start calls should be handled gracefully")
     }
-    
+
     func testStopCaptureWhenNotRunning() throws {
         // Should not crash when stopping capture that isn't running
         capture.stopCapture()
         capture.stopCapture() // Multiple calls
         XCTAssertTrue(true, "Stop capture when not running should not crash")
     }
-    
+
     // MARK: - Emergency Stop Sequence Tests
-    
+
     func testEmergencyMonitoringLifecycle() throws {
         var emergencyTriggered = false
         let expectation = expectation(description: "Emergency monitoring")
-        
+
         // Start emergency monitoring
         capture.startEmergencyMonitoring {
             emergencyTriggered = true
             expectation.fulfill()
         }
-        
+
         // If no permissions, monitoring should silently fail
         // If has permissions, monitoring should start
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -226,84 +226,84 @@ final class KeyboardCaptureTests: XCTestCase {
                 expectation.fulfill()
             }
         }
-        
+
         wait(for: [expectation], timeout: 1.0)
-        
+
         // Stop monitoring
         capture.stopEmergencyMonitoring()
         XCTAssertTrue(true, "Emergency monitoring lifecycle should complete without error")
     }
-    
+
     func testEmergencyMonitoringAlreadyRunning() throws {
         var callbackCount = 0
-        
+
         // Start first monitoring
         capture.startEmergencyMonitoring {
             callbackCount += 1
         }
-        
+
         // Try to start second monitoring - should be ignored
         capture.startEmergencyMonitoring {
             callbackCount += 1
         }
-        
+
         Thread.sleep(forTimeInterval: 0.1)
-        
+
         capture.stopEmergencyMonitoring()
         XCTAssertTrue(true, "Multiple emergency monitoring starts should be handled gracefully")
     }
-    
+
     func testStopEmergencyMonitoringWhenNotRunning() throws {
         // Should not crash when stopping monitoring that isn't running
         capture.stopEmergencyMonitoring()
         capture.stopEmergencyMonitoring() // Multiple calls
         XCTAssertTrue(true, "Stop emergency monitoring when not running should not crash")
     }
-    
+
     // MARK: - Notification Tests
-    
+
     func testPermissionNotificationContent() throws {
         let expectation = expectation(description: "Permission notification")
-        
+
         // Start capture without permissions to trigger notification
         capture.startCapture { key in
             // Permission warning should be captured
             XCTAssertTrue(key.contains("⚠️"), "Should contain warning")
             XCTAssertTrue(key.contains("permission"), "Should mention permission")
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             expectation.fulfill()
         }
-        
+
         wait(for: [expectation], timeout: 1.0)
-        
+
         // Check if notification was posted (depends on permission state)
         if !capture.checkAccessibilityPermissionsSilently() {
             XCTAssertGreaterThanOrEqual(receivedNotifications.count, 1, "Should post permission notification")
-            
+
             let notification = receivedNotifications.first!
             XCTAssertEqual(notification.name.rawValue, "KeyboardCapturePermissionNeeded")
-            
+
             let userInfo = notification.userInfo
             XCTAssertNotNil(userInfo, "Notification should have userInfo")
             XCTAssertTrue(userInfo!["reason"] is String, "Should have reason string")
         }
     }
-    
+
     func testContinuousCapturePermissionNotification() throws {
         let expectation = expectation(description: "Continuous permission notification")
-        
+
         capture.startContinuousCapture { key in
             XCTAssertTrue(key.contains("⚠️"), "Should contain warning")
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             expectation.fulfill()
         }
-        
+
         wait(for: [expectation], timeout: 1.0)
-        
+
         if !capture.checkAccessibilityPermissionsSilently() {
             let notification = receivedNotifications.last!
             let userInfo = notification.userInfo!
@@ -311,18 +311,18 @@ final class KeyboardCaptureTests: XCTestCase {
             XCTAssertTrue(reason.contains("continuous"), "Should mention continuous capture")
         }
     }
-    
+
     // MARK: - Timer Tests
-    
+
     func testPauseTimerBehavior() throws {
         // We can't easily test the actual timer behavior without mocking,
         // but we can test that timer operations don't crash
         let expectation = expectation(description: "Timer behavior")
-        
+
         capture.startContinuousCapture { _ in
             // Timer should be reset on each key (if permissions exist)
         }
-        
+
         // Test multiple rapid "key presses" to reset timer
         // (In real usage, this would be done via handleKeyEvent)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -330,55 +330,55 @@ final class KeyboardCaptureTests: XCTestCase {
             self.capture.stopCapture()
             expectation.fulfill()
         }
-        
+
         wait(for: [expectation], timeout: 1.0)
         XCTAssertTrue(true, "Timer operations should complete without crashing")
     }
-    
+
     // MARK: - Memory Management Tests
-    
+
     func testMemoryManagementDuringCapture() throws {
         weak var weakCapture: KeyboardCapture?
-        
+
         // Create capture in local scope
         do {
             let localCapture = KeyboardCapture()
             weakCapture = localCapture
-            
+
             localCapture.startCapture { _ in }
             localCapture.stopCapture()
-            
+
             localCapture.startEmergencyMonitoring { }
             localCapture.stopEmergencyMonitoring()
         }
-        
+
         // Give time for cleanup
         Thread.sleep(forTimeInterval: 0.1)
-        
+
         // Object should be deallocated after going out of scope
         // Note: This may not always pass due to ARC optimizations in tests
         // but it's good to verify cleanup doesn't cause retain cycles
         XCTAssertTrue(true, "Memory management test completed")
     }
-    
+
     // MARK: - Error Handling Tests
-    
+
     func testEventTapCreationFailure() throws {
         // We can't easily force event tap creation to fail in tests,
         // but we can test that the code handles it gracefully
-        
+
         // Test multiple rapid start/stop cycles
         for _ in 0..<5 {
             capture.startCapture { _ in }
             capture.stopCapture()
         }
-        
+
         XCTAssertTrue(true, "Rapid start/stop cycles should not crash")
     }
-    
+
     func testCallbackErrorHandling() throws {
         let expectation = expectation(description: "Callback error handling")
-        
+
         // Test callback that throws an error
         capture.startCapture { key in
             // Simulate an error in callback
@@ -387,66 +387,66 @@ final class KeyboardCaptureTests: XCTestCase {
             }
             expectation.fulfill()
         }
-        
+
         // Since we can't trigger actual key events in tests,
         // we just verify the setup completes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             expectation.fulfill()
         }
-        
+
         wait(for: [expectation], timeout: 1.0)
-        
+
         capture.stopCapture()
         XCTAssertTrue(true, "Callback error handling should be robust")
     }
-    
+
     // MARK: - Integration Tests
-    
+
     func testKeyboardCaptureWithKanataManager() throws {
         // Test integration between KeyboardCapture and KanataManager
         let manager = KanataManager()
         var capturedInput: String?
-        
+
         let expectation = expectation(description: "Integration test")
-        
+
         capture.startCapture { key in
             capturedInput = key
-            
+
             // Test that captured key can be used with KanataManager
             let convertedKey = manager.convertToKanataKey(key)
             XCTAssertFalse(convertedKey.isEmpty, "Converted key should not be empty")
-            
+
             expectation.fulfill()
         }
-        
+
         // Simulate timeout for async operation
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             expectation.fulfill()
         }
-        
+
         wait(for: [expectation], timeout: 1.0)
-        
+
         capture.stopCapture()
-        
+
         if let input = capturedInput {
             // Test conversion with KanataManager
             let kanataKey = manager.convertToKanataKey(input)
             XCTAssertFalse(kanataKey.isEmpty, "Should convert to valid Kanata key")
         }
     }
-    
+
     // MARK: - Performance Tests
-    
+
     func testKeyCodeMappingPerformance() throws {
         let testKeyCodes = Array(0...127) // Test common key code range
-        
+
         measure {
             for keyCode in testKeyCodes {
                 _ = capture.keyCodeToString(Int64(keyCode))
             }
         }
     }
-    
+
     func testCaptureLifecyclePerformance() throws {
         measure {
             for _ in 0..<100 {
@@ -455,9 +455,9 @@ final class KeyboardCaptureTests: XCTestCase {
             }
         }
     }
-    
+
     // MARK: - Helper Methods for Testing
-    
+
     private func simulateKeyPress(_ keyCode: Int64) {
         // Helper method to simulate key press in tests
         // Note: This doesn't actually create CGEvents, just tests the mapping

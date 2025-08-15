@@ -449,7 +449,7 @@ class PermissionService {
     }
 
     // MARK: - Enhanced Functional Verification
-    
+
     /// Result of functional permission verification
     struct FunctionalVerificationResult {
         let hasInputMonitoring: Bool
@@ -458,38 +458,38 @@ class PermissionService {
         let errorDetails: [String]
         let verificationMethod: String
         let confidence: VerificationConfidence
-        
+
         enum VerificationConfidence {
-            case high      // Direct API test or clear log evidence
-            case medium    // Service running without errors  
-            case low       // Fallback to TCC database only
-            case unknown   // Cannot determine due to errors
+            case high // Direct API test or clear log evidence
+            case medium // Service running without errors
+            case low // Fallback to TCC database only
+            case unknown // Cannot determine due to errors
         }
-        
+
         var hasAllRequiredPermissions: Bool {
             hasInputMonitoring && hasAccessibility && !hasRecentErrors
         }
     }
-    
+
     /// Perform comprehensive functional verification for kanata permissions
     /// This checks actual device access capabilities rather than just TCC database entries
     func verifyKanataFunctionalPermissions(at kanataBinaryPath: String) -> FunctionalVerificationResult {
         AppLogger.shared.log("🔍 [PermissionService] Starting functional verification for kanata at \(kanataBinaryPath)")
-        
+
         // Check cache first for performance
         let cacheKey = "kanata_functional_\(kanataBinaryPath)"
         if let cached = getFunctionalCache(key: cacheKey) {
             AppLogger.shared.log("🔍 [PermissionService] Using cached functional verification result")
             return cached
         }
-        
+
         var inputMonitoring = false
         var accessibility = false
         var hasRecentErrors = false
         var errorDetails: [String] = []
         var verificationMethod = "unknown"
         var confidence = FunctionalVerificationResult.VerificationConfidence.unknown
-        
+
         // Method 1: Check if kanata service is running and analyze logs
         let serviceAnalysis = analyzeKanataServiceLogs()
         if serviceAnalysis.hasRecentPermissionErrors {
@@ -508,7 +508,7 @@ class PermissionService {
             confidence = .medium
             AppLogger.shared.log("🔍 [PermissionService] Service running without permission errors - assuming permissions granted")
         }
-        
+
         // Method 2: If service not running, try direct binary test (careful not to interfere)
         if !serviceAnalysis.serviceIsRunning {
             let binaryTest = testKanataBinaryPermissions(at: kanataBinaryPath)
@@ -522,12 +522,12 @@ class PermissionService {
             confidence = binaryTest.confidence
             AppLogger.shared.log("🔍 [PermissionService] Binary test result: input=\(inputMonitoring), access=\(accessibility)")
         }
-        
+
         // Method 3: Fallback to TCC database if we can't determine functionally
         if confidence == .unknown || confidence == .low {
             let tccInput = Self.checkTCCForInputMonitoring(path: kanataBinaryPath)
             let tccAccess = Self.checkTCCForAccessibility(path: kanataBinaryPath)
-            
+
             // Only override if we don't have better information
             if confidence == .unknown {
                 inputMonitoring = tccInput
@@ -537,7 +537,7 @@ class PermissionService {
                 AppLogger.shared.log("🔍 [PermissionService] Using TCC database fallback: input=\(inputMonitoring), access=\(accessibility)")
             }
         }
-        
+
         let result = FunctionalVerificationResult(
             hasInputMonitoring: inputMonitoring,
             hasAccessibility: accessibility,
@@ -546,31 +546,31 @@ class PermissionService {
             verificationMethod: verificationMethod,
             confidence: confidence
         )
-        
+
         // Cache result for performance
         cacheFunctionalResult(key: cacheKey, result: result)
-        
+
         AppLogger.shared.log("🔍 [PermissionService] Functional verification complete: \(verificationMethod), confidence: \(confidence), permissions: \(result.hasAllRequiredPermissions)")
         return result
     }
-    
+
     /// Analyze kanata service logs for permission errors and service status
     private func analyzeKanataServiceLogs() -> (serviceIsRunning: Bool, hasRecentPermissionErrors: Bool, errorDetails: [String]) {
         var serviceIsRunning = false
         var hasRecentErrors = false
         var errorDetails: [String] = []
-        
+
         // First check if kanata process is running
         serviceIsRunning = isKanataProcessRunning()
-        
+
         // Then analyze logs for recent errors
         let logAnalysis = parseKanataLogs()
         hasRecentErrors = logAnalysis.hasPermissionErrors
         errorDetails = logAnalysis.errorDetails
-        
+
         return (serviceIsRunning, hasRecentErrors, errorDetails)
     }
-    
+
     /// Parse kanata logs for permission-related errors
     private func parseKanataLogs() -> (hasPermissionErrors: Bool, errorDetails: [String]) {
         let logPaths = [
@@ -578,47 +578,47 @@ class PermissionService {
             "/tmp/kanata.log",
             "/usr/local/var/log/kanata.log"
         ]
-        
+
         var hasPermissionErrors = false
         var errorDetails: [String] = []
-        
+
         for logPath in logPaths {
             guard FileManager.default.fileExists(atPath: logPath) else { continue }
-            
+
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/tail")
-            task.arguments = ["-n", "100", logPath]  // Increased from 50 for better detection
-            
+            task.arguments = ["-n", "100", logPath] // Increased from 50 for better detection
+
             let pipe = Pipe()
             task.standardOutput = pipe
             task.standardError = Pipe()
-            
+
             do {
                 try task.run()
                 task.waitUntilExit()
-                
+
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 let output = String(data: data, encoding: .utf8) ?? ""
-                
+
                 let analysis = analyzeLogOutput(output, logPath: logPath)
                 if analysis.hasPermissionErrors {
                     hasPermissionErrors = true
                     errorDetails.append(contentsOf: analysis.errorDetails)
                 }
-                
+
             } catch {
                 AppLogger.shared.log("⚠️ [PermissionService] Failed to read log at \(logPath): \(error)")
             }
         }
-        
+
         return (hasPermissionErrors, errorDetails)
     }
-    
+
     /// Analyze log output for permission-related errors
     private func analyzeLogOutput(_ output: String, logPath: String) -> (hasPermissionErrors: Bool, errorDetails: [String]) {
         var hasPermissionErrors = false
         var errorDetails: [String] = []
-        
+
         // Enhanced permission error patterns based on the bug report
         let permissionPatterns = [
             (pattern: "IOHIDDeviceOpen error.*not permitted", description: "Cannot open HID devices - Input Monitoring permission needed"),
@@ -630,16 +630,16 @@ class PermissionService {
             (pattern: "Device creation failed", description: "Virtual device creation failed - may need Accessibility permission"),
             (pattern: "Could not grab device", description: "Cannot grab input device - permission issue")
         ]
-        
+
         let lines = output.components(separatedBy: .newlines)
-        let recentLines = Array(lines.suffix(50))  // Focus on recent entries
-        
+        let recentLines = Array(lines.suffix(50)) // Focus on recent entries
+
         for line in recentLines {
             let lowerLine = line.lowercased()
-            
+
             for (pattern, description) in permissionPatterns {
-                if lowerLine.contains(pattern.lowercased()) || 
-                   line.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil {
+                if lowerLine.contains(pattern.lowercased()) ||
+                    line.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil {
                     hasPermissionErrors = true
                     let errorDetail = "\(description) (from \(logPath))"
                     if !errorDetails.contains(errorDetail) {
@@ -649,40 +649,40 @@ class PermissionService {
                 }
             }
         }
-        
+
         return (hasPermissionErrors, errorDetails)
     }
-    
+
     /// Check if kanata process is currently running
     private func isKanataProcessRunning() -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         task.arguments = ["-f", "kanata"]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = Pipe()
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
             let pids = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            
+
             return task.terminationStatus == 0 && !pids.isEmpty
         } catch {
             AppLogger.shared.log("⚠️ [PermissionService] Failed to check kanata process: \(error)")
             return false
         }
     }
-    
+
     /// Test kanata binary permissions without interfering with running service
     private func testKanataBinaryPermissions(at binaryPath: String) -> (
-        canAccessInputDevices: Bool, 
-        canAccessSystem: Bool, 
-        hasErrors: Bool, 
+        canAccessInputDevices: Bool,
+        canAccessSystem: Bool,
+        hasErrors: Bool,
         errorDetails: [String],
         confidence: FunctionalVerificationResult.VerificationConfidence
     ) {
@@ -691,7 +691,7 @@ class PermissionService {
         var hasErrors = false
         var errorDetails: [String] = []
         var confidence = FunctionalVerificationResult.VerificationConfidence.low
-        
+
         // Test 1: Try to run kanata with --check flag (doesn't interfere with running service)
         let checkResult = testKanataConfigCheck(at: binaryPath)
         if checkResult.configCheckPassed {
@@ -705,7 +705,7 @@ class PermissionService {
             confidence = .high
             AppLogger.shared.log("🔍 [PermissionService] Kanata config check failed with permission errors")
         }
-        
+
         // Test 2: If binary exists, check if it's signed and trusted
         if FileManager.default.fileExists(atPath: binaryPath) {
             let signatureCheck = checkBinarySignature(at: binaryPath)
@@ -717,67 +717,67 @@ class PermissionService {
             hasErrors = true
             errorDetails.append("Kanata binary not found at \(binaryPath)")
         }
-        
+
         return (canAccessInput, canAccessSystem, hasErrors, errorDetails, confidence)
     }
-    
+
     /// Test kanata config validation (safe, doesn't start service)
     private func testKanataConfigCheck(at binaryPath: String) -> (
-        configCheckPassed: Bool, 
-        hasPermissionErrors: Bool, 
+        configCheckPassed: Bool,
+        hasPermissionErrors: Bool,
         errorDetails: [String]
     ) {
         guard FileManager.default.fileExists(atPath: binaryPath) else {
             return (false, false, ["Binary not found"])
         }
-        
+
         // Use a minimal test config to avoid interfering with user config
         let testConfig = """
-(defcfg
-  process-unmapped-keys yes
-)
-(defsrc)
-(deflayer base)
-"""
-        
+        (defcfg
+          process-unmapped-keys yes
+        )
+        (defsrc)
+        (deflayer base)
+        """
+
         let tempConfigPath = "/tmp/keypath_test_\(UUID().uuidString).kbd"
-        
+
         do {
             try testConfig.write(toFile: tempConfigPath, atomically: true, encoding: .utf8)
-            
+
             let task = Process()
             task.executableURL = URL(fileURLWithPath: binaryPath)
-            task.arguments = ["--cfg", tempConfigPath, "--check"]  // Check mode doesn't start service
-            
+            task.arguments = ["--cfg", tempConfigPath, "--check"] // Check mode doesn't start service
+
             let pipe = Pipe()
             let errorPipe = Pipe()
             task.standardOutput = pipe
             task.standardError = errorPipe
-            
+
             task.environment = ["PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin"]
-            
+
             try task.run()
             task.waitUntilExit()
-            
+
             let outputData = pipe.fileHandleForReading.readDataToEndOfFile()
             let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            
+
             let output = String(data: outputData, encoding: .utf8) ?? ""
             let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
-            
+
             // Clean up temp file
             try? FileManager.default.removeItem(atPath: tempConfigPath)
-            
+
             // Analyze output for permission issues
             let combinedOutput = output + errorOutput
             let logAnalysis = analyzeLogOutput(combinedOutput, logPath: "config_check")
-            
+
             let configPassed = task.terminationStatus == 0 && !logAnalysis.hasPermissionErrors
-            
+
             AppLogger.shared.log("🔍 [PermissionService] Config check result: exit=\(task.terminationStatus), errors=\(logAnalysis.hasPermissionErrors)")
-            
+
             return (configPassed, logAnalysis.hasPermissionErrors, logAnalysis.errorDetails)
-            
+
         } catch {
             // Clean up temp file on error
             try? FileManager.default.removeItem(atPath: tempConfigPath)
@@ -785,58 +785,58 @@ class PermissionService {
             return (false, false, ["Config check execution failed: \(error.localizedDescription)"])
         }
     }
-    
+
     /// Check binary signature and trust status
     private func checkBinarySignature(at binaryPath: String) -> (isTrusted: Bool, details: String) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
         task.arguments = ["-dv", binaryPath]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
-        task.standardError = pipe  // codesign outputs to stderr
-        
+        task.standardError = pipe // codesign outputs to stderr
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             // Check for valid signature
-            let isValid = task.terminationStatus == 0 && 
-                         !output.lowercased().contains("not signed") &&
-                         !output.lowercased().contains("invalid")
-            
+            let isValid = task.terminationStatus == 0 &&
+                !output.lowercased().contains("not signed") &&
+                !output.lowercased().contains("invalid")
+
             return (isValid, output)
-            
+
         } catch {
             AppLogger.shared.log("⚠️ [PermissionService] Code signature check failed: \(error)")
             return (false, "Signature check failed: \(error.localizedDescription)")
         }
     }
-    
+
     // MARK: - Caching for Functional Verification
-    
+
     private var functionalCache: [String: (result: FunctionalVerificationResult, timestamp: Date)] = [:]
-    
+
     private func getFunctionalCache(key: String) -> FunctionalVerificationResult? {
         guard let cached = functionalCache[key] else { return nil }
-        
+
         // Cache functional verification for 10 seconds (longer than TCC cache)
         let isExpired = Date().timeIntervalSince(cached.timestamp) > 10.0
         if isExpired {
             functionalCache.removeValue(forKey: key)
             return nil
         }
-        
+
         return cached.result
     }
-    
+
     private func cacheFunctionalResult(key: String, result: FunctionalVerificationResult) {
         functionalCache[key] = (result, Date())
     }
-    
+
     /// Check if there are recent permission errors in kanata logs
     /// @deprecated Use analyzeKanataServiceLogs() instead for enhanced detection
     private static func hasRecentPermissionErrors() -> Bool {

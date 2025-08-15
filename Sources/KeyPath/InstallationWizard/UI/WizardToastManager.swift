@@ -1,5 +1,5 @@
-import SwiftUI
 import Observation
+import SwiftUI
 
 /// Manages toast notifications for the installation wizard
 /// Provides temporary feedback for user actions like auto-fix operations

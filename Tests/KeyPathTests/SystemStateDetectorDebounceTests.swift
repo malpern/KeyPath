@@ -10,7 +10,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
     var kanataManager: KanataManager!
 
     override func setUp() async throws {
-        await super.setUp()
+        try await super.setUp()
         kanataManager = KanataManager()
         detector = SystemStateDetector(kanataManager: kanataManager)
     }
@@ -18,7 +18,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
     override func tearDown() async throws {
         detector = nil
         kanataManager = nil
-        await super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Debouncing Logic Tests

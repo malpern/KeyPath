@@ -332,16 +332,6 @@ extension MockKanataManager {
     var replaceOrphanedCalled: Bool { autoFixHistory.contains("replaceOrphaned") }
     var activateVHIDCalled: Bool { autoFixHistory.contains("activateVHID") }
     var launchDaemonCreatedForAdoption: Bool { autoFixHistory.contains("createLaunchDaemonForAdoption") }
-
-    var autoFixHistory: [String] = []
-    var operationDelay: TimeInterval = 0
-    var shouldFailMidway = false
-    var supportRollback = false
-    var rollbackCalled = false
-    var rollbackActions: [String] = []
-    var configPathMismatch = false
-    var expectedConfigPath = ""
-    var actualConfigPath = ""
     var mockServiceHealthy = true
 
     func recordAutoFix(_ action: String) {

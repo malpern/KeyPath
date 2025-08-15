@@ -11,12 +11,12 @@ final class WizardComprehensiveTests: XCTestCase {
     func testSystemStateDetection() async throws {
         let detector = SystemStateDetector(
             kanataManager: MockKanataManager(),
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
 
         // Test: Clean system with nothing installed
         let cleanState = await detector.detectSystemState()
-        XCTAssertEqual(cleanState.state, .notInstalled)
+        XCTAssertEqual(cleanState.state, .missingComponents(missing: []))
         XCTAssertTrue(cleanState.issues.contains { $0.category == .installation })
 
         // Test: Partially installed state
@@ -25,10 +25,10 @@ final class WizardComprehensiveTests: XCTestCase {
         partialMock.mockDriversInstalled = false
         let partialDetector = SystemStateDetector(
             kanataManager: partialMock,
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
         let partialState = await partialDetector.detectSystemState()
-        XCTAssertNotEqual(partialState.state, .fullyOperational)
+        XCTAssertNotEqual(partialState.state, .active)
         XCTAssertFalse(partialState.issues.isEmpty)
 
         // Test: Fully operational state
@@ -39,10 +39,10 @@ final class WizardComprehensiveTests: XCTestCase {
         fullMock.mockPermissionsGranted = true
         let fullDetector = SystemStateDetector(
             kanataManager: fullMock,
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
         let fullState = await fullDetector.detectSystemState()
-        XCTAssertEqual(fullState.state, .fullyOperational)
+        XCTAssertEqual(fullState.state, .active)
         XCTAssertTrue(fullState.issues.isEmpty)
     }
 
@@ -50,7 +50,7 @@ final class WizardComprehensiveTests: XCTestCase {
     func testOrphanedProcessDetection() async throws {
         let detector = SystemStateDetector(
             kanataManager: MockKanataManager(),
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
 
         // Test: No orphaned process
@@ -93,7 +93,7 @@ final class WizardComprehensiveTests: XCTestCase {
     func testKarabinerConflictDetection() async throws {
         let detector = SystemStateDetector(
             kanataManager: MockKanataManager(),
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
 
         // Simulate Karabiner running
@@ -102,7 +102,7 @@ final class WizardComprehensiveTests: XCTestCase {
 
         let conflictDetector = SystemStateDetector(
             kanataManager: mockManager,
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
         let state = await conflictDetector.detectSystemState()
 
@@ -197,7 +197,7 @@ final class WizardComprehensiveTests: XCTestCase {
         ]
 
         let targetPage = engine.determineTargetPage(
-            for: .partiallyConfigured,
+            for: .missingPermissions(missing: []),
             issues: criticalIssues
         )
         XCTAssertEqual(targetPage, .inputMonitoring)
@@ -223,7 +223,7 @@ final class WizardComprehensiveTests: XCTestCase {
         ]
 
         let priorityPage = engine.determineTargetPage(
-            for: .needsConfiguration,
+            for: .missingComponents(missing: []),
             issues: multipleIssues
         )
         XCTAssertEqual(priorityPage, .conflicts, "Conflicts should be handled first")
@@ -234,19 +234,19 @@ final class WizardComprehensiveTests: XCTestCase {
         let interpreter = WizardStateInterpreter()
 
         // Test: Not installed state
-        let notInstalledInfo = interpreter.getStateInfo(for: .notInstalled)
+        let notInstalledInfo = interpreter.getStateInfo(for: .missingComponents(missing: []))
         XCTAssertEqual(notInstalledInfo.title, "Welcome to KeyPath")
         XCTAssertEqual(notInstalledInfo.icon, "keyboard")
         XCTAssertEqual(notInstalledInfo.color.description, WizardDesign.Colors.warning.description)
 
         // Test: Fully operational state
-        let operationalInfo = interpreter.getStateInfo(for: .fullyOperational)
+        let operationalInfo = interpreter.getStateInfo(for: .active)
         XCTAssertEqual(operationalInfo.title, "KeyPath is Ready")
         XCTAssertEqual(operationalInfo.icon, "checkmark.circle.fill")
         XCTAssertEqual(operationalInfo.color.description, WizardDesign.Colors.success.description)
 
         // Test: Needs help state
-        let needsHelpInfo = interpreter.getStateInfo(for: .needsHelp)
+        let needsHelpInfo = interpreter.getStateInfo(for: .conflictsDetected(conflicts: []))
         XCTAssertEqual(needsHelpInfo.title, "Action Required")
         XCTAssertEqual(needsHelpInfo.icon, "exclamationmark.triangle.fill")
         XCTAssertEqual(needsHelpInfo.color.description, WizardDesign.Colors.error.description)
@@ -264,7 +264,7 @@ final class WizardComprehensiveTests: XCTestCase {
 
         let detector = SystemStateDetector(
             kanataManager: mockManager,
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
         let state = await detector.detectSystemState()
 
@@ -308,7 +308,7 @@ final class WizardComprehensiveTests: XCTestCase {
 
         let detector = SystemStateDetector(
             kanataManager: mockManager,
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
 
         // Test: TCP server not responding
@@ -386,10 +386,10 @@ final class WizardComprehensiveTests: XCTestCase {
         // Verify final state
         let detector = SystemStateDetector(
             kanataManager: mockManager,
-            launchDaemonInstaller: MockLaunchDaemonInstaller()
+            launchDaemonInstaller: WizardMockLaunchDaemonInstaller()
         )
         let finalState = await detector.detectSystemState()
-        XCTAssertEqual(finalState.state, .fullyOperational)
+        XCTAssertEqual(finalState.state, .active)
         XCTAssertTrue(finalState.issues.isEmpty)
     }
 
@@ -459,6 +459,17 @@ class MockKanataManager: KanataManager {
     var restartCalled = false
     var lastRegisteredPID: pid_t?
     var terminatedPIDs: [pid_t] = []
+    
+    // AutoFix tracking properties
+    var autoFixHistory: [String] = []
+    var operationDelay: TimeInterval = 0
+    var shouldFailMidway = false
+    var supportRollback = false
+    var rollbackCalled = false
+    var rollbackActions: [String] = []
+    var configPathMismatch = false
+    var expectedConfigPath = ""
+    var actualConfigPath = ""
 
     override func isKanataInstalled() -> Bool {
         mockKanataInstalled
@@ -490,8 +501,8 @@ class MockKanataManager: KanataManager {
     }
 }
 
-/// Mock LaunchDaemonInstaller for testing
-class MockLaunchDaemonInstaller: LaunchDaemonInstaller {
+/// Mock LaunchDaemonInstaller for comprehensive wizard testing
+class WizardMockLaunchDaemonInstaller: LaunchDaemonInstaller {
     var mockPlistInstalled = false
     var mockServiceRunning = false
 

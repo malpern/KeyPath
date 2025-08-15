@@ -14,7 +14,7 @@ final class IntegrationTestSuite: XCTestCase {
         let description: String
         let setup: (MockSystemEnvironment) -> Void
         let expectedOutcome: String
-        let validation: (MockKanataManager) async throws -> Bool
+        let validation: (MockEnvironmentKanataManager) async throws -> Bool
     }
 
     override func setUp() async throws {
@@ -156,7 +156,7 @@ final class IntegrationTestSuite: XCTestCase {
             scenario.setup(mockEnvironment)
 
             // Create manager for this scenario
-            let manager = MockKanataManager(mockEnvironment: mockEnvironment)
+            let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
 
             // Execute validation
             do {
@@ -202,7 +202,7 @@ final class IntegrationTestSuite: XCTestCase {
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
 
-        let manager = MockKanataManager(mockEnvironment: mockEnvironment)
+        let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
         let success = try await scenario.validation(manager)
 
         XCTAssertTrue(success, "New user journey should complete successfully")
@@ -214,7 +214,7 @@ final class IntegrationTestSuite: XCTestCase {
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
 
-        let manager = MockKanataManager(mockEnvironment: mockEnvironment)
+        let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
         let success = try await scenario.validation(manager)
 
         XCTAssertTrue(success, "Partial installation should be recoverable")
@@ -226,7 +226,7 @@ final class IntegrationTestSuite: XCTestCase {
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
 
-        let manager = MockKanataManager(mockEnvironment: mockEnvironment)
+        let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
         let success = try await scenario.validation(manager)
 
         XCTAssertTrue(success, "Power user workflow should handle intensive usage")
@@ -238,7 +238,7 @@ final class IntegrationTestSuite: XCTestCase {
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
 
-        let manager = MockKanataManager(mockEnvironment: mockEnvironment)
+        let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
         let success = try await scenario.validation(manager)
 
         XCTAssertTrue(success, "System should recover gracefully from errors")
@@ -250,7 +250,7 @@ final class IntegrationTestSuite: XCTestCase {
         mockEnvironment.reset()
         scenario.setup(mockEnvironment)
 
-        let manager = MockKanataManager(mockEnvironment: mockEnvironment)
+        let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
         let success = try await scenario.validation(manager)
 
         XCTAssertTrue(success, "Security and permissions should be properly configured")
@@ -263,7 +263,7 @@ final class IntegrationTestSuite: XCTestCase {
 
         // Complete user journey performance test
         mockEnvironment.setupCleanInstallation()
-        let manager = MockKanataManager(mockEnvironment: mockEnvironment)
+        let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
 
         // Installation
         let installSuccess = await manager.performTransparentInstallation()
@@ -292,7 +292,7 @@ final class IntegrationTestSuite: XCTestCase {
     func testStressScenario() async throws {
         // Stress test with rapid operations
         mockEnvironment.setupCompleteInstallation()
-        let manager = MockKanataManager(mockEnvironment: mockEnvironment)
+        let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
 
         await manager.startKanata()
         XCTAssertTrue(manager.isRunning)

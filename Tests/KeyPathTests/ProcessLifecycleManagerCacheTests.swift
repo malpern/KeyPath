@@ -9,13 +9,13 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
     var manager: ProcessLifecycleManager!
 
     override func setUp() async throws {
-        await super.setUp()
+        try await super.setUp()
         manager = ProcessLifecycleManager()
     }
 
     override func tearDown() async throws {
         manager = nil
-        await super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Cache Invalidation Tests
@@ -170,7 +170,7 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
 
             // Then: Classification should be consistent
             let uniqueClassifications = Set(classifications)
-            XCTAssertLessOrEqual(
+            XCTAssertLessThanOrEqual(
                 uniqueClassifications.count, 1,
                 "Process PID \(testProcess.pid) should have consistent classification: \(classifications)"
             )

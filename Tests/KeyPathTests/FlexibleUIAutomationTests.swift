@@ -10,7 +10,7 @@ final class FlexibleUIAutomationTests: XCTestCase {
     var automationFramework: UIAutomationFramework!
     
     override func setUp() async throws {
-        await super.setUp()
+        try await super.setUp()
         
         kanataManager = KanataManager()
         automationFramework = UIAutomationFramework(kanataManager: kanataManager)
@@ -24,7 +24,7 @@ final class FlexibleUIAutomationTests: XCTestCase {
         automationFramework = nil
         kanataManager = nil
         
-        await super.tearDown()
+        try await super.tearDown()
     }
     
     // MARK: - Flexible Key Mapping Tests
@@ -101,10 +101,10 @@ final class FlexibleUIAutomationTests: XCTestCase {
             KeyMapping(input: "\(num)", output: "\(num + 1)")
         }
         
-        let letterMappings = "abcdefghij".enumerated().map { index, char in
-            let nextChar = String(UnicodeScalar("abcdefghijk".unicodeScalars[
-                "abcdefghijk".unicodeScalars.index("abcdefghijk".unicodeScalars.startIndex, offsetBy: index + 1)
-            ])!)
+        let baseLetters = Array("abcdefghijk")
+        let inputLetters = Array("abcdefghij")
+        let letterMappings = inputLetters.enumerated().map { index, char in
+            let nextChar = String(baseLetters[index + 1])
             return KeyMapping(input: String(char), output: nextChar)
         }
         

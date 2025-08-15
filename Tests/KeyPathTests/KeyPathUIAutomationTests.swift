@@ -12,7 +12,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
     var keyboardCapture: KeyboardCapture!
     
     override func setUp() async throws {
-        await super.setUp()
+        try await super.setUp()
         
         kanataManager = KanataManager()
         simpleKanataManager = SimpleKanataManager(kanataManager: kanataManager)
@@ -26,7 +26,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
         simpleKanataManager = nil
         keyboardCapture = nil
         
-        await super.tearDown()
+        try await super.tearDown()
     }
     
     // MARK: - Real UI Component Tests
@@ -81,7 +81,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
         AppLogger.shared.log("🤖 [UIAutomation] Testing key capture mock simulation")
         
         // Create a mock key capture simulator
-        let keyCapture = MockKeyboardCapture()
+        let keyCapture = LocalMockKeyboardCapture()
         
         // Test input capture
         var capturedInput: String?
@@ -118,7 +118,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
         // Create UI automation controller
         let automation = KeyPathUIAutomationController(
             kanataManager: kanataManager,
-            keyboardCapture: MockKeyboardCapture()
+            keyboardCapture: LocalMockKeyboardCapture()
         )
         
         // Execute the complete 5 to 6 remap workflow
@@ -164,7 +164,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
         
         let automation = KeyPathUIAutomationController(
             kanataManager: kanataManager,
-            keyboardCapture: MockKeyboardCapture()
+            keyboardCapture: LocalMockKeyboardCapture()
         )
         
         // Test valid mappings
@@ -203,7 +203,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
         
         let automation = KeyPathUIAutomationController(
             kanataManager: kanataManager,
-            keyboardCapture: MockKeyboardCapture()
+            keyboardCapture: LocalMockKeyboardCapture()
         )
         
         // Test state progression through a complete workflow
@@ -237,18 +237,18 @@ final class KeyPathUIAutomationTests: XCTestCase {
 
 // MARK: - Mock Classes for Testing
 
-/// Mock keyboard capture for UI testing
-class MockKeyboardCapture: KeyboardCapture {
+/// Mock keyboard capture for UI testing (local to this file)
+class LocalMockKeyboardCapture: MockKeyboardCapture {
     private var inputCallback: ((String) -> Void)?
     private var continuousCallback: ((String) -> Void)?
     
-    override func startCapture(onKeyCapture: @escaping (String) -> Void) {
-        inputCallback = onKeyCapture
+    override func startCapture(callback: @escaping (String) -> Void) {
+        inputCallback = callback
         AppLogger.shared.log("🎭 [MockKeyCapture] Started input capture")
     }
     
-    override func startContinuousCapture(onKeyCapture: @escaping (String) -> Void) {
-        continuousCallback = onKeyCapture
+    override func startContinuousCapture(callback: @escaping (String) -> Void) {
+        continuousCallback = callback
         AppLogger.shared.log("🎭 [MockKeyCapture] Started continuous capture")
     }
     
@@ -258,7 +258,7 @@ class MockKeyboardCapture: KeyboardCapture {
         AppLogger.shared.log("🎭 [MockKeyCapture] Stopped capture")
     }
     
-    func simulateKeyPress(_ keyName: String) {
+    override func simulateKeyPress(_ keyName: String) {
         inputCallback?(keyName)
         continuousCallback?(keyName)
         AppLogger.shared.log("🎭 [MockKeyCapture] Simulated key press: \(keyName)")

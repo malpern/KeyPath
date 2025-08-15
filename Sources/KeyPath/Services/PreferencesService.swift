@@ -6,6 +6,7 @@ import Observation
 @Observable
 final class PreferencesService {
     // MARK: - Shared instance (backward compatible)
+
     static let shared = PreferencesService()
 
     // MARK: - TCP Server Configuration
