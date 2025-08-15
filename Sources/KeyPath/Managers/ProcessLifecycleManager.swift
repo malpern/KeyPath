@@ -322,16 +322,16 @@ final class ProcessLifecycleManager {
                     let pidStart = output.index(pidRange.upperBound, offsetBy: 0)
                     // Find the end of the PID number
                     var pidEnd = pidStart
-                    while pidEnd < output.endIndex && output[pidEnd].isNumber {
+                    while pidEnd < output.endIndex, output[pidEnd].isNumber {
                         pidEnd = output.index(after: pidEnd)
                     }
-                    
-                    let pidString = String(output[pidStart..<pidEnd])
+
+                    let pidString = String(output[pidStart ..< pidEnd])
                     launchDaemonPID = pid_t(pidString)
                 }
 
                 let isRunning = output.contains("state = running")
-                
+
                 // Only return true if this specific process PID matches the LaunchDaemon's PID
                 let isThisProcessManaged = launchDaemonPID != nil && launchDaemonPID == process.pid
 
