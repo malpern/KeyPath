@@ -53,24 +53,36 @@ struct WizardSystemStatusOverview: View {
 
         // 1. Full Disk Access (Optional but recommended)
         let hasFullDiskAccess = checkFullDiskAccess()
+        let fullDiskAccessStatus: InstallationStatus = {
+            if systemState == .initializing {
+                return .notStarted
+            }
+            return hasFullDiskAccess ? .completed : .notStarted
+        }()
         items.append(
             StatusItemModel(
                 id: "full-disk-access",
                 icon: "folder.badge.gearshape",
                 title: "Full Disk Access (Optional)",
-                status: hasFullDiskAccess ? .completed : .notStarted,
+                status: fullDiskAccessStatus,
                 isNavigable: true,
                 targetPage: .fullDiskAccess
             ))
 
         // 2. System Conflicts
         let hasConflicts = issues.contains { $0.category == .conflicts }
+        let conflictStatus: InstallationStatus = {
+            if systemState == .initializing {
+                return .notStarted
+            }
+            return hasConflicts ? .failed : .completed
+        }()
         items.append(
             StatusItemModel(
                 id: "conflicts",
                 icon: "exclamationmark.triangle",
                 title: "Resolve System Conflicts",
-                status: hasConflicts ? .failed : .completed,
+                status: conflictStatus,
                 isNavigable: true,
                 targetPage: .conflicts
             ))
@@ -130,7 +142,7 @@ struct WizardSystemStatusOverview: View {
                 id: "tcp-server",
                 icon: "network",
                 title: "TCP Server",
-                subtitle: tcpServerStatus == .completed ? "Port 37000 responding" : "Not available",
+                subtitle: tcpServerStatus == .completed ? "Port \(PreferencesService.shared.tcpServerPort) responding" : "Not available",
                 status: tcpServerStatus,
                 isNavigable: false,
                 targetPage: .service // Could navigate to service page for troubleshooting
@@ -173,6 +185,11 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getInputMonitoringStatus() -> InstallationStatus {
+        // If system is still initializing, don't show completed status
+        if systemState == .initializing {
+            return .notStarted
+        }
+
         let hasInputMonitoringIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
@@ -183,6 +200,11 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getAccessibilityStatus() -> InstallationStatus {
+        // If system is still initializing, don't show completed status
+        if systemState == .initializing {
+            return .notStarted
+        }
+
         let hasAccessibilityIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
@@ -193,6 +215,11 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getKarabinerComponentsStatus() -> InstallationStatus {
+        // If system is still initializing, don't show completed status
+        if systemState == .initializing {
+            return .notStarted
+        }
+
         // Check for Karabiner-related issues
         let hasKarabinerIssues = issues.contains { issue in
             // Installation issues related to Karabiner
@@ -219,13 +246,19 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getKanataComponentsStatus() -> InstallationStatus {
+        // If system is still initializing, don't show completed status
+        if systemState == .initializing {
+            return .notStarted
+        }
+
         // Check for Kanata-related issues
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.kanataBinary),
                      .component(.kanataService),
-                     .component(.packageManager):
+                     .component(.packageManager),
+                     .component(.orphanedKanataProcess):
                     return true
                 default:
                     return false
@@ -238,6 +271,11 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getTCPServerStatus() -> InstallationStatus {
+        // If system is still initializing, don't show completed status
+        if systemState == .initializing {
+            return .notStarted
+        }
+
         // Check for TCP server issues
         let hasTCPServerIssues = issues.contains { issue in
             if case .component(.kanataTCPServer) = issue.identifier {
@@ -245,13 +283,13 @@ struct WizardSystemStatusOverview: View {
             }
             return false
         }
-        
+
         // If Kanata is running and there are no TCP issues, consider TCP as working
         // This provides an optimistic view since TCP server is optional
-        if kanataIsRunning && !hasTCPServerIssues {
+        if kanataIsRunning, !hasTCPServerIssues {
             return .completed
         }
-        
+
         // If not running or has TCP issues
         return hasTCPServerIssues ? .failed : .notStarted
     }

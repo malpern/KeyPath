@@ -266,7 +266,7 @@ class SystemStatusChecker {
         let serviceStatus = launchDaemonInstaller.getServiceStatus()
         let configPath = WizardSystemPaths.userConfigPath
         let userConfigExists = FileManager.default.fileExists(atPath: configPath)
-        
+
         AppLogger.shared.log("🔍 [SystemStatusChecker] Checking config at: \(configPath) (exists: \(userConfigExists))")
 
         if serviceStatus.kanataServiceLoaded, userConfigExists, serviceStatus.kanataServiceHealthy {
@@ -503,23 +503,23 @@ class SystemStatusChecker {
     /// Check if Kanata TCP server is responding
     private func checkTCPServerStatus() async -> Bool {
         let tcpConfig = PreferencesService.tcpSnapshot()
-        
+
         // If TCP is disabled in preferences, consider it as not working
         guard tcpConfig.shouldUseTCPServer else {
             AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server disabled in preferences")
             return false
         }
-        
+
         // Check if kanata service is actually running with TCP port
         guard kanataManager.isRunning else {
             AppLogger.shared.log("🌐 [SystemStatusChecker] Kanata not running - TCP server unavailable")
             return false
         }
-        
+
         // Use KanataTCPClient to check server status
         let client = KanataTCPClient(port: tcpConfig.port, timeout: 2.0)
         let serverResponding = await client.checkServerStatus()
-        
+
         AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - \(serverResponding ? "responding" : "not responding")")
         return serverResponding
     }

@@ -140,7 +140,10 @@ final class ProcessLifecycleManager {
 
         for process in allProcesses {
             let isOwnedPID = ownership.pid != nil && process.pid == ownership.pid
-            let isLaunchDaemonManaged = process.command.contains("/.config/keypath/keypath.kbd")
+
+            // Check if process is actually managed by our LaunchDaemon service
+            // Just using the config path is not sufficient - need to verify service is running this process
+            let isLaunchDaemonManaged = await isProcessManagedByLaunchDaemon(process)
 
             if isOwnedPID {
                 managedProcesses.append(process)
@@ -284,5 +287,64 @@ final class ProcessLifecycleManager {
 
         // Look for actual kanata binary - be more specific
         return command.contains("/bin/kanata") || command.hasPrefix("kanata ") || command == "kanata"
+    }
+
+    /// Check if a process is actually managed by our LaunchDaemon service
+    /// This verifies the service is loaded AND that the specific PID belongs to the service
+    private func isProcessManagedByLaunchDaemon(_ process: ProcessInfo) async -> Bool {
+        // First check if the process uses our config path (necessary but not sufficient)
+        guard process.command.contains("/.config/keypath/keypath.kbd") else {
+            return false
+        }
+
+        // Check if our LaunchDaemon service is loaded and get its PID
+        let task = Process()
+        task.launchPath = "/bin/launchctl"
+        task.arguments = ["print", "system/com.keypath.kanata"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = Pipe() // Discard error output
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            // If launchctl print succeeds, the service is loaded
+            if task.terminationStatus == 0 {
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+
+                // Extract the actual PID from the LaunchDaemon output
+                // Look for pattern like "pid = 97324"
+                var launchDaemonPID: pid_t?
+                if let pidRange = output.range(of: "pid = ") {
+                    let pidStart = output.index(pidRange.upperBound, offsetBy: 0)
+                    // Find the end of the PID number
+                    var pidEnd = pidStart
+                    while pidEnd < output.endIndex && output[pidEnd].isNumber {
+                        pidEnd = output.index(after: pidEnd)
+                    }
+                    
+                    let pidString = String(output[pidStart..<pidEnd])
+                    launchDaemonPID = pid_t(pidString)
+                }
+
+                let isRunning = output.contains("state = running")
+                
+                // Only return true if this specific process PID matches the LaunchDaemon's PID
+                let isThisProcessManaged = launchDaemonPID != nil && launchDaemonPID == process.pid
+
+                AppLogger.shared.log("🔍 [ProcessLifecycleManager] LaunchDaemon check for PID \(process.pid): service_pid=\(launchDaemonPID ?? -1), running=\(isRunning), matches=\(isThisProcessManaged)")
+
+                return isThisProcessManaged
+            } else {
+                AppLogger.shared.log("🔍 [ProcessLifecycleManager] LaunchDaemon service check: not loaded")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("🔍 [ProcessLifecycleManager] LaunchDaemon service check failed: \(error)")
+            return false
+        }
     }
 }

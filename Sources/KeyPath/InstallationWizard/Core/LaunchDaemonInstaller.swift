@@ -931,7 +931,7 @@ class LaunchDaemonInstaller {
             // Use osascript to execute the script with admin privileges
             // Custom prompt to clearly identify KeyPath (not osascript)
             let osascriptCode = """
-            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management. This will enable the TCP server on port 37000."
+            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management. This will enable the TCP server on port \(PreferencesService.tcpSnapshot().port)."
             """
 
             let task = Process()

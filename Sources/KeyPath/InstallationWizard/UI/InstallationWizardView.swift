@@ -250,7 +250,7 @@ struct InstallationWizardView: View {
 
         // Configure state manager
         stateManager.configure(kanataManager: kanataManager)
-        autoFixer.configure(kanataManager: kanataManager)
+        autoFixer.configure(kanataManager: kanataManager, toastManager: toastManager)
 
         Task {
             await performInitialStateCheck()
@@ -487,6 +487,10 @@ struct InstallationWizardView: View {
             "Activate VirtualHID Device Manager"
         case .installLaunchDaemonServices:
             "Install LaunchDaemon services"
+        case .adoptOrphanedProcess:
+            "Connect existing Kanata to KeyPath management"
+        case .replaceOrphanedProcess:
+            "Replace orphaned process with managed service"
         case .installViaBrew:
             "Install packages via Homebrew"
         case .repairVHIDDaemonServices:
@@ -720,9 +724,9 @@ class WizardStateManager: ObservableObject {
 class WizardAutoFixerManager: ObservableObject {
     private var autoFixer: WizardAutoFixer?
 
-    func configure(kanataManager: KanataManager) {
+    func configure(kanataManager: KanataManager, toastManager: WizardToastManager) {
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with KanataManager")
-        autoFixer = WizardAutoFixer(kanataManager: kanataManager)
+        autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuration complete")
     }
 

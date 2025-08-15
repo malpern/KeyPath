@@ -456,6 +456,10 @@ extension AutoFixAction {
             "Activate VirtualHIDDevice Manager"
         case .installLaunchDaemonServices:
             "Install LaunchDaemon Services"
+        case .adoptOrphanedProcess:
+            "Adopt Orphaned Process"
+        case .replaceOrphanedProcess:
+            "Replace Orphaned Process"
         case .installViaBrew:
             "Install via Homebrew"
         case .repairVHIDDaemonServices:

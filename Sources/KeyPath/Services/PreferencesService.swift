@@ -42,7 +42,7 @@ class PreferencesService: ObservableObject {
 
     private enum Defaults {
         static let tcpServerEnabled = true // Enable by default for config validation
-        static let tcpServerPort = 37000 // Default port for Kanata TCP server
+        static let tcpServerPort = 54141 // Default port for Kanata TCP server
     }
 
     // MARK: - Initialization
@@ -113,7 +113,7 @@ extension PreferencesService {
     /// Safe to call from any actor context
     nonisolated static func tcpSnapshot() -> TCPConfigSnapshot {
         let enabled = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerEnabled") as? Bool ?? true
-        let port = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 37000
+        let port = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 54141
 
         return TCPConfigSnapshot(enabled: enabled, port: port)
     }

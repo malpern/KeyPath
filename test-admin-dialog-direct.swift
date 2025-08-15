@@ -23,18 +23,18 @@ task.standardError = pipe
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     print("🔍 Exit code: \(task.terminationStatus)")
     print("🔍 Output: '\(output.trimmingCharacters(in: .whitespacesAndNewlines))'")
-    
+
     if task.terminationStatus == 0 {
         print("✅ Direct osascript succeeded - admin dialog should have appeared")
     } else {
         print("❌ Direct osascript failed")
-        
+
         // Try to understand why it failed
         if output.contains("User canceled") {
             print("   → User canceled the dialog")
@@ -44,7 +44,7 @@ do {
             print("   → No output - possible sandbox restriction")
         }
     }
-    
+
 } catch {
     print("❌ Error executing osascript: \(error)")
 }
@@ -66,19 +66,19 @@ task2.standardError = pipe2
 do {
     try task2.run()
     task2.waitUntilExit()
-    
+
     let data = pipe2.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     print("🔍 Exit code: \(task2.terminationStatus)")
     print("🔍 Output: '\(output.trimmingCharacters(in: .whitespacesAndNewlines))'")
-    
+
     if task2.terminationStatus == 0 {
         print("✅ Prompted osascript succeeded")
     } else {
         print("❌ Prompted osascript failed")
     }
-    
+
 } catch {
     print("❌ Error executing prompted osascript: \(error)")
 }

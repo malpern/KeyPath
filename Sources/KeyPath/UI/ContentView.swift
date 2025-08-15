@@ -639,16 +639,16 @@ struct RecordingSection: View {
                         }
                     }
 
-                case let .preSaveValidationFailed(errors, _), 
+                case let .preSaveValidationFailed(errors, _),
                      let .postSaveValidationFailed(errors):
                     // These are handled by KanataManager's validation dialogs
                     AppLogger.shared.log("⚠️ [Save] Validation error handled by KanataManager dialogs")
-                    
+
                 case let .startupValidationFailed(errors, backupPath):
                     await MainActor.run {
                         showStatusMessage("⚠️ Config validation failed at startup - using default")
                     }
-                    
+
                 default:
                     await MainActor.run {
                         showStatusMessage("❌ Config error: \(error.localizedDescription)")

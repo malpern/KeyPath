@@ -22,16 +22,16 @@ task.standardError = pipe
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    
+
     if output.contains("successive crashes") {
         let crashes = output.components(separatedBy: "\n")
             .first { $0.contains("successive crashes") }?
             .trimmingCharacters(in: .whitespaces)
         print("⚠️  Service status: \(crashes ?? "Has crashes")")
     }
-    
+
     if output.contains("state = running") {
         print("✅ Service is running (but crashing frequently)")
     }
@@ -68,7 +68,7 @@ print("🚀 Opening System Settings to Input Monitoring...")
 do {
     try openTask.run()
     openTask.waitUntilExit()
-    
+
     if openTask.terminationStatus == 0 {
         print("✅ System Settings should now be open to Input Monitoring")
         print("   Add '/usr/local/bin/kanata' and enable it")

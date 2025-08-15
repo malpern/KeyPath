@@ -15,7 +15,7 @@ print(String(repeating: "=", count: 50))
 // Simulate the actual command that executeConsolidatedInstallation would create
 let launchDaemonsPath = "/Library/LaunchDaemons"
 let kanataTemp = "/tmp/test-kanata.plist"
-let vhidDaemonTemp = "/tmp/test-vhid-daemon.plist" 
+let vhidDaemonTemp = "/tmp/test-vhid-daemon.plist"
 let vhidManagerTemp = "/tmp/test-vhid-manager.plist"
 let kanataFinal = "\(launchDaemonsPath)/com.keypath.kanata.plist"
 let vhidDaemonFinal = "\(launchDaemonsPath)/com.keypath.karabiner-vhiddaemon.plist"
