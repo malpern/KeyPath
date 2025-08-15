@@ -1,10 +1,12 @@
 import SwiftUI
+import Observation
 
 /// Manages toast notifications for the installation wizard
 /// Provides temporary feedback for user actions like auto-fix operations
+@Observable
 @MainActor
-class WizardToastManager: ObservableObject {
-    @Published var currentToast: WizardToast?
+class WizardToastManager {
+    var currentToast: WizardToast?
 
     private var toastTask: Task<Void, Never>?
 
@@ -124,7 +126,7 @@ struct WizardToastView: View {
 
 /// View modifier to add toast support to any view
 struct ToastModifier: ViewModifier {
-    @ObservedObject var toastManager: WizardToastManager
+    @Bindable var toastManager: WizardToastManager
 
     func body(content: Content) -> some View {
         content

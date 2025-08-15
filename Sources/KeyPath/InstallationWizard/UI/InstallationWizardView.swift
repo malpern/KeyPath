@@ -8,10 +8,10 @@ struct InstallationWizardView: View {
     // New architecture components
     @StateObject private var stateManager = WizardStateManager()
     @StateObject private var autoFixer = WizardAutoFixerManager()
-    @StateObject private var stateInterpreter = WizardStateInterpreter()
+    private let stateInterpreter = WizardStateInterpreter()
     @StateObject private var navigationCoordinator = WizardNavigationCoordinator()
-    @StateObject private var asyncOperationManager = WizardAsyncOperationManager()
-    @StateObject private var toastManager = WizardToastManager()
+    @State private var asyncOperationManager = WizardAsyncOperationManager()
+    @State private var toastManager = WizardToastManager()
 
     // UI state
     @State private var isInitializing = true

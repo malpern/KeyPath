@@ -1,14 +1,17 @@
 import Foundation
+import Observation
 
 /// Manages KeyPath application preferences and settings
 @MainActor
-class PreferencesService: ObservableObject {
+@Observable
+final class PreferencesService {
+    // MARK: - Shared instance (backward compatible)
     static let shared = PreferencesService()
 
     // MARK: - TCP Server Configuration
 
     /// Whether TCP server should be enabled for config validation
-    @Published var tcpServerEnabled: Bool {
+    var tcpServerEnabled: Bool {
         didSet {
             UserDefaults.standard.set(tcpServerEnabled, forKey: Keys.tcpServerEnabled)
             AppLogger.shared.log("🔧 [PreferencesService] TCP server enabled: \(tcpServerEnabled)")
@@ -16,18 +19,17 @@ class PreferencesService: ObservableObject {
     }
 
     /// TCP server port for Kanata communication
-    @Published var tcpServerPort: Int {
+    var tcpServerPort: Int {
         didSet {
             // Validate port range and revert if invalid
             if !isValidTCPPort(tcpServerPort) {
                 AppLogger.shared.log(
                     "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)")
                 tcpServerPort = oldValue
-                return
+            } else {
+                UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
+                AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
             }
-
-            UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
-            AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
         }
     }
 
@@ -47,7 +49,7 @@ class PreferencesService: ObservableObject {
 
     // MARK: - Initialization
 
-    private init() {
+    init() {
         // Load stored preferences or use defaults
         tcpServerEnabled =
             UserDefaults.standard.object(forKey: Keys.tcpServerEnabled) as? Bool
@@ -98,7 +100,7 @@ extension PreferencesService {
 // MARK: - Thread-Safe Snapshot API
 
 /// Thread-safe snapshot of TCP configuration for use from non-MainActor contexts
-struct TCPConfigSnapshot {
+struct TCPConfigSnapshot: Sendable {
     let enabled: Bool
     let port: Int
 

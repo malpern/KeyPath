@@ -3,8 +3,7 @@ import SwiftUI
 
 /// Centralized interpreter for wizard state to ensure consistent UI status across all components
 /// Eliminates direct KanataManager queries in UI and provides single source of truth
-@MainActor
-class WizardStateInterpreter: ObservableObject {
+struct WizardStateInterpreter {
     // MARK: - Permission Status
 
     /// Get the status of a specific permission requirement

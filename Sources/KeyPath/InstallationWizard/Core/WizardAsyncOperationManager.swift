@@ -1,14 +1,16 @@
 import Foundation
 import SwiftUI
+import Observation
 
 /// Manages async operations throughout the wizard with consistent patterns and error handling
+@Observable
 @MainActor
-class WizardAsyncOperationManager: ObservableObject {
-    // MARK: - Published State
+class WizardAsyncOperationManager {
+    // MARK: - Observable State
 
-    @Published var runningOperations: Set<String> = []
-    @Published var lastError: WizardError?
-    @Published var operationProgress: [String: Double] = [:]
+    var runningOperations: Set<String> = []
+    var lastError: WizardError?
+    var operationProgress: [String: Double] = [:]
 
     // MARK: - Operation Management
 
