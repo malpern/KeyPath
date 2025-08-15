@@ -1294,22 +1294,24 @@ class KanataManager: ObservableObject {
 
         // Config synchronization no longer needed - LaunchDaemon reads directly from user config
 
-        // DEBUG: Wait and monitor for --watch detection (FALLBACK RESTART DISABLED FOR DEBUGGING)
-        AppLogger.shared.log("🔍 [DEBUG] Fallback restart disabled - testing pure --watch behavior")
-        AppLogger.shared.log("🔍 [DEBUG] Monitor Kanata logs to see if config changes are detected")
-        AppLogger.shared.log("🔍 [DEBUG] Config path being watched: \(configPath)")
+        // Fallback restart mechanism to ensure config changes are applied
+        // This handles the known Kanata --watch bug where file detection works but reload gets stuck
+        AppLogger.shared.log("🔄 [Config] Enabling fallback restart to ensure reliable config updates")
+        AppLogger.shared.log("🔍 [Config] Config path being watched: \(configPath)")
 
-        // DISABLED FOR DEBUGGING:
-        // Task.detached { [weak self] in
-        //   guard let self = self else { return }
-        //   // Small grace period for --watch to pick up changes
-        //   try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
-        //   // Heuristic: if still running, force a lightweight restart to ensure new config is active
-        //   if await MainActor.run { self.isRunning } {
-        //     AppLogger.shared.log("🔄 [Config] Fallback restart to ensure config changes apply")
-        //     await self.restartKanata()
-        //   }
-        // }
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            
+            // Small grace period for --watch to attempt reload
+            try? await Task.sleep(nanoseconds: 500_000_000)  // 500ms - enough time for hot reload attempt
+            
+            // Fallback restart if service is still running (hot reload likely failed)
+            if await MainActor.run { self.isRunning } {
+                AppLogger.shared.log("🔄 [Config] Performing fallback restart to ensure config changes apply")
+                await self.restartKanata()
+                AppLogger.shared.log("✅ [Config] Fallback restart completed - config should now be active")
+            }
+        }
     }
 
     func updateStatus() async {
