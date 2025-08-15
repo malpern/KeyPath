@@ -23,8 +23,8 @@ tail -f "$LOG_FILE" | while read line; do
         afplay "$SOUND_FILE" &
     fi
     
-    # Check for successful reload
-    if echo "$line" | grep -q "Live reload successful"; then
+    # Check for successful reload (multiple patterns)
+    if echo "$line" | grep -qE "(Live reload successful|reload.*complete|Configuration loaded|reloaded successfully)"; then
         timestamp=$(echo "$line" | grep -o '^[0-9:.\[\]m ]*')
         echo "✅ [$timestamp] Hot reload successful!"
         
