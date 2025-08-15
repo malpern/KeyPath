@@ -258,8 +258,10 @@ struct RecordingSection: View {
         VStack(spacing: 16) {
             // Input Recording
             VStack(alignment: .leading, spacing: 8) {
+                // Accessibility container for input recording section
                 Text("Input Key:")
                     .font(.headline)
+                    .accessibilityIdentifier("input-key-label")
 
                 HStack {
                     Text(getInputDisplayText())
@@ -298,11 +300,15 @@ struct RecordingSection: View {
                         isRecording ? "Stop recording the input key" : "Start recording a key to remap")
                 }
             }
+            .accessibilityIdentifier("input-recording-section")
+            .accessibilityLabel("Input key recording section")
 
             // Output Recording
             VStack(alignment: .leading, spacing: 8) {
+                // Accessibility container for output recording section
                 Text("Output Key:")
                     .font(.headline)
+                    .accessibilityIdentifier("output-key-label")
 
                 HStack {
                     Text(getOutputDisplayText())
@@ -343,6 +349,8 @@ struct RecordingSection: View {
                             ? "Stop recording the output key" : "Start recording the replacement key")
                 }
             }
+            .accessibilityIdentifier("output-recording-section")
+            .accessibilityLabel("Output key recording section")
 
             // Save Button
             HStack {
