@@ -92,20 +92,23 @@ final class ProcessLifecycleManager {
     // MARK: - Dependencies
 
     private let kanataManager: KanataManager?
+    private let pidCache = LaunchDaemonPIDCache()
 
     init(kanataManager: KanataManager? = nil) {
         self.kanataManager = kanataManager
         AppLogger.shared.log(
-            "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking")
+            "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking and caching")
     }
 
     // MARK: - Public API
 
     /// Register that we started a kanata process
-    func registerStartedProcess(pid: pid_t, command: String) {
+    func registerStartedProcess(pid: pid_t, command: String) async {
         do {
             try PIDFileManager.writePID(pid, command: command)
             ownedPID = pid
+            // Invalidate cache since we changed process state
+            await pidCache.invalidateCache()
             AppLogger.shared.log("📝 [ProcessLifecycleManager] Registered process PID: \(pid)")
         } catch {
             AppLogger.shared.log("❌ [ProcessLifecycleManager] Failed to register process: \(error)")
@@ -113,10 +116,12 @@ final class ProcessLifecycleManager {
     }
 
     /// Unregister our process (on stop or cleanup)
-    func unregisterProcess() {
+    func unregisterProcess() async {
         do {
             try PIDFileManager.removePID()
             ownedPID = nil
+            // Invalidate cache since we changed process state
+            await pidCache.invalidateCache()
             AppLogger.shared.log("🗑️ [ProcessLifecycleManager] Unregistered process")
         } catch {
             AppLogger.shared.log("❌ [ProcessLifecycleManager] Failed to unregister process: \(error)")
@@ -211,11 +216,20 @@ final class ProcessLifecycleManager {
 
                 // Kill the orphaned process
                 await PIDFileManager.killOrphanedProcess()
+                // Invalidate cache since we changed process state
+                await pidCache.invalidateCache()
             } else {
                 // Process is dead, just clean up the PID file
                 try? PIDFileManager.removePID()
             }
         }
+    }
+
+    /// Force refresh of LaunchDaemon PID cache
+    /// Useful when external processes modify service state
+    func invalidatePIDCache() async {
+        await pidCache.invalidateCache()
+        AppLogger.shared.log("🔄 [ProcessLifecycleManager] PID cache invalidated externally")
     }
 
     // MARK: - Process Detection
@@ -291,60 +305,29 @@ final class ProcessLifecycleManager {
 
     /// Check if a process is actually managed by our LaunchDaemon service
     /// This verifies the service is loaded AND that the specific PID belongs to the service
+    /// Uses cached PID lookups to prevent race conditions and improve performance
     private func isProcessManagedByLaunchDaemon(_ process: ProcessInfo) async -> Bool {
         // First check if the process uses our config path (necessary but not sufficient)
         guard process.command.contains("/.config/keypath/keypath.kbd") else {
+            AppLogger.shared.log("🔍 [ProcessLifecycleManager] PID \(process.pid): Wrong config path, not managed")
             return false
         }
 
-        // Check if our LaunchDaemon service is loaded and get its PID
-        let task = Process()
-        task.launchPath = "/bin/launchctl"
-        task.arguments = ["print", "system/com.keypath.kanata"]
+        // Use cached PID lookup with timeout protection and confidence tracking
+        let (cachedPID, confidence) = await pidCache.getCachedPIDWithConfidence()
+        let isThisProcessManaged = cachedPID != nil && cachedPID == process.pid
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe() // Discard error output
+        let cacheAge = await pidCache.lastUpdate.map { Date().timeIntervalSince($0) } ?? -1
 
-        do {
-            try task.run()
-            task.waitUntilExit()
+        AppLogger.shared.log(
+            "🔍 [ProcessLifecycleManager] PID \(process.pid): " +
+                "ConfigPath=✅, " +
+                "CachedPID=\(cachedPID ?? -1), " +
+                "Match=\(isThisProcessManaged), " +
+                "Confidence=\(confidence), " +
+                "CacheAge=\(String(format: "%.1f", cacheAge))s"
+        )
 
-            // If launchctl print succeeds, the service is loaded
-            if task.terminationStatus == 0 {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-
-                // Extract the actual PID from the LaunchDaemon output
-                // Look for pattern like "pid = 97324"
-                var launchDaemonPID: pid_t?
-                if let pidRange = output.range(of: "pid = ") {
-                    let pidStart = output.index(pidRange.upperBound, offsetBy: 0)
-                    // Find the end of the PID number
-                    var pidEnd = pidStart
-                    while pidEnd < output.endIndex, output[pidEnd].isNumber {
-                        pidEnd = output.index(after: pidEnd)
-                    }
-
-                    let pidString = String(output[pidStart ..< pidEnd])
-                    launchDaemonPID = pid_t(pidString)
-                }
-
-                let isRunning = output.contains("state = running")
-
-                // Only return true if this specific process PID matches the LaunchDaemon's PID
-                let isThisProcessManaged = launchDaemonPID != nil && launchDaemonPID == process.pid
-
-                AppLogger.shared.log("🔍 [ProcessLifecycleManager] LaunchDaemon check for PID \(process.pid): service_pid=\(launchDaemonPID ?? -1), running=\(isRunning), matches=\(isThisProcessManaged)")
-
-                return isThisProcessManaged
-            } else {
-                AppLogger.shared.log("🔍 [ProcessLifecycleManager] LaunchDaemon service check: not loaded")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log("🔍 [ProcessLifecycleManager] LaunchDaemon service check failed: \(error)")
-            return false
-        }
+        return isThisProcessManaged
     }
 }

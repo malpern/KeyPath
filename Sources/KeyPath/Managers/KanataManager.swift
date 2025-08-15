@@ -1041,7 +1041,7 @@ class KanataManager: ObservableObject {
             // Register the PID with our lifecycle manager
             let pid = task.processIdentifier
             let command = (["sudo", "-n"] + task.arguments!).joined(separator: " ")
-            processLifecycleManager.registerStartedProcess(pid: pid, command: command)
+            await processLifecycleManager.registerStartedProcess(pid: pid, command: command)
             AppLogger.shared.log("📝 [Start] Registered kanata process with PID: \(pid)")
 
             // Start real-time log monitoring for VirtualHID connection issues
@@ -1197,7 +1197,7 @@ class KanataManager: ObservableObject {
             kanataProcess = nil
 
             // Unregister the PID
-            processLifecycleManager.unregisterProcess()
+            await processLifecycleManager.unregisterProcess()
 
             AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata process")
         } else {

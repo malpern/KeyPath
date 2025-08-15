@@ -12,6 +12,12 @@ class SystemStateDetector: SystemStateDetecting {
     private let issueGenerator: IssueGenerator
     private let launchDaemonInstaller: LaunchDaemonInstaller
 
+    // MARK: - Debouncing State
+
+    private var lastConflictState: Bool = false
+    private var lastStateChange: Date = .init()
+    private let stateChangeDebounceTime: TimeInterval = 0.5 // 500ms
+
     init(
         kanataManager: KanataManager,
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
@@ -226,12 +232,49 @@ class SystemStateDetector: SystemStateDetecting {
     // MARK: - ProcessLifecycleManager Integration
 
     /// Adapter method to convert ProcessLifecycleManager conflicts to SystemStateDetector format
+    /// Includes debouncing to prevent rapid state changes that cause UI flicker
     private func detectConflictsUsingProcessLifecycleManager() async -> ConflictDetectionResult {
         let conflicts = await processLifecycleManager.detectConflicts()
 
         // Convert ProcessLifecycleManager ProcessInfo to SystemConflict
         let systemConflicts: [SystemConflict] = conflicts.externalProcesses.map { processInfo in
             .kanataProcessRunning(pid: Int(processInfo.pid), command: processInfo.command)
+        }
+
+        let hasConflicts = !systemConflicts.isEmpty
+
+        // Apply debouncing logic to prevent rapid state changes
+        let shouldUpdateState = shouldUpdateConflictState(hasConflicts)
+        if !shouldUpdateState {
+            // Return previous state to prevent flicker
+            AppLogger.shared.log("🔄 [StateDetector] Debouncing conflict state change - maintaining previous state: \(lastConflictState)")
+
+            // Create result based on previous state
+            let debouncedConflicts = lastConflictState ? systemConflicts : []
+            let description = debouncedConflicts.isEmpty
+                ? "No conflicts detected (debounced)"
+                : "Found \(debouncedConflicts.count) external processes (debounced): "
+                + debouncedConflicts.map { conflict in
+                    switch conflict {
+                    case let .kanataProcessRunning(pid, _):
+                        "Kanata process (PID: \(pid))"
+                    case let .karabinerGrabberRunning(pid):
+                        "Karabiner grabber (PID: \(pid))"
+                    case let .karabinerVirtualHIDDeviceRunning(pid, processName):
+                        "\(processName) (PID: \(pid))"
+                    case let .karabinerVirtualHIDDaemonRunning(pid):
+                        "Karabiner daemon (PID: \(pid))"
+                    case let .exclusiveDeviceAccess(device):
+                        "Device access: \(device)"
+                    }
+                }.joined(separator: "; ")
+
+            return ConflictDetectionResult(
+                conflicts: debouncedConflicts,
+                canAutoResolve: conflicts.canAutoResolve,
+                description: description,
+                managedProcesses: conflicts.managedProcesses
+            )
         }
 
         let description =
@@ -259,6 +302,28 @@ class SystemStateDetector: SystemStateDetecting {
             description: description,
             managedProcesses: conflicts.managedProcesses
         )
+    }
+
+    /// Check if conflict state should be updated based on debouncing logic
+    private func shouldUpdateConflictState(_ newState: Bool) -> Bool {
+        let timeSinceLastChange = Date().timeIntervalSince(lastStateChange)
+
+        // If state hasn't changed, always allow update
+        if newState == lastConflictState {
+            return true
+        }
+
+        // If state changed but not enough time has passed, debounce it
+        if timeSinceLastChange < stateChangeDebounceTime {
+            AppLogger.shared.log("🔄 [StateDetector] Debouncing state change: \(lastConflictState) -> \(newState) (only \(String(format: "%.1f", timeSinceLastChange * 1000))ms elapsed)")
+            return false
+        }
+
+        // Enough time has passed, allow the state change
+        lastConflictState = newState
+        lastStateChange = Date()
+        AppLogger.shared.log("🔄 [StateDetector] State change allowed: \(lastConflictState) -> \(newState) (after \(String(format: "%.1f", timeSinceLastChange * 1000))ms)")
+        return true
     }
 
     // MARK: - Config Path Mismatch Detection
