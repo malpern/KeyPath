@@ -12,6 +12,7 @@ enum WizardPage: String, CaseIterable {
     case accessibility = "Accessibility"
     case karabinerComponents = "Karabiner Components"
     case kanataComponents = "Kanata Components"
+    case tcpServer = "TCP Server"
     case service = "Start Service"
 
     /// User-friendly display name for accessibility and UI
@@ -24,6 +25,7 @@ enum WizardPage: String, CaseIterable {
         case .accessibility: "Accessibility Permission"
         case .karabinerComponents: "Karabiner Driver Setup"
         case .kanataComponents: "Kanata Engine Setup"
+        case .tcpServer: "TCP Server Configuration"
         case .service: "Start Keyboard Service"
         }
     }
@@ -38,6 +40,7 @@ enum WizardPage: String, CaseIterable {
         case .accessibility: "accessibility"
         case .karabinerComponents: "karabiner-components"
         case .kanataComponents: "kanata-components"
+        case .tcpServer: "tcp-server"
         case .service: "service"
         }
     }
@@ -98,6 +101,7 @@ enum ComponentRequirement: Equatable {
     case packageManager // Homebrew or other package manager
     case vhidDaemonMisconfigured
     case kanataTCPServer // TCP server for Kanata communication and config validation
+    case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -113,6 +117,8 @@ enum AutoFixAction: Equatable {
     case repairVHIDDaemonServices
     case synchronizeConfigPaths // Fix config path mismatches
     case restartUnhealthyServices // Restart services that are loaded but crashed
+    case adoptOrphanedProcess // Install LaunchDaemon to manage existing process
+    case replaceOrphanedProcess // Kill orphaned process and start managed one
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation

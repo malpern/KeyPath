@@ -34,11 +34,11 @@ do {
     print("✅ osascript.run() succeeded")
     task.waitUntilExit()
     print("📊 Exit status: \(task.terminationStatus)")
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
     print("📤 Output: '\(output)'")
-    
+
     if task.terminationStatus == 0 {
         print("✅ SUCCESS: Admin prompt should have appeared")
     } else {

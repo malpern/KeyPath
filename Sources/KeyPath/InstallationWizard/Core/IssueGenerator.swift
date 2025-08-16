@@ -239,7 +239,7 @@ class IssueGenerator {
                 • Kanata process (PID \(mismatch.processPID)) is using: \(mismatch.actualConfigPath)
                 • KeyPath is saving changes to: \(mismatch.expectedConfigPath)
 
-                This prevents hot reloading from working. When you change keyboard mappings in KeyPath, Kanata won't detect the changes because it's watching the wrong file.
+                This prevents configuration updates from working. When you change keyboard mappings in KeyPath, the changes won't be applied because Kanata is reading from a different file.
                 """,
                 autoFixAction: .synchronizeConfigPaths,
                 userAction: "Use the Fix button to synchronize the config paths"
@@ -311,6 +311,7 @@ class IssueGenerator {
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .packageManager: "Package Manager (Homebrew) Missing"
         case .kanataTCPServer: "TCP Server Not Responding"
+        case .orphanedKanataProcess: "Orphaned Kanata Process"
         }
     }
 
@@ -329,7 +330,9 @@ class IssueGenerator {
         case .vhidDeviceActivation:
             "The VirtualHIDDevice Manager needs to be activated to enable virtual HID functionality."
         case .vhidDeviceRunning:
-            "The VirtualHIDDevice daemon is not running properly or has connection issues. This may indicate the manager needs activation, restart, or there are VirtualHID connection failures preventing keyboard remapping."
+            "The VirtualHIDDevice daemon is not running properly or has connection issues. " +
+            "This may indicate the manager needs activation, restart, or there are VirtualHID " +
+            "connection failures preventing keyboard remapping."
         case .vhidDaemonMisconfigured:
             "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
         case .launchDaemonServices:
@@ -340,6 +343,16 @@ class IssueGenerator {
             "Homebrew package manager is not installed. This is needed to automatically install missing dependencies like Kanata. Install from https://brew.sh"
         case .kanataTCPServer:
             "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
+        case .orphanedKanataProcess:
+            """
+            Kanata is running outside of LaunchDaemon management. This prevents reliable lifecycle control and hot-reload functionality.
+
+            KeyPath can fix this by either:
+            • **Adopt** (Recommended): Install management without interrupting your current session
+            • **Replace**: Stop current process and start a managed one (cleaner but interrupts current mappings)
+
+            The wizard will automatically choose the best option based on your configuration.
+            """
         }
     }
 
@@ -363,6 +376,8 @@ class IssueGenerator {
             .installLaunchDaemonServices // Service configuration files
         case .kanataTCPServer:
             .restartUnhealthyServices // TCP server requires service restart with updated config
+        case .orphanedKanataProcess:
+            .adoptOrphanedProcess // Default to adopting the orphaned process
         default:
             .installMissingComponents
         }

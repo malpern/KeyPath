@@ -31,16 +31,16 @@ process.standardError = pipe
 do {
     try process.run()
     process.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? "No output"
-    
+
     print("🔍 Exit code: \(process.terminationStatus)")
     print("🔍 Output: \(output)")
-    
+
     if process.terminationStatus == 0 {
         print("✅ osascript command succeeded")
-        
+
         // Check if test file was created
         if FileManager.default.fileExists(atPath: "/tmp/test-keypath.plist") {
             print("✅ Test file created successfully")
@@ -51,7 +51,7 @@ do {
     } else {
         print("❌ osascript command failed")
     }
-    
+
 } catch {
     print("❌ Error running osascript: \(error)")
 }

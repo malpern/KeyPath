@@ -619,7 +619,9 @@ class SimpleKanataManager: ObservableObject {
         // Only return true if we went from "missing permissions" to "all permissions granted"
         if !previouslyHadAllPermissions, currentlyHasAllPermissions {
             AppLogger.shared.log(
-                "✅ [SimpleKanataManager] All system permissions now granted! KeyPath(Input: \(systemStatus.keyPath.hasInputMonitoring), Access: \(systemStatus.keyPath.hasAccessibility)) | Kanata(Input: \(systemStatus.kanata.hasInputMonitoring), Access: \(systemStatus.kanata.hasAccessibility))"
+                "✅ [SimpleKanataManager] All system permissions now granted! " +
+                "KeyPath(Input: \(systemStatus.keyPath.hasInputMonitoring), Access: \(systemStatus.keyPath.hasAccessibility)) | " +
+                "Kanata(Input: \(systemStatus.kanata.hasInputMonitoring), Access: \(systemStatus.kanata.hasAccessibility))"
             )
             return true
         }

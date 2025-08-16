@@ -39,6 +39,8 @@ public struct KeyPathApp: App {
             ContentView()
                 .environmentObject(kanataManager)
                 .environmentObject(simpleKanataManager)
+                .environment(\.preferencesService, PreferencesService.shared)
+                .environment(\.permissionService, PermissionService.shared)
         }
         .windowResizability(.contentSize)
         .commands {
@@ -79,6 +81,8 @@ public struct KeyPathApp: App {
             SettingsView()
                 .environmentObject(kanataManager)
                 .environmentObject(simpleKanataManager)
+                .environment(\.preferencesService, PreferencesService.shared)
+                .environment(\.permissionService, PermissionService.shared)
         }
     }
 }

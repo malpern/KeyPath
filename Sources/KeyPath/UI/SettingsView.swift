@@ -4,7 +4,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataManager: KanataManager
     @EnvironmentObject var simpleKanataManager: SimpleKanataManager
-    @ObservedObject private var preferences = PreferencesService.shared
+    @Environment(\.preferencesService) private var preferences: PreferencesService
     @State private var showingResetConfirmation = false
     @State private var showingDiagnostics = false
     @State private var showingInstallationWizard = false
@@ -218,9 +218,15 @@ struct SettingsView: View {
                     SettingsSection(title: "TCP Server") {
                         VStack(spacing: 12) {
                             HStack {
-                                Toggle("Enable TCP Server", isOn: $preferences.tcpServerEnabled)
-                                    .help(
-                                        "Enable TCP server for config validation. Required for live config checking.")
+                                Toggle(
+                                    "Enable TCP Server",
+                                    isOn: Binding(
+                                        get: { preferences.tcpServerEnabled },
+                                        set: { preferences.tcpServerEnabled = $0 }
+                                    )
+                                )
+                                .help(
+                                    "Enable TCP server for config validation. Required for live config checking.")
 
                                 Spacer()
                             }

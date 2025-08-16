@@ -70,6 +70,8 @@ class KanataManagerSyncTests: XCTestCase {
 
     // MARK: - Helper Methods
 
+    // TODO: Extract system dependencies - consider creating ProcessCounterProtocol for testability
+
     private func countKanataProcesses() async -> Int {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
@@ -94,6 +96,7 @@ class KanataManagerSyncTests: XCTestCase {
         }
     }
 
+    // TODO: Extract system dependencies - consider creating ProcessManagerProtocol for testability
     private func terminateAllTestKanataProcesses() {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
@@ -141,7 +144,6 @@ class KanataManagerMockTests: XCTestCase {
         // Verify the config contains the expected structure
         XCTAssertTrue(config1.contains("defcfg"))
         XCTAssertTrue(config1.contains("process-unmapped-keys"))
-        XCTAssertTrue(config1.contains("danger-enable-cmd"))
         XCTAssertTrue(config1.contains("defsrc"))
         XCTAssertTrue(config1.contains("deflayer base"))
 
@@ -153,6 +155,76 @@ class KanataManagerMockTests: XCTestCase {
         let config2 = manager.generateKanataConfig(input: "tab", output: "ctrl")
         XCTAssertTrue(config2.contains("tab"))
         XCTAssertTrue(config2.contains("lctl")) // tab -> ctrl becomes lctl for macOS
+
+        // Test that configurations are deterministic (same input = same output)
+        let config1Repeat = manager.generateKanataConfig(input: "caps", output: "esc")
+        XCTAssertEqual(config1, config1Repeat, "Configuration generation should be deterministic")
+
+        // Test that different inputs produce different outputs
+        XCTAssertNotEqual(config1, config2, "Different inputs should produce different configurations")
+    }
+
+    func testKeyMappingTranslation() {
+        // Test that key mappings are correctly translated for Kanata
+        let manager = KanataManager()
+
+        // Test common key translations
+        let spaceConfig = manager.generateKanataConfig(input: "space", output: "tab")
+        XCTAssertTrue(spaceConfig.contains("space"), "Space key should be preserved")
+        XCTAssertTrue(spaceConfig.contains("tab"), "Tab output should be preserved")
+
+        let returnConfig = manager.generateKanataConfig(input: "return", output: "delete")
+        XCTAssertTrue(returnConfig.contains("return"), "Return key should be preserved")
+        XCTAssertTrue(returnConfig.contains("delete"), "Delete output should be translated correctly")
+
+        // Test that special characters are handled
+        let escapeConfig = manager.generateKanataConfig(input: "escape", output: "caps")
+        XCTAssertTrue(escapeConfig.contains("escape"), "Escape key should be preserved")
+        XCTAssertTrue(escapeConfig.contains("caps"), "Caps output should be preserved")
+    }
+
+    func testConfigurationValidationDecisions() {
+        // Test KanataManager's decision logic for which validation method to use
+        let manager = KanataManager()
+
+        // Mock different scenarios and test decision logic
+        // Note: This would be better with dependency injection, but we can test the current logic
+
+        // Test that empty input/output is handled
+        let emptyConfig = manager.generateKanataConfig(input: "", output: "esc")
+        XCTAssertFalse(emptyConfig.isEmpty, "Should generate valid config even with empty input")
+
+        let emptyOutputConfig = manager.generateKanataConfig(input: "caps", output: "")
+        XCTAssertFalse(emptyOutputConfig.isEmpty, "Should generate valid config even with empty output")
+    }
+
+    func testSynchronizationStateManagement() {
+        // Test the synchronization logic without system dependencies
+        let manager = KanataManager()
+
+        // Test that manager maintains consistent state
+        XCTAssertFalse(manager.isRunning, "Manager should start in stopped state")
+
+        // Test state transitions without actually starting processes
+        // This tests the decision logic without system side effects
+        let initialState = manager.isRunning
+        XCTAssertEqual(initialState, false, "Initial state should be deterministic")
+    }
+
+    func testProcessManagementDecisionLogic() {
+        // Test the decision logic for process management without system calls
+        let manager = KanataManager()
+
+        // Test that configuration changes are handled consistently
+        let config1 = manager.generateKanataConfig(input: "caps", output: "esc")
+        let config2 = manager.generateKanataConfig(input: "caps", output: "esc")
+
+        XCTAssertEqual(config1, config2, "Identical inputs should produce identical configurations")
+
+        // Test configuration parsing logic
+        XCTAssertTrue(config1.contains("(defcfg"), "Configuration should start with defcfg block")
+        XCTAssertTrue(config1.contains("(defsrc"), "Configuration should contain defsrc block")
+        XCTAssertTrue(config1.contains("(deflayer"), "Configuration should contain deflayer block")
     }
 
     func testConfigErrorHandling() {

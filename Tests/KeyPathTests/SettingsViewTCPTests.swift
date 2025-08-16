@@ -1,3 +1,5 @@
+import Darwin
+import Foundation
 import SwiftUI
 import XCTest
 
@@ -81,7 +83,7 @@ final class SettingsViewTCPTests: XCTestCase {
             )
         }
 
-        return Int(UInt16(boundAddr.sin_port).byteSwapped)
+        return Int(CFSwapInt16BigToHost(boundAddr.sin_port))
     }
 
     private func createSettingsView() -> some View {
@@ -98,25 +100,31 @@ final class SettingsViewTCPTests: XCTestCase {
         // Test that the view reflects the current TCP state
         XCTAssertTrue(preferencesService.tcpServerEnabled, "TCP should be enabled initially")
 
-        // The view should show the toggle in the enabled state
-        // Note: Testing SwiftUI views requires ViewInspector or similar framework
-        // For now, we test the underlying logic
-        XCTAssertTrue(preferencesService.tcpServerEnabled, "View should reflect enabled TCP state")
+        // Verify the view's data binding is consistent
+        XCTAssertEqual(preferencesService.tcpServerEnabled, true, "View model should match preferences")
+        XCTAssertTrue(preferencesService.shouldUseTCPServer, "Dependent computed properties should be consistent")
+        XCTAssertNotNil(preferencesService.tcpEndpoint, "TCP endpoint should be available when enabled")
     }
 
     func testTCPToggleStateChange() {
         let settingsView = createSettingsView()
 
-        // Test toggling TCP state
+        // Capture initial state
+        let initialPort = preferencesService.tcpServerPort
+
+        // Test disabling TCP
         preferencesService.tcpServerEnabled = false
         XCTAssertFalse(preferencesService.tcpServerEnabled, "TCP should be disabled after toggle")
         XCTAssertFalse(preferencesService.shouldUseTCPServer, "Should not use TCP when disabled")
+        XCTAssertNil(preferencesService.tcpEndpoint, "TCP endpoint should be nil when disabled")
+        XCTAssertEqual(preferencesService.tcpServerPort, initialPort, "Port should remain unchanged when toggling")
 
+        // Test re-enabling TCP
         preferencesService.tcpServerEnabled = true
         XCTAssertTrue(preferencesService.tcpServerEnabled, "TCP should be enabled after toggle")
-        XCTAssertTrue(
-            preferencesService.shouldUseTCPServer, "Should use TCP when enabled with valid port"
-        )
+        XCTAssertTrue(preferencesService.shouldUseTCPServer, "Should use TCP when enabled with valid port")
+        XCTAssertNotNil(preferencesService.tcpEndpoint, "TCP endpoint should be restored when re-enabled")
+        XCTAssertEqual(preferencesService.tcpServerPort, initialPort, "Port should be restored to original value")
     }
 
     // MARK: - Port Configuration Tests
@@ -418,7 +426,7 @@ final class SettingsViewTCPTests: XCTestCase {
 
         // Test that SettingsView can check if Kanata is running
         let isRunning = simpleKanataManager.isRunning
-        XCTAssert(isRunning || !isRunning, "isRunning should return a valid boolean")
+        XCTAssertNotNil(isRunning, "isRunning should return a deterministic boolean value")
 
         // SettingsView status display should reflect KanataManager state
         // This would be tested through actual UI inspection in a more complete test
@@ -503,14 +511,15 @@ final class SettingsViewTCPTests: XCTestCase {
             preferencesService.isValidTCPPort(Int.min), "Should handle negative port numbers"
         )
 
-        // Test rapid toggling
+        // Test rapid toggling maintains consistent state
+        let initialState = preferencesService.tcpServerEnabled
         for _ in 0 ..< 100 {
             preferencesService.tcpServerEnabled.toggle()
         }
-        // Should end up in a consistent state
-        XCTAssert(
-            preferencesService.tcpServerEnabled == true || preferencesService.tcpServerEnabled == false,
-            "Rapid toggling should maintain consistent state"
+        // After even number of toggles, should match initial state
+        XCTAssertEqual(
+            preferencesService.tcpServerEnabled, initialState,
+            "After 100 toggles, should return to initial state"
         )
     }
 

@@ -1,0 +1,52 @@
+# SwiftLint Configuration for KeyPath
+# Focuses on critical issues while allowing reasonable flexibility
+
+# Exclude build artifacts and generated code
+excluded:
+  - .build
+  - dist
+  - Tests/InstallationWizardTests.disabled
+  - "*.generated.swift"
+
+# Configure rules - make everything warnings for CI
+line_length:
+  error: 500      # Extremely generous - almost never error
+  warning: 200    # Reasonable warning threshold
+  ignores_urls: true
+  ignores_function_declarations: true
+  ignores_comments: true
+
+identifier_name:
+  min_length:
+    error: 1      # Allow single character names
+    warning: 1    # Only warn for single characters
+  max_length:
+    error: 100    # Very generous max length
+    warning: 40   # Reasonable warning threshold
+  excluded:
+    - id          # Allow common short names
+    - x
+    - y
+    - i           # Allow loop counters
+    - j
+    - k
+    - m
+    - n
+    - p
+    - rx
+  allowed_symbols: ["_"]  # Allow underscores in names
+
+# Disable problematic rules for CI
+disabled_rules:
+  - type_body_length
+  - file_length
+  - function_body_length
+  - cyclomatic_complexity
+  - large_tuple
+  - function_parameter_count
+  - force_try           # Allow force try in tests
+  - force_cast          # Allow force cast in tests
+  - force_unwrapping    # Allow force unwrapping in tests
+
+# Custom reporter for CI
+reporter: "github-actions-logging"

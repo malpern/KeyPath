@@ -92,20 +92,23 @@ final class ProcessLifecycleManager {
     // MARK: - Dependencies
 
     private let kanataManager: KanataManager?
+    private let pidCache = LaunchDaemonPIDCache()
 
     init(kanataManager: KanataManager? = nil) {
         self.kanataManager = kanataManager
         AppLogger.shared.log(
-            "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking")
+            "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking and caching")
     }
 
     // MARK: - Public API
 
     /// Register that we started a kanata process
-    func registerStartedProcess(pid: pid_t, command: String) {
+    func registerStartedProcess(pid: pid_t, command: String) async {
         do {
             try PIDFileManager.writePID(pid, command: command)
             ownedPID = pid
+            // Invalidate cache since we changed process state
+            await pidCache.invalidateCache()
             AppLogger.shared.log("📝 [ProcessLifecycleManager] Registered process PID: \(pid)")
         } catch {
             AppLogger.shared.log("❌ [ProcessLifecycleManager] Failed to register process: \(error)")
@@ -113,10 +116,12 @@ final class ProcessLifecycleManager {
     }
 
     /// Unregister our process (on stop or cleanup)
-    func unregisterProcess() {
+    func unregisterProcess() async {
         do {
             try PIDFileManager.removePID()
             ownedPID = nil
+            // Invalidate cache since we changed process state
+            await pidCache.invalidateCache()
             AppLogger.shared.log("🗑️ [ProcessLifecycleManager] Unregistered process")
         } catch {
             AppLogger.shared.log("❌ [ProcessLifecycleManager] Failed to unregister process: \(error)")
@@ -140,7 +145,10 @@ final class ProcessLifecycleManager {
 
         for process in allProcesses {
             let isOwnedPID = ownership.pid != nil && process.pid == ownership.pid
-            let isLaunchDaemonManaged = process.command.contains("/.config/keypath/keypath.kbd")
+
+            // Check if process is actually managed by our LaunchDaemon service
+            // Just using the config path is not sufficient - need to verify service is running this process
+            let isLaunchDaemonManaged = await isProcessManagedByLaunchDaemon(process)
 
             if isOwnedPID {
                 managedProcesses.append(process)
@@ -208,11 +216,20 @@ final class ProcessLifecycleManager {
 
                 // Kill the orphaned process
                 await PIDFileManager.killOrphanedProcess()
+                // Invalidate cache since we changed process state
+                await pidCache.invalidateCache()
             } else {
                 // Process is dead, just clean up the PID file
                 try? PIDFileManager.removePID()
             }
         }
+    }
+
+    /// Force refresh of LaunchDaemon PID cache
+    /// Useful when external processes modify service state
+    func invalidatePIDCache() async {
+        await pidCache.invalidateCache()
+        AppLogger.shared.log("🔄 [ProcessLifecycleManager] PID cache invalidated externally")
     }
 
     // MARK: - Process Detection
@@ -284,5 +301,33 @@ final class ProcessLifecycleManager {
 
         // Look for actual kanata binary - be more specific
         return command.contains("/bin/kanata") || command.hasPrefix("kanata ") || command == "kanata"
+    }
+
+    /// Check if a process is actually managed by our LaunchDaemon service
+    /// This verifies the service is loaded AND that the specific PID belongs to the service
+    /// Uses cached PID lookups to prevent race conditions and improve performance
+    private func isProcessManagedByLaunchDaemon(_ process: ProcessInfo) async -> Bool {
+        // First check if the process uses our config path (necessary but not sufficient)
+        guard process.command.contains("/.config/keypath/keypath.kbd") else {
+            AppLogger.shared.log("🔍 [ProcessLifecycleManager] PID \(process.pid): Wrong config path, not managed")
+            return false
+        }
+
+        // Use cached PID lookup with timeout protection and confidence tracking
+        let (cachedPID, confidence) = await pidCache.getCachedPIDWithConfidence()
+        let isThisProcessManaged = cachedPID != nil && cachedPID == process.pid
+
+        let cacheAge = await pidCache.lastUpdate.map { Date().timeIntervalSince($0) } ?? -1
+
+        AppLogger.shared.log(
+            "🔍 [ProcessLifecycleManager] PID \(process.pid): " +
+                "ConfigPath=✅, " +
+                "CachedPID=\(cachedPID ?? -1), " +
+                "Match=\(isThisProcessManaged), " +
+                "Confidence=\(confidence), " +
+                "CacheAge=\(String(format: "%.1f", cacheAge))s"
+        )
+
+        return isThisProcessManaged
     }
 }

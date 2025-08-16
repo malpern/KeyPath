@@ -172,9 +172,9 @@ class AppLogger {
         }
 
         // Rotate existing backups (shift numbers up)
-        for i in stride(from: maxLogFiles - 2, through: 1, by: -1) {
-            let oldPath = "\(logPath).\(i)"
-            let newPath = "\(logPath).\(i + 1)"
+        for fileIndex in stride(from: maxLogFiles - 2, through: 1, by: -1) {
+            let oldPath = "\(logPath).\(fileIndex)"
+            let newPath = "\(logPath).\(fileIndex + 1)"
 
             if fileManager.fileExists(atPath: oldPath) {
                 try? fileManager.moveItem(atPath: oldPath, toPath: newPath)
@@ -207,8 +207,8 @@ class AppLogger {
     func getTotalLogSize() -> Int {
         var totalSize = getCurrentLogSize()
 
-        for i in 1 ..< maxLogFiles {
-            let backupPath = "\(logPath).\(i)"
+        for backupIndex in 1 ..< maxLogFiles {
+            let backupPath = "\(logPath).\(backupIndex)"
             if FileManager.default.fileExists(atPath: backupPath) {
                 do {
                     let attributes = try FileManager.default.attributesOfItem(atPath: backupPath)
@@ -237,8 +237,8 @@ class AppLogger {
             }
 
             // Remove backup logs
-            for i in 1 ..< self.maxLogFiles {
-                let backupPath = "\(self.logPath).\(i)"
+            for logIndex in 1 ..< self.maxLogFiles {
+                let backupPath = "\(self.logPath).\(logIndex)"
                 if fileManager.fileExists(atPath: backupPath) {
                     try? fileManager.removeItem(atPath: backupPath)
                 }

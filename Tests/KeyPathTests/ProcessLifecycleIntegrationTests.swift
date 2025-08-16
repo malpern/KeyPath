@@ -27,10 +27,10 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         processManager.setIntent(.shouldBeRunning(source: "test_basic_operations"))
 
         // Test process registration
-        processManager.registerStartedProcess(pid: pid_t(1234), command: "test command")
+        await processManager.registerStartedProcess(pid: pid_t(1234), command: "test command")
 
         // Test process unregistration
-        processManager.unregisterProcess()
+        await processManager.unregisterProcess()
 
         // Test crash recovery
         await processManager.recoverFromCrash()
@@ -47,7 +47,7 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         processManager.setIntent(.shouldBeRunning(source: "test_conflict_detection"))
 
         // Register a process as started by KeyPath
-        processManager.registerStartedProcess(pid: pid_t(1234), command: "kanata command")
+        await processManager.registerStartedProcess(pid: pid_t(1234), command: "kanata command")
 
         // Detect conflicts
         let conflicts = await processManager.detectConflicts()
@@ -89,8 +89,8 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         // Test realistic process operations
         for testIndex in 0 ..< 100 {
             processManager.setIntent(.shouldBeRunning(source: "perf_test_\(testIndex)"))
-            processManager.registerStartedProcess(pid: pid_t(10000 + testIndex), command: "test command")
-            processManager.unregisterProcess()
+            await processManager.registerStartedProcess(pid: pid_t(10000 + testIndex), command: "test command")
+            await processManager.unregisterProcess()
         }
 
         let endTime = CFAbsoluteTimeGetCurrent()
@@ -130,9 +130,9 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
                 processManager.setIntent(.shouldBeRunning(source: "concurrent_\(taskId)"))
 
                 // Test basic operations on ProcessLifecycleManager
-                processManager.registerStartedProcess(pid: pid_t(20000 + taskId), command: "test command")
+                await processManager.registerStartedProcess(pid: pid_t(20000 + taskId), command: "test command")
 
-                processManager.unregisterProcess()
+                await processManager.unregisterProcess()
             }
         }
 

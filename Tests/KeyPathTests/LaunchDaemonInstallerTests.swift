@@ -137,12 +137,14 @@ final class LaunchDaemonInstallerTests: XCTestCase {
         waitForExpectations(timeout: 10.0)
     }
 
+    @MainActor
     func testLaunchDaemonInstaller_IntegrationWithAutoFixer() {
         // Test that LaunchDaemonInstaller integrates properly with WizardAutoFixer
         let kanataManager = KanataManager()
         let vhidManager = VHIDDeviceManager()
+        let toastManager = WizardToastManager()
         let autoFixer = WizardAutoFixer(
-            kanataManager: kanataManager, vhidDeviceManager: vhidManager, launchDaemonInstaller: installer
+            kanataManager: kanataManager, vhidDeviceManager: vhidManager, launchDaemonInstaller: installer, toastManager: toastManager
         )
 
         // Verify auto fixer can be created with LaunchDaemonInstaller

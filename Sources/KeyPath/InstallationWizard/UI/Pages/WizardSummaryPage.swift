@@ -30,8 +30,7 @@ struct WizardSummaryPage: View {
                         issues: issues,
                         stateInterpreter: stateInterpreter,
                         onNavigateToPage: onNavigateToPage,
-                        kanataIsRunning: kanataManager.isRunning,
-                        isInitializing: isInitializing
+                        kanataIsRunning: kanataManager.isRunning
                     )
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                 }

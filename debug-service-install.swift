@@ -65,7 +65,7 @@ let tempPath = "/tmp/test-kanata-service.plist"
 do {
     try plistContent.write(toFile: tempPath, atomically: true, encoding: .utf8)
     print("✅ Successfully wrote plist to \(tempPath)")
-    
+
     // Show first few lines
     let content = try String(contentsOfFile: tempPath)
     let lines = content.components(separatedBy: "\n").prefix(15)
@@ -73,11 +73,11 @@ do {
     for line in lines {
         print("  \(line)")
     }
-    
+
     // Clean up
     try FileManager.default.removeItem(atPath: tempPath)
     print("\n✅ Cleanup completed")
-    
+
 } catch {
     print("❌ Failed to write plist: \(error)")
 }

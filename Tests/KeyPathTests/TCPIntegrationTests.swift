@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Network
 import XCTest
@@ -97,7 +98,7 @@ final class TCPIntegrationTests: XCTestCase {
             )
         }
 
-        return Int(UInt16(boundAddr.sin_port).byteSwapped)
+        return Int(CFSwapInt16BigToHost(boundAddr.sin_port))
     }
 
     private func createTestConfig(_ content: String) throws {
@@ -377,8 +378,14 @@ final class TCPIntegrationTests: XCTestCase {
             try? await Task.sleep(nanoseconds: 1_000_000) // 1ms
         }
 
-        // Test should complete without memory issues
-        XCTAssertTrue(true, "Sustained operations should complete without memory issues")
+        // Verify system is in good state after sustained load
+        XCTAssertTrue(preferencesService.shouldUseTCPServer, "TCP preferences should remain consistent after load")
+        XCTAssertNotNil(preferencesService.tcpEndpoint, "TCP endpoint should still be available")
+
+        // Verify TCP client is still functional
+        let client = KanataTCPClient(port: preferencesService.tcpServerPort)
+        let stillAvailable = await client.checkServerStatus()
+        XCTAssertTrue(stillAvailable, "TCP server should still be responsive after sustained operations")
     }
 
     // MARK: - Error Recovery Tests
@@ -476,7 +483,10 @@ final class TCPIntegrationTests: XCTestCase {
             for mapping in mappings {
                 try await kanataManager.saveConfiguration(input: mapping.input, output: mapping.output)
             }
-            XCTAssertTrue(true, "Configuration save should succeed")
+            // Verify all mappings were saved correctly
+            let validationResult = await kanataManager.validateConfigFile()
+            XCTAssertTrue(validationResult.isValid, "All saved mappings should create valid configuration")
+            XCTAssertTrue(validationResult.errors.isEmpty, "Saved configuration should have no errors")
         } catch {
             XCTFail("Configuration save should not fail: \(error)")
         }

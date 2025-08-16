@@ -73,7 +73,8 @@ struct WizardConflictsPage: View {
                 Button("Reset Everything") {
                     Task {
                         isScanning = true
-                        let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
+                        let toastManager = WizardToastManager() // Temporary instance for reset operation
+                        let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
                         await autoFixer.resetEverything()
                         await onRefresh()
                         isScanning = false

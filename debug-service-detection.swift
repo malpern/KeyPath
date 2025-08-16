@@ -11,15 +11,15 @@ func runCommand(_ command: String, args: [String]) -> (output: String, exitCode:
     let task = Process()
     task.executableURL = URL(fileURLWithPath: command)
     task.arguments = args
-    
+
     let pipe = Pipe()
     task.standardOutput = pipe
     task.standardError = pipe
-    
+
     do {
         try task.run()
         task.waitUntilExit()
-        
+
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: data, encoding: .utf8) ?? ""
         return (output, Int(task.terminationStatus))
@@ -88,11 +88,11 @@ if printExitCode == 0 {
     let isRunning = printOutput.contains("state = running")
     let hasCrashes = printOutput.contains("successive crashes = ") && !printOutput.contains("successive crashes = 0")
     let isInefficient = printOutput.contains("immediate reason = inefficient")
-    
+
     print("   Running: \(isRunning ? "✅ YES" : "❌ NO")")
     print("   Has crashes: \(hasCrashes ? "⚠️  YES" : "✅ NO")")
     print("   Inefficient: \(isInefficient ? "⚠️  YES" : "✅ NO")")
-    
+
     if isRunning && !hasCrashes && !isInefficient {
         print("   🎯 Service appears healthy - wizard should show green!")
     } else {

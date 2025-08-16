@@ -201,6 +201,14 @@ class SystemStateDetectorTests: XCTestCase {
             case .restartUnhealthyServices:
                 // Should be suggested when services are unhealthy
                 break
+
+            case .adoptOrphanedProcess:
+                // Should be suggested when orphaned processes can be adopted
+                break
+
+            case .replaceOrphanedProcess:
+                // Should be suggested when orphaned processes need replacement
+                break
             }
         }
 
@@ -338,5 +346,343 @@ class SystemStateDetectorTests: XCTestCase {
         print("   - Input monitoring: \(hasInputMonitoring)")
         print("   - Accessibility: \(hasAccessibility)")
         print("   - Daemon running: \(isDaemonRunning)")
+    }
+
+    // MARK: - Path Normalization Tests
+
+    @MainActor
+    func testPathNormalization() {
+        // Test basic path normalization
+        XCTAssertEqual(
+            detector.testNormalizedPath("/simple/path"),
+            "/simple/path",
+            "Simple paths should normalize to themselves"
+        )
+
+        // Test paths with .. components
+        XCTAssertEqual(
+            detector.testNormalizedPath("/path/../other/file"),
+            "/other/file",
+            "Should resolve .. components"
+        )
+
+        // Test paths with . components
+        XCTAssertEqual(
+            detector.testNormalizedPath("/path/./file"),
+            "/path/file",
+            "Should resolve . components"
+        )
+
+        // Test relative paths
+        let currentDir = FileManager.default.currentDirectoryPath
+        XCTAssertEqual(
+            detector.testNormalizedPath("relative/path"),
+            "\(currentDir)/relative/path",
+            "Should resolve relative paths to absolute"
+        )
+
+        // Test tilde expansion
+        let homeDir = NSHomeDirectory()
+        XCTAssertEqual(
+            detector.testNormalizedPath("~/config/file"),
+            "\(homeDir)/config/file",
+            "Should expand tilde to home directory"
+        )
+    }
+
+    @MainActor
+    func testCommandLineParsing() {
+        // Test simple command without quotes
+        let simpleCommand = "/usr/local/bin/kanata --cfg /path/to/config.kbd"
+        let simpleResult = detector.testParseCommandLine(simpleCommand)
+        XCTAssertEqual(simpleResult, ["/usr/local/bin/kanata", "--cfg", "/path/to/config.kbd"])
+
+        // Test command with quoted path containing spaces
+        let quotedCommand = "/usr/local/bin/kanata --cfg \"/path with spaces/config.kbd\""
+        let quotedResult = detector.testParseCommandLine(quotedCommand)
+        XCTAssertEqual(quotedResult, ["/usr/local/bin/kanata", "--cfg", "/path with spaces/config.kbd"])
+
+        // Test multiple quoted arguments
+        let multiQuotedCommand = "\"kanata binary\" --cfg \"/config path/file.kbd\" --port 37000"
+        let multiResult = detector.testParseCommandLine(multiQuotedCommand)
+        XCTAssertEqual(multiResult, ["kanata binary", "--cfg", "/config path/file.kbd", "--port", "37000"])
+
+        // Test mixed quoted and unquoted
+        let mixedCommand = "/bin/kanata --cfg \"/spaced path/file\" --verbose"
+        let mixedResult = detector.testParseCommandLine(mixedCommand)
+        XCTAssertEqual(mixedResult, ["/bin/kanata", "--cfg", "/spaced path/file", "--verbose"])
+
+        // Test empty string
+        let emptyResult = detector.testParseCommandLine("")
+        XCTAssertEqual(emptyResult, [])
+
+        // Test string with only spaces
+        let spacesResult = detector.testParseCommandLine("   ")
+        XCTAssertEqual(spacesResult, [])
+
+        // Test unclosed quotes (should still parse what it can)
+        let unclosedCommand = "/bin/kanata --cfg \"/unclosed/quote/path"
+        let unclosedResult = detector.testParseCommandLine(unclosedCommand)
+        XCTAssertEqual(unclosedResult, ["/bin/kanata", "--cfg", "/unclosed/quote/path"])
+    }
+
+    @MainActor
+    func testExtractConfigPath() {
+        // Test extraction from simple command
+        let simpleCommand = "/usr/local/bin/kanata --cfg /path/to/config.kbd"
+        let simplePath = detector.testExtractConfigPath(from: simpleCommand)
+        XCTAssertEqual(simplePath, "/path/to/config.kbd")
+
+        // Test extraction from quoted path
+        let quotedCommand = "/usr/local/bin/kanata --cfg \"/path with spaces/config.kbd\""
+        let quotedPath = detector.testExtractConfigPath(from: quotedCommand)
+        XCTAssertEqual(quotedPath, "/path with spaces/config.kbd")
+
+        // Test command without --cfg
+        let noCfgCommand = "/usr/local/bin/kanata --verbose --port 37000"
+        let noCfgPath = detector.testExtractConfigPath(from: noCfgCommand)
+        XCTAssertNil(noCfgPath)
+
+        // Test --cfg at end without value
+        let incompleteCfgCommand = "/usr/local/bin/kanata --cfg"
+        let incompletePath = detector.testExtractConfigPath(from: incompleteCfgCommand)
+        XCTAssertNil(incompletePath)
+
+        // Test multiple --cfg (should return first)
+        let multipleCfgCommand = "/usr/local/bin/kanata --cfg /first/path --cfg /second/path"
+        let multiplePath = detector.testExtractConfigPath(from: multipleCfgCommand)
+        XCTAssertEqual(multiplePath, "/first/path")
+
+        // Test KeyPath's expected config path
+        let expectedPath = WizardSystemPaths.userConfigPath
+        let keyPathCommand = "/usr/local/bin/kanata --cfg \(expectedPath)"
+        let extractedPath = detector.testExtractConfigPath(from: keyPathCommand)
+        XCTAssertEqual(extractedPath, expectedPath)
+    }
+
+    @MainActor
+    func testConfigPathNormalizationIntegration() {
+        // Test that extraction + normalization work together correctly
+        let testCases: [(command: String, expectedNormalized: String)] = [
+            (
+                "/usr/local/bin/kanata --cfg ~/Library/Application\\ Support/KeyPath/keypath.kbd",
+                "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
+            ),
+            (
+                "/usr/local/bin/kanata --cfg \"~/Library/Application Support/KeyPath/keypath.kbd\"",
+                "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
+            ),
+            (
+                "/usr/local/bin/kanata --cfg /Users/../Users/\(NSUserName())/Library/Application\\ Support/KeyPath/keypath.kbd",
+                "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
+            )
+        ]
+
+        for (command, expectedNormalized) in testCases {
+            if let extractedPath = detector.testExtractConfigPath(from: command) {
+                let normalizedPath = detector.testNormalizedPath(extractedPath)
+                XCTAssertEqual(
+                    normalizedPath, expectedNormalized,
+                    "Command '\(command)' should extract and normalize to '\(expectedNormalized)'"
+                )
+            } else {
+                XCTFail("Failed to extract config path from command: \(command)")
+            }
+        }
+    }
+
+    // MARK: - Orphaned Process Detection Logic Tests
+
+    @MainActor
+    func testOrphanedProcessDetectionWithMocks() async {
+        // Test the orphaned process detection decision matrix using mocks
+        let testCases: [(processCount: Int, plistPresent: Bool, serviceLoaded: Bool, expectedAction: AutoFixAction?)] = [
+            // No external processes - no action needed
+            (0, false, false, nil),
+            (0, true, false, nil),
+            (0, true, true, nil),
+
+            // Single external process, no plist - adopt or replace based on config
+            (1, false, false, .adoptOrphanedProcess), // Will use .adoptOrphanedProcess for expected config
+
+            // Single external process, plist present but not loaded - replace to converge
+            (1, true, false, .replaceOrphanedProcess),
+
+            // Single external process, service loaded (unusual) - replace to converge
+            (1, true, true, .replaceOrphanedProcess),
+
+            // Multiple external processes - always replace for safety
+            (2, false, false, .replaceOrphanedProcess),
+            (2, true, false, .replaceOrphanedProcess),
+            (2, true, true, .replaceOrphanedProcess)
+        ]
+
+        for (index, testCase) in testCases.enumerated() {
+            // Create mock processes using expected config path
+            let expectedConfigPath = WizardSystemPaths.userConfigPath
+            let mockProcesses = (0 ..< testCase.processCount).map { pid in
+                ProcessLifecycleManager.ProcessInfo(
+                    pid: pid_t(1000 + pid),
+                    command: "/usr/local/bin/kanata --cfg \(expectedConfigPath)"
+                )
+            }
+
+            // Create mock LaunchDaemonInstaller
+            let mockInstaller = MockLaunchDaemonInstaller(
+                kanataLoaded: testCase.serviceLoaded,
+                vhidDaemonLoaded: true,
+                vhidManagerLoaded: true
+            )
+
+            // Create detector with mocked installer
+            let testDetector = SystemStateDetector(
+                kanataManager: realKanataManager,
+                launchDaemonInstaller: mockInstaller
+            )
+
+            // Mock the plist installation status
+            let mockPlistPresent = testCase.plistPresent
+
+            // Test using a test helper method (need to add this)
+            let result = await testDetector.testComputeOrphanedProcessAutoFixWithMocks(
+                externalProcesses: mockProcesses,
+                managedProcesses: [],
+                plistPresent: mockPlistPresent,
+                serviceLoaded: testCase.serviceLoaded
+            )
+
+            XCTAssertEqual(
+                result, testCase.expectedAction,
+                "Test case \(index): processCount=\(testCase.processCount), plistPresent=\(testCase.plistPresent), serviceLoaded=\(testCase.serviceLoaded) should recommend \(String(describing: testCase.expectedAction))"
+            )
+        }
+    }
+
+    @MainActor
+    func testOrphanedProcessDetectionWithDifferentConfigPaths() async {
+        // Test how config path affects the adoption vs replacement decision
+        let expectedPath = WizardSystemPaths.userConfigPath
+        let unexpectedPath = "/different/config/path.kbd"
+
+        let testCases: [(configPath: String, expectedAction: AutoFixAction?)] = [
+            // Expected config path - safe to adopt
+            (expectedPath, .adoptOrphanedProcess),
+
+            // Different config path - replace for safety
+            (unexpectedPath, .replaceOrphanedProcess)
+        ]
+
+        for (configPath, expectedAction) in testCases {
+            let mockProcess = ProcessLifecycleManager.ProcessInfo(
+                pid: 1234,
+                command: "/usr/local/bin/kanata --cfg \(configPath)"
+            )
+
+            let mockInstaller = MockLaunchDaemonInstaller(
+                kanataLoaded: false,
+                vhidDaemonLoaded: true,
+                vhidManagerLoaded: true
+            )
+
+            let testDetector = SystemStateDetector(
+                kanataManager: realKanataManager,
+                launchDaemonInstaller: mockInstaller
+            )
+
+            let result = await testDetector.testComputeOrphanedProcessAutoFixWithMocks(
+                externalProcesses: [mockProcess],
+                managedProcesses: [],
+                plistPresent: false,
+                serviceLoaded: false
+            )
+
+            XCTAssertEqual(
+                result, expectedAction,
+                "Config path \(configPath) should recommend \(String(describing: expectedAction))"
+            )
+        }
+    }
+
+    @MainActor
+    func testOrphanedProcessDetectionWithManagedProcesses() async {
+        // Test that presence of managed processes prevents orphaned detection
+        let externalProcess = ProcessLifecycleManager.ProcessInfo(
+            pid: 1234,
+            command: "/usr/local/bin/kanata --cfg \(WizardSystemPaths.userConfigPath)"
+        )
+
+        let managedProcess = ProcessLifecycleManager.ProcessInfo(
+            pid: 5678,
+            command: "/usr/local/bin/kanata --cfg \(WizardSystemPaths.userConfigPath)"
+        )
+
+        let mockInstaller = MockLaunchDaemonInstaller(
+            kanataLoaded: true,
+            vhidDaemonLoaded: true,
+            vhidManagerLoaded: true
+        )
+
+        let testDetector = SystemStateDetector(
+            kanataManager: realKanataManager,
+            launchDaemonInstaller: mockInstaller
+        )
+
+        // With managed processes present, should not detect orphaned
+        let result = await testDetector.testComputeOrphanedProcessAutoFixWithMocks(
+            externalProcesses: [externalProcess],
+            managedProcesses: [managedProcess],
+            plistPresent: true,
+            serviceLoaded: true
+        )
+
+        XCTAssertNil(result, "Should not detect orphaned process when managed processes exist")
+    }
+
+    @MainActor
+    func testOrphanedProcessDetectionWithComplexCommandLines() async {
+        // Test config path extraction from complex command lines
+        let testCases: [(command: String, expectedAction: AutoFixAction?)] = [
+            // Quoted path with spaces - matches expected
+            ("/usr/local/bin/kanata --cfg \"\(WizardSystemPaths.userConfigPath)\"", .adoptOrphanedProcess),
+
+            // Escaped spaces - matches expected
+            ("/usr/local/bin/kanata --cfg \(WizardSystemPaths.userConfigPath.replacingOccurrences(of: " ", with: "\\ "))", .adoptOrphanedProcess),
+
+            // Different path with extra arguments
+            ("/usr/local/bin/kanata --cfg /other/path.kbd --verbose --port 37000", .replaceOrphanedProcess),
+
+            // No --cfg parameter
+            ("/usr/local/bin/kanata --verbose", .replaceOrphanedProcess)
+        ]
+
+        for (command, expectedAction) in testCases {
+            let mockProcess = ProcessLifecycleManager.ProcessInfo(
+                pid: 1234,
+                command: command
+            )
+
+            let mockInstaller = MockLaunchDaemonInstaller(
+                kanataLoaded: false,
+                vhidDaemonLoaded: true,
+                vhidManagerLoaded: true
+            )
+
+            let testDetector = SystemStateDetector(
+                kanataManager: realKanataManager,
+                launchDaemonInstaller: mockInstaller
+            )
+
+            let result = await testDetector.testComputeOrphanedProcessAutoFixWithMocks(
+                externalProcesses: [mockProcess],
+                managedProcesses: [],
+                plistPresent: false,
+                serviceLoaded: false
+            )
+
+            XCTAssertEqual(
+                result, expectedAction,
+                "Command '\(command)' should recommend \(String(describing: expectedAction))"
+            )
+        }
     }
 }

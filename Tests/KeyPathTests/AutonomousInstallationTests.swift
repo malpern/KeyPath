@@ -7,11 +7,11 @@ import XCTest
 @MainActor
 final class AutonomousInstallationTests: XCTestCase {
     private var mockEnvironment: MockSystemEnvironment!
-    private var mockManager: MockKanataManager!
+    private var mockManager: MockEnvironmentKanataManager!
 
     override func setUp() async throws {
         mockEnvironment = MockSystemEnvironment()
-        mockManager = MockKanataManager(mockEnvironment: mockEnvironment)
+        mockManager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
     }
 
     override func tearDown() async throws {

@@ -3,6 +3,12 @@ import Foundation
 
 /// Unified system status checker that consolidates all detection logic
 /// Replaces: ComponentDetector, SystemHealthChecker, SystemRequirements, SystemStateDetector
+///
+/// ENHANCED WITH FUNCTIONAL PERMISSION VERIFICATION:
+/// - Detects actual Kanata permission failures by analyzing service logs
+/// - Checks for IOHIDDeviceOpen errors and device access failures
+/// - Prevents false positives that occur when TCC database is out of sync
+/// - Uses multiple verification methods with confidence scoring
 @MainActor
 class SystemStatusChecker {
     private let kanataManager: KanataManager
@@ -130,14 +136,72 @@ class SystemStatusChecker {
             missing.append(.keyPathAccessibility)
         }
 
-        // Kanata permissions - we assume they're OK and will detect on actual use
-        // This prevents false negatives from TCC database delays
-        // Always mark kanata permissions as granted to avoid wizard getting stuck
-        granted.append(.kanataInputMonitoring)
-        granted.append(.kanataAccessibility)
+        // Kanata permissions - use enhanced functional verification
+        let functionalVerification = PermissionService.shared.verifyKanataFunctionalPermissions(
+            at: WizardSystemPaths.kanataActiveBinary
+        )
 
         AppLogger.shared.log(
-            "ℹ️ [SystemStatusChecker] Kanata permissions assumed OK (will verify on start)")
+            "🔍 [SystemStatusChecker] Kanata functional verification: method=\(functionalVerification.verificationMethod), confidence=\(functionalVerification.confidence), hasAll=\(functionalVerification.hasAllRequiredPermissions)"
+        )
+
+        // Log any error details for debugging
+        if !functionalVerification.errorDetails.isEmpty {
+            AppLogger.shared.log(
+                "⚠️ [SystemStatusChecker] Kanata permission verification found errors:")
+            for error in functionalVerification.errorDetails {
+                AppLogger.shared.log("  - \(error)")
+            }
+        }
+
+        // Only grant permissions if functional verification is confident they work
+        if functionalVerification.hasInputMonitoring &&
+            functionalVerification.confidence != .low &&
+            functionalVerification.confidence != .unknown {
+            granted.append(.kanataInputMonitoring)
+        } else {
+            missing.append(.kanataInputMonitoring)
+            AppLogger.shared.log(
+                "❌ [SystemStatusChecker] Kanata Input Monitoring: functional verification failed")
+        }
+
+        if functionalVerification.hasAccessibility &&
+            functionalVerification.confidence != .low &&
+            functionalVerification.confidence != .unknown {
+            granted.append(.kanataAccessibility)
+        } else {
+            missing.append(.kanataAccessibility)
+            AppLogger.shared.log(
+                "❌ [SystemStatusChecker] Kanata Accessibility: functional verification failed")
+        }
+
+        // For low confidence results, fall back to TCC database but warn about uncertainty
+        if functionalVerification.confidence == .low || functionalVerification.confidence == .unknown {
+            AppLogger.shared.log(
+                "⚠️ [SystemStatusChecker] Low confidence verification - falling back to TCC database with warning")
+
+            // Check TCC database as fallback
+            let tccInputMonitoring = PermissionService.checkTCCForInputMonitoring(
+                path: WizardSystemPaths.kanataActiveBinary)
+            let tccAccessibility = PermissionService.checkTCCForAccessibility(
+                path: WizardSystemPaths.kanataActiveBinary)
+
+            // Only override missing permissions if TCC says they're granted
+            // This prevents completely blocking the wizard on detection failures
+            if tccInputMonitoring, !granted.contains(.kanataInputMonitoring) {
+                granted.append(.kanataInputMonitoring)
+                missing.removeAll { $0 == .kanataInputMonitoring }
+                AppLogger.shared.log(
+                    "ℹ️ [SystemStatusChecker] TCC fallback: granted kanata Input Monitoring")
+            }
+
+            if tccAccessibility, !granted.contains(.kanataAccessibility) {
+                granted.append(.kanataAccessibility)
+                missing.removeAll { $0 == .kanataAccessibility }
+                AppLogger.shared.log(
+                    "ℹ️ [SystemStatusChecker] TCC fallback: granted kanata Accessibility")
+            }
+        }
 
         // Check system extensions (not part of PermissionService - different category)
         let systemRequirements = SystemRequirements()
@@ -266,7 +330,7 @@ class SystemStatusChecker {
         let serviceStatus = launchDaemonInstaller.getServiceStatus()
         let configPath = WizardSystemPaths.userConfigPath
         let userConfigExists = FileManager.default.fileExists(atPath: configPath)
-        
+
         AppLogger.shared.log("🔍 [SystemStatusChecker] Checking config at: \(configPath) (exists: \(userConfigExists))")
 
         if serviceStatus.kanataServiceLoaded, userConfigExists, serviceStatus.kanataServiceHealthy {
@@ -503,25 +567,32 @@ class SystemStatusChecker {
     /// Check if Kanata TCP server is responding
     private func checkTCPServerStatus() async -> Bool {
         let tcpConfig = PreferencesService.tcpSnapshot()
-        
+
         // If TCP is disabled in preferences, consider it as not working
         guard tcpConfig.shouldUseTCPServer else {
             AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server disabled in preferences")
             return false
         }
-        
+
         // Check if kanata service is actually running with TCP port
-        guard kanataManager.isRunning else {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] Kanata not running - TCP server unavailable")
-            return false
+        if !kanataManager.isRunning {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] WARNING: KanataManager.isRunning=false but continuing TCP check anyway")
+            // Continue anyway - let's see if TCP actually works
+        } else {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] KanataManager.isRunning=true, proceeding with TCP check")
         }
-        
+
         // Use KanataTCPClient to check server status
         let client = KanataTCPClient(port: tcpConfig.port, timeout: 2.0)
         let serverResponding = await client.checkServerStatus()
-        
-        AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - \(serverResponding ? "responding" : "not responding")")
-        return serverResponding
+
+        if serverResponding {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - responding")
+            return true
+        } else {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - not responding")
+            return false
+        }
     }
 
     // MARK: - Debug Methods

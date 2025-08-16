@@ -8,10 +8,10 @@ struct InstallationWizardView: View {
     // New architecture components
     @StateObject private var stateManager = WizardStateManager()
     @StateObject private var autoFixer = WizardAutoFixerManager()
-    @StateObject private var stateInterpreter = WizardStateInterpreter()
+    private let stateInterpreter = WizardStateInterpreter()
     @StateObject private var navigationCoordinator = WizardNavigationCoordinator()
-    @StateObject private var asyncOperationManager = WizardAsyncOperationManager()
-    @StateObject private var toastManager = WizardToastManager()
+    @State private var asyncOperationManager = WizardAsyncOperationManager()
+    @State private var toastManager = WizardToastManager()
 
     // UI state
     @State private var isInitializing = true
@@ -81,7 +81,8 @@ struct InstallationWizardView: View {
         } message: {
             let criticalCount = currentIssues.filter { $0.severity == .critical }.count
             Text(
-                "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
+                "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") " +
+                "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
             )
         }
     }
@@ -149,8 +150,7 @@ struct InstallationWizardView: View {
                         onDismiss: { dismiss() },
                         onNavigateToPage: { page in
                             navigationCoordinator.navigateToPage(page)
-                        },
-                        isInitializing: isInitializing
+                        }
                     )
                 case .fullDiskAccess:
                     WizardFullDiskAccessPage()
@@ -204,6 +204,8 @@ struct InstallationWizardView: View {
                         onRefresh: refreshState,
                         kanataManager: kanataManager
                     )
+                case .tcpServer:
+                    WizardTCPServerPage()
                 case .service:
                     WizardKanataServicePage(
                         kanataManager: kanataManager
@@ -251,7 +253,7 @@ struct InstallationWizardView: View {
 
         // Configure state manager
         stateManager.configure(kanataManager: kanataManager)
-        autoFixer.configure(kanataManager: kanataManager)
+        autoFixer.configure(kanataManager: kanataManager, toastManager: toastManager)
 
         Task {
             await performInitialStateCheck()
@@ -488,6 +490,10 @@ struct InstallationWizardView: View {
             "Activate VirtualHID Device Manager"
         case .installLaunchDaemonServices:
             "Install LaunchDaemon services"
+        case .adoptOrphanedProcess:
+            "Connect existing Kanata to KeyPath management"
+        case .replaceOrphanedProcess:
+            "Replace orphaned process with managed service"
         case .installViaBrew:
             "Install packages via Homebrew"
         case .repairVHIDDaemonServices:
@@ -645,7 +651,9 @@ struct InstallationWizardView: View {
         case .restartVirtualHIDDaemon:
             "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
         case .restartUnhealthyServices:
-            "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n• Missing services could not be installed\n• System permission denied for service restart\n\nTry the Fix button again and provide admin password when prompted."
+            "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n" +
+            "• Missing services could not be installed\n• System permission denied for service restart\n\n" +
+            "Try the Fix button again and provide admin password when prompted."
         default:
             "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
         }
@@ -721,9 +729,9 @@ class WizardStateManager: ObservableObject {
 class WizardAutoFixerManager: ObservableObject {
     private var autoFixer: WizardAutoFixer?
 
-    func configure(kanataManager: KanataManager) {
+    func configure(kanataManager: KanataManager, toastManager: WizardToastManager) {
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with KanataManager")
-        autoFixer = WizardAutoFixer(kanataManager: kanataManager)
+        autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuration complete")
     }
 

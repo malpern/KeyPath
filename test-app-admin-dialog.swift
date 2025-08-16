@@ -28,21 +28,21 @@ task.standardError = pipe
 do {
     try task.run()
     task.waitUntilExit()
-    
+
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    
+
     print("🔍 Results:")
     print("  Exit code: \(task.terminationStatus)")
     print("  Output: '\(output.trimmingCharacters(in: .whitespacesAndNewlines))'")
     print("")
-    
+
     if task.terminationStatus == 0 {
         print("✅ SUCCESS: osascript admin dialog worked!")
         print("   If you saw the admin password dialog, KeyPath should now work too.")
     } else {
         print("❌ FAILED: osascript admin dialog failed")
-        
+
         if output.contains("User canceled") {
             print("   → User canceled the dialog (this means dialog appeared)")
         } else if output.contains("execution error") {
@@ -53,7 +53,7 @@ do {
             print("   → Unexpected error: \(output)")
         }
     }
-    
+
 } catch {
     print("❌ ERROR: Failed to execute osascript: \(error)")
 }

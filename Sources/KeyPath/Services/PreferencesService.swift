@@ -1,14 +1,18 @@
 import Foundation
+import Observation
 
 /// Manages KeyPath application preferences and settings
 @MainActor
-class PreferencesService: ObservableObject {
+@Observable
+final class PreferencesService {
+    // MARK: - Shared instance (backward compatible)
+
     static let shared = PreferencesService()
 
     // MARK: - TCP Server Configuration
 
     /// Whether TCP server should be enabled for config validation
-    @Published var tcpServerEnabled: Bool {
+    var tcpServerEnabled: Bool {
         didSet {
             UserDefaults.standard.set(tcpServerEnabled, forKey: Keys.tcpServerEnabled)
             AppLogger.shared.log("🔧 [PreferencesService] TCP server enabled: \(tcpServerEnabled)")
@@ -16,18 +20,17 @@ class PreferencesService: ObservableObject {
     }
 
     /// TCP server port for Kanata communication
-    @Published var tcpServerPort: Int {
+    var tcpServerPort: Int {
         didSet {
             // Validate port range and revert if invalid
             if !isValidTCPPort(tcpServerPort) {
                 AppLogger.shared.log(
                     "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)")
                 tcpServerPort = oldValue
-                return
+            } else {
+                UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
+                AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
             }
-
-            UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
-            AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
         }
     }
 
@@ -42,12 +45,12 @@ class PreferencesService: ObservableObject {
 
     private enum Defaults {
         static let tcpServerEnabled = true // Enable by default for config validation
-        static let tcpServerPort = 37000 // Default port for Kanata TCP server
+        static let tcpServerPort = 54141 // Default port for Kanata TCP server
     }
 
     // MARK: - Initialization
 
-    private init() {
+    init() {
         // Load stored preferences or use defaults
         tcpServerEnabled =
             UserDefaults.standard.object(forKey: Keys.tcpServerEnabled) as? Bool
@@ -98,7 +101,7 @@ extension PreferencesService {
 // MARK: - Thread-Safe Snapshot API
 
 /// Thread-safe snapshot of TCP configuration for use from non-MainActor contexts
-struct TCPConfigSnapshot {
+struct TCPConfigSnapshot: Sendable {
     let enabled: Bool
     let port: Int
 
@@ -113,7 +116,7 @@ extension PreferencesService {
     /// Safe to call from any actor context
     nonisolated static func tcpSnapshot() -> TCPConfigSnapshot {
         let enabled = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerEnabled") as? Bool ?? true
-        let port = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 37000
+        let port = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 54141
 
         return TCPConfigSnapshot(enabled: enabled, port: port)
     }

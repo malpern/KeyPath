@@ -19,7 +19,8 @@ class KanataTCPClient {
 
     /// Check if TCP server is available and responding
     func checkServerStatus() async -> Bool {
-        await withCheckedContinuation { continuation in
+        AppLogger.shared.log("🌐 [TCP] Starting server status check for \(host):\(port) with timeout \(timeout)s")
+        return await withCheckedContinuation { continuation in
             let queue = DispatchQueue(label: "kanata-tcp-status")
 
             guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
@@ -47,7 +48,8 @@ class KanataTCPClient {
                         continuation.resume(returning: true)
                     }
                 case let .failed(error):
-                    AppLogger.shared.log("🌐 [TCP] Server status check: Failed to connect - \(error)")
+                    AppLogger.shared.log("🌐 [TCP] Server status check: Failed to connect to \(self.host):\(self.port) - Error: \(error)")
+                    AppLogger.shared.log("🌐 [TCP] Error details: \(error.localizedDescription)")
                     if !hasResumed {
                         hasResumed = true
                         continuation.resume(returning: false)
@@ -65,7 +67,7 @@ class KanataTCPClient {
             queue.asyncAfter(deadline: .now() + timeout) {
                 if !hasResumed {
                     hasResumed = true
-                    AppLogger.shared.log("🌐 [TCP] Server status check: Timeout after \(self.timeout)s")
+                    AppLogger.shared.log("🌐 [TCP] Server status check: Timeout after \(self.timeout)s connecting to \(self.host):\(self.port)")
                     connection.cancel()
                     continuation.resume(returning: false)
                 }
