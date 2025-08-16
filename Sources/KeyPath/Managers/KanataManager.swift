@@ -502,9 +502,8 @@ class KanataManager: ObservableObject {
     private func triggerTCPReloadWithErrorCapture() async -> TCPReloadResult {
         let tcpConfig = PreferencesService.tcpSnapshot()
         guard tcpConfig.shouldUseTCPServer else {
-            AppLogger.shared.log("⚠️ [TCP Reload] TCP server not enabled - falling back to service restart")
-            await restartKanata()
-            return .success(response: "Service restarted (TCP disabled)")
+            AppLogger.shared.log("❌ [TCP Reload] TCP server not enabled - cannot proceed with reload-first approach")
+            return .failure(error: "TCP server not enabled in preferences")
         }
 
         AppLogger.shared.log("🌐 [TCP Reload] Triggering config reload via TCP on port \(tcpConfig.port)")
@@ -513,9 +512,8 @@ class KanataManager: ObservableObject {
         
         // Check if TCP server is available
         guard await client.checkServerStatus() else {
-            AppLogger.shared.log("❌ [TCP Reload] TCP server not available - falling back to service restart")
-            await restartKanata()
-            return .success(response: "Service restarted (TCP unavailable)")
+            AppLogger.shared.log("❌ [TCP Reload] TCP server not available - cannot proceed")
+            return .failure(error: "TCP server not available on port \(tcpConfig.port)")
         }
 
         do {
@@ -530,7 +528,9 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("🌐 [TCP Reload] Server response: \(responseString)")
             
             // Parse response for success/failure
-            if responseString.contains("\"status\":\"Ok\"") || responseString.contains("Live reload successful") {
+            if responseString.contains("\"status\":\"Ok\"") || 
+               responseString.contains("Live reload successful") ||
+               responseString.contains("\"LayerChange\"") {
                 AppLogger.shared.log("✅ [TCP Reload] Config reload successful")
                 return .success(response: responseString)
             } else if responseString.contains("\"status\":\"Error\"") {
@@ -1565,8 +1565,8 @@ class KanataManager: ObservableObject {
         // Generate config with all mappings
         let config = generateKanataConfigWithMappings(keyMappings)
 
-        // Validation-on-demand: Save first, validate only on failure
-        AppLogger.shared.log("⚡ [Config] Using validation-on-demand for faster saves")
+        // Reload-first approach: Save first, reload via TCP, validate only on failure
+        AppLogger.shared.log("⚡ [Config] Using reload-first approach for fast config updates")
 
         do {
             // Backup current config before making changes
@@ -1586,19 +1586,32 @@ class KanataManager: ObservableObject {
                     saveStatus = .success
                 }
             } else {
-                // TCP reload failed - this is a critical error for validation-on-demand
-                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
-                AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
-                AppLogger.shared.log("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
+                // TCP reload failed - get detailed error via TCP validation
+                AppLogger.shared.log("❌ [Config] TCP reload FAILED, getting detailed error...")
                 
-                // Restore backup since we can't verify the config was applied
-                try await restoreLastGoodConfig()
+                let detailedError = await getTCPValidationError()
+                let errorMessage = detailedError ?? reloadResult.errorMessage ?? "Config error"
                 
-                // Set error status
-                await MainActor.run {
-                    saveStatus = .failed("TCP server required for hot reload failed: \(errorMessage)")
+                AppLogger.shared.log("❌ [Config] Detailed error: \(errorMessage)")
+                
+                // Show error to user with revert option
+                let shouldRevert = await showConfigErrorDialog(errorMessage)
+                
+                if shouldRevert {
+                    // User chose to revert - restore backup
+                    AppLogger.shared.log("🔄 [Config] User chose to revert - restoring backup")
+                    try await restoreLastGoodConfig()
+                    await MainActor.run {
+                        saveStatus = .failed("Reverted due to config error: \(errorMessage)")
+                    }
+                    throw ConfigError.reloadFailed("Config reverted: \(errorMessage)")
+                } else {
+                    // User chose to keep invalid config - this is their choice
+                    AppLogger.shared.log("⚠️ [Config] User chose to keep invalid config")
+                    await MainActor.run {
+                        saveStatus = .failed("Config saved but may have errors: \(errorMessage)")
+                    }
                 }
-                throw ConfigError.reloadFailed("TCP server required for validation-on-demand failed: \(errorMessage)")
             }
 
             // Reset to idle after a delay
@@ -1614,7 +1627,53 @@ class KanataManager: ObservableObject {
             throw error
         }
 
-        AppLogger.shared.log("⚡ [Config] Validation-on-demand save completed")
+        AppLogger.shared.log("⚡ [Config] Reload-first save completed")
+    }
+    
+    /// Get detailed TCP validation error message from Kanata
+    private func getTCPValidationError() async -> String? {
+        let tcpConfig = PreferencesService.tcpSnapshot()
+        guard tcpConfig.shouldUseTCPServer else {
+            return "TCP server not enabled"
+        }
+        
+        let client = KanataTCPClient(port: tcpConfig.port)
+        
+        // Check if TCP server is available
+        guard await client.checkServerStatus() else {
+            return "TCP server not available"
+        }
+        
+        do {
+            // Read the current config and validate it via TCP
+            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
+            let validationResult = await client.validateConfig(configContent)
+            
+            switch validationResult {
+            case .success:
+                return "Config validation passed but reload failed"
+            case .failure(let errors):
+                // Format detailed error messages from Kanata
+                let errorMessages = errors.map { error in
+                    "Line \(error.line), Column \(error.column): \(error.message)"
+                }
+                return errorMessages.joined(separator: "\n")
+            case .networkError(let message):
+                return "TCP validation network error: \(message)"
+            }
+        } catch {
+            return "Failed to read config for validation: \(error.localizedDescription)"
+        }
+    }
+    
+    /// Show error dialog to user with option to revert config
+    @MainActor
+    private func showConfigErrorDialog(_ errorMessage: String) async -> Bool {
+        // For now, return true to revert automatically
+        // In a full implementation, this would show a dialog to the user
+        AppLogger.shared.log("🔍 [Config] Would show error dialog: \(errorMessage)")
+        AppLogger.shared.log("🔍 [Config] Auto-reverting for now (dialog not implemented)")
+        return true
     }
 
     func updateStatus() async {
