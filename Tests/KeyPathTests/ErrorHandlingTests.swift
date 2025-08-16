@@ -251,10 +251,10 @@ final class ErrorHandlingTests: XCTestCase {
         let errorQueue = DispatchQueue(label: "error-collection")
 
         // Run multiple config operations concurrently
-        for i in 0 ..< operations {
+        for index in 0 ..< operations {
             Task {
                 do {
-                    try await manager.saveConfiguration(input: "caps\(i)", output: "escape\(i)")
+                    try await manager.saveConfiguration(input: "caps\(index)", output: "escape\(index)")
                 } catch {
                     errorQueue.sync {
                         errors.append(error)
@@ -277,14 +277,14 @@ final class ErrorHandlingTests: XCTestCase {
 
     func testMemoryPressureErrorHandling() throws {
         // Test behavior under memory pressure by creating many large configs
-        for i in 0 ..< 100 {
+        for iteration in 0 ..< 100 {
             let largeInput = String(repeating: "caps", count: 100)
             let largeOutput = String(repeating: "escape", count: 100)
 
             let config = manager.generateKanataConfig(input: largeInput, output: largeOutput)
 
             // Should still generate valid config structure
-            XCTAssertTrue(config.contains("(defcfg"), "Should handle large inputs under memory pressure: iteration \(i)")
+            XCTAssertTrue(config.contains("(defcfg"), "Should handle large inputs under memory pressure: iteration \(iteration)")
         }
     }
 

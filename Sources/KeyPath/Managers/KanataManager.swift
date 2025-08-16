@@ -1,6 +1,7 @@
 import ApplicationServices
 import Foundation
 import IOKit.hidsystem
+import Network
 import SwiftUI
 
 /// Actor for process synchronization to prevent multiple concurrent Kanata starts
@@ -434,6 +435,215 @@ class KanataManager: ObservableObject {
         } catch {
             AppLogger.shared.log("❌ [TCP Validation] Failed to read config file: \(error)")
             return nil
+        }
+    }
+
+    /// Result of TCP reload operation with error capture
+    private struct TCPReloadResult {
+        let success: Bool
+        let errorMessage: String?
+        let kanataResponse: String?
+        
+        static func success(response: String) -> TCPReloadResult {
+            TCPReloadResult(success: true, errorMessage: nil, kanataResponse: response)
+        }
+        
+        static func failure(error: String, response: String? = nil) -> TCPReloadResult {
+            TCPReloadResult(success: false, errorMessage: error, kanataResponse: response)
+        }
+    }
+
+    /// Configuration management errors
+    private enum ConfigError: Error, LocalizedError {
+        case noBackupAvailable
+        case reloadFailed(String)
+        case validationFailed([String])
+        case postSaveValidationFailed(errors: [String])
+        
+        var errorDescription: String? {
+            switch self {
+            case .noBackupAvailable:
+                return "No backup configuration available for rollback"
+            case .reloadFailed(let message):
+                return "Config reload failed: \(message)"
+            case .validationFailed(let errors):
+                return "Config validation failed: \(errors.joined(separator: ", "))"
+            case .postSaveValidationFailed(let errors):
+                return "Post-save validation failed: \(errors.joined(separator: ", "))"
+            }
+        }
+    }
+
+    /// Config backup for rollback capability
+    private var lastGoodConfig: String?
+    
+    /// Backup current working config before making changes
+    private func backupCurrentConfig() async {
+        do {
+            let currentConfig = try String(contentsOfFile: configPath, encoding: .utf8)
+            lastGoodConfig = currentConfig
+            AppLogger.shared.log("💾 [Backup] Current config backed up successfully")
+        } catch {
+            AppLogger.shared.log("⚠️ [Backup] Failed to backup current config: \(error)")
+        }
+    }
+    
+    /// Restore last known good config in case of validation failure
+    private func restoreLastGoodConfig() async throws {
+        guard let backup = lastGoodConfig else {
+            throw ConfigError.noBackupAvailable
+        }
+        
+        try backup.write(toFile: configPath, atomically: true, encoding: .utf8)
+        AppLogger.shared.log("🔄 [Restore] Restored last good config successfully")
+    }
+
+    /// Trigger config reload via TCP command with error capture
+    private func triggerTCPReloadWithErrorCapture() async -> TCPReloadResult {
+        let tcpConfig = PreferencesService.tcpSnapshot()
+        guard tcpConfig.shouldUseTCPServer else {
+            AppLogger.shared.log("⚠️ [TCP Reload] TCP server not enabled - falling back to service restart")
+            await restartKanata()
+            return .success(response: "Service restarted (TCP disabled)")
+        }
+
+        AppLogger.shared.log("🌐 [TCP Reload] Triggering config reload via TCP on port \(tcpConfig.port)")
+        
+        let client = KanataTCPClient(port: tcpConfig.port)
+        
+        // Check if TCP server is available
+        guard await client.checkServerStatus() else {
+            AppLogger.shared.log("❌ [TCP Reload] TCP server not available - falling back to service restart")
+            await restartKanata()
+            return .success(response: "Service restarted (TCP unavailable)")
+        }
+
+        do {
+            // Send reload command as JSON
+            let reloadCommand = #"{"Reload":{}}"#
+            let commandData = reloadCommand.data(using: .utf8)!
+            
+            // Use low-level TCP to send reload command
+            let responseData = try await sendTCPCommand(commandData, port: tcpConfig.port)
+            let responseString = String(data: responseData, encoding: .utf8) ?? ""
+            
+            AppLogger.shared.log("🌐 [TCP Reload] Server response: \(responseString)")
+            
+            // Parse response for success/failure
+            if responseString.contains("\"status\":\"Ok\"") || responseString.contains("Live reload successful") {
+                AppLogger.shared.log("✅ [TCP Reload] Config reload successful")
+                return .success(response: responseString)
+            } else if responseString.contains("\"status\":\"Error\"") {
+                // Extract error message from Kanata response
+                let errorMsg = extractErrorFromKanataResponse(responseString)
+                AppLogger.shared.log("❌ [TCP Reload] Config reload failed: \(errorMsg)")
+                return .failure(error: errorMsg, response: responseString)
+            } else {
+                AppLogger.shared.log("⚠️ [TCP Reload] Unexpected response - treating as failure")
+                return .failure(error: "Unexpected response format", response: responseString)
+            }
+            
+        } catch {
+            AppLogger.shared.log("❌ [TCP Reload] Failed to send reload command: \(error)")
+            return .failure(error: "TCP communication failed: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Extract error message from Kanata's JSON response
+    private func extractErrorFromKanataResponse(_ response: String) -> String {
+        // Parse JSON response to extract error message
+        if let data = response.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let msg = json["msg"] as? String {
+            return msg
+        }
+        return "Unknown error from Kanata"
+    }
+
+    /// Legacy method for backward compatibility
+    private func triggerTCPReload() async {
+        let result = await triggerTCPReloadWithErrorCapture()
+        if !result.success {
+            AppLogger.shared.log("🔄 [TCP Reload] Falling back to service restart due to error: \(result.errorMessage ?? "Unknown")")
+            await restartKanata()
+        }
+    }
+
+    /// Send raw TCP command to Kanata server
+    private func sendTCPCommand(_ data: Data, port: Int) async throws -> Data {
+        return try await withCheckedThrowingContinuation { continuation in
+            let queue = DispatchQueue(label: "kanata-tcp-reload")
+            
+            guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
+                continuation.resume(throwing: TCPError.invalidPort)
+                return
+            }
+            
+            let connection = NWConnection(
+                host: NWEndpoint.Host("127.0.0.1"),
+                port: nwPort,
+                using: .tcp
+            )
+            
+            var hasResumed = false
+            
+            connection.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    // Send the reload command
+                    connection.send(content: data, completion: .contentProcessed { error in
+                        if let error {
+                            if !hasResumed {
+                                hasResumed = true
+                                continuation.resume(throwing: error)
+                            }
+                            return
+                        }
+                        
+                        // Receive the response
+                        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { responseData, _, isComplete, error in
+                            connection.cancel()
+                            
+                            if let error {
+                                if !hasResumed {
+                                    hasResumed = true
+                                    continuation.resume(throwing: error)
+                                }
+                                return
+                            }
+                            
+                            if !hasResumed {
+                                hasResumed = true
+                                if let responseData {
+                                    continuation.resume(returning: responseData)
+                                } else {
+                                    continuation.resume(throwing: TCPError.noResponse)
+                                }
+                            }
+                        }
+                    })
+                    
+                case let .failed(error):
+                    if !hasResumed {
+                        hasResumed = true
+                        continuation.resume(throwing: error)
+                    }
+                    
+                default:
+                    break
+                }
+            }
+            
+            connection.start(queue: queue)
+            
+            // Timeout after 5 seconds
+            queue.asyncAfter(deadline: .now() + 5.0) {
+                if !hasResumed {
+                    hasResumed = true
+                    connection.cancel()
+                    continuation.resume(throwing: TCPError.timeout)
+                }
+            }
         }
     }
 
@@ -1148,8 +1358,8 @@ class KanataManager: ObservableObject {
     /// Check the status of the LaunchDaemon service
     private func checkLaunchDaemonStatus() async -> (isRunning: Bool, pid: Int?) {
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["launchctl", "print", "system/com.keypath.kanata"]
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["print", "system/com.keypath.kanata"]
 
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -1355,76 +1565,53 @@ class KanataManager: ObservableObject {
         // Generate config with all mappings
         let config = generateKanataConfigWithMappings(keyMappings)
 
-        // Skip pre-save validation for performance - rely on post-save verification
-        AppLogger.shared.log("⚡ [Config] Skipping pre-save validation for faster saves - using post-save verification")
+        // Validation-on-demand: Save first, validate only on failure
+        AppLogger.shared.log("⚡ [Config] Using validation-on-demand for faster saves")
 
         do {
-            // Save directly and validate afterwards
-            try await saveValidatedConfig(config)
-
-            // Set success status
-            await MainActor.run {
-                saveStatus = .success
+            // Backup current config before making changes
+            try await backupCurrentConfig()
+            
+            // Save config directly without validation
+            try config.write(to: URL(fileURLWithPath: configPath), atomically: true, encoding: .utf8)
+            AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings")
+            
+            // Attempt TCP reload and capture any errors
+            let reloadResult = await triggerTCPReloadWithErrorCapture()
+            
+            if reloadResult.success {
+                // Reload succeeded - config is valid
+                AppLogger.shared.log("✅ [Config] Reload successful, config is valid")
+                await MainActor.run {
+                    saveStatus = .success
+                }
+            } else {
+                // Reload failed - config is invalid, restore backup
+                let errorMessage = reloadResult.errorMessage ?? "Unknown reload error"
+                AppLogger.shared.log("❌ [Config] Reload failed, restoring backup: \(errorMessage)")
+                try await restoreLastGoodConfig()
+                
+                // Set error status with details
+                await MainActor.run {
+                    saveStatus = .failed("Invalid configuration: \(errorMessage)")
+                }
+                throw ConfigError.reloadFailed(errorMessage)
             }
 
             // Reset to idle after a delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.saveStatus = .idle
             }
+            
         } catch {
-            // Set error status
+            // Handle any errors
             await MainActor.run {
                 saveStatus = .failed(error.localizedDescription)
             }
             throw error
         }
 
-        AppLogger.shared.log(
-            "💾 [Config] Configuration saved with \(keyMappings.count) mappings to \(configPath)")
-        AppLogger.shared.log("🔄 [Config] Hot reload via --watch should apply changes automatically")
-
-        // DEBUG: Add detailed file system information for watch debugging
-        let fileManager = FileManager.default
-        do {
-            let attributes = try fileManager.attributesOfItem(atPath: configPath)
-            if let modDate = attributes[.modificationDate] as? Date {
-                AppLogger.shared.log("📁 [Config] File modification time: \(modDate)")
-                AppLogger.shared.log("📁 [Config] File size: \(attributes[.size] ?? 0) bytes")
-            }
-
-            // Check if file is readable
-            let readable = fileManager.isReadableFile(atPath: configPath)
-            AppLogger.shared.log("📁 [Config] File readable: \(readable)")
-
-            // Log file permissions
-            if let permissions = attributes[.posixPermissions] as? NSNumber {
-                AppLogger.shared.log(
-                    "📁 [Config] File permissions: \(String(permissions.intValue, radix: 8))")
-            }
-        } catch {
-            AppLogger.shared.log("⚠️ [Config] Could not read file attributes: \(error)")
-        }
-
-        // Config synchronization no longer needed - LaunchDaemon reads directly from user config
-
-        // Fallback restart mechanism to ensure config changes are applied
-        // This handles the known Kanata --watch bug where file detection works but reload gets stuck
-        AppLogger.shared.log("🔄 [Config] Enabling fallback restart to ensure reliable config updates")
-        AppLogger.shared.log("🔍 [Config] Config path being watched: \(configPath)")
-
-        Task.detached { [weak self] in
-            guard let self else { return }
-
-            // Small grace period for --watch to attempt reload
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms - enough time for hot reload attempt
-
-            // Fallback restart if service is still running (hot reload likely failed)
-            if await MainActor.run { self.isRunning } {
-                AppLogger.shared.log("🔄 [Config] Performing fallback restart to ensure config changes apply")
-                await self.restartKanata()
-                AppLogger.shared.log("✅ [Config] Fallback restart completed - config should now be active")
-            }
-        }
+        AppLogger.shared.log("⚡ [Config] Validation-on-demand save completed")
     }
 
     func updateStatus() async {
@@ -3318,7 +3505,7 @@ class KanataManager: ObservableObject {
                     AppLogger.shared.log(
                         "⚠️ [SaveConfig] TCP validation failed in test environment - proceeding with save")
                 } else {
-                    throw ConfigError.validationFailed(errors: errors.map(\.description))
+                    throw ConfigError.validationFailed(errors.map(\.description))
                 }
             case let .networkError(message):
                 AppLogger.shared.log(

@@ -1665,7 +1665,6 @@ class LaunchDaemonInstaller {
             AppLogger.shared.log("🌐 [LaunchDaemon] TCP server disabled")
         }
 
-        arguments.append("--watch")
         arguments.append("--debug")
         arguments.append("--log-layer-changes")
 

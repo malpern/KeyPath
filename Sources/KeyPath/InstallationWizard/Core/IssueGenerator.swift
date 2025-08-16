@@ -330,7 +330,9 @@ class IssueGenerator {
         case .vhidDeviceActivation:
             "The VirtualHIDDevice Manager needs to be activated to enable virtual HID functionality."
         case .vhidDeviceRunning:
-            "The VirtualHIDDevice daemon is not running properly or has connection issues. This may indicate the manager needs activation, restart, or there are VirtualHID connection failures preventing keyboard remapping."
+            "The VirtualHIDDevice daemon is not running properly or has connection issues. " +
+            "This may indicate the manager needs activation, restart, or there are VirtualHID " +
+            "connection failures preventing keyboard remapping."
         case .vhidDaemonMisconfigured:
             "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
         case .launchDaemonServices:
