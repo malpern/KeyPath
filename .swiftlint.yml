@@ -44,6 +44,9 @@ disabled_rules:
   - cyclomatic_complexity
   - large_tuple
   - function_parameter_count
+  - force_try           # Allow force try in tests
+  - force_cast          # Allow force cast in tests
+  - force_unwrapping    # Allow force unwrapping in tests
 
 # Custom reporter for CI
 reporter: "github-actions-logging"
