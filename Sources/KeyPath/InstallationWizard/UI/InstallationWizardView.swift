@@ -81,7 +81,8 @@ struct InstallationWizardView: View {
         } message: {
             let criticalCount = currentIssues.filter { $0.severity == .critical }.count
             Text(
-                "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
+                "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") " +
+                "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
             )
         }
     }
@@ -648,7 +649,9 @@ struct InstallationWizardView: View {
         case .restartVirtualHIDDaemon:
             "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
         case .restartUnhealthyServices:
-            "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n• Missing services could not be installed\n• System permission denied for service restart\n\nTry the Fix button again and provide admin password when prompted."
+            "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n" +
+            "• Missing services could not be installed\n• System permission denied for service restart\n\n" +
+            "Try the Fix button again and provide admin password when prompted."
         default:
             "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
         }

@@ -586,8 +586,13 @@ class SystemStatusChecker {
         let client = KanataTCPClient(port: tcpConfig.port, timeout: 2.0)
         let serverResponding = await client.checkServerStatus()
 
-        AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - \(serverResponding ? "responding" : "not responding")")
-        return serverResponding
+        if serverResponding {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - responding")
+            return true
+        } else {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - not responding")
+            return false
+        }
     }
 
     // MARK: - Debug Methods

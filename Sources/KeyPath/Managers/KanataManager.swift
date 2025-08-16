@@ -1580,22 +1580,25 @@ class KanataManager: ObservableObject {
             let reloadResult = await triggerTCPReloadWithErrorCapture()
             
             if reloadResult.success {
-                // Reload succeeded - config is valid
-                AppLogger.shared.log("✅ [Config] Reload successful, config is valid")
+                // TCP reload succeeded - config is valid
+                AppLogger.shared.log("✅ [Config] TCP reload successful, config is valid")
                 await MainActor.run {
                     saveStatus = .success
                 }
             } else {
-                // Reload failed - config is invalid, restore backup
-                let errorMessage = reloadResult.errorMessage ?? "Unknown reload error"
-                AppLogger.shared.log("❌ [Config] Reload failed, restoring backup: \(errorMessage)")
+                // TCP reload failed - this is a critical error for validation-on-demand
+                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
+                AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
+                AppLogger.shared.log("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
+                
+                // Restore backup since we can't verify the config was applied
                 try await restoreLastGoodConfig()
                 
-                // Set error status with details
+                // Set error status
                 await MainActor.run {
-                    saveStatus = .failed("Invalid configuration: \(errorMessage)")
+                    saveStatus = .failed("TCP server required for hot reload failed: \(errorMessage)")
                 }
-                throw ConfigError.reloadFailed(errorMessage)
+                throw ConfigError.reloadFailed("TCP server required for validation-on-demand failed: \(errorMessage)")
             }
 
             // Reset to idle after a delay

@@ -379,9 +379,9 @@ class SystemStateDetector: SystemStateDetecting {
         let components = parseCommandLine(command)
 
         // Look for --cfg parameter
-        for i in 0 ..< components.count - 1 {
-            if components[i] == "--cfg" {
-                return components[i + 1]
+        for index in 0 ..< components.count - 1 {
+            if components[index] == "--cfg" {
+                return components[index + 1]
             }
         }
 
@@ -393,16 +393,16 @@ class SystemStateDetector: SystemStateDetecting {
         var components: [String] = []
         var current = ""
         var inQuotes = false
-        var i = command.startIndex
+        var charIndex = command.startIndex
 
-        while i < command.endIndex {
-            let char = command[i]
+        while charIndex < command.endIndex {
+            let char = command[charIndex]
 
             if char == "\\", !inQuotes {
                 // Handle escaped characters (like escaped spaces)
-                i = command.index(after: i)
-                if i < command.endIndex {
-                    current.append(command[i])
+                charIndex = command.index(after: charIndex)
+                if charIndex < command.endIndex {
+                    current.append(command[charIndex])
                 }
             } else if char == "\"" {
                 inQuotes.toggle()
@@ -415,7 +415,7 @@ class SystemStateDetector: SystemStateDetecting {
                 current.append(char)
             }
 
-            i = command.index(after: i)
+            charIndex = command.index(after: charIndex)
         }
 
         if !current.isEmpty {

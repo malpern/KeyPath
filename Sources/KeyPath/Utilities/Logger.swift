@@ -237,8 +237,8 @@ class AppLogger {
             }
 
             // Remove backup logs
-            for i in 1 ..< self.maxLogFiles {
-                let backupPath = "\(self.logPath).\(i)"
+            for logIndex in 1 ..< self.maxLogFiles {
+                let backupPath = "\(self.logPath).\(logIndex)"
                 if fileManager.fileExists(atPath: backupPath) {
                     try? fileManager.removeItem(atPath: backupPath)
                 }
