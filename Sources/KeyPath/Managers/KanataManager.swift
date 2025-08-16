@@ -3553,11 +3553,7 @@ class KanataManager: ObservableObject {
         try config.write(to: configURL, atomically: true, encoding: .utf8)
         AppLogger.shared.log("✅ [DEBUG] Config written to file successfully")
 
-        // Add a small delay to ensure kanata's file watcher reads the complete file
-        // This prevents race conditions where kanata reads a truncated file during hot reload
-        AppLogger.shared.log("⏱️ [DEBUG] Adding 100ms delay for file watcher stability...")
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
-        AppLogger.shared.log("⏱️ [DEBUG] File watcher delay completed")
+        // Note: File watcher delay removed - we use TCP reload commands instead of --watch
 
         // Get modification time after write
         let afterAttributes = try FileManager.default.attributesOfItem(atPath: configPath)
@@ -3736,7 +3732,7 @@ class KanataManager: ObservableObject {
         if checkOnly {
             arguments.append("--check")
         } else {
-            arguments.append("--watch")
+            // Note: --watch removed - we use TCP reload commands for config changes
             arguments.append("--debug")
             arguments.append("--log-layer-changes")
         }

@@ -789,7 +789,7 @@ class WizardAutoFixer: AutoFixCapable {
 
                 if success {
                     AppLogger.shared.log("✅ [AutoFixer] Config successfully synchronized to system location")
-                    AppLogger.shared.log("🔄 [AutoFixer] Kanata should now detect config changes via --watch")
+                    AppLogger.shared.log("🔄 [AutoFixer] Config synchronized - changes will be applied via TCP reload commands")
                 } else {
                     AppLogger.shared.log("❌ [AutoFixer] Config content mismatch after copy")
                 }

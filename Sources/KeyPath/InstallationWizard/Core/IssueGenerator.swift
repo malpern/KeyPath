@@ -239,7 +239,7 @@ class IssueGenerator {
                 • Kanata process (PID \(mismatch.processPID)) is using: \(mismatch.actualConfigPath)
                 • KeyPath is saving changes to: \(mismatch.expectedConfigPath)
 
-                This prevents hot reloading from working. When you change keyboard mappings in KeyPath, Kanata won't detect the changes because it's watching the wrong file.
+                This prevents configuration updates from working. When you change keyboard mappings in KeyPath, the changes won't be applied because Kanata is reading from a different file.
                 """,
                 autoFixAction: .synchronizeConfigPaths,
                 userAction: "Use the Fix button to synchronize the config paths"

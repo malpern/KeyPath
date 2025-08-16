@@ -407,7 +407,7 @@ class PermissionService {
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", "kanata.*--cfg.*--watch"]
+        task.arguments = ["-f", "kanata.*--cfg.*keypath.kbd"]
 
         let pipe = Pipe()
         task.standardOutput = pipe
