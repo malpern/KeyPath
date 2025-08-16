@@ -177,6 +177,14 @@ struct WizardStateInterpreter {
                 }
                 return false
             }
+        case .tcpServer:
+            // TCP Server issues
+            issues.filter { issue in
+                if case .component(.kanataTCPServer) = issue.identifier {
+                    return true
+                }
+                return false
+            }
         case .service:
             [] // Service page doesn't use issues, it shows real-time status
         case .fullDiskAccess:

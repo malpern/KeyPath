@@ -144,8 +144,8 @@ struct WizardSystemStatusOverview: View {
                 title: "TCP Server",
                 subtitle: tcpServerStatus == .completed ? "Port \(PreferencesService.shared.tcpServerPort) responding" : "Not available",
                 status: tcpServerStatus,
-                isNavigable: false,
-                targetPage: .service // Could navigate to service page for troubleshooting
+                isNavigable: true,
+                targetPage: .tcpServer // Navigate to dedicated TCP server page
             ))
 
         // 8. Start Keyboard Service

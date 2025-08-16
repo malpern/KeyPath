@@ -3091,9 +3091,22 @@ class KanataManager: ObservableObject {
 
         AppLogger.shared.log("💾 [Config] Reset to default configuration")
 
-        // Restart Kanata to apply changes if it's running
+        // Apply changes immediately via TCP reload if service is running
         if isRunning {
-            await restartKanata()
+            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via TCP...")
+            let reloadResult = await triggerTCPReloadWithErrorCapture()
+            
+            if reloadResult.success {
+                let response = reloadResult.kanataResponse ?? "Success"
+                AppLogger.shared.log("✅ [Reset] Default config applied successfully via TCP: \(response)")
+            } else {
+                let error = reloadResult.errorMessage ?? "Unknown error"
+                let response = reloadResult.kanataResponse ?? "No response"
+                AppLogger.shared.log("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
+                AppLogger.shared.log("📝 [Reset] TCP response: \(response)")
+                // If TCP reload fails, fall back to service restart
+                await restartKanata()
+            }
         }
     }
 

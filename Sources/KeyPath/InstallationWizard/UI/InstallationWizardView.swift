@@ -204,6 +204,8 @@ struct InstallationWizardView: View {
                         onRefresh: refreshState,
                         kanataManager: kanataManager
                     )
+                case .tcpServer:
+                    WizardTCPServerPage()
                 case .service:
                     WizardKanataServicePage(
                         kanataManager: kanataManager

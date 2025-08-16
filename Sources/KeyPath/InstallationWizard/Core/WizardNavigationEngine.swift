@@ -198,6 +198,8 @@ class WizardNavigationEngine: WizardNavigating {
             false // Can manage service state
         case .fullDiskAccess:
             false // Optional, not blocking
+        case .tcpServer:
+            false // Optional, not blocking
         case .summary:
             false // Final state
         }
@@ -236,6 +238,8 @@ class WizardNavigationEngine: WizardNavigating {
             "Install Karabiner Components"
         case .kanataComponents:
             "Install Kanata Components"
+        case .tcpServer:
+            "Check TCP Server"
         case .service:
             "Start Keyboard Service"
         case .fullDiskAccess:
@@ -273,6 +277,8 @@ class WizardNavigationEngine: WizardNavigating {
                 return !missing.isEmpty
             }
             return true // Can always try to install components
+        case .tcpServer:
+            return true // Can always check TCP server
         case .service:
             return true // Can always manage service
         case .fullDiskAccess:
