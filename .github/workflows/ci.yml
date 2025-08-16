@@ -80,10 +80,16 @@ jobs:
     
     - name: Install Tools (optional)
       run: |
-        # Install SwiftLint if we want code quality checks
+        # Install SwiftLint for linting
         if ! command -v swiftlint &> /dev/null; then
           echo "📦 Installing SwiftLint..."
           brew install swiftlint
+        fi
+        
+        # Install SwiftFormat for formatting checks
+        if ! command -v swiftformat &> /dev/null; then
+          echo "📦 Installing SwiftFormat..."
+          brew install swiftformat
         fi
     
     - name: SwiftLint
@@ -94,6 +100,17 @@ jobs:
           exit 0
         }
         echo "✅ SwiftLint completed"
+    
+    - name: SwiftFormat Check
+      run: |
+        echo "📝 Checking Swift formatting..."
+        # Use --lint to check formatting without modifying files
+        swiftformat --lint Sources/ Tests/ || {
+          echo "⚠️ SwiftFormat found formatting issues, but not failing CI"
+          echo "💡 Run 'swiftformat Sources/ Tests/' locally to fix formatting"
+          exit 0
+        }
+        echo "✅ SwiftFormat check completed"
     
     - name: Check for Critical Issues
       run: |
