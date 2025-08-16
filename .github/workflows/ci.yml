@@ -1,0 +1,115 @@
+name: KeyPath CI
+
+on:
+  push:
+    branches: [ main, master, another-light-refactor ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  unit-tests:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Cache Swift packages
+      uses: actions/cache@v3
+      with:
+        path: .build
+        key: ${{ runner.os }}-swift-${{ hashFiles('Package.swift') }}
+        restore-keys: |
+          ${{ runner.os }}-swift-
+    
+    - name: Install Kanata
+      run: |
+        # Install kanata for config validation
+        brew install kanata
+        which kanata
+        kanata --version
+    
+    - name: Run Swift Unit Tests
+      run: |
+        # Set CI environment to use mocks instead of system calls
+        export CI_ENVIRONMENT=true
+        export KEYPATH_TESTING=false
+        
+        # Run only fast unit tests, skip slow integration tests
+        swift test \
+          --filter ".*Tests" \
+          --skip "ProcessLifecycleManagerCacheTests" \
+          --skip "IntegrationTests" \
+          --skip "FlexibleUIAutomationTests" \
+          --skip "RaceConditionIntegrationTests" \
+          --skip "TCPIntegrationTests" \
+          --skip "KeyPathUIAutomationTests" \
+          --skip "RealUIAutomationTest" \
+          2>&1 | tee test_output.log
+        
+        # Check for test failures
+        if grep -q "FAILED" test_output.log; then
+          echo "❌ Tests failed"
+          exit 1
+        else
+          echo "✅ All tests passed"
+        fi
+    
+    - name: Build Release
+      run: |
+        echo "🔨 Building release version..."
+        swift build -c release
+        echo "✅ Release build successful"
+    
+    - name: Verify Build Artifacts
+      run: |
+        # Check that build produced expected artifacts
+        if [ -f ".build/release/KeyPath" ]; then
+          echo "✅ KeyPath binary created"
+          ls -la .build/release/KeyPath
+        else
+          echo "❌ KeyPath binary not found"
+          exit 1
+        fi
+    
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: test_output.log
+        retention-days: 7
+
+  code-quality:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Check Swift Format (if available)
+      run: |
+        if command -v swiftformat &> /dev/null; then
+          echo "📝 Checking Swift formatting..."
+          swiftformat --lint Sources/ Tests/
+        else
+          echo "ℹ️ SwiftFormat not available, skipping"
+        fi
+    
+    - name: Check SwiftLint (if available)
+      run: |
+        if command -v swiftlint &> /dev/null; then
+          echo "🔍 Running SwiftLint..."
+          swiftlint
+        else
+          echo "ℹ️ SwiftLint not available, skipping"
+        fi
+    
+    - name: Check for TODO/FIXME
+      run: |
+        echo "🔍 Checking for TODO/FIXME comments..."
+        if grep -r "TODO\|FIXME" Sources/ --include="*.swift" || true; then
+          echo "ℹ️ Found TODO/FIXME comments (informational only)"
+        fi

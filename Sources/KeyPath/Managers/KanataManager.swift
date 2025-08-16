@@ -886,7 +886,7 @@ class KanataManager: ObservableObject {
                 // Check if Kanata is still running and stop it
                 guard let self else { return }
 
-                if await MainActor.run { isRunning } {
+                if await MainActor.run { self.isRunning } {
                     AppLogger.shared.log(
                         "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
                     await self.stopKanata()
@@ -1419,7 +1419,7 @@ class KanataManager: ObservableObject {
             try? await Task.sleep(nanoseconds: 500_000_000) // 500ms - enough time for hot reload attempt
 
             // Fallback restart if service is still running (hot reload likely failed)
-            if await MainActor.run { isRunning } {
+            if await MainActor.run { self.isRunning } {
                 AppLogger.shared.log("🔄 [Config] Performing fallback restart to ensure config changes apply")
                 await self.restartKanata()
                 AppLogger.shared.log("✅ [Config] Fallback restart completed - config should now be active")
