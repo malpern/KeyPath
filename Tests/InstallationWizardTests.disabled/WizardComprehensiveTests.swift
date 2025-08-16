@@ -459,7 +459,7 @@ class MockKanataManager: KanataManager {
     var restartCalled = false
     var lastRegisteredPID: pid_t?
     var terminatedPIDs: [pid_t] = []
-    
+
     // AutoFix tracking properties
     var autoFixHistory: [String] = []
     var operationDelay: TimeInterval = 0

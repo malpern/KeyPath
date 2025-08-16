@@ -1,11 +1,10 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 /// Tests for LaunchDaemonPIDCache race condition fix
 /// Covers caching, timeout protection, and confidence scoring
 @MainActor
 final class LaunchDaemonPIDCacheTests: XCTestCase {
-
     var cache: LaunchDaemonPIDCache!
 
     override func setUp() async throws {
@@ -101,7 +100,7 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
 
         // When: Multiple concurrent cache accesses
         await withTaskGroup(of: (pid_t?, CacheConfidence).self) { group in
-            for i in 0..<5 {
+            for i in 0 ..< 5 {
                 group.addTask {
                     await self.cache.getCachedPIDWithConfidence()
                 }
@@ -116,7 +115,7 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
             XCTAssertEqual(results.count, 5, "All concurrent requests should complete")
 
             // Results should be consistent (since cache should deduplicate requests)
-            let pids = results.map { $0.0 }
+            let pids = results.map(\.0)
             let uniquePIDs = Set(pids.compactMap { $0 })
 
             if !pids.compactMap({ $0 }).isEmpty {
@@ -165,7 +164,7 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
         let result2 = await cache.getCachedPID()
 
         // Then: Results should be consistent if caching is working
-        if result1 != nil && result2 != nil {
+        if result1 != nil, result2 != nil {
             XCTAssertEqual(result1, result2, "Cache should return consistent results")
         }
 
@@ -180,7 +179,7 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
         // When: Attempting to fetch real PID
         let (pid, confidence) = await cache.getCachedPIDWithConfidence()
 
-        if let pid = pid {
+        if let pid {
             // Then: If successful, PID should be valid
             XCTAssertGreaterThan(pid, 0, "Valid PID should be positive")
             XCTAssertNotEqual(confidence, .none, "Successful fetch should have confidence")
@@ -201,7 +200,7 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
         var results: [(pid_t?, CacheConfidence)] = []
 
         // When: Multiple sequential fetches
-        for i in 0..<3 {
+        for i in 0 ..< 3 {
             let result = await cache.getCachedPIDWithConfidence()
             results.append(result)
 
@@ -212,8 +211,8 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
         }
 
         // Then: Results should be consistent
-        let pids = results.map { $0.0 }
-        let confidences = results.map { $0.1 }
+        let pids = results.map(\.0)
+        let confidences = results.map(\.1)
 
         // All PIDs should be the same (either all nil or all the same value)
         if let firstPID = pids.first {
@@ -243,7 +242,7 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
         let duration2 = Date().timeIntervalSince(startTime2)
 
         // Then: Second fetch should be faster (cache hit)
-        if result1 == result2 && result1 != nil {
+        if result1 == result2, result1 != nil {
             XCTAssertLessThan(
                 duration2, duration1,
                 "Cached fetch should be faster than initial fetch"
@@ -260,7 +259,7 @@ final class LaunchDaemonPIDCacheTests: XCTestCase {
         var results: [pid_t?] = []
 
         // When: Rapid sequential fetches
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             let result = await cache.getCachedPID()
             results.append(result)
         }
@@ -322,7 +321,6 @@ actor MockLaunchDaemonPIDCache {
 
 @MainActor
 final class MockLaunchDaemonPIDCacheTests: XCTestCase {
-
     func testTimeoutScenario() async {
         // Given: Mock cache that times out
         let mockCache = MockLaunchDaemonPIDCache()

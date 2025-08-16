@@ -1,11 +1,10 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 /// Integration tests for race condition scenarios
 /// Tests the complete fix including caching, debouncing, and timeout protection
 @MainActor
 final class RaceConditionIntegrationTests: XCTestCase {
-
     var kanataManager: KanataManager!
     var detector: SystemStateDetector!
     var processManager: ProcessLifecycleManager!
@@ -35,7 +34,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
         let iterations = 20
 
         // When: Rapid conflict detection to trigger race condition scenario
-        for i in 0..<iterations {
+        for i in 0 ..< iterations {
             let conflicts = await processManager.detectConflicts()
             let allProcesses = conflicts.externalProcesses + conflicts.managedProcesses
 
@@ -110,11 +109,11 @@ final class RaceConditionIntegrationTests: XCTestCase {
 
         // Then: Should not have excessive flickering
         var flickerCount = 0
-        for i in 1..<conflictStates.count {
-            if conflictStates[i].hasConflicts != conflictStates[i-1].hasConflicts {
+        for i in 1 ..< conflictStates.count {
+            if conflictStates[i].hasConflicts != conflictStates[i - 1].hasConflicts {
                 flickerCount += 1
-                let timeDiff = conflictStates[i].timestamp.timeIntervalSince(conflictStates[i-1].timestamp)
-                print("   Conflict state change at \(String(format: "%.3f", timeDiff))s: \(conflictStates[i-1].hasConflicts) -> \(conflictStates[i].hasConflicts)")
+                let timeDiff = conflictStates[i].timestamp.timeIntervalSince(conflictStates[i - 1].timestamp)
+                print("   Conflict state change at \(String(format: "%.3f", timeDiff))s: \(conflictStates[i - 1].hasConflicts) -> \(conflictStates[i].hasConflicts)")
             }
         }
 
@@ -142,7 +141,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
 
         // When: Multiple concurrent full state detections (simulating wizard refreshes)
         await withTaskGroup(of: (SystemStateResult, TimeInterval).self) { group in
-            for i in 0..<concurrentOperations {
+            for i in 0 ..< concurrentOperations {
                 group.addTask {
                     let operationStart = Date()
                     let result = await self.detector.detectCurrentState()
@@ -196,7 +195,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
         let iterations = 5
 
         // When: Multiple detections that may encounter slow launchctl
-        for i in 0..<iterations {
+        for i in 0 ..< iterations {
             let startTime = Date()
             let conflicts = await processManager.detectConflicts()
             let responseTime = Date().timeIntervalSince(startTime)
@@ -236,7 +235,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
         let startTime = Date()
 
         // When: Interleaved detection and cache invalidation
-        for i in 0..<10 {
+        for i in 0 ..< 10 {
             // Detection
             let detectionStart = Date()
             let result = await processManager.detectConflicts()
@@ -266,7 +265,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
         XCTAssertLessThan(totalDuration, 8.0, "Total operation should complete within 8 seconds")
 
         // Check result consistency despite invalidations
-        let externalCounts = detectionResults.map { $0.externalProcesses.count }
+        let externalCounts = detectionResults.map(\.externalProcesses.count)
         let externalVariation = (externalCounts.max() ?? 0) - (externalCounts.min() ?? 0)
 
         XCTAssertLessThanOrEqual(
@@ -434,7 +433,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
         let loadTestStart = Date()
         var loadTestTimes: [TimeInterval] = []
 
-        for i in 0..<15 {
+        for i in 0 ..< 15 {
             let operationStart = Date()
             if i % 2 == 0 {
                 _ = await detector.detectConflicts()
@@ -518,7 +517,7 @@ final class RaceConditionIntegrationTests: XCTestCase {
         let rapidIterations = 30
 
         // When: Rapid succession like in the original bug
-        for i in 0..<rapidIterations {
+        for i in 0 ..< rapidIterations {
             let conflicts = await processManager.detectConflicts()
 
             // Track all PIDs and their classifications
@@ -575,11 +574,10 @@ final class RaceConditionIntegrationTests: XCTestCase {
 // MARK: - Race Condition Test Utilities
 
 extension RaceConditionIntegrationTests {
-
     /// Helper to simulate high-load concurrent operations
     func simulateHighLoadConcurrentOperations(operations: Int = 20) async -> [TimeInterval] {
-        return await withTaskGroup(of: TimeInterval.self) { group in
-            for _ in 0..<operations {
+        await withTaskGroup(of: TimeInterval.self) { group in
+            for _ in 0 ..< operations {
                 group.addTask {
                     let start = Date()
                     _ = await self.detector.detectCurrentState()
@@ -600,8 +598,8 @@ extension RaceConditionIntegrationTests {
         guard states.count > 1 else { return (consistency: 1.0, transitions: 0) }
 
         var transitions = 0
-        for i in 1..<states.count {
-            if states[i] != states[i-1] {
+        for i in 1 ..< states.count {
+            if states[i] != states[i - 1] {
                 transitions += 1
             }
         }

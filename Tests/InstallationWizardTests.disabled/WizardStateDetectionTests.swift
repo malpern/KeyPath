@@ -248,7 +248,7 @@ final class WizardStateDetectionTests: XCTestCase {
             let managedProcesses: [ProcessLifecycleManager.ProcessInfo] = []
             let plistPresent = testCase.launchDaemonInstalled
             let serviceLoaded = false // Test assumes service not loaded
-            
+
             let result = await detector.testComputeOrphanedProcessAutoFixWithMocks(
                 externalProcesses: externalProcesses,
                 managedProcesses: managedProcesses,

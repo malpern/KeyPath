@@ -1,7 +1,7 @@
-import XCTest
 import Carbon
 import Foundation
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class KeyboardCaptureTests: XCTestCase {
@@ -348,7 +348,7 @@ final class KeyboardCaptureTests: XCTestCase {
             localCapture.startCapture { _ in }
             localCapture.stopCapture()
 
-            localCapture.startEmergencyMonitoring { }
+            localCapture.startEmergencyMonitoring {}
             localCapture.stopEmergencyMonitoring()
         }
 
@@ -368,7 +368,7 @@ final class KeyboardCaptureTests: XCTestCase {
         // but we can test that the code handles it gracefully
 
         // Test multiple rapid start/stop cycles
-        for _ in 0..<5 {
+        for _ in 0 ..< 5 {
             capture.startCapture { _ in }
             capture.stopCapture()
         }
@@ -438,7 +438,7 @@ final class KeyboardCaptureTests: XCTestCase {
     // MARK: - Performance Tests
 
     func testKeyCodeMappingPerformance() throws {
-        let testKeyCodes = Array(0...127) // Test common key code range
+        let testKeyCodes = Array(0 ... 127) // Test common key code range
 
         measure {
             for keyCode in testKeyCodes {
@@ -449,7 +449,7 @@ final class KeyboardCaptureTests: XCTestCase {
 
     func testCaptureLifecyclePerformance() throws {
         measure {
-            for _ in 0..<100 {
+            for _ in 0 ..< 100 {
                 capture.startCapture { _ in }
                 capture.stopCapture()
             }
@@ -472,6 +472,6 @@ extension KeyboardCaptureTests {
     /// Helper method to test key code mapping using reflection or testing approach
     private func testKeyCodeMapping(_ keyCode: Int64) -> String {
         // Use the existing extension from KeyPathTests.swift to avoid duplication
-        return capture.keyCodeToString(keyCode)
+        capture.keyCodeToString(keyCode)
     }
 }

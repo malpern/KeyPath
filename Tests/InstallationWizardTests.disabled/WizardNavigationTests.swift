@@ -353,15 +353,13 @@ final class WizardNavigationTests: XCTestCase {
 // MARK: - Helper Functions
 
 private func createIssue(_ identifier: IssueIdentifier, severity: WizardIssue.IssueSeverity = .error) -> WizardIssue {
-    let category: WizardIssue.IssueCategory = {
-        switch identifier {
-        case .permission: return .permissions
-        case .component: return .installation
-        case .conflict: return .conflicts
-        case .daemon: return .daemon
-        }
-    }()
-    
+    let category: WizardIssue.IssueCategory = switch identifier {
+    case .permission: .permissions
+    case .component: .installation
+    case .conflict: .conflicts
+    case .daemon: .daemon
+    }
+
     return WizardIssue(
         identifier: identifier,
         severity: severity,

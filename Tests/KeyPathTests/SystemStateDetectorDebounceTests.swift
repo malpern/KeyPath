@@ -1,11 +1,10 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 /// Tests for SystemStateDetector debouncing functionality
 /// Covers race condition prevention and UI flicker elimination
 @MainActor
 final class SystemStateDetectorDebounceTests: XCTestCase {
-
     var detector: SystemStateDetector!
     var kanataManager: KanataManager!
 
@@ -30,7 +29,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         let startTime = Date()
 
         // When: Rapid successive state detections
-        for i in 0..<10 {
+        for i in 0 ..< 10 {
             let result = await detector.detectCurrentState()
             results.append(result)
 
@@ -51,12 +50,12 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         XCTAssertLessThan(totalDuration, 15.0, "Rapid detections should complete within 15 seconds")
 
         // Check for state stability (debouncing effect)
-        let states = results.map { $0.state }
+        let states = results.map(\.state)
 
         // Count state transitions
         var transitions = 0
-        for i in 1..<states.count {
-            if "\(states[i])" != "\(states[i-1])" {
+        for i in 1 ..< states.count {
+            if "\(states[i])" != "\(states[i - 1])" {
                 transitions += 1
             }
         }
@@ -73,7 +72,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         var conflictResults: [ConflictDetectionResult] = []
 
         // When: Rapid conflict detection calls
-        for i in 0..<8 {
+        for i in 0 ..< 8 {
             let result = await detector.detectConflicts()
             conflictResults.append(result)
 
@@ -84,7 +83,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         }
 
         // Then: Results should show debouncing behavior
-        let conflictCounts = conflictResults.map { $0.conflicts.count }
+        let conflictCounts = conflictResults.map(\.conflicts.count)
 
         // Check for excessive variation (would indicate lack of debouncing)
         if conflictCounts.count > 1 {
@@ -140,7 +139,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         var stateResults: [WizardSystemState] = []
 
         // When: Rapid state detection calls
-        for _ in 0..<15 {
+        for _ in 0 ..< 15 {
             let result = await detector.detectCurrentState()
             stateResults.append(result.state)
 
@@ -160,8 +159,8 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
 
         // Count rapid state changes
         var rapidChanges = 0
-        for i in 1..<stateStrings.count {
-            if stateStrings[i] != stateStrings[i-1] {
+        for i in 1 ..< stateStrings.count {
+            if stateStrings[i] != stateStrings[i - 1] {
                 rapidChanges += 1
             }
         }
@@ -183,7 +182,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         var hasConflictsHistory: [Bool] = []
 
         // When: Repeated conflict detection to catch flickering
-        for i in 0..<12 {
+        for i in 0 ..< 12 {
             let result = await detector.detectConflicts()
             let hasConflicts = !result.conflicts.isEmpty
             hasConflictsHistory.append(hasConflicts)
@@ -198,8 +197,8 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
 
         // Then: Should not have excessive conflict flickering
         var conflictToggles = 0
-        for i in 1..<hasConflictsHistory.count {
-            if hasConflictsHistory[i] != hasConflictsHistory[i-1] {
+        for i in 1 ..< hasConflictsHistory.count {
+            if hasConflictsHistory[i] != hasConflictsHistory[i - 1] {
                 conflictToggles += 1
             }
         }
@@ -226,7 +225,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         var detectionResults: [Bool] = []
 
         // When: Rapid detections with potential process lifecycle changes
-        for i in 0..<10 {
+        for i in 0 ..< 10 {
             // Alternate between different operations to simulate real usage
             if i % 3 == 0 {
                 await processManager.invalidatePIDCache()
@@ -245,8 +244,8 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
 
         // Check for stability despite cache invalidations
         var majorChanges = 0
-        for i in 1..<detectionResults.count {
-            if detectionResults[i] != detectionResults[i-1] {
+        for i in 1 ..< detectionResults.count {
+            if detectionResults[i] != detectionResults[i - 1] {
                 majorChanges += 1
             }
         }
@@ -275,7 +274,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         let startTime2 = Date()
         var rapidResults: [SystemStateResult] = []
 
-        for _ in 0..<5 {
+        for _ in 0 ..< 5 {
             let result = await detector.detectCurrentState()
             rapidResults.append(result)
             try? await Task.sleep(nanoseconds: 30_000_000) // 0.03 seconds
@@ -305,7 +304,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
 
         // When: Concurrent detections
         await withTaskGroup(of: SystemStateResult.self) { group in
-            for i in 0..<8 {
+            for i in 0 ..< 8 {
                 group.addTask {
                     await self.detector.detectCurrentState()
                 }
@@ -346,7 +345,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         var stateHistories: [String] = []
 
         // When: Detections that might transition through empty/non-empty states
-        for i in 0..<8 {
+        for i in 0 ..< 8 {
             let result = await detector.detectCurrentState()
             let stateDescription = "\(result.state)"
             stateHistories.append(stateDescription)
@@ -374,7 +373,7 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
         var stateResults: [WizardSystemState] = []
 
         // When: Extended monitoring period to catch potential system changes
-        for i in 0..<6 {
+        for i in 0 ..< 6 {
             let detectionStart = Date()
             let result = await detector.detectCurrentState()
 
@@ -395,8 +394,8 @@ final class SystemStateDetectorDebounceTests: XCTestCase {
 
         // Analyze state transitions over time
         var stateTransitions: [(from: String, to: String, time: TimeInterval)] = []
-        for i in 1..<stateResults.count {
-            let fromState = "\(stateResults[i-1])"
+        for i in 1 ..< stateResults.count {
+            let fromState = "\(stateResults[i - 1])"
             let toState = "\(stateResults[i])"
             let time = detectionTimestamps[i].timeIntervalSince(startTime)
 

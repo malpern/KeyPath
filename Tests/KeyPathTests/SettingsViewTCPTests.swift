@@ -1,7 +1,7 @@
-import SwiftUI
-import XCTest
 import Darwin
 import Foundation
+import SwiftUI
+import XCTest
 
 @testable import KeyPath
 
@@ -111,7 +111,7 @@ final class SettingsViewTCPTests: XCTestCase {
 
         // Capture initial state
         let initialPort = preferencesService.tcpServerPort
-        
+
         // Test disabling TCP
         preferencesService.tcpServerEnabled = false
         XCTAssertFalse(preferencesService.tcpServerEnabled, "TCP should be disabled after toggle")

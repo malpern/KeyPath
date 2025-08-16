@@ -1,7 +1,7 @@
+import Darwin
 import Foundation
 import Network
 import XCTest
-import Darwin
 
 @testable import KeyPath
 

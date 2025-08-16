@@ -1,6 +1,6 @@
-import XCTest
 import Foundation
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class ErrorHandlingTests: XCTestCase {
@@ -108,7 +108,7 @@ final class ErrorHandlingTests: XCTestCase {
             let result = capture.keyCodeToString(keyCode)
             XCTAssertFalse(result.isEmpty, "Should handle extreme key code: \(keyCode)")
             XCTAssertTrue(result.hasPrefix("key") || result.count == 1 || ["return", "space", "tab", "escape", "delete", "caps"].contains(result),
-                         "Should produce valid key name for code \(keyCode): \(result)")
+                          "Should produce valid key name for code \(keyCode): \(result)")
         }
     }
 
@@ -211,11 +211,11 @@ final class ErrorHandlingTests: XCTestCase {
             let errorDesc = error.localizedDescription.lowercased()
             XCTAssertTrue(
                 errorDesc.contains("kanata") ||
-                errorDesc.contains("config") ||
-                errorDesc.contains("permission") ||
-                errorDesc.contains("install") ||
-                errorDesc.contains("directory") ||
-                errorDesc.contains("file"),
+                    errorDesc.contains("config") ||
+                    errorDesc.contains("permission") ||
+                    errorDesc.contains("install") ||
+                    errorDesc.contains("directory") ||
+                    errorDesc.contains("file"),
                 "Error should be descriptive: \(error.localizedDescription)"
             )
         }
@@ -232,10 +232,10 @@ final class ErrorHandlingTests: XCTestCase {
             XCTAssertFalse(errorDesc.isEmpty, "Error description should not be empty")
             XCTAssertTrue(
                 errorDesc.contains("kanata") ||
-                errorDesc.contains("config") ||
-                errorDesc.contains("directory") ||
-                errorDesc.contains("permission") ||
-                errorDesc.contains("file"),
+                    errorDesc.contains("config") ||
+                    errorDesc.contains("directory") ||
+                    errorDesc.contains("permission") ||
+                    errorDesc.contains("file"),
                 "Reset error should be descriptive: \(error.localizedDescription)"
             )
         }
@@ -251,7 +251,7 @@ final class ErrorHandlingTests: XCTestCase {
         let errorQueue = DispatchQueue(label: "error-collection")
 
         // Run multiple config operations concurrently
-        for i in 0..<operations {
+        for i in 0 ..< operations {
             Task {
                 do {
                     try await manager.saveConfiguration(input: "caps\(i)", output: "escape\(i)")
@@ -277,7 +277,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     func testMemoryPressureErrorHandling() throws {
         // Test behavior under memory pressure by creating many large configs
-        for i in 0..<100 {
+        for i in 0 ..< 100 {
             let largeInput = String(repeating: "caps", count: 100)
             let largeOutput = String(repeating: "escape", count: 100)
 
@@ -293,7 +293,7 @@ final class ErrorHandlingTests: XCTestCase {
         var captureCallbackCount = 0
 
         // Start and stop capture multiple times rapidly
-        for _ in 0..<20 {
+        for _ in 0 ..< 20 {
             capture.startCapture { _ in
                 captureCallbackCount += 1
             }
@@ -301,8 +301,8 @@ final class ErrorHandlingTests: XCTestCase {
         }
 
         // Start emergency monitoring and stop rapidly
-        for _ in 0..<20 {
-            capture.startEmergencyMonitoring { }
+        for _ in 0 ..< 20 {
+            capture.startEmergencyMonitoring {}
             capture.stopEmergencyMonitoring()
         }
 
@@ -405,7 +405,7 @@ final class ErrorHandlingTests: XCTestCase {
             XCTAssertFalse(sequence.isEmpty, "Should handle problematic input: \(input)")
 
             // Multi-character sequences should be wrapped in parentheses (unless it's a known key)
-            if input.count > 1 && !["caps", "space", "return", "escape", "delete", "tab"].contains(input.lowercased()) {
+            if input.count > 1, !["caps", "space", "return", "escape", "delete", "tab"].contains(input.lowercased()) {
                 // Should either be a converted key name or wrapped sequence
                 XCTAssertTrue(
                     sequence.hasPrefix("(") || sequence.count <= 4,
@@ -462,9 +462,9 @@ final class ErrorHandlingTests: XCTestCase {
 
     func testConfigurationIntegrity() throws {
         // Test that all generated configs maintain integrity
-        let randomInputs = (0..<50).map { _ in
+        let randomInputs = (0 ..< 50).map { _ in
             let chars = "abcdefghijklmnopqrstuvwxyz"
-            return String((0..<Int.random(in: 1...10)).map { _ in chars.randomElement()! })
+            return String((0 ..< Int.random(in: 1 ... 10)).map { _ in chars.randomElement()! })
         }
 
         for input in randomInputs {

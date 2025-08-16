@@ -1,11 +1,10 @@
-import XCTest
 import AppKit
 import Foundation
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class UtilitiesTests: XCTestCase {
-
     override func setUpWithError() throws {
         // Clean up any existing UserDefaults state
         UserDefaults.standard.removeObject(forKey: "KeyPath.WizardRestorePoint")
@@ -154,7 +153,7 @@ final class UtilitiesTests: XCTestCase {
         let logger = AppLogger.shared
 
         // Log several messages
-        for i in 0..<10 {
+        for i in 0 ..< 10 {
             logger.log("Test message \(i)")
         }
 
@@ -214,7 +213,7 @@ final class UtilitiesTests: XCTestCase {
         expectation.expectedFulfillmentCount = 10
 
         // Test concurrent logging from multiple queues
-        for i in 0..<10 {
+        for i in 0 ..< 10 {
             DispatchQueue.global(qos: .background).async {
                 logger.log("Concurrent message \(i)")
                 expectation.fulfill()
@@ -233,7 +232,7 @@ final class UtilitiesTests: XCTestCase {
         let sizeBefore = logger.getCurrentLogSize()
 
         // Log a bunch of messages to potentially trigger rotation checks
-        for i in 0..<100 {
+        for i in 0 ..< 100 {
             logger.log("Rotation test message \(i) with some additional content to increase size")
         }
 
@@ -278,7 +277,7 @@ final class UtilitiesTests: XCTestCase {
 
         // Test logger behavior under memory pressure
         // Log many large messages rapidly
-        for i in 0..<50 {
+        for i in 0 ..< 50 {
             let largeMessage = String(repeating: "Memory pressure test \(i) ", count: 100)
             logger.log(largeMessage)
         }
@@ -325,7 +324,7 @@ final class UtilitiesTests: XCTestCase {
         let stressTestCount = 100
 
         // Stress test both utilities together
-        for i in 0..<stressTestCount {
+        for i in 0 ..< stressTestCount {
             logger.log("Stress test iteration \(i)")
 
             if i % 10 == 0 {
@@ -351,7 +350,7 @@ final class UtilitiesTests: XCTestCase {
         let logger = AppLogger.shared
 
         measure {
-            for i in 0..<1000 {
+            for i in 0 ..< 1000 {
                 logger.log("Performance test message \(i)")
             }
         }
@@ -359,7 +358,7 @@ final class UtilitiesTests: XCTestCase {
 
     func testAppRestarterPerformance() throws {
         measure {
-            for i in 0..<100 {
+            for i in 0 ..< 100 {
                 AppRestarter.restartForWizard(at: "PerformanceTest\(i)")
             }
         }
@@ -369,7 +368,7 @@ final class UtilitiesTests: XCTestCase {
         let logger = AppLogger.shared
 
         // Fill up buffer
-        for i in 0..<50 {
+        for i in 0 ..< 50 {
             logger.log("Buffer fill message \(i)")
         }
 

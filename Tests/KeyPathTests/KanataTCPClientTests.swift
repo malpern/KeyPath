@@ -35,7 +35,7 @@ final class KanataTCPClientTests: XCTestCase {
     private func findAvailablePort() throws -> Int {
         // Use a simple approach - try a random port in the high range
         // This avoids the complex socket operations that might be causing integer overflow
-        return Int.random(in: 50000...60000)
+        Int.random(in: 50000 ... 60000)
     }
 
     // MARK: - Server Status Tests
@@ -291,7 +291,7 @@ final class KanataTCPClientTests: XCTestCase {
         for (index, result) in results.enumerated() {
             XCTAssertTrue(result, "Concurrent status check \(index) should succeed")
         }
-        
+
         // Verify no requests were dropped or corrupted during concurrency
         XCTAssertEqual(Set(results).count, 1, "All status checks should return the same result")
         XCTAssertTrue(results.allSatisfy { $0 }, "All concurrent status checks should be true")
@@ -341,7 +341,7 @@ final class KanataTCPClientTests: XCTestCase {
 
         // Stop server
         await mockServer.stop()
-        
+
         // Give the client a moment to detect server is down
         try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
 

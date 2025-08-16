@@ -51,22 +51,22 @@ do {
     try newConfig.write(toFile: "/Users/malpern/.config/keypath/keypath.kbd", atomically: true, encoding: .utf8)
     let saveTime = Date()
     let saveDuration = saveTime.timeIntervalSince(startTime)
-    
+
     print("💾 [RealUIAutomation] ========== CONFIG FILE SAVED ==========")
     print("🕐 [RealUIAutomation] File save took: \(String(format: "%.3f", saveDuration))s")
     print("🔍 [RealUIAutomation] Did you hear the 'ting' sound?")
-    
+
     print("⏰ [RealUIAutomation] Waiting for hot reload...")
     Thread.sleep(forTimeInterval: 3.0)
-    
+
     let endTime = Date()
     let totalDuration = endTime.timeIntervalSince(startTime)
-    
+
     print("🤖 [RealUIAutomation] ========== REAL UI AUTOMATION COMPLETE ==========")
     print("🕐 [RealUIAutomation] Total process took: \(String(format: "%.3f", totalDuration))s")
     print("🔍 [RealUIAutomation] Did you hear the 'glass' sound for hot reload?")
     print("🎯 [RealUIAutomation] Please test: Type '1' - does it produce '2'?")
-    
+
 } catch {
     print("❌ [RealUIAutomation] Failed to save config: \(error)")
 }

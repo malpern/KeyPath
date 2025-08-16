@@ -49,7 +49,7 @@ print("🔍 [UIAutomation] Step 6a: Pre-save validation")
 Thread.sleep(forTimeInterval: 0.1)
 
 print("📝 [UIAutomation] Step 6b: Generating kanata config")
-Thread.sleep(forTimeInterval: 0.1) 
+Thread.sleep(forTimeInterval: 0.1)
 
 print("💾 [UIAutomation] Step 6c: Writing config file")
 Thread.sleep(forTimeInterval: 0.1)
@@ -75,7 +75,7 @@ let totalDuration = totalEndTime.timeIntervalSince(startTime)
 
 print("🤖 [UIAutomation] ========== WORKFLOW TIMING SUMMARY ==========")
 print("🕐 [UIAutomation] Input capture:  \(String(format: "%.3f", inputDuration))s")
-print("🕐 [UIAutomation] Output capture: \(String(format: "%.3f", outputDuration))s") 
+print("🕐 [UIAutomation] Output capture: \(String(format: "%.3f", outputDuration))s")
 print("🕐 [UIAutomation] Save pipeline:  \(String(format: "%.3f", saveDuration))s")
 print("🕐 [UIAutomation] Total workflow: \(String(format: "%.3f", totalDuration))s")
 

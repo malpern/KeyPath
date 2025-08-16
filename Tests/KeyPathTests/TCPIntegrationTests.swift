@@ -1,8 +1,7 @@
+import Darwin
 import Foundation
 import Network
 import XCTest
-import Darwin
-import Darwin.POSIX
 
 @testable import KeyPath
 
@@ -382,7 +381,7 @@ final class TCPIntegrationTests: XCTestCase {
         // Verify system is in good state after sustained load
         XCTAssertTrue(preferencesService.shouldUseTCPServer, "TCP preferences should remain consistent after load")
         XCTAssertNotNil(preferencesService.tcpEndpoint, "TCP endpoint should still be available")
-        
+
         // Verify TCP client is still functional
         let client = KanataTCPClient(port: preferencesService.tcpServerPort)
         let stillAvailable = await client.checkServerStatus()

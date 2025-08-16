@@ -1,11 +1,10 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 /// Tests for ProcessLifecycleManager caching integration
 /// Covers race condition fixes and cache invalidation
 @MainActor
 final class ProcessLifecycleManagerCacheTests: XCTestCase {
-
     var manager: ProcessLifecycleManager!
 
     override func setUp() async throws {
@@ -74,7 +73,7 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
         var results: [ProcessLifecycleManager.ConflictResolution] = []
 
         // When: Multiple rapid conflict detection calls
-        for i in 0..<5 {
+        for i in 0 ..< 5 {
             let result = await manager.detectConflicts()
             results.append(result)
 
@@ -85,8 +84,8 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
         }
 
         // Then: Results should be consistent (race condition fix working)
-        let externalCounts = results.map { $0.externalProcesses.count }
-        let managedCounts = results.map { $0.managedProcesses.count }
+        let externalCounts = results.map(\.externalProcesses.count)
+        let managedCounts = results.map(\.managedProcesses.count)
 
         // Check for consistency within reasonable bounds
         let maxExternalVariation = externalCounts.max()! - externalCounts.min()!
@@ -111,7 +110,7 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
 
         // When: Multiple concurrent conflict detection calls
         await withTaskGroup(of: ProcessLifecycleManager.ConflictResolution.self) { group in
-            for i in 0..<10 {
+            for i in 0 ..< 10 {
                 group.addTask {
                     await self.manager.detectConflicts()
                 }
@@ -126,7 +125,7 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
             XCTAssertEqual(results.count, 10, "All concurrent calls should complete")
 
             // Results should be reasonably consistent
-            let externalCounts = results.map { $0.externalProcesses.count }
+            let externalCounts = results.map(\.externalProcesses.count)
             let uniqueExternalCounts = Set(externalCounts)
 
             XCTAssertLessThanOrEqual(
@@ -155,7 +154,7 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
             // When: Multiple rapid classifications of the same process
             var classifications: [String] = []
 
-            for _ in 0..<5 {
+            for _ in 0 ..< 5 {
                 let freshConflicts = await manager.detectConflicts()
                 let allFreshProcesses = freshConflicts.externalProcesses + freshConflicts.managedProcesses
 
@@ -227,7 +226,7 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
         var results: [ProcessLifecycleManager.ConflictResolution] = []
 
         // When: 20 rapid detection calls
-        for i in 0..<20 {
+        for i in 0 ..< 20 {
             let callStart = Date()
             let result = await manager.detectConflicts()
             let callDuration = Date().timeIntervalSince(callStart)
@@ -254,7 +253,7 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
         }
 
         // Results should be reasonably consistent
-        let externalCounts = results.map { $0.externalProcesses.count }
+        let externalCounts = results.map(\.externalProcesses.count)
         let externalVariation = (externalCounts.max() ?? 0) - (externalCounts.min() ?? 0)
 
         XCTAssertLessThanOrEqual(
@@ -354,7 +353,7 @@ final class ProcessLifecycleManagerCacheTests: XCTestCase {
         var operations: [String] = []
 
         // When: Rapid mixed operations
-        for i in 0..<iterations {
+        for i in 0 ..< iterations {
             let operation = ["detect", "register", "unregister", "invalidate"].randomElement()!
             operations.append(operation)
 
