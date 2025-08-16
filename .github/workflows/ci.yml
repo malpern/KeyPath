@@ -70,21 +70,37 @@ jobs:
         }
         
         # Generate coverage report if tests ran
-        if [ -d ".build/debug/codecov" ]; then
+        echo "🔍 Checking for coverage data..."
+        if [ -d ".build/debug/codecov" ] && [ -f ".build/debug/codecov/default.profdata" ]; then
           echo "📊 Generating coverage report..."
-          xcrun llvm-cov export \
-            .build/debug/KeyPathPackageTests.xctest/Contents/MacOS/KeyPathPackageTests \
-            -instr-profile=.build/debug/codecov/default.profdata \
-            -format=lcov > test-results/coverage.lcov 2>/dev/null || {
-            echo "⚠️ Coverage generation failed, but tests completed"
-          }
+          
+          # Find the test binary
+          TEST_BINARY=$(find .build/debug -name "*PackageTests.xctest" -type d | head -1)
+          if [ -n "$TEST_BINARY" ]; then
+            BINARY_PATH="$TEST_BINARY/Contents/MacOS/KeyPathPackageTests"
+            if [ -f "$BINARY_PATH" ]; then
+              xcrun llvm-cov export \
+                "$BINARY_PATH" \
+                -instr-profile=.build/debug/codecov/default.profdata \
+                -format=lcov > test-results/coverage.lcov 2>/dev/null || {
+                echo "⚠️ Coverage generation failed, but tests completed"
+              }
+              echo "✅ Coverage report generated"
+            else
+              echo "⚠️ Test binary not found at expected path: $BINARY_PATH"
+            fi
+          else
+            echo "⚠️ No test bundle found in .build/debug"
+          fi
+        else
+          echo "⚠️ No coverage data found (this is normal if tests were skipped)"
         fi
         
         echo "✅ Test execution completed"
     
     - name: Upload Test Results
       if: always()  # Upload results even if tests failed
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results
         path: test-results/
@@ -156,7 +172,7 @@ jobs:
     
     - name: Upload Build Artifacts
       if: success()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: keypath-release-binary
         path: .build/release/KeyPath
