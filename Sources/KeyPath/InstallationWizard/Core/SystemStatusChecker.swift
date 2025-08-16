@@ -575,9 +575,11 @@ class SystemStatusChecker {
         }
 
         // Check if kanata service is actually running with TCP port
-        guard kanataManager.isRunning else {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] Kanata not running - TCP server unavailable")
-            return false
+        if !kanataManager.isRunning {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] WARNING: KanataManager.isRunning=false but continuing TCP check anyway")
+            // Continue anyway - let's see if TCP actually works
+        } else {
+            AppLogger.shared.log("🌐 [SystemStatusChecker] KanataManager.isRunning=true, proceeding with TCP check")
         }
 
         // Use KanataTCPClient to check server status

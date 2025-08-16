@@ -585,7 +585,8 @@ struct RecordingSection: View {
 
                     \(errors.joined(separator: "\n"))
 
-                    KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration. If repair failed, a safe fallback configuration was applied.
+                    KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration. " +
+                    "If repair failed, a safe fallback configuration was applied.
                     """
                     await MainActor.run {
                         configRepairSuccessful = false

@@ -1715,8 +1715,8 @@ private extension String {
         do {
             let rx = try NSRegularExpression(pattern: pattern)
             let nsRange = NSRange(startIndex..., in: self)
-            guard let m = rx.firstMatch(in: self, range: nsRange), m.numberOfRanges >= 2,
-                  let range = Range(m.range(at: 1), in: self)
+            guard let match = rx.firstMatch(in: self, range: nsRange), match.numberOfRanges >= 2,
+                  let range = Range(match.range(at: 1), in: self)
             else {
                 return nil
             }
@@ -1730,8 +1730,8 @@ private extension String {
         do {
             let rx = try NSRegularExpression(pattern: pattern)
             let nsRange = NSRange(startIndex..., in: self)
-            guard let m = rx.firstMatch(in: self, range: nsRange), m.numberOfRanges >= 2,
-                  let range = Range(m.range(at: 1), in: self)
+            guard let match = rx.firstMatch(in: self, range: nsRange), match.numberOfRanges >= 2,
+                  let range = Range(match.range(at: 1), in: self)
             else {
                 return nil
             }

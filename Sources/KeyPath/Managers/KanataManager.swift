@@ -1391,7 +1391,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("🔍 [LaunchDaemon] Service loaded but PID not found")
                 return (true, nil)
             } else {
-                AppLogger.shared.log("🔍 [LaunchDaemon] Service not loaded or failed")
+                AppLogger.shared.log("🔍 [LaunchDaemon] Service not loaded or failed - FIXED VERSION")
                 return (false, nil)
             }
         } catch {
