@@ -1582,6 +1582,10 @@ class KanataManager: ObservableObject {
             if reloadResult.success {
                 // TCP reload succeeded - config is valid
                 AppLogger.shared.log("✅ [Config] TCP reload successful, config is valid")
+                
+                // Play success sound to indicate hot reload worked
+                SoundPlayer.shared.playSuccessSound()
+                
                 await MainActor.run {
                     saveStatus = .success
                 }
@@ -1593,6 +1597,9 @@ class KanataManager: ObservableObject {
                 let errorMessage = detailedError ?? reloadResult.errorMessage ?? "Config error"
                 
                 AppLogger.shared.log("❌ [Config] Detailed error: \(errorMessage)")
+                
+                // Play error sound to indicate config reload failed
+                SoundPlayer.shared.playErrorSound()
                 
                 // Show error to user with revert option
                 let shouldRevert = await showConfigErrorDialog(errorMessage)
