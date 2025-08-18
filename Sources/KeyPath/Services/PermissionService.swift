@@ -261,7 +261,7 @@ class PermissionService {
 
     /// Detect if there might be stale KeyPath entries in Input Monitoring
     /// This checks for common indicators of old or duplicate entries
-    static func detectPossibleStaleEntries() -> (hasStaleEntries: Bool, details: [String]) {
+    static func detectPossibleStaleEntries() async -> (hasStaleEntries: Bool, details: [String]) {
         var indicators: [String] = []
 
         // Check if we're running from a development path
@@ -290,8 +290,16 @@ class PermissionService {
         task.standardError = Pipe()
 
         do {
-            try task.run()
-            task.waitUntilExit()
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                task.terminationHandler = { _ in
+                    continuation.resume()
+                }
+                do {
+                    try task.run()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8),

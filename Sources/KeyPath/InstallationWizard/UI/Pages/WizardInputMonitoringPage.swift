@@ -139,28 +139,36 @@ struct WizardInputMonitoringPage: View {
     // MARK: - Actions
 
     private func checkForStaleEntries() {
-        let detection = PermissionService.detectPossibleStaleEntries()
-        if detection.hasStaleEntries {
-            staleEntryDetails = detection.details
-            AppLogger.shared.log(
-                "🔐 [WizardInputMonitoringPage] Stale entries detected: \(detection.details.joined(separator: ", "))"
-            )
+        Task {
+            let detection = await PermissionService.detectPossibleStaleEntries()
+            await MainActor.run {
+                if detection.hasStaleEntries {
+                    staleEntryDetails = detection.details
+                    AppLogger.shared.log(
+                        "🔐 [WizardInputMonitoringPage] Stale entries detected: \(detection.details.joined(separator: ", "))"
+                    )
+                }
+            }
         }
     }
 
     private func handleHelpWithPermission() {
-        // First check for stale entries
-        let detection = PermissionService.detectPossibleStaleEntries()
-
-        if detection.hasStaleEntries {
-            // Show cleanup instructions first
-            staleEntryDetails = detection.details
-            showingStaleEntryCleanup = true
-            AppLogger.shared.log(
-                "🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
-        } else {
-            // Always open settings manually - never auto-request
-            openInputMonitoringSettings()
+        Task {
+            // First check for stale entries
+            let detection = await PermissionService.detectPossibleStaleEntries()
+            
+            await MainActor.run {
+                if detection.hasStaleEntries {
+                    // Show cleanup instructions first
+                    staleEntryDetails = detection.details
+                    showingStaleEntryCleanup = true
+                    AppLogger.shared.log(
+                        "🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
+                } else {
+                    // Always open settings manually - never auto-request
+                    openInputMonitoringSettings()
+                }
+            }
         }
     }
 
