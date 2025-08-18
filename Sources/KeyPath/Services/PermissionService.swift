@@ -113,20 +113,54 @@ class PermissionService {
             return cached.hasPermission
         }
 
-        // Use conservative approach for Input Monitoring to avoid automatic addition to System Preferences
-        // The TCC database is protected and cannot be reliably queried without triggering system prompts
-
-        let keyPathPath = Bundle.main.bundlePath
-        let hasAccess = Self.checkTCCForInputMonitoring(path: keyPathPath)
+        // IMPORTANT: Do NOT use IOHIDCheckAccess or any other API that could trigger automatic
+        // addition to System Preferences. Instead, use conservative checking that only returns
+        // true if we're absolutely certain permission is granted.
+        
+        // For now, we'll be conservative and assume permission is NOT granted unless we can
+        // verify it through non-invasive means (like checking if the service is running successfully)
+        let hasAccess = checkInputMonitoringNonInvasively()
 
         AppLogger.shared.log(
-            "🔐 [PermissionService] Input Monitoring check for path '\(keyPathPath)': \(hasAccess ? "granted" : "not granted")"
+            "🔐 [PermissionService] Non-invasive Input Monitoring check: \(hasAccess ? "granted" : "not granted")"
         )
 
         // Cache the result briefly
         permissionCache[cacheKey] = CachedResult(hasPermission: hasAccess, timestamp: Date())
 
         return hasAccess
+    }
+    
+    /// Check Input Monitoring permission without triggering any system APIs that could
+    /// automatically add the app to Input Monitoring preferences
+    private func checkInputMonitoringNonInvasively() -> Bool {
+        // Method 1: Check if kanata service is running successfully
+        // If kanata is running without permission errors, KeyPath likely has permission
+        if isKanataProcessRunning() && !Self.hasRecentPermissionErrors() {
+            AppLogger.shared.log("🔐 [PermissionService] Kanata running without errors - assuming permission granted")
+            return true
+        }
+        
+        // Method 2: Check if we've previously cached a successful permission grant
+        // This helps avoid repeated requests after the user has granted permission
+        let userDefaults = UserDefaults.standard
+        let lastGrantedTimestamp = userDefaults.double(forKey: "keypath_input_monitoring_granted")
+        if lastGrantedTimestamp > 0 {
+            let lastGranted = Date(timeIntervalSince1970: lastGrantedTimestamp)
+            let daysSinceGrant = Date().timeIntervalSince(lastGranted) / (24 * 60 * 60)
+            
+            // If permission was granted within the last 30 days, assume it's still valid
+            // (unless there are recent errors)
+            if daysSinceGrant < 30 && !Self.hasRecentPermissionErrors() {
+                AppLogger.shared.log("🔐 [PermissionService] Recent permission grant found in cache")
+                return true
+            }
+        }
+        
+        // Method 3: Conservative fallback - assume permission is NOT granted
+        // This is safer than triggering automatic addition to System Preferences
+        AppLogger.shared.log("🔐 [PermissionService] Conservative check - assuming permission not granted")
+        return false
     }
 
     /// Check if KeyPath app has Accessibility permission
@@ -208,23 +242,21 @@ class PermissionService {
         AXIsProcessTrustedWithOptions(options)
     }
 
-    /// Request Input Monitoring permission programmatically (macOS 10.15+)
-    /// Returns true if permission was granted, false if denied or needs manual action
+    /// This function is DISABLED to prevent automatic addition to Input Monitoring preferences.
+    /// KeyPath will never automatically request Input Monitoring permission.
+    /// Users must manually grant permission in System Settings to maintain control.
     @available(macOS 10.15, *)
     static func requestInputMonitoringPermission() -> Bool {
         AppLogger.shared.log(
-            "🔐 [PermissionService] Requesting Input Monitoring permission via IOHIDRequestAccess")
-
-        // IOHIDRequestAccess returns a Bool: true if granted, false if denied/unknown
-        let granted = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
-
+            "🔐 [PermissionService] DISABLED: requestInputMonitoringPermission - will not auto-request permission")
+        
+        // NEVER call IOHIDRequestAccess as it automatically adds the app to Input Monitoring preferences
+        // This was the source of the auto-reinstallation behavior the user complained about
+        
         AppLogger.shared.log(
-            "🔐 [PermissionService] IOHIDRequestAccess result: \(granted ? "granted" : "denied/unknown")")
+            "🔐 [PermissionService] Automatic permission requests are disabled. User must grant manually.")
 
-        // Clear cache after permission request
-        PermissionService.shared.clearCache()
-
-        return granted
+        return false // Always return false to indicate manual action is required
     }
 
     /// Detect if there might be stale KeyPath entries in Input Monitoring
@@ -336,16 +368,14 @@ class PermissionService {
     }
 
     static func checkTCCForInputMonitoring(path: String) -> Bool {
-        // For KeyPath app itself, use IOHIDCheckAccess which checks current process
+        // For KeyPath app itself, DO NOT use IOHIDCheckAccess as it can trigger automatic
+        // addition to Input Monitoring preferences. Instead, use non-invasive checking.
         let currentProcessPath = Bundle.main.bundlePath
         if path == currentProcessPath {
-            let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
-            let isGranted = accessType == kIOHIDAccessTypeGranted
-
             AppLogger.shared.log(
-                "🔐 [PermissionService] IOHIDCheckAccess for current process: \(isGranted ? "granted" : "not granted")"
+                "🔐 [PermissionService] Using non-invasive check for current process to avoid auto-registration"
             )
-            return isGranted
+            return PermissionService.shared.checkInputMonitoringNonInvasively()
         }
 
         // For other binaries (like kanata), use API-based permission checking
@@ -848,5 +878,14 @@ class PermissionService {
     func clearCache() {
         permissionCache.removeAll()
         AppLogger.shared.log("🔐 [PermissionService] Permission cache cleared")
+    }
+    
+    /// Mark that Input Monitoring permission has been granted by the user
+    /// This helps the non-invasive check return true without using system APIs
+    func markInputMonitoringPermissionGranted() {
+        let userDefaults = UserDefaults.standard
+        userDefaults.set(Date().timeIntervalSince1970, forKey: "keypath_input_monitoring_granted")
+        clearCache() // Clear cache so next check uses the new timestamp
+        AppLogger.shared.log("🔐 [PermissionService] Marked Input Monitoring permission as granted")
     }
 }

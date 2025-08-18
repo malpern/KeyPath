@@ -7,8 +7,8 @@ set -e
 
 echo "Building KeyPath..."
 
-# Build the Swift package
-swift build -c release
+# Build the Swift package (disable whole-module optimization to avoid hang)
+swift build -c release -Xswiftc -no-whole-module-optimization
 
 # Create app bundle structure
 APP_BUNDLE="build/KeyPath.app"

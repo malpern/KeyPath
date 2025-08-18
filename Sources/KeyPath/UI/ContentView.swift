@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var keyboardCapture = KeyboardCapture()
+    @State private var keyboardCapture: KeyboardCapture?
     @EnvironmentObject var kanataManager: KanataManager
     @EnvironmentObject var simpleKanataManager: SimpleKanataManager
     @State private var isRecording = false
@@ -32,7 +32,7 @@ struct ContentView: View {
             RecordingSection(
                 recordedInput: $recordedInput, recordedOutput: $recordedOutput,
                 isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
-                kanataManager: kanataManager, keyboardCapture: keyboardCapture,
+                kanataManager: kanataManager, keyboardCapture: $keyboardCapture,
                 showStatusMessage: showStatusMessage, simpleKanataManager: simpleKanataManager
             )
 
@@ -140,7 +140,7 @@ struct ContentView: View {
         }
         .onDisappear {
             // Stop emergency monitoring when view disappears
-            keyboardCapture.stopEmergencyMonitoring()
+            keyboardCapture?.stopEmergencyMonitoring()
 
             // Status monitoring handled centrally - no cleanup needed
         }
@@ -181,14 +181,21 @@ struct ContentView: View {
     }
 
     private func startEmergencyMonitoringIfPossible() {
-        // Only try if we're not already monitoring
-        if !keyboardCapture.checkAccessibilityPermissionsSilently() {
-            // Don't have permissions yet - we'll try again later
-            return
+        // Initialize KeyboardCapture lazily if needed and we have permissions
+        if keyboardCapture == nil {
+            if PermissionService.shared.hasAccessibilityPermission() {
+                keyboardCapture = KeyboardCapture()
+                AppLogger.shared.log("🎹 [ContentView] KeyboardCapture initialized for emergency monitoring")
+            } else {
+                // Don't have permissions yet - we'll try again later
+                return
+            }
         }
+        
+        guard let capture = keyboardCapture else { return }
 
         // We have permissions, start monitoring
-        keyboardCapture.startEmergencyMonitoring {
+        capture.startEmergencyMonitoring {
             showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
             showingEmergencyAlert = true
         }
@@ -236,7 +243,7 @@ struct RecordingSection: View {
     @Binding var isRecording: Bool
     @Binding var isRecordingOutput: Bool
     @ObservedObject var kanataManager: KanataManager
-    @ObservedObject var keyboardCapture: KeyboardCapture
+    @Binding var keyboardCapture: KeyboardCapture?
     let showStatusMessage: (String) -> Void
 
     // Simple Kanata Manager Integration
@@ -451,7 +458,25 @@ struct RecordingSection: View {
         isRecording = true
         recordedInput = ""
 
-        keyboardCapture.startCapture { keyName in
+        // Initialize KeyboardCapture lazily only when actually needed and if we have permissions
+        if keyboardCapture == nil {
+            if PermissionService.shared.hasAccessibilityPermission() {
+                keyboardCapture = KeyboardCapture()
+                AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
+            } else {
+                recordedInput = "⚠️ Accessibility permission required for recording"
+                isRecording = false
+                return
+            }
+        }
+        
+        guard let capture = keyboardCapture else {
+            recordedInput = "⚠️ Failed to initialize keyboard capture"
+            isRecording = false
+            return
+        }
+        
+        capture.startCapture { keyName in
             recordedInput = keyName
             isRecording = false
         }
@@ -459,14 +484,32 @@ struct RecordingSection: View {
 
     private func stopRecording() {
         isRecording = false
-        keyboardCapture.stopCapture()
+        keyboardCapture?.stopCapture()
     }
 
     private func startOutputRecording() {
         isRecordingOutput = true
         recordedOutput = ""
 
-        keyboardCapture.startContinuousCapture { keyName in
+        // Initialize KeyboardCapture lazily if needed and we have permissions
+        if keyboardCapture == nil {
+            if PermissionService.shared.hasAccessibilityPermission() {
+                keyboardCapture = KeyboardCapture()
+                AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
+            } else {
+                recordedOutput = "⚠️ Accessibility permission required for recording"
+                isRecordingOutput = false
+                return
+            }
+        }
+        
+        guard let capture = keyboardCapture else {
+            recordedOutput = "⚠️ Failed to initialize keyboard capture"
+            isRecordingOutput = false
+            return
+        }
+
+        capture.startContinuousCapture { keyName in
             if !recordedOutput.isEmpty {
                 recordedOutput += " "
             }
@@ -482,7 +525,7 @@ struct RecordingSection: View {
 
     private func stopOutputRecording() {
         isRecordingOutput = false
-        keyboardCapture.stopCapture()
+        keyboardCapture?.stopCapture()
         cancelOutputInactivityTimer()
     }
 

@@ -464,7 +464,7 @@ private struct FullDiskAccessDetailsSheet: View {
 
                         Text(
                             """
-                            Absolutely! Full Disk Access is completely optional. The wizard will work without it, using alternative detection methods. 
+                            Absolutely! Full Disk Access is completely optional. The wizard will work without it, using alternative detection methods.
                             You can always grant it later if you change your mind.
                             """
                         )

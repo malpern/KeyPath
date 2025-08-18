@@ -11,8 +11,6 @@ struct WizardInputMonitoringPage: View {
 
     @State private var showingStaleEntryCleanup = false
     @State private var staleEntryDetails: [String] = []
-    @State private var attemptingProgrammaticRequest = false
-    @State private var programmaticRequestFailed = false
 
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
@@ -69,19 +67,10 @@ struct WizardInputMonitoringPage: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                            if programmaticRequestFailed {
-                                Text(
-                                    "⚠️ Automatic permission request was denied. Please grant permission manually in System Settings."
-                                )
+                            Text("Click 'Help Me Grant Permission' to open System Settings where you can manually grant permission")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                                 .padding(.top, 4)
-                            } else {
-                                Text("Click 'Grant Permission' to enable Input Monitoring")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                                    .padding(.top, 4)
-                            }
                         }
                         .padding()
                         .background(Color.orange.opacity(0.1))
@@ -95,27 +84,23 @@ struct WizardInputMonitoringPage: View {
                         // Manual Refresh Button
                         Button("Check Again") {
                             Task {
-                                programmaticRequestFailed = false
                                 await onRefresh()
+                                
+                                // If permission check now succeeds, mark it as granted for future
+                                if PermissionService.shared.hasInputMonitoringPermission() {
+                                    PermissionService.shared.markInputMonitoringPermissionGranted()
+                                }
                             }
                         }
                         .buttonStyle(.bordered)
-                        .disabled(attemptingProgrammaticRequest)
 
                         Spacer()
 
-                        // Smart Grant Permission Button
-                        Button(action: handleGrantPermission) {
-                            if attemptingProgrammaticRequest {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .frame(width: 16, height: 16)
-                            } else {
-                                Text(programmaticRequestFailed ? "Open Settings" : "Grant Permission")
-                            }
+                        // Help Me Grant Permission Button - Never auto-requests
+                        Button(action: handleHelpWithPermission) {
+                            Text("Help Me Grant Permission")
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(attemptingProgrammaticRequest)
                     }
                 }
             }
@@ -163,7 +148,7 @@ struct WizardInputMonitoringPage: View {
         }
     }
 
-    private func handleGrantPermission() {
+    private func handleHelpWithPermission() {
         // First check for stale entries
         let detection = PermissionService.detectPossibleStaleEntries()
 
@@ -174,39 +159,8 @@ struct WizardInputMonitoringPage: View {
             AppLogger.shared.log(
                 "🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
         } else {
-            // Try programmatic request for clean installs
-            if #available(macOS 10.15, *), !programmaticRequestFailed {
-                attemptProgrammaticRequest()
-            } else {
-                // Fall back to manual process
-                openInputMonitoringSettings()
-            }
-        }
-    }
-
-    @available(macOS 10.15, *)
-    private func attemptProgrammaticRequest() {
-        AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Attempting programmatic permission request")
-        attemptingProgrammaticRequest = true
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let granted = PermissionService.requestInputMonitoringPermission()
-            attemptingProgrammaticRequest = false
-
-            if granted {
-                AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Permission granted programmatically!")
-                Task {
-                    await onRefresh()
-                }
-            } else {
-                AppLogger.shared.log(
-                    "🔐 [WizardInputMonitoringPage] Programmatic request denied, falling back to manual")
-                programmaticRequestFailed = true
-                // Give user a moment to see the status change before opening settings
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    openInputMonitoringSettings()
-                }
-            }
+            // Always open settings manually - never auto-request
+            openInputMonitoringSettings()
         }
     }
 
@@ -214,11 +168,24 @@ struct WizardInputMonitoringPage: View {
         AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Opening Input Monitoring settings")
 
         PermissionService.openInputMonitoringSettings()
-
-        // Dismiss wizard after opening settings for better UX
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            onDismiss?()
+        
+        // Show user instructions in an alert
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            let alert = NSAlert()
+            alert.messageText = "Grant Permission in System Settings"
+            alert.informativeText = """
+            1. Add KeyPath to the Input Monitoring list using the '+' button
+            2. Make sure the checkbox next to KeyPath is checked
+            3. Also add 'kanata' if it's not already there
+            4. Return to KeyPath and click 'Check Again'
+            
+            ⚠️ KeyPath will never automatically add itself to Input Monitoring. You have full control.
+            """
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
+
+        // Don't dismiss wizard - let user return and check again
     }
 }
 

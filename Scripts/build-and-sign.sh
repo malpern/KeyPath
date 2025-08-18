@@ -6,12 +6,12 @@
 set -e  # Exit on any error
 
 echo "🏗️  Building KeyPath..."
-# Build main app
-swift build --configuration release --product KeyPath
+# Build main app (disable whole-module optimization to avoid hang)
+swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
 
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
-BUILD_DIR=".build/release"
+BUILD_DIR=".build/arm64-apple-macosx/release"
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
