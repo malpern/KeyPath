@@ -1,6 +1,7 @@
 # Build artifacts
 .build/
 build/
+dist/
 
 # Xcode
 *.xcodeproj
