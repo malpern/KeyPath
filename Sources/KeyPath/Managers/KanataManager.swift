@@ -1596,8 +1596,8 @@ class KanataManager: ObservableObject {
             try config.write(to: URL(fileURLWithPath: configPath), atomically: true, encoding: .utf8)
             AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings")
             
-            // Play tink sound to indicate file save
-            SoundManager.shared.playTinkSound()
+            // Play tink sound asynchronously to avoid blocking save pipeline
+            Task { SoundManager.shared.playTinkSound() }
             
             // Attempt TCP reload and capture any errors
             let reloadResult = await triggerTCPReloadWithErrorCapture()
@@ -1606,8 +1606,8 @@ class KanataManager: ObservableObject {
                 // TCP reload succeeded - config is valid
                 AppLogger.shared.log("✅ [Config] TCP reload successful, config is valid")
                 
-                // Play glass sound to indicate successful reload
-                SoundManager.shared.playGlassSound()
+                // Play glass sound asynchronously to avoid blocking completion
+                Task { SoundManager.shared.playGlassSound() }
                 
                 await MainActor.run {
                     saveStatus = .success
@@ -1618,8 +1618,8 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
                 AppLogger.shared.log("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
                 
-                // Play error sound to indicate reload failure
-                SoundManager.shared.playErrorSound()
+                // Play error sound asynchronously
+                Task { SoundManager.shared.playErrorSound() }
                 
                 // Restore backup since we can't verify the config was applied
                 try await restoreLastGoodConfig()
