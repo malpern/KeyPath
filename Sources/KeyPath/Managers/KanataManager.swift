@@ -527,7 +527,10 @@ class KanataManager: ObservableObject {
             let responseData = try await sendTCPCommand(commandData, port: tcpConfig.port)
             let responseString = String(data: responseData, encoding: .utf8) ?? ""
             
-            AppLogger.shared.log("🌐 [TCP Reload] Server response: \(responseString)")
+            AppLogger.shared.log("🌐 [TCP Reload] Server response (\(responseData.count) bytes): \(responseString)")
+            AppLogger.shared.log("🔍 [TCP Reload] Checking for success patterns...")
+            AppLogger.shared.log("🔍 [TCP Reload] Contains 'status:Ok': \(responseString.contains("\"status\":\"Ok\""))")
+            AppLogger.shared.log("🔍 [TCP Reload] Contains 'Live reload successful': \(responseString.contains("Live reload successful"))")
             
             // Parse response for success/failure
             if responseString.contains("\"status\":\"Ok\"") || responseString.contains("Live reload successful") {
@@ -600,27 +603,44 @@ class KanataManager: ObservableObject {
                             return
                         }
                         
-                        // Receive the response
-                        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { responseData, _, isComplete, error in
-                            connection.cancel()
-                            
-                            if let error {
-                                if !hasResumed {
-                                    hasResumed = true
-                                    continuation.resume(throwing: error)
+                        // Receive the response - accumulate all data from multiple responses
+                        var accumulatedData = Data()
+                        
+                        func receiveMoreData() {
+                            connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { responseData, _, isComplete, error in
+                                if let error {
+                                    connection.cancel()
+                                    if !hasResumed {
+                                        hasResumed = true
+                                        continuation.resume(throwing: error)
+                                    }
+                                    return
                                 }
-                                return
-                            }
-                            
-                            if !hasResumed {
-                                hasResumed = true
+                                
                                 if let responseData {
-                                    continuation.resume(returning: responseData)
+                                    accumulatedData.append(responseData)
+                                }
+                                
+                                // Check if we have both responses (LayerChange + status)
+                                let responseString = String(data: accumulatedData, encoding: .utf8) ?? ""
+                                let hasLayerChange = responseString.contains("LayerChange")
+                                let hasStatus = responseString.contains("status")
+                                
+                                if (hasLayerChange && hasStatus) || accumulatedData.count > 1024 || isComplete {
+                                    // We have both responses or connection complete
+                                    connection.cancel()
+                                    if !hasResumed {
+                                        hasResumed = true
+                                        continuation.resume(returning: accumulatedData)
+                                    }
                                 } else {
-                                    continuation.resume(throwing: TCPError.noResponse)
+                                    // Continue receiving more data
+                                    receiveMoreData()
                                 }
                             }
                         }
+                        
+                        receiveMoreData()
                     })
                     
                 case let .failed(error):
@@ -1576,12 +1596,19 @@ class KanataManager: ObservableObject {
             try config.write(to: URL(fileURLWithPath: configPath), atomically: true, encoding: .utf8)
             AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings")
             
+            // Play tink sound to indicate file save
+            SoundManager.shared.playTinkSound()
+            
             // Attempt TCP reload and capture any errors
             let reloadResult = await triggerTCPReloadWithErrorCapture()
             
             if reloadResult.success {
                 // TCP reload succeeded - config is valid
                 AppLogger.shared.log("✅ [Config] TCP reload successful, config is valid")
+                
+                // Play glass sound to indicate successful reload
+                SoundManager.shared.playGlassSound()
+                
                 await MainActor.run {
                     saveStatus = .success
                 }
@@ -1590,6 +1617,9 @@ class KanataManager: ObservableObject {
                 let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
                 AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
                 AppLogger.shared.log("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
+                
+                // Play error sound to indicate reload failure
+                SoundManager.shared.playErrorSound()
                 
                 // Restore backup since we can't verify the config was applied
                 try await restoreLastGoodConfig()
