@@ -20,6 +20,9 @@ struct ContentView: View {
     @State private var showStatusMessage = false
     @State private var statusMessage = ""
     @State private var showingEmergencyAlert = false
+    
+    // Enhanced error handling
+    @State private var enhancedErrorInfo: ErrorInfo?
 
     // Timer removed - now handled by SimpleKanataManager centrally
 
@@ -36,17 +39,20 @@ struct ContentView: View {
                 showStatusMessage: showStatusMessage, simpleKanataManager: simpleKanataManager
             )
 
-            // Error Section (only show if there's an error)
-            if let error = kanataManager.lastError, !kanataManager.isRunning {
+            // Enhanced Error Display - persistent and actionable
+            EnhancedErrorHandler(errorInfo: $enhancedErrorInfo)
+            
+            // Legacy Error Section (only show if there's an error and no enhanced error)
+            if let error = kanataManager.lastError, !kanataManager.isRunning, enhancedErrorInfo == nil {
                 ErrorSection(
                     kanataManager: kanataManager, showingInstallationWizard: $showingInstallationWizard,
                     error: error
                 )
             }
 
-            // Status Message - Fixed at bottom with stable layout
-            StatusMessageView(message: statusMessage, isVisible: showStatusMessage)
-                .frame(height: showStatusMessage ? nil : 0)
+            // Status Message - Only show for success messages, errors use enhanced handler
+            StatusMessageView(message: statusMessage, isVisible: showStatusMessage && !statusMessage.contains("❌"))
+                .frame(height: (showStatusMessage && !statusMessage.contains("❌")) ? nil : 0)
                 .clipped()
 
             // TODO: Diagnostic Summary (show critical issues) - commented out to revert to previous behavior
@@ -98,6 +104,9 @@ struct ContentView: View {
             AppLogger.shared.log(
                 "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(simpleKanataManager.showWizard)"
             )
+
+            // Set up notification handlers for recovery actions
+            setupRecoveryActionHandlers()
 
             // Start the auto-launch sequence
             Task {
@@ -167,15 +176,26 @@ struct ContentView: View {
     }
 
     private func showStatusMessage(message: String) {
-        statusMessage = message
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            showStatusMessage = true
-        }
-
-        // Hide after 3 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            withAnimation(.easeOut(duration: 0.3)) {
-                showStatusMessage = false
+        // Check if this is an error message
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            // Use enhanced error handler for errors
+            let errorText = message.replacingOccurrences(of: "❌ ", with: "")
+            let error = NSError(domain: "KeyPath", code: -1, userInfo: [NSLocalizedDescriptionKey: errorText])
+            
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                enhancedErrorInfo = ErrorInfo.from(error)
+            }
+        } else {
+            // Use traditional status message for success/info messages
+            statusMessage = message
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                showStatusMessage = true
+            }
+            // Hide after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    showStatusMessage = false
+                }
             }
         }
     }
@@ -202,6 +222,33 @@ struct ContentView: View {
     }
 
     // Status monitoring functions removed - now handled centrally by SimpleKanataManager
+    
+    /// Set up notification handlers for recovery actions
+    private func setupRecoveryActionHandlers() {
+        // Handle opening installation wizard
+        NotificationCenter.default.addObserver(forName: .openInstallationWizard, object: nil, queue: .main) { _ in
+            showingInstallationWizard = true
+        }
+        
+        // Handle resetting to safe config
+        NotificationCenter.default.addObserver(forName: .resetToSafeConfig, object: nil, queue: .main) { _ in
+            Task {
+                do {
+                    _ = try await kanataManager.createDefaultUserConfigIfMissing()
+                    await kanataManager.updateStatus()
+                    showStatusMessage(message: "✅ Configuration reset to safe defaults")
+                } catch {
+                    showStatusMessage(message: "❌ Failed to reset configuration: \(error.localizedDescription)")
+                }
+            }
+        }
+        
+        // Handle opening diagnostics
+        NotificationCenter.default.addObserver(forName: .openDiagnostics, object: nil, queue: .main) { _ in
+            // This would open a diagnostics window - implementation depends on app structure
+            showStatusMessage(message: "ℹ️ Opening diagnostics view...")
+        }
+    }
 }
 
 struct ContentViewHeader: View {
