@@ -119,6 +119,7 @@ enum AutoFixAction: Equatable {
     case restartUnhealthyServices // Restart services that are loaded but crashed
     case adoptOrphanedProcess // Install LaunchDaemon to manage existing process
     case replaceOrphanedProcess // Kill orphaned process and start managed one
+    case installLogRotation // Install log rotation service to keep logs under 10MB
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation

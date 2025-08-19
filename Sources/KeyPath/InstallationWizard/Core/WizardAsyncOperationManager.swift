@@ -570,6 +570,8 @@ extension AutoFixAction {
             "Synchronize Config Paths"
         case .restartUnhealthyServices:
             "Restart Unhealthy Services"
+        case .installLogRotation:
+            "Install Log Rotation"
         }
     }
 }

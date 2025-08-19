@@ -224,6 +224,18 @@ class IssueGenerator {
         )
     }
 
+    func createLogRotationIssue() -> WizardIssue {
+        WizardIssue(
+            identifier: .component(.kanataBinary), // Use existing identifier
+            severity: .info,
+            category: .installation,
+            title: "Log Rotation Recommended",
+            description: "Install log rotation to automatically manage Kanata logs and keep them under 10MB total. This prevents performance issues from large log files.",
+            autoFixAction: .installLogRotation,
+            userAction: nil
+        )
+    }
+
     func createConfigPathIssues(from result: ConfigPathMismatchResult) -> [WizardIssue] {
         var issues: [WizardIssue] = []
 

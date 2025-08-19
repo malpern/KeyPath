@@ -72,7 +72,7 @@ class VHIDDeviceManager {
             return false
         }
 
-        // Check recent logs for connection failures
+        // Use fast tail approach instead of reading entire file
         let logPath = "/var/log/kanata.log"
         guard FileManager.default.fileExists(atPath: logPath) else {
             AppLogger.shared.log("🔍 [VHIDManager] No Kanata log file - assuming connection healthy")
@@ -80,8 +80,36 @@ class VHIDDeviceManager {
         }
 
         do {
-            let logContent = try String(contentsOfFile: logPath)
-            let recentLines = logContent.components(separatedBy: .newlines).suffix(50) // Check last 50 lines
+            // Use tail command for fast log reading (last 50 lines only)
+            let task = Process()
+            task.launchPath = "/usr/bin/tail"
+            task.arguments = ["-50", logPath]
+            
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            
+            // Add timeout to prevent hanging
+            task.launch()
+            
+            // Wait with timeout (1 second max)
+            let group = DispatchGroup()
+            group.enter()
+            
+            DispatchQueue.global().async {
+                task.waitUntilExit()
+                group.leave()
+            }
+            
+            let result = group.wait(timeout: .now() + 1.0)
+            if result == .timedOut {
+                task.terminate()
+                AppLogger.shared.log("⚠️ [VHIDManager] Log check timed out - assuming healthy")
+                return true
+            }
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let logContent = String(data: data, encoding: .utf8) ?? ""
+            let recentLines = logContent.components(separatedBy: .newlines)
 
             let connectionFailures = recentLines.filter { line in
                 line.contains("connect_failed asio.system:2")

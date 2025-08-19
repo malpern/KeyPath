@@ -104,6 +104,8 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to adopt an orphaned process
         case .replaceOrphanedProcess:
             true // We can always attempt to replace an orphaned process
+        case .installLogRotation:
+            true // We can always attempt to install log rotation
         }
     }
 
@@ -143,6 +145,8 @@ class WizardAutoFixer: AutoFixCapable {
             return await adoptOrphanedProcess()
         case .replaceOrphanedProcess:
             return await replaceOrphanedProcess()
+        case .installLogRotation:
+            return await installLogRotation()
         }
     }
 
@@ -980,5 +984,32 @@ class WizardAutoFixer: AutoFixCapable {
             }
             return false
         }
+    }
+
+    // MARK: - Log Rotation Auto-Fix
+
+    /// Install log rotation service to keep Kanata logs under 10MB total
+    private func installLogRotation() async -> Bool {
+        AppLogger.shared.log("📝 [AutoFixer] Installing log rotation service for Kanata logs")
+
+        await MainActor.run {
+            toastManager.showInfo("📝 Installing log rotation to keep logs under 10MB...")
+        }
+
+        let success = launchDaemonInstaller.installLogRotationService()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully installed log rotation service")
+            await MainActor.run {
+                toastManager.showSuccess("✅ Log rotation installed - logs will stay under 10MB")
+            }
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to install log rotation service")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to install log rotation service")
+            }
+        }
+
+        return success
     }
 }

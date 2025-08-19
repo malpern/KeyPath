@@ -95,8 +95,13 @@ class SystemStateDetector: SystemStateDetecting {
             issues.append(issueGenerator.createDaemonIssue())
         }
 
+        // Check if log rotation should be recommended
+        if await shouldInstallLogRotation() {
+            issues.append(issueGenerator.createLogRotationIssue())
+        }
+
         // Determine available auto-fix actions including orphaned process fix
-        let autoFixActions = determineAutoFixActions(
+        let autoFixActions = await determineAutoFixActions(
             conflicts: conflictResult,
             permissions: permissionResult,
             components: componentResult,
@@ -167,7 +172,7 @@ class SystemStateDetector: SystemStateDetecting {
         configPaths: ConfigPathMismatchResult,
         daemonRunning: Bool,
         orphanedAutoFix: AutoFixAction?
-    ) -> [AutoFixAction] {
+    ) async -> [AutoFixAction] {
         var actions: [AutoFixAction] = []
 
         if conflicts.hasConflicts, conflicts.canAutoResolve {
@@ -210,6 +215,11 @@ class SystemStateDetector: SystemStateDetecting {
         // Check if LaunchDaemon services need installation
         if components.missing.contains(.launchDaemonServices) {
             actions.append(.installLaunchDaemonServices)
+        }
+
+        // Check if log rotation should be installed (for new users or when logs are too large)
+        if await shouldInstallLogRotation() {
+            actions.append(.installLogRotation)
         }
 
         return actions
@@ -512,6 +522,41 @@ class SystemStateDetector: SystemStateDetecting {
         } else {
             AppLogger.shared.log("✅ [OrphanedProcess] No orphaned processes detected")
             return nil
+        }
+    }
+
+    // MARK: - Log Rotation Detection
+
+    /// Check if log rotation should be installed (for new users or when logs exceed size limits)
+    private func shouldInstallLogRotation() async -> Bool {
+        // Check if log rotation service is already installed
+        if launchDaemonInstaller.isLogRotationServiceInstalled() {
+            AppLogger.shared.log("📝 [LogRotation] Log rotation service already installed")
+            return false
+        }
+
+        // Check current Kanata log size (fast check)
+        let logPath = "/var/log/kanata.log"
+        guard FileManager.default.fileExists(atPath: logPath) else {
+            AppLogger.shared.log("📝 [LogRotation] No Kanata log found yet - recommending installation for new users")
+            return true // Install for new users
+        }
+
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: logPath)
+            let fileSize = attributes[.size] as? Int ?? 0
+            let sizeMB = fileSize / (1024 * 1024)
+
+            if sizeMB >= 5 { // If current log is 5MB or larger, recommend rotation
+                AppLogger.shared.log("📝 [LogRotation] Kanata log is \(sizeMB)MB - recommending log rotation installation")
+                return true
+            } else {
+                AppLogger.shared.log("📝 [LogRotation] Kanata log is \(sizeMB)MB - within size limits")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("📝 [LogRotation] Error checking log size: \(error) - recommending installation")
+            return true // Install if we can't check size
         }
     }
 }

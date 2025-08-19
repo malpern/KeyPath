@@ -5,7 +5,7 @@ class AppLogger {
 
     // MARK: - Configuration
 
-    private let maxLogSize: Int = 10 * 1024 * 1024 // 10MB max log file size
+    private let maxLogSize: Int = 5 * 1024 * 1024 // 5MB max log file size (keeps total under 10MB)
     private let maxLogFiles: Int = 3 // Keep 3 rotated logs (current + 2 backups)
     private let bufferSize: Int = 100 // Buffer up to 100 messages before writing
     private let flushInterval: TimeInterval = 5.0 // Auto-flush every 5 seconds
