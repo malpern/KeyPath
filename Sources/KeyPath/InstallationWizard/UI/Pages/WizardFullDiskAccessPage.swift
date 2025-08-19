@@ -24,86 +24,62 @@ struct WizardFullDiskAccessPage: View {
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
-        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+        VStack(spacing: 0) {
             // Header
-            WizardPageHeader(
-                icon: "folder.badge.gearshape",
-                title: "Full Disk Access (Optional)",
-                subtitle: "Enhance wizard capabilities for better diagnostics",
-                status: hasFullDiskAccess ? .success : .info
-            )
-
-            // Main content
             VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                // Explanation card
-                VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
-                    Text("Full Disk Access enhances KeyPath's ability to automatically detect and resolve issues during setup.")
-                        .font(WizardDesign.Typography.body)
-                        .foregroundColor(.primary)
-
-                    Text("This is completely optional – KeyPath works without it.")
-                        .font(WizardDesign.Typography.caption)
-                        .foregroundColor(WizardDesign.Colors.secondaryText)
-                        .padding(.top, 4)
-                }
-                .wizardCard()
-
-                // Current status with animation
-                if hasCheckedPermission {
-                    HStack(spacing: WizardDesign.Spacing.labelGap) {
-                        if showSuccessAnimation {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .font(WizardDesign.Typography.body)
-                                .scaleEffect(showSuccessAnimation ? 1.2 : 1.0)
-                                .animation(
-                                    .spring(response: 0.3, dampingFraction: 0.6), value: showSuccessAnimation
-                                )
-                        } else {
-                            Image(systemName: hasFullDiskAccess ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundColor(
-                                    hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.warning
-                                )
-                                .font(WizardDesign.Typography.body)
-                        }
-
-                        Text(
-                            hasFullDiskAccess
-                                ? "Enhanced diagnostics enabled"
-                                : "Standard diagnostics only"
-                        )
-                        .font(WizardDesign.Typography.status)
-                        .foregroundColor(WizardDesign.Colors.secondaryText)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                hasFullDiskAccess
-                                    ? WizardDesign.Colors.success.opacity(0.1)
-                                    : WizardDesign.Colors.warning.opacity(0.1))
-                    )
-                    .animation(.easeInOut(duration: 0.3), value: hasFullDiskAccess)
-                }
+                WizardPageHeader(
+                    icon: "folder.badge.gearshape",
+                    title: hasFullDiskAccess ? "Full Disk Access Enabled" : "Enable Full Disk Access (optional)",
+                    subtitle: "Enhance wizard capabilities for better diagnostics",
+                    status: hasFullDiskAccess ? .success : .info
+                )
+                
+                // Keep the padding space where status indicator was
+                Spacer()
+                    .frame(height: WizardDesign.Spacing.sectionGap)
             }
-            .wizardPagePadding()
-
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
+            
+            // Main content area (taller like in your requested image)
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
+Text("Full Disk Access enhances KeyPath's ability to automatically detect and resolve issues during setup. This is completely optional – KeyPath works without it.")
+                    .font(WizardDesign.Typography.body)
+                    .foregroundColor(.primary)
+                
+                // Add significant height to match your requested image
+                Spacer(minLength: 120)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(WizardDesign.Spacing.cardPadding)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            
+            // Fixed spacing between content area and button (smaller than content area height)
             Spacer()
+                .frame(height: WizardDesign.Spacing.pageVertical * 2)
 
-            // Action buttons
+            // Action buttons (anchored to bottom)
             VStack(spacing: WizardDesign.Spacing.elementGap) {
-                HStack(spacing: WizardDesign.Spacing.itemGap) {
-                    // Skip button (always available)
-                    Button("Skip This Step") {
-                        // User chose to skip - that's fine
-                        AppLogger.shared.log("ℹ️ [Wizard] User skipped Full Disk Access step")
-                        // Navigate to next page
-                        navigationCoordinator.navigateToPage(.summary)
+                if hasFullDiskAccess {
+                    // FDA already granted - centered continue button
+                    HStack {
+                        Spacer()
+                        Button("Continue") {
+                            AppLogger.shared.log("ℹ️ [Wizard] User continuing with FDA already granted")
+                            navigationCoordinator.navigateToPage(.summary)
+                        }
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                        Spacer()
                     }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                } else {
+                    // FDA not granted - balanced skip/grant buttons
+                    HStack(spacing: WizardDesign.Spacing.itemGap) {
+                        Button("Skip This Step") {
+                            AppLogger.shared.log("ℹ️ [Wizard] User skipped Full Disk Access step")
+                            navigationCoordinator.navigateToPage(.summary)
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
 
-                    // Grant permission button
-                    if !hasFullDiskAccess {
                         Button("Grant Full Disk Access") {
                             AppLogger.shared.log("🔒 [FDA Page] Grant Full Disk Access button clicked")
 
@@ -134,7 +110,8 @@ struct WizardFullDiskAccessPage: View {
                 .buttonStyle(.link)
                 .font(WizardDesign.Typography.caption)
             }
-            .padding(.bottom, WizardDesign.Spacing.pageVertical * 2) // More space from bottom
+            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            .padding(.bottom, WizardDesign.Spacing.pageVertical)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
