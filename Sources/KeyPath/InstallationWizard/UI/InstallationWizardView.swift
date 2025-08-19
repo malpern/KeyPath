@@ -33,11 +33,13 @@ struct InstallationWizardView: View {
                 .overlay {
                     if isInitializing {
                         initializingOverlay()
+                            .allowsHitTesting(false) // Don't block X button interaction
                     }
                 }
                 .overlay {
                     if asyncOperationManager.hasRunningOperations {
                         operationProgressOverlay()
+                            .allowsHitTesting(false) // Don't block X button interaction
                     }
                 }
         }
@@ -249,17 +251,7 @@ struct InstallationWizardView: View {
                     isIndeterminate: isCurrentOperationIndeterminate()
                 )
                 
-                // Cancel button for long-running operations
-                if !operationName.contains("System State Detection") {
-                    Button("Cancel") {
-                        // Use async cancellation to avoid blocking UI
-                        Task.detached {
-                            asyncOperationManager.cancelAllOperationsAsync()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                }
+                // No cancel button - use X in top-right instead
             }
             .transition(.opacity.combined(with: .scale(scale: 0.95)))
         }
