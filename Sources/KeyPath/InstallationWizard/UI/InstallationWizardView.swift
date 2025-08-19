@@ -79,7 +79,7 @@ struct InstallationWizardView: View {
                 showingCloseConfirmation = false
             }
             Button("Close Anyway", role: .destructive) {
-                dismiss()
+                forceInstantClose()
                 performBackgroundCleanup()
             }
         } message: {
@@ -277,12 +277,24 @@ struct InstallationWizardView: View {
         stateManager.configure(kanataManager: kanataManager)
         autoFixer.configure(kanataManager: kanataManager, toastManager: toastManager)
 
+        // Make initial check optional and cancellable
         Task {
+            // Small delay to let UI render first
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            
+            // Only run if user hasn't closed wizard
+            guard !Task.isCancelled else { return }
             await performInitialStateCheck()
         }
     }
 
     private func performInitialStateCheck() async {
+        // Check if user has already closed wizard
+        guard !Task.isCancelled else { 
+            AppLogger.shared.log("🔍 [NewWizard] Initial state check cancelled - wizard closing")
+            return 
+        }
+        
         AppLogger.shared.log("🔍 [NewWizard] Performing initial state check")
 
         let operation = WizardOperations.stateDetection(stateManager: stateManager)
@@ -588,16 +600,26 @@ struct InstallationWizardView: View {
     @State private var showingCloseConfirmation = false
 
     private func handleCloseButtonTapped() {
-        // INSTANT CLOSE: Check for critical issues first
+        // INSTANT CLOSE: Cancel operations immediately and force close
+        asyncOperationManager.cancelAllOperationsAsync()
+        
+        // Check for critical issues - but don't block the close
         let criticalIssues = currentIssues.filter { $0.severity == .critical }
 
         if criticalIssues.isEmpty {
-            // No critical issues, close immediately with background cleanup
-            dismiss()
-            performBackgroundCleanup()
+            // Force immediate close - bypass any SwiftUI environment blocking
+            forceInstantClose()
         } else {
-            // Show confirmation dialog for critical issues (still instant UI response)
+            // Show confirmation but allow instant close anyway
             showingCloseConfirmation = true
+        }
+    }
+    
+    /// Force immediate wizard dismissal bypassing any potential SwiftUI blocking
+    private func forceInstantClose() {
+        // Use DispatchQueue to ensure immediate execution
+        DispatchQueue.main.async {
+            dismiss()
         }
     }
     
