@@ -80,6 +80,7 @@ struct InstallationWizardView: View {
             }
             Button("Close Anyway", role: .destructive) {
                 dismiss()
+                performBackgroundCleanup()
             }
         } message: {
             let criticalCount = currentIssues.filter { $0.severity == .critical }.count
@@ -251,7 +252,10 @@ struct InstallationWizardView: View {
                 // Cancel button for long-running operations
                 if !operationName.contains("System State Detection") {
                     Button("Cancel") {
-                        asyncOperationManager.cancelAllOperations()
+                        // Use async cancellation to avoid blocking UI
+                        Task.detached {
+                            asyncOperationManager.cancelAllOperationsAsync()
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -584,17 +588,25 @@ struct InstallationWizardView: View {
     @State private var showingCloseConfirmation = false
 
     private func handleCloseButtonTapped() {
-        // Cancel any running operations first
-        asyncOperationManager.cancelAllOperations()
-        
+        // INSTANT CLOSE: Check for critical issues first
         let criticalIssues = currentIssues.filter { $0.severity == .critical }
 
         if criticalIssues.isEmpty {
-            // No critical issues, close immediately
+            // No critical issues, close immediately with background cleanup
             dismiss()
+            performBackgroundCleanup()
         } else {
-            // Show confirmation dialog for critical issues
+            // Show confirmation dialog for critical issues (still instant UI response)
             showingCloseConfirmation = true
+        }
+    }
+    
+    /// Performs cancellation and cleanup in the background after UI dismissal
+    private func performBackgroundCleanup() {
+        // Use Task.detached to avoid any main thread scheduling overhead
+        Task.detached { [weak asyncOperationManager] in
+            // This runs completely in background, no main thread blocking
+            asyncOperationManager?.cancelAllOperationsAsync()
         }
     }
 

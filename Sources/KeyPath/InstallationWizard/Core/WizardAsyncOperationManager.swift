@@ -105,7 +105,7 @@ class WizardAsyncOperationManager {
         operationProgress[operationId] ?? 0.0
     }
 
-    /// Cancel all running operations
+    /// Cancel all running operations (legacy method, may block main thread)
     func cancelAllOperations() {
         taskLock.lock()
         let tasksToCancel = runningTasks.values
@@ -122,6 +122,29 @@ class WizardAsyncOperationManager {
         }
         
         AppLogger.shared.log("🛑 [AsyncOp] All operations cancelled")
+    }
+    
+    /// Cancel all running operations asynchronously (guaranteed no main thread blocking)
+    func cancelAllOperationsAsync() {
+        // Perform all cancellation work in background without any main thread involvement
+        taskLock.lock()
+        let tasksToCancel = Array(runningTasks.values)
+        let operationIds = Array(runningTasks.keys)
+        runningTasks.removeAll()
+        taskLock.unlock()
+        
+        // Cancel all tasks (this doesn't block)
+        for task in tasksToCancel {
+            task.cancel()
+        }
+        
+        AppLogger.shared.log("🛑 [AsyncOp] All operations cancelled asynchronously (\(tasksToCancel.count) tasks)")
+        
+        // Schedule UI cleanup for later, but don't wait for it
+        Task { @MainActor [weak self] in
+            self?.runningOperations.removeAll()
+            self?.operationProgress.removeAll()
+        }
     }
     
     /// Cancel a specific operation
