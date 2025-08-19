@@ -142,7 +142,6 @@ struct WizardSystemStatusOverview: View {
                 id: "tcp-server",
                 icon: "network",
                 title: "TCP Server",
-                subtitle: tcpServerStatus == .completed ? "Port \(PreferencesService.shared.tcpServerPort) responding" : "Not available",
                 status: tcpServerStatus,
                 isNavigable: true,
                 targetPage: .tcpServer // Navigate to dedicated TCP server page

@@ -37,42 +37,14 @@ struct WizardFullDiskAccessPage: View {
             VStack(spacing: WizardDesign.Spacing.sectionGap) {
                 // Explanation card
                 VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
-                    Label("Why Full Disk Access?", systemImage: "questionmark.circle")
+                    Text("Full Disk Access enhances KeyPath's ability to automatically detect and resolve issues during setup.")
                         .font(WizardDesign.Typography.body)
                         .foregroundColor(.primary)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        BenefitRow(
-                            icon: "magnifyingglass",
-                            title: "Better Diagnostics",
-                            description: "Accurately detect which permissions are granted"
-                        )
-
-                        BenefitRow(
-                            icon: "wrench.and.screwdriver",
-                            title: "Automatic Resolution",
-                            description: "Fix more issues automatically without manual intervention"
-                        )
-
-                        BenefitRow(
-                            icon: "chart.line.uptrend.xyaxis",
-                            title: "Progress Tracking",
-                            description: "Monitor installation progress more precisely"
-                        )
-
-                        BenefitRow(
-                            icon: "shield.checkered",
-                            title: "Enhanced Security Checks",
-                            description: "Verify system integrity and detect conflicts"
-                        )
-                    }
-
-                    Text(
-                        "Note: This is completely optional. The wizard will work without it, but some automatic fixes may not be available."
-                    )
-                    .font(WizardDesign.Typography.caption)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
-                    .padding(.top, 8)
+                    Text("This is completely optional – KeyPath works without it.")
+                        .font(WizardDesign.Typography.caption)
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
+                        .padding(.top, 4)
                 }
                 .wizardCard()
 
@@ -97,8 +69,8 @@ struct WizardFullDiskAccessPage: View {
 
                         Text(
                             hasFullDiskAccess
-                                ? "Full Disk Access granted - enhanced features enabled"
-                                : "Full Disk Access not granted - basic features only"
+                                ? "Enhanced diagnostics enabled"
+                                : "Standard diagnostics only"
                         )
                         .font(WizardDesign.Typography.status)
                         .foregroundColor(WizardDesign.Colors.secondaryText)
@@ -206,12 +178,9 @@ struct WizardFullDiskAccessPage: View {
                 // Permission was just granted!
                 showSuccessAnimation = true
                 AppLogger.shared.log("✅ [Wizard] Full Disk Access granted - showing success animation")
-
-                // Auto-navigate after a short delay to show success
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    // Navigate to next logical page (summary)
-                    navigationCoordinator.navigateToPage(.summary)
-                }
+                
+                // Don't auto-navigate - let user navigate manually
+                // User can use navigation buttons or close dialog
             }
         }
     }
@@ -403,11 +372,7 @@ private struct FullDiskAccessDetailsSheet: View {
                         Text("What is Full Disk Access?")
                             .font(.headline)
 
-                        Text(
-                            """
-                            Full Disk Access is a macOS security feature that controls which apps can access protected areas of your system. This includes system databases that track permissions.
-                            """
-                        )
+                        Text("A macOS security feature that allows KeyPath to read system permission databases for better diagnostics.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     }
@@ -416,41 +381,10 @@ private struct FullDiskAccessDetailsSheet: View {
                     .cornerRadius(8)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Why does KeyPath request it?")
+                        Text("Benefits")
                             .font(.headline)
 
-                        Text(
-                            """
-                            When granted, KeyPath can:
-                            • Check the exact permission status of the kanata binary
-                            • Detect and resolve conflicts more accurately
-                            • Provide better error messages
-                            • Automatically fix more types of issues
-
-                            Without it, KeyPath still works but relies on less precise detection methods.
-                            """
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Is it safe?")
-                            .font(.headline)
-
-                        Text(
-                            """
-                            Yes! KeyPath only uses this permission to:
-                            • Read permission databases (not modify them)
-                            • Check system status
-                            • Improve diagnostics
-
-                            KeyPath is open source and you can verify exactly what it does with this permission.
-                            """
-                        )
+                        Text("• More accurate issue detection\n• Better automatic fixes\n• Clearer error messages")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     }
@@ -459,15 +393,10 @@ private struct FullDiskAccessDetailsSheet: View {
                     .cornerRadius(8)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Can I skip this?")
+                        Text("Completely Optional")
                             .font(.headline)
 
-                        Text(
-                            """
-                            Absolutely! Full Disk Access is completely optional. The wizard will work without it, using alternative detection methods.
-                            You can always grant it later if you change your mind.
-                            """
-                        )
+                        Text("KeyPath works fine without this permission. You can skip this step and grant it later if needed.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     }
