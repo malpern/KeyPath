@@ -120,6 +120,12 @@ class SystemStatusChecker {
             allIssues.append(issueGenerator.createDaemonIssue())
         }
 
+        // Check if log rotation should be recommended
+        let needsLogRotation = await shouldInstallLogRotation()
+        if needsLogRotation {
+            allIssues.append(issueGenerator.createLogRotationIssue())
+        }
+
         // Determine system state
         let systemState = determineSystemState(
             compatibility: compatibilityResult,
@@ -134,7 +140,8 @@ class SystemStatusChecker {
             conflicts: conflictResult,
             permissions: permissionResult,
             components: componentResult,
-            health: healthStatus
+            health: healthStatus,
+            needsLogRotation: needsLogRotation
         )
 
         AppLogger.shared.log(
@@ -530,7 +537,8 @@ class SystemStatusChecker {
         conflicts: ConflictDetectionResult,
         permissions _: PermissionCheckResult,
         components: ComponentCheckResult,
-        health: HealthCheckResult
+        health: HealthCheckResult,
+        needsLogRotation: Bool = false
     ) -> [AutoFixAction] {
         var actions: [AutoFixAction] = []
 
@@ -563,6 +571,11 @@ class SystemStatusChecker {
         // Check if LaunchDaemon services need installation
         if components.missing.contains(.launchDaemonServices) {
             actions.append(.installLaunchDaemonServices)
+        }
+
+        // Check if log rotation should be installed
+        if needsLogRotation {
+            actions.append(.installLogRotation)
         }
 
         return actions
@@ -647,6 +660,45 @@ class SystemStatusChecker {
         } else {
             AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - not responding")
             return false
+        }
+    }
+
+    // MARK: - Log Rotation Detection
+
+    /// Check if log rotation should be installed (for new users or when logs exceed size limits)
+    private func shouldInstallLogRotation() async -> Bool {
+        // Check if log rotation service is already installed
+        if launchDaemonInstaller.isLogRotationServiceInstalled() {
+            AppLogger.shared.log("📝 [LogRotation] Log rotation service already installed")
+            return false
+        }
+
+        // Check current Kanata log size (fast check)
+        let logPath = "/var/log/kanata.log"
+        guard FileManager.default.fileExists(atPath: logPath) else {
+            AppLogger.shared.log("📝 [LogRotation] No Kanata log found yet - recommending installation for new users")
+            return true // Install for new users
+        }
+
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: logPath)
+            let fileSize = attributes[.size] as? Int ?? 0
+            let sizeMB = fileSize / (1024 * 1024)
+
+            // Recommend installation if log is large, OR if log is very small (proactive installation for new systems)
+            if sizeMB >= 5 {
+                AppLogger.shared.log("📝 [LogRotation] Kanata log is \(sizeMB)MB - recommending log rotation installation")
+                return true
+            } else if fileSize < 1024 { // Less than 1KB - likely a fresh system
+                AppLogger.shared.log("📝 [LogRotation] Kanata log is very small (\(fileSize) bytes) - recommending proactive log rotation installation")
+                return true
+            } else {
+                AppLogger.shared.log("📝 [LogRotation] Kanata log is \(sizeMB)MB - within size limits, not recommending")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("📝 [LogRotation] Error checking log size: \(error) - recommending installation")
+            return true // Install if we can't check size
         }
     }
 
