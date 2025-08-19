@@ -19,56 +19,47 @@ struct WizardConflictsPage: View {
 
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
-            // Header using design system - simplified for no conflicts case
-            if issues.isEmpty {
-                WizardPageHeader(
-                    icon: "checkmark.circle.fill",
-                    title: "No Conflicts Detected",
-                    subtitle: "No conflicting keyboard remapping processes found. You're ready to proceed!",
-                    status: .success
-                )
-            }
+            // Header using design system with dynamic title based on conflicts
+            WizardPageHeader(
+                icon: issues.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                title: issues.isEmpty ? "No Conflicts Detected" : "Conflicts Detected",
+                subtitle: issues.isEmpty 
+                    ? "System is ready for keyboard remapping."
+                    : "\(issues.count) conflicting process\(issues.count == 1 ? "" : "es") found that must be resolved.",
+                status: issues.isEmpty ? .success : .warning
+            )
 
-            // Clean Conflicts Card - handles conflicts case with its own header
-            if !issues.isEmpty {
-                CleanConflictsCard(
-                    conflictCount: issues.count,
-                    isFixing: isFixing,
-                    onAutoFix: onAutoFix,
-                    onRefresh: onRefresh,
-                    issues: issues,
-                    kanataManager: kanataManager
-                )
-                .wizardPagePadding()
-            }
-
-            // Information Card
-            if issues.isEmpty {
-                VStack(spacing: WizardDesign.Spacing.itemGap) {
-                    HStack(spacing: WizardDesign.Spacing.labelGap) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(WizardDesign.Colors.success)
-                            .font(WizardDesign.Typography.body)
-                        Text("System Status: Clean")
-                            .font(WizardDesign.Typography.status)
-                    }
-                    .foregroundColor(WizardDesign.Colors.success)
-
-                    Text(
-                        "KeyPath checked for conflicts and found none. The system is ready for keyboard remapping."
+            // Main content area (taller like in your requested image)
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
+                if issues.isEmpty {
+                    Text("KeyPath has scanned your system and found no conflicting keyboard remapping software. This means Kanata can start without interference from other remapping tools like Karabiner Elements.")
+                        .font(WizardDesign.Typography.body)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    // Show conflicts with auto-fix options
+                    CleanConflictsCard(
+                        conflictCount: issues.count,
+                        isFixing: isFixing,
+                        onAutoFix: onAutoFix,
+                        onRefresh: onRefresh,
+                        issues: issues,
+                        kanataManager: kanataManager
                     )
-                    .font(WizardDesign.Typography.body)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
-                    .multilineTextAlignment(.center)
                 }
-                .wizardCard()
-                .wizardPagePadding()
+                
+                Spacer(minLength: issues.isEmpty ? 120 : 60)
             }
+            .frame(maxWidth: .infinity)
+            .padding(WizardDesign.Spacing.cardPadding)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
 
             Spacer()
 
-            // Action buttons at bottom
-            HStack {
+            // Centered action buttons at bottom following design system
+            HStack(spacing: WizardDesign.Spacing.itemGap) {
                 // Reset button for nuclear option
                 Button("Reset Everything") {
                     Task {
@@ -80,11 +71,10 @@ struct WizardConflictsPage: View {
                         isScanning = false
                     }
                 }
-                .buttonStyle(WizardDesign.Component.DestructiveButton())
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .foregroundColor(.red)
                 .disabled(isFixing || isScanning)
                 .help("Kill all processes, clear PID files, and reset to clean state")
-
-                Spacer()
 
                 // Re-scan button
                 Button(action: {
@@ -104,18 +94,15 @@ struct WizardConflictsPage: View {
                         }
                         Text(
                             isScanning
-                                ? "Scanning..." : (issues.isEmpty ? "Re-scan for Conflicts" : "Check Again")
+                                ? "Scanning..." : "Check Again"
                         )
-                        .font(.subheadline)
                     }
-                    .foregroundColor(.blue)
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                 .disabled(isFixing || isScanning)
-
-                Spacer()
             }
-            .padding(.bottom, 32) // Add comfortable padding from bottom
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)

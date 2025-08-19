@@ -24,8 +24,8 @@ struct WizardInputMonitoringPage: View {
                 status: !hasInputMonitoringIssues ? .success : .warning
             )
 
-            VStack(spacing: WizardDesign.Spacing.elementGap) {
-                // Show cleanup instructions if stale entries detected
+            // Main content area (taller like in template design)
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                 if showingStaleEntryCleanup {
                     StaleEntryCleanupInstructions(
                         staleEntryDetails: staleEntryDetails,
@@ -34,76 +34,90 @@ struct WizardInputMonitoringPage: View {
                             openInputMonitoringSettings()
                         }
                     )
-                } else {
-                    // KeyPath Input Monitoring Permission
-                    PermissionCard(
-                        appName: "KeyPath",
-                        appPath: "/Applications/KeyPath.app",
-                        status: keyPathInputMonitoringStatus,
-                        permissionType: "Input Monitoring",
-                        kanataManager: kanataManager
-                    )
+                } else if hasInputMonitoringIssues {
+                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                        Text("KeyPath needs Input Monitoring permission to capture keyboard events for remapping.")
+                            .font(WizardDesign.Typography.body)
+                            .foregroundColor(.primary)
 
-                    // Kanata Input Monitoring Permission
-                    PermissionCard(
-                        appName: "kanata",
-                        appPath: "/usr/local/bin/kanata",
-                        status: kanataInputMonitoringStatus,
-                        permissionType: "Input Monitoring",
-                        kanataManager: kanataManager
-                    )
+                        Text("Required Permissions:")
+                            .font(WizardDesign.Typography.subsectionTitle)
+                            .foregroundColor(.primary)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
 
-                    if hasInputMonitoringIssues {
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                            Text("Why This Permission Is Needed")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Label("Capture keyboard events for remapping", systemImage: "keyboard")
-                                Label("Detect key combinations and shortcuts", systemImage: "command")
-                                Label("Process input for configuration testing", systemImage: "gear")
-                            }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                            Text("Click 'Help Me Grant Permission' to open System Settings where you can manually grant permission")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                                .padding(.top, 4)
-                        }
-                        .padding()
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(WizardDesign.Layout.cornerRadius)
-                    }
-
-                    Spacer()
-
-                    // Action Buttons
-                    HStack(spacing: 12) {
-                        // Manual Refresh Button
-                        Button("Check Again") {
-                            Task {
-                                await onRefresh()
-                                
-                                // If permission check now succeeds, mark it as granted for future
-                                if PermissionService.shared.hasInputMonitoringPermission() {
-                                    PermissionService.shared.markInputMonitoringPermissionGranted()
+                            HStack(spacing: 12) {
+                                Image(systemName: keyPathInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("KeyPath.app")
+                                        .font(.headline)
+                                    Text("Main application - captures keyboard input")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
+                                Spacer()
+                            }
+                            
+                            HStack(spacing: 12) {
+                                Image(systemName: kanataInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("kanata")
+                                        .font(.headline)
+                                    Text("Remapping engine - processes keyboard events")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
                             }
                         }
-                        .buttonStyle(.bordered)
-
-                        Spacer()
-
-                        // Help Me Grant Permission Button - Never auto-requests
-                        Button(action: handleHelpWithPermission) {
-                            Text("Help Me Grant Permission")
+                        
+                        Text("Click 'Grant Permission' to open System Settings where you can manually add both applications to Input Monitoring.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
+                    }
+                } else {
+                    Text("Input Monitoring permissions have been granted for both KeyPath and kanata. Keyboard remapping is ready to work.")
+                        .font(WizardDesign.Typography.body)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                }
+                
+                Spacer(minLength: 120)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(WizardDesign.Spacing.cardPadding)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            
+            Spacer()
+            
+            // Centered action buttons at bottom following design system
+            HStack(spacing: WizardDesign.Spacing.itemGap) {
+                Button("Check Again") {
+                    Task {
+                        await onRefresh()
+                        
+                        // If permission check now succeeds, mark it as granted for future
+                        if PermissionService.shared.hasInputMonitoringPermission() {
+                            PermissionService.shared.markInputMonitoringPermissionGranted()
                         }
-                        .buttonStyle(.borderedProminent)
                     }
                 }
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
+
+                if hasInputMonitoringIssues {
+                    Button(action: handleHelpWithPermission) {
+                        Text("Grant Permission")
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .onAppear {
             checkForStaleEntries()

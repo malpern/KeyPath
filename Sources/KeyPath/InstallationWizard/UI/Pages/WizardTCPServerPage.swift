@@ -8,57 +8,113 @@ struct WizardTCPServerPage: View {
     @State private var fixResult: FixResult?
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Main content area
-            ScrollView {
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    // Header
-                    WizardPageHeader(
-                        icon: "network",
-                        title: "TCP Server", 
-                        subtitle: tcpStatus.headerSubtitle,
-                        status: tcpStatus.headerStatus
-                    )
-                    
-                    VStack(spacing: WizardDesign.Spacing.itemGap) {
-                        // Main Status Card
-                        TCPMainStatusCard(status: tcpStatus)
-                        
-                        // Insights Section (always expanded)
-                        TCPInsightsSection(status: tcpStatus)
-                        
-                        // Fix Feedback
-                        if showingFixFeedback, let result = fixResult {
-                            TCPFixFeedbackCard(result: result)
-                                .transition(.asymmetric(
-                                    insertion: .move(edge: .top).combined(with: .opacity),
-                                    removal: .opacity
-                                ))
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Header with dynamic title based on TCP status
+            WizardPageHeader(
+                icon: tcpStatus.isSuccess ? "checkmark.circle.fill" : "network",
+                title: tcpStatus.isSuccess ? "TCP Server Working" : "TCP Server",
+                subtitle: tcpStatus.headerSubtitle,
+                status: tcpStatus.headerStatus
+            )
+
+            // Main content area (taller like in template design)
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
+                VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                    Text(tcpStatus.statusDescription)
+                        .font(WizardDesign.Typography.body)
+                        .foregroundColor(.primary)
+
+                    if case .success(let details) = tcpStatus {
+                        Text("Server Details:")
+                            .font(WizardDesign.Typography.subsectionTitle)
+                            .foregroundColor(.primary)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
+
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                            DetailRow(label: "Port", value: "\(details.port)")
+                            DetailRow(label: "Status", value: details.isListening ? "Listening" : "Not Listening")
+                            DetailRow(label: "Connections", value: "\(details.activeConnections)")
+                            DetailRow(label: "Last Tested", value: formatTime(details.lastTestedAt))
                         }
                         
-                        // Primary Fix Action (if needed)
-                        if case .failed = tcpStatus {
-                            TCPFixButton(
-                                isFixing: isFixing,
-                                onFix: { Task { await fixTCPServer() } }
-                            )
+                        if let layers = details.layerNames {
+                            Text("Available layers: \(layers.joined(separator: ", "))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.top, WizardDesign.Spacing.itemGap)
                         }
-                        
-                        // Technical Details (Collapsible)
-                        if case .success(let details) = tcpStatus {
-                            TCPTechnicalDetails(details: details)
+                    } else if case .failed(let error, let details) = tcpStatus {
+                        Text("Error Details:")
+                            .font(WizardDesign.Typography.subsectionTitle)
+                            .foregroundColor(.primary)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
+
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                            if let details = details {
+                                DetailRow(label: "Port", value: "\(details.port)")
+                                DetailRow(label: "Status", value: details.isListening ? "Listening" : "Not Listening")
+                                DetailRow(label: "Connections", value: "\(details.activeConnections)")
+                            }
+                        }
+
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
+                    } else {
+                        Text("Checking TCP server status...")
+                            .font(WizardDesign.Typography.body)
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Show fix feedback if available
+                    if showingFixFeedback, let result = fixResult {
+                        HStack(spacing: 8) {
+                            Image(systemName: result.success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                .foregroundColor(result.success ? .green : .orange)
+                            Text(result.message)
+                                .font(.caption)
+                                .foregroundColor(result.success ? .green : .orange)
+                        }
+                        .padding(.top, WizardDesign.Spacing.itemGap)
+                    }
+                }
+                
+                Spacer(minLength: 60)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(WizardDesign.Spacing.cardPadding)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            
+            Spacer()
+
+            // Centered action buttons at bottom following design system
+            HStack(spacing: WizardDesign.Spacing.itemGap) {
+                if case .failed = tcpStatus {
+                    Button(action: { Task { await fixTCPServer() } }) {
+                        HStack(spacing: 4) {
+                            if isFixing {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            }
+                            Text(isFixing ? "Fixing..." : "Fix Server")
                         }
                     }
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .disabled(isFixing)
                 }
+
+                Button(action: { Task { await checkTCPStatus() } }) {
+                    Text("Check Again")
+                }
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
             }
-            
-            // Bottom Action (anchored to actual bottom of dialog)
-            TCPBottomActions(
-                onRefresh: { Task { await checkTCPStatus() } }
-            )
-            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
         .task {
             await checkTCPStatus()
@@ -153,6 +209,12 @@ struct WizardTCPServerPage: View {
         
         isFixing = false
         AppLogger.shared.log("🔧 [TCPWizard] TCP server fix attempt completed: \(success ? "success" : "failed")")
+    }
+    
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .medium
+        return formatter.string(from: date)
     }
 }
 
@@ -472,6 +534,17 @@ enum TCPServerStatus {
         case .checking: return .info
         case .success: return .success
         case .failed: return .error
+        }
+    }
+    
+    var statusDescription: String {
+        switch self {
+        case .checking:
+            return "Checking TCP server functionality and connection status..."
+        case .success(let details):
+            return "TCP server is working correctly. Configuration changes can be reloaded instantly without restarting KeyPath."
+        case .failed(let error, _):
+            return "TCP server is not working. \(error). Configuration changes will require restarting the application."
         }
     }
     

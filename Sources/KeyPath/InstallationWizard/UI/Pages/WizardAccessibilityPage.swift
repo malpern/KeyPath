@@ -21,73 +21,87 @@ struct WizardAccessibilityPage: View {
                 status: !hasAccessibilityIssues ? .success : .warning
             )
 
-            VStack(spacing: WizardDesign.Spacing.elementGap) {
-                // KeyPath Accessibility Permission
-                PermissionCard(
-                    appName: "KeyPath",
-                    appPath: "/Applications/KeyPath.app",
-                    status: keyPathAccessibilityStatus,
-                    permissionType: "Accessibility",
-                    kanataManager: kanataManager
-                )
-
-                // Kanata Accessibility Permission
-                PermissionCard(
-                    appName: "kanata",
-                    appPath: "/usr/local/bin/kanata",
-                    status: kanataAccessibilityStatus,
-                    permissionType: "Accessibility",
-                    kanataManager: kanataManager
-                )
-
+            // Main content area (taller like in template design)
+            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                 if hasAccessibilityIssues {
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                        Text("Why This Permission Is Needed")
-                            .font(.headline)
+                        Text("KeyPath needs Accessibility permission to provide emergency stop functionality and monitor keyboard events safely.")
+                            .font(WizardDesign.Typography.body)
                             .foregroundColor(.primary)
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label(
-                                "Emergency stop sequence detection (Cmd+Opt+Ctrl+Shift+K)",
-                                systemImage: "exclamationmark.triangle"
-                            )
-                            Label("Monitor system keyboard events", systemImage: "keyboard")
-                            Label("Provide safe fallback when Kanata encounters issues", systemImage: "shield")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        Text("Required Permissions:")
+                            .font(WizardDesign.Typography.subsectionTitle)
+                            .foregroundColor(.primary)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
 
-                        Text("Grant this permission in System Settings > Privacy & Security > Accessibility")
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                            HStack(spacing: 12) {
+                                Image(systemName: keyPathAccessibilityStatus == .completed ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(keyPathAccessibilityStatus == .completed ? .green : .secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("KeyPath.app")
+                                        .font(.headline)
+                                    Text("Emergency stop detection and system monitoring")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                            
+                            HStack(spacing: 12) {
+                                Image(systemName: kanataAccessibilityStatus == .completed ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(kanataAccessibilityStatus == .completed ? .green : .secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("kanata")
+                                        .font(.headline)
+                                    Text("Keyboard monitoring and remapping engine")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }
+
+                        Text("The emergency stop sequence (Cmd+Opt+Ctrl+Shift+K) requires Accessibility permission to work reliably.")
                             .font(.caption)
                             .foregroundColor(.orange)
-                            .padding(.top, 4)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
                     }
-                    .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(WizardDesign.Layout.cornerRadius)
+                } else {
+                    Text("Accessibility permissions have been granted for both KeyPath and kanata. Emergency stop functionality and keyboard monitoring are enabled.")
+                        .font(WizardDesign.Typography.body)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
                 }
-
-                Spacer()
-
-                // Action Buttons
-                HStack(spacing: 12) {
-                    // Manual Refresh Button (no auto-refresh to prevent invasive checks)
-                    Button("Check Again") {
-                        Task {
-                            await onRefresh()
-                        }
+                
+                Spacer(minLength: 120)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(WizardDesign.Spacing.cardPadding)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            
+            Spacer()
+            
+            // Centered action buttons at bottom following design system
+            HStack(spacing: WizardDesign.Spacing.itemGap) {
+                Button("Check Again") {
+                    Task {
+                        await onRefresh()
                     }
-                    .buttonStyle(.bordered)
+                }
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
 
-                    Spacer()
-
-                    // Open Accessibility Settings Button
+                if hasAccessibilityIssues {
                     Button("Grant Permission") {
                         openAccessibilitySettings()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
                 }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
     }
 
