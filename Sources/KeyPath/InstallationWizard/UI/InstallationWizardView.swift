@@ -17,6 +17,9 @@ struct InstallationWizardView: View {
     @State private var isInitializing = true
     @State private var systemState: WizardSystemState = .initializing
     @State private var currentIssues: [WizardIssue] = []
+    
+    // Task management for race condition prevention
+    @State private var refreshTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -284,9 +287,9 @@ struct InstallationWizardView: View {
     }
 
     private func monitorSystemState() async {
-        // Monitor for state changes every 3 seconds
+        // Monitor for state changes every 10 seconds (reduced from 3s)
         while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
 
             // Skip state detection if async operations are running to avoid conflicts
             guard !asyncOperationManager.hasRunningOperations else {
@@ -380,7 +383,11 @@ struct InstallationWizardView: View {
                     }
                 }
 
-                // Refresh state after auto-fix attempts
+                // Clear cache and refresh state after auto-fix attempts
+                PermissionService.shared.clearCache()
+                if let statusChecker = stateManager.statusChecker {
+                    statusChecker.clearCache()
+                }
                 await refreshState()
 
                 AppLogger.shared.log("🔍 [NewWizard] *** PERFORMAUTOFIX COMPLETED SUCCESSFULLY ***")
@@ -509,19 +516,32 @@ struct InstallationWizardView: View {
     }
 
     private func refreshState() async {
-        AppLogger.shared.log("🔍 [NewWizard] Refreshing system state with cache clear")
+        AppLogger.shared.log("🔍 [NewWizard] Refreshing system state (using cache if available)")
 
-        // Clear any cached state that might be stale
-        PermissionService.shared.clearCache()
-
-        let operation = WizardOperations.stateDetection(stateManager: stateManager)
-
-        await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
-            systemState = result.state
-            currentIssues = result.issues
-            AppLogger.shared.log(
-                "🔍 [NewWizard] Refresh complete - Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
-            )
+        // Don't clear cache - let the 2-second TTL handle freshness
+        // Only clear cache when we actually need fresh data (e.g., after auto-fix)
+        
+        // Cancel any previous refresh task to prevent race conditions
+        refreshTask?.cancel()
+        
+        // Run detection in background to avoid blocking UI
+        refreshTask = Task {
+            // Check for cancellation before proceeding
+            guard !Task.isCancelled else { return }
+            
+            let result = await stateManager.detectCurrentState()
+            
+            // Check for cancellation again before updating UI
+            guard !Task.isCancelled else { return }
+            
+            // Update UI on main thread
+            await MainActor.run {
+                systemState = result.state
+                currentIssues = result.issues
+                AppLogger.shared.log(
+                    "🔍 [NewWizard] Refresh complete - Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
+                )
+            }
         }
     }
 
@@ -704,7 +724,7 @@ struct InstallationWizardView: View {
 
 @MainActor
 class WizardStateManager: ObservableObject {
-    private var statusChecker: SystemStatusChecker?
+    var statusChecker: SystemStatusChecker?
 
     func configure(kanataManager: KanataManager) {
         statusChecker = SystemStatusChecker(kanataManager: kanataManager)
