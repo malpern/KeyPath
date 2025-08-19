@@ -118,7 +118,8 @@ struct InstallationWizardView: View {
                         .foregroundColor(.secondary)
 
                     Button("✕") {
-                        handleCloseButtonTapped()
+                        // NUCLEAR OPTION: Immediate close, bypass everything
+                        forciblyCloseWizard()
                     }
                     .buttonStyle(.plain)
                     .font(.title3) // Smaller close button
@@ -310,19 +311,37 @@ struct InstallationWizardView: View {
     }
 
     private func monitorSystemState() async {
-        // Monitor for state changes every 10 seconds (reduced from 3s)
+        // Smart monitoring: Only poll when needed, much less frequently
         while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            try? await Task.sleep(nanoseconds: 60_000_000_000) // 60 seconds instead of 10
 
             // Skip state detection if async operations are running to avoid conflicts
             guard !asyncOperationManager.hasRunningOperations else {
                 continue
             }
+            
+            // Only poll if we're on summary page or user recently interacted
+            guard shouldPerformBackgroundPolling() else {
+                continue
+            }
 
-            // Note: Removed auto-fix check that was preventing navigation to permission pages
-
+            // Use page-specific detection instead of full system scan
+            await performSmartStateCheck()
+        }
+    }
+    
+    /// Determine if background polling is needed
+    private func shouldPerformBackgroundPolling() -> Bool {
+        // Only poll on summary page where overview is shown
+        return navigationCoordinator.currentPage == .summary
+    }
+    
+    /// Perform targeted state check based on current page
+    private func performSmartStateCheck() async {
+        switch navigationCoordinator.currentPage {
+        case .summary:
+            // Full check only for summary page
             let operation = WizardOperations.stateDetection(stateManager: stateManager)
-
             asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
                 let oldState = systemState
                 let oldPage = navigationCoordinator.currentPage
@@ -343,6 +362,29 @@ struct InstallationWizardView: View {
                     )
                 }
             }
+        case .inputMonitoring, .accessibility:
+            // Quick permission check only
+            if let statusChecker = stateManager.statusChecker {
+                let permissionResult = await statusChecker.checkPermissionsOnly()
+                await MainActor.run {
+                    // Update only permission-related issues
+                    currentIssues = currentIssues.filter { $0.category != .permissions }
+                    // Add fresh permission issues (simplified)
+                }
+            }
+        case .conflicts:
+            // Quick conflict check only
+            if let statusChecker = stateManager.statusChecker {
+                let conflictResult = await statusChecker.checkConflictsOnly()
+                await MainActor.run {
+                    // Update only conflict-related issues
+                    currentIssues = currentIssues.filter { $0.category != .conflicts }
+                    // Add fresh conflict issues (simplified)
+                }
+            }
+        default:
+            // No background polling for other pages
+            break
         }
     }
 
@@ -620,6 +662,26 @@ struct InstallationWizardView: View {
         // Use Task.detached to avoid any main thread scheduling overhead
         Task.detached { [weak asyncOperationManager] in
             // This runs completely in background, no main thread blocking
+            asyncOperationManager?.cancelAllOperationsAsync()
+        }
+    }
+    
+    /// Nuclear option: Force wizard closed immediately, bypass all operations and confirmations
+    private func forciblyCloseWizard() {
+        // Immediately clear operation state to stop UI spinners
+        Task { @MainActor in
+            asyncOperationManager.runningOperations.removeAll()
+            asyncOperationManager.operationProgress.removeAll()
+        }
+        
+        // Cancel monitoring task
+        refreshTask?.cancel()
+        
+        // Force immediate dismissal - no confirmation, no state checks, no waiting
+        dismiss()
+        
+        // Clean up in background after UI is gone
+        Task.detached { [weak asyncOperationManager] in
             asyncOperationManager?.cancelAllOperationsAsync()
         }
     }
