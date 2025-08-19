@@ -4,7 +4,7 @@ struct WizardConflictsPage: View {
     let issues: [WizardIssue]
     let isFixing: Bool
     let onAutoFix: () -> Void
-    let onRefresh: () async -> Void
+    let onRefresh: () -> Void
     let kanataManager: KanataManager
 
     @State private var isScanning = false
@@ -76,7 +76,7 @@ struct WizardConflictsPage: View {
                         let toastManager = WizardToastManager() // Temporary instance for reset operation
                         let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
                         await autoFixer.resetEverything()
-                        await onRefresh()
+                        onRefresh()
                         isScanning = false
                     }
                 }
@@ -88,10 +88,10 @@ struct WizardConflictsPage: View {
 
                 // Re-scan button
                 Button(action: {
+                    isScanning = true
+                    onRefresh()
+                    // Keep spinner visible for a moment so user sees the action
                     Task {
-                        isScanning = true
-                        await onRefresh()
-                        // Keep spinner visible for a moment so user sees the action
                         try? await Task.sleep(nanoseconds: 500_000_000)
                         isScanning = false
                     }
@@ -119,9 +119,9 @@ struct WizardConflictsPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
-        .task {
+        .onAppear {
             // Force a refresh when the page appears to avoid stale conflict snapshots
-            await onRefresh()
+            onRefresh()
         }
     }
 }
@@ -132,7 +132,7 @@ struct CleanConflictsCard: View {
     let conflictCount: Int
     let isFixing: Bool
     let onAutoFix: () -> Void
-    let onRefresh: () async -> Void
+    let onRefresh: () -> Void
     let issues: [WizardIssue]
     let kanataManager: KanataManager
 
@@ -194,7 +194,7 @@ struct CleanConflictsCard: View {
                             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
 
                             // Trigger a refresh to update the conflict state
-                            await onRefresh()
+                            onRefresh()
 
                             // Hide success message
                             showSuccessMessage = false

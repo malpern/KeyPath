@@ -5,7 +5,7 @@ struct WizardKarabinerComponentsPage: View {
     let issues: [WizardIssue]
     let isFixing: Bool
     let onAutoFix: (AutoFixAction) async -> Bool
-    let onRefresh: () async -> Void
+    let onRefresh: () -> Void
     let kanataManager: KanataManager
 
     // Track which specific issues are being fixed
@@ -107,7 +107,7 @@ struct WizardKarabinerComponentsPage: View {
 
                     Button("Check Status") {
                         Task {
-                            await onRefresh()
+                            onRefresh()
                         }
                     }
                     .buttonStyle(WizardDesign.Component.SecondaryButton())

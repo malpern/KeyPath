@@ -5,7 +5,7 @@ struct WizardKanataComponentsPage: View {
     let issues: [WizardIssue]
     let isFixing: Bool
     let onAutoFix: (AutoFixAction) async -> Bool
-    let onRefresh: () async -> Void
+    let onRefresh: () -> Void
     let kanataManager: KanataManager
 
     // Track which specific issues are being fixed
@@ -27,7 +27,7 @@ struct WizardKanataComponentsPage: View {
                     Spacer()
                     Button("Refresh Status") {
                         Task {
-                            await onRefresh()
+                            onRefresh()
                         }
                     }
                     .font(.caption)
@@ -112,7 +112,7 @@ struct WizardKanataComponentsPage: View {
 
                         Button("Check Status") {
                             Task {
-                                await onRefresh()
+                                onRefresh()
                             }
                         }
                         .buttonStyle(WizardDesign.Component.SecondaryButton())

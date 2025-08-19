@@ -122,11 +122,15 @@ struct InstallationWizardView: View {
                     .foregroundColor(.secondary)
                     .keyboardShortcut(.cancelAction)
                     .accessibilityLabel("Close setup wizard")
+                    .disabled(false) // Always allow closing
                 }
                 .accessibilityHint("Close the KeyPath setup wizard")
             }
 
             PageDotsIndicator(currentPage: navigationCoordinator.currentPage) { page in
+                // Don't allow manual navigation if operations are running
+                guard !asyncOperationManager.hasRunningOperations else { return }
+                
                 navigationCoordinator.navigateToPage(page)
                 AppLogger.shared.log(
                     "🔍 [NewWizard] User manually navigated to \(page) - entering user interaction mode")
@@ -162,14 +166,14 @@ struct InstallationWizardView: View {
                         issues: currentIssues.filter { $0.category == .conflicts },
                         isFixing: asyncOperationManager.hasRunningOperations,
                         onAutoFix: performAutoFix,
-                        onRefresh: refreshState,
+                        onRefresh: { refreshState() },
                         kanataManager: kanataManager
                     )
                 case .inputMonitoring:
                     WizardInputMonitoringPage(
                         systemState: systemState,
                         issues: currentIssues.filter { $0.category == .permissions },
-                        onRefresh: refreshState,
+                        onRefresh: { refreshState() },
                         onNavigateToPage: { page in
                             navigationCoordinator.navigateToPage(page)
                         },
@@ -182,7 +186,7 @@ struct InstallationWizardView: View {
                     WizardAccessibilityPage(
                         systemState: systemState,
                         issues: currentIssues.filter { $0.category == .permissions },
-                        onRefresh: refreshState,
+                        onRefresh: { refreshState() },
                         onNavigateToPage: { page in
                             navigationCoordinator.navigateToPage(page)
                         },
@@ -196,7 +200,7 @@ struct InstallationWizardView: View {
                         issues: currentIssues,
                         isFixing: asyncOperationManager.hasRunningOperations,
                         onAutoFix: performAutoFix,
-                        onRefresh: refreshState,
+                        onRefresh: { refreshState() },
                         kanataManager: kanataManager
                     )
                 case .kanataComponents:
@@ -204,7 +208,7 @@ struct InstallationWizardView: View {
                         issues: currentIssues,
                         isFixing: asyncOperationManager.hasRunningOperations,
                         onAutoFix: performAutoFix,
-                        onRefresh: refreshState,
+                        onRefresh: { refreshState() },
                         kanataManager: kanataManager
                     )
                 case .tcpServer:
@@ -236,12 +240,23 @@ struct InstallationWizardView: View {
             ProgressView()
                 .scaleEffect(1.0)
         } else {
-            // Minimal overlay for all operations - just the gear icon
-            WizardOperationProgress(
-                operationName: operationName,
-                progress: getCurrentOperationProgress(),
-                isIndeterminate: isCurrentOperationIndeterminate()
-            )
+            // Enhanced overlay with cancellation support
+            VStack(spacing: 16) {
+                WizardOperationProgress(
+                    operationName: operationName,
+                    progress: getCurrentOperationProgress(),
+                    isIndeterminate: isCurrentOperationIndeterminate()
+                )
+                
+                // Cancel button for long-running operations
+                if !operationName.contains("System State Detection") {
+                    Button("Cancel") {
+                        asyncOperationManager.cancelAllOperations()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+            }
             .transition(.opacity.combined(with: .scale(scale: 0.95)))
         }
     }
@@ -268,7 +283,7 @@ struct InstallationWizardView: View {
 
         let operation = WizardOperations.stateDetection(stateManager: stateManager)
 
-        await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
+        asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             systemState = result.state
             currentIssues = result.issues
             // Start at summary page - no auto navigation
@@ -300,7 +315,7 @@ struct InstallationWizardView: View {
 
             let operation = WizardOperations.stateDetection(stateManager: stateManager)
 
-            await asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
+            asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
                 let oldState = systemState
                 let oldPage = navigationCoordinator.currentPage
 
@@ -360,7 +375,7 @@ struct InstallationWizardView: View {
                     let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
                     let actionDescription = getAutoFixActionDescription(action)
 
-                    await asyncOperationManager.execute(operation: operation) { (success: Bool) in
+                    asyncOperationManager.execute(operation: operation) { (success: Bool) in
                         AppLogger.shared.log(
                             "🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
 
@@ -432,7 +447,7 @@ struct InstallationWizardView: View {
                     asyncOperationManager.runningOperations.remove(operationId)
                 }
 
-                await asyncOperationManager.execute(
+                asyncOperationManager.execute(
                     operation: operation,
                     onSuccess: { success in
                         AppLogger.shared.log(
@@ -515,7 +530,7 @@ struct InstallationWizardView: View {
         return description
     }
 
-    private func refreshState() async {
+    private func refreshState() {
         AppLogger.shared.log("🔍 [NewWizard] Refreshing system state (using cache if available)")
 
         // Don't clear cache - let the 2-second TTL handle freshness
@@ -524,24 +539,15 @@ struct InstallationWizardView: View {
         // Cancel any previous refresh task to prevent race conditions
         refreshTask?.cancel()
         
-        // Run detection in background to avoid blocking UI
-        refreshTask = Task {
-            // Check for cancellation before proceeding
-            guard !Task.isCancelled else { return }
-            
-            let result = await stateManager.detectCurrentState()
-            
-            // Check for cancellation again before updating UI
-            guard !Task.isCancelled else { return }
-            
-            // Update UI on main thread
-            await MainActor.run {
-                systemState = result.state
-                currentIssues = result.issues
-                AppLogger.shared.log(
-                    "🔍 [NewWizard] Refresh complete - Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
-                )
-            }
+        // Use async operation manager for non-blocking refresh
+        let operation = WizardOperations.stateDetection(stateManager: stateManager)
+        
+        asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
+            systemState = result.state
+            currentIssues = result.issues
+            AppLogger.shared.log(
+                "🔍 [NewWizard] Refresh complete - Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
+            )
         }
     }
 
@@ -554,7 +560,7 @@ struct InstallationWizardView: View {
                 if !kanataManager.isRunning {
                     let operation = WizardOperations.startService(kanataManager: kanataManager)
 
-                    await asyncOperationManager.execute(operation: operation) { (success: Bool) in
+                    asyncOperationManager.execute(operation: operation) { (success: Bool) in
                         if success {
                             AppLogger.shared.log("✅ [NewWizard] Kanata service started successfully")
                             dismiss()
@@ -578,6 +584,9 @@ struct InstallationWizardView: View {
     @State private var showingCloseConfirmation = false
 
     private func handleCloseButtonTapped() {
+        // Cancel any running operations first
+        asyncOperationManager.cancelAllOperations()
+        
         let criticalIssues = currentIssues.filter { $0.severity == .critical }
 
         if criticalIssues.isEmpty {
