@@ -127,13 +127,11 @@ struct WizardAccessibilityPage: View {
                                     Image(systemName: "exclamationmark.triangle.fill")
                                         .font(.system(size: 40, weight: .medium))
                                         .foregroundColor(WizardDesign.Colors.warning)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
                                         .offset(x: 15, y: -5) // Move further right and slightly up
                                 }
                                 Spacer()
                             }
-                            .frame(width: 140, height: 115)
+                            .frame(width: 155, height: 115)
                         }
 
                         // Headline
