@@ -415,7 +415,7 @@ class SimpleKanataManager: ObservableObject {
         let possiblePaths = [
             "/usr/local/bin/kanata", // canonical path for KeyPath
             "/opt/homebrew/bin/kanata",
-            "/usr/bin/kanata"
+            "/usr/bin/kanata",
         ]
 
         for path in possiblePaths {
@@ -488,7 +488,8 @@ class SimpleKanataManager: ObservableObject {
                 "📻 [SimpleKanataManager] Received KeyboardCapturePermissionNeeded notification")
 
             if let userInfo = notification.userInfo,
-               let reason = userInfo["reason"] as? String {
+               let reason = userInfo["reason"] as? String
+            {
                 AppLogger.shared.log("📻 [SimpleKanataManager] Permission needed reason: \(reason)")
             }
 

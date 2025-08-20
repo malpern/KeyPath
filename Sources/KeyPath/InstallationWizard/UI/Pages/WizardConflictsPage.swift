@@ -109,12 +109,12 @@ struct WizardConflictsPage: View {
                             .symbolRenderingMode(.hierarchical)
                             .symbolEffect(.bounce, options: .nonRepeating)
                             .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
-                        
+
                         // Title
                         Text("Conflicts Detected")
                             .font(WizardDesign.Typography.sectionTitle)
                             .fontWeight(.semibold)
-                        
+
                         // Subtitle
                         Text("\(issues.count) conflicting process\(issues.count == 1 ? "" : "es") found that must be resolved.")
                             .font(WizardDesign.Typography.subtitle)
@@ -529,7 +529,8 @@ struct TechnicalDetailsView: View {
 
                                 // Only display lines that actually contain PID information
                                 if processText.contains("PID: "),
-                                   processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil {
+                                   processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil
+                                {
                                     let (processName, processDescription, pid) = parseProcessInfo(processText)
                                     ProcessRow(
                                         processName: processName,

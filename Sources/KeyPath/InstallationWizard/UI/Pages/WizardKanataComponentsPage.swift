@@ -18,7 +18,7 @@ struct WizardKanataComponentsPage: View {
             if kanataRelatedIssues.isEmpty, componentStatus(for: "Kanata Binary") == .completed {
                 VStack(spacing: 0) {
                     Spacer()
-                    
+
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
                         // Green CPU icon with green check overlay
@@ -28,7 +28,7 @@ struct WizardKanataComponentsPage: View {
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Green check overlay moved to the right
                             VStack {
                                 HStack {
@@ -44,21 +44,21 @@ struct WizardKanataComponentsPage: View {
                             }
                             .frame(width: 115, height: 115)
                         }
-                        
+
                         // Headline
                         Text("Kanata Engine Setup")
                             .font(.system(size: 23, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                        
+
                         // Subtitle
                         Text("Kanata binary is installed & configured for advanced keyboard remapping functionality")
                             .font(.system(size: 17, weight: .regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
-                        
+
                         // Component details card below the subheading - horizontally centered
                         HStack {
                             Spacer()
@@ -76,7 +76,7 @@ struct WizardKanataComponentsPage: View {
                                             .fontWeight(.regular)
                                     }
                                 }
-                                
+
                                 // Package Manager (if Homebrew is working)
                                 if componentStatus(for: "Package Manager") == .completed {
                                     HStack(spacing: 12) {
@@ -92,7 +92,7 @@ struct WizardKanataComponentsPage: View {
                                         }
                                     }
                                 }
-                                
+
                                 // Kanata Service (if service is configured)
                                 if componentStatus(for: "Kanata Service") == .completed {
                                     HStack(spacing: 12) {
@@ -118,12 +118,12 @@ struct WizardKanataComponentsPage: View {
                         .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
-                    
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Header for setup/error states with action link  
+                // Header for setup/error states with action link
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     // Custom header with colored CPU icon
                     VStack(spacing: WizardDesign.Spacing.elementGap) {
@@ -134,7 +134,7 @@ struct WizardKanataComponentsPage: View {
                                 .foregroundColor(WizardDesign.Colors.warning)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Warning overlay moved to the right
                             VStack {
                                 HStack {
@@ -151,12 +151,12 @@ struct WizardKanataComponentsPage: View {
                             .frame(width: 60, height: 60)
                         }
                         .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
-                        
+
                         // Title
                         Text("Kanata Engine Setup")
                             .font(WizardDesign.Typography.sectionTitle)
                             .fontWeight(.semibold)
-                        
+
                         // Subtitle
                         Text("Install and configure the Kanata keyboard remapping engine")
                             .font(WizardDesign.Typography.subtitle)

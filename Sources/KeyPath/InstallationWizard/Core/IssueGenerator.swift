@@ -6,7 +6,8 @@ class IssueGenerator {
     // MARK: - Issue Creation
 
     func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult)
-        -> [WizardIssue] {
+        -> [WizardIssue]
+    {
         var issues: [WizardIssue] = []
 
         // Create issues for each compatibility problem
@@ -80,7 +81,8 @@ class IssueGenerator {
     }
 
     private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict])
-        -> String {
+        -> String
+    {
         let count = conflicts.count
         let plural = count > 1 ? "es" : ""
 

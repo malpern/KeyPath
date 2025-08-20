@@ -420,7 +420,7 @@ struct WizardError: LocalizedError {
             userMessage: "Setup was cancelled by the user.",
             recoveryActions: [
                 "Click the 'Retry' button to try again",
-                "Use manual setup if automatic setup continues to fail"
+                "Use manual setup if automatic setup continues to fail",
             ]
         )
     }
@@ -437,7 +437,7 @@ struct WizardError: LocalizedError {
                 [
                     "Manually quit Karabiner-Elements from the menu bar",
                     "Check Activity Monitor for any remaining Karabiner processes",
-                    "Restart your Mac if processes won't stop"
+                    "Restart your Mac if processes won't stop",
                 ]
             )
 
@@ -447,7 +447,7 @@ struct WizardError: LocalizedError {
                 [
                     "Check your internet connection",
                     "Make sure you have administrator privileges",
-                    "Use KeyPath's Installation Wizard to install Kanata automatically"
+                    "Use KeyPath's Installation Wizard to install Kanata automatically",
                 ]
             )
 
@@ -457,7 +457,7 @@ struct WizardError: LocalizedError {
                 [
                     "Grant necessary permissions in System Preferences",
                     "Check that no conflicting keyboard apps are running",
-                    "Try restarting your Mac"
+                    "Try restarting your Mac",
                 ]
             )
 
@@ -467,7 +467,7 @@ struct WizardError: LocalizedError {
                 [
                     "Open System Preferences → Privacy & Security → Driver Extensions",
                     "Find 'Karabiner-VirtualHIDDevice-Manager.app' and enable it",
-                    "You may need to restart your Mac after enabling"
+                    "You may need to restart your Mac after enabling",
                 ]
             )
 
@@ -477,7 +477,7 @@ struct WizardError: LocalizedError {
                 [
                     "Check that KeyPath has the necessary permissions",
                     "Try closing and reopening KeyPath",
-                    "Make sure no other setup processes are running"
+                    "Make sure no other setup processes are running",
                 ]
             )
 
@@ -487,7 +487,7 @@ struct WizardError: LocalizedError {
                 [
                     "Open System Preferences → Privacy & Security",
                     "Find 'Input Monitoring' and 'Accessibility' sections",
-                    "Make sure KeyPath and Kanata are both enabled"
+                    "Make sure KeyPath and Kanata are both enabled",
                 ]
             )
 
@@ -498,7 +498,7 @@ struct WizardError: LocalizedError {
                 [
                     "Try the operation again",
                     "Check that you have administrator privileges",
-                    "Make sure no antivirus software is blocking KeyPath"
+                    "Make sure no antivirus software is blocking KeyPath",
                 ]
             )
         }
@@ -512,7 +512,7 @@ struct WizardError: LocalizedError {
                 [
                     "Open System Preferences manually and grant the required permissions",
                     "Make sure to enable permissions for both KeyPath and Kanata",
-                    "Close and reopen KeyPath after granting permissions"
+                    "Close and reopen KeyPath after granting permissions",
                 ]
             )
 
@@ -522,7 +522,7 @@ struct WizardError: LocalizedError {
                 [
                     "Check Activity Monitor for any hung processes",
                     "Make sure all required permissions are granted",
-                    "Try restarting your Mac if the problem persists"
+                    "Try restarting your Mac if the problem persists",
                 ]
             )
 
@@ -532,7 +532,7 @@ struct WizardError: LocalizedError {
                 [
                     "Try the operation again",
                     "Check that your system isn't overloaded",
-                    "Consider restarting KeyPath if problems persist"
+                    "Consider restarting KeyPath if problems persist",
                 ]
             )
         }

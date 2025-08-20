@@ -20,7 +20,7 @@ struct WizardInputMonitoringPage: View {
             if !hasInputMonitoringIssues {
                 VStack(spacing: 0) {
                     Spacer()
-                    
+
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
                         // Green eye icon with green check overlay
@@ -30,7 +30,7 @@ struct WizardInputMonitoringPage: View {
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Green check overlay in top right
                             VStack {
                                 HStack {
@@ -45,20 +45,20 @@ struct WizardInputMonitoringPage: View {
                             }
                             .frame(width: 115, height: 115)
                         }
-                        
+
                         // Headline
                         Text("Input Monitoring")
                             .font(.system(size: 23, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                        
+
                         // Subtitle
                         Text("KeyPath has permission to capture keyboard events")
                             .font(.system(size: 17, weight: .regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
-                        
+
                         // Component details card below the subheading - horizontally centered
                         HStack {
                             Spacer()
@@ -98,7 +98,7 @@ struct WizardInputMonitoringPage: View {
                         .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
-                    
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -116,7 +116,7 @@ struct WizardInputMonitoringPage: View {
                                 .foregroundColor(WizardDesign.Colors.warning)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Warning overlay in top right
                             VStack {
                                 HStack {
@@ -194,12 +194,12 @@ struct WizardInputMonitoringPage: View {
                         .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                         .padding(.top, WizardDesign.Spacing.sectionGap)
-                        
+
                         // Check Again link
                         Button("Check Again") {
                             Task {
                                 await onRefresh()
-                                
+
                                 // If permission check now succeeds, mark it as granted for future
                                 if PermissionService.shared.hasInputMonitoringPermission() {
                                     PermissionService.shared.markInputMonitoringPermissionGranted()
@@ -216,20 +216,19 @@ struct WizardInputMonitoringPage: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-
             Spacer()
 
             // Bottom buttons - primary action changes based on state
             HStack {
                 Spacer()
-                
+
                 if hasInputMonitoringIssues {
                     // When permissions needed, Grant Permission is primary
                     Button("Grant Permission") {
                         openInputMonitoringSettings()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    
+
                     Button("Continue Anyway") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Input Monitoring page despite issues")
                         navigateToNextPage()
@@ -243,7 +242,7 @@ struct WizardInputMonitoringPage: View {
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                 }
-                
+
                 Spacer()
             }
             .frame(maxWidth: .infinity)
@@ -472,7 +471,7 @@ struct WizardInputMonitoringPage_Previews: PreviewProvider {
                     description: "KeyPath needs Input Monitoring permission to capture keyboard events.",
                     autoFixAction: nil,
                     userAction: "Grant permission in System Settings > Privacy & Security > Input Monitoring"
-                )
+                ),
             ],
             onRefresh: {},
             onNavigateToPage: nil,

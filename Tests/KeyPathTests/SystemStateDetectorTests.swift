@@ -108,7 +108,7 @@ class SystemStateDetectorTests: XCTestCase {
         let allPermissions: Set<PermissionRequirement> = [
             .keyPathInputMonitoring, .kanataInputMonitoring,
             .keyPathAccessibility, .kanataAccessibility,
-            .driverExtensionEnabled, .backgroundServicesEnabled
+            .driverExtensionEnabled, .backgroundServicesEnabled,
         ]
         let checkedPermissions = grantedSet.union(missingSet)
         XCTAssertEqual(
@@ -127,7 +127,7 @@ class SystemStateDetectorTests: XCTestCase {
 
         // Then: Should reflect actual component installation
         let allComponents: Set<ComponentRequirement> = [
-            .kanataBinary, .karabinerDriver, .karabinerDaemon
+            .kanataBinary, .karabinerDriver, .karabinerDaemon,
         ]
 
         let installedSet = Set(result.installed)
@@ -475,7 +475,7 @@ class SystemStateDetectorTests: XCTestCase {
             (
                 "/usr/local/bin/kanata --cfg /Users/../Users/\(NSUserName())/Library/Application\\ Support/KeyPath/keypath.kbd",
                 "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
-            )
+            ),
         ]
 
         for (command, expectedNormalized) in testCases {
@@ -514,7 +514,7 @@ class SystemStateDetectorTests: XCTestCase {
             // Multiple external processes - always replace for safety
             (2, false, false, .replaceOrphanedProcess),
             (2, true, false, .replaceOrphanedProcess),
-            (2, true, true, .replaceOrphanedProcess)
+            (2, true, true, .replaceOrphanedProcess),
         ]
 
         for (index, testCase) in testCases.enumerated() {
@@ -569,7 +569,7 @@ class SystemStateDetectorTests: XCTestCase {
             (expectedPath, .adoptOrphanedProcess),
 
             // Different config path - replace for safety
-            (unexpectedPath, .replaceOrphanedProcess)
+            (unexpectedPath, .replaceOrphanedProcess),
         ]
 
         for (configPath, expectedAction) in testCases {
@@ -652,7 +652,7 @@ class SystemStateDetectorTests: XCTestCase {
             ("/usr/local/bin/kanata --cfg /other/path.kbd --verbose --port 37000", .replaceOrphanedProcess),
 
             // No --cfg parameter
-            ("/usr/local/bin/kanata --verbose", .replaceOrphanedProcess)
+            ("/usr/local/bin/kanata --verbose", .replaceOrphanedProcess),
         ]
 
         for (command, expectedAction) in testCases {

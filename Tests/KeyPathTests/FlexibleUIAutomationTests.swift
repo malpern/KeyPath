@@ -70,7 +70,7 @@ final class FlexibleUIAutomationTests: XCTestCase {
             KeyMapping(input: "ctrl", output: "cmd"), // Cross-platform modifier
             KeyMapping(input: "alt", output: "option"), // macOS consistency
             KeyMapping(input: "home", output: "cmd left"), // Home key to cmd+left
-            KeyMapping(input: "end", output: "cmd right") // End key to cmd+right
+            KeyMapping(input: "end", output: "cmd right"), // End key to cmd+right
         ]
 
         for mapping in customMappings {
@@ -155,7 +155,7 @@ final class FlexibleUIAutomationTests: XCTestCase {
         let problematicMappings = [
             KeyMapping(input: "", output: "6"), // Empty input
             KeyMapping(input: "5", output: ""), // Empty output
-            KeyMapping(input: "5", output: "5") // Same key (might be valid)
+            KeyMapping(input: "5", output: "5"), // Same key (might be valid)
         ]
 
         // Set framework to basic validation mode for error testing
@@ -292,7 +292,7 @@ extension FlexibleUIAutomationTests {
             KeyMapping(input: "space", output: "tab"), // Space to Tab
             KeyMapping(input: "delete", output: "backspace"), // Delete consistency
             KeyMapping(input: "f1", output: "f2"), // Function key test
-            KeyMapping(input: "a", output: "b") // Letter test
+            KeyMapping(input: "a", output: "b"), // Letter test
         ]
     }
 

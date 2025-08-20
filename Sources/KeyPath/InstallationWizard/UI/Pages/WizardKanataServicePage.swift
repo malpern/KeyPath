@@ -57,7 +57,7 @@ struct WizardKanataServicePage: View {
             if serviceStatus == .running {
                 VStack(spacing: 0) {
                     Spacer()
-                    
+
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
                         // Green gears icon with green check overlay
@@ -67,7 +67,7 @@ struct WizardKanataServicePage: View {
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Green check overlay in top right
                             VStack {
                                 HStack {
@@ -83,21 +83,21 @@ struct WizardKanataServicePage: View {
                             }
                             .frame(width: 115, height: 115)
                         }
-                        
+
                         // Headline
                         Text("Kanata Service")
                             .font(.system(size: 23, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                        
+
                         // Subtitle
                         Text("Service is running and processing keyboard events")
                             .font(.system(size: 17, weight: .regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
-                        
+
                         // Service control links below the subheader
                         HStack(spacing: WizardDesign.Spacing.itemGap) {
                             Button(action: startService) {
@@ -130,12 +130,12 @@ struct WizardKanataServicePage: View {
                         .padding(.top, WizardDesign.Spacing.elementGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
-                    
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Header for other states with action link  
+                // Header for other states with action link
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     // Custom header with colored play icon
                     VStack(spacing: WizardDesign.Spacing.elementGap) {
@@ -146,7 +146,7 @@ struct WizardKanataServicePage: View {
                                 .foregroundColor(serviceStatus.color)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Status overlay in top right
                             VStack {
                                 HStack {
@@ -164,12 +164,12 @@ struct WizardKanataServicePage: View {
                             .frame(width: 60, height: 60)
                         }
                         .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
-                        
+
                         // Title
                         Text("Kanata Service")
                             .font(WizardDesign.Typography.sectionTitle)
                             .fontWeight(.semibold)
-                        
+
                         // Subtitle
                         Text("Monitor and control the keyboard remapping service")
                             .font(WizardDesign.Typography.subtitle)

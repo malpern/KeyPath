@@ -14,7 +14,7 @@ struct WizardTCPServerPage: View {
             if tcpStatus.isSuccess {
                 VStack(spacing: 0) {
                     Spacer()
-                    
+
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
                         // Green globe with green check overlay
@@ -24,7 +24,7 @@ struct WizardTCPServerPage: View {
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Green check overlay in top right
                             VStack {
                                 HStack {
@@ -40,14 +40,14 @@ struct WizardTCPServerPage: View {
                             }
                             .frame(width: 140, height: 115)
                         }
-                        
+
                         // Large headline (23pt)
                         Text("TCP Server")
                             .font(.system(size: 23, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                        
+
                         // Supporting copy (17pt)
                         Text("Server is running for instant config reloading & external integrations")
                             .font(.system(size: 17, weight: .regular))
@@ -55,12 +55,12 @@ struct WizardTCPServerPage: View {
                             .multilineTextAlignment(.center)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
-                    
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Header for setup/error states with action link  
+                // Header for setup/error states with action link
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     // Custom header with colored globe icon
                     VStack(spacing: WizardDesign.Spacing.elementGap) {
@@ -71,7 +71,7 @@ struct WizardTCPServerPage: View {
                                 .foregroundColor(tcpStatus.globeColor)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Overlay icon in top right
                             VStack {
                                 HStack {
@@ -88,12 +88,12 @@ struct WizardTCPServerPage: View {
                             .frame(width: 60, height: 60)
                         }
                         .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
-                        
+
                         // Title
                         Text("TCP Server")
                             .font(WizardDesign.Typography.sectionTitle)
                             .fontWeight(.semibold)
-                        
+
                         // Subtitle
                         Text(tcpStatus.headerSubtitle)
                             .font(WizardDesign.Typography.subtitle)
@@ -540,13 +540,13 @@ struct TCPTechnicalDetails: View {
                         ("Port", "\(details.port)"),
                         ("Listening", details.isListening ? "Yes" : "No"),
                         ("Active Connections", "\(details.activeConnections)"),
-                        ("TIME_WAIT Connections", "\(details.timeWaitConnections)")
+                        ("TIME_WAIT Connections", "\(details.timeWaitConnections)"),
                     ])
 
                     TCPDetailGroup(title: "Functionality", rows: [
                         ("Layer Query", details.layerNames?.joined(separator: ", ") ?? "Failed"),
                         ("Reload Command", details.reloadResponse ?? "Failed"),
-                        ("Last Tested", formatTime(details.lastTestedAt))
+                        ("Last Tested", formatTime(details.lastTestedAt)),
                     ])
                 }
                 .transition(.asymmetric(
@@ -667,13 +667,13 @@ enum TCPServerStatus {
         case .checking:
             return [
                 "Testing connection to TCP server",
-                "Verifying configuration reload commands work properly"
+                "Verifying configuration reload commands work properly",
             ]
 
         case let .success(details):
             var insights = [
                 "TCP server allows instant configuration reloading without restarting KeyPath",
-                "External tools can connect to integrate with your keyboard setup"
+                "External tools can connect to integrate with your keyboard setup",
             ]
 
             if details.activeConnections > 0 {
@@ -685,7 +685,7 @@ enum TCPServerStatus {
         case let .failed(error, details):
             var insights = [
                 "Without TCP server, configuration changes require restarting the app",
-                "This might happen if Kanata crashed or port \(details?.port ?? 0) is blocked"
+                "This might happen if Kanata crashed or port \(details?.port ?? 0) is blocked",
             ]
 
             if error.lowercased().contains("disabled") {
@@ -697,7 +697,7 @@ enum TCPServerStatus {
             return insights
         }
     }
-    
+
     var globeColor: Color {
         switch self {
         case .checking: WizardDesign.Colors.warning
@@ -705,7 +705,7 @@ enum TCPServerStatus {
         case .failed: WizardDesign.Colors.error
         }
     }
-    
+
     var overlayIcon: String {
         switch self {
         case .checking: "exclamationmark.triangle.fill"

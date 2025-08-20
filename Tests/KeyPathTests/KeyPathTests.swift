@@ -43,7 +43,7 @@ final class KeyPathTests: XCTestCase {
             ("rcmd", "rmet"),
             ("leftcmd", "lmet"),
             ("rightcmd", "rmet"),
-            ("unknown", "unknown") // Should pass through unchanged
+            ("unknown", "unknown"), // Should pass through unchanged
         ]
 
         for (input, expected) in testCases {
@@ -106,7 +106,7 @@ final class KeyPathTests: XCTestCase {
             ("caps", "a", "caps", "a"),
             ("space", "return", "spc", "ret"),
             ("tab", "escape", "tab", "esc"),
-            ("capslock", "space", "caps", "spc")
+            ("capslock", "space", "caps", "spc"),
         ]
 
         for (input, output, expectedInput, expectedOutput) in testCases {
@@ -165,7 +165,7 @@ final class KeyPathTests: XCTestCase {
             (53, "escape"),
             (58, "caps"),
             (59, "caps"),
-            (999, "key999") // Unknown key code
+            (999, "key999"), // Unknown key code
         ]
 
         for (keyCode, expected) in testCases {
@@ -327,7 +327,7 @@ final class KeyPathTests: XCTestCase {
             "✅ Fully installed",
             "⚠️ Driver missing",
             "⚠️ Service & driver missing",
-            "❌ Not installed"
+            "❌ Not installed",
         ]
 
         XCTAssertTrue(
@@ -657,7 +657,7 @@ extension KeyboardCapture {
             30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
             37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
             44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps"
+            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps",
         ]
 
         if let keyName = keyMap[keyCode] {

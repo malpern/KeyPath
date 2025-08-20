@@ -151,7 +151,7 @@ class Phase1LoggingTests: XCTestCase {
             "🚀 [Start] Starting Kanata with synchronization lock...",
             "💾 [Save] ========== SAVE OPERATION START ==========",
             "🔧 [Conflicts] ========== USER CONFIRMED TERMINATION ==========",
-            "🧪 [Test] Testing logging pattern consistency"
+            "🧪 [Test] Testing logging pattern consistency",
         ]
 
         for message in testMessages {

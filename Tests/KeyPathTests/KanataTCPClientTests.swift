@@ -111,7 +111,7 @@ final class KanataTCPClientTests: XCTestCase {
         // Configure mock server to return validation errors
         let mockErrors = [
             MockValidationError(line: 2, column: 3, message: "Unknown option: invalid-option"),
-            MockValidationError(line: 4, column: 1, message: "Unclosed parenthesis")
+            MockValidationError(line: 4, column: 1, message: "Unclosed parenthesis"),
         ]
         await mockServer.setValidationResponse(success: false, errors: mockErrors)
 
@@ -221,7 +221,7 @@ final class KanataTCPClientTests: XCTestCase {
         let configs = [
             "(defcfg process-unmapped-keys yes) (defsrc caps) (deflayer base esc)",
             "(defcfg process-unmapped-keys no) (defsrc space) (deflayer base tab)",
-            "(defcfg process-unmapped-keys yes) (defsrc return) (deflayer base delete)"
+            "(defcfg process-unmapped-keys yes) (defsrc return) (deflayer base delete)",
         ]
 
         // Configure server to return success for all

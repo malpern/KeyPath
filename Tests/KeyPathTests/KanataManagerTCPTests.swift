@@ -149,7 +149,7 @@ final class KanataManagerTCPTests: XCTestCase {
         try await mockTCPServer.start()
         let mockErrors = [
             MockValidationError(line: 2, column: 3, message: "Unknown option: invalid-option"),
-            MockValidationError(line: 4, column: 1, message: "Unclosed parenthesis")
+            MockValidationError(line: 4, column: 1, message: "Unclosed parenthesis"),
         ]
         await mockTCPServer.setValidationResponse(success: false, errors: mockErrors)
 
@@ -289,7 +289,7 @@ final class KanataManagerTCPTests: XCTestCase {
         // Test saving valid config
         let _validMappings = [
             KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "space", output: "tab")
+            KeyMapping(input: "space", output: "tab"),
         ]
 
         // This tests the TCP validation during save
@@ -308,7 +308,7 @@ final class KanataManagerTCPTests: XCTestCase {
         // Start mock server with validation failure
         try await mockTCPServer.start()
         let mockErrors = [
-            MockValidationError(line: 1, column: 1, message: "Invalid mapping")
+            MockValidationError(line: 1, column: 1, message: "Invalid mapping"),
         ]
         await mockTCPServer.setValidationResponse(success: false, errors: mockErrors)
 
@@ -318,7 +318,7 @@ final class KanataManagerTCPTests: XCTestCase {
 
         // Test saving config that will fail validation
         let _invalidMappings = [
-            KeyMapping(input: "invalid-key", output: "esc")
+            KeyMapping(input: "invalid-key", output: "esc"),
         ]
 
         // Save should still succeed even if TCP validation fails (it's optional)
@@ -341,7 +341,7 @@ final class KanataManagerTCPTests: XCTestCase {
 
         // Test saving config
         let _mappings = [
-            KeyMapping(input: "caps", output: "esc")
+            KeyMapping(input: "caps", output: "esc"),
         ]
 
         // Save should succeed with fallback
@@ -413,7 +413,7 @@ final class KanataManagerTCPTests: XCTestCase {
         let configs = [
             "(defcfg process-unmapped-keys yes) (defsrc caps) (deflayer base esc)",
             "(defcfg process-unmapped-keys no) (defsrc space) (deflayer base tab)",
-            "(defcfg process-unmapped-keys yes) (defsrc return) (deflayer base delete)"
+            "(defcfg process-unmapped-keys yes) (defsrc return) (deflayer base delete)",
         ]
 
         for (index, config) in configs.enumerated() {
@@ -578,7 +578,7 @@ final class KanataManagerTCPTests: XCTestCase {
         // 3. Save new configuration
         let newMappings = [
             KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "space", output: "tab")
+            KeyMapping(input: "space", output: "tab"),
         ]
 
         // Save configuration using available API
@@ -594,7 +594,7 @@ final class KanataManagerTCPTests: XCTestCase {
         await mockTCPServer.setValidationResponse(
             success: false,
             errors: [
-                MockValidationError(line: 1, column: 1, message: "Test error")
+                MockValidationError(line: 1, column: 1, message: "Test error"),
             ]
         )
 

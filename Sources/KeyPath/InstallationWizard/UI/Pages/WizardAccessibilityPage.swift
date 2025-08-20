@@ -10,7 +10,7 @@ struct WizardAccessibilityPage: View {
     let kanataManager: KanataManager
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
-    
+
     // Polling state for permission checking
     @State private var isPolling = false
     @State private var pollTimer: Timer?
@@ -21,7 +21,7 @@ struct WizardAccessibilityPage: View {
             if !hasAccessibilityIssues {
                 VStack(spacing: 0) {
                     Spacer()
-                    
+
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
                         // Green accessibility icon with green check overlay
@@ -31,7 +31,7 @@ struct WizardAccessibilityPage: View {
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Green check overlay positioned at right edge
                             VStack {
                                 HStack {
@@ -47,21 +47,21 @@ struct WizardAccessibilityPage: View {
                             }
                             .frame(width: 140, height: 115)
                         }
-                        
+
                         // Headline
                         Text("Accessibility")
                             .font(.system(size: 23, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                        
+
                         // Subtitle
                         Text("KeyPath has system-level access for keyboard monitoring & safety controls")
                             .font(.system(size: 17, weight: .regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
-                        
+
                         // Component details card below the subheading - horizontally centered
                         HStack {
                             Spacer()
@@ -101,7 +101,7 @@ struct WizardAccessibilityPage: View {
                         .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
-                    
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -119,7 +119,7 @@ struct WizardAccessibilityPage: View {
                                 .foregroundColor(WizardDesign.Colors.warning)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Warning overlay positioned at right edge
                             VStack {
                                 HStack {
@@ -147,7 +147,7 @@ struct WizardAccessibilityPage: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
-                        
+
                         // Action links below the subheader
                         HStack(spacing: WizardDesign.Spacing.itemGap) {
                             Button("Check Again") {
@@ -156,10 +156,10 @@ struct WizardAccessibilityPage: View {
                                 }
                             }
                             .buttonStyle(.link)
-                            
+
                             Text("•")
                                 .foregroundColor(.secondary)
-                            
+
                             Button("Open Settings Manually") {
                                 openAccessibilitySettings()
                             }
@@ -226,13 +226,12 @@ struct WizardAccessibilityPage: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-
             Spacer()
 
             // Bottom buttons - primary action changes based on state
             HStack {
                 Spacer()
-                
+
                 if hasAccessibilityIssues {
                     // When permissions needed, Grant Permission is primary
                     Button("Grant Permission") {
@@ -240,7 +239,7 @@ struct WizardAccessibilityPage: View {
                         startPolling()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    
+
                     Button("Continue Anyway") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page despite issues")
                         navigateToNextPage()
@@ -254,7 +253,7 @@ struct WizardAccessibilityPage: View {
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                 }
-                
+
                 Spacer()
             }
             .frame(maxWidth: .infinity)
@@ -268,7 +267,7 @@ struct WizardAccessibilityPage: View {
         }
         .onChange(of: hasAccessibilityIssues) { oldValue, newValue in
             // Stop polling when permissions are granted (no more issues)
-            if oldValue && !newValue && isPolling {
+            if oldValue, !newValue, isPolling {
                 AppLogger.shared.log("✅ [WizardAccessibilityPage] Permissions granted! Stopping polling")
                 stopPolling()
             }
@@ -322,56 +321,56 @@ struct WizardAccessibilityPage: View {
         // Use the system API to request accessibility permission
         // This shows a dialog where the user can enter their password to add KeyPath
         PermissionService.requestAccessibilityPermission()
-        
+
         // Note: After the user grants permission via the dialog, KeyPath will be added
         // to the Accessibility list but may still need to be toggled ON.
         // The user should click "Check Again" after granting permission.
-        
+
         // We don't dismiss the wizard here - let the user check again after granting
     }
-    
+
     private func openAccessibilitySettings() {
         AppLogger.shared.log(
             "🔐 [WizardAccessibilityPage] Opening Accessibility settings manually")
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        {
             NSWorkspace.shared.open(url)
         }
     }
-    
+
     // MARK: - Polling Methods
-    
+
     private func startPolling() {
         // Don't start if already polling
         guard !isPolling else { return }
-        
+
         AppLogger.shared.log("🔄 [WizardAccessibilityPage] Starting permission polling every 5 seconds")
         isPolling = true
-        
+
         // Start timer that checks every 5 seconds
         pollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
             Task { @MainActor in
                 // Refresh the page state by calling onRefresh
                 await onRefresh()
-                
+
                 // The UI will automatically update based on the refreshed state
                 // If permissions are granted, hasAccessibilityIssues will become false
                 // and the timer will be cleaned up on the next UI update cycle
             }
         }
     }
-    
+
     private func stopPolling() {
         guard isPolling else { return }
-        
+
         AppLogger.shared.log("⏹️ [WizardAccessibilityPage] Stopping permission polling")
         isPolling = false
         pollTimer?.invalidate()
         pollTimer = nil
     }
-    
 }
 
 // MARK: - Preview
@@ -389,7 +388,7 @@ struct WizardAccessibilityPage_Previews: PreviewProvider {
                     description: "KeyPath needs Accessibility permission to monitor keyboard events.",
                     autoFixAction: nil,
                     userAction: "Grant permission in System Settings > Privacy & Security > Accessibility"
-                )
+                ),
             ],
             onRefresh: {},
             onNavigateToPage: nil,

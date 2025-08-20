@@ -168,7 +168,7 @@ final class SettingsViewTCPTests: XCTestCase {
             (500, false), // Too low
             (70000, false), // Too high
             (0, false), // Invalid
-            (-1, false) // Negative
+            (-1, false), // Negative
         ]
 
         for (port, shouldBeValid) in testPorts {
@@ -318,7 +318,7 @@ final class SettingsViewTCPTests: XCTestCase {
             (1023, false), // Just below minimum
             (1024, true), // Minimum valid
             (65535, true), // Maximum valid
-            (65536, false) // Just above maximum
+            (65536, false), // Just above maximum
         ]
 
         for (port, expectedValid) in boundaryTests {

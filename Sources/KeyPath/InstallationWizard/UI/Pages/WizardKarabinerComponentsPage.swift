@@ -18,7 +18,7 @@ struct WizardKarabinerComponentsPage: View {
             if !hasKarabinerIssues {
                 VStack(spacing: 0) {
                     Spacer()
-                    
+
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
                         // Green keyboard icon with green check overlay
@@ -28,7 +28,7 @@ struct WizardKarabinerComponentsPage: View {
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Green check overlay hanging off right edge
                             VStack {
                                 HStack {
@@ -44,21 +44,21 @@ struct WizardKarabinerComponentsPage: View {
                             }
                             .frame(width: 115, height: 115)
                         }
-                        
+
                         // Headline
                         Text("Karabiner Driver")
                             .font(.system(size: 23, weight: .semibold, design: .default))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                        
+
                         // Subtitle
                         Text("Virtual keyboard driver is installed & configured for input capture")
                             .font(.system(size: 17, weight: .regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
-                        
+
                         // Component details card below the subheading - horizontally centered
                         HStack {
                             Spacer()
@@ -98,7 +98,7 @@ struct WizardKarabinerComponentsPage: View {
                         .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
-                    
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -116,7 +116,7 @@ struct WizardKarabinerComponentsPage: View {
                                 .foregroundColor(WizardDesign.Colors.warning)
                                 .symbolRenderingMode(.hierarchical)
                                 .symbolEffect(.bounce, options: .nonRepeating)
-                            
+
                             // Warning overlay hanging off right edge
                             VStack {
                                 HStack {
@@ -207,7 +207,7 @@ struct WizardKarabinerComponentsPage: View {
                         .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                         .padding(.top, WizardDesign.Spacing.sectionGap)
-                        
+
                         // Check Status link
                         Button("Check Status") {
                             Task {
@@ -229,7 +229,7 @@ struct WizardKarabinerComponentsPage: View {
             // Bottom buttons - primary action changes based on state
             HStack {
                 Spacer()
-                
+
                 if hasKarabinerIssues {
                     // When issues exist, continue anyway as secondary
                     Button("Continue Anyway") {
@@ -245,7 +245,7 @@ struct WizardKarabinerComponentsPage: View {
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                 }
-                
+
                 Spacer()
             }
             .frame(maxWidth: .infinity)

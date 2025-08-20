@@ -107,26 +107,26 @@ class KanataConfigManager {
                 [
                     KeyMapping(input: "caps", output: "esc"),
                     KeyMapping(input: "tab", output: "lctl"),
-                    KeyMapping(input: "ralt", output: "rctl")
+                    KeyMapping(input: "ralt", output: "rctl"),
                 ]
             case .advanced:
                 [
                     KeyMapping(input: "caps", output: "esc"),
                     KeyMapping(input: "tab", output: "lctl"),
                     KeyMapping(input: "space", output: "spc"),
-                    KeyMapping(input: "return", output: "ret")
+                    KeyMapping(input: "return", output: "ret"),
                 ]
             case .vim:
                 [
                     KeyMapping(input: "caps", output: "esc"),
                     KeyMapping(input: "tab", output: "lctl"),
-                    KeyMapping(input: "semicolon", output: "colon")
+                    KeyMapping(input: "semicolon", output: "colon"),
                 ]
             case .emacs:
                 [
                     KeyMapping(input: "caps", output: "lctl"),
                     KeyMapping(input: "lalt", output: "lmeta"),
-                    KeyMapping(input: "ralt", output: "rmeta")
+                    KeyMapping(input: "ralt", output: "rmeta"),
                 ]
             }
         }
@@ -158,7 +158,8 @@ class KanataConfigManager {
 
     /// Create configuration from mappings
     func createConfiguration(mappings: [KeyMapping], source: ConfigMetadata.ConfigSource = .user)
-        -> ConfigurationSet {
+        -> ConfigurationSet
+    {
         AppLogger.shared.log("⚙️ [ConfigManager] Creating configuration with \(mappings.count) mappings")
 
         let generatedConfig = generateKanataConfig(mappings: mappings)

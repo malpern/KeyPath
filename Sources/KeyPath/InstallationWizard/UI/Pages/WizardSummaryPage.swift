@@ -60,11 +60,11 @@ struct WizardSummaryPage: View {
         }
         .background(WizardDesign.Colors.wizardBackground)
     }
-    
+
     // MARK: - Helper Properties
-    
+
     private var isEverythingComplete: Bool {
         // Check if system is active and running, meaning everything is properly configured
-        return systemState == .active && kanataManager.isRunning && issues.isEmpty
+        systemState == .active && kanataManager.isRunning && issues.isEmpty
     }
 }

@@ -1,6 +1,5 @@
 import AppKit
 import ApplicationServices
-import Cocoa
 import Foundation
 import IOKit
 
@@ -24,6 +23,7 @@ class PermissionService {
     }
 
     private var permissionCache: [String: CachedResult] = [:]
+    private let cacheQueue = DispatchQueue(label: "com.keypath.permission.cache", attributes: .concurrent)
 
     // MARK: - Permission Status Types
 
@@ -70,6 +70,52 @@ class PermissionService {
         }
     }
 
+    // MARK: - Helper Functions
+    
+    /// Trace permission grants for debugging
+    private static func traceGrant(_ source: String, details: String) {
+        AppLogger.shared.log("🧭 [PermissionTrace] GRANT via \(source): \(details)")
+    }
+    
+    /// Standardize a file path to its canonical form
+    private static func standardizedPath(_ path: String) -> String {
+        return URL(fileURLWithPath: path).standardizedFileURL.path
+    }
+    
+    /// Escape string for safe use in SQLite queries
+    private static func escapeForSQLite(_ s: String) -> String {
+        return s.replacingOccurrences(of: "'", with: "''")
+    }
+    
+    /// Check if a binary is the kanata executable
+    private static func isKanataBinary(at path: String) -> Bool {
+        return URL(fileURLWithPath: path).lastPathComponent == "kanata"
+    }
+    
+    /// Get the code signature identifier for a binary
+    private static func codeSignatureIdentifier(at path: String) -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        task.arguments = ["-dv", path]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe // codesign outputs to stderr
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            guard let output = String(data: data, encoding: .utf8) else { return nil }
+            // Parse "Identifier=com.example.kanata" line
+            if let line = output.split(separator: "\n").first(where: { $0.contains("Identifier=") }) {
+                return line.split(separator: "=").dropFirst().joined(separator: "=").trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        } catch {
+            AppLogger.shared.log("⚠️ [PermissionService] Failed to get code signature identifier: \(error)")
+        }
+        return nil
+    }
+    
     // MARK: - Public API
 
     /// Check permissions for both KeyPath app and kanata binary
@@ -134,12 +180,13 @@ class PermissionService {
     /// Check Input Monitoring permission without triggering any system APIs that could
     /// automatically add the app to Input Monitoring preferences
     private func checkInputMonitoringNonInvasively() -> Bool {
-        // Method 1: Check if kanata service is running successfully
-        // If kanata is running without permission errors, KeyPath likely has permission
-        if isKanataProcessRunning(), !Self.hasRecentPermissionErrors() {
-            AppLogger.shared.log("🔐 [PermissionService] Kanata running without errors - assuming permission granted")
-            return true
-        }
+        // IMPORTANT: We cannot assume that kanata running = input monitoring permission granted
+        // Kanata can run without Input Monitoring permission, it just won't capture any keys.
+        // We need to be more conservative here.
+        
+        // Method 1: Check if we have recent successful key captures
+        // This would indicate real input monitoring capability
+        // For now, skip this check as it's unreliable
 
         // Method 2: Check if we've previously cached a successful permission grant
         // This helps avoid repeated requests after the user has granted permission
@@ -185,7 +232,10 @@ class PermissionService {
 
     /// Check permissions for the current process's binary
     private func checkKeyPathInputMonitoring() -> Bool {
-        hasInputMonitoringPermission()
+        // For KeyPath app itself, we should check the TCC database directly
+        // instead of using the conservative non-invasive check
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
+        return Self.checkTCCForInputMonitoring(path: bundleIdentifier)
     }
 
     /// Check accessibility for the current process
@@ -238,7 +288,7 @@ class PermissionService {
 
     /// Request accessibility permission for KeyPath (shows system dialog)
     static func requestAccessibilityPermission() {
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true]
+        let options: CFDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
     }
 
@@ -280,11 +330,10 @@ class PermissionService {
         }
 
         // Check for multiple kanata processes which might indicate permission confusion
-        // Note: This is a simplified check - ideally would use ProcessLifecycleManager.detectConflicts()
-        // but that's an async method. For now, just check if kanata is running at all.
+        // Use direct pgrep call without shell to avoid injection risks
         let task = Process()
-        task.launchPath = "/bin/sh"
-        task.arguments = ["-c", "pgrep -x kanata | wc -l"]
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-x", "kanata"]
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = Pipe()
@@ -292,7 +341,7 @@ class PermissionService {
         do {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 task.terminationHandler = { _ in
-                    continuation.resume()
+                    continuation.resume(returning: ())  // Fixed: provide return value
                 }
                 do {
                     try task.run()
@@ -302,10 +351,12 @@ class PermissionService {
             }
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8),
-               let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)),
-               count > 1 {
-                indicators.append("Multiple kanata processes detected (\(count) running)")
+            if let output = String(data: data, encoding: .utf8) {
+                let pids = output.split(whereSeparator: \.isNewline).filter { !$0.isEmpty }
+                let count = pids.count
+                if count > 1 {
+                    indicators.append("Multiple kanata processes detected (\(count) running)")
+                }
             }
         } catch {
             // Ignore errors in detection
@@ -321,7 +372,7 @@ class PermissionService {
                 "/Applications/KeyPath.app",
                 "\(homeDir)/Applications/KeyPath.app",
                 "\(homeDir)/Desktop/KeyPath.app",
-                "\(homeDir)/Downloads/KeyPath.app"
+                "\(homeDir)/Downloads/KeyPath.app",
             ]
 
             for oldPath in possibleOldPaths {
@@ -348,7 +399,8 @@ class PermissionService {
     /// Open System Settings directly to Input Monitoring
     static func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -356,7 +408,8 @@ class PermissionService {
     /// Open System Settings directly to Accessibility
     static func openAccessibilitySettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -371,7 +424,13 @@ class PermissionService {
             return hasAccess
         }
 
-        // For other binaries (like kanata), use API-based permission checking
+        // For other binaries, check TCC database first
+        if let allowed = checkTCCDatabase(for: path, service: "kTCCServiceAccessibility") {
+            AppLogger.shared.log("🔐 [PermissionService] TCC DB Accessibility for \(path): \(allowed)")
+            return allowed
+        }
+        
+        // Fallback heuristic if TCC DB is not accessible
         return checkBinaryPermission(for: path, service: "Accessibility")
     }
 
@@ -386,7 +445,16 @@ class PermissionService {
             return PermissionService.shared.checkInputMonitoringNonInvasively()
         }
 
-        // For other binaries (like kanata), use API-based permission checking
+        // For other binaries, check TCC database first
+        if let allowed = checkTCCDatabase(for: path, service: "kTCCServiceListenEvent") {
+            AppLogger.shared.log("🔐 [PermissionService] TCC DB ListenEvent for \(path): \(allowed)")
+            if allowed {
+                traceGrant("TCC", details: "ListenEvent allowed for client \(path)")
+            }
+            return allowed
+        }
+        
+        // Fallback heuristic if TCC DB is not accessible
         return checkBinaryPermission(for: path, service: "InputMonitoring")
     }
 
@@ -413,13 +481,15 @@ class PermissionService {
 
     /// Check Input Monitoring permission for a binary by testing its capabilities
     private static func checkInputMonitoringForBinary(at path: String) -> Bool {
-        // For kanata, we can check if it can successfully initialize without permission errors
-        if path.contains("kanata") {
+        if isKanataBinary(at: path) {
+            // Try TCC DB first
+            if let allowed = checkTCCDatabase(for: path, service: "kTCCServiceListenEvent") {
+                return allowed
+            }
+            // Conservative fallback
             return testKanataInputAccess(at: path)
         }
-
-        // For other binaries, we can't reliably test without running them
-        // Return false to be safe
+        
         AppLogger.shared.log(
             "🔐 [PermissionService] Cannot check Input Monitoring for non-kanata binary: \(path)")
         return false
@@ -427,63 +497,120 @@ class PermissionService {
 
     /// Check Accessibility permission for a binary
     private static func checkAccessibilityForBinary(at path: String) -> Bool {
-        // Similar to Input Monitoring, we can't check other processes' accessibility permissions
-        // without running them. For kanata, assume it needs both permissions together.
-        if path.contains("kanata") {
-            // If kanata has Input Monitoring, it likely has Accessibility too
-            // (they're usually granted together for keyboard remappers)
-            return testKanataInputAccess(at: path)
+        if isKanataBinary(at: path) {
+            // Try TCC DB first (using correct service for Accessibility)
+            if let allowed = checkTCCDatabase(for: path, service: "kTCCServiceAccessibility") {
+                return allowed
+            }
+            // Conservative fallback - check if service is functional
+            // Note: This is less reliable but better than nothing
+            return testKanataAccessibilityAccess(at: path)
         }
-
+        
+        return false
+    }
+    
+    /// Test if kanata has Accessibility permission specifically
+    private static func testKanataAccessibilityAccess(at path: String) -> Bool {
+        // Check TCC database for Accessibility service
+        if let allowed = checkTCCDatabase(for: path, service: "kTCCServiceAccessibility") {
+            AppLogger.shared.log("🔐 [PermissionService] TCC database check for kanata (Accessibility): \(allowed)")
+            return allowed
+        }
+        
+        // Conservative default: assume no permission
+        AppLogger.shared.log("🔐 [PermissionService] Cannot verify kanata Accessibility permission - assuming not granted")
         return false
     }
 
-    /// Test if kanata has the necessary permissions by checking if the service is running successfully
-    private static func testKanataInputAccess(at _: String) -> Bool {
-        // Check if kanata service is currently running and healthy
-        // If it's running without permission errors, it likely has the required permissions
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-f", "kanata.*--cfg.*keypath.kbd"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe()
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let pids = output.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            let isRunning = task.terminationStatus == 0 && !pids.isEmpty
-
-            if isRunning {
-                // If kanata is running, check the log for recent permission errors
-                return !hasRecentPermissionErrors()
-            } else {
-                // If not running, check if it's supposed to be running (LaunchDaemon exists)
-                // and if there are recent permission errors in logs
-                if hasRecentPermissionErrors() {
-                    AppLogger.shared.log(
-                        "🔐 [PermissionService] Kanata not running but permission errors found in logs")
-                    return false
-                } else {
-                    // If not running and no recent errors, we can't determine permission status
-                    // Default to requiring permission grant to be safe
-                    AppLogger.shared.log(
-                        "🔐 [PermissionService] Kanata not running - cannot determine permission status")
-                    return false
+    /// Test if kanata has the necessary permissions by checking TCC database
+    private static func testKanataInputAccess(at path: String) -> Bool {
+        // IMPORTANT: We cannot reliably determine if kanata has Input Monitoring permission
+        // just by checking if it's running. Kanata can run without permission but won't
+        // capture any keys.
+        
+        // The only reliable way to check is through the TCC database, but that requires
+        // Full Disk Access. Without it, we should be conservative.
+        
+        // Try to check the TCC database directly
+        let hasTCCAccess = checkTCCDatabase(for: path, service: "kTCCServiceListenEvent")
+        if hasTCCAccess != nil {
+            AppLogger.shared.log("🔐 [PermissionService] TCC database check for kanata: \(hasTCCAccess!)")
+            return hasTCCAccess!
+        }
+        
+        // If we can't check TCC database, look for specific indicators
+        // Check if kanata is in the process of capturing keys successfully
+        if isKanataCapturingKeys() {
+            AppLogger.shared.log("🔐 [PermissionService] Kanata appears to be capturing keys successfully")
+            return true
+        }
+        
+        // Conservative default: assume no permission
+        AppLogger.shared.log("🔐 [PermissionService] Cannot verify kanata Input Monitoring permission - assuming not granted")
+        return false
+    }
+    
+    /// Check if kanata is actively capturing keys (by checking TCP layer info or logs)
+    private static func isKanataCapturingKeys() -> Bool {
+        // Check if we can connect to kanata TCP server and it reports active layers
+        // This would indicate it's actually processing key events
+        
+        // For now, return false to be conservative
+        // TODO: Implement actual TCP check for layer state
+        return false
+    }
+    
+    /// Try to check TCC database directly (requires Full Disk Access)
+    private static func checkTCCDatabase(for path: String, service: String) -> Bool? {
+        let stdPath = standardizedPath(path)
+        let escapedService = escapeForSQLite(service)
+        let escapedPath = escapeForSQLite(stdPath)
+        var candidates: [String] = [escapedPath]
+        
+        // Try to get code signature identifier as an alternative client ID
+        // Prefer path for CLI binaries like kanata, check identifier second
+        if let identifier = codeSignatureIdentifier(at: stdPath) {
+            candidates.append(escapeForSQLite(identifier))
+        }
+        
+        // Check both user and system TCC databases
+        let userDB = NSHomeDirectory().appending("/Library/Application Support/com.apple.TCC/TCC.db")
+        let systemDB = "/Library/Application Support/com.apple.TCC/TCC.db"
+        let dbs = [userDB, systemDB]
+        
+        for db in dbs where FileManager.default.fileExists(atPath: db) {
+            for client in candidates {
+                // ORDER BY last_modified DESC covers multiple entries; LIMIT 1 is fast
+                let sql = "SELECT allowed FROM access WHERE service='\(escapedService)' AND client='\(client)' AND allowed=1 ORDER BY last_modified DESC LIMIT 1;"
+                
+                let task = Process()
+                task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+                task.arguments = ["-readonly", db, sql]
+                let pipe = Pipe()
+                task.standardOutput = pipe
+                task.standardError = Pipe()
+                
+                do {
+                    try task.run()
+                    task.waitUntilExit()
+                    if task.terminationStatus == 0 {
+                        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                        let output = String(data: data, encoding: .utf8) ?? ""
+                        if output.contains("1") {
+                            AppLogger.shared.log("🔐 [PermissionService] TCC DB: Found permission for \(service) at \(db) for client \(client)")
+                            return true
+                        }
+                    }
+                } catch {
+                    // Most likely no FDA or access denied; continue trying other DBs/clients
+                    AppLogger.shared.log("🔐 [PermissionService] TCC DB not accessible at \(db): \(error.localizedDescription)")
                 }
             }
-
-        } catch {
-            AppLogger.shared.log("⚠️ [PermissionService] Failed to check kanata process: \(error)")
-            return false
         }
+        
+        // Could not determine (no FDA or no matching client rows)
+        return nil
     }
 
     // MARK: - Enhanced Functional Verification
@@ -539,12 +666,10 @@ class PermissionService {
             confidence = .high
             AppLogger.shared.log("🔍 [PermissionService] Log analysis found permission errors - marking as failed")
         } else if serviceAnalysis.serviceIsRunning {
-            // Service running without permission errors suggests permissions are OK
-            inputMonitoring = true
-            accessibility = true
-            verificationMethod = "service_running_no_errors"
-            confidence = .medium
-            AppLogger.shared.log("🔍 [PermissionService] Service running without permission errors - assuming permissions granted")
+            // Do NOT infer permissions solely from service presence or lack of errors in logs.
+            verificationMethod = "service_running_no_errors_but_no_permission_evidence"
+            confidence = .unknown
+            AppLogger.shared.log("🔍 [PermissionService] Service running, but not inferring permissions without positive evidence")
         }
 
         // Method 2: If service not running, try direct binary test (careful not to interfere)
@@ -614,7 +739,7 @@ class PermissionService {
         let logPaths = [
             "/var/log/kanata.log",
             "/tmp/kanata.log",
-            "/usr/local/var/log/kanata.log"
+            "/usr/local/var/log/kanata.log",
         ]
 
         var hasPermissionErrors = false
@@ -666,7 +791,7 @@ class PermissionService {
             (pattern: "iokit/common.*not permitted", description: "IOKit access denied"),
             (pattern: "TCC.*denied", description: "Transparency, Consent, and Control (TCC) access denied"),
             (pattern: "Device creation failed", description: "Virtual device creation failed - may need Accessibility permission"),
-            (pattern: "Could not grab device", description: "Cannot grab input device - permission issue")
+            (pattern: "Could not grab device", description: "Cannot grab input device - permission issue"),
         ]
 
         let lines = output.components(separatedBy: .newlines)
@@ -677,7 +802,8 @@ class PermissionService {
 
             for (pattern, description) in permissionPatterns {
                 if lowerLine.contains(pattern.lowercased()) ||
-                    line.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil {
+                    line.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+                {
                     hasPermissionErrors = true
                     let errorDetail = "\(description) (from \(logPath))"
                     if !errorDetails.contains(errorDetail) {
@@ -732,16 +858,14 @@ class PermissionService {
 
         // Test 1: Try to run kanata with --check flag (doesn't interfere with running service)
         let checkResult = testKanataConfigCheck(at: binaryPath)
-        if checkResult.configCheckPassed {
-            canAccessInput = true
-            canAccessSystem = true
-            confidence = .medium
-            AppLogger.shared.log("🔍 [PermissionService] Kanata config check passed - permissions likely OK")
-        } else if checkResult.hasPermissionErrors {
+        if checkResult.hasPermissionErrors {
             hasErrors = true
             errorDetails.append(contentsOf: checkResult.errorDetails)
             confidence = .high
-            AppLogger.shared.log("🔍 [PermissionService] Kanata config check failed with permission errors")
+            AppLogger.shared.log("🔍 [PermissionService] Kanata config check shows permission errors")
+        } else {
+            // Config check passing does not imply Input Monitoring or Accessibility.
+            AppLogger.shared.log("🔍 [PermissionService] Kanata config check passed; not treating as permission evidence")
         }
 
         // Test 2: If binary exists, check if it's signed and trusted
@@ -884,8 +1008,11 @@ class PermissionService {
 
     /// Clear the permission cache (useful after user grants permissions)
     func clearCache() {
-        permissionCache.removeAll()
-        AppLogger.shared.log("🔐 [PermissionService] Permission cache cleared")
+        cacheQueue.async(flags: .barrier) {
+            self.permissionCache.removeAll()
+            self.functionalCache.removeAll()
+        }
+        AppLogger.shared.log("🔐 [PermissionService] Permission caches cleared")
     }
 
     /// Mark that Input Monitoring permission has been granted by the user

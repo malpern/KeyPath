@@ -79,7 +79,8 @@ class SystemStatusChecker {
         // Check cache first
         if let cached = cachedStateResult,
            let timestamp = cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < cacheValidDuration {
+           Date().timeIntervalSince(timestamp) < cacheValidDuration
+        {
             AppLogger.shared.log("🔍 [SystemStatusChecker] Returning cached state (age: \(String(format: "%.1f", Date().timeIntervalSince(timestamp)))s)")
             return cached
         }
@@ -220,7 +221,8 @@ class SystemStatusChecker {
         // Only grant permissions if functional verification is confident they work
         if functionalVerification.hasInputMonitoring &&
             functionalVerification.confidence != .low &&
-            functionalVerification.confidence != .unknown {
+            functionalVerification.confidence != .unknown
+        {
             granted.append(.kanataInputMonitoring)
         } else {
             missing.append(.kanataInputMonitoring)
@@ -230,7 +232,8 @@ class SystemStatusChecker {
 
         if functionalVerification.hasAccessibility &&
             functionalVerification.confidence != .low &&
-            functionalVerification.confidence != .unknown {
+            functionalVerification.confidence != .unknown
+        {
             granted.append(.kanataAccessibility)
         } else {
             missing.append(.kanataAccessibility)
@@ -451,7 +454,8 @@ class SystemStatusChecker {
     }
 
     private func convertToSystemConflicts(_ processes: [ProcessLifecycleManager.ProcessInfo])
-        -> [SystemConflict] {
+        -> [SystemConflict]
+    {
         // With PID file tracking, all external processes are conflicts
         // The ProcessLifecycleManager already filtered out our owned process
         processes.map { process in
@@ -565,7 +569,8 @@ class SystemStatusChecker {
 
         // Check if VHIDDevice Manager needs activation
         if components.missing.contains(.vhidDeviceActivation),
-           components.installed.contains(.vhidDeviceManager) {
+           components.installed.contains(.vhidDeviceManager)
+        {
             actions.append(.activateVHIDDeviceManager)
         }
 
@@ -725,7 +730,7 @@ class SystemStatusChecker {
                 description: "Kanata binary needs Input Monitoring permission to intercept keystrokes.",
                 autoFixAction: nil,
                 userAction: "Grant permission in System Settings > Privacy & Security > Input Monitoring"
-            )
+            ),
         ]
 
         return SystemStateResult(

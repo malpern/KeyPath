@@ -430,7 +430,7 @@ final class TCPIntegrationTests: XCTestCase {
         await mockTCPServer.setValidationResponse(
             success: false,
             errors: [
-                MockValidationError(line: 1, column: 1, message: "Invalid configuration")
+                MockValidationError(line: 1, column: 1, message: "Invalid configuration"),
             ]
         )
 
@@ -475,7 +475,7 @@ final class TCPIntegrationTests: XCTestCase {
         // 4. User creates key mapping
         let mappings = [
             KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "space", output: "tab")
+            KeyMapping(input: "space", output: "tab"),
         ]
 
         // 5. Save configuration (includes TCP validation)
@@ -616,7 +616,7 @@ final class TCPIntegrationTests: XCTestCase {
             "Label": "com.keypath.kanata",
             "ProgramArguments": arguments,
             "RunAtLoad": true,
-            "KeepAlive": true
+            "KeepAlive": true,
         ]
 
         return try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)

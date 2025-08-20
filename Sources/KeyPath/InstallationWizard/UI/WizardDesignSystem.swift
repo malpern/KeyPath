@@ -194,6 +194,7 @@ enum WizardDesign {
     }
 
     // MARK: - Symbol Effects
+
     // Note: Symbol effects are used directly in components due to Swift type system constraints
 
     // MARK: - Transitions
@@ -201,10 +202,10 @@ enum WizardDesign {
     enum Transition {
         /// Card appearance from top
         static let cardAppear: AnyTransition = .opacity.combined(with: .move(edge: .top))
-        
+
         /// Overlay icon changes
         static let overlayChange: AnyTransition = .opacity.combined(with: .scale(scale: 0.8))
-        
+
         /// Technical details expansion
         static let detailsExpand: AnyTransition = .asymmetric(
             insertion: .move(edge: .top).combined(with: .opacity),
@@ -382,7 +383,7 @@ enum WizardDesign {
 
             enum HeroStatus {
                 case success(Color = WizardDesign.Colors.success)
-                case warning(Color = WizardDesign.Colors.warning)  
+                case warning(Color = WizardDesign.Colors.warning)
                 case error(Color = WizardDesign.Colors.error)
                 case info(Color = WizardDesign.Colors.info)
 
@@ -463,7 +464,7 @@ enum WizardDesign {
                                         Text("•")
                                             .foregroundColor(.secondary)
                                     }
-                                    
+
                                     Button(link.title) {
                                         link.action()
                                     }
@@ -561,8 +562,8 @@ enum WizardDesign {
                                 .font(.system(size: size.overlaySize, weight: .medium))
                                 .foregroundColor(overlayColor)
                                 .background(
-                                    transparentOverlay 
-                                        ? Color.clear 
+                                    transparentOverlay
+                                        ? Color.clear
                                         : WizardDesign.Colors.wizardBackground
                                 )
                                 .clipShape(Circle())
