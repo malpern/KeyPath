@@ -4,6 +4,9 @@ import SwiftUI
 struct InstallationWizardView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataManager: KanataManager
+    
+    // Optional initial page to navigate to
+    var initialPage: WizardPage? = nil
 
     // New architecture components
     @StateObject private var stateManager = WizardStateManager()
@@ -273,6 +276,12 @@ struct InstallationWizardView: View {
 
         // Always reset navigation state for fresh run
         navigationCoordinator.navigationEngine.resetNavigationState()
+        
+        // If an initial page was specified, navigate to it
+        if let initialPage = initialPage {
+            AppLogger.shared.log("🔍 [NewWizard] Navigating to initial page: \(initialPage)")
+            navigationCoordinator.navigateToPage(initialPage)
+        }
 
         // Configure state manager
         stateManager.configure(kanataManager: kanataManager)

@@ -129,6 +129,30 @@ class SimpleKanataManager: ObservableObject {
         AppLogger.shared.log("🤫 [SimpleKanataManager] ========== QUIET START COMPLETE ==========")
     }
 
+    /// Show wizard specifically for Input Monitoring permission flow
+    @MainActor
+    func showWizardForInputMonitoring() async {
+        AppLogger.shared.log("🔐 [SimpleKanataManager] Showing wizard for Input Monitoring restart")
+        
+        // Log to file for debugging
+        let logPath = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/wizard-restart.log"
+        let logEntry = """
+        [\(Date())] SimpleKanataManager.showWizardForInputMonitoring called
+          - Setting showWizard = true
+        
+        """
+        if let data = logEntry.data(using: .utf8),
+           let fileHandle = FileHandle(forWritingAtPath: logPath) {
+            fileHandle.seekToEndOfFile()
+            fileHandle.write(data)
+            fileHandle.closeFile()
+        }
+        
+        showWizard = true
+        // Force UI update
+        objectWillChange.send()
+    }
+    
     /// Manual start requested by user (from wizard)
     func manualStart() async {
         AppLogger.shared.log("👤 [SimpleKanataManager] Manual start requested by user")

@@ -83,9 +83,15 @@ struct ContentView: View {
                 }
             )
         ) {
-            InstallationWizardView()
+            // Pass initial page if we're returning from Input Monitoring
+            let pendingInputMonitoring = UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring")
+            InstallationWizardView(initialPage: pendingInputMonitoring ? .inputMonitoring : nil)
                 .onAppear {
                     AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
+                    // Clear the flag after using it
+                    if pendingInputMonitoring {
+                        UserDefaults.standard.removeObject(forKey: "wizard_return_to_input_monitoring")
+                    }
                 }
                 .onDisappear {
                     // When wizard closes, call SimpleKanataManager to handle the closure
@@ -104,20 +110,41 @@ struct ContentView: View {
             AppLogger.shared.log(
                 "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(simpleKanataManager.showWizard)"
             )
+            
+            // Check if we're returning from Input Monitoring settings
+            let isReturningFromInputMonitoring = checkForPendingInputMonitoringWizard()
 
             // Set up notification handlers for recovery actions
             setupRecoveryActionHandlers()
 
-            // Start the auto-launch sequence
-            Task {
-                AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
-                await simpleKanataManager.startAutoLaunch()
-                AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
+            // Start the auto-launch sequence ONLY if we're not returning from Input Monitoring
+            // Otherwise the auto-launch will reset showWizard to false
+            if !isReturningFromInputMonitoring {
+                Task {
+                    AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
+                    await simpleKanataManager.startAutoLaunch()
+                    AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
                 AppLogger.shared.log(
                     "✅ [ContentView] Post auto-launch - showWizard: \(simpleKanataManager.showWizard)")
                 AppLogger.shared.log(
                     "✅ [ContentView] Post auto-launch - currentState: \(simpleKanataManager.currentState.rawValue)"
                 )
+                }
+            } else {
+                AppLogger.shared.log("🔐 [ContentView] Skipping auto-launch - returning from Input Monitoring")
+                
+                // Log to file for debugging
+                let logPath = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/wizard-restart.log"
+                let logEntry = """
+                [\(Date())] SKIPPING auto-launch (would reset wizard flag)
+                
+                """
+                if let data = logEntry.data(using: .utf8),
+                   let fileHandle = FileHandle(forWritingAtPath: logPath) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                }
             }
 
             if !hasCheckedRequirements {
@@ -223,6 +250,96 @@ struct ContentView: View {
 
     // Status monitoring functions removed - now handled centrally by SimpleKanataManager
 
+    /// Check if we're returning from granting Input Monitoring permission
+    /// Returns true if we detected a pending wizard restart, false otherwise
+    @discardableResult
+    private func checkForPendingInputMonitoringWizard() -> Bool {
+        let pendingInputMonitoring = UserDefaults.standard.bool(forKey: "wizard_pending_input_monitoring")
+        let timestamp = UserDefaults.standard.double(forKey: "wizard_input_monitoring_timestamp")
+        
+        // Log to file for debugging
+        let logPath = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/wizard-restart.log"
+        let logEntry = """
+        [\(Date())] APP RESTART - Checking for pending wizard:
+          - pendingInputMonitoring: \(pendingInputMonitoring)
+          - timestamp: \(timestamp)
+          - current time: \(Date().timeIntervalSince1970)
+        
+        """
+        
+        if let data = logEntry.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: logPath) {
+                if let fileHandle = FileHandle(forWritingAtPath: logPath) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                }
+            } else {
+                try? data.write(to: URL(fileURLWithPath: logPath))
+            }
+        }
+        
+        if pendingInputMonitoring && timestamp > 0 {
+            let date = Date(timeIntervalSince1970: timestamp)
+            let timeSince = Date().timeIntervalSince(date)
+            
+            // If it's been less than 5 minutes, assume we're returning from System Settings
+            if timeSince < 300 {
+                // Log detection to file
+                let detectEntry = """
+                [\(Date())] DETECTED return from Input Monitoring:
+                  - time since: \(Int(timeSince))s
+                  - Will reopen wizard in 1 second
+                
+                """
+                if let data = detectEntry.data(using: .utf8),
+                   let fileHandle = FileHandle(forWritingAtPath: logPath) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                }
+                
+                // Clear the flags
+                UserDefaults.standard.removeObject(forKey: "wizard_pending_input_monitoring")
+                UserDefaults.standard.removeObject(forKey: "wizard_input_monitoring_timestamp")
+                UserDefaults.standard.synchronize()
+                
+                // Reopen the wizard after a brief delay to ensure everything is initialized
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    // Log reopening to file
+                    let reopenEntry = """
+                    [\(Date())] REOPENING wizard to Input Monitoring page
+                    
+                    """
+                    if let data = reopenEntry.data(using: .utf8),
+                       let fileHandle = FileHandle(forWritingAtPath: logPath) {
+                        fileHandle.seekToEndOfFile()
+                        fileHandle.write(data)
+                        fileHandle.closeFile()
+                    }
+                    
+                    // Set flag to navigate to Input Monitoring page
+                    UserDefaults.standard.set(true, forKey: "wizard_return_to_input_monitoring")
+                    
+                    // IMPORTANT: We need to trigger the wizard through SimpleKanataManager
+                    // since it controls the sheet binding
+                    Task {
+                        await simpleKanataManager.showWizardForInputMonitoring()
+                    }
+                }
+                return true  // We detected and are handling the Input Monitoring restart
+            } else {
+                // Too much time has passed, clear the flags
+                AppLogger.shared.log("🔐 [ContentView] Input Monitoring wizard state expired (\\(Int(timeSince))s old)")
+                UserDefaults.standard.removeObject(forKey: "wizard_pending_input_monitoring")
+                UserDefaults.standard.removeObject(forKey: "wizard_input_monitoring_timestamp")
+                UserDefaults.standard.synchronize()
+                return false
+            }
+        }
+        return false  // No pending Input Monitoring wizard
+    }
+    
     /// Set up notification handlers for recovery actions
     private func setupRecoveryActionHandlers() {
         // Handle opening installation wizard

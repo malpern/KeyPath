@@ -232,10 +232,60 @@ class PermissionService {
 
     /// Check permissions for the current process's binary
     private func checkKeyPathInputMonitoring() -> Bool {
-        // For KeyPath app itself, we should check the TCC database directly
-        // instead of using the conservative non-invasive check
+        // For KeyPath app itself, we need to check both bundle ID and app path
+        // since different builds might have different identifiers in TCC
         let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
-        return Self.checkTCCForInputMonitoring(path: bundleIdentifier)
+        let appPath = Bundle.main.bundlePath
+        
+        AppLogger.shared.log("🔐 [PermissionService] Checking KeyPath Input Monitoring:")
+        AppLogger.shared.log("  - Bundle ID: \(bundleIdentifier)")
+        AppLogger.shared.log("  - App Path: \(appPath)")
+        
+        // Check bundle identifier first
+        let bundleIdCheck = Self.checkTCCForInputMonitoring(path: bundleIdentifier)
+        AppLogger.shared.log("  - Bundle ID check: \(bundleIdCheck)")
+        if bundleIdCheck { return true }
+        
+        // Also check the app path (for development builds)
+        let appPathCheck = Self.checkTCCForInputMonitoring(path: appPath)
+        AppLogger.shared.log("  - App path check: \(appPathCheck)")
+        if appPathCheck { return true }
+        
+        // As a fallback, try the alternate bundle identifier seen in TCC
+        let altIdCheck = Self.checkTCCForInputMonitoring(path: "com.intelligencetest.KeyPath")
+        AppLogger.shared.log("  - Alt ID check: \(altIdCheck)")
+        if altIdCheck { return true }
+        
+        // Final check: try the runtime API (may trigger permission request)
+        // This is more reliable than TCC database for the current process
+        let runtimeCheck = checkInputMonitoringRuntimeAPI()
+        AppLogger.shared.log("  - Runtime API check: \(runtimeCheck)")
+        
+        return runtimeCheck
+    }
+    
+    /// Check Input Monitoring using runtime API (may trigger permission prompt)
+    private func checkInputMonitoringRuntimeAPI() -> Bool {
+        // Try to create a CGEventTap to test if we have permission
+        // This will return nil if permission is not granted
+        let eventTap = CGEvent.tapCreate(
+            tap: .cghidEventTap,
+            place: .headInsertEventTap,
+            options: .listenOnly,
+            eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
+            callback: { (proxy, type, event, refcon) in
+                return Unmanaged.passRetained(event)
+            },
+            userInfo: nil
+        )
+        
+        if let tap = eventTap {
+            CFMachPortInvalidate(tap)
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0), .commonModes)
+            return true
+        }
+        
+        return false
     }
 
     /// Check accessibility for the current process
