@@ -13,7 +13,7 @@ let tcpError = NSError(domain: "KeyPath", code: -1, userInfo: [NSLocalizedDescri
 
 // Simulate the enhanced error system  
 let errorString = tcpError.localizedDescription.lowercased()
-if (errorString.contains("tcp") && errorString.contains("timeout")) || 
+if (errorString.contains("tcp") && errorString.contains("timeout")) ||
    errorString.contains("tcp request timed out") ||
    errorString.contains("tcp communication failed") {
     print("✅ TCP timeout error correctly detected")

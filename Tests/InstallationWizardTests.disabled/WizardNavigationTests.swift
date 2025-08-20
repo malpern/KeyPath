@@ -23,7 +23,7 @@ final class WizardNavigationTests: XCTestCase {
             TestCase(
                 issues: [
                     createIssue(.conflict(.karabinerGrabberRunning(pid: 123)), severity: .critical),
-                    createIssue(.permission(.kanataInputMonitoring), severity: .critical)
+                    createIssue(.permission(.kanataInputMonitoring), severity: .critical),
                 ],
                 expectedPage: .conflicts,
                 description: "Conflicts should be handled before permissions"
@@ -31,7 +31,7 @@ final class WizardNavigationTests: XCTestCase {
             TestCase(
                 issues: [
                     createIssue(.permission(.kanataInputMonitoring), severity: .critical),
-                    createIssue(.component(.kanataBinary), severity: .error)
+                    createIssue(.component(.kanataBinary), severity: .error),
                 ],
                 expectedPage: .inputMonitoring,
                 description: "Critical permissions before component errors"
@@ -39,7 +39,7 @@ final class WizardNavigationTests: XCTestCase {
             TestCase(
                 issues: [
                     createIssue(.component(.kanataBinary), severity: .error),
-                    createIssue(.component(.karabinerDriver), severity: .warning)
+                    createIssue(.component(.karabinerDriver), severity: .warning),
                 ],
                 expectedPage: .kanataComponents,
                 description: "Component errors should navigate to components page"
@@ -47,7 +47,7 @@ final class WizardNavigationTests: XCTestCase {
             TestCase(
                 issues: [
                     createIssue(.daemon, severity: .warning),
-                    createIssue(.daemon, severity: .info)
+                    createIssue(.daemon, severity: .info),
                 ],
                 expectedPage: .service,
                 description: "Service issues should navigate to service page"
@@ -56,7 +56,7 @@ final class WizardNavigationTests: XCTestCase {
                 issues: [],
                 expectedPage: .summary,
                 description: "No issues should stay on summary"
-            )
+            ),
         ]
 
         for testCase in testCases {
@@ -123,7 +123,7 @@ final class WizardNavigationTests: XCTestCase {
                 toPage: .inputMonitoring,
                 systemState: .missingPermissions(missing: []),
                 shouldAllow: true // Can always go to permissions
-            )
+            ),
         ]
 
         for test in tests {
@@ -314,7 +314,7 @@ final class WizardNavigationTests: XCTestCase {
         // Test close with critical issues
         let criticalIssues = [
             createIssue(.permission(.kanataInputMonitoring), severity: .critical),
-            createIssue(.component(.kanataBinary), severity: .critical)
+            createIssue(.component(.kanataBinary), severity: .critical),
         ]
 
         let shouldConfirm = coordinator.shouldConfirmClose(withIssues: criticalIssues)
@@ -322,7 +322,7 @@ final class WizardNavigationTests: XCTestCase {
 
         // Test close without critical issues
         let minorIssues = [
-            createIssue(.service(.tcpServerNotResponding), severity: .warning)
+            createIssue(.service(.tcpServerNotResponding), severity: .warning),
         ]
 
         let shouldNotConfirm = coordinator.shouldConfirmClose(withIssues: minorIssues)

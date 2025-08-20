@@ -12,7 +12,7 @@ final class WizardAutoFixTests: XCTestCase {
         mockManager.mockConflictingProcesses = [
             ProcessLifecycleManager.ProcessInfo(pid: 1001, command: "karabiner"),
             ProcessLifecycleManager.ProcessInfo(pid: 1002, command: "kanata --cfg /other/path"),
-            ProcessLifecycleManager.ProcessInfo(pid: 1003, command: "other-key-remapper")
+            ProcessLifecycleManager.ProcessInfo(pid: 1003, command: "other-key-remapper"),
         ]
 
         let autoFixer = WizardAutoFixer(
@@ -228,7 +228,7 @@ final class WizardAutoFixTests: XCTestCase {
             .installMissingComponents,
             .createConfigDirectories,
             .installLaunchDaemonServices,
-            .restartUnhealthyServices
+            .restartUnhealthyServices,
         ]
 
         var results: [Bool] = []

@@ -1,11 +1,11 @@
-import SwiftUI
 import Foundation
+import SwiftUI
 
 /// Enhanced error handling system with persistent display and recovery actions
 struct EnhancedErrorHandler: View {
     @Binding var errorInfo: ErrorInfo?
     @State private var isExecutingRecovery = false
-    
+
     var body: some View {
         if let error = errorInfo {
             ErrorDisplayCard(
@@ -18,11 +18,11 @@ struct EnhancedErrorHandler: View {
             )
         }
     }
-    
+
     private func executeRecoveryAction(_ action: RecoveryAction) async {
         isExecutingRecovery = true
         defer { isExecutingRecovery = false }
-        
+
         do {
             let success = try await action.execute()
             if success {
@@ -49,26 +49,26 @@ struct ErrorInfo: Identifiable {
     let detailedMessage: String
     let recoveryActions: [RecoveryAction]
     var recoveryFailures: [Error] = []
-    
+
     mutating func addRecoveryFailure(_ error: Error) {
         recoveryFailures.append(error)
     }
-    
+
     /// Create ErrorInfo from various error types with appropriate recovery actions
     static func from(_ error: Error) -> ErrorInfo {
         let errorString = error.localizedDescription.lowercased()
-        
+
         // TCP timeout errors (like the user experienced)
-        if (errorString.contains("tcp") && errorString.contains("timeout")) || 
-           errorString.contains("tcp request timed out") ||
-           errorString.contains("tcp communication failed") {
+        if (errorString.contains("tcp") && errorString.contains("timeout")) ||
+            errorString.contains("tcp request timed out") ||
+            errorString.contains("tcp communication failed") {
             return ErrorInfo(
                 originalError: error,
                 errorType: .tcpTimeout,
                 title: "Connection Timeout",
                 detailedMessage: """
                 KeyPath couldn't communicate with the keyboard service to apply your changes.
-                
+
                 This usually happens when the service becomes unresponsive. Your mapping was safely rolled back to prevent issues.
                 """,
                 recoveryActions: [
@@ -77,7 +77,7 @@ struct ErrorInfo: Identifiable {
                 ]
             )
         }
-        
+
         // Permission errors
         if errorString.contains("permission") || errorString.contains("not permitted") {
             return ErrorInfo(
@@ -86,7 +86,7 @@ struct ErrorInfo: Identifiable {
                 title: "Permission Required",
                 detailedMessage: """
                 KeyPath needs additional permissions to modify keyboard mappings.
-                
+
                 This often requires granting Input Monitoring or Accessibility permissions in System Settings.
                 """,
                 recoveryActions: [
@@ -95,16 +95,16 @@ struct ErrorInfo: Identifiable {
                 ]
             )
         }
-        
+
         // Service not running
-        if errorString.contains("service") && (errorString.contains("not running") || errorString.contains("stopped")) {
+        if errorString.contains("service"), errorString.contains("not running") || errorString.contains("stopped") {
             return ErrorInfo(
                 originalError: error,
                 errorType: .serviceNotRunning,
                 title: "Service Not Running",
                 detailedMessage: """
                 The keyboard remapping service has stopped unexpectedly.
-                
+
                 This can happen after system updates or if there was a configuration error.
                 """,
                 recoveryActions: [
@@ -114,16 +114,16 @@ struct ErrorInfo: Identifiable {
                 ]
             )
         }
-        
+
         // Config validation errors
-        if errorString.contains("config") && (errorString.contains("invalid") || errorString.contains("validation")) {
+        if errorString.contains("config"), errorString.contains("invalid") || errorString.contains("validation") {
             return ErrorInfo(
                 originalError: error,
                 errorType: .configValidation,
                 title: "Configuration Error",
                 detailedMessage: """
                 The keyboard configuration contains invalid settings that prevent it from loading.
-                
+
                 This is usually due to conflicting key assignments or unsupported key combinations.
                 """,
                 recoveryActions: [
@@ -132,7 +132,7 @@ struct ErrorInfo: Identifiable {
                 ]
             )
         }
-        
+
         // Generic error fallback
         return ErrorInfo(
             originalError: error,
@@ -140,7 +140,7 @@ struct ErrorInfo: Identifiable {
             title: "Unexpected Error",
             detailedMessage: """
             An unexpected error occurred while saving your keyboard mapping.
-            
+
             Error: \(error.localizedDescription)
             """,
             recoveryActions: [
@@ -157,7 +157,7 @@ enum ErrorType {
     case serviceNotRunning
     case configValidation
     case generic
-    
+
     var icon: String {
         switch self {
         case .tcpTimeout: "network.slash"
@@ -167,7 +167,7 @@ enum ErrorType {
         case .generic: "exclamationmark.triangle"
         }
     }
-    
+
     var color: Color {
         switch self {
         case .tcpTimeout: .orange
@@ -187,9 +187,9 @@ enum RecoveryAction: Identifiable, CaseIterable {
     case runInstallationWizard
     case resetToSafeConfig
     case openDiagnostics
-    
+
     var id: String { title }
-    
+
     var title: String {
         switch self {
         case .restartKanataService: "Restart Keyboard Service"
@@ -200,7 +200,7 @@ enum RecoveryAction: Identifiable, CaseIterable {
         case .openDiagnostics: "Open Diagnostics"
         }
     }
-    
+
     var description: String {
         switch self {
         case .restartKanataService: "Restart the keyboard service to fix communication issues"
@@ -211,7 +211,7 @@ enum RecoveryAction: Identifiable, CaseIterable {
         case .openDiagnostics: "Open diagnostics to see detailed system information"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .restartKanataService: "arrow.clockwise"
@@ -222,18 +222,18 @@ enum RecoveryAction: Identifiable, CaseIterable {
         case .openDiagnostics: "info.circle"
         }
     }
-    
+
     var requiresAdminPassword: Bool {
         switch self {
         case .restartKanataService, .startKanataService: true
         default: false
         }
     }
-    
+
     /// Execute the recovery action
     func execute() async throws -> Bool {
         AppLogger.shared.log("🔧 [Recovery] Executing action: \(title)")
-        
+
         switch self {
         case .restartKanataService:
             return try await restartKanataService()
@@ -249,9 +249,9 @@ enum RecoveryAction: Identifiable, CaseIterable {
             return await openDiagnostics()
         }
     }
-    
+
     // MARK: - Recovery Action Implementations
-    
+
     private func restartKanataService() async throws -> Bool {
         let script = """
         tell application "System Events"
@@ -263,10 +263,10 @@ enum RecoveryAction: Identifiable, CaseIterable {
             end try
         end tell
         """
-        
+
         return try await executeAppleScript(script)
     }
-    
+
     private func startKanataService() async throws -> Bool {
         let script = """
         tell application "System Events"
@@ -278,10 +278,10 @@ enum RecoveryAction: Identifiable, CaseIterable {
             end try
         end tell
         """
-        
+
         return try await executeAppleScript(script)
     }
-    
+
     private func openPermissionSettings() async -> Bool {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
             await MainActor.run {
@@ -291,7 +291,7 @@ enum RecoveryAction: Identifiable, CaseIterable {
         }
         return false
     }
-    
+
     private func runInstallationWizard() async -> Bool {
         // This would need to be connected to the app's wizard system
         await MainActor.run {
@@ -299,7 +299,7 @@ enum RecoveryAction: Identifiable, CaseIterable {
         }
         return true
     }
-    
+
     private func resetToSafeConfig() async throws -> Bool {
         // This would need to be connected to KanataManager
         await MainActor.run {
@@ -307,21 +307,21 @@ enum RecoveryAction: Identifiable, CaseIterable {
         }
         return true
     }
-    
+
     private func openDiagnostics() async -> Bool {
         await MainActor.run {
             NotificationCenter.default.post(name: .openDiagnostics, object: nil)
         }
         return true
     }
-    
+
     private func executeAppleScript(_ script: String) async throws -> Bool {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global().async {
                 let appleScript = NSAppleScript(source: script)
                 var errorDict: NSDictionary?
                 let result = appleScript?.executeAndReturnError(&errorDict)
-                
+
                 if let error = errorDict {
                     continuation.resume(throwing: NSError(domain: "AppleScript", code: -1, userInfo: error as? [String: Any]))
                 } else {
@@ -340,9 +340,9 @@ struct ErrorDisplayCard: View {
     let isExecutingRecovery: Bool
     let onDismiss: () -> Void
     let onExecuteRecovery: (RecoveryAction) async -> Void
-    
+
     @State private var isExpanded = true
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header (always visible)
@@ -350,28 +350,28 @@ struct ErrorDisplayCard: View {
                 Image(systemName: errorInfo.errorType.icon)
                     .font(.title2)
                     .foregroundColor(errorInfo.errorType.color)
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(errorInfo.title)
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     if !isExpanded {
                         Text("Tap to see recovery options")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 Button(action: { withAnimation { isExpanded.toggle() } }) {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                
+
                 Button("×") {
                     withAnimation {
                         onDismiss()
@@ -389,7 +389,7 @@ struct ErrorDisplayCard: View {
                     isExpanded = true
                 }
             }
-            
+
             // Expanded content
             if isExpanded {
                 VStack(alignment: .leading, spacing: 16) {
@@ -398,14 +398,14 @@ struct ErrorDisplayCard: View {
                         .font(.body)
                         .foregroundColor(.primary)
                         .fixedSize(horizontal: false, vertical: true)
-                    
+
                     // Recovery failures (if any)
                     if !errorInfo.recoveryFailures.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Previous recovery attempts failed:")
                                 .font(.caption)
                                 .foregroundColor(.orange)
-                            
+
                             ForEach(Array(errorInfo.recoveryFailures.enumerated()), id: \.offset) { _, failure in
                                 Text("• \(failure.localizedDescription)")
                                     .font(.caption)
@@ -417,12 +417,12 @@ struct ErrorDisplayCard: View {
                         .background(Color.orange.opacity(0.1))
                         .cornerRadius(8)
                     }
-                    
+
                     // Recovery actions
                     Text("Recommended Actions:")
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    
+
                     VStack(spacing: 8) {
                         ForEach(errorInfo.recoveryActions) { action in
                             RecoveryActionButton(
@@ -454,9 +454,9 @@ struct RecoveryActionButton: View {
     let action: RecoveryAction
     let isExecuting: Bool
     let onExecute: () async -> Void
-    
+
     @State private var isPressed = false
-    
+
     var body: some View {
         Button(action: {
             Task { await onExecute() }
@@ -466,20 +466,20 @@ struct RecoveryActionButton: View {
                     .font(.headline)
                     .foregroundColor(.blue)
                     .frame(width: 20)
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(action.title)
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     Text(action.description)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.leading)
                 }
-                
+
                 Spacer()
-                
+
                 if isExecuting {
                     ProgressView()
                         .scaleEffect(0.8)
@@ -489,7 +489,7 @@ struct RecoveryActionButton: View {
                             .font(.caption)
                             .foregroundColor(.orange)
                     }
-                    
+
                     Image(systemName: "arrow.right.circle.fill")
                         .font(.title3)
                         .foregroundColor(.blue)
@@ -520,7 +520,7 @@ struct RecoveryActionButton: View {
 
 extension View {
     func onPressGesture(onPress: @escaping () -> Void, onRelease: @escaping () -> Void) -> some View {
-        self.simultaneousGesture(
+        simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in onPress() }
                 .onEnded { _ in onRelease() }

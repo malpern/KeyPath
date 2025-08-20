@@ -17,7 +17,7 @@ struct InstallationWizardView: View {
     @State private var isInitializing = true
     @State private var systemState: WizardSystemState = .initializing
     @State private var currentIssues: [WizardIssue] = []
-    
+
     // Task management for race condition prevention
     @State private var refreshTask: Task<Void, Never>?
     @State private var isForceClosing = false // Prevent new operations after nuclear close
@@ -89,7 +89,7 @@ struct InstallationWizardView: View {
             let criticalCount = currentIssues.filter { $0.severity == .critical }.count
             Text(
                 "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") " +
-                "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
+                    "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
             )
         }
     }
@@ -142,7 +142,7 @@ struct InstallationWizardView: View {
             PageDotsIndicator(currentPage: navigationCoordinator.currentPage) { page in
                 // Don't allow manual navigation if operations are running
                 guard !asyncOperationManager.hasRunningOperations else { return }
-                
+
                 navigationCoordinator.navigateToPage(page)
                 AppLogger.shared.log(
                     "🔍 [NewWizard] User manually navigated to \(page) - entering user interaction mode")
@@ -259,7 +259,7 @@ struct InstallationWizardView: View {
                     progress: getCurrentOperationProgress(),
                     isIndeterminate: isCurrentOperationIndeterminate()
                 )
-                
+
                 // No cancel button - use X in top-right instead
             }
             .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -284,14 +284,14 @@ struct InstallationWizardView: View {
             await MainActor.run {
                 isInitializing = false // Show wizard UI immediately
                 // Set basic default state so UI can render
-                systemState = .initializing  
+                systemState = .initializing
                 currentIssues = []
                 AppLogger.shared.log("🚀 [NewWizard] UI shown immediately, heavy checks deferred")
             }
-            
+
             // Defer heavy system detection to background
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s delay for heavy checks
-            
+
             guard !Task.isCancelled else { return }
             await performInitialStateCheck()
         }
@@ -299,17 +299,17 @@ struct InstallationWizardView: View {
 
     private func performInitialStateCheck() async {
         // Check if user has already closed wizard
-        guard !Task.isCancelled else { 
+        guard !Task.isCancelled else {
             AppLogger.shared.log("🔍 [NewWizard] Initial state check cancelled - wizard closing")
-            return 
+            return
         }
-        
+
         // Check if force closing flag is set
         guard !isForceClosing else {
             AppLogger.shared.log("🔍 [NewWizard] Initial state check blocked - force closing in progress")
             return
         }
-        
+
         AppLogger.shared.log("🔍 [NewWizard] Performing initial state check")
 
         let operation = WizardOperations.stateDetection(stateManager: stateManager)
@@ -334,7 +334,7 @@ struct InstallationWizardView: View {
 
     private func monitorSystemState() async {
         AppLogger.shared.log("🟡 [MONITOR] System state monitoring started with 60s interval")
-        
+
         // Smart monitoring: Only poll when needed, much less frequently
         while !Task.isCancelled {
             try? await Task.sleep(nanoseconds: 60_000_000_000) // 60 seconds instead of 10
@@ -343,7 +343,7 @@ struct InstallationWizardView: View {
             guard !asyncOperationManager.hasRunningOperations else {
                 continue
             }
-            
+
             // Only poll if we're on summary page or user recently interacted
             let shouldPoll = shouldPerformBackgroundPolling()
             guard shouldPoll else {
@@ -353,16 +353,16 @@ struct InstallationWizardView: View {
             // Use page-specific detection instead of full system scan
             await performSmartStateCheck()
         }
-        
+
         AppLogger.shared.log("🟡 [MONITOR] System state monitoring stopped")
     }
-    
+
     /// Determine if background polling is needed
     private func shouldPerformBackgroundPolling() -> Bool {
         // Only poll on summary page where overview is shown
-        return navigationCoordinator.currentPage == .summary
+        navigationCoordinator.currentPage == .summary
     }
-    
+
     /// Perform targeted state check based on current page
     private func performSmartStateCheck() async {
         // Check if force closing is in progress
@@ -370,7 +370,7 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔍 [NewWizard] Smart state check blocked - force closing in progress")
             return
         }
-        
+
         switch navigationCoordinator.currentPage {
         case .summary:
             // Full check only for summary page
@@ -621,18 +621,18 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔍 [NewWizard] Refresh state blocked - force closing in progress")
             return
         }
-        
+
         AppLogger.shared.log("🔍 [NewWizard] Refreshing system state (using cache if available)")
 
         // Don't clear cache - let the 2-second TTL handle freshness
         // Only clear cache when we actually need fresh data (e.g., after auto-fix)
-        
+
         // Cancel any previous refresh task to prevent race conditions
         refreshTask?.cancel()
-        
+
         // Use async operation manager for non-blocking refresh
         let operation = WizardOperations.stateDetection(stateManager: stateManager)
-        
+
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             systemState = result.state
             currentIssues = result.issues
@@ -677,7 +677,7 @@ struct InstallationWizardView: View {
     private func handleCloseButtonTapped() {
         // INSTANT CLOSE: Cancel operations immediately and force close
         asyncOperationManager.cancelAllOperationsAsync()
-        
+
         // Check for critical issues - but don't block the close
         let criticalIssues = currentIssues.filter { $0.severity == .critical }
 
@@ -689,7 +689,7 @@ struct InstallationWizardView: View {
             showingCloseConfirmation = true
         }
     }
-    
+
     /// Force immediate wizard dismissal bypassing any potential SwiftUI blocking
     private func forceInstantClose() {
         // Use DispatchQueue to ensure immediate execution
@@ -697,7 +697,7 @@ struct InstallationWizardView: View {
             dismiss()
         }
     }
-    
+
     /// Performs cancellation and cleanup in the background after UI dismissal
     private func performBackgroundCleanup() {
         // Use Task.detached to avoid any main thread scheduling overhead
@@ -706,15 +706,15 @@ struct InstallationWizardView: View {
             asyncOperationManager?.cancelAllOperationsAsync()
         }
     }
-    
+
     /// Nuclear option: Force wizard closed immediately, bypass all operations and confirmations
     private func forciblyCloseWizard() {
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Starting nuclear shutdown at \(Date())")
-        
+
         // Set force closing flag to prevent any new operations
         isForceClosing = true
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Force closing flag set - no new operations allowed")
-        
+
         // Immediately clear operation state to stop UI spinners
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Clearing operation state...")
         Task { @MainActor in
@@ -725,18 +725,18 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔴 [FORCE-CLOSE] Operation state cleared")
             AppLogger.shared.flushBuffer()
         }
-        
+
         // Cancel monitoring task
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Cancelling refresh task...")
         refreshTask?.cancel()
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Refresh task cancelled")
-        
+
         // Force immediate dismissal - no confirmation, no state checks, no waiting
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Calling dismiss()...")
         AppLogger.shared.flushBuffer() // Ensure logs are written before dismissal
         dismiss()
         AppLogger.shared.log("🔴 [FORCE-CLOSE] dismiss() called")
-        
+
         // Clean up in background after UI is gone
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Starting background cleanup...")
         Task.detached { [weak asyncOperationManager] in
@@ -745,7 +745,7 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔴 [FORCE-CLOSE] Background cleanup completed")
             AppLogger.shared.flushBuffer()
         }
-        
+
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Nuclear shutdown completed")
         AppLogger.shared.flushBuffer()
     }
@@ -833,8 +833,8 @@ struct InstallationWizardView: View {
             "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
         case .restartUnhealthyServices:
             "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n" +
-            "• Missing services could not be installed\n• System permission denied for service restart\n\n" +
-            "Try the Fix button again and provide admin password when prompted."
+                "• Missing services could not be installed\n• System permission denied for service restart\n\n" +
+                "Try the Fix button again and provide admin password when prompted."
         default:
             "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
         }

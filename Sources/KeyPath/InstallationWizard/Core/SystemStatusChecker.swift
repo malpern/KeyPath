@@ -17,8 +17,9 @@ class SystemStatusChecker {
     private let packageManager: PackageManager
     private let processLifecycleManager: ProcessLifecycleManager
     private let issueGenerator: IssueGenerator
-    
+
     // MARK: - Cache Properties
+
     private var cachedStateResult: SystemStateResult?
     private var cacheTimestamp: Date?
     private let cacheValidDuration: TimeInterval = 2.0 // 2-second cache
@@ -36,36 +37,36 @@ class SystemStatusChecker {
 
     /// Debug flag to force Input Monitoring issues for testing purposes
     static var debugForceInputMonitoringIssues = false
-    
+
     // MARK: - Cache Management
-    
+
     /// Clear the cached state to force a fresh detection
     func clearCache() {
         cachedStateResult = nil
         cacheTimestamp = nil
         AppLogger.shared.log("🔍 [SystemStatusChecker] Cache cleared")
     }
-    
+
     // MARK: - Component-Specific Refresh Methods
-    
+
     /// Check only permissions without full system scan
     func checkPermissionsOnly() async -> PermissionCheckResult {
         AppLogger.shared.log("🔍 [SystemStatusChecker] Quick permission check only")
         return await checkPermissionsInternal()
     }
-    
+
     /// Check only components without full system scan
     func checkComponentsOnly() async -> ComponentCheckResult {
         AppLogger.shared.log("🔍 [SystemStatusChecker] Quick component check only")
         return await checkComponentsInternal()
     }
-    
+
     /// Check only conflicts without full system scan
     func checkConflictsOnly() async -> ConflictDetectionResult {
         AppLogger.shared.log("🔍 [SystemStatusChecker] Quick conflict check only")
         return await checkConflictsInternal()
     }
-    
+
     /// Check only system health without full system scan
     func checkHealthOnly() async -> HealthCheckResult {
         AppLogger.shared.log("🔍 [SystemStatusChecker] Quick health check only")
@@ -82,7 +83,7 @@ class SystemStatusChecker {
             AppLogger.shared.log("🔍 [SystemStatusChecker] Returning cached state (age: \(String(format: "%.1f", Date().timeIntervalSince(timestamp)))s)")
             return cached
         }
-        
+
         AppLogger.shared.log("🔍 [SystemStatusChecker] Starting comprehensive system state detection")
 
         // Debug override for testing Input Monitoring page
@@ -154,12 +155,12 @@ class SystemStatusChecker {
             autoFixActions: autoFixableActions,
             detectionTimestamp: Date()
         )
-        
+
         // Update cache
         cachedStateResult = result
         cacheTimestamp = Date()
         AppLogger.shared.log("🔍 [SystemStatusChecker] Cache updated with fresh state")
-        
+
         return result
     }
 

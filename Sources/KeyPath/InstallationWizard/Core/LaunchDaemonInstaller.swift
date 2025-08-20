@@ -16,7 +16,7 @@ class LaunchDaemonInstaller {
     private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
     private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
     private static let logRotationServiceID = "com.keypath.logrotate"
-    
+
     /// Path to the log rotation script
     private static let logRotationScriptPath = "/usr/local/bin/keypath-logrotate.sh"
 
@@ -1689,39 +1689,39 @@ class LaunchDaemonInstaller {
         """
         #!/bin/bash
         # KeyPath Log Rotation Script - Keep logs under 10MB total
-        
+
         LOG_DIR="/var/log"
         MAX_SIZE_BYTES=$((5 * 1024 * 1024))  # 5MB per file (2 files = 10MB max)
-        
+
         # Function to rotate a log file
         rotate_log() {
             local logfile="$1"
             if [[ -f "$logfile" ]]; then
                 local size=$(stat -f%z "$logfile" 2>/dev/null || echo 0)
-                
+
                 if [[ $size -gt $MAX_SIZE_BYTES ]]; then
                     echo "$(date): Rotating $logfile (size: $size bytes)"
-                    
+
                     # Remove old backup if exists
                     [[ -f "$logfile.1" ]] && rm -f "$logfile.1"
-                    
+
                     # Move current to backup
                     mv "$logfile" "$logfile.1"
-                    
+
                     # Create new empty log file with correct permissions
                     touch "$logfile"
                     chmod 644 "$logfile"
                     chown root:wheel "$logfile" 2>/dev/null || true
-                    
+
                     echo "$(date): Log rotation completed for $logfile"
                 fi
             fi
         }
-        
+
         # Rotate kanata log
         rotate_log "$LOG_DIR/kanata.log"
-        
-        # Clean up any oversized KeyPath logs too  
+
+        # Clean up any oversized KeyPath logs too
         for logfile in "$LOG_DIR"/keypath*.log; do
             [[ -f "$logfile" ]] && rotate_log "$logfile"
         done
@@ -1761,35 +1761,35 @@ class LaunchDaemonInstaller {
     func isLogRotationServiceInstalled() -> Bool {
         let plistPath = "\(Self.systemLaunchDaemonsDir)/\(Self.logRotationServiceID).plist"
         let scriptPath = Self.logRotationScriptPath
-        
+
         let plistExists = FileManager.default.fileExists(atPath: plistPath)
         let scriptExists = FileManager.default.fileExists(atPath: scriptPath)
-        
+
         AppLogger.shared.log("📝 [LaunchDaemon] Log rotation check: plist=\(plistExists), script=\(scriptExists)")
-        
+
         return plistExists && scriptExists
     }
 
     /// Install log rotation service to keep logs under 10MB
     func installLogRotationService() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing log rotation service (keeps logs < 10MB)")
-        
+
         let script = generateLogRotationScript()
         let plist = generateLogRotationPlist()
-        
+
         let tempDir = NSTemporaryDirectory()
         let scriptTempPath = "\(tempDir)keypath-logrotate.sh"
         let plistTempPath = "\(tempDir)\(Self.logRotationServiceID).plist"
-        
+
         do {
             // Write script and plist to temp files
             try script.write(toFile: scriptTempPath, atomically: true, encoding: .utf8)
             try plist.write(toFile: plistTempPath, atomically: true, encoding: .utf8)
-            
+
             // Install both with admin privileges
             let scriptFinal = Self.logRotationScriptPath
             let plistFinal = "\(Self.systemLaunchDaemonsDir)/\(Self.logRotationServiceID).plist"
-            
+
             let command = """
             mkdir -p /usr/local/bin && \
             cp '\(scriptTempPath)' '\(scriptFinal)' && \
@@ -1800,29 +1800,29 @@ class LaunchDaemonInstaller {
             chown root:wheel '\(plistFinal)' && \
             launchctl load '\(plistFinal)'
             """
-            
+
             // Use osascript approach like other admin operations
             let escapedCommand = escapeForAppleScript(command)
             let osascriptCommand = """
             do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install log rotation service to keep logs under 10MB."
             """
-            
+
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
             task.arguments = ["-e", osascriptCommand]
             let pipe = Pipe()
             task.standardOutput = pipe
             task.standardError = pipe
-            
+
             try task.run()
             task.waitUntilExit()
-            
+
             let success = task.terminationStatus == 0
-            
+
             // Clean up temp files
             try? FileManager.default.removeItem(atPath: scriptTempPath)
             try? FileManager.default.removeItem(atPath: plistTempPath)
-            
+
             if success {
                 AppLogger.shared.log("✅ [LaunchDaemon] Log rotation service installed successfully")
                 // Also rotate the current huge log file immediately
@@ -1830,19 +1830,19 @@ class LaunchDaemonInstaller {
             } else {
                 AppLogger.shared.log("❌ [LaunchDaemon] Failed to install log rotation service")
             }
-            
+
             return success
-            
+
         } catch {
             AppLogger.shared.log("❌ [LaunchDaemon] Error preparing log rotation files: \(error)")
             return false
         }
     }
-    
+
     /// Immediately rotate current large log files
     private func rotateCurrentLogs() {
         AppLogger.shared.log("🔄 [LaunchDaemon] Immediately rotating current large log files")
-        
+
         let command = """
         [[ -f /var/log/kanata.log ]] && \
         size=$(stat -f%z /var/log/kanata.log 2>/dev/null || echo 0) && \
@@ -1853,15 +1853,15 @@ class LaunchDaemonInstaller {
             touch /var/log/kanata.log && chmod 644 /var/log/kanata.log; \
         fi
         """
-        
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
         task.arguments = ["-c", command]
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             if task.terminationStatus == 0 {
                 AppLogger.shared.log("✅ [LaunchDaemon] Current log files rotated successfully")
             } else {
@@ -1905,8 +1905,6 @@ struct LaunchDaemonStatus {
         - All Services Healthy: \(allServicesHealthy)
         """
     }
-
-
 }
 
 // MARK: - Helper Extensions

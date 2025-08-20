@@ -25,90 +25,109 @@ struct WizardFullDiskAccessPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                WizardPageHeader(
-                    icon: "folder.badge.gearshape",
-                    title: hasFullDiskAccess ? "Full Disk Access Enabled" : "Enable Full Disk Access (optional)",
-                    subtitle: "Enhance wizard capabilities for better diagnostics",
-                    status: hasFullDiskAccess ? .success : .info
-                )
-                
-                // Keep the padding space where status indicator was
+            // Large centered hero section - Icon, Headline, and Supporting Copy
+            VStack(spacing: 0) {
                 Spacer()
-                    .frame(height: WizardDesign.Spacing.sectionGap)
+
+                // Centered hero block with padding
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    // Basic folder icon with appropriate overlay
+                    ZStack {
+                        Image(systemName: "folder")
+                            .font(.system(size: 115, weight: .light))
+                            .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.info)
+                            .symbolRenderingMode(.hierarchical)
+                            .symbolEffect(.bounce, options: .nonRepeating)
+                        
+                        // Overlay hanging off right side based on FDA status
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Image(systemName: hasFullDiskAccess ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 40, weight: .medium))
+                                    .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.secondaryText)
+                                    .background(WizardDesign.Colors.wizardBackground)
+                                    .clipShape(Circle())
+                                    .offset(x: 25, y: -5) // Hang further off the right side
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                            Spacer()
+                        }
+                        .frame(width: 115, height: 115)
+                    }
+
+                    // Larger headline (19pt + 20% = 23pt)
+                    Text(hasFullDiskAccess ? "Full Disk Access" : "Enable Full Disk Access (optional)")
+                        .font(.system(size: 23, weight: .semibold, design: .default))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+
+                    // Supporting copy - more descriptive since no content card
+                    Text(hasFullDiskAccess ? "Enhanced diagnostics and automatic issue resolution" : "Optional: Enhanced diagnostics and automatic issue resolution")
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    // Help link below subheader (only when FDA not granted)
+                    if !hasFullDiskAccess {
+                        Button("Why is this safe?") {
+                            showingDetails = true
+                        }
+                        .buttonStyle(.link)
+                        .font(WizardDesign.Typography.caption)
+                        .padding(.top, WizardDesign.Spacing.elementGap)
+                    }
+                }
+                .padding(.vertical, WizardDesign.Spacing.pageVertical) // Add padding above and below the hero block
+
+                Spacer()
             }
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
-            
-            // Main content area (taller like in your requested image)
-            VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
-Text("Full Disk Access enhances KeyPath's ability to automatically detect and resolve issues during setup. This is completely optional – KeyPath works without it.")
-                    .font(WizardDesign.Typography.body)
-                    .foregroundColor(.primary)
-                
-                // Add significant height to match your requested image
-                Spacer(minLength: 120)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(WizardDesign.Spacing.cardPadding)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-            
-            // Fixed spacing between content area and button (smaller than content area height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // No component details - FDA is optional and never needs fixing
             Spacer()
-                .frame(height: WizardDesign.Spacing.pageVertical * 2)
+                .frame(height: WizardDesign.Spacing.sectionGap)
 
             // Action buttons (anchored to bottom)
-            VStack(spacing: WizardDesign.Spacing.elementGap) {
-                if hasFullDiskAccess {
-                    // FDA already granted - centered continue button
-                    HStack {
-                        Spacer()
-                        Button("Continue") {
-                            AppLogger.shared.log("ℹ️ [Wizard] User continuing with FDA already granted")
-                            navigationCoordinator.navigateToPage(.summary)
-                        }
-                        .buttonStyle(WizardDesign.Component.PrimaryButton())
-                        Spacer()
-                    }
-                } else {
-                    // FDA not granted - balanced skip/grant buttons
-                    HStack(spacing: WizardDesign.Spacing.itemGap) {
-                        Button("Skip This Step") {
-                            AppLogger.shared.log("ℹ️ [Wizard] User skipped Full Disk Access step")
-                            navigationCoordinator.navigateToPage(.summary)
-                        }
-                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+            // Standard pattern: Existing buttons on left/center, Continue button on far right
+            HStack(spacing: WizardDesign.Spacing.itemGap) {
+                // Existing buttons on the left/center
+                if !hasFullDiskAccess {
+                    Button("Grant Full Disk Access") {
+                        AppLogger.shared.log("🔒 [FDA Page] Grant Full Disk Access button clicked")
 
-                        Button("Grant Full Disk Access") {
-                            AppLogger.shared.log("🔒 [FDA Page] Grant Full Disk Access button clicked")
+                        // Open System Settings for Full Disk Access
+                        openFullDiskAccessSettings()
 
-                            // Open System Settings for Full Disk Access
-                            openFullDiskAccessSettings()
-
-                            // Close Settings windows if they're open
-                            for window in NSApplication.shared.windows {
-                                let windowTitle = window.title
-                                if windowTitle.contains("Settings") {
-                                    AppLogger.shared.log("🔒 [FDA Page] Closing Settings window: '\(windowTitle)'")
-                                    window.close()
-                                }
+                        // Close Settings windows if they're open
+                        for window in NSApplication.shared.windows {
+                            let windowTitle = window.title
+                            if windowTitle.contains("Settings") {
+                                AppLogger.shared.log("🔒 [FDA Page] Closing Settings window: '\(windowTitle)'")
+                                window.close()
                             }
-
-                            // Dismiss the wizard using SwiftUI's dismiss action
-                            AppLogger.shared.log("🔒 [FDA Page] Dismissing wizard")
-                            dismiss()
                         }
-                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+
+                        // Dismiss the wizard using SwiftUI's dismiss action
+                        AppLogger.shared.log("🔒 [FDA Page] Dismissing wizard")
+                        dismiss()
                     }
+                    .buttonStyle(WizardDesign.Component.SecondaryButton())
                 }
 
-                // Help link
-                Button("Why is this safe?") {
-                    showingDetails = true
+                Spacer()
+
+                // Primary continue button (centered)
+                HStack {
+                    Spacer()
+                    Button("Continue") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Full Disk Access page")
+                        navigateToNextPage()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    Spacer()
                 }
-                .buttonStyle(.link)
-                .font(WizardDesign.Typography.caption)
             }
             .padding(.horizontal, WizardDesign.Spacing.pageVertical)
             .padding(.bottom, WizardDesign.Spacing.pageVertical)
@@ -155,7 +174,7 @@ Text("Full Disk Access enhances KeyPath's ability to automatically detect and re
                 // Permission was just granted!
                 showSuccessAnimation = true
                 AppLogger.shared.log("✅ [Wizard] Full Disk Access granted - showing success animation")
-                
+
                 // Don't auto-navigate - let user navigate manually
                 // User can use navigation buttons or close dialog
             }
@@ -163,6 +182,16 @@ Text("Full Disk Access enhances KeyPath's ability to automatically detect and re
     }
 
     // MARK: - Helper Methods
+
+    private func navigateToNextPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex < allPages.count - 1
+        else { return }
+        let nextPage = allPages[currentIndex + 1]
+        navigationCoordinator.navigateToPage(nextPage)
+        AppLogger.shared.log("➡️ [FDA] Navigated to next page: \(nextPage.displayName)")
+    }
 
     private func checkFullDiskAccess() {
         // Check cache first
@@ -350,8 +379,8 @@ private struct FullDiskAccessDetailsSheet: View {
                             .font(.headline)
 
                         Text("A macOS security feature that allows KeyPath to read system permission databases for better diagnostics.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
@@ -362,8 +391,8 @@ private struct FullDiskAccessDetailsSheet: View {
                             .font(.headline)
 
                         Text("• More accurate issue detection\n• Better automatic fixes\n• Clearer error messages")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color.green.opacity(0.08))
@@ -374,8 +403,8 @@ private struct FullDiskAccessDetailsSheet: View {
                             .font(.headline)
 
                         Text("KeyPath works fine without this permission. You can skip this step and grant it later if needed.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color.blue.opacity(0.08))

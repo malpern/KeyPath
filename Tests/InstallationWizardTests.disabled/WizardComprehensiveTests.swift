@@ -160,7 +160,7 @@ final class WizardComprehensiveTests: XCTestCase {
         mockManager.mockKarabinerRunning = true
         mockManager.mockConflictingProcesses = [
             ProcessLifecycleManager.ProcessInfo(pid: 111, command: "karabiner"),
-            ProcessLifecycleManager.ProcessInfo(pid: 222, command: "kanata --cfg /other/path")
+            ProcessLifecycleManager.ProcessInfo(pid: 222, command: "kanata --cfg /other/path"),
         ]
 
         let autoFixer = WizardAutoFixer(
@@ -193,7 +193,7 @@ final class WizardComprehensiveTests: XCTestCase {
                 title: "Input Monitoring Required",
                 message: "Grant permission",
                 autoFixAction: nil
-            )
+            ),
         ]
 
         let targetPage = engine.determineTargetPage(
@@ -219,7 +219,7 @@ final class WizardComprehensiveTests: XCTestCase {
                 title: "Kanata Not Installed",
                 message: "Install Kanata",
                 autoFixAction: .installMissingComponents
-            )
+            ),
         ]
 
         let priorityPage = engine.determineTargetPage(

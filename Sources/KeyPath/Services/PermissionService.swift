@@ -116,7 +116,7 @@ class PermissionService {
         // IMPORTANT: Do NOT use IOHIDCheckAccess or any other API that could trigger automatic
         // addition to System Preferences. Instead, use conservative checking that only returns
         // true if we're absolutely certain permission is granted.
-        
+
         // For now, we'll be conservative and assume permission is NOT granted unless we can
         // verify it through non-invasive means (like checking if the service is running successfully)
         let hasAccess = checkInputMonitoringNonInvasively()
@@ -130,17 +130,17 @@ class PermissionService {
 
         return hasAccess
     }
-    
+
     /// Check Input Monitoring permission without triggering any system APIs that could
     /// automatically add the app to Input Monitoring preferences
     private func checkInputMonitoringNonInvasively() -> Bool {
         // Method 1: Check if kanata service is running successfully
         // If kanata is running without permission errors, KeyPath likely has permission
-        if isKanataProcessRunning() && !Self.hasRecentPermissionErrors() {
+        if isKanataProcessRunning(), !Self.hasRecentPermissionErrors() {
             AppLogger.shared.log("🔐 [PermissionService] Kanata running without errors - assuming permission granted")
             return true
         }
-        
+
         // Method 2: Check if we've previously cached a successful permission grant
         // This helps avoid repeated requests after the user has granted permission
         let userDefaults = UserDefaults.standard
@@ -148,15 +148,15 @@ class PermissionService {
         if lastGrantedTimestamp > 0 {
             let lastGranted = Date(timeIntervalSince1970: lastGrantedTimestamp)
             let daysSinceGrant = Date().timeIntervalSince(lastGranted) / (24 * 60 * 60)
-            
+
             // If permission was granted within the last 30 days, assume it's still valid
             // (unless there are recent errors)
-            if daysSinceGrant < 30 && !Self.hasRecentPermissionErrors() {
+            if daysSinceGrant < 30, !Self.hasRecentPermissionErrors() {
                 AppLogger.shared.log("🔐 [PermissionService] Recent permission grant found in cache")
                 return true
             }
         }
-        
+
         // Method 3: Conservative fallback - assume permission is NOT granted
         // This is safer than triggering automatic addition to System Preferences
         AppLogger.shared.log("🔐 [PermissionService] Conservative check - assuming permission not granted")
@@ -249,10 +249,10 @@ class PermissionService {
     static func requestInputMonitoringPermission() -> Bool {
         AppLogger.shared.log(
             "🔐 [PermissionService] DISABLED: requestInputMonitoringPermission - will not auto-request permission")
-        
+
         // NEVER call IOHIDRequestAccess as it automatically adds the app to Input Monitoring preferences
         // This was the source of the auto-reinstallation behavior the user complained about
-        
+
         AppLogger.shared.log(
             "🔐 [PermissionService] Automatic permission requests are disabled. User must grant manually.")
 
@@ -887,7 +887,7 @@ class PermissionService {
         permissionCache.removeAll()
         AppLogger.shared.log("🔐 [PermissionService] Permission cache cleared")
     }
-    
+
     /// Mark that Input Monitoring permission has been granted by the user
     /// This helps the non-invasive check return true without using system APIs
     func markInputMonitoringPermissionGranted() {

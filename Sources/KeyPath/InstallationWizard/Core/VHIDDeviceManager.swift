@@ -84,29 +84,29 @@ class VHIDDeviceManager {
             let task = Process()
             task.launchPath = "/usr/bin/tail"
             task.arguments = ["-50", logPath]
-            
+
             let pipe = Pipe()
             task.standardOutput = pipe
-            
+
             // Add timeout to prevent hanging
             task.launch()
-            
+
             // Wait with timeout (1 second max)
             let group = DispatchGroup()
             group.enter()
-            
+
             DispatchQueue.global().async {
                 task.waitUntilExit()
                 group.leave()
             }
-            
+
             let result = group.wait(timeout: .now() + 1.0)
             if result == .timedOut {
                 task.terminate()
                 AppLogger.shared.log("⚠️ [VHIDManager] Log check timed out - assuming healthy")
                 return true
             }
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let logContent = String(data: data, encoding: .utf8) ?? ""
             let recentLines = logContent.components(separatedBy: .newlines)

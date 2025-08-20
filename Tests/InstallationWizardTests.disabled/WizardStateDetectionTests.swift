@@ -143,7 +143,7 @@ final class WizardStateDetectionTests: XCTestCase {
             .withKarabinerRunning(true)
             .withOrphanedProcess(pid: 1234, configPath: "/wrong/path")
             .withExternalProcesses([
-                ProcessLifecycleManager.ProcessInfo(pid: 5678, command: "kanata --cfg /other/path")
+                ProcessLifecycleManager.ProcessInfo(pid: 5678, command: "kanata --cfg /other/path"),
             ])
             .build()
 
@@ -239,7 +239,7 @@ final class WizardStateDetectionTests: XCTestCase {
                 configPath: "/config.kbd",
                 launchDaemonInstalled: true,
                 expectedAction: .replaceOrphanedProcess
-            )
+            ),
         ]
 
         for testCase in testCases {
@@ -291,7 +291,7 @@ final class WizardStateDetectionTests: XCTestCase {
             (.missingComponents(missing: []), .missingPermissions(missing: [])),
             (.missingPermissions(missing: []), .ready),
             (.ready, .active),
-            (.active, .conflictsDetected(conflicts: [])) // Can regress if issues arise
+            (.active, .conflictsDetected(conflicts: [])), // Can regress if issues arise
         ]
 
         for (from, to) in validTransitions {
@@ -304,7 +304,7 @@ final class WizardStateDetectionTests: XCTestCase {
         // Test invalid transitions
         let invalidTransitions: [(WizardSystemState, WizardSystemState)] = [
             (.active, .initializing), // Can't go back to initialization from active
-            (.initializing, .active) // Can't skip all steps
+            (.initializing, .active), // Can't skip all steps
         ]
 
         for (from, to) in invalidTransitions {

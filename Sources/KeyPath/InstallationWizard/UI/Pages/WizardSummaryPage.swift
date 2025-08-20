@@ -13,13 +13,24 @@ struct WizardSummaryPage: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Header
-                WizardPageHeader(
-                    icon: "keyboard.fill",
-                    title: "Welcome to KeyPath",
-                    subtitle: "Set up your keyboard customization tool",
-                    status: .info
-                )
+                // Header - changes when everything is complete
+                Group {
+                    if isEverythingComplete {
+                        WizardPageHeader(
+                            icon: "keyboard.badge.checkmark",
+                            title: "KeyPath Ready",
+                            subtitle: "Your keyboard customization tool is fully configured",
+                            status: .success
+                        )
+                    } else {
+                        WizardPageHeader(
+                            icon: "keyboard.fill",
+                            title: "Welcome to KeyPath",
+                            subtitle: "Set up your keyboard customization tool",
+                            status: .info
+                        )
+                    }
+                }
                 .padding(.bottom, WizardDesign.Spacing.sectionGap)
 
                 // System Status Overview
@@ -48,5 +59,12 @@ struct WizardSummaryPage: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .background(WizardDesign.Colors.wizardBackground)
+    }
+    
+    // MARK: - Helper Properties
+    
+    private var isEverythingComplete: Bool {
+        // Check if system is active and running, meaning everything is properly configured
+        return systemState == .active && kanataManager.isRunning && issues.isEmpty
     }
 }

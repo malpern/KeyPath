@@ -7,13 +7,13 @@ import SwiftUI
 @Observable
 class WizardAsyncOperationManager {
     // MARK: - Observable State (MainActor for UI updates)
-    
+
     @MainActor var runningOperations: Set<String> = []
     @MainActor var lastError: WizardError?
     @MainActor var operationProgress: [String: Double] = [:]
-    
+
     // MARK: - Cancellation Support
-    
+
     private var runningTasks: [String: Task<Void, Never>] = [:]
     private let taskLock = NSLock()
 
@@ -27,24 +27,24 @@ class WizardAsyncOperationManager {
         onFailure: @escaping @MainActor (WizardError) -> Void = { _ in }
     ) {
         let operationId = operation.id
-        
+
         // Create a background task that doesn't block the UI
         let task = Task.detached { [weak self] in
-            guard let self = self else { return }
-            
+            guard let self else { return }
+
             // Update UI state on main thread
             await MainActor.run {
                 self.runningOperations.insert(operationId)
                 self.lastError = nil
             }
-            
+
             // Store task for cancellation support (store the current detached task)
-            self.taskLock.lock()
+            taskLock.lock()
             // Note: We'll store the task reference outside this closure
-            self.taskLock.unlock()
-            
+            taskLock.unlock()
+
             AppLogger.shared.log("🔄 [AsyncOp] Starting background operation: \(operation.name)")
-            
+
             do {
                 // Execute operation in background
                 let result = try await operation.execute { progress in
@@ -53,21 +53,21 @@ class WizardAsyncOperationManager {
                         self.operationProgress[operationId] = progress
                     }
                 }
-                
+
                 // Check if task was cancelled
                 guard !Task.isCancelled else {
                     AppLogger.shared.log("🛑 [AsyncOp] Operation cancelled: \(operation.name)")
-                    await self.cleanupOperation(operationId)
+                    await cleanupOperation(operationId)
                     return
                 }
-                
+
                 AppLogger.shared.log("✅ [AsyncOp] Operation completed: \(operation.name)")
-                
+
                 // Call success handler on main thread
                 await MainActor.run {
                     onSuccess(result)
                 }
-                
+
             } catch {
                 // Check if this was a cancellation
                 if Task.isCancelled {
@@ -76,7 +76,7 @@ class WizardAsyncOperationManager {
                     let wizardError = WizardError.fromError(error, operation: operation.name)
                     AppLogger.shared.log(
                         "❌ [AsyncOp] Operation failed: \(operation.name) - \(wizardError.localizedDescription)")
-                    
+
                     // Update error state and call failure handler on main thread
                     await MainActor.run {
                         self.lastError = wizardError
@@ -84,11 +84,11 @@ class WizardAsyncOperationManager {
                     }
                 }
             }
-            
+
             // Clean up
-            await self.cleanupOperation(operationId)
+            await cleanupOperation(operationId)
         }
-        
+
         // Store the task reference for cancellation
         taskLock.lock()
         runningTasks[operationId] = task
@@ -110,20 +110,20 @@ class WizardAsyncOperationManager {
         taskLock.lock()
         let tasksToCancel = runningTasks.values
         taskLock.unlock()
-        
+
         // Cancel all tasks
         for task in tasksToCancel {
             task.cancel()
         }
-        
+
         Task { @MainActor in
             self.runningOperations.removeAll()
             self.operationProgress.removeAll()
         }
-        
+
         AppLogger.shared.log("🛑 [AsyncOp] All operations cancelled")
     }
-    
+
     /// Cancel all running operations asynchronously (guaranteed no main thread blocking)
     func cancelAllOperationsAsync() {
         // Perform all cancellation work in background without any main thread involvement
@@ -132,38 +132,38 @@ class WizardAsyncOperationManager {
         let operationIds = Array(runningTasks.keys)
         runningTasks.removeAll()
         taskLock.unlock()
-        
+
         // Cancel all tasks (this doesn't block)
         for task in tasksToCancel {
             task.cancel()
         }
-        
+
         AppLogger.shared.log("🛑 [AsyncOp] All operations cancelled asynchronously (\(tasksToCancel.count) tasks)")
-        
+
         // Schedule UI cleanup for later, but don't wait for it
         Task { @MainActor [weak self] in
             self?.runningOperations.removeAll()
             self?.operationProgress.removeAll()
         }
     }
-    
+
     /// Cancel a specific operation
     func cancelOperation(_ operationId: String) {
         taskLock.lock()
         let task = runningTasks[operationId]
         taskLock.unlock()
-        
+
         task?.cancel()
-        
+
         AppLogger.shared.log("🛑 [AsyncOp] Operation cancelled: \(operationId)")
     }
-    
+
     /// Clean up after operation completion or cancellation
     @MainActor
     private func cleanupOperation(_ operationId: String) {
         runningOperations.remove(operationId)
         operationProgress.removeValue(forKey: operationId)
-        
+
         taskLock.lock()
         runningTasks.removeValue(forKey: operationId)
         taskLock.unlock()

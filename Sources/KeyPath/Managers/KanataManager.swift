@@ -443,11 +443,11 @@ class KanataManager: ObservableObject {
         let success: Bool
         let errorMessage: String?
         let kanataResponse: String?
-        
+
         static func success(response: String) -> TCPReloadResult {
             TCPReloadResult(success: true, errorMessage: nil, kanataResponse: response)
         }
-        
+
         static func failure(error: String, response: String? = nil) -> TCPReloadResult {
             TCPReloadResult(success: false, errorMessage: error, kanataResponse: response)
         }
@@ -459,24 +459,24 @@ class KanataManager: ObservableObject {
         case reloadFailed(String)
         case validationFailed([String])
         case postSaveValidationFailed(errors: [String])
-        
+
         var errorDescription: String? {
             switch self {
             case .noBackupAvailable:
-                return "No backup configuration available for rollback"
-            case .reloadFailed(let message):
-                return "Config reload failed: \(message)"
-            case .validationFailed(let errors):
-                return "Config validation failed: \(errors.joined(separator: ", "))"
-            case .postSaveValidationFailed(let errors):
-                return "Post-save validation failed: \(errors.joined(separator: ", "))"
+                "No backup configuration available for rollback"
+            case let .reloadFailed(message):
+                "Config reload failed: \(message)"
+            case let .validationFailed(errors):
+                "Config validation failed: \(errors.joined(separator: ", "))"
+            case let .postSaveValidationFailed(errors):
+                "Post-save validation failed: \(errors.joined(separator: ", "))"
             }
         }
     }
 
     /// Config backup for rollback capability
     private var lastGoodConfig: String?
-    
+
     /// Backup current working config before making changes
     private func backupCurrentConfig() async {
         do {
@@ -487,13 +487,13 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("⚠️ [Backup] Failed to backup current config: \(error)")
         }
     }
-    
+
     /// Restore last known good config in case of validation failure
     private func restoreLastGoodConfig() async throws {
         guard let backup = lastGoodConfig else {
             throw ConfigError.noBackupAvailable
         }
-        
+
         try backup.write(toFile: configPath, atomically: true, encoding: .utf8)
         AppLogger.shared.log("🔄 [Restore] Restored last good config successfully")
     }
@@ -508,9 +508,9 @@ class KanataManager: ObservableObject {
         }
 
         AppLogger.shared.log("🌐 [TCP Reload] Triggering config reload via TCP on port \(tcpConfig.port)")
-        
+
         let client = KanataTCPClient(port: tcpConfig.port)
-        
+
         // Check if TCP server is available
         guard await client.checkServerStatus() else {
             AppLogger.shared.log("❌ [TCP Reload] TCP server not available - falling back to service restart")
@@ -522,16 +522,16 @@ class KanataManager: ObservableObject {
             // Send reload command as JSON
             let reloadCommand = #"{"Reload":{}}"#
             let commandData = reloadCommand.data(using: .utf8)!
-            
+
             // Use low-level TCP to send reload command
             let responseData = try await sendTCPCommand(commandData, port: tcpConfig.port)
             let responseString = String(data: responseData, encoding: .utf8) ?? ""
-            
+
             AppLogger.shared.log("🌐 [TCP Reload] Server response (\(responseData.count) bytes): \(responseString)")
             AppLogger.shared.log("🔍 [TCP Reload] Checking for success patterns...")
             AppLogger.shared.log("🔍 [TCP Reload] Contains 'status:Ok': \(responseString.contains("\"status\":\"Ok\""))")
             AppLogger.shared.log("🔍 [TCP Reload] Contains 'Live reload successful': \(responseString.contains("Live reload successful"))")
-            
+
             // Parse response for success/failure
             if responseString.contains("\"status\":\"Ok\"") || responseString.contains("Live reload successful") {
                 AppLogger.shared.log("✅ [TCP Reload] Config reload successful")
@@ -545,13 +545,13 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("⚠️ [TCP Reload] Unexpected response - treating as failure")
                 return .failure(error: "Unexpected response format", response: responseString)
             }
-            
+
         } catch {
             AppLogger.shared.log("❌ [TCP Reload] Failed to send reload command: \(error)")
             return .failure(error: "TCP communication failed: \(error.localizedDescription)")
         }
     }
-    
+
     /// Extract error message from Kanata's JSON response
     private func extractErrorFromKanataResponse(_ response: String) -> String {
         // Parse JSON response to extract error message
@@ -574,22 +574,22 @@ class KanataManager: ObservableObject {
 
     /// Send raw TCP command to Kanata server
     private func sendTCPCommand(_ data: Data, port: Int) async throws -> Data {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             let queue = DispatchQueue(label: "kanata-tcp-reload")
-            
+
             guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
                 continuation.resume(throwing: TCPError.invalidPort)
                 return
             }
-            
+
             let connection = NWConnection(
                 host: NWEndpoint.Host("127.0.0.1"),
                 port: nwPort,
                 using: .tcp
             )
-            
+
             var hasResumed = false
-            
+
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
@@ -602,10 +602,10 @@ class KanataManager: ObservableObject {
                             }
                             return
                         }
-                        
+
                         // Receive the response - accumulate all data from multiple responses
                         var accumulatedData = Data()
-                        
+
                         func receiveMoreData() {
                             connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { responseData, _, isComplete, error in
                                 if let error {
@@ -616,16 +616,16 @@ class KanataManager: ObservableObject {
                                     }
                                     return
                                 }
-                                
+
                                 if let responseData {
                                     accumulatedData.append(responseData)
                                 }
-                                
+
                                 // Check if we have both responses (LayerChange + status)
                                 let responseString = String(data: accumulatedData, encoding: .utf8) ?? ""
                                 let hasLayerChange = responseString.contains("LayerChange")
                                 let hasStatus = responseString.contains("status")
-                                
+
                                 if (hasLayerChange && hasStatus) || accumulatedData.count > 1024 || isComplete {
                                     // We have both responses or connection complete
                                     connection.cancel()
@@ -639,23 +639,23 @@ class KanataManager: ObservableObject {
                                 }
                             }
                         }
-                        
+
                         receiveMoreData()
                     })
-                    
+
                 case let .failed(error):
                     if !hasResumed {
                         hasResumed = true
                         continuation.resume(throwing: error)
                     }
-                    
+
                 default:
                     break
                 }
             }
-            
+
             connection.start(queue: queue)
-            
+
             // Timeout after 5 seconds
             queue.asyncAfter(deadline: .now() + 5.0) {
                 if !hasResumed {
@@ -1591,24 +1591,24 @@ class KanataManager: ObservableObject {
         do {
             // Backup current config before making changes
             try await backupCurrentConfig()
-            
+
             // Save config directly without validation
             try config.write(to: URL(fileURLWithPath: configPath), atomically: true, encoding: .utf8)
             AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings")
-            
+
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { SoundManager.shared.playTinkSound() }
-            
+
             // Attempt TCP reload and capture any errors
             let reloadResult = await triggerTCPReloadWithErrorCapture()
-            
+
             if reloadResult.success {
                 // TCP reload succeeded - config is valid
                 AppLogger.shared.log("✅ [Config] TCP reload successful, config is valid")
-                
+
                 // Play glass sound asynchronously to avoid blocking completion
                 Task { SoundManager.shared.playGlassSound() }
-                
+
                 await MainActor.run {
                     saveStatus = .success
                 }
@@ -1617,13 +1617,13 @@ class KanataManager: ObservableObject {
                 let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
                 AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
                 AppLogger.shared.log("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
-                
+
                 // Play error sound asynchronously
                 Task { SoundManager.shared.playErrorSound() }
-                
+
                 // Restore backup since we can't verify the config was applied
                 try await restoreLastGoodConfig()
-                
+
                 // Set error status
                 await MainActor.run {
                     saveStatus = .failed("TCP server required for hot reload failed: \(errorMessage)")
@@ -1635,7 +1635,7 @@ class KanataManager: ObservableObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.saveStatus = .idle
             }
-            
+
         } catch {
             // Handle any errors
             await MainActor.run {
@@ -3125,7 +3125,7 @@ class KanataManager: ObservableObject {
         if isRunning {
             AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via TCP...")
             let reloadResult = await triggerTCPReloadWithErrorCapture()
-            
+
             if reloadResult.success {
                 let response = reloadResult.kanataResponse ?? "Success"
                 AppLogger.shared.log("✅ [Reset] Default config applied successfully via TCP: \(response)")

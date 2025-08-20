@@ -20,7 +20,7 @@ struct ContentView: View {
     @State private var showStatusMessage = false
     @State private var statusMessage = ""
     @State private var showingEmergencyAlert = false
-    
+
     // Enhanced error handling
     @State private var enhancedErrorInfo: ErrorInfo?
 
@@ -41,7 +41,7 @@ struct ContentView: View {
 
             // Enhanced Error Display - persistent and actionable
             EnhancedErrorHandler(errorInfo: $enhancedErrorInfo)
-            
+
             // Legacy Error Section (only show if there's an error and no enhanced error)
             if let error = kanataManager.lastError, !kanataManager.isRunning, enhancedErrorInfo == nil {
                 ErrorSection(
@@ -181,7 +181,7 @@ struct ContentView: View {
             // Use enhanced error handler for errors
             let errorText = message.replacingOccurrences(of: "❌ ", with: "")
             let error = NSError(domain: "KeyPath", code: -1, userInfo: [NSLocalizedDescriptionKey: errorText])
-            
+
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 enhancedErrorInfo = ErrorInfo.from(error)
             }
@@ -211,7 +211,7 @@ struct ContentView: View {
                 return
             }
         }
-        
+
         guard let capture = keyboardCapture else { return }
 
         // We have permissions, start monitoring
@@ -222,14 +222,14 @@ struct ContentView: View {
     }
 
     // Status monitoring functions removed - now handled centrally by SimpleKanataManager
-    
+
     /// Set up notification handlers for recovery actions
     private func setupRecoveryActionHandlers() {
         // Handle opening installation wizard
         NotificationCenter.default.addObserver(forName: .openInstallationWizard, object: nil, queue: .main) { _ in
             showingInstallationWizard = true
         }
-        
+
         // Handle resetting to safe config
         NotificationCenter.default.addObserver(forName: .resetToSafeConfig, object: nil, queue: .main) { _ in
             Task {
@@ -242,7 +242,7 @@ struct ContentView: View {
                 }
             }
         }
-        
+
         // Handle opening diagnostics
         NotificationCenter.default.addObserver(forName: .openDiagnostics, object: nil, queue: .main) { _ in
             // This would open a diagnostics window - implementation depends on app structure
@@ -516,13 +516,13 @@ struct RecordingSection: View {
                 return
             }
         }
-        
+
         guard let capture = keyboardCapture else {
             recordedInput = "⚠️ Failed to initialize keyboard capture"
             isRecording = false
             return
         }
-        
+
         capture.startCapture { keyName in
             recordedInput = keyName
             isRecording = false
@@ -549,7 +549,7 @@ struct RecordingSection: View {
                 return
             }
         }
-        
+
         guard let capture = keyboardCapture else {
             recordedOutput = "⚠️ Failed to initialize keyboard capture"
             isRecordingOutput = false

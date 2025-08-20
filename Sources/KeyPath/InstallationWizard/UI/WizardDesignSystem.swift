@@ -293,6 +293,76 @@ enum WizardDesign {
                 .disabled(isLoading)
             }
         }
+
+        // MARK: - Experimental Hero Layout Components
+
+        /// Large centered hero section with icon, headline, and supporting copy
+        struct HeroSection: View {
+            let icon: String
+            let iconColor: Color
+            let headline: String
+            let subtitle: String
+
+            var body: some View {
+                VStack(spacing: 0) {
+                    Spacer()
+
+                    // Centered hero block with padding
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        // Large icon (115pt)
+                        Image(systemName: icon)
+                            .font(.system(size: 115, weight: .light))
+                            .foregroundColor(iconColor)
+                            .symbolRenderingMode(.hierarchical)
+
+                        // Large headline (23pt)
+                        Text(headline)
+                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+
+                        // Supporting copy (17pt)
+                        Text(subtitle)
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+
+        /// Ultra-compact content card for additional information
+        struct CompactContentCard: View {
+            let content: String
+            let alignment: TextAlignment
+
+            init(content: String, alignment: TextAlignment = .leading) {
+                self.content = content
+                self.alignment = alignment
+            }
+
+            var body: some View {
+                VStack(alignment: alignment == .center ? .center : .leading, spacing: WizardDesign.Spacing.itemGap) {
+                    Text(content)
+                        .font(WizardDesign.Typography.body)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(alignment)
+                        .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
+
+                    // Minimal spacer (6pt)
+                    Spacer(minLength: 6)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(WizardDesign.Spacing.cardPadding)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            }
+        }
     }
 }
 
@@ -404,13 +474,7 @@ struct WizardStatusItem: View {
 
     var body: some View {
         HStack(spacing: WizardDesign.Spacing.iconGap) {
-            // Status icon
-            Image(systemName: statusIcon)
-                .foregroundColor(statusColor)
-                .font(.system(size: WizardDesign.Layout.iconSizeSmall))
-                .frame(width: 20)
-
-            // Main icon
+            // Main icon only (no status icon on left)
             Image(systemName: icon)
                 .foregroundColor(.secondary)
                 .font(.system(size: 16))
@@ -431,15 +495,31 @@ struct WizardStatusItem: View {
 
             Spacer()
 
-            // Status text
-            Text(statusText)
-                .wizardStatusIndicator(status)
+            // All status indicators on the right
+            HStack(spacing: 8) {
+                // Status indicator - icon for all states
+                Group {
+                    if status == .notStarted {
+                        Image(systemName: statusIcon)
+                            .foregroundColor(statusColor)
+                            .font(.system(size: 16))
+                            .symbolEffect(.bounce.up, options: .repeating)
+                            .symbolEffect(.pulse.byLayer, options: .repeating)
+                            .contentTransition(.symbolEffect(.replace))
+                    } else {
+                        Image(systemName: statusIcon)
+                            .foregroundColor(statusColor)
+                            .font(.system(size: 16))
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                }
 
-            // Navigation indicator
-            if isNavigable {
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
+                // Navigation indicator
+                if isNavigable {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
             }
         }
         .padding(.vertical, WizardDesign.Spacing.labelGap)

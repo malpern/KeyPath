@@ -62,7 +62,7 @@ struct WizardSystemStatusOverview: View {
         items.append(
             StatusItemModel(
                 id: "full-disk-access",
-                icon: "folder.badge.gearshape",
+                icon: "folder",
                 title: "Full Disk Access (Optional)",
                 status: fullDiskAccessStatus,
                 isNavigable: true,
@@ -151,7 +151,7 @@ struct WizardSystemStatusOverview: View {
         items.append(
             StatusItemModel(
                 id: "service",
-                icon: "play.fill",
+                icon: "gearshape.2",
                 title: "Start Keyboard Service",
                 status: getServiceStatus(),
                 isNavigable: true,
