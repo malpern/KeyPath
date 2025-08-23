@@ -455,23 +455,19 @@ class SimpleKanataManager: ObservableObject {
     }
 
     private func checkPermissions() async -> String? {
-        // CRITICAL FIX: Use unified PermissionService for consistent, binary-aware permission checking
-        // This ensures we check permissions for the actual kanata binary, not just KeyPath
-
-        // Get the active kanata binary path (matches wizard SystemStatusChecker logic)
-        let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
-
-        // Use PermissionService for comprehensive permission checking
-        let systemStatus = PermissionService.shared.checkSystemPermissions(
-            kanataBinaryPath: kanataBinaryPath)
-
-        // Return the first missing permission error message
-        if let errorMessage = systemStatus.missingPermissionError {
-            AppLogger.shared.log("❌ [SimpleKanataManager] Missing permission: \(errorMessage)")
-            return errorMessage
+        // 🔮 THE ORACLE: Single source of truth for ALL permission detection
+        // No more complex PermissionService logic, no more binary path confusion
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        
+        AppLogger.shared.log("🔮 [SimpleKanataManager] Oracle permission check complete")
+        
+        // Return the first blocking permission issue (clear, actionable message)
+        if let issue = snapshot.blockingIssue {
+            AppLogger.shared.log("❌ [SimpleKanataManager] Blocking issue: \(issue)")
+            return issue
         }
-
-        AppLogger.shared.log("✅ [SimpleKanataManager] All required permissions granted")
+        
+        AppLogger.shared.log("✅ [SimpleKanataManager] All permissions ready via Oracle")
         return nil
     }
 
@@ -577,16 +573,14 @@ class SimpleKanataManager: ObservableObject {
             return
         }
 
-        // VALIDATION: Only retry if permissions are actually fixed
-        let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
-        let systemStatus = PermissionService.shared.checkSystemPermissions(
-            kanataBinaryPath: kanataBinaryPath)
-
-        if !systemStatus.hasAllRequiredPermissions {
+        // 🔮 ORACLE VALIDATION: Only retry if permissions are actually fixed
+        let snapshot = await PermissionOracle.shared.forceRefresh()
+        
+        if !snapshot.isSystemReady {
             AppLogger.shared.log("🔄 [SimpleKanataManager] Permissions still missing - not retrying yet")
-            AppLogger.shared.log(
-                "📊 [SimpleKanataManager] Missing: \(systemStatus.missingPermissionError ?? "Unknown permissions")"
-            )
+            if let issue = snapshot.blockingIssue {
+                AppLogger.shared.log("📊 [SimpleKanataManager] Missing: \(issue)")
+            }
             return
         }
 
@@ -623,51 +617,44 @@ class SimpleKanataManager: ObservableObject {
     }
 
     /// Detect if permissions have changed since last check
-    /// CRITICAL FIX: Use same comprehensive checking that triggered the wizard
+    /// 🔮 ORACLE: Clean permission change detection
     private func checkForPermissionChanges() async -> Bool {
-        // Use SAME comprehensive checking that triggers wizard (KeyPath + kanata binary)
-        let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
-        let systemStatus = PermissionService.shared.checkSystemPermissions(
-            kanataBinaryPath: kanataBinaryPath)
-
-        // Current comprehensive permission state
-        let currentlyHasAllPermissions = systemStatus.hasAllRequiredPermissions
-
-        // Previous state (using stored KeyPath-only permissions as proxy)
-        let previouslyHadAllPermissions = lastPermissionState.input && lastPermissionState.accessibility
-
-        // Update stored state with current KeyPath permissions for next comparison
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        
+        // Current state from Oracle (authoritative)
+        let currentlyReady = snapshot.isSystemReady
+        
+        // Previous state (stored simple tuple)
+        let previouslyReady = lastPermissionState.input && lastPermissionState.accessibility
+        
+        // Update stored state for next comparison
         lastPermissionState = (
-            systemStatus.keyPath.hasInputMonitoring,
-            systemStatus.keyPath.hasAccessibility
+            snapshot.keyPath.inputMonitoring.isReady,
+            snapshot.keyPath.accessibility.isReady
         )
-
-        // Only return true if we went from "missing permissions" to "all permissions granted"
-        if !previouslyHadAllPermissions, currentlyHasAllPermissions {
-            AppLogger.shared.log(
-                "✅ [SimpleKanataManager] All system permissions now granted! " +
-                    "KeyPath(Input: \(systemStatus.keyPath.hasInputMonitoring), Access: \(systemStatus.keyPath.hasAccessibility)) | " +
-                    "Kanata(Input: \(systemStatus.kanata.hasInputMonitoring), Access: \(systemStatus.kanata.hasAccessibility))"
-            )
+        
+        // Permission improvement detected
+        if !previouslyReady && currentlyReady {
+            AppLogger.shared.log("✅ [SimpleKanataManager] 🔮 Oracle detected system is now ready!")
+            AppLogger.shared.log("📊 [SimpleKanataManager] \(snapshot.diagnosticSummary)")
             return true
         }
-
+        
         // Log current state for debugging
-        AppLogger.shared.log(
-            "📊 [SimpleKanataManager] Permission state check - Overall: \(currentlyHasAllPermissions), Previous: \(previouslyHadAllPermissions)"
-        )
-
+        AppLogger.shared.log("📊 [SimpleKanataManager] 🔮 Oracle state - Ready: \(currentlyReady), Previous: \(previouslyReady)")
+        
         return false
     }
 
-    /// Update stored permission state
+    /// Update stored permission state using Oracle
     private func updatePermissionState() async {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
         lastPermissionState = (
-            PermissionService.shared.hasInputMonitoringPermission(),
-            PermissionService.shared.hasAccessibilityPermission()
+            snapshot.keyPath.inputMonitoring.isReady,
+            snapshot.keyPath.accessibility.isReady
         )
         AppLogger.shared.log(
-            "📊 [SimpleKanataManager] Updated permission state - Input: \(lastPermissionState.input), Accessibility: \(lastPermissionState.accessibility)"
+            "📊 [SimpleKanataManager] 🔮 Oracle updated permission state - Input: \(lastPermissionState.input), Accessibility: \(lastPermissionState.accessibility)"
         )
     }
 
