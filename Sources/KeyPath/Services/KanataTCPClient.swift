@@ -1,6 +1,12 @@
 import Foundation
 import Network
 
+/// Kanata permission status from TCP API (your new PR)
+struct KanataPermissionStatus: Codable {
+    let accessibility: String        // "granted" | "denied" | "error"  
+    let input_monitoring: String     // "granted" | "denied" | "error"
+}
+
 /// TCP client for communicating with Kanata's TCP server for config validation
 class KanataTCPClient {
     private let host: String
@@ -108,6 +114,42 @@ class KanataTCPClient {
         } catch {
             AppLogger.shared.log("❌ [TCP] Config validation error: \(error)")
             return .networkError(error.localizedDescription)
+        }
+    }
+
+    // MARK: - Permission Checking (Oracle Integration)
+
+    /// Check Kanata's macOS permissions via TCP API
+    /// This is THE authoritative source for Kanata permission status
+    func checkMacOSPermissions() async throws -> KanataPermissionStatus {
+        AppLogger.shared.log("🔐 [TCP] Checking Kanata macOS permissions")
+        
+        let requestData = try JSONEncoder().encode(["check-macos-permissions": [:] as [String: String]])
+        let responseData = try await sendTCPRequest(requestData)
+        
+        do {
+            let status = try JSONDecoder().decode(KanataPermissionStatus.self, from: responseData)
+            AppLogger.shared.log("🔐 [TCP] Permission check result - Accessibility: \(status.accessibility), Input Monitoring: \(status.input_monitoring)")
+            return status
+        } catch {
+            AppLogger.shared.log("❌ [TCP] Failed to decode permission response: \(error)")
+            throw TCPError.invalidResponse
+        }
+    }
+
+    /// Restart Kanata process via TCP API (for post-permission changes)
+    /// Use this after user grants permissions to apply changes immediately
+    func restartKanata() async -> Bool {
+        AppLogger.shared.log("🔄 [TCP] Requesting Kanata restart")
+        
+        do {
+            let requestData = try JSONEncoder().encode(["restart": [:] as [String: String]])
+            _ = try await sendTCPRequest(requestData)
+            AppLogger.shared.log("✅ [TCP] Kanata restart request sent successfully")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [TCP] Kanata restart failed: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -253,6 +295,7 @@ enum TCPError: Error, LocalizedError {
     case timeout
     case noResponse
     case invalidPort
+    case invalidResponse
 
     var errorDescription: String? {
         switch self {
@@ -262,6 +305,8 @@ enum TCPError: Error, LocalizedError {
             "No response received from server"
         case .invalidPort:
             "Invalid TCP port number"
+        case .invalidResponse:
+            "Invalid or malformed response from server"
         }
     }
 }

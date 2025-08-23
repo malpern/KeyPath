@@ -317,13 +317,7 @@ enum WizardConstants {
 
 // MARK: - Protocols
 
-/// Protocol for objects that can detect system state
-protocol SystemStateDetecting {
-    func detectCurrentState() async -> SystemStateResult
-    func detectConflicts() async -> ConflictDetectionResult
-    func checkPermissions() async -> PermissionCheckResult
-    func checkComponents() async -> ComponentCheckResult
-}
+// SystemStateDetecting protocol removed - SystemStatusChecker is now the single detection system
 
 /// Protocol for objects that can automatically fix issues
 protocol AutoFixCapable {

@@ -77,9 +77,12 @@ class PermissionService {
         AppLogger.shared.log("🧭 [PermissionTrace] GRANT via \(source): \(details)")
     }
     
-    /// Standardize a file path to its canonical form
+    /// Standardize a file path to its canonical form (resolving symlinks)
     private static func standardizedPath(_ path: String) -> String {
-        return URL(fileURLWithPath: path).standardizedFileURL.path
+        return URL(fileURLWithPath: path)
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+            .path
     }
     
     /// Escape string for safe use in SQLite queries
@@ -280,17 +283,50 @@ class PermissionService {
         )
         
         if let tap = eventTap {
+            // FIXED: Properly clean up the event tap without causing NULL pointer crashes
+            // Don't try to remove from run loop since we never added it
             CFMachPortInvalidate(tap)
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0), .commonModes)
             return true
         }
         
         return false
     }
 
-    /// Check accessibility for the current process
+    /// Check Accessibility for the current process using both TCC DB and AX runtime API
     private func checkKeyPathAccessibility() -> Bool {
-        hasAccessibilityPermission()
+        // For KeyPath app itself, prefer TCC DB lookups using bundle ID first
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
+        let appPath = Bundle.main.bundlePath
+
+        AppLogger.shared.log("🔐 [PermissionService] Checking KeyPath Accessibility:")
+        AppLogger.shared.log("  - Bundle ID: \(bundleIdentifier)")
+        AppLogger.shared.log("  - App Path: \(appPath)")
+
+        // 1) Check TCC by bundle identifier
+        let bundleIdCheck = Self.checkTCCForAccessibility(path: bundleIdentifier)
+        AppLogger.shared.log("  - Bundle ID check: \(bundleIdCheck)")
+        if bundleIdCheck {
+            return true
+        }
+
+        // 2) Check TCC by app path (development builds or alt installs)
+        let appPathCheck = Self.checkTCCForAccessibility(path: appPath)
+        AppLogger.shared.log("  - App path check: \(appPathCheck)")
+        if appPathCheck {
+            return true
+        }
+
+        // 3) Also check alternate bundle ID we've seen in TCC DB
+        let altIdCheck = Self.checkTCCForAccessibility(path: "com.intelligencetest.KeyPath")
+        AppLogger.shared.log("  - Alt ID check: \(altIdCheck)")
+        if altIdCheck {
+            return true
+        }
+
+        // 4) Fallback: AXIsProcessTrusted (canonical for current process)
+        let runtimeCheck = hasAccessibilityPermission()
+        AppLogger.shared.log("  - Runtime API (AXIsProcessTrusted) check: \(runtimeCheck)")
+        return runtimeCheck
     }
 
     /// Track TCC authorization
@@ -465,45 +501,44 @@ class PermissionService {
     }
 
     static func checkTCCForAccessibility(path: String) -> Bool {
-        // For KeyPath app itself, use AXIsProcessTrusted which checks current process
+        // For KeyPath app itself, use AXIsProcessTrusted for current process
         let currentProcessPath = Bundle.main.bundlePath
         if path == currentProcessPath {
             let hasAccess = AXIsProcessTrusted()
-            AppLogger.shared.log(
-                "🔐 [PermissionService] AXIsProcessTrusted for current process: \(hasAccess)")
+            AppLogger.shared.log("🔐 [PermissionService] AXIsProcessTrusted for current process: \(hasAccess)")
             return hasAccess
         }
 
-        // For other binaries, check TCC database first
-        if let allowed = checkTCCDatabase(for: path, service: "kTCCServiceAccessibility") {
+        // Try TCC database with robust service name candidates
+        if let allowed = checkTCCDatabase(for: path, services: ["kTCCServiceAccessibility", "Accessibility"]) {
             AppLogger.shared.log("🔐 [PermissionService] TCC DB Accessibility for \(path): \(allowed)")
+            if allowed {
+                traceGrant("TCC", details: "Accessibility allowed for client \(path)")
+            }
             return allowed
         }
-        
+
         // Fallback heuristic if TCC DB is not accessible
         return checkBinaryPermission(for: path, service: "Accessibility")
     }
 
     static func checkTCCForInputMonitoring(path: String) -> Bool {
-        // For KeyPath app itself, DO NOT use IOHIDCheckAccess as it can trigger automatic
-        // addition to Input Monitoring preferences. Instead, use non-invasive checking.
+        // For KeyPath app itself, DO NOT invoke APIs that auto-register
         let currentProcessPath = Bundle.main.bundlePath
         if path == currentProcessPath {
-            AppLogger.shared.log(
-                "🔐 [PermissionService] Using non-invasive check for current process to avoid auto-registration"
-            )
+            AppLogger.shared.log("🔐 [PermissionService] Using non-invasive check for current process to avoid auto-registration")
             return PermissionService.shared.checkInputMonitoringNonInvasively()
         }
 
-        // For other binaries, check TCC database first
-        if let allowed = checkTCCDatabase(for: path, service: "kTCCServiceListenEvent") {
+        // Try TCC database with robust service name candidates
+        if let allowed = checkTCCDatabase(for: path, services: ["kTCCServiceListenEvent", "ListenEvent"]) {
             AppLogger.shared.log("🔐 [PermissionService] TCC DB ListenEvent for \(path): \(allowed)")
             if allowed {
                 traceGrant("TCC", details: "ListenEvent allowed for client \(path)")
             }
             return allowed
         }
-        
+
         // Fallback heuristic if TCC DB is not accessible
         return checkBinaryPermission(for: path, service: "InputMonitoring")
     }
@@ -579,20 +614,32 @@ class PermissionService {
         // just by checking if it's running. Kanata can run without permission but won't
         // capture any keys.
         
-        // The only reliable way to check is through the TCC database, but that requires
-        // Full Disk Access. Without it, we should be conservative.
+        // Try to check the TCC database directly with multiple identifiers
+        let candidates = [
+            path,  // Full path
+            codeSignatureIdentifier(at: path) ?? path,  // Code signature identifier
+            URL(fileURLWithPath: path).lastPathComponent  // Just the binary name
+        ]
         
-        // Try to check the TCC database directly
-        let hasTCCAccess = checkTCCDatabase(for: path, service: "kTCCServiceListenEvent")
-        if hasTCCAccess != nil {
-            AppLogger.shared.log("🔐 [PermissionService] TCC database check for kanata: \(hasTCCAccess!)")
-            return hasTCCAccess!
+        for candidate in candidates {
+            if let hasTCCAccess = checkTCCDatabase(for: candidate, service: "kTCCServiceListenEvent") {
+                AppLogger.shared.log("🔐 [PermissionService] TCC database check for kanata (\(candidate)): \(hasTCCAccess)")
+                if hasTCCAccess {
+                    return true
+                }
+            }
         }
         
-        // If we can't check TCC database, look for specific indicators
+        // If we can't find TCC entries, try functional verification
         // Check if kanata is in the process of capturing keys successfully
         if isKanataCapturingKeys() {
-            AppLogger.shared.log("🔐 [PermissionService] Kanata appears to be capturing keys successfully")
+            AppLogger.shared.log("🔐 [PermissionService] Kanata appears to be capturing keys successfully - has functional permission")
+            return true
+        }
+        
+        // Try a simple test run to see if kanata can access input devices
+        if testKanataCanAccessInputDevices(at: path) {
+            AppLogger.shared.log("🔐 [PermissionService] Kanata test run shows it can access input devices")
             return true
         }
         
@@ -601,28 +648,181 @@ class PermissionService {
         return false
     }
     
-    /// Check if kanata is actively capturing keys (by checking TCP layer info or logs)
-    private static func isKanataCapturingKeys() -> Bool {
-        // Check if we can connect to kanata TCP server and it reports active layers
-        // This would indicate it's actually processing key events
+    /// Test if kanata can access input devices by running a quick validation
+    private static func testKanataCanAccessInputDevices(at path: String) -> Bool {
+        guard FileManager.default.fileExists(atPath: path) else {
+            AppLogger.shared.log("🔐 [PermissionService] Kanata binary not found at \(path)")
+            return false
+        }
         
-        // For now, return false to be conservative
-        // TODO: Implement actual TCP check for layer state
-        return false
+        // Create a minimal test config that doesn't interfere with anything
+        let testConfig = """
+        (defcfg
+          process-unmapped-keys yes
+        )
+        (defsrc esc)
+        (deflayer base esc)
+        """
+        
+        let tempConfigPath = "/tmp/keypath_permission_test_\(UUID().uuidString).kbd"
+        
+        do {
+            try testConfig.write(toFile: tempConfigPath, atomically: true, encoding: .utf8)
+            defer { try? FileManager.default.removeItem(atPath: tempConfigPath) }
+            
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: path)
+            task.arguments = ["--cfg", tempConfigPath, "--check"]
+            
+            let pipe = Pipe()
+            let errorPipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = errorPipe
+            
+            // Set a timeout
+            task.environment = ["PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin"]
+            
+            try task.run()
+            task.waitUntilExit()
+            
+            let outputData = pipe.fileHandleForReading.readDataToEndOfFile()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            
+            let output = String(data: outputData, encoding: .utf8) ?? ""
+            let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
+            let combinedOutput = output + errorOutput
+            
+            // Check for permission-related errors
+            let permissionErrors = [
+                "operation not permitted",
+                "iokit",
+                "hid",
+                "device not accessible",
+                "privilege violation"
+            ]
+            
+            let hasPermissionError = permissionErrors.contains { error in
+                combinedOutput.lowercased().contains(error)
+            }
+            
+            if hasPermissionError {
+                AppLogger.shared.log("🔐 [PermissionService] Kanata test run shows permission errors: \(combinedOutput)")
+                return false
+            } else if task.terminationStatus == 0 {
+                AppLogger.shared.log("🔐 [PermissionService] Kanata test run successful - likely has permissions")
+                return true
+            } else {
+                AppLogger.shared.log("🔐 [PermissionService] Kanata test run failed with exit code \(task.terminationStatus), but no clear permission errors")
+                return false
+            }
+            
+        } catch {
+            AppLogger.shared.log("🔐 [PermissionService] Failed to test kanata permissions: \(error)")
+            return false
+        }
     }
     
-    /// Try to check TCC database directly (requires Full Disk Access)
-    private static func checkTCCDatabase(for path: String, service: String) -> Bool? {
-        let stdPath = standardizedPath(path)
-        let escapedService = escapeForSQLite(service)
-        let escapedPath = escapeForSQLite(stdPath)
-        var candidates: [String] = [escapedPath]
-        
-        // Try to get code signature identifier as an alternative client ID
-        // Prefer path for CLI binaries like kanata, check identifier second
-        if let identifier = codeSignatureIdentifier(at: stdPath) {
-            candidates.append(escapeForSQLite(identifier))
+    /// Check if kanata is actively capturing keys (by checking TCP layer info or logs)
+    private static func isKanataCapturingKeys() -> Bool {
+        // Respect TCP preferences for a non-invasive functional hint
+        let tcpConfig = PreferencesService.tcpSnapshot()
+        guard tcpConfig.shouldUseTCPServer else {
+            AppLogger.shared.log("🔐 [PermissionService] TCP server disabled; skipping capture check")
+            return false
         }
+        let host = "127.0.0.1"
+        let port = tcpConfig.port
+        
+        let sock = socket(AF_INET, SOCK_STREAM, 0)
+        guard sock >= 0 else {
+            AppLogger.shared.log("🔐 [PermissionService] Cannot create socket for kanata TCP check")
+            return false
+        }
+        
+        defer { close(sock) }
+        
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = in_port_t(port).bigEndian
+        addr.sin_addr.s_addr = inet_addr(host)
+        
+        // Set a very short timeout for the connection attempt
+        var timeout = timeval()
+        timeout.tv_sec = 1
+        timeout.tv_usec = 0
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        
+        let result = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        
+        if result == 0 {
+            AppLogger.shared.log("🔐 [PermissionService] Successfully connected to kanata TCP server on port \(port) - likely has permissions")
+            return true
+        } else {
+            AppLogger.shared.log("🔐 [PermissionService] Cannot connect to kanata TCP server on port \(port) - may not have permissions or not running")
+            return false
+        }
+    }
+    
+    /// Try multiple TCC service names in order, returning the first definite result
+    private static func checkTCCDatabase(for client: String, services: [String]) -> Bool? {
+        for service in services {
+            if let allowed = checkTCCDatabase(for: client, service: service) {
+                return allowed
+            }
+        }
+        return nil
+    }
+
+    /// Try to check TCC database directly (requires Full Disk Access)
+    private static func checkTCCDatabase(for client: String, service: String) -> Bool? {
+        // Detect whether input is a filesystem path or a bundle identifier / client ID
+        let isPathLike = client.hasPrefix("/") || client.hasPrefix("~")
+        var candidates: [String] = []
+        var logClientKind = "identifier"
+
+        if isPathLike {
+            logClientKind = "path"
+            let stdPath = standardizedPath(client)
+            let escapedStd = escapeForSQLite(stdPath)
+            candidates.append(escapedStd)
+
+            // Also consider the original (possibly symlink) path if different
+            if client != stdPath {
+                let escapedOrig = escapeForSQLite(client)
+                candidates.append(escapedOrig)
+            }
+
+            // Try to include the code-sign identifier for the path (if any)
+            if FileManager.default.fileExists(atPath: stdPath),
+               let identifier = codeSignatureIdentifier(at: stdPath)
+            {
+                candidates.append(escapeForSQLite(identifier))
+                AppLogger.shared.log("🔍 [PermissionService] Added code signature identifier for \(stdPath): \(identifier)")
+            }
+        } else {
+            // Treat as identifier (e.g., bundle identifier)
+            let escapedId = escapeForSQLite(client)
+            candidates.append(escapedId)
+
+            // Try to resolve a bundle path for this identifier (best-effort, may fail on dev builds)
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: client) {
+                let resolvedPath = standardizedPath(appURL.path)
+                candidates.append(escapeForSQLite(resolvedPath))
+                if let identifier = codeSignatureIdentifier(at: resolvedPath) {
+                    candidates.append(escapeForSQLite(identifier))
+                }
+                AppLogger.shared.log("🔍 [PermissionService] Resolved bundle ID \(client) to app path: \(resolvedPath)")
+            }
+        }
+
+        let escapedService = escapeForSQLite(service)
+        AppLogger.shared.log("🔍 [PermissionService] Checking TCC database for service=\(service), client(\(logClientKind))=\(client)")
+        AppLogger.shared.log("🔍 [PermissionService] Will check candidates: \(candidates)")
         
         // Check both user and system TCC databases
         let userDB = NSHomeDirectory().appending("/Library/Application Support/com.apple.TCC/TCC.db")
@@ -630,31 +830,46 @@ class PermissionService {
         let dbs = [userDB, systemDB]
         
         for db in dbs where FileManager.default.fileExists(atPath: db) {
-            for client in candidates {
-                // ORDER BY last_modified DESC covers multiple entries; LIMIT 1 is fast
-                let sql = "SELECT allowed FROM access WHERE service='\(escapedService)' AND client='\(client)' AND allowed=1 ORDER BY last_modified DESC LIMIT 1;"
-                
-                let task = Process()
-                task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-                task.arguments = ["-readonly", db, sql]
-                let pipe = Pipe()
-                task.standardOutput = pipe
-                task.standardError = Pipe()
-                
-                do {
-                    try task.run()
-                    task.waitUntilExit()
-                    if task.terminationStatus == 0 {
-                        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                        let output = String(data: data, encoding: .utf8) ?? ""
-                        if output.contains("1") {
-                            AppLogger.shared.log("🔐 [PermissionService] TCC DB: Found permission for \(service) at \(db) for client \(client)")
-                            return true
+            AppLogger.shared.log("🔍 [PermissionService] Checking database: \(db)")
+            for candidate in candidates {
+                // Try modern schema (auth_value) first, then legacy (allowed)
+                // auth_value: 0=denied, 1=unknown, 2=allowed
+                let sqls = [
+                    "SELECT auth_value FROM access WHERE service='\(escapedService)' AND client='\(candidate)' ORDER BY last_modified DESC LIMIT 1;",
+                    "SELECT allowed FROM access WHERE service='\(escapedService)' AND client='\(candidate)' ORDER BY last_modified DESC LIMIT 1;"
+                ]
+
+                for sql in sqls {
+                    AppLogger.shared.log("🔍 [PermissionService] SQL: \(sql)")
+
+                    let task = Process()
+                    task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+                    task.arguments = ["-readonly", db, sql]
+                    let pipe = Pipe()
+                    task.standardOutput = pipe
+                    task.standardError = Pipe()
+
+                    do {
+                        try task.run()
+                        task.waitUntilExit()
+                        if task.terminationStatus == 0 {
+                            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                            let raw = String(data: data, encoding: .utf8) ?? ""
+                            let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if value == "2" || value == "1" { // 2 for auth_value, 1 for allowed
+                                let mode = (value == "2") ? "auth_value=2" : "allowed=1"
+                                AppLogger.shared.log("🔐 [PermissionService] TCC DB: Found permission (\(mode)) for \(service) at \(db) for client \(candidate)")
+                                return true
+                            } else if !value.isEmpty {
+                                AppLogger.shared.log("🔐 [PermissionService] TCC DB: Found entry for \(candidate) but value=\(value) (not allowed)")
+                            }
+                        } else {
+                            AppLogger.shared.log("🔐 [PermissionService] TCC DB query failed for \(candidate) with exit code \(task.terminationStatus)")
                         }
+                    } catch {
+                        // Most likely no FDA or access denied; continue trying other DBs/clients
+                        AppLogger.shared.log("🔐 [PermissionService] TCC DB not accessible at \(db): \(error.localizedDescription)")
                     }
-                } catch {
-                    // Most likely no FDA or access denied; continue trying other DBs/clients
-                    AppLogger.shared.log("🔐 [PermissionService] TCC DB not accessible at \(db): \(error.localizedDescription)")
                 }
             }
         }

@@ -1,14 +1,15 @@
 import ApplicationServices
 import Foundation
 
-/// Unified system status checker that consolidates all detection logic
-/// Replaces: ComponentDetector, SystemHealthChecker, SystemRequirements, SystemStateDetector
-///
-/// ENHANCED WITH FUNCTIONAL PERMISSION VERIFICATION:
-/// - Detects actual Kanata permission failures by analyzing service logs
-/// - Checks for IOHIDDeviceOpen errors and device access failures
-/// - Prevents false positives that occur when TCC database is out of sync
-/// - Uses multiple verification methods with confidence scoring
+/// Unified system status checker that handles all wizard detection logic
+/// 
+/// FEATURES:
+/// - Comprehensive permission detection with TCC database integration
+/// - Functional verification through service log analysis and TCP connectivity
+/// - Component installation and health checking
+/// - Conflict detection and resolution
+/// - Automatic issue generation with actionable fixes
+/// - Performance optimized with intelligent caching
 @MainActor
 class SystemStatusChecker {
     private let kanataManager: KanataManager
@@ -23,6 +24,12 @@ class SystemStatusChecker {
     private var cachedStateResult: SystemStateResult?
     private var cacheTimestamp: Date?
     private let cacheValidDuration: TimeInterval = 2.0 // 2-second cache
+
+    // MARK: - Debouncing State (from SystemStateDetector)
+
+    private var lastConflictState: Bool = false
+    private var lastStateChange: Date = .init()
+    private let stateChangeDebounceTime: TimeInterval = 0.5 // 500ms
 
     init(kanataManager: KanataManager) {
         self.kanataManager = kanataManager
@@ -183,9 +190,13 @@ class SystemStatusChecker {
         var granted: [PermissionRequirement] = []
         var missing: [PermissionRequirement] = []
 
-        // Use simplified PermissionService
+        // Resolve kanata path once and use consistently
+        let kanataPath = WizardSystemPaths.kanataActiveBinary
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Using kanata binary for permission checks: \(kanataPath)")
+
+        // Optional: still compute the aggregate status, but we'll also do explicit calls below
         let systemStatus = PermissionService.shared.checkSystemPermissions(
-            kanataBinaryPath: WizardSystemPaths.kanataActiveBinary)
+            kanataBinaryPath: kanataPath)
 
         // KeyPath permissions (these are reliable)
         if systemStatus.keyPath.hasInputMonitoring {
@@ -201,9 +212,7 @@ class SystemStatusChecker {
         }
 
         // Kanata permissions - use enhanced functional verification
-        let functionalVerification = PermissionService.shared.verifyKanataFunctionalPermissions(
-            at: WizardSystemPaths.kanataActiveBinary
-        )
+        let functionalVerification = PermissionService.shared.verifyKanataFunctionalPermissions(at: kanataPath)
 
         AppLogger.shared.log(
             "🔍 [SystemStatusChecker] Kanata functional verification: method=\(functionalVerification.verificationMethod), confidence=\(functionalVerification.confidence), hasAll=\(functionalVerification.hasAllRequiredPermissions)"
@@ -218,7 +227,7 @@ class SystemStatusChecker {
             }
         }
 
-        // Only grant permissions if functional verification is confident they work
+        // Functional signal (positive evidence only)
         if functionalVerification.hasInputMonitoring &&
             functionalVerification.confidence != .low &&
             functionalVerification.confidence != .unknown
@@ -241,32 +250,20 @@ class SystemStatusChecker {
                 "❌ [SystemStatusChecker] Kanata Accessibility: functional verification failed")
         }
 
-        // For low confidence results, fall back to TCC database but warn about uncertainty
-        if functionalVerification.confidence == .low || functionalVerification.confidence == .unknown {
-            AppLogger.shared.log(
-                "⚠️ [SystemStatusChecker] Low confidence verification - falling back to TCC database with warning")
+        // Always consult TCC (not only as a fallback) so positive grants are honored.
+        let tccInputMonitoring = PermissionService.checkTCCForInputMonitoring(path: kanataPath)
+        let tccAccessibility = PermissionService.checkTCCForAccessibility(path: kanataPath)
+        AppLogger.shared.log("🔍 [SystemStatusChecker] TCC results - input: \(tccInputMonitoring), accessibility: \(tccAccessibility)")
 
-            // Check TCC database as fallback
-            let tccInputMonitoring = PermissionService.checkTCCForInputMonitoring(
-                path: WizardSystemPaths.kanataActiveBinary)
-            let tccAccessibility = PermissionService.checkTCCForAccessibility(
-                path: WizardSystemPaths.kanataActiveBinary)
-
-            // Only override missing permissions if TCC says they're granted
-            // This prevents completely blocking the wizard on detection failures
-            if tccInputMonitoring, !granted.contains(.kanataInputMonitoring) {
-                granted.append(.kanataInputMonitoring)
-                missing.removeAll { $0 == .kanataInputMonitoring }
-                AppLogger.shared.log(
-                    "ℹ️ [SystemStatusChecker] TCC fallback: granted kanata Input Monitoring")
-            }
-
-            if tccAccessibility, !granted.contains(.kanataAccessibility) {
-                granted.append(.kanataAccessibility)
-                missing.removeAll { $0 == .kanataAccessibility }
-                AppLogger.shared.log(
-                    "ℹ️ [SystemStatusChecker] TCC fallback: granted kanata Accessibility")
-            }
+        if tccInputMonitoring, !granted.contains(.kanataInputMonitoring) {
+            granted.append(.kanataInputMonitoring)
+            missing.removeAll { $0 == .kanataInputMonitoring }
+            AppLogger.shared.log("ℹ️ [SystemStatusChecker] TCC source: granted kanata Input Monitoring")
+        }
+        if tccAccessibility, !granted.contains(.kanataAccessibility) {
+            granted.append(.kanataAccessibility)
+            missing.removeAll { $0 == .kanataAccessibility }
+            AppLogger.shared.log("ℹ️ [SystemStatusChecker] TCC source: granted kanata Accessibility")
         }
 
         // Check system extensions (not part of PermissionService - different category)

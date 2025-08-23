@@ -4,9 +4,9 @@ import SwiftUI
 struct InstallationWizardView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataManager: KanataManager
-    
+
     // Optional initial page to navigate to
-    var initialPage: WizardPage? = nil
+    var initialPage: WizardPage?
 
     // New architecture components
     @StateObject private var stateManager = WizardStateManager()
@@ -54,13 +54,18 @@ struct InstallationWizardView: View {
         .onAppear {
             setupWizard()
         }
-        // Add keyboard navigation support for left/right arrow keys (macOS 14.0+)
+        // Add keyboard navigation support for left/right arrow keys and ESC (macOS 14.0+)
         .modifier(
             KeyboardNavigationModifier(
                 onLeftArrow: navigateToPreviousPage,
-                onRightArrow: navigateToNextPage
+                onRightArrow: navigateToNextPage,
+                onEscape: forciblyCloseWizard
             )
         )
+        // Ensure ESC always closes the wizard, even if key focus isn't on our view
+        .onExitCommand {
+            forciblyCloseWizard()
+        }
         .task {
             // Monitor state changes
             await monitorSystemState()
@@ -276,9 +281,9 @@ struct InstallationWizardView: View {
 
         // Always reset navigation state for fresh run
         navigationCoordinator.navigationEngine.resetNavigationState()
-        
+
         // If an initial page was specified, navigate to it
-        if let initialPage = initialPage {
+        if let initialPage {
             AppLogger.shared.log("🔍 [NewWizard] Navigating to initial page: \(initialPage)")
             navigationCoordinator.navigateToPage(initialPage)
         }
@@ -464,7 +469,11 @@ struct InstallationWizardView: View {
                 AppLogger.shared.log("🔍 [NewWizard] Auto-fixable actions found: \(autoFixableIssues)")
 
                 for action in autoFixableIssues {
-                    let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
+                    guard let actualAutoFixer = autoFixer.autoFixer else {
+                        AppLogger.shared.log("❌ [NewWizard] AutoFixer not configured - skipping auto-fix")
+                        continue
+                    }
+                    let operation = WizardOperations.autoFix(action: action, autoFixer: actualAutoFixer)
                     let actionDescription = getAutoFixActionDescription(action)
 
                     asyncOperationManager.execute(operation: operation) { (success: Bool) in
@@ -529,7 +538,11 @@ struct InstallationWizardView: View {
             asyncOperationManager.runningOperations.insert(operationId)
         }
 
-        let operation = WizardOperations.autoFix(action: action, autoFixer: autoFixer)
+        guard let actualAutoFixer = autoFixer.autoFixer else {
+            AppLogger.shared.log("❌ [NewWizard] AutoFixer not configured for single auto-fix")
+            return false
+        }
+        let operation = WizardOperations.autoFix(action: action, autoFixer: actualAutoFixer)
         let actionDescription = getAutoFixActionDescription(action)
 
         return await withCheckedContinuation { continuation in
@@ -918,7 +931,7 @@ class WizardStateManager: ObservableObject {
 
 @MainActor
 class WizardAutoFixerManager: ObservableObject {
-    private var autoFixer: WizardAutoFixer?
+    private(set) var autoFixer: WizardAutoFixer?
 
     func configure(kanataManager: KanataManager, toastManager: WizardToastManager) {
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with KanataManager")
@@ -947,6 +960,13 @@ class WizardAutoFixerManager: ObservableObject {
 struct KeyboardNavigationModifier: ViewModifier {
     let onLeftArrow: () -> Void
     let onRightArrow: () -> Void
+    let onEscape: (() -> Void)?
+
+    init(onLeftArrow: @escaping () -> Void, onRightArrow: @escaping () -> Void, onEscape: (() -> Void)? = nil) {
+        self.onLeftArrow = onLeftArrow
+        self.onRightArrow = onRightArrow
+        self.onEscape = onEscape
+    }
 
     func body(content: Content) -> some View {
         if #available(macOS 14.0, *) {
@@ -957,6 +977,10 @@ struct KeyboardNavigationModifier: ViewModifier {
                 }
                 .onKeyPress(.rightArrow) {
                     onRightArrow()
+                    return .handled
+                }
+                .onKeyPress(.escape) {
+                    onEscape?()
                     return .handled
                 }
                 .focusable(true)

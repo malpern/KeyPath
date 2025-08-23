@@ -133,26 +133,27 @@ class SimpleKanataManager: ObservableObject {
     @MainActor
     func showWizardForInputMonitoring() async {
         AppLogger.shared.log("🔐 [SimpleKanataManager] Showing wizard for Input Monitoring restart")
-        
+
         // Log to file for debugging
         let logPath = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/wizard-restart.log"
         let logEntry = """
         [\(Date())] SimpleKanataManager.showWizardForInputMonitoring called
           - Setting showWizard = true
-        
+
         """
         if let data = logEntry.data(using: .utf8),
-           let fileHandle = FileHandle(forWritingAtPath: logPath) {
+           let fileHandle = FileHandle(forWritingAtPath: logPath)
+        {
             fileHandle.seekToEndOfFile()
             fileHandle.write(data)
             fileHandle.closeFile()
         }
-        
+
         showWizard = true
         // Force UI update
         objectWillChange.send()
     }
-    
+
     /// Manual start requested by user (from wizard)
     func manualStart() async {
         AppLogger.shared.log("👤 [SimpleKanataManager] Manual start requested by user")
@@ -457,7 +458,7 @@ class SimpleKanataManager: ObservableObject {
         // CRITICAL FIX: Use unified PermissionService for consistent, binary-aware permission checking
         // This ensures we check permissions for the actual kanata binary, not just KeyPath
 
-        // Get the active kanata binary path (matches wizard ComponentDetector logic)
+        // Get the active kanata binary path (matches wizard SystemStatusChecker logic)
         let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
 
         // Use PermissionService for comprehensive permission checking

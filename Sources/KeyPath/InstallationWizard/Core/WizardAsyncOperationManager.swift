@@ -222,7 +222,7 @@ enum WizardOperations {
     /// Auto-fix operation with detailed progress tracking
     static func autoFix(
         action: AutoFixAction,
-        autoFixer: WizardAutoFixerManager
+        autoFixer: WizardAutoFixer
     ) -> AsyncOperation<Bool> {
         AsyncOperation<Bool>(
             id: "auto_fix_\(String(describing: action))",

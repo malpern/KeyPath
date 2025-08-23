@@ -11,6 +11,9 @@ struct WizardAccessibilityPage: View {
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
+    // State interpreter for consistent status computation
+    private let stateInterpreter = WizardStateInterpreter()
+
     // Polling state for permission checking
     @State private var isPolling = false
     @State private var pollTimer: Timer?
@@ -204,9 +207,29 @@ struct WizardAccessibilityPage: View {
                                 }
                                 Spacer()
                                 if kanataAccessibilityStatus != .completed {
-                                    Button("Fix") {
-                                        requestAccessibilityPermission()
+                                    Button(action: {
+                                        // Multiple immediate debug outputs
+                                        print("*** KANATA FIX BUTTON CLICKED ***")
+                                        Swift.print("*** KANATA FIX BUTTON CLICKED ***")
+                                        NSLog("*** KANATA FIX BUTTON CLICKED ***")
+                                        
+                                        AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix button clicked for kanata")
+                                        
+                                        // Write to file immediately for debugging
+                                        try? "Fix button clicked at \(Date())\n".write(
+                                            to: URL(fileURLWithPath: "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/fix-button-debug.log"),
+                                            atomically: false,
+                                            encoding: .utf8
+                                        )
+                                        
+                                        // Open Accessibility settings for the user to enable kanata
+                                        openAccessibilitySettings()
+                                        // Clear cached permission results so polling sees changes quickly
+                                        PermissionService.shared.clearCache()
+                                        // Begin polling to refresh UI as the user toggles permissions
                                         startPolling()
+                                    }) {
+                                        Text("Fix")
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
@@ -293,23 +316,13 @@ struct WizardAccessibilityPage: View {
     }
 
     private var keyPathAccessibilityStatus: InstallationStatus {
-        let hasKeyPathIssue = issues.contains { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathAccessibility
-            }
-            return false
-        }
-        return hasKeyPathIssue ? .notStarted : .completed
+        stateInterpreter.getPermissionStatus(.keyPathAccessibility, in: issues)
     }
 
     private var kanataAccessibilityStatus: InstallationStatus {
-        let hasKanataIssue = issues.contains { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .kanataAccessibility
-            }
-            return false
-        }
-        return hasKanataIssue ? .notStarted : .completed
+        let status = stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues)
+        AppLogger.shared.log("🔍 [WizardAccessibilityPage] kanataAccessibilityStatus: \(status)")
+        return status
     }
 
     // MARK: - Actions

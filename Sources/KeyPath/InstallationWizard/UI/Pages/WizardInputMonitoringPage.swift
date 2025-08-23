@@ -331,32 +331,32 @@ struct WizardInputMonitoringPage: View {
 
     private func openInputMonitoringSettings() {
         AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Opening Input Monitoring settings")
-        
+
         // Save state that we're opening Input Monitoring settings
         // This will be checked on app restart to auto-reopen the wizard
         UserDefaults.standard.set(true, forKey: "wizard_pending_input_monitoring")
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "wizard_input_monitoring_timestamp")
-        
+
         // Force synchronize to ensure it's written to disk before app terminates
         let syncResult = UserDefaults.standard.synchronize()
-        
+
         // Log to file for debugging across app restarts
         let logPath = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/wizard-restart.log"
         let timestamp = Date().timeIntervalSince1970
-        
+
         // Create logs directory if needed
         let logsDir = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs"
         try? FileManager.default.createDirectory(atPath: logsDir, withIntermediateDirectories: true)
-        
+
         // Write log entry
         let logEntry = """
         [\(Date())] SAVING wizard state for Input Monitoring restart:
           - wizard_pending_input_monitoring: true
           - wizard_input_monitoring_timestamp: \(timestamp)
           - synchronize result: \(syncResult)
-        
+
         """
-        
+
         if let data = logEntry.data(using: .utf8) {
             if FileManager.default.fileExists(atPath: logPath) {
                 if let fileHandle = FileHandle(forWritingAtPath: logPath) {
@@ -368,20 +368,21 @@ struct WizardInputMonitoringPage: View {
                 try? data.write(to: URL(fileURLWithPath: logPath))
             }
         }
-        
+
         // Double-check the values were saved
         let checkPending = UserDefaults.standard.bool(forKey: "wizard_pending_input_monitoring")
         let checkTimestamp = UserDefaults.standard.double(forKey: "wizard_input_monitoring_timestamp")
-        
+
         let verifyEntry = """
         [\(Date())] VERIFICATION after save:
           - pending: \(checkPending)
           - timestamp: \(checkTimestamp)
-        
+
         """
-        
+
         if let data = verifyEntry.data(using: .utf8),
-           let fileHandle = FileHandle(forWritingAtPath: logPath) {
+           let fileHandle = FileHandle(forWritingAtPath: logPath)
+        {
             fileHandle.seekToEndOfFile()
             fileHandle.write(data)
             fileHandle.closeFile()
@@ -389,19 +390,19 @@ struct WizardInputMonitoringPage: View {
 
         // First open System Settings
         PermissionService.openInputMonitoringSettings()
-        
+
         // Close the wizard window after a longer delay to ensure UserDefaults are persisted
         // and System Settings has time to open
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             // Dismiss the wizard window
-            if let onDismiss = self.onDismiss {
+            if let onDismiss {
                 AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Closing wizard to allow system restart")
                 onDismiss()
             } else {
                 // Fallback: close the window directly
                 NSApp.keyWindow?.close()
             }
-            
+
             // Show user instructions in an alert that will persist
             let alert = NSAlert()
             alert.messageText = "Grant Permission in System Settings"
