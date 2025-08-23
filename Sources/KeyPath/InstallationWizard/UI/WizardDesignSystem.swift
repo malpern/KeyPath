@@ -49,7 +49,7 @@ enum WizardDesign {
         enum Duration {
             static let info: TimeInterval = 3.0
             static let error: TimeInterval = 4.0
-            static let launchFailure: TimeInterval = 8.0
+            static let launchFailure: TimeInterval = 12.0
         }
     }
 

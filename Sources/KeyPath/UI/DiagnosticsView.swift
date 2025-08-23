@@ -58,6 +58,9 @@ struct DiagnosticsView: View {
                     // Process Status
                     ProcessStatusSection(kanataManager: kanataManager)
 
+                    // Enhanced System Status
+                    EnhancedStatusSection(kanataManager: kanataManager)
+
                     // Runtime Diagnostics (process crashes, config errors, etc.)
                     if !kanataManager.diagnostics.isEmpty {
                         DiagnosticSection(
@@ -668,6 +671,380 @@ struct LogAccessSection: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
         )
+    }
+}
+
+struct EnhancedStatusSection: View {
+    @ObservedObject var kanataManager: KanataManager
+    @State private var kanataVersion: String = "Unknown"
+    @State private var codeSignature: String = "Unknown"
+    @State private var canonicalPath: String = "Unknown"
+    @State private var inode: String = "Unknown"
+    @State private var launchDaemonState: String = "Unknown"
+    @State private var lastExitStatus: String = "Unknown"
+    @State private var axProbeResult: (Bool, Date) = (false, Date())
+    @State private var imProbeResult: (Bool, Date) = (false, Date())
+    @State private var isLoading = false
+    @State private var showExpandedDetails = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Enhanced System Status")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            if isLoading {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Gathering system information...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 4)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Kanata Binary Info
+                    SystemInfoRow(label: "Kanata Version", value: kanataVersion, icon: "hammer")
+                    SystemInfoRow(label: "Code Signature", value: codeSignature, icon: "checkmark.seal")
+                    SystemInfoRow(label: "Canonical Path", value: canonicalPath, icon: "folder")
+                    SystemInfoRow(label: "Inode", value: inode, icon: "number")
+                    
+                    Divider()
+                        .padding(.vertical, 4)
+                    
+                    // LaunchDaemon Status
+                    SystemInfoRow(label: "LaunchDaemon State", value: launchDaemonState, icon: "gear")
+                    SystemInfoRow(label: "Last Exit Status", value: lastExitStatus, icon: "arrow.right.circle")
+                    
+                    Divider()
+                        .padding(.vertical, 4)
+                    
+                    // Permission Probe Results
+                    ProbeStatusRow(
+                        label: "Accessibility", 
+                        result: axProbeResult.0, 
+                        timestamp: axProbeResult.1, 
+                        icon: "accessibility"
+                    )
+                    ProbeStatusRow(
+                        label: "Input Monitoring", 
+                        result: imProbeResult.0, 
+                        timestamp: imProbeResult.1, 
+                        icon: "eye"
+                    )
+                }
+                
+                HStack {
+                    Button("Refresh Status") {
+                        Task {
+                            await refreshSystemStatus()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    
+                    Spacer()
+                    
+                    Button(showExpandedDetails ? "Hide Details" : "Show Raw Data") {
+                        showExpandedDetails.toggle()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                }
+                
+                if showExpandedDetails {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Raw System Data:")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .padding(.bottom, 2)
+                            
+                            Text("Binary Path: \(canonicalPath)")
+                            Text("Inode: \(inode)")
+                            Text("Code Signature: \(codeSignature)")
+                            Text("LaunchDaemon: \(launchDaemonState)")
+                            Text("Exit Status: \(lastExitStatus)")
+                            Text("AX Check: \(axProbeResult.0) at \(axProbeResult.1.formatted(date: .omitted, time: .shortened))")
+                            Text("IM Check: \(imProbeResult.0) at \(imProbeResult.1.formatted(date: .omitted, time: .shortened))")
+                        }
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 120)
+                    .padding(8)
+                    .background(Color(NSColor.textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                    )
+                }
+            }
+        }
+        .padding(16)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+        )
+        .onAppear {
+            Task {
+                await refreshSystemStatus()
+            }
+        }
+    }
+    
+    private func refreshSystemStatus() async {
+        isLoading = true
+        
+        // Get canonical path and inode
+        let bundledPath = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+        canonicalPath = bundledPath
+        
+        if FileManager.default.fileExists(atPath: bundledPath) {
+            do {
+                let attributes = try FileManager.default.attributesOfItem(atPath: bundledPath)
+                if let inodeNumber = attributes[.systemFileNumber] as? UInt64 {
+                    inode = String(inodeNumber)
+                }
+            } catch {
+                inode = "Error: \(error.localizedDescription)"
+            }
+        } else {
+            inode = "File not found"
+        }
+        
+        // Get Kanata version
+        await getKanataVersion()
+        
+        // Get code signature
+        await getCodeSignature()
+        
+        // Get LaunchDaemon state
+        await getLaunchDaemonState()
+        
+        // Probe permissions
+        await probePermissions()
+        
+        await MainActor.run {
+            isLoading = false
+        }
+    }
+    
+    private func getKanataVersion() async {
+        let process = Process()
+        let pipe = Pipe()
+        
+        process.launchPath = canonicalPath
+        process.arguments = ["--version"]
+        process.standardOutput = pipe
+        process.standardError = pipe
+        
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                await MainActor.run {
+                    kanataVersion = output.isEmpty ? "Unknown" : output
+                }
+            }
+        } catch {
+            await MainActor.run {
+                kanataVersion = "Error: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func getCodeSignature() async {
+        let process = Process()
+        let pipe = Pipe()
+        
+        process.launchPath = "/usr/bin/codesign"
+        process.arguments = ["-dv", "--verbose=2", canonicalPath]
+        process.standardOutput = pipe
+        process.standardError = pipe
+        
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8) {
+                // Extract Team ID or Authority from codesign output
+                let lines = output.components(separatedBy: .newlines)
+                for line in lines {
+                    if line.contains("Authority=") {
+                        let authority = line.components(separatedBy: "Authority=").last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Unknown"
+                        await MainActor.run {
+                            codeSignature = authority
+                        }
+                        return
+                    }
+                }
+                await MainActor.run {
+                    codeSignature = "Signed but no authority found"
+                }
+            }
+        } catch {
+            await MainActor.run {
+                codeSignature = "Error: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func getLaunchDaemonState() async {
+        let process = Process()
+        let pipe = Pipe()
+        
+        process.launchPath = "/bin/launchctl"
+        process.arguments = ["print", "system/com.keypath.kanata"]
+        process.standardOutput = pipe
+        process.standardError = pipe
+        
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8) {
+                if output.contains("state = running") {
+                    await MainActor.run {
+                        launchDaemonState = "loaded/running"
+                    }
+                } else if output.contains("state = ") {
+                    let state = output.components(separatedBy: "state = ").dropFirst().first?.components(separatedBy: "\n").first ?? "unknown"
+                    await MainActor.run {
+                        launchDaemonState = "loaded/\(state)"
+                    }
+                } else {
+                    await MainActor.run {
+                        launchDaemonState = "not loaded"
+                    }
+                }
+                
+                // Extract last exit status
+                if let exitMatch = output.range(of: "last exit code = (\\d+)", options: .regularExpression) {
+                    let exitCode = String(output[exitMatch]).components(separatedBy: " = ").last?.replacingOccurrences(of: ")", with: "") ?? "unknown"
+                    await MainActor.run {
+                        lastExitStatus = exitCode
+                    }
+                } else {
+                    await MainActor.run {
+                        lastExitStatus = "none"
+                    }
+                }
+            }
+        } catch {
+            await MainActor.run {
+                launchDaemonState = "Error: \(error.localizedDescription)"
+                lastExitStatus = "Error"
+            }
+        }
+    }
+    
+    private func probePermissions() async {
+        let timestamp = Date()
+        
+        // Check Accessibility
+        let axResult = AXIsProcessTrusted()
+        
+        await MainActor.run {
+            axProbeResult = (axResult, timestamp)
+        }
+        
+        // For Input Monitoring, we check if our canonical path is in TCC database
+        // This requires Full Disk Access, so we'll use a heuristic approach
+        let process = Process()
+        let pipe = Pipe()
+        
+        process.launchPath = "/usr/bin/sqlite3"
+        process.arguments = [
+            "/Library/Application Support/com.apple.TCC/TCC.db",
+            "SELECT client FROM access WHERE service='kTCCServiceListenEvent' AND client LIKE '%kanata%';"
+        ]
+        process.standardOutput = pipe
+        process.standardError = pipe
+        
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8) {
+                // If we find kanata in the TCC database, assume IM is granted
+                let hasIMPermission = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                await MainActor.run {
+                    imProbeResult = (hasIMPermission, timestamp)
+                }
+            }
+        } catch {
+            // If we can't check TCC db, fall back to process check
+            await MainActor.run {
+                imProbeResult = (kanataManager.isRunning, timestamp)
+            }
+        }
+    }
+}
+
+struct SystemInfoRow: View {
+    let label: String
+    let value: String
+    let icon: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(.secondary)
+                .frame(width: 16)
+            
+            Text(label + ":")
+                .font(.caption)
+                .fontWeight(.medium)
+                .frame(width: 120, alignment: .leading)
+            
+            Text(value)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+            
+            Spacer()
+        }
+    }
+}
+
+struct ProbeStatusRow: View {
+    let label: String
+    let result: Bool
+    let timestamp: Date
+    let icon: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(.secondary)
+                .frame(width: 16)
+            
+            Text(label + ":")
+                .font(.caption)
+                .fontWeight(.medium)
+                .frame(width: 120, alignment: .leading)
+            
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(result ? Color.green : Color.red)
+                    .frame(width: 6, height: 6)
+                
+                Text(result ? "Granted" : "Denied")
+                    .font(.caption)
+                    .foregroundColor(result ? .green : .red)
+                
+                Text("(\(timestamp.formatted(date: .omitted, time: .shortened)))")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
     }
 }
 

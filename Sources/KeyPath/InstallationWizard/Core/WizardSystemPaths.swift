@@ -20,25 +20,11 @@ enum WizardSystemPaths {
         "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
     }
 
-    /// Active kanata binary path - prefer system location, fallback to bundled
-    /// System location is where we install our signed binary for TCC permissions
+    /// Active kanata binary path - always use bundled canonical path
+    /// Single canonical path eliminates TCC permission fragmentation
     static var kanataActiveBinary: String {
-        // Prefer system installations (where we install our signed binary)
-        if FileManager.default.fileExists(atPath: kanataStandardLocation) {
-            return kanataStandardLocation
-        }
-
-        if FileManager.default.fileExists(atPath: kanataBinaryARM) {
-            return kanataBinaryARM
-        }
-
-        // Fallback to bundled kanata (used during installation process)
-        if FileManager.default.fileExists(atPath: bundledKanataPath) {
-            return bundledKanataPath
-        }
-
-        // Default fallback
-        return kanataStandardLocation
+        // Always use bundled kanata - single canonical path for consistent permissions
+        return bundledKanataPath
     }
 
     /// All known kanata binary paths for detection/filtering

@@ -64,14 +64,14 @@ enum LaunchFailureStatus: Equatable {
 
     var shortMessage: String {
         switch self {
-        case let .permissionDenied(details):
-            "Kanata needs permissions - \(details)"
-        case let .configError(details):
-            "Configuration error - \(details)"
-        case let .serviceFailure(details):
-            "Kanata service failed - \(details)"
-        case let .missingDependency(details):
-            "Missing requirement - \(details)"
+        case .permissionDenied:
+            return "Kanata needs permissions"
+        case .configError:
+            return "Configuration error"
+        case .serviceFailure:
+            return "Kanata service failed"
+        case .missingDependency:
+            return "Kanata not installed"
         }
     }
 }

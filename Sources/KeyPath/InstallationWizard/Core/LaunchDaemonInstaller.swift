@@ -504,6 +504,10 @@ class LaunchDaemonInstaller {
             <string>wheel</string>
             <key>ThrottleInterval</key>
             <integer>10</integer>
+            <key>AssociatedBundleIdentifiers</key>
+            <array>
+                <string>com.keypath.KeyPath</string>
+            </array>
         </dict>
         </plist>
         """

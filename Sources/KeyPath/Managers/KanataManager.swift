@@ -1118,7 +1118,7 @@ class KanataManager: ObservableObject {
                 // Check if Kanata is still running and stop it
                 guard let self else { return }
 
-                if await MainActor.run { isRunning } {
+                if await MainActor.run { self.isRunning } {
                     AppLogger.shared.log(
                         "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
                     await self.stopKanata()
