@@ -111,15 +111,15 @@ struct ContentView: View {
                 "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(simpleKanataManager.showWizard)"
             )
 
-            // Check if we're returning from Input Monitoring settings
-            let isReturningFromInputMonitoring = checkForPendingInputMonitoringWizard()
+            // Check if we're returning from permission granting (Input Monitoring settings)
+            let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
 
             // Set up notification handlers for recovery actions
             setupRecoveryActionHandlers()
 
-            // Start the auto-launch sequence ONLY if we're not returning from Input Monitoring
+            // Start the auto-launch sequence ONLY if we're not returning from permission granting
             // Otherwise the auto-launch will reset showWizard to false
-            if !isReturningFromInputMonitoring {
+            if !isReturningFromPermissionGrant {
                 Task {
                     AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
                     await simpleKanataManager.startAutoLaunch()
@@ -131,21 +131,14 @@ struct ContentView: View {
                     )
                 }
             } else {
-                AppLogger.shared.log("🔐 [ContentView] Skipping auto-launch - returning from Input Monitoring")
+                AppLogger.shared.log("🔧 [ContentView] Skipping auto-launch - returning from permission granting")
 
                 // Log to file for debugging
-                let logPath = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/wizard-restart.log"
                 let logEntry = """
                 [\(Date())] SKIPPING auto-launch (would reset wizard flag)
 
                 """
-                if let data = logEntry.data(using: .utf8),
-                   let fileHandle = FileHandle(forWritingAtPath: logPath)
-                {
-                    fileHandle.seekToEndOfFile()
-                    fileHandle.write(data)
-                    fileHandle.closeFile()
-                }
+                appendWizardLog(filename: "wizard-restart.log", logEntry)
             }
 
             if !hasCheckedRequirements {
@@ -256,96 +249,272 @@ struct ContentView: View {
 
     // Status monitoring functions removed - now handled centrally by SimpleKanataManager
 
-    /// Check if we're returning from granting Input Monitoring permission
-    /// Returns true if we detected a pending wizard restart, false otherwise
+    /// Check if we're returning from granting permissions (Input Monitoring)
+    /// Returns true if we detected a pending permission grant restart, false otherwise
     @discardableResult
-    private func checkForPendingInputMonitoringWizard() -> Bool {
-        let pendingInputMonitoring = UserDefaults.standard.bool(forKey: "wizard_pending_input_monitoring")
-        let timestamp = UserDefaults.standard.double(forKey: "wizard_input_monitoring_timestamp")
+    private func checkForPendingPermissionGrant() -> Bool {
+        let isGrantingPermissions = UserDefaults.standard.bool(forKey: "user_granting_permissions")
+        let timestamp = UserDefaults.standard.double(forKey: "permission_grant_timestamp")
 
         // Log to file for debugging
-        let logPath = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/wizard-restart.log"
         let logEntry = """
-        [\(Date())] APP RESTART - Checking for pending wizard:
-          - pendingInputMonitoring: \(pendingInputMonitoring)
+        [\(Date())] APP RESTART - Checking for permission grant mode:
+          - user_granting_permissions: \(isGrantingPermissions)
           - timestamp: \(timestamp)
           - current time: \(Date().timeIntervalSince1970)
 
         """
+        appendWizardLog(filename: "permission-grant.log", logEntry)
 
-        if let data = logEntry.data(using: .utf8) {
-            if FileManager.default.fileExists(atPath: logPath) {
-                if let fileHandle = FileHandle(forWritingAtPath: logPath) {
-                    fileHandle.seekToEndOfFile()
-                    fileHandle.write(data)
-                    fileHandle.closeFile()
-                }
-            } else {
-                try? data.write(to: URL(fileURLWithPath: logPath))
-            }
-        }
-
-        if pendingInputMonitoring, timestamp > 0 {
+        if isGrantingPermissions, timestamp > 0 {
             let date = Date(timeIntervalSince1970: timestamp)
             let timeSince = Date().timeIntervalSince(date)
 
-            // If it's been less than 5 minutes, assume we're returning from System Settings
-            if timeSince < 300 {
-                // Log detection to file
+            // If it's been less than 10 minutes, assume user finished granting permissions
+            if timeSince < 600 {
+                // Log detection to file  
                 let detectEntry = """
-                [\(Date())] DETECTED return from Input Monitoring:
+                [\(Date())] DETECTED return from permission granting:
                   - time since: \(Int(timeSince))s
-                  - Will reopen wizard in 1 second
+                  - Will restart kanata service and show progress
 
                 """
-                if let data = detectEntry.data(using: .utf8),
-                   let fileHandle = FileHandle(forWritingAtPath: logPath)
-                {
-                    fileHandle.seekToEndOfFile()
-                    fileHandle.write(data)
-                    fileHandle.closeFile()
-                }
+                appendWizardLog(filename: "permission-grant.log", detectEntry)
 
-                // Clear the flags
-                UserDefaults.standard.removeObject(forKey: "wizard_pending_input_monitoring")
-                UserDefaults.standard.removeObject(forKey: "wizard_input_monitoring_timestamp")
+                // Clear the permission grant flags
+                UserDefaults.standard.removeObject(forKey: "user_granting_permissions")
+                UserDefaults.standard.removeObject(forKey: "permission_grant_timestamp")
                 UserDefaults.standard.synchronize()
 
-                // Reopen the wizard after a brief delay to ensure everything is initialized
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // CRITICAL: Restart kanata service completely to pick up new permissions
+                // User has finished granting permissions (KeyPath and/or kanata) and manually restarted KeyPath
+                performCompleteKanataServiceRestart(timestamp: timestamp, timeSince: timeSince)
+
+                // Show wizard after service restart completes to display results
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                     // Log reopening to file
                     let reopenEntry = """
-                    [\(Date())] REOPENING wizard to Input Monitoring page
+                    [\(Date())] REOPENING wizard to show permission results after service restart
 
                     """
-                    if let data = reopenEntry.data(using: .utf8),
-                       let fileHandle = FileHandle(forWritingAtPath: logPath)
-                    {
-                        fileHandle.seekToEndOfFile()
-                        fileHandle.write(data)
-                        fileHandle.closeFile()
-                    }
+                    appendWizardLog(filename: "permission-grant.log", reopenEntry)
 
-                    // Set flag to navigate to Input Monitoring page
+                    // Set flag to navigate to Input Monitoring page to show results
                     UserDefaults.standard.set(true, forKey: "wizard_return_to_input_monitoring")
 
-                    // IMPORTANT: We need to trigger the wizard through SimpleKanataManager
-                    // since it controls the sheet binding
+                    // Show wizard through SimpleKanataManager
                     Task {
                         await simpleKanataManager.showWizardForInputMonitoring()
                     }
                 }
-                return true // We detected and are handling the Input Monitoring restart
+                return true // We detected and are handling the permission grant restart
             } else {
-                // Too much time has passed, clear the flags
-                AppLogger.shared.log("🔐 [ContentView] Input Monitoring wizard state expired (\\(Int(timeSince))s old)")
-                UserDefaults.standard.removeObject(forKey: "wizard_pending_input_monitoring")
-                UserDefaults.standard.removeObject(forKey: "wizard_input_monitoring_timestamp")
+                // Too much time has passed (>10 minutes), clear the flags
+                AppLogger.shared.log("🔧 [ContentView] Permission grant state expired (\(Int(timeSince))s old)")
+                UserDefaults.standard.removeObject(forKey: "user_granting_permissions")
+                UserDefaults.standard.removeObject(forKey: "permission_grant_timestamp")
                 UserDefaults.standard.synchronize()
                 return false
             }
         }
-        return false // No pending Input Monitoring wizard
+        return false // No pending permission grant restart
+    }
+
+
+    /// Perform complete kanata service restart with user feedback after permission grant
+    /// This replaces TCP-only restart with full LaunchDaemon service management
+    private func performCompleteKanataServiceRestart(timestamp: Double, timeSince: TimeInterval) {
+        AppLogger.shared.log("🔧 [ContentView] ========== COMPLETE SERVICE RESTART SEQUENCE ==========")
+        AppLogger.shared.log("🔧 [ContentView] Starting complete kanata service restart after permission grant")
+        
+        // Show immediate user feedback
+        DispatchQueue.main.async { [weak self] in
+            self?.showStatusMessage("🔄 Restarting keyboard service for new permissions...")
+        }
+        
+        // Log detailed context to file
+        let contextEntry = """
+        [\(Date())] COMPLETE SERVICE RESTART CONTEXT:
+          - Original timestamp: \(timestamp) (\(Date(timeIntervalSince1970: timestamp)))
+          - Time elapsed: \(String(format: "%.1f", timeSince))s  
+          - Assumption: User granted permissions to KeyPath and/or kanata
+          - Action: Complete LaunchDaemon service restart (not just TCP restart)
+          - Method: LaunchDaemon kickstart via KanataManager
+          - User feedback: Toast notification with progress
+
+        """
+        appendWizardLog(filename: "permission-grant.log", contextEntry)
+        
+        // Perform complete service restart asynchronously
+        Task {
+            await performCompleteServiceRestartOperation()
+        }
+    }
+    
+    /// Execute the complete kanata service restart operation with comprehensive logging
+    private func performCompleteServiceRestartOperation() async {
+        let startTime = Date()
+        AppLogger.shared.log("🔧 [ContentView] Starting complete service restart operation...")
+        
+        // Step 1: Get pre-restart permission snapshot from Oracle
+        AppLogger.shared.log("🔧 [ContentView] Step 1: Getting pre-restart permission snapshot")
+        let preRestartSnapshot = await PermissionOracle.shared.currentSnapshot()
+        
+        let preRestartEntry = """
+        [\(Date())] PRE-RESTART SNAPSHOT:
+          KeyPath permissions:
+            • Accessibility: \(preRestartSnapshot.keyPath.accessibility)
+            • Input Monitoring: \(preRestartSnapshot.keyPath.inputMonitoring)
+          Kanata permissions (source: \(preRestartSnapshot.kanata.source)):
+            • Accessibility: \(preRestartSnapshot.kanata.accessibility)  
+            • Input Monitoring: \(preRestartSnapshot.kanata.inputMonitoring)
+          System ready: \(preRestartSnapshot.isSystemReady)
+          Blocking issue: \(preRestartSnapshot.blockingIssue ?? "none")
+
+        """
+        
+        appendWizardLog(filename: "permission-grant.log", preRestartEntry)
+        
+        // Step 2: Update user feedback for service restart
+        await MainActor.run { [weak self] in
+            self?.showStatusMessage("🔧 Stopping kanata service...")
+        }
+        
+        // Step 3: Perform complete service restart via KanataManager
+        AppLogger.shared.log("🔧 [ContentView] Step 3: Performing complete LaunchDaemon service restart")
+        let restartSuccess: Bool
+        
+        do {
+            // Use KanataManager for complete service restart
+            await kanataManager.stopKanata()
+            AppLogger.shared.log("🔧 [ContentView] Service stopped, starting fresh...")
+            
+            // Update user feedback
+            await MainActor.run { [weak self] in
+                self?.showStatusMessage("🚀 Starting kanata service with new permissions...")
+            }
+            
+            // Start service fresh to pick up new permissions
+            await kanataManager.startKanata()
+            await kanataManager.updateStatus()
+            
+            restartSuccess = kanataManager.isRunning
+            AppLogger.shared.log("🔧 [ContentView] Service restart result: \(restartSuccess ? "success" : "failed")")
+            
+        } catch {
+            AppLogger.shared.log("❌ [ContentView] Service restart failed with error: \(error)")
+            restartSuccess = false
+        }
+        
+        let restartEntry = """
+        [\(Date())] COMPLETE SERVICE RESTART ATTEMPT:
+          • Method: KanataManager stop/start sequence
+          • Success: \(restartSuccess)
+          • Duration so far: \(String(format: "%.2f", Date().timeIntervalSince(startTime)))s
+
+        """
+        
+        appendWizardLog(filename: "permission-grant.log", restartEntry)
+        
+        if restartSuccess {
+            AppLogger.shared.log("✅ [ContentView] Complete service restart successful")
+            
+            // Step 4: Wait for service to stabilize
+            AppLogger.shared.log("🔧 [ContentView] Step 4: Waiting for service to stabilize")
+            await MainActor.run { [weak self] in
+                self?.showStatusMessage("⏳ Verifying new permissions...")
+            }
+            
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+            
+            // Step 5: Get post-restart permission snapshot 
+            AppLogger.shared.log("🔧 [ContentView] Step 5: Getting post-restart permission snapshot")
+            let postRestartSnapshot = await PermissionOracle.shared.forceRefresh()
+            
+            let postRestartEntry = """
+            [\(Date())] POST-RESTART SNAPSHOT:
+              KeyPath permissions:
+                • Accessibility: \(postRestartSnapshot.keyPath.accessibility)
+                • Input Monitoring: \(postRestartSnapshot.keyPath.inputMonitoring)
+              Kanata permissions (source: \(postRestartSnapshot.kanata.source)):
+                • Accessibility: \(postRestartSnapshot.kanata.accessibility)
+                • Input Monitoring: \(postRestartSnapshot.kanata.inputMonitoring)
+              System ready: \(postRestartSnapshot.isSystemReady)
+              Blocking issue: \(postRestartSnapshot.blockingIssue ?? "none")
+              
+              PERMISSION CHANGES:
+                • Kanata Accessibility: \(preRestartSnapshot.kanata.accessibility) → \(postRestartSnapshot.kanata.accessibility)
+                • Kanata Input Monitoring: \(preRestartSnapshot.kanata.inputMonitoring) → \(postRestartSnapshot.kanata.inputMonitoring)
+                • System Status: \(preRestartSnapshot.isSystemReady) → \(postRestartSnapshot.isSystemReady)
+              
+              Total restart sequence duration: \(String(format: "%.2f", Date().timeIntervalSince(startTime)))s
+
+            """
+            
+            appendWizardLog(filename: "permission-grant.log", postRestartEntry)
+            
+            // Step 6: Show final user feedback based on permission improvements
+            await MainActor.run { [weak self] in
+                if !preRestartSnapshot.kanata.hasAllPermissions && postRestartSnapshot.kanata.hasAllPermissions {
+                    AppLogger.shared.log("🎉 [ContentView] SUCCESS: Service restart resolved permission issues!")
+                    self?.showStatusMessage("✅ Keyboard service restarted - all permissions active!")
+                } else if postRestartSnapshot.kanata.inputMonitoring.isReady && !preRestartSnapshot.kanata.inputMonitoring.isReady {
+                    AppLogger.shared.log("🎉 [ContentView] SUCCESS: Input Monitoring permission resolved!")  
+                    self?.showStatusMessage("✅ Input Monitoring permission active!")
+                } else if postRestartSnapshot.kanata.accessibility.isReady && !preRestartSnapshot.kanata.accessibility.isReady {
+                    AppLogger.shared.log("🎉 [ContentView] SUCCESS: Accessibility permission resolved!")
+                    self?.showStatusMessage("✅ Accessibility permission active!")
+                } else if postRestartSnapshot.isSystemReady {
+                    AppLogger.shared.log("✅ [ContentView] Service restarted - system ready")
+                    self?.showStatusMessage("✅ Keyboard service restarted successfully!")
+                } else {
+                    AppLogger.shared.log("⚠️ [ContentView] Service restarted but permission status unchanged")
+                    self?.showStatusMessage("🔄 Service restarted - check wizard for remaining issues")
+                }
+            }
+            
+        } else {
+            AppLogger.shared.log("❌ [ContentView] Complete service restart failed")
+            
+            let failureEntry = """
+            [\(Date())] SERVICE RESTART FAILURE:
+              • Complete LaunchDaemon restart failed - service unable to start
+              • User will need to use Installation Wizard for diagnosis
+              • Duration: \(String(format: "%.2f", Date().timeIntervalSince(startTime)))s
+
+            """
+            
+            appendWizardLog(filename: "permission-grant.log", failureEntry)
+            
+            // Show failure feedback
+            await MainActor.run { [weak self] in
+                self?.showStatusMessage("❌ Service restart failed - use wizard to diagnose")
+            }
+        }
+        
+        let totalDuration = Date().timeIntervalSince(startTime)
+        AppLogger.shared.log("🔧 [ContentView] ========== COMPLETE SERVICE RESTART SEQUENCE COMPLETE ==========")  
+        AppLogger.shared.log("🔧 [ContentView] Total duration: \(String(format: "%.2f", totalDuration))s")
+    }
+
+    /// Append text to a log file in ~/Library/Logs/KeyPath/
+    private func appendWizardLog(filename: String, _ text: String) {
+        let fm = FileManager.default
+        let logsDir = (try? fm.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false))?
+            .appendingPathComponent("Logs/KeyPath", isDirectory: true)
+        guard let dir = logsDir else { return }
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let fileURL = dir.appendingPathComponent(filename, isDirectory: false)
+        let data = Data(text.utf8)
+        if fm.fileExists(atPath: fileURL.path) {
+            if let handle = try? FileHandle(forWritingTo: fileURL) {
+                try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.close()
+            }
+        } else {
+            try? data.write(to: fileURL)
+        }
     }
 
     /// Set up notification handlers for recovery actions
@@ -630,27 +799,28 @@ struct RecordingSection: View {
         isRecording = true
         recordedInput = ""
 
-        // Initialize KeyboardCapture lazily only when actually needed and if we have permissions
-        if keyboardCapture == nil {
-            if AXIsProcessTrusted() {
-                keyboardCapture = KeyboardCapture()
-                AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
-            } else {
-                recordedInput = "⚠️ Accessibility permission required for recording"
-                isRecording = false
-                return
+        Task {
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            await MainActor.run {
+                guard snapshot.keyPath.accessibility.isReady else {
+                    recordedInput = "⚠️ Accessibility permission required for recording"
+                    isRecording = false
+                    return
+                }
+                if keyboardCapture == nil {
+                    keyboardCapture = KeyboardCapture()
+                    AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
+                }
+                guard let capture = keyboardCapture else {
+                    recordedInput = "⚠️ Failed to initialize keyboard capture"
+                    isRecording = false
+                    return
+                }
+                capture.startCapture { keyName in
+                    recordedInput = keyName
+                    isRecording = false
+                }
             }
-        }
-
-        guard let capture = keyboardCapture else {
-            recordedInput = "⚠️ Failed to initialize keyboard capture"
-            isRecording = false
-            return
-        }
-
-        capture.startCapture { keyName in
-            recordedInput = keyName
-            isRecording = false
         }
     }
 
@@ -663,36 +833,37 @@ struct RecordingSection: View {
         isRecordingOutput = true
         recordedOutput = ""
 
-        // Initialize KeyboardCapture lazily if needed and we have permissions
-        if keyboardCapture == nil {
-            if AXIsProcessTrusted() {
-                keyboardCapture = KeyboardCapture()
-                AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
-            } else {
-                recordedOutput = "⚠️ Accessibility permission required for recording"
-                isRecordingOutput = false
-                return
+        Task {
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            await MainActor.run {
+                guard snapshot.keyPath.accessibility.isReady else {
+                    recordedOutput = "⚠️ Accessibility permission required for recording"
+                    isRecordingOutput = false
+                    return
+                }
+                if keyboardCapture == nil {
+                    keyboardCapture = KeyboardCapture()
+                    AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
+                }
+                guard let capture = keyboardCapture else {
+                    recordedOutput = "⚠️ Failed to initialize keyboard capture"
+                    isRecordingOutput = false
+                    return
+                }
+                capture.startContinuousCapture { keyName in
+                    if !recordedOutput.isEmpty {
+                        recordedOutput += " "
+                    }
+                    recordedOutput += keyName
+
+                    // Reset the inactivity timer each time a key is pressed
+                    resetOutputInactivityTimer()
+                }
+
+                // Start the initial inactivity timer
+                resetOutputInactivityTimer()
             }
         }
-
-        guard let capture = keyboardCapture else {
-            recordedOutput = "⚠️ Failed to initialize keyboard capture"
-            isRecordingOutput = false
-            return
-        }
-
-        capture.startContinuousCapture { keyName in
-            if !recordedOutput.isEmpty {
-                recordedOutput += " "
-            }
-            recordedOutput += keyName
-
-            // Reset the inactivity timer each time a key is pressed
-            resetOutputInactivityTimer()
-        }
-
-        // Start the initial inactivity timer
-        resetOutputInactivityTimer()
     }
 
     private func stopOutputRecording() {
