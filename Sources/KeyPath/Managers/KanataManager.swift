@@ -215,7 +215,7 @@ class KanataManager: ObservableObject {
         await lifecycle.recoverFromCrash()
         await updateStatus()
         // Try to start Kanata automatically on launch if all requirements are met
-        let status = getSystemRequirementsStatus()
+        let status = await getSystemRequirementsStatus()
 
         // Check if Kanata is already running before attempting to start
         if isRunning {
@@ -1070,9 +1070,9 @@ class KanataManager: ObservableObject {
     }
 
     // Check if permission issues should trigger the wizard
-    func shouldShowWizardForPermissions() -> Bool {
-        !PermissionService.shared.hasInputMonitoringPermission()
-            || !PermissionService.shared.hasAccessibilityPermission()
+    func shouldShowWizardForPermissions() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.blockingIssue != nil
     }
 
     // MARK: - Public Interface
@@ -1791,31 +1791,33 @@ class KanataManager: ObservableObject {
         isInstalled()
     }
 
-    // Compatibility wrappers for legacy tests
-    func hasInputMonitoringPermission() -> Bool {
-        PermissionService.shared.hasInputMonitoringPermission()
+    // Compatibility wrappers for legacy tests - using Oracle
+    func hasInputMonitoringPermission() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.inputMonitoring.isReady
     }
 
-    func hasAccessibilityPermission() -> Bool {
-        PermissionService.shared.hasAccessibilityPermission()
+    func hasAccessibilityPermission() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.accessibility.isReady
     }
 
     // REMOVED: checkAccessibilityForPath() - now handled by PermissionService.checkTCCForAccessibility()
 
     // REMOVED: checkTCCForAccessibility() - now handled by PermissionService
 
-    func checkBothAppsHavePermissions() -> (
+    func checkBothAppsHavePermissions() async -> (
         keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
     ) {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        
         let keyPathPath = Bundle.main.bundlePath
         let kanataPath = WizardSystemPaths.kanataActiveBinary
-
-        let keyPathHasInputMonitoring = PermissionService.shared.hasInputMonitoringPermission()
-        let keyPathHasAccessibility = PermissionService.shared.hasAccessibilityPermission()
-
-        // Kanata permissions are now checked on actual use, not pre-checked
-        let kanataHasInputMonitoring = true // Assume OK until proven otherwise
-        let kanataHasAccessibility = true // Assume OK until proven otherwise
+        
+        let keyPathHasInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
+        let keyPathHasAccessibility = snapshot.keyPath.accessibility.isReady
+        let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady
+        let kanataHasAccessibility = snapshot.kanata.accessibility.isReady
 
         let keyPathOverall = keyPathHasInputMonitoring && keyPathHasAccessibility
         let kanataOverall = kanataHasInputMonitoring && kanataHasAccessibility
@@ -1835,22 +1837,24 @@ class KanataManager: ObservableObject {
 
     // REMOVED: checkTCCForInputMonitoring() - now handled by PermissionService
 
-    func hasAllRequiredPermissions() -> Bool {
-        PermissionService.shared.hasInputMonitoringPermission()
-            && PermissionService.shared.hasAccessibilityPermission()
+    func hasAllRequiredPermissions() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.hasAllPermissions
     }
 
-    func hasAllSystemRequirements() -> Bool {
-        isInstalled() && hasAllRequiredPermissions() && isKarabinerDriverInstalled()
+    func hasAllSystemRequirements() async -> Bool {
+        let hasPermissions = await hasAllRequiredPermissions()
+        return isInstalled() && hasPermissions && isKarabinerDriverInstalled()
             && isKarabinerDaemonRunning()
     }
 
-    func getSystemRequirementsStatus() -> (
+    func getSystemRequirementsStatus() async -> (
         installed: Bool, permissions: Bool, driver: Bool, daemon: Bool
     ) {
-        (
+        let permissions = await hasAllRequiredPermissions()
+        return (
             installed: isInstalled(),
-            permissions: hasAllRequiredPermissions(),
+            permissions: permissions,
             driver: isKarabinerDriverInstalled(),
             daemon: isKarabinerDaemonRunning()
         )

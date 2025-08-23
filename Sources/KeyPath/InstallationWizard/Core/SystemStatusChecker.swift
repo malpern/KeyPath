@@ -194,77 +194,60 @@ class SystemStatusChecker {
         let kanataPath = WizardSystemPaths.kanataActiveBinary
         AppLogger.shared.log("🔍 [SystemStatusChecker] Using kanata binary for permission checks: \(kanataPath)")
 
-        // Optional: still compute the aggregate status, but we'll also do explicit calls below
-        let systemStatus = PermissionService.shared.checkSystemPermissions(
-            kanataBinaryPath: kanataPath)
+        // 🔮 Use Oracle for authoritative permission detection
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
 
-        // KeyPath permissions (these are reliable)
-        if systemStatus.keyPath.hasInputMonitoring {
+        // KeyPath permissions (from Apple APIs)
+        if snapshot.keyPath.inputMonitoring.isReady {
             granted.append(.keyPathInputMonitoring)
         } else {
             missing.append(.keyPathInputMonitoring)
         }
 
-        if systemStatus.keyPath.hasAccessibility {
+        if snapshot.keyPath.accessibility.isReady {
             granted.append(.keyPathAccessibility)
         } else {
             missing.append(.keyPathAccessibility)
         }
 
-        // Kanata permissions - use enhanced functional verification
-        let functionalVerification = PermissionService.shared.verifyKanataFunctionalPermissions(at: kanataPath)
+        // Kanata permissions (from TCP or TCC fallback)
+        let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady
+        let kanataHasAccessibility = snapshot.kanata.accessibility.isReady
 
         AppLogger.shared.log(
-            "🔍 [SystemStatusChecker] Kanata functional verification: method=\(functionalVerification.verificationMethod), confidence=\(functionalVerification.confidence), hasAll=\(functionalVerification.hasAllRequiredPermissions)"
+            "🔮 [SystemStatusChecker] Oracle permission detection: source=\(snapshot.kanata.source), confidence=\(snapshot.kanata.confidence), hasAll=\(snapshot.kanata.hasAllPermissions)"
         )
 
-        // Log any error details for debugging
-        if !functionalVerification.errorDetails.isEmpty {
+        // Log any blocking issues
+        if let issue = snapshot.blockingIssue {
             AppLogger.shared.log(
-                "⚠️ [SystemStatusChecker] Kanata permission verification found errors:")
-            for error in functionalVerification.errorDetails {
-                AppLogger.shared.log("  - \(error)")
-            }
+                "⚠️ [SystemStatusChecker] Oracle detected blocking issue: \(issue)")
         }
 
-        // Functional signal (positive evidence only)
-        if functionalVerification.hasInputMonitoring &&
-            functionalVerification.confidence != .low &&
-            functionalVerification.confidence != .unknown
-        {
+        // Oracle provides deterministic permission state
+        if kanataHasInputMonitoring {
             granted.append(.kanataInputMonitoring)
+            AppLogger.shared.log(
+                "✅ [SystemStatusChecker] Kanata Input Monitoring: Oracle confirmed granted")
         } else {
             missing.append(.kanataInputMonitoring)
             AppLogger.shared.log(
-                "❌ [SystemStatusChecker] Kanata Input Monitoring: functional verification failed")
+                "❌ [SystemStatusChecker] Kanata Input Monitoring: Oracle reports not granted")
         }
 
-        if functionalVerification.hasAccessibility &&
-            functionalVerification.confidence != .low &&
-            functionalVerification.confidence != .unknown
-        {
+        if kanataHasAccessibility {
             granted.append(.kanataAccessibility)
+            AppLogger.shared.log(
+                "✅ [SystemStatusChecker] Kanata Accessibility: Oracle confirmed granted")
         } else {
             missing.append(.kanataAccessibility)
             AppLogger.shared.log(
-                "❌ [SystemStatusChecker] Kanata Accessibility: functional verification failed")
+                "❌ [SystemStatusChecker] Kanata Accessibility: Oracle reports not granted")
         }
 
         // Always consult TCC (not only as a fallback) so positive grants are honored.
-        let tccInputMonitoring = PermissionService.checkTCCForInputMonitoring(path: kanataPath)
-        let tccAccessibility = PermissionService.checkTCCForAccessibility(path: kanataPath)
-        AppLogger.shared.log("🔍 [SystemStatusChecker] TCC results - input: \(tccInputMonitoring), accessibility: \(tccAccessibility)")
-
-        if tccInputMonitoring, !granted.contains(.kanataInputMonitoring) {
-            granted.append(.kanataInputMonitoring)
-            missing.removeAll { $0 == .kanataInputMonitoring }
-            AppLogger.shared.log("ℹ️ [SystemStatusChecker] TCC source: granted kanata Input Monitoring")
-        }
-        if tccAccessibility, !granted.contains(.kanataAccessibility) {
-            granted.append(.kanataAccessibility)
-            missing.removeAll { $0 == .kanataAccessibility }
-            AppLogger.shared.log("ℹ️ [SystemStatusChecker] TCC source: granted kanata Accessibility")
-        }
+        // Oracle already handled TCC database checking as fallback - no redundant checks needed
+        AppLogger.shared.log("🔮 [SystemStatusChecker] Oracle completed all permission detection (TCP/APIs/TCC hierarchy)")
 
         // Check system extensions (not part of PermissionService - different category)
         let systemRequirements = SystemRequirements()

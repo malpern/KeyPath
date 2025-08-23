@@ -231,12 +231,17 @@ struct ContentView: View {
     private func startEmergencyMonitoringIfPossible() {
         // Initialize KeyboardCapture lazily if needed and we have permissions
         if keyboardCapture == nil {
-            if PermissionService.shared.hasAccessibilityPermission() {
-                keyboardCapture = KeyboardCapture()
-                AppLogger.shared.log("🎹 [ContentView] KeyboardCapture initialized for emergency monitoring")
-            } else {
-                // Don't have permissions yet - we'll try again later
-                return
+            Task {
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                await MainActor.run {
+                    if snapshot.keyPath.accessibility.isReady {
+                        keyboardCapture = KeyboardCapture()
+                        AppLogger.shared.log("🎹 [ContentView] KeyboardCapture initialized for emergency monitoring")
+                    } else {
+                        // Don't have permissions yet - we'll try again later
+                        return
+                    }
+                }
             }
         }
 
@@ -627,7 +632,7 @@ struct RecordingSection: View {
 
         // Initialize KeyboardCapture lazily only when actually needed and if we have permissions
         if keyboardCapture == nil {
-            if PermissionService.shared.hasAccessibilityPermission() {
+            if AXIsProcessTrusted() {
                 keyboardCapture = KeyboardCapture()
                 AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
             } else {
@@ -660,7 +665,7 @@ struct RecordingSection: View {
 
         // Initialize KeyboardCapture lazily if needed and we have permissions
         if keyboardCapture == nil {
-            if PermissionService.shared.hasAccessibilityPermission() {
+            if AXIsProcessTrusted() {
                 keyboardCapture = KeyboardCapture()
                 AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
             } else {

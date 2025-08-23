@@ -200,10 +200,8 @@ struct WizardInputMonitoringPage: View {
                             Task {
                                 await onRefresh()
 
-                                // If permission check now succeeds, mark it as granted for future
-                                if PermissionService.shared.hasInputMonitoringPermission() {
-                                    PermissionService.shared.markInputMonitoringPermissionGranted()
-                                }
+                                // Oracle handles permission state - no manual marking needed
+                                AppLogger.shared.log("🔮 [WizardInputMonitoringPage] Oracle will detect permission changes automatically")
                             }
                         }
                         .buttonStyle(.link)
@@ -297,7 +295,8 @@ struct WizardInputMonitoringPage: View {
 
     private func checkForStaleEntries() {
         Task {
-            let detection = await PermissionService.detectPossibleStaleEntries()
+            // Oracle system - no stale entry detection needed
+            let detection = (hasStaleEntries: false, details: [String]())
             await MainActor.run {
                 if detection.hasStaleEntries {
                     staleEntryDetails = detection.details
@@ -312,7 +311,8 @@ struct WizardInputMonitoringPage: View {
     private func handleHelpWithPermission() {
         Task {
             // First check for stale entries
-            let detection = await PermissionService.detectPossibleStaleEntries()
+            // Oracle system - no stale entry detection needed
+            let detection = (hasStaleEntries: false, details: [String]())
 
             await MainActor.run {
                 if detection.hasStaleEntries {
@@ -389,7 +389,10 @@ struct WizardInputMonitoringPage: View {
         }
 
         // First open System Settings
-        PermissionService.openInputMonitoringSettings()
+        // Open Input Monitoring settings using direct URL
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            NSWorkspace.shared.open(url)
+        }
 
         // Close the wizard window after a longer delay to ensure UserDefaults are persisted
         // and System Settings has time to open

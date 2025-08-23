@@ -70,15 +70,17 @@ struct PermissionDetailsSheet: View {
 
     private func loadPermissionDetails() {
         Task {
-            let (keyPathHas, kanataHas, details) = kanataManager.checkBothAppsHavePermissions()
+            let (keyPathHas, kanataHas, details) = await kanataManager.checkBothAppsHavePermissions()
 
+            let hasAccessibility = await kanataManager.hasAccessibilityPermission()
+            
             await MainActor.run {
                 var report = "=== Permission Status Report ===\n\n"
                 report += "KeyPath.app:\n"
                 report +=
                     "• Input Monitoring: ❌ Not Granted (check disabled to prevent auto-addition)\n"
                 report +=
-                    "• Accessibility: \(PermissionService.shared.hasAccessibilityPermission() ? "✅ Granted" : "❌ Not Granted")\n"
+                    "• Accessibility: \(hasAccessibility ? "✅ Granted" : "❌ Not Granted")\n"
                 report += "• TCC Database: \(keyPathHas ? "✅ Found" : "❌ Not Found")\n\n"
 
                 report += "kanata (/usr/local/bin/kanata):\n"

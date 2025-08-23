@@ -555,11 +555,11 @@ final class KeyPathTests: XCTestCase {
         XCTAssertTrue(true, "Auto-stop timer should be implemented in continuous capture")
     }
 
-    func testInputMonitoringPermissionDetection() throws {
+    func testInputMonitoringPermissionDetection() async throws {
         let manager = KanataManager()
 
         // Test that permission detection works
-        let hasPermission = manager.hasInputMonitoringPermission()
+        let hasPermission = await manager.hasInputMonitoringPermission()
 
         // Should return a boolean value
         XCTAssertTrue(

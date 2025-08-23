@@ -266,7 +266,7 @@ struct PermissionStatusSection: View {
 
     var body: some View {
         let inputMonitoring = false // Disabled to prevent auto-addition to Input Monitoring
-        let accessibility = PermissionService.shared.hasAccessibilityPermission()
+        let accessibility = AXIsProcessTrusted()
         let allPermissions = inputMonitoring && accessibility
 
         return VStack(alignment: .leading, spacing: 8) {

@@ -500,7 +500,7 @@ struct InstallationWizardView: View {
                 }
 
                 // Clear cache and refresh state after auto-fix attempts
-                PermissionService.shared.clearCache()
+                // Oracle handles caching automatically
                 if let statusChecker = stateManager.statusChecker {
                     statusChecker.clearCache()
                 }
@@ -572,7 +572,7 @@ struct InstallationWizardView: View {
                             }
                         } else {
                             // Clear permission cache on failure - might be stale permission status
-                            PermissionService.shared.clearCache()
+                            // Oracle handles caching automatically
                             Task { @MainActor in
                                 let errorMessage = getDetailedErrorMessage(
                                     for: action, actionDescription: actionDescription

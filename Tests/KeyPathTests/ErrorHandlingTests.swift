@@ -358,9 +358,9 @@ final class ErrorHandlingTests: XCTestCase {
         XCTAssertTrue(validStatuses.contains(status), "Status should be one of the valid options: \(status)")
     }
 
-    func testPermissionErrorHandling() throws {
+    func testPermissionErrorHandling() async throws {
         // Test permission-related error scenarios
-        let hasInputPermission = manager.hasInputMonitoringPermission()
+        let hasInputPermission = await manager.hasInputMonitoringPermission()
         XCTAssertTrue(hasInputPermission == true || hasInputPermission == false, "Permission check should return boolean")
 
         let hasAccessibilityPermission = capture.checkAccessibilityPermissionsSilently()

@@ -225,7 +225,7 @@ struct WizardAccessibilityPage: View {
                                         // Open Accessibility settings for the user to enable kanata
                                         openAccessibilitySettings()
                                         // Clear cached permission results so polling sees changes quickly
-                                        PermissionService.shared.clearCache()
+                                        // Oracle handles caching automatically
                                         // Begin polling to refresh UI as the user toggles permissions
                                         startPolling()
                                     }) {
@@ -333,7 +333,8 @@ struct WizardAccessibilityPage: View {
 
         // Use the system API to request accessibility permission
         // This shows a dialog where the user can enter their password to add KeyPath
-        PermissionService.requestAccessibilityPermission()
+        // Request accessibility permission using Apple API
+        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
 
         // Note: After the user grants permission via the dialog, KeyPath will be added
         // to the Accessibility list but may still need to be toggled ON.

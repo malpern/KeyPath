@@ -332,15 +332,25 @@ enum WizardOperations {
                 attempts += 1
                 progressCallback(0.3 + (Double(attempts) / Double(maxAttempts)) * 0.7)
 
+                // Use Oracle for permission checking
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
                 let hasPermission =
                     switch type {
                     case .inputMonitoring:
-                        false // Always return false to prevent auto-addition to Input Monitoring
+                        snapshot.keyPath.inputMonitoring.isReady
                     case .accessibility:
-                        PermissionService.shared.hasAccessibilityPermission()
+                        snapshot.keyPath.accessibility.isReady
                     }
 
                 if hasPermission {
+                    AppLogger.shared.log("🔮 [WizardAsyncOperationManager] Permission granted, attempting TCP restart of Kanata")
+                    
+                    // Use Oracle to restart Kanata after permission change
+                    let restartSuccess = await PermissionOracle.shared.restartKanataAfterPermissionChange()
+                    if !restartSuccess {
+                        AppLogger.shared.log("⚠️ [WizardAsyncOperationManager] TCP restart failed (TCP may be disabled)")
+                    }
+                    
                     progressCallback(1.0)
                     return true
                 }

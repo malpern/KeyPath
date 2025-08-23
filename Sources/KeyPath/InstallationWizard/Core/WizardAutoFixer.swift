@@ -173,9 +173,8 @@ class WizardAutoFixer: AutoFixCapable {
         try? PIDFileManager.removePID()
         AppLogger.shared.log("🗑️ [AutoFixer] Removed PID file")
 
-        // 3. Clear permission cache
-        PermissionService.shared.clearCache()
-        AppLogger.shared.log("🗳️ [AutoFixer] Cleared permission cache")
+        // 3. Oracle handles permission caching automatically
+        AppLogger.shared.log("🔮 [AutoFixer] Oracle permission system - no manual cache clearing needed")
 
         // 4. Reset kanata manager state
         await kanataManager.stopKanata()
