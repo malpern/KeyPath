@@ -1118,7 +1118,7 @@ class KanataManager: ObservableObject {
                 // Check if Kanata is still running and stop it
                 guard let self else { return }
 
-                if await MainActor.run { self.isRunning } {
+                if await MainActor.run { isRunning } {
                     AppLogger.shared.log(
                         "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
                     await self.stopKanata()
@@ -1810,10 +1810,10 @@ class KanataManager: ObservableObject {
         keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
     ) {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
-        
+
         let keyPathPath = Bundle.main.bundlePath
         let kanataPath = WizardSystemPaths.kanataActiveBinary
-        
+
         let keyPathHasInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
         let keyPathHasAccessibility = snapshot.keyPath.accessibility.isReady
         let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady

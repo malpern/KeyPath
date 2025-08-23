@@ -25,6 +25,9 @@ struct InstallationWizardView: View {
     @State private var refreshTask: Task<Void, Never>?
     @State private var isForceClosing = false // Prevent new operations after nuclear close
 
+    // Focus management for reliable ESC key handling
+    @FocusState private var hasKeyboardFocus: Bool
+
     var body: some View {
         VStack(spacing: 0) {
             // Header with page dots - always visible with fixed height
@@ -51,8 +54,28 @@ struct InstallationWizardView: View {
         .background(VisualEffectBackground())
         .withToasts(toastManager)
         .environmentObject(navigationCoordinator)
+        .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
         .onAppear {
+            hasKeyboardFocus = true
             setupWizard()
+        }
+        .onChange(of: asyncOperationManager.hasRunningOperations) { hasOperations in
+            // When overlays disappear, reclaim focus for ESC key
+            if !hasOperations {
+                hasKeyboardFocus = true
+            }
+        }
+        .onChange(of: showingStartConfirmation) { showing in
+            // Reclaim focus when start confirmation dialog closes
+            if !showing {
+                hasKeyboardFocus = true
+            }
+        }
+        .onChange(of: showingCloseConfirmation) { showing in
+            // Reclaim focus when close confirmation dialog closes
+            if !showing {
+                hasKeyboardFocus = true
+            }
         }
         // Add keyboard navigation support for left/right arrow keys and ESC (macOS 14.0+)
         .modifier(
@@ -232,10 +255,14 @@ struct InstallationWizardView: View {
                         kanataManager: kanataManager
                     )
                 case .tcpServer:
-                    WizardTCPServerPage()
+                    WizardTCPServerPage(
+                        onAutoFix: performAutoFix
+                    )
                 case .service:
                     WizardKanataServicePage(
-                        kanataManager: kanataManager
+                        kanataManager: kanataManager,
+                        systemState: systemState,
+                        issues: currentIssues
                     )
                 }
             }
@@ -631,6 +658,12 @@ struct InstallationWizardView: View {
             "Restart failing system services"
         case .installLogRotation:
             "Install log rotation to keep logs under 10MB"
+        case .replaceKanataWithBundled:
+            "Replace kanata with Developer ID signed version"
+        case .regenerateTCPServiceConfiguration:
+            "Fix TCP server configuration"
+        case .restartTCPServer:
+            "Fix TCP server"
         }
 
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")

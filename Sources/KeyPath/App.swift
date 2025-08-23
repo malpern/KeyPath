@@ -6,6 +6,7 @@ public struct KeyPathApp: App {
     @StateObject private var kanataManager = KanataManager()
     @StateObject private var simpleKanataManager: SimpleKanataManager
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @State private var showingEmergencyStopDialog = false
 
     private let isHeadlessMode: Bool
 
@@ -41,6 +42,10 @@ public struct KeyPathApp: App {
                 .environmentObject(simpleKanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionService, PermissionService.shared)
+                .sheet(isPresented: $showingEmergencyStopDialog) {
+                    EmergencyStopDialog()
+                        .interactiveDismissDisabled(false)
+                }
         }
         .windowResizability(.contentSize)
         .commands {
@@ -74,6 +79,13 @@ public struct KeyPathApp: App {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("How to Emergency Stop") {
+                    showingEmergencyStopDialog = true
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
             }
         }
 

@@ -2,7 +2,7 @@ import ApplicationServices
 import Foundation
 
 /// Unified system status checker that handles all wizard detection logic
-/// 
+///
 /// FEATURES:
 /// - Comprehensive permission detection with TCC database integration
 /// - Functional verification through service log analysis and TCP connectivity
@@ -285,11 +285,23 @@ class SystemStatusChecker {
         var installed: [ComponentRequirement] = []
         var missing: [ComponentRequirement] = []
 
-        // Check Kanata binary - use KanataManager's method for consistency
-        if kanataManager.isInstalled() {
-            installed.append(.kanataBinary)
+        // Check Kanata binary and its signing status
+        let kanataInfo = packageManager.detectKanataInstallation()
+        if kanataInfo.isInstalled {
+            switch kanataInfo.codeSigningStatus {
+            case .developerIDSigned:
+                // Properly signed binary - mark as installed
+                installed.append(.kanataBinary)
+                AppLogger.shared.log("✅ [SystemStatusChecker] Kanata binary is properly signed")
+            case .adhocSigned, .unsigned, .invalid:
+                // Binary exists but is not properly signed - treat as unsigned issue
+                missing.append(.kanataBinaryUnsigned)
+                AppLogger.shared.log("⚠️ [SystemStatusChecker] Kanata binary is not Developer ID signed: \(kanataInfo.codeSigningStatus)")
+            }
         } else {
+            // No kanata binary found at all
             missing.append(.kanataBinary)
+            AppLogger.shared.log("❌ [SystemStatusChecker] No kanata binary found")
         }
 
         // Check package manager (Homebrew) - use PackageManager's method
@@ -396,15 +408,8 @@ class SystemStatusChecker {
             AppLogger.shared.log("❌ [SystemStatusChecker] Kanata service missing: \(reason)")
         }
 
-        // Check Kanata TCP server status
-        let tcpServerWorking = await checkTCPServerStatus()
-        if tcpServerWorking {
-            installed.append(.kanataTCPServer)
-            AppLogger.shared.log("✅ [SystemStatusChecker] Kanata TCP server: responding")
-        } else {
-            missing.append(.kanataTCPServer)
-            AppLogger.shared.log("❌ [SystemStatusChecker] Kanata TCP server: not responding")
-        }
+        // Check Kanata TCP server configuration and status
+        await checkTCPConfiguration(missing: &missing, installed: &installed)
 
         AppLogger.shared.log("🔍 [SystemStatusChecker] Component check complete:")
         AppLogger.shared.log("  - Installed: \(installed.count) components")
@@ -617,6 +622,49 @@ class SystemStatusChecker {
     }
 
     // MARK: - TCP Server Status
+
+    /// Check TCP server configuration and status with detailed detection
+    private func checkTCPConfiguration(missing: inout [ComponentRequirement], installed: inout [ComponentRequirement]) async {
+        let tcpConfig = PreferencesService.tcpSnapshot()
+
+        // If TCP is disabled in preferences, mark as installed (no issue)
+        guard tcpConfig.shouldUseTCPServer else {
+            installed.append(.kanataTCPServer)
+            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server disabled in preferences - no issue")
+            return
+        }
+
+        AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server enabled in preferences (port \(tcpConfig.port))")
+
+        // First, check if kanata service is actually healthy - TCP requires kanata to be running
+        let serviceStatus = launchDaemonInstaller.getServiceStatus()
+        guard serviceStatus.kanataServiceLoaded, serviceStatus.kanataServiceHealthy else {
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] Skipping TCP checks - kanata service not healthy (loaded: \(serviceStatus.kanataServiceLoaded), healthy: \(serviceStatus.kanataServiceHealthy))")
+            AppLogger.shared.log("💡 [SystemStatusChecker] TCP server requires kanata to be running - fix service issues first")
+            return // Don't report TCP issues if the underlying service isn't working
+        }
+
+        AppLogger.shared.log("✅ [SystemStatusChecker] Kanata service is healthy, proceeding with TCP diagnostics")
+
+        // Check if LaunchDaemon plist has matching TCP configuration
+        guard launchDaemonInstaller.isServiceConfigurationCurrent() else {
+            missing.append(.tcpServerConfiguration)
+            AppLogger.shared.log("❌ [SystemStatusChecker] TCP server configuration mismatch - plist needs regeneration")
+            return
+        }
+
+        AppLogger.shared.log("✅ [SystemStatusChecker] TCP configuration matches LaunchDaemon plist")
+
+        // Check if TCP server is actually responding
+        let tcpServerWorking = await checkTCPServerStatus()
+        if tcpServerWorking {
+            installed.append(.kanataTCPServer)
+            AppLogger.shared.log("✅ [SystemStatusChecker] TCP server responding on port \(tcpConfig.port)")
+        } else {
+            missing.append(.tcpServerNotResponding)
+            AppLogger.shared.log("❌ [SystemStatusChecker] TCP server configured but not responding")
+        }
+    }
 
     /// Check if Kanata TCP server is responding
     private func checkTCPServerStatus() async -> Bool {

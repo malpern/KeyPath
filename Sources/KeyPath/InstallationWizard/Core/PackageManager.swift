@@ -113,13 +113,15 @@ class PackageManager {
         for path in possiblePaths {
             if FileManager.default.fileExists(atPath: path) {
                 let installationType = determineInstallationType(path: path)
-                AppLogger.shared.log("✅ [PackageManager] Kanata found at: \(path) (\(installationType))")
+                let codeSigningStatus = detectCodeSigningStatus(at: path)
+                AppLogger.shared.log("✅ [PackageManager] Kanata found at: \(path) (\(installationType)), signing: \(codeSigningStatus)")
 
                 return KanataInstallationInfo(
                     isInstalled: true,
                     path: path,
                     installationType: installationType,
-                    version: getKanataVersion(at: path)
+                    version: getKanataVersion(at: path),
+                    codeSigningStatus: codeSigningStatus
                 )
             }
         }
@@ -129,7 +131,8 @@ class PackageManager {
             isInstalled: false,
             path: nil,
             installationType: .notInstalled,
-            version: nil
+            version: nil,
+            codeSigningStatus: .invalid(reason: "not found")
         )
     }
 
@@ -140,6 +143,52 @@ class PackageManager {
             .cargo
         } else {
             .manual
+        }
+    }
+
+    /// Detect the code signing status of a kanata binary
+    /// Public wrapper for code signing detection
+    func getCodeSigningStatus(at path: String) -> CodeSigningStatus {
+        detectCodeSigningStatus(at: path)
+    }
+
+    private func detectCodeSigningStatus(at path: String) -> CodeSigningStatus {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        task.arguments = ["-dv", "--verbose=4", path]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe // codesign outputs to stderr
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            AppLogger.shared.log("🔍 [PackageManager] Code signing output for \(path): \(output)")
+
+            // Parse codesign output
+            if output.contains("Authority=Developer ID Application") {
+                // Extract authority line
+                let lines = output.components(separatedBy: .newlines)
+                if let authorityLine = lines.first(where: { $0.contains("Authority=Developer ID Application") }) {
+                    let authority = authorityLine.replacingOccurrences(of: "Authority=", with: "").trimmingCharacters(in: .whitespaces)
+                    return .developerIDSigned(authority: authority)
+                }
+                return .developerIDSigned(authority: "Developer ID Application")
+            } else if output.contains("adhoc") || output.contains("Ad Hoc") || (output.contains("CodeDirectory") && !output.contains("Authority=")) {
+                return .adhocSigned
+            } else if task.terminationStatus != 0, output.contains("code object is not signed at all") {
+                return .unsigned
+            } else {
+                return .invalid(reason: output.prefix(100) + (output.count > 100 ? "..." : ""))
+            }
+        } catch {
+            AppLogger.shared.log("❌ [PackageManager] Failed to check code signing for \(path): \(error)")
+            return .invalid(reason: error.localizedDescription)
         }
     }
 
@@ -472,16 +521,40 @@ enum KanataInstallationType {
     }
 }
 
+/// Code signing status of a kanata binary
+enum CodeSigningStatus {
+    case developerIDSigned(authority: String)
+    case adhocSigned
+    case unsigned
+    case invalid(reason: String)
+
+    var isDeveloperID: Bool {
+        if case .developerIDSigned = self { return true }
+        return false
+    }
+}
+
 struct KanataInstallationInfo {
     let isInstalled: Bool
     let path: String?
     let installationType: KanataInstallationType
     let version: String?
+    let codeSigningStatus: CodeSigningStatus
+
+    var needsReplacement: Bool {
+        !codeSigningStatus.isDeveloperID
+    }
 
     var description: String {
         if isInstalled, let path {
             let versionInfo = version ?? "Unknown version"
-            return "Installed at \(path) (\(installationType.displayName)) - \(versionInfo)"
+            let signing = switch codeSigningStatus {
+            case let .developerIDSigned(authority): "Signed: \(authority)"
+            case .adhocSigned: "Signed: ad hoc"
+            case .unsigned: "Unsigned"
+            case let .invalid(reason): "Invalid signature (\(reason))"
+            }
+            return "Installed at \(path) (\(installationType.displayName)) - \(versionInfo) - \(signing)"
         } else {
             return "Not installed"
         }

@@ -10,9 +10,9 @@ enum WizardPage: String, CaseIterable {
     case conflicts = "Resolve Conflicts"
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
+    case tcpServer = "TCP Server"
     case karabinerComponents = "Karabiner Components"
     case kanataComponents = "Kanata Components"
-    case tcpServer = "TCP Server"
     case service = "Start Service"
 
     /// User-friendly display name for accessibility and UI
@@ -54,6 +54,28 @@ enum InstallationStatus {
     case failed
 }
 
+/// Launch failure status for Kanata service failures
+/// Decoupled from manager types to avoid UI-Manager coupling
+enum LaunchFailureStatus: Equatable {
+    case permissionDenied(String)
+    case configError(String)
+    case serviceFailure(String)
+    case missingDependency(String)
+
+    var shortMessage: String {
+        switch self {
+        case let .permissionDenied(details):
+            "Kanata needs permissions - \(details)"
+        case let .configError(details):
+            "Configuration error - \(details)"
+        case let .serviceFailure(details):
+            "Kanata service failed - \(details)"
+        case let .missingDependency(details):
+            "Missing requirement - \(details)"
+        }
+    }
+}
+
 // MARK: - Consolidated State Models
 
 /// Represents the overall system state for the wizard
@@ -90,6 +112,7 @@ enum PermissionRequirement: Equatable {
 /// Component requirements that need installation
 enum ComponentRequirement: Equatable {
     case kanataBinary
+    case kanataBinaryUnsigned // Kanata binary exists but lacks proper Developer ID signing
     case kanataService
     case karabinerDriver
     case karabinerDaemon
@@ -102,6 +125,8 @@ enum ComponentRequirement: Equatable {
     case vhidDaemonMisconfigured
     case kanataTCPServer // TCP server for Kanata communication and config validation
     case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
+    case tcpServerConfiguration // TCP enabled but not configured in service
+    case tcpServerNotResponding // TCP configured but not responding
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -120,6 +145,9 @@ enum AutoFixAction: Equatable {
     case adoptOrphanedProcess // Install LaunchDaemon to manage existing process
     case replaceOrphanedProcess // Kill orphaned process and start managed one
     case installLogRotation // Install log rotation service to keep logs under 10MB
+    case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
+    case regenerateTCPServiceConfiguration // Update LaunchDaemon plist with TCP settings
+    case restartTCPServer // Restart service to enable TCP functionality
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
@@ -312,6 +340,10 @@ enum WizardConstants {
         static let conflictDetected = "Conflicting process detected"
         static let componentMissing = "Required component is missing"
         static let daemonRequired = "Daemon required for virtual HID functionality"
+    }
+
+    enum Actions {
+        static let fixInSetup = "Fix in Setup"
     }
 }
 

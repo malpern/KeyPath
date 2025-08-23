@@ -1,7 +1,7 @@
 #!/usr/bin/env swift
 
-import Foundation
 import ApplicationServices
+import Foundation
 import IOKit.hid
 
 print("🔮 ORACLE COMPREHENSIVE TEST")
@@ -42,11 +42,12 @@ if hasTCCAccess {
 } else {
     print("   Oracle will report 'unknown' for Kanata permissions without TCP")
 }
+
 print()
 
 // MARK: - Test 3: TCP Server Detection Simulation
 
-print("🌐 Test 3: TCP Server Detection Simulation") 
+print("🌐 Test 3: TCP Server Detection Simulation")
 print(String(repeating: "-", count: 50))
 
 let commonPorts = [37000, 1111, 5829, 54141]
@@ -64,6 +65,7 @@ if tcpAvailable {
 } else {
     print("   ⚠️  Oracle will fall back to TCC database for Kanata permissions")
 }
+
 print()
 
 // MARK: - Test 4: Oracle Expected Behavior Matrix
@@ -81,7 +83,7 @@ print()
 print("   KANATA PERMISSIONS (Hierarchy):")
 if tcpAvailable {
     print("     • Method: TCP API (authoritative)")
-    print("     • Source: kanata.tcp-authoritative") 
+    print("     • Source: kanata.tcp-authoritative")
     print("     • Confidence: high")
 } else if hasTCCAccess {
     print("     • Method: TCC Database (fallback)")
@@ -92,6 +94,7 @@ if tcpAvailable {
     print("     • Source: tcc.no-fda")
     print("     • Confidence: low")
 }
+
 print()
 
 print("   SYSTEM READY STATUS:")
@@ -108,14 +111,14 @@ print(String(repeating: "-", count: 50))
 let iterations = 5
 var totalTime: TimeInterval = 0
 
-for i in 1...iterations {
+for i in 1 ... iterations {
     let start = Date()
-    
+
     // Simulate Oracle permission check
     _ = AXIsProcessTrusted()
     _ = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
     _ = FileManager.default.isReadableFile(atPath: tccPath)
-    
+
     let duration = Date().timeIntervalSince(start)
     totalTime += duration
     print("   Run \(i): \(String(format: "%.3f", duration))s")
@@ -140,6 +143,7 @@ let concurrentStart = Date()
 DispatchQueue.concurrentPerform(iterations: 10) { _ in
     _ = AXIsProcessTrusted()
 }
+
 let concurrentDuration = Date().timeIntervalSince(concurrentStart)
 print("   Concurrent API calls (10x): \(String(format: "%.3f", concurrentDuration))s")
 print("   Oracle concurrency handling: \(concurrentDuration < 1.0 ? "✅ EFFICIENT" : "⚠️ SLOW")")
@@ -176,7 +180,7 @@ func testTCPPort(port: Int) -> Bool {
     task.arguments = ["-z", "-w", "1", "127.0.0.1", String(port)]
     task.standardOutput = Pipe()
     task.standardError = Pipe()
-    
+
     do {
         try task.run()
         task.waitUntilExit()

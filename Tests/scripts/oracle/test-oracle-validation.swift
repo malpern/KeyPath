@@ -32,7 +32,7 @@ if !timings.isEmpty {
     let avgTiming = timings.reduce(0, +) / Double(timings.count)
     let maxTiming = timings.max() ?? 0.0
     let minTiming = timings.min() ?? 0.0
-    
+
     print("   Recent Oracle snapshots: \(timings.count) samples")
     print("   Average timing: \(String(format: "%.3f", avgTiming))s")
     print("   Min/Max: \(String(format: "%.3f", minTiming))s / \(String(format: "%.3f", maxTiming))s")
@@ -40,6 +40,7 @@ if !timings.isEmpty {
 } else {
     print("   ⚠️  No timing data found - Oracle may not have run recently")
 }
+
 print()
 
 // Test 2: Oracle Integration Validation
@@ -60,6 +61,7 @@ for (description, pattern) in integrationChecks {
     let found = !matches.isEmpty
     print("   \(description): \(found ? "✅ ACTIVE" : "❌ MISSING")")
 }
+
 print()
 
 // Test 3: Oracle Error Handling Validation
@@ -79,6 +81,7 @@ for (description, pattern) in errorChecks {
     let found = !matches.isEmpty
     print("   \(description): \(found ? "✅ WORKING" : "❌ MISSING")")
 }
+
 print()
 
 // Test 4: Legacy System Elimination
@@ -100,6 +103,7 @@ for (description, pattern) in legacyPatterns {
     print("   \(description): \(found ? "❌ STILL PRESENT" : "✅ ELIMINATED")")
     if found { legacyFound += 1 }
 }
+
 print("   Legacy elimination: \(legacyFound == 0 ? "✅ COMPLETE" : "⚠️  \(legacyFound) issues remain")")
 print()
 
@@ -121,6 +125,7 @@ if oracleLogCount > 0 {
     print("   Most recent Oracle log:")
     print("   \(mostRecentOracleLog)")
 }
+
 print()
 
 // Final Verdict
@@ -135,7 +140,7 @@ let overallScore = [performancePass, integrationPass, legacyPass].filter { $0 }.
 let totalTests = 3
 
 print("Performance: \(performancePass ? "✅ PASS" : "❌ FAIL") - Sub-2-second snapshots")
-print("Integration: \(integrationPass ? "✅ PASS" : "❌ FAIL") - Oracle active throughout app")  
+print("Integration: \(integrationPass ? "✅ PASS" : "❌ FAIL") - Oracle active throughout app")
 print("Legacy Cleanup: \(legacyPass ? "✅ PASS" : "❌ FAIL") - Old systems eliminated")
 print()
 print("OVERALL SCORE: \(overallScore)/\(totalTests) - \(overallScore == totalTests ? "🎉 EXCELLENT" : overallScore >= 2 ? "🟡 GOOD" : "🔴 NEEDS WORK")")

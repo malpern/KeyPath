@@ -44,7 +44,7 @@ class MockComponentDetector {
         var installed: [String] = []
 
         // This is the key logic from ComponentDetector.checkComponents()
-        if status.kanataServiceLoaded && status.kanataServiceHealthy {
+        if status.kanataServiceLoaded, status.kanataServiceHealthy {
             installed.append("kanataService")
         } else {
             missing.append("kanataService")

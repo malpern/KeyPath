@@ -2,6 +2,9 @@ import SwiftUI
 
 struct WizardKanataServicePage: View {
     @ObservedObject var kanataManager: KanataManager
+    let systemState: WizardSystemState
+    let issues: [WizardIssue]
+
     @State private var isPerformingAction = false
     @State private var lastError: String?
     @State private var serviceStatus: ServiceStatus = .unknown
@@ -381,8 +384,8 @@ struct WizardKanataServicePage: View {
 
             await MainActor.run {
                 isPerformingAction = false
-                refreshStatus()
             }
+            await refreshStatusAsync()
         }
     }
 
@@ -403,8 +406,8 @@ struct WizardKanataServicePage: View {
 
             await MainActor.run {
                 isPerformingAction = false
-                refreshStatus()
             }
+            await refreshStatusAsync()
         }
     }
 
@@ -420,19 +423,42 @@ struct WizardKanataServicePage: View {
 
             await MainActor.run {
                 isPerformingAction = false
-                refreshStatus()
             }
+            await refreshStatusAsync()
         }
     }
 
     private func refreshStatus() {
-        // Check if service is running
-        if kanataManager.isRunning {
-            serviceStatus = .running
-            lastError = nil
-        } else {
-            // Check if it crashed by looking for recent errors
-            checkForCrash()
+        Task {
+            await refreshStatusAsync()
+        }
+    }
+
+    private func refreshStatusAsync() async {
+        // Use the same ServiceStatusEvaluator as summary page (SINGLE SOURCE OF TRUTH)
+        let processStatus = ServiceStatusEvaluator.evaluate(
+            kanataIsRunning: kanataManager.isRunning,
+            systemState: systemState,
+            issues: issues
+        )
+
+        await MainActor.run {
+            switch processStatus {
+            case .running:
+                serviceStatus = .running
+                lastError = nil
+                AppLogger.shared.log("✅ [ServiceStatus] Service confirmed functional via shared evaluator")
+
+            case let .failed(message):
+                serviceStatus = .crashed(error: message ?? "Permission or service issue detected")
+                lastError = message
+                AppLogger.shared.log("⚠️ [ServiceStatus] Service failed via shared evaluator: \(message ?? "unknown")")
+
+            case .stopped:
+                // Preserve existing crash log heuristic when stopped
+                checkForCrash()
+                AppLogger.shared.log("🔍 [ServiceStatus] Service stopped - checking for crash indicators")
+            }
         }
     }
 
@@ -512,6 +538,10 @@ struct DetailRow: View {
 
 struct WizardKanataServicePage_Previews: PreviewProvider {
     static var previews: some View {
-        WizardKanataServicePage(kanataManager: KanataManager())
+        WizardKanataServicePage(
+            kanataManager: KanataManager(),
+            systemState: .ready,
+            issues: []
+        )
     }
 }

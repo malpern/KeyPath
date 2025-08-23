@@ -8,7 +8,8 @@ fileprivate extension String {
             let rx = try NSRegularExpression(pattern: pattern)
             let nsRange = NSRange(startIndex..., in: self)
             guard let m = rx.firstMatch(in: self, range: nsRange), m.numberOfRanges >= 2,
-                  let range = Range(m.range(at: 1), in: self) else {
+                  let range = Range(m.range(at: 1), in: self)
+            else {
                 return nil
             }
             return Int(self[range])
@@ -52,8 +53,8 @@ do {
         // Test KeepAlive semantics (Kanata is keep-alive, not one-shot)
         let isOneShot = false // Kanata is keep-alive
         let healthy: Bool = isOneShot
-            ? (lastExitCode == 0)                               // one-shot OK without PID if exit was clean
-            : (hasPID && lastExitCode == 0)                     // keep-alive services must be running and clean
+            ? (lastExitCode == 0) // one-shot OK without PID if exit was clean
+            : (hasPID && lastExitCode == 0) // keep-alive services must be running and clean
 
         print("Is One-Shot: \(isOneShot)")
         print("Healthy: \(healthy)")

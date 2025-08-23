@@ -5,8 +5,11 @@
 
 set -e
 
-echo "Building KeyPath..."
+echo "🦀 Building bundled kanata for development..."
+# Build kanata from source with ad-hoc signing for development
+CODESIGN_IDENTITY="-" ./Scripts/build-kanata.sh
 
+echo "🏗️  Building KeyPath..."
 # Build the Swift package (disable whole-module optimization to avoid hang)
 swift build -c release -Xswiftc -no-whole-module-optimization
 
@@ -19,9 +22,13 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 echo "Creating app bundle structure..."
 mkdir -p "$MACOS_DIR"
 mkdir -p "$RESOURCES_DIR"
+mkdir -p "$CONTENTS_DIR/Library/KeyPath"
 
 # Copy executable
 cp .build/arm64-apple-macosx/release/KeyPath "$MACOS_DIR/KeyPath"
+
+# Copy bundled kanata binary
+cp build/kanata-universal "$CONTENTS_DIR/Library/KeyPath/kanata"
 
 # Copy app icon
 if [ -f "Sources/KeyPath/Resources/AppIcon.icns" ]; then

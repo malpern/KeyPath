@@ -27,7 +27,7 @@ let appleScript = NSAppleScript(source: script)
 var error: NSDictionary?
 appleScript?.executeAndReturnError(&error)
 
-if let error = error {
+if let error {
     print("❌ Failed to sync config: \(error)")
 } else {
     print("✅ Config synchronized to system path")

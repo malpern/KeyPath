@@ -73,7 +73,7 @@ struct PermissionDetailsSheet: View {
             let (keyPathHas, kanataHas, details) = await kanataManager.checkBothAppsHavePermissions()
 
             let hasAccessibility = await kanataManager.hasAccessibilityPermission()
-            
+
             await MainActor.run {
                 var report = "=== Permission Status Report ===\n\n"
                 report += "KeyPath.app:\n"

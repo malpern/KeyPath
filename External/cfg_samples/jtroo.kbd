@@ -1,0 +1,159 @@
+(defsrc
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+(defalias
+  ;; toggle layer aliases
+  num (layer-toggle numbers)
+  chr (layer-toggle chords)
+  arr (layer-toggle arrows)
+  msc (layer-toggle misc)
+  lay (layer-toggle layers)
+  mse (layer-toggle mouse)
+
+  ;; change the base layer between qwerty and dvorak
+  dvk (layer-switch dvorak)
+  qwr (layer-switch qwerty)
+
+  ;; tap-hold keys with letters for tap and layer change for hold
+  anm (tap-hold-release 200 200 a @num)
+  oar (tap-hold-release 200 200 o @arr)
+  ech (tap-hold-release 200 200 e @chr)
+  umc (tap-hold-release 200 200 u @msc)
+  grl (tap-hold-release 200 200 grv @lay)
+  .ms (tap-hold-release 200 200 . @mse)
+
+  ;; tap for capslk, hold for lctl
+  cap (tap-hold-release 200 200 caps lctl)
+
+  ;; chords
+  csv C-S-v
+  csc C-S-c
+)
+
+(deflocalkeys-linux
+  pho 445
+)
+
+(defalias
+  ;; shifted keys
+  { S-[
+  } S-]
+  : S-;
+  ral (tap-hold-release 200 200 sldr ralt)
+)
+
+(defalias
+  alp (multi a b c d e f g h i j k l m n o p q r s t u v w x y z)
+  ls (macro l s spc min a l ret)
+)
+
+(deflayer dvorak
+  @grl 1    2    3    4    5    6    7    8    9    0    [    ]    bspc
+  tab  '    ,    @.ms p    y    f    g    c    r    l    /    =    \
+  @cap @anm @oar @ech @umc i    d    h    t    n    s    -    ret
+  lsft ;    q    j    k    x    b    m    w    v    z    rsft
+  lctl lmet lalt           spc            @ral rmet rctl
+)
+
+(deflayer qwerty
+  @grl 1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  lctl lmet lalt           spc            ralt rmet rctl
+)
+
+(deflayer layers
+  _    @qwr @dvk lrld _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _              _              _    _    _
+)
+
+(deflayer numbers
+  _    _    _    _    _    _    nlk  kp7  kp8  kp9  _    _    _    _
+  _    _    C-S-tab C-tab _ XX  _    kp4  kp5  kp6  min  _    _    _
+  _    _    C-z  C-y  M-tab XX  _    kp1  kp2  kp3  +    _    _
+  _    C-z  C-x  C-c  C-v  XX   _    kp0  kp0  .    /    _
+  _    _    _              _              _    _    _
+)
+
+(deflayer misc
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    ins  @{   @}    [   ]    _    _    _
+  _    _    _    _    C-u  _    C-bspc bspc esc ret _    _    _
+  _    C-z  C-x  C-c  C-v  _    _    del  _    _    _    _
+  _    _    _              _              _    _    _
+)
+
+(deflayer chords
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    @csc _    @ls  _    _    _
+  _    @alp _    _    C-u  _    C-d  _    S-;  _    C-s  _    _
+  _    _    _    _    _    _    C-b  _    _    @csv _    _
+  _    _    _              _              _    _    _
+)
+
+(deflayer arrows
+  _    f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12  _
+  _    _    _    _    _    _    C-S-tab pgup up pgdn C-tab _  _    _
+  _    _    _    _    _    _    home left down rght end  _    _
+  _    _    _    _    _    _    _    _    C-w  _    _    _
+  _    _    _              _              _    _    _
+)
+
+(defalias
+  mwu (mwheel-up 50 120)
+  mwd (mwheel-down 50 120)
+  mwl (mwheel-left 50 120)
+  mwr (mwheel-right 50 120)
+)
+
+(deflayer mouse
+  _    _    _    _    _    _    _    _    _    _    _    _    _    _
+  _    @mwu bck  _    fwd  _    _    _    _    _    _    _    _    _
+  _    @mwd mlft _    mrgt mmid _    _    _    _    _    _    _
+  _    _    _    _    _    _    _    _    _    _    _    _
+  _    _    _              _              _    _    _
+)
+
+(defseq "git status" (g s t)
+  "git commit --amend --no-edit" (g c a)
+  "git rebase -i HEAD~" (g r e b)
+  "git log --pretty=oneline --abbrev-commit" (g l s)
+  "git diff --ignore-space-change" (g d f)
+  "git diff --cached --ignore-space-change" (g d c)
+  "git push -f" (g p f)
+  "git commit -m 'fix_this_commit_message'" (g c m)
+)
+
+(deffakekeys
+  "git status" (macro g i t spc s t a t u s)
+  "git commit --amend --no-edit" (macro g i t spc c o m m i t spc min min a m e n d spc min min n o min e d i t)
+  "git rebase -i HEAD~" (macro g i t spc r e b a s e spc min i spc S-h S-e S-a S-d S-grv)
+  "git log --pretty=oneline --abbrev-commit" (macro
+    g i t spc l o g spc
+      min min p r e t t y = o n e l i n e spc
+      min min a b b r e v min c o m m i t
+  )
+  "git diff --ignore-space-change" (macro
+    g i t spc d i f f spc
+      min min i g n o r e min s p a c e min c h a n g e
+  )
+  "git diff --cached --ignore-space-change" (macro
+    g i t spc d i f f spc
+      min min c a c h e d spc
+      min min i g n o r e min s p a c e min c h a n g e
+  )
+  "git push -f" (macro g i t spc p u s h spc min f)
+  "git commit -m 'fix_this_commit_message'" (macro
+    g i t spc c o m m i t spc
+      min m spc ' f i x S-min t h i s S-min c o m m i t S-min m e s s a g e '
+  )
+)

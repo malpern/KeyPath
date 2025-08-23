@@ -49,9 +49,9 @@ Package.resolved
 *.log
 logs/
 
-# External source code - don't include full Kanata source
+# External source code - don't include full Kanata source (legacy paths)
 kanata-source/
-kanata/
+# Note: External/kanata is now a git submodule and should be tracked
 
 # External tools - don't include full peekaboo source
 peekaboo/

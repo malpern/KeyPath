@@ -14,10 +14,6 @@ struct WizardAccessibilityPage: View {
     // State interpreter for consistent status computation
     private let stateInterpreter = WizardStateInterpreter()
 
-    // Polling state for permission checking
-    @State private var isPolling = false
-    @State private var pollTimer: Timer?
-
     var body: some View {
         VStack(spacing: 0) {
             // Use experimental hero design when permissions are granted
@@ -186,8 +182,7 @@ struct WizardAccessibilityPage: View {
                                 Spacer()
                                 if keyPathAccessibilityStatus != .completed {
                                     Button("Fix") {
-                                        requestAccessibilityPermission()
-                                        startPolling()
+                                        openAccessibilityPermissionGrant()
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
@@ -207,29 +202,9 @@ struct WizardAccessibilityPage: View {
                                 }
                                 Spacer()
                                 if kanataAccessibilityStatus != .completed {
-                                    Button(action: {
-                                        // Multiple immediate debug outputs
-                                        print("*** KANATA FIX BUTTON CLICKED ***")
-                                        Swift.print("*** KANATA FIX BUTTON CLICKED ***")
-                                        NSLog("*** KANATA FIX BUTTON CLICKED ***")
-                                        
+                                    Button("Fix") {
                                         AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix button clicked for kanata")
-                                        
-                                        // Write to file immediately for debugging
-                                        try? "Fix button clicked at \(Date())\n".write(
-                                            to: URL(fileURLWithPath: "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/logs/fix-button-debug.log"),
-                                            atomically: false,
-                                            encoding: .utf8
-                                        )
-                                        
-                                        // Open Accessibility settings for the user to enable kanata
-                                        openAccessibilitySettings()
-                                        // Clear cached permission results so polling sees changes quickly
-                                        // Oracle handles caching automatically
-                                        // Begin polling to refresh UI as the user toggles permissions
-                                        startPolling()
-                                    }) {
-                                        Text("Fix")
+                                        openAccessibilityPermissionGrant()
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
@@ -258,8 +233,7 @@ struct WizardAccessibilityPage: View {
                 if hasAccessibilityIssues {
                     // When permissions needed, Grant Permission is primary
                     Button("Grant Permission") {
-                        requestAccessibilityPermission()
-                        startPolling()
+                        openAccessibilityPermissionGrant()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
 
@@ -284,17 +258,6 @@ struct WizardAccessibilityPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
-        .onDisappear {
-            // Clean up polling timer when leaving the page
-            stopPolling()
-        }
-        .onChange(of: hasAccessibilityIssues) { oldValue, newValue in
-            // Stop polling when permissions are granted (no more issues)
-            if oldValue, !newValue, isPolling {
-                AppLogger.shared.log("✅ [WizardAccessibilityPage] Permissions granted! Stopping polling")
-                stopPolling()
-            }
-        }
     }
 
     // MARK: - Helper Methods
@@ -327,20 +290,27 @@ struct WizardAccessibilityPage: View {
 
     // MARK: - Actions
 
-    private func requestAccessibilityPermission() {
-        AppLogger.shared.log(
-            "🔐 [WizardAccessibilityPage] Requesting Accessibility permission via system dialog")
+    private func openAccessibilityPermissionGrant() {
+        AppLogger.shared.log("🔐 [WizardAccessibilityPage] Starting unified permission grant flow for Accessibility")
 
-        // Use the system API to request accessibility permission
-        // This shows a dialog where the user can enter their password to add KeyPath
-        // Request accessibility permission using Apple API
-        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+        let instructions = """
+        KeyPath will now close so you can grant permissions:
 
-        // Note: After the user grants permission via the dialog, KeyPath will be added
-        // to the Accessibility list but may still need to be toggled ON.
-        // The user should click "Check Again" after granting permission.
+        1. Add KeyPath and kanata to Accessibility (use the '+' button)
+        2. Make sure both checkboxes are enabled
+        3. Restart KeyPath when you're done
 
-        // We don't dismiss the wizard here - let the user check again after granting
+        KeyPath will automatically restart the keyboard service to pick up your new permissions.
+        """
+
+        PermissionGrantCoordinator.shared.initiatePermissionGrant(
+            for: .accessibility,
+            instructions: instructions,
+            onComplete: {
+                // Close wizard after user confirms the dialog
+                onDismiss?()
+            }
+        )
     }
 
     private func openAccessibilitySettings() {
@@ -353,37 +323,6 @@ struct WizardAccessibilityPage: View {
         {
             NSWorkspace.shared.open(url)
         }
-    }
-
-    // MARK: - Polling Methods
-
-    private func startPolling() {
-        // Don't start if already polling
-        guard !isPolling else { return }
-
-        AppLogger.shared.log("🔄 [WizardAccessibilityPage] Starting permission polling every 5 seconds")
-        isPolling = true
-
-        // Start timer that checks every 5 seconds
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
-            Task { @MainActor in
-                // Refresh the page state by calling onRefresh
-                await onRefresh()
-
-                // The UI will automatically update based on the refreshed state
-                // If permissions are granted, hasAccessibilityIssues will become false
-                // and the timer will be cleaned up on the next UI update cycle
-            }
-        }
-    }
-
-    private func stopPolling() {
-        guard isPolling else { return }
-
-        AppLogger.shared.log("⏹️ [WizardAccessibilityPage] Stopping permission polling")
-        isPolling = false
-        pollTimer?.invalidate()
-        pollTimer = nil
     }
 }
 

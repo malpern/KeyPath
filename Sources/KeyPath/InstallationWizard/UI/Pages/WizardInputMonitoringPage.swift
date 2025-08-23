@@ -334,115 +334,24 @@ struct WizardInputMonitoringPage: View {
     private func openInputMonitoringSettings() {
         AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix button clicked - entering permission grant mode")
 
-        // Set flag indicating user is about to grant permissions
-        // This covers both KeyPath AND kanata permissions - user can grant in any order
-        UserDefaults.standard.set(true, forKey: "user_granting_permissions")
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "permission_grant_timestamp")
-        
-        // Force synchronize to ensure it's written to disk before app terminates
-        let syncResult = UserDefaults.standard.synchronize()
+        let instructions = """
+        KeyPath will now close so you can grant permissions:
 
-        // Log to file for debugging across app restarts
-        let timestamp = Date().timeIntervalSince1970
+        1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
+        2. Make sure both checkboxes are enabled
+        3. Restart KeyPath when you're done
 
-        // Write detailed log entry
-        let logEntry = """
-        [\(Date())] PERMISSION GRANT MODE ACTIVATED:
-          - user_granting_permissions: true
-          - permission_grant_timestamp: \(timestamp)
-          - synchronize result: \(syncResult)
-          - Action: User clicked Fix button (KeyPath or kanata - doesn't matter)
-          - Next steps: 
-            1. KeyPath will quit completely
-            2. System Settings will open to Input Monitoring
-            3. User can grant permissions to KeyPath and/or kanata in any order
-            4. User restarts KeyPath when done
-            5. KeyPath will restart kanata service to pick up ALL new permissions
-
+        KeyPath will automatically restart the keyboard service to pick up your new permissions.
         """
 
-        appendWizardLog(filename: "permission-grant.log", logEntry)
-
-        // Double-check the values were saved
-        let checkGranting = UserDefaults.standard.bool(forKey: "user_granting_permissions")
-        let checkTimestamp = UserDefaults.standard.double(forKey: "permission_grant_timestamp")
-
-        let verifyEntry = """
-        [\(Date())] VERIFICATION after save:
-          - granting: \(checkGranting)
-          - timestamp: \(checkTimestamp)
-
-        """
-
-        if let data = verifyEntry.data(using: .utf8),
-           let fileHandle = FileHandle(forWritingAtPath: logPath)
-        {
-            fileHandle.seekToEndOfFile()
-            fileHandle.write(data)
-            fileHandle.closeFile()
-        }
-
-        AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Opening System Settings to Input Monitoring")
-        
-        // Open System Settings to Input Monitoring page
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
-            NSWorkspace.shared.open(url)
-        }
-
-        // Brief delay to ensure System Settings opens, then quit KeyPath completely
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Terminating KeyPath - user will restart when done granting permissions")
-            
-            // Show final instruction alert before quitting
-            let alert = NSAlert()
-            alert.messageText = "Grant Permissions & Restart KeyPath"
-            alert.informativeText = """
-            KeyPath will now close so you can grant permissions:
-            
-            1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
-            2. Make sure both checkboxes are enabled
-            3. Restart KeyPath when you're done
-            
-            KeyPath will automatically restart the keyboard service to pick up your new permissions.
-            """
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
-            
-            // Log final action to file
-            let finalEntry = """
-            [\(Date())] TERMINATING KEYPATH:
-              - System Settings should now be open
-              - User will grant permissions at their own pace
-              - User will manually restart KeyPath when complete
-              - On restart, kanata service will be restarted to pick up permissions
-
-            """
-            
-            appendWizardLog(filename: "permission-grant.log", finalEntry)
-            
-            // Quit KeyPath completely
-            NSApp.terminate(nil)
-        }
-    }
-    
-    /// Append text to a log file in ~/Library/Logs/KeyPath/
-    private func appendWizardLog(filename: String, _ text: String) {
-        let fm = FileManager.default
-        let logsDir = (try? fm.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false))?
-            .appendingPathComponent("Logs/KeyPath", isDirectory: true)
-        guard let dir = logsDir else { return }
-        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        let fileURL = dir.appendingPathComponent(filename, isDirectory: false)
-        let data = Data(text.utf8)
-        if fm.fileExists(atPath: fileURL.path) {
-            if let handle = try? FileHandle(forWritingTo: fileURL) {
-                try? handle.seekToEnd()
-                try? handle.write(contentsOf: data)
-                try? handle.close()
+        PermissionGrantCoordinator.shared.initiatePermissionGrant(
+            for: .inputMonitoring,
+            instructions: instructions,
+            onComplete: {
+                // Close wizard after user confirms the dialog
+                onDismiss?()
             }
-        } else {
-            try? data.write(to: fileURL)
-        }
+        )
     }
 }
 

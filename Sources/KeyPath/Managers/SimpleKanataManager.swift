@@ -5,6 +5,11 @@ import SwiftUI
 /// Replaces the complex 14-state LifecycleStateMachine with 4 clear states
 @MainActor
 class SimpleKanataManager: ObservableObject {
+    // MARK: - Launch Status Model
+
+    // Use decoupled LaunchFailureStatus from WizardTypes to avoid UI-Manager coupling
+    typealias KanataLaunchStatus = LaunchFailureStatus
+
     // MARK: - Simple State Model
 
     enum State: String, CaseIterable {
@@ -36,6 +41,7 @@ class SimpleKanataManager: ObservableObject {
     @Published private(set) var currentState: State = .starting
     @Published private(set) var errorReason: String?
     @Published private(set) var showWizard: Bool = false
+    @Published private(set) var launchFailureStatus: KanataLaunchStatus?
     @Published private(set) var autoStartAttempts: Int = 0
     @Published private(set) var lastHealthCheck: Date?
     @Published private(set) var retryCount: Int = 0
@@ -195,6 +201,7 @@ class SimpleKanataManager: ObservableObject {
                 AppLogger.shared.log("✅ [SimpleKanataManager] Detected Kanata now running")
                 currentState = .running
                 errorReason = nil
+                launchFailureStatus = nil
                 showWizard = false
                 isRetryingAfterFix = false
                 retryCount = 0
@@ -203,7 +210,8 @@ class SimpleKanataManager: ObservableObject {
         } else {
             if currentState == .running {
                 AppLogger.shared.log("❌ [SimpleKanataManager] Detected Kanata stopped running")
-                await handleServiceFailure("Service stopped unexpectedly")
+                await handleServiceFailure("Service stopped unexpectedly",
+                                           failureType: .serviceFailure("Service stopped unexpectedly"))
             } else if currentState == .needsHelp {
                 // CRITICAL FIX: Don't auto-retry if wizard is currently shown to user
                 // This prevents timer-based retries from closing the wizard unexpectedly
@@ -248,13 +256,15 @@ class SimpleKanataManager: ObservableObject {
         let kanataPath = await findKanataExecutable()
         if kanataPath.isEmpty {
             AppLogger.shared.log("❌ [SimpleKanataManager] Step 1 FAILED: Kanata not found")
-            await setNeedsHelp("Kanata not installed. Install with: brew install kanata")
+            await setNeedsHelp("Kanata not installed. Install with: brew install kanata",
+                               failureType: .missingDependency("Kanata not installed"))
             return
         }
 
         if let permissionError = await checkPermissions() {
             AppLogger.shared.log("❌ [SimpleKanataManager] Step 1 FAILED: \(permissionError)")
-            await setNeedsHelp(permissionError)
+            await setNeedsHelp(permissionError,
+                               failureType: .permissionDenied(permissionError))
             return
         }
 
@@ -277,6 +287,7 @@ class SimpleKanataManager: ObservableObject {
                 AppLogger.shared.log("✅ [SimpleKanataManager] Auto-start successful!")
                 currentState = .running
                 errorReason = nil
+                launchFailureStatus = nil
                 startHealthMonitoring()
             } else {
                 AppLogger.shared.log("❌ [SimpleKanataManager] Auto-start failed - process not running")
@@ -297,17 +308,22 @@ class SimpleKanataManager: ObservableObject {
         if let processError = error as? ProcessLifecycleError {
             switch processError {
             case .noKanataManager:
-                await setNeedsHelp("Internal error: No Kanata manager available")
+                await setNeedsHelp("Internal error: No Kanata manager available",
+                                   failureType: .serviceFailure("Internal error: No Kanata manager available"))
             case .processStartFailed:
                 await handleStartFailure()
             case let .processStopFailed(underlyingError):
                 await setNeedsHelp(
-                    "Failed to stop conflicting processes: \(underlyingError.localizedDescription)")
+                    "Failed to stop conflicting processes: \(underlyingError.localizedDescription)",
+                    failureType: .serviceFailure("Failed to stop conflicting processes")
+                )
             case let .processTerminateFailed(underlyingError):
-                await setNeedsHelp("Failed to resolve conflicts: \(underlyingError.localizedDescription)")
+                await setNeedsHelp("Failed to resolve conflicts: \(underlyingError.localizedDescription)",
+                                   failureType: .serviceFailure("Failed to resolve conflicts"))
             }
         } else {
-            await setNeedsHelp("Process management error: \(error.localizedDescription)")
+            await setNeedsHelp("Process management error: \(error.localizedDescription)",
+                               failureType: .serviceFailure("Process management error"))
         }
     }
 
@@ -323,11 +339,11 @@ class SimpleKanataManager: ObservableObject {
         }
 
         // Max attempts reached - check what went wrong
-        let failureReason = await diagnoseStartFailure()
-        await setNeedsHelp(failureReason)
+        let (failureReason, failureType) = await diagnoseStartFailure()
+        await setNeedsHelp(failureReason, failureType: failureType)
     }
 
-    private func diagnoseStartFailure() async -> String {
+    private func diagnoseStartFailure() async -> (String, KanataLaunchStatus) {
         // Check log file for specific errors
         let logPath = "/var/log/kanata.log"
 
@@ -337,21 +353,26 @@ class SimpleKanataManager: ObservableObject {
 
             for line in recentLines.reversed() {
                 if line.contains("Permission denied") {
-                    return "Permission denied - check Input Monitoring permissions in System Settings"
+                    let message = "Permission denied - check Input Monitoring permissions in System Settings"
+                    return (message, .permissionDenied(message))
                 } else if line.contains("Config"), line.contains("error") {
-                    return "Configuration file error - check your keypath.kbd file"
+                    let message = "Configuration file error - check your keypath.kbd file"
+                    return (message, .configError(message))
                 } else if line.contains("Device"), line.contains("not found") {
-                    return "Keyboard device not found - ensure keyboard is connected"
+                    let message = "Keyboard device not found - ensure keyboard is connected"
+                    return (message, .serviceFailure(message))
                 } else if line.contains("Address already in use") {
-                    return "Another keyboard service is running - check for conflicts"
+                    let message = "Another keyboard service is running - check for conflicts"
+                    return (message, .serviceFailure(message))
                 }
             }
         }
 
-        return "Kanata failed to start - check system requirements and permissions"
+        let message = "Kanata failed to start - check system requirements and permissions"
+        return (message, .serviceFailure(message))
     }
 
-    private func setNeedsHelp(_ reason: String) async {
+    private func setNeedsHelp(_ reason: String, failureType: KanataLaunchStatus? = nil) async {
         AppLogger.shared.log("❌ [SimpleKanataManager] ========== SET NEEDS HELP ==========")
         AppLogger.shared.log("❌ [SimpleKanataManager] Reason: \(reason)")
         AppLogger.shared.log(
@@ -359,6 +380,7 @@ class SimpleKanataManager: ObservableObject {
 
         currentState = .needsHelp
         errorReason = reason
+        launchFailureStatus = failureType
 
         // Check if System Preferences is open before showing wizard
         let systemPrefsOpen = await isSystemPreferencesOpen()
@@ -458,15 +480,15 @@ class SimpleKanataManager: ObservableObject {
         // 🔮 THE ORACLE: Single source of truth for ALL permission detection
         // No more complex PermissionService logic, no more binary path confusion
         let snapshot = await PermissionOracle.shared.currentSnapshot()
-        
+
         AppLogger.shared.log("🔮 [SimpleKanataManager] Oracle permission check complete")
-        
+
         // Return the first blocking permission issue (clear, actionable message)
         if let issue = snapshot.blockingIssue {
             AppLogger.shared.log("❌ [SimpleKanataManager] Blocking issue: \(issue)")
             return issue
         }
-        
+
         AppLogger.shared.log("✅ [SimpleKanataManager] All permissions ready via Oracle")
         return nil
     }
@@ -516,7 +538,8 @@ class SimpleKanataManager: ObservableObject {
 
             // Trigger the wizard to help with accessibility permissions
             Task {
-                await self.setNeedsHelp("Accessibility permission required for keyboard capture")
+                await self.setNeedsHelp("Accessibility permission required for keyboard capture",
+                                        failureType: .permissionDenied("Accessibility permission required"))
             }
         }
     }
@@ -546,11 +569,12 @@ class SimpleKanataManager: ObservableObject {
 
         if !kanataManager.isRunning {
             AppLogger.shared.log("💓 [SimpleKanataManager] Health check failed - service down")
-            await handleServiceFailure("Service health check failed")
+            await handleServiceFailure("Service health check failed",
+                                       failureType: .serviceFailure("Service health check failed"))
         }
     }
 
-    private func handleServiceFailure(_ reason: String) async {
+    private func handleServiceFailure(_ reason: String, failureType _: KanataLaunchStatus? = nil) async {
         AppLogger.shared.log("❌ [SimpleKanataManager] Service failure: \(reason)")
         stopHealthMonitoring()
 
@@ -575,7 +599,7 @@ class SimpleKanataManager: ObservableObject {
 
         // 🔮 ORACLE VALIDATION: Only retry if permissions are actually fixed
         let snapshot = await PermissionOracle.shared.forceRefresh()
-        
+
         if !snapshot.isSystemReady {
             AppLogger.shared.log("🔄 [SimpleKanataManager] Permissions still missing - not retrying yet")
             if let issue = snapshot.blockingIssue {
@@ -620,29 +644,29 @@ class SimpleKanataManager: ObservableObject {
     /// 🔮 ORACLE: Clean permission change detection
     private func checkForPermissionChanges() async -> Bool {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
-        
+
         // Current state from Oracle (authoritative)
         let currentlyReady = snapshot.isSystemReady
-        
+
         // Previous state (stored simple tuple)
         let previouslyReady = lastPermissionState.input && lastPermissionState.accessibility
-        
+
         // Update stored state for next comparison
         lastPermissionState = (
             snapshot.keyPath.inputMonitoring.isReady,
             snapshot.keyPath.accessibility.isReady
         )
-        
+
         // Permission improvement detected
-        if !previouslyReady && currentlyReady {
+        if !previouslyReady, currentlyReady {
             AppLogger.shared.log("✅ [SimpleKanataManager] 🔮 Oracle detected system is now ready!")
             AppLogger.shared.log("📊 [SimpleKanataManager] \(snapshot.diagnosticSummary)")
             return true
         }
-        
+
         // Log current state for debugging
         AppLogger.shared.log("📊 [SimpleKanataManager] 🔮 Oracle state - Ready: \(currentlyReady), Previous: \(previouslyReady)")
-        
+
         return false
     }
 

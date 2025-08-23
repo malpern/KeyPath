@@ -15,9 +15,38 @@ enum WizardSystemPaths {
     /// Default kanata binary path for most operations (same as standard)
     static let kanataBinaryDefault = "/usr/local/bin/kanata"
 
-    /// Active kanata binary path - always use standard location
-    /// This ensures permissions only need to be granted once
-    static let kanataActiveBinary = kanataStandardLocation
+    /// Bundled kanata binary path (preferred - properly signed)
+    static var bundledKanataPath: String {
+        "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+    }
+
+    /// Active kanata binary path - prefer system location, fallback to bundled
+    /// System location is where we install our signed binary for TCC permissions
+    static var kanataActiveBinary: String {
+        // Prefer system installations (where we install our signed binary)
+        if FileManager.default.fileExists(atPath: kanataStandardLocation) {
+            return kanataStandardLocation
+        }
+
+        if FileManager.default.fileExists(atPath: kanataBinaryARM) {
+            return kanataBinaryARM
+        }
+
+        // Fallback to bundled kanata (used during installation process)
+        if FileManager.default.fileExists(atPath: bundledKanataPath) {
+            return bundledKanataPath
+        }
+
+        // Default fallback
+        return kanataStandardLocation
+    }
+
+    /// All known kanata binary paths for detection/filtering
+    static func allKnownKanataPaths() -> [String] {
+        [bundledKanataPath, kanataStandardLocation, kanataBinaryARM].filter {
+            FileManager.default.fileExists(atPath: $0)
+        }
+    }
 
     /// Homebrew binary path
     static let brewBinary = "/opt/homebrew/bin/brew"

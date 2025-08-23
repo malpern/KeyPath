@@ -314,6 +314,7 @@ class IssueGenerator {
     private func componentTitle(for component: ComponentRequirement) -> String {
         switch component {
         case .kanataBinary: WizardConstants.Titles.kanataBinaryMissing
+        case .kanataBinaryUnsigned: "Kanata Binary Unsigned"
         case .kanataService: "Kanata Service Missing"
         case .karabinerDriver: WizardConstants.Titles.karabinerDriverMissing
         case .karabinerDaemon: WizardConstants.Titles.daemonNotRunning
@@ -326,6 +327,8 @@ class IssueGenerator {
         case .packageManager: "Package Manager (Homebrew) Missing"
         case .kanataTCPServer: "TCP Server Not Responding"
         case .orphanedKanataProcess: "Orphaned Kanata Process"
+        case .tcpServerConfiguration: "TCP Server Configuration Outdated"
+        case .tcpServerNotResponding: "TCP Server Not Responding"
         }
     }
 
@@ -333,6 +336,8 @@ class IssueGenerator {
         switch component {
         case .kanataBinary:
             "The kanata binary is not installed or not found in expected locations. Checked paths: /opt/homebrew/bin/kanata, /usr/local/bin/kanata, ~/.cargo/bin/kanata"
+        case .kanataBinaryUnsigned:
+            "The system kanata executable is not Developer ID signed. Replace it with the signed version bundled with KeyPath to receive Input Monitoring permission."
         case .kanataService:
             "Kanata service configuration is missing."
         case .karabinerDriver:
@@ -367,6 +372,18 @@ class IssueGenerator {
 
             The wizard will automatically choose the best option based on your configuration.
             """
+        case .tcpServerConfiguration:
+            """
+            The TCP server is enabled in KeyPath preferences but the system service is not configured with the current TCP settings.
+
+            This happens when TCP preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current TCP port configuration.
+            """
+        case .tcpServerNotResponding:
+            """
+            The TCP server is properly configured but not responding on port \(PreferencesService.tcpSnapshot().port).
+
+            This prevents reliable permission detection and may affect external integrations. The service may need to be restarted.
+            """
         }
     }
 
@@ -386,12 +403,18 @@ class IssueGenerator {
             .restartUnhealthyServices
         case .kanataBinary:
             .installViaBrew // Can be installed via Homebrew if available
+        case .kanataBinaryUnsigned:
+            .replaceKanataWithBundled // Replace with bundled Developer ID signed binary
         case .kanataService:
             .installLaunchDaemonServices // Service configuration files
         case .kanataTCPServer:
             .restartUnhealthyServices // TCP server requires service restart with updated config
         case .orphanedKanataProcess:
             .adoptOrphanedProcess // Default to adopting the orphaned process
+        case .tcpServerConfiguration:
+            .regenerateTCPServiceConfiguration // Update LaunchDaemon plist with TCP settings
+        case .tcpServerNotResponding:
+            .restartTCPServer // Restart service to enable TCP functionality
         default:
             .installMissingComponents
         }
@@ -407,6 +430,12 @@ class IssueGenerator {
             "Install Homebrew from https://brew.sh"
         case .kanataBinary:
             "Use the Installation Wizard to install Kanata automatically"
+        case .kanataBinaryUnsigned:
+            "Click 'Replace with Signed Version' to use KeyPath's bundled Developer ID signed kanata"
+        case .tcpServerConfiguration:
+            "Click 'Fix' to update the service with current settings"
+        case .tcpServerNotResponding:
+            "Click 'Fix' to restart the service with TCP functionality"
         default:
             nil
         }
@@ -420,6 +449,12 @@ class IssueGenerator {
             "Install Homebrew from https://brew.sh"
         case .kanataBinary:
             "Use the Installation Wizard to install Kanata automatically"
+        case .kanataBinaryUnsigned:
+            "Use the Installation Wizard to replace with signed version"
+        case .tcpServerConfiguration:
+            "Use the Installation Wizard to fix TCP configuration"
+        case .tcpServerNotResponding:
+            "Use the Installation Wizard to restart TCP server"
         default:
             nil
         }

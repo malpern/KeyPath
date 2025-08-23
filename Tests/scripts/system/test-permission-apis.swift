@@ -1,7 +1,7 @@
 #!/usr/bin/env swift
 
-import Foundation
 import ApplicationServices
+import Foundation
 
 // Test the actual permission APIs that are giving false positives
 print("🧪 Testing Permission APIs for Fresh App")
@@ -17,7 +17,7 @@ let inputMonitoringGranted = accessType == kIOHIDAccessTypeGranted
 print("🔍 IOHIDCheckAccess (Input Monitoring): \(inputMonitoringGranted)")
 print("   Raw access type: \(accessType)")
 
-// Test AXIsProcessTrusted (Accessibility) 
+// Test AXIsProcessTrusted (Accessibility)
 let accessibilityGranted = AXIsProcessTrusted()
 print("🔍 AXIsProcessTrusted (Accessibility): \(accessibilityGranted)")
 

@@ -61,7 +61,26 @@ class WizardNavigationEngine: WizardNavigating {
             return .accessibility
         }
 
-        // 3. Karabiner Components - driver, VirtualHID, background services
+        // 3. TCP Server Configuration Issues (critical for permission detection)
+        let hasTCPIssues = issues.contains { issue in
+            if issue.category == .installation {
+                switch issue.identifier {
+                case .component(.tcpServerConfiguration),
+                     .component(.tcpServerNotResponding):
+                    return true
+                default:
+                    return false
+                }
+            }
+            return false
+        }
+
+        if hasTCPIssues {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .tcpServer (found TCP configuration issues)")
+            return .tcpServer
+        }
+
+        // 4. Karabiner Components - driver, VirtualHID, background services
         let hasKarabinerIssues = issues.contains { issue in
             // Installation issues related to Karabiner
             if issue.category == .installation {
@@ -88,7 +107,7 @@ class WizardNavigationEngine: WizardNavigating {
             return .karabinerComponents
         }
 
-        // 4. Kanata Components - binary and service
+        // 5. Kanata Components - binary and service
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {

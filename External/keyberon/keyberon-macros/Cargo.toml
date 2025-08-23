@@ -1,0 +1,14 @@
+[package]
+name = "kanata-keyberon-macros"
+version = "0.2.0"
+authors = ["Antoni Simka <antonisimka.8@gmail.com>"]
+edition = "2018"
+description = "Macros for keyberon. Fork for kanata project"
+license = "MIT"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"

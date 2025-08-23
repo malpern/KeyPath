@@ -1,0 +1,4 @@
+[submodule "External/kanata"]
+	path = External/kanata
+	url = https://github.com/malpern/kanata.git
+	branch = macos-permissions-via-tcp

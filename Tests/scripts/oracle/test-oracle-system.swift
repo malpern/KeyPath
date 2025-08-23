@@ -1,7 +1,7 @@
 #!/usr/bin/env swift
 
-import Foundation
 import ApplicationServices
+import Foundation
 import IOKit.hid
 
 print("🔮 ORACLE SYSTEM TEST")
@@ -36,6 +36,7 @@ for port in tcpPorts {
     let status = result ? "🟢 AVAILABLE" : "🔴 UNAVAILABLE"
     print("   Port \(port): \(status)")
 }
+
 print()
 
 // Test 3: Full Disk Access Detection
@@ -49,13 +50,13 @@ print("   Path: \(tccPath)")
 print()
 
 // Test 4: Kanata Binary Detection
-print("🔧 Test 4: Kanata Binary Detection")  
+print("🔧 Test 4: Kanata Binary Detection")
 print(String(repeating: "-", count: 40))
 
 let possiblePaths = [
     "/opt/homebrew/bin/kanata",
     "/usr/local/bin/kanata",
-    "/usr/bin/kanata"
+    "/usr/bin/kanata",
 ]
 
 var kanataFound = false
@@ -71,6 +72,7 @@ for path in possiblePaths {
 if !kanataFound {
     print("   ⚠️  No Kanata binary found - TCP permission check will be only source")
 }
+
 print()
 
 // Test 5: Oracle Expected Behavior Summary
@@ -79,7 +81,7 @@ print(String(repeating: "-", count: 40))
 
 print("   PERMISSION DETECTION HIERARCHY:")
 print("   1. 🥇 Kanata TCP API (authoritative when available)")
-print("   2. 🥈 Apple APIs for KeyPath (AXIsProcessTrusted, IOHIDCheckAccess)")  
+print("   2. 🥈 Apple APIs for KeyPath (AXIsProcessTrusted, IOHIDCheckAccess)")
 print("   3. 🥉 TCC Database (fallback when Full Disk Access available)")
 print("   4. ❓ Unknown (never guess from logs or patterns)")
 print()
@@ -92,7 +94,7 @@ print("   ❌ Binary path confusion")
 print()
 
 print("   EXPECTED RESULTS:")
-if axGranted && imGranted {
+if axGranted, imGranted {
     print("   ✅ KeyPath permissions: READY")
 } else {
     print("   ⚠️  KeyPath permissions: NEEDS ATTENTION")
@@ -120,13 +122,13 @@ print("   • Actionable error messages")
 print()
 
 // Helper function for TCP testing
-func testTCPConnection(host: String, port: Int, timeout: TimeInterval) -> Bool {
+func testTCPConnection(host: String, port: Int, timeout _: TimeInterval) -> Bool {
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
     task.arguments = ["-z", "-w", "1", host, String(port)]
     task.standardOutput = Pipe()
     task.standardError = Pipe()
-    
+
     do {
         try task.run()
         task.waitUntilExit()

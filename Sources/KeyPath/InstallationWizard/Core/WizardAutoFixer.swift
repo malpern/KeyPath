@@ -7,6 +7,7 @@ class WizardAutoFixer: AutoFixCapable {
     private let vhidDeviceManager: VHIDDeviceManager
     private let launchDaemonInstaller: LaunchDaemonInstaller
     private let packageManager: PackageManager
+    private let bundledKanataManager: BundledKanataManager
     private let toastManager: WizardToastManager
     private let autoFixSync = ProcessSynchronizationActor()
 
@@ -15,12 +16,14 @@ class WizardAutoFixer: AutoFixCapable {
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         packageManager: PackageManager = PackageManager(),
+        bundledKanataManager: BundledKanataManager = BundledKanataManager(),
         toastManager: WizardToastManager
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.launchDaemonInstaller = launchDaemonInstaller
         self.packageManager = packageManager
+        self.bundledKanataManager = bundledKanataManager
         self.toastManager = toastManager
     }
 
@@ -106,6 +109,12 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to replace an orphaned process
         case .installLogRotation:
             true // We can always attempt to install log rotation
+        case .replaceKanataWithBundled:
+            true // We can always attempt to replace kanata with bundled version
+        case .regenerateTCPServiceConfiguration:
+            true // We can always attempt to regenerate TCP service configuration
+        case .restartTCPServer:
+            true // We can always attempt to restart TCP server
         }
     }
 
@@ -147,6 +156,12 @@ class WizardAutoFixer: AutoFixCapable {
             return await replaceOrphanedProcess()
         case .installLogRotation:
             return await installLogRotation()
+        case .replaceKanataWithBundled:
+            return await replaceKanataWithBundled()
+        case .regenerateTCPServiceConfiguration:
+            return await regenerateTCPServiceConfiguration()
+        case .restartTCPServer:
+            return await restartTCPServer()
         }
     }
 
@@ -1006,6 +1021,103 @@ class WizardAutoFixer: AutoFixCapable {
             AppLogger.shared.log("❌ [AutoFixer] Failed to install log rotation service")
             await MainActor.run {
                 toastManager.showError("❌ Failed to install log rotation service")
+            }
+        }
+
+        return success
+    }
+
+    private func replaceKanataWithBundled() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Replacing system kanata with bundled Developer ID signed version")
+
+        await MainActor.run {
+            toastManager.showInfo("🔧 Replacing kanata with signed version...")
+        }
+
+        let success = await bundledKanataManager.replaceBinaryWithBundled()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully replaced system kanata with bundled version")
+            await MainActor.run {
+                toastManager.showSuccess("✅ Kanata replaced with signed version - restart service to take effect")
+            }
+
+            // Restart the kanata service to use the new binary
+            AppLogger.shared.log("🔄 [AutoFixer] Restarting kanata service to use new binary")
+            await kanataManager.restartKanata()
+            AppLogger.shared.log("✅ [AutoFixer] Restarted kanata service with new binary")
+
+            return true
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to replace kanata binary")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to replace kanata binary - check logs for details")
+            }
+            return false
+        }
+    }
+
+    // MARK: - TCP Server Auto-Fix Actions
+
+    /// Regenerates the Kanata service configuration with current TCP settings
+    private func regenerateTCPServiceConfiguration() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Regenerating TCP service configuration")
+
+        await MainActor.run {
+            toastManager.showInfo("🔧 Updating TCP server configuration...")
+        }
+
+        let success = launchDaemonInstaller.regenerateServiceWithCurrentSettings()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully regenerated TCP service configuration")
+            await MainActor.run {
+                toastManager.showSuccess("✅ TCP configuration updated - restarting service...")
+            }
+
+            // Restart the service to apply the new configuration
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            let restartSuccess = await launchDaemonInstaller.restartUnhealthyServices()
+
+            if restartSuccess {
+                await MainActor.run {
+                    toastManager.showSuccess("✅ TCP server restarted successfully!")
+                }
+            } else {
+                await MainActor.run {
+                    toastManager.showInfo("⚠️ TCP configuration updated - may need to restart KeyPath")
+                }
+            }
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate TCP service configuration")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to update TCP configuration - check permissions")
+            }
+        }
+
+        return success
+    }
+
+    /// Restarts the Kanata service to enable TCP functionality
+    private func restartTCPServer() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Restarting TCP server")
+
+        await MainActor.run {
+            toastManager.showInfo("🔧 Restarting kanata service to enable TCP...")
+        }
+
+        // Use the existing unhealthy services restart method
+        let success = await launchDaemonInstaller.restartUnhealthyServices()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully restarted TCP server")
+            await MainActor.run {
+                toastManager.showSuccess("✅ TCP server restarted successfully")
+            }
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to restart TCP server")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to restart TCP server - check service configuration")
             }
         }
 

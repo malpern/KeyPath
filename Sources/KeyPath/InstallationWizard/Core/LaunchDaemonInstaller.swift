@@ -488,7 +488,7 @@ class LaunchDaemonInstaller {
             <key>RunAtLoad</key>
             <true/>
             <key>KeepAlive</key>
-            <true/>
+            <false/>
             <key>StandardOutPath</key>
             <string>/var/log/kanata.log</string>
             <key>StandardErrorPath</key>
@@ -1657,6 +1657,132 @@ class LaunchDaemonInstaller {
             "🔍 [LaunchDaemon] Repair result: loadedDaemon=\(daemonLoad), loadedManager=\(managerLoad), configured=\(isVHIDDaemonConfiguredCorrectly())"
         )
         return ok
+    }
+
+    // MARK: - TCP Configuration Detection
+
+    /// Gets the current program arguments from the Kanata LaunchDaemon plist
+    func getKanataProgramArguments() -> [String]? {
+        guard let plistDict = NSDictionary(contentsOfFile: Self.kanataPlistPath) as? [String: Any] else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot read Kanata plist at \(Self.kanataPlistPath)")
+            return nil
+        }
+
+        guard let arguments = plistDict["ProgramArguments"] as? [String] else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] No ProgramArguments found in Kanata plist")
+            return nil
+        }
+
+        AppLogger.shared.log("🔍 [LaunchDaemon] Current plist arguments: \(arguments.joined(separator: " "))")
+        return arguments
+    }
+
+    /// Checks if the current service configuration matches the expected TCP settings
+    func isServiceConfigurationCurrent() -> Bool {
+        guard let currentArgs = getKanataProgramArguments() else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check TCP configuration - plist unreadable")
+            return false
+        }
+
+        let expectedArgs = buildKanataPlistArguments(binaryPath: getKanataBinaryPath())
+
+        // Compare argument arrays for exact match
+        let isMatch = currentArgs == expectedArgs
+
+        AppLogger.shared.log("🔍 [LaunchDaemon] TCP Configuration Check:")
+        AppLogger.shared.log("  Current:  \(currentArgs.joined(separator: " "))")
+        AppLogger.shared.log("  Expected: \(expectedArgs.joined(separator: " "))")
+        AppLogger.shared.log("  Match: \(isMatch)")
+
+        return isMatch
+    }
+
+    /// Regenerates the Kanata service plist with current settings and reloads the service
+    func regenerateServiceWithCurrentSettings() -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Regenerating Kanata service with current TCP settings")
+
+        let kanataBinaryPath = getKanataBinaryPath()
+        let plistContent = generateKanataPlist(binaryPath: kanataBinaryPath)
+        let tempDir = NSTemporaryDirectory()
+        let tempPath = "\(tempDir)\(Self.kanataServiceID).plist"
+
+        do {
+            // Write new plist content to temporary file
+            try plistContent.write(toFile: tempPath, atomically: true, encoding: .utf8)
+
+            // Use bootout/bootstrap for proper service reload
+            let success = reloadService(serviceID: Self.kanataServiceID, plistPath: Self.kanataPlistPath, tempPlistPath: tempPath)
+
+            // Clean up temporary file
+            try? FileManager.default.removeItem(atPath: tempPath)
+
+            return success
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to create temporary plist: \(error)")
+            return false
+        }
+    }
+
+    /// Reloads a service using bootout/bootstrap pattern for plist changes
+    func reloadService(serviceID: String, plistPath: String, tempPlistPath: String) -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Reloading service \(serviceID) with bootout/bootstrap pattern")
+
+        if Self.isTestMode {
+            AppLogger.shared.log("🔧 [LaunchDaemon] Test mode - simulating service reload")
+            do {
+                try FileManager.default.copyItem(atPath: tempPlistPath, toPath: plistPath)
+                return true
+            } catch {
+                AppLogger.shared.log("❌ [LaunchDaemon] Test mode plist copy failed: \(error)")
+                return false
+            }
+        }
+
+        // Create compound command: bootout, install new plist, bootstrap
+        let command = """
+        launchctl bootout system/\(serviceID) 2>/dev/null || echo "Service not loaded" && \
+        cp '\(tempPlistPath)' '\(plistPath)' && \
+        chown root:wheel '\(plistPath)' && \
+        chmod 644 '\(plistPath)' && \
+        launchctl bootstrap system '\(plistPath)' && \
+        launchctl kickstart system/\(serviceID)
+        """
+
+        // Use osascript for admin privileges
+        let escapedCommand = escapeForAppleScript(command)
+        let osascriptCommand = """
+        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to update the TCP server configuration for the keyboard service."
+        """
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", osascriptCommand]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [LaunchDaemon] Successfully reloaded service \(serviceID)")
+                AppLogger.shared.log("🔧 [LaunchDaemon] Reload output: \(output)")
+                // Mark restart time for warm-up detection
+                markRestartTime(for: [serviceID])
+                return true
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] Failed to reload service \(serviceID): \(output)")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error executing service reload: \(error)")
+            return false
+        }
     }
 
     // MARK: - Argument Building

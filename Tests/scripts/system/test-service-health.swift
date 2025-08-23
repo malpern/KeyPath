@@ -39,7 +39,7 @@ do {
                     print("Service ID: '\(serviceID)'")
 
                     let isHealthy = (pidStr == "-" && (exitCodeStr == "0" || exitCodeStr == "-")) ||
-                                   (Int(pidStr) ?? -1 > 0 && exitCodeStr == "0")
+                        (Int(pidStr) ?? -1 > 0 && exitCodeStr == "0")
 
                     print("Healthy: \(isHealthy)")
 

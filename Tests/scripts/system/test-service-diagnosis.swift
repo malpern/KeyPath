@@ -41,8 +41,9 @@ do {
         let lines = output.components(separatedBy: .newlines)
         for line in lines {
             if line.contains("last exit reason") ||
-               line.contains("job state") ||
-               line.contains("runs =") {
+                line.contains("job state") ||
+                line.contains("runs =")
+            {
                 print("🔍 Key info: \(line.trimmingCharacters(in: .whitespaces))")
             }
         }

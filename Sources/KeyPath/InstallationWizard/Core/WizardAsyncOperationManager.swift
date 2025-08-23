@@ -344,13 +344,13 @@ enum WizardOperations {
 
                 if hasPermission {
                     AppLogger.shared.log("🔮 [WizardAsyncOperationManager] Permission granted, attempting TCP restart of Kanata")
-                    
+
                     // Use Oracle to restart Kanata after permission change
                     let restartSuccess = await PermissionOracle.shared.restartKanataAfterPermissionChange()
                     if !restartSuccess {
                         AppLogger.shared.log("⚠️ [WizardAsyncOperationManager] TCP restart failed (TCP may be disabled)")
                     }
-                    
+
                     progressCallback(1.0)
                     return true
                 }
@@ -582,6 +582,12 @@ extension AutoFixAction {
             "Restart Unhealthy Services"
         case .installLogRotation:
             "Install Log Rotation"
+        case .replaceKanataWithBundled:
+            "Replace Kanata with Bundled Version"
+        case .regenerateTCPServiceConfiguration:
+            "Regenerate TCP Service Configuration"
+        case .restartTCPServer:
+            "Restart TCP Server"
         }
     }
 }

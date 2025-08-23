@@ -38,7 +38,7 @@ struct WizardFullDiskAccessPage: View {
                             .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.info)
                             .symbolRenderingMode(.hierarchical)
                             .symbolEffect(.bounce, options: .nonRepeating)
-                        
+
                         // Overlay hanging off right side based on FDA status
                         VStack {
                             HStack {
@@ -197,7 +197,8 @@ struct WizardFullDiskAccessPage: View {
         // Check cache first
         if let lastCheckTime = lastFDACheckTime,
            Date().timeIntervalSince(lastCheckTime) < cacheValidityDuration,
-           cachedFDAStatus {
+           cachedFDAStatus
+        {
             // Use cached positive result (don't cache negative to allow quick detection)
             hasFullDiskAccess = cachedFDAStatus
             hasCheckedPermission = true

@@ -22,7 +22,7 @@ let inputCaptureEnd = Date()
 let inputDuration = inputCaptureEnd.timeIntervalSince(inputRecordStart)
 print("🕐 [UIAutomation] Input capture took: \(String(format: "%.3f", inputDuration))s")
 
-// Step 3: Simulate output capture  
+// Step 3: Simulate output capture
 print("🤖 [UIAutomation] Step 4: User clicks 'Record Output' button")
 let outputRecordStart = Date()
 

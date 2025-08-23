@@ -23,7 +23,7 @@ task.executableURL = URL(fileURLWithPath: "/usr/bin/log")
 task.arguments = [
     "stream",
     "--predicate", "processImagePath CONTAINS 'KeyPath' AND (composedMessage CONTAINS 'Oracle' OR composedMessage CONTAINS '🔮')",
-    "--style", "compact"
+    "--style", "compact",
 ]
 
 // Redirect output to show Oracle logs
@@ -32,10 +32,10 @@ task.standardOutput = pipe
 
 do {
     try task.run()
-    
+
     // Read and display Oracle logs in real-time
     let handle = pipe.fileHandleForReading
-    
+
     while task.isRunning {
         let data = handle.availableData
         if !data.isEmpty {
@@ -53,7 +53,7 @@ do {
                 }
             }
         }
-        
+
         // Small delay to prevent CPU spinning
         Thread.sleep(forTimeInterval: 0.1)
     }

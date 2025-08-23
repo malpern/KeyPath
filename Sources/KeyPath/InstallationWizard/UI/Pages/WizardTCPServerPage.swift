@@ -8,6 +8,13 @@ struct WizardTCPServerPage: View {
     @State private var fixResult: FixResult?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
+    // Auto-fix integration
+    let onAutoFix: ((AutoFixAction) async -> Bool)?
+
+    init(onAutoFix: ((AutoFixAction) async -> Bool)? = nil) {
+        self.onAutoFix = onAutoFix
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Use experimental hero design when TCP server is working
@@ -195,7 +202,7 @@ struct WizardTCPServerPage: View {
                                     .scaleEffect(0.8)
                                     .progressViewStyle(CircularProgressViewStyle())
                             }
-                            Text(isFixing ? "Fixing..." : "Fix Server")
+                            Text(isFixing ? "Fixing..." : "Fix")
                         }
                     }
                     .buttonStyle(WizardDesign.Component.SecondaryButton())
@@ -247,6 +254,31 @@ struct WizardTCPServerPage: View {
             return
         }
 
+        // SMART DEPENDENCY CHECKING: TCP requires permissions to be granted first
+        let oracle = PermissionOracle.shared
+        let snapshot = await oracle.currentSnapshot()
+
+        if !snapshot.isSystemReady {
+            let missingPermissions = [
+                !snapshot.kanata.inputMonitoring.isReady ? "Input Monitoring" : nil,
+                !snapshot.kanata.accessibility.isReady ? "Accessibility" : nil,
+            ].compactMap { $0 }
+
+            tcpStatus = .failed(
+                "TCP server requires permissions to be granted first. Missing: \(missingPermissions.joined(separator: ", "))",
+                details: TCPServerDetails(
+                    port: tcpConfig.port,
+                    isListening: false,
+                    activeConnections: 0,
+                    timeWaitConnections: 0,
+                    layerNames: nil,
+                    reloadResponse: nil,
+                    lastTestedAt: lastCheckTime
+                )
+            )
+            return
+        }
+
         // For now, assume Kanata is available from environment
         // In a real implementation, you'd get this from parent view
 
@@ -283,46 +315,58 @@ struct WizardTCPServerPage: View {
     }
 
     private func fixTCPServer() async {
+        guard let onAutoFix else {
+            AppLogger.shared.log("❌ [TCPWizard] No auto-fix handler available")
+            return
+        }
+
         isFixing = true
         showingFixFeedback = false
 
         AppLogger.shared.log("🔧 [TCPWizard] Attempting to fix TCP server...")
 
-        // Store the old status to compare
-        let oldStatus = tcpStatus
+        // Determine which auto-fix action to use based on current status
+        let autoFixAction: AutoFixAction = determineAutoFixAction()
 
-        // Placeholder for restart logic - would need KanataManager access
-        // await kanataManager.restartKanata()
+        AppLogger.shared.log("🔧 [TCPWizard] Using auto-fix action: \(autoFixAction)")
 
-        // Wait for service to stabilize
-        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+        // Call the integrated auto-fix system
+        let success = await onAutoFix(autoFixAction)
 
-        // Re-check status
-        await checkTCPStatus()
+        // Note: If the auto-fix involves app restart, execution won't reach here
+        // This handles cases where restart isn't needed or fails
+        if !success {
+            fixResult = FixResult(
+                success: false,
+                message: "Failed to fix TCP server. Please check system settings.",
+                timestamp: Date()
+            )
 
-        // Show feedback based on results
-        let success = tcpStatus.isSuccess && !oldStatus.isSuccess
-        fixResult = FixResult(
-            success: success,
-            message: success
-                ? "TCP server is now working correctly"
-                : "TCP server is still not responding. Try restarting KeyPath or checking your network settings.",
-            timestamp: Date()
-        )
-
-        withAnimation(.easeInOut(duration: 0.3)) {
-            showingFixFeedback = true
-        }
-
-        // Auto-hide feedback after 5 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
             withAnimation(.easeInOut(duration: 0.3)) {
-                showingFixFeedback = false
+                showingFixFeedback = true
             }
+
+            // Auto-hide feedback after 5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showingFixFeedback = false
+                }
+            }
+
+            // Re-check status after a brief delay
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            await checkTCPStatus()
         }
 
         isFixing = false
         AppLogger.shared.log("🔧 [TCPWizard] TCP server fix attempt completed: \(success ? "success" : "failed")")
+    }
+
+    private func determineAutoFixAction() -> AutoFixAction {
+        // For now, we'll use regenerateTCPServiceConfiguration as the primary fix
+        // In a more sophisticated implementation, we could analyze the specific
+        // failure to choose between .regenerateTCPServiceConfiguration and .restartTCPServer
+        .regenerateTCPServiceConfiguration
     }
 
     private func formatTime(_ date: Date) -> String {
@@ -465,7 +509,7 @@ struct TCPFixButton: View {
                         .font(.system(size: 14, weight: .medium))
                 }
 
-                Text(isFixing ? "Fixing..." : "Fix TCP Server")
+                Text(isFixing ? "Fixing..." : "Fix")
                     .font(.system(size: 15, weight: .medium))
             }
             .frame(width: WizardDesign.Layout.buttonWidthLarge, height: 40)

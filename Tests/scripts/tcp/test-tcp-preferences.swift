@@ -19,7 +19,7 @@ print("✅ TCP port: \(port)")
 // Test the logic that would be used in buildKanataPlistArguments
 var arguments = ["/usr/local/bin/kanata", "--cfg", "/Users/malpern/.config/keypath/keypath.kbd"]
 
-if enabled && port > 1024 && port < 65536 {
+if enabled, port > 1024, port < 65536 {
     arguments.append("--port")
     arguments.append(String(port))
     print("✅ TCP arguments added: \(arguments.suffix(2))")

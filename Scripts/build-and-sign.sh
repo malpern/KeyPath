@@ -5,6 +5,10 @@
 
 set -e  # Exit on any error
 
+echo "🦀 Building bundled kanata..."
+# Build kanata from source (required for proper signing)
+./Scripts/build-kanata.sh
+
 echo "🏗️  Building KeyPath..."
 # Build main app (disable whole-module optimization to avoid hang)
 swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
@@ -22,9 +26,13 @@ RESOURCES="${CONTENTS}/Resources"
 rm -rf "$DIST_DIR"
 mkdir -p "$MACOS"
 mkdir -p "$RESOURCES"
+mkdir -p "$CONTENTS/Library/KeyPath"
 
 # Copy main executable
 cp "$BUILD_DIR/KeyPath" "$MACOS/"
+
+# Copy bundled kanata binary
+cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
@@ -35,6 +43,9 @@ echo "APPL????" > "$CONTENTS/PkgInfo"
 
 echo "✍️  Signing executables..."
 SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
+
+# Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
+codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS/Library/KeyPath/kanata"
 
 # Sign main app
 codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"

@@ -41,6 +41,18 @@ enum WizardDesign {
         static let textLineSpacing: CGFloat = 2
     }
 
+    enum Toast {
+        /// Maximum toast width
+        static let maxWidth: CGFloat = Layout.cardWidth
+
+        /// Toast durations
+        enum Duration {
+            static let info: TimeInterval = 3.0
+            static let error: TimeInterval = 4.0
+            static let launchFailure: TimeInterval = 8.0
+        }
+    }
+
     enum Layout {
         /// Standard wizard page width
         static let pageWidth: CGFloat = 700
@@ -224,6 +236,20 @@ enum WizardDesign {
                     .background(WizardDesign.Colors.cardBackground)
                     .cornerRadius(12)
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+            }
+        }
+
+        /// Toast card style for overlay notifications
+        struct ToastCard: ViewModifier {
+            func body(content: Content) -> some View {
+                content
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
+                            .stroke(WizardDesign.Colors.border.opacity(0.3), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                    .frame(maxWidth: WizardDesign.Toast.maxWidth)
             }
         }
 
@@ -601,6 +627,11 @@ extension View {
     /// Apply standard wizard content spacing
     func wizardContentSpacing() -> some View {
         frame(maxWidth: WizardDesign.Layout.maxContentWidth)
+    }
+
+    /// Apply toast card styling
+    func wizardToastCard() -> some View {
+        modifier(WizardDesign.Component.ToastCard())
     }
 }
 
