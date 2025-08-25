@@ -48,8 +48,7 @@ do {
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     if let output = String(data: data, encoding: .utf8),
        let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)),
-       count > 1
-    {
+       count > 1 {
         indicators.append("Multiple kanata processes detected (\(count) running)")
     }
 } catch {

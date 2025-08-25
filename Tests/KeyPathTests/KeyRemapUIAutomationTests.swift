@@ -39,7 +39,7 @@ final class KeyRemapUIAutomationTests: XCTestCase {
             ("f1", "f2", "Function key remap"),
             ("a", "b", "Letter key remap"),
             ("space", "tab", "Space to Tab mapping"),
-            ("delete", "backspace", "Delete key mapping"),
+            ("delete", "backspace", "Delete key mapping")
         ]
 
         for testCase in testCases {
@@ -160,7 +160,7 @@ final class KeyRemapUIAutomationTests: XCTestCase {
         let testMappings = [
             ("caps", "esc"),
             ("f1", "f2"),
-            ("a", "b"),
+            ("a", "b")
         ]
 
         for (input, output) in testMappings {

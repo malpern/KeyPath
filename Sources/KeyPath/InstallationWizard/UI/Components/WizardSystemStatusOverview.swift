@@ -393,7 +393,7 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
                     description: "Test conflict",
                     autoFixAction: .terminateConflictingProcesses,
                     userAction: nil
-                ),
+                )
             ],
             stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: { _ in },

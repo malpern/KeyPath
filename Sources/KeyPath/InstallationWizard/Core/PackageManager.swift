@@ -53,7 +53,7 @@ class PackageManager {
         // Check both ARM and Intel Homebrew locations
         let homebrewPaths = [
             "/opt/homebrew/bin/brew", // ARM Homebrew
-            "/usr/local/bin/brew", // Intel Homebrew
+            "/usr/local/bin/brew" // Intel Homebrew
         ]
 
         for path in homebrewPaths {
@@ -76,7 +76,7 @@ class PackageManager {
     func getHomebrewPath() -> String? {
         let homebrewPaths = [
             "/opt/homebrew/bin/brew", // ARM Homebrew (preferred)
-            "/usr/local/bin/brew", // Intel Homebrew
+            "/usr/local/bin/brew" // Intel Homebrew
         ]
 
         for path in homebrewPaths {
@@ -104,10 +104,10 @@ class PackageManager {
     /// Checks if Kanata is installed via any method
     func detectKanataInstallation() -> KanataInstallationInfo {
         let possiblePaths = [
+            WizardSystemPaths.bundledKanataPath, // Bundled kanata (preferred)
             "/opt/homebrew/bin/kanata", // ARM Homebrew
             "/usr/local/bin/kanata", // Intel Homebrew
-            "/usr/local/bin/kanata", // Manual installation
-            "\(NSHomeDirectory())/.cargo/bin/kanata", // Rust cargo installation
+            "\(NSHomeDirectory())/.cargo/bin/kanata" // Rust cargo installation
         ]
 
         for path in possiblePaths {
@@ -137,7 +137,9 @@ class PackageManager {
     }
 
     private func determineInstallationType(path: String) -> KanataInstallationType {
-        if path.contains("/opt/homebrew/bin") || path.contains("/usr/local/bin") {
+        if path == WizardSystemPaths.bundledKanataPath {
+            .bundled
+        } else if path.contains("/opt/homebrew/bin") || path.contains("/usr/local/bin") {
             .homebrew
         } else if path.contains("/.cargo/bin") {
             .cargo
@@ -390,8 +392,7 @@ class PackageManager {
         let homebrewDirs = ["/opt/homebrew", "/usr/local/Homebrew"]
         for dir in homebrewDirs {
             if FileManager.default.fileExists(atPath: dir),
-               !FileManager.default.fileExists(atPath: "\(dir)/bin/brew")
-            {
+               !FileManager.default.fileExists(atPath: "\(dir)/bin/brew") {
                 AppLogger.shared.log(
                     "⚠️ [PackageManager] Found \(dir) but no brew executable - possible incomplete installation"
                 )
@@ -401,8 +402,7 @@ class PackageManager {
         // Check for Cargo installation without Kanata
         let cargoPath = "\(NSHomeDirectory())/.cargo/bin"
         if FileManager.default.fileExists(atPath: cargoPath),
-           !FileManager.default.fileExists(atPath: "\(cargoPath)/kanata")
-        {
+           !FileManager.default.fileExists(atPath: "\(cargoPath)/kanata") {
             AppLogger.shared.log(
                 "ℹ️ [PackageManager] Cargo detected but no Kanata binary - user may need to install via 'cargo install kanata'"
             )
@@ -436,8 +436,7 @@ class PackageManager {
         }
 
         if outputLower.contains("network") || outputLower.contains("connection")
-            || outputLower.contains("timeout")
-        {
+            || outputLower.contains("timeout") {
             AppLogger.shared.log("⚠️ [PackageManager] Network connectivity issue detected")
             AppLogger.shared.log("💡 [PackageManager] Check internet connection and try again")
         }
@@ -448,8 +447,7 @@ class PackageManager {
         }
 
         if outputLower.contains("disk") || outputLower.contains("space")
-            || outputLower.contains("no space left")
-        {
+            || outputLower.contains("no space left") {
             AppLogger.shared.log("⚠️ [PackageManager] Disk space issue detected")
             AppLogger.shared.log("💡 [PackageManager] Free up disk space and try again")
         }
@@ -506,6 +504,7 @@ class PackageManager {
 // MARK: - Supporting Types
 
 enum KanataInstallationType {
+    case bundled
     case homebrew
     case cargo
     case manual
@@ -513,6 +512,7 @@ enum KanataInstallationType {
 
     var displayName: String {
         switch self {
+        case .bundled: "Bundled"
         case .homebrew: "Homebrew"
         case .cargo: "Cargo (Rust)"
         case .manual: "Manual"

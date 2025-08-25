@@ -243,7 +243,7 @@ final class LaunchDaemonInstallerTCPTests: XCTestCase {
             (1024, true), // Minimum valid port
             (65535, true), // Maximum valid port
             (1023, false), // Just below minimum
-            (65536, false), // Just above maximum
+            (65536, false) // Just above maximum
         ]
 
         for (port, shouldInclude) in edgeCasePorts {
@@ -444,7 +444,7 @@ final class LaunchDaemonInstallerTCPTests: XCTestCase {
             "Label": "com.keypath.kanata",
             "ProgramArguments": arguments,
             "RunAtLoad": true,
-            "KeepAlive": true,
+            "KeepAlive": true
         ]
 
         return try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)

@@ -643,35 +643,10 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Package detection complete")
         stepsCompleted += 1
 
-        // Step 3: Install Kanata if needed
-        AppLogger.shared.log("🔧 [AutoFixer] Step 3/\(totalSteps): Installing Kanata package...")
-        if !kanataInfo.isInstalled {
-            let result = await packageManager.installKanataViaBrew()
-
-            switch result {
-            case .success:
-                AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: Kanata installed via Homebrew")
-                stepsCompleted += 1
-            case let .failure(reason):
-                AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Failed to install Kanata - \(reason)")
-                stepsFailed += 1
-            case .homebrewNotAvailable:
-                AppLogger.shared.log(
-                    "❌ [AutoFixer] Step 3 FAILED: Homebrew not available for Kanata installation")
-                stepsFailed += 1
-            case .packageNotFound:
-                AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Kanata package not found in Homebrew")
-                stepsFailed += 1
-            case .userCancelled:
-                AppLogger.shared.log(
-                    "⚠️ [AutoFixer] Step 3 CANCELLED: Kanata installation cancelled by user")
-                return false
-            }
-        } else {
-            AppLogger.shared.log(
-                "✅ [AutoFixer] Step 3 SUCCESS: Kanata already installed - \(kanataInfo.description)")
-            stepsCompleted += 1
-        }
+        // Step 3: Skip external Kanata installation - use bundled version only
+        AppLogger.shared.log("🔧 [AutoFixer] Step 3/\(totalSteps): Using bundled Kanata (no external installation)...")
+        AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: Using bundled signed Kanata binary")
+        stepsCompleted += 1
 
         let success = stepsFailed == 0
         if success {

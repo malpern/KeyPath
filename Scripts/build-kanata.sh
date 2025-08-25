@@ -92,18 +92,17 @@ if [[ "$SIGNING_IDENTITY" == *"Developer ID"* ]]; then
     
     echo "✅ Kanata signed for production with Developer ID"
 else
-    # Development signing (ad-hoc or Apple Development)
-    codesign \
+    # Development signing (requires valid certificate)
+    if codesign \
         --force \
         --sign "$SIGNING_IDENTITY" \
-        "$BUILD_DIR/kanata-universal" 2>/dev/null || {
-        
-        # Fallback to ad-hoc signing
-        echo "⚠️  Developer ID not available, using ad-hoc signing for development"
-        codesign --force --sign - "$BUILD_DIR/kanata-universal"
-    }
-    
-    echo "✅ Kanata signed for development"
+        "$BUILD_DIR/kanata-universal" 2>/dev/null; then
+        echo "✅ Kanata signed for development"
+    else
+        echo "❌ SIGNING FAILED: No valid signing identity available"
+        echo "💡 Ensure you have a valid Apple Developer certificate"
+        exit 1
+    fi
 fi
 
 # Verify signature

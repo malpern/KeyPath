@@ -42,8 +42,7 @@ do {
         for line in lines {
             if line.contains("last exit reason") ||
                 line.contains("job state") ||
-                line.contains("runs =")
-            {
+                line.contains("runs =") {
                 print("🔍 Key info: \(line.trimmingCharacters(in: .whitespaces))")
             }
         }

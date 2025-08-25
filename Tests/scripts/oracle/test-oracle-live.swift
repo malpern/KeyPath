@@ -23,7 +23,7 @@ task.executableURL = URL(fileURLWithPath: "/usr/bin/log")
 task.arguments = [
     "stream",
     "--predicate", "processImagePath CONTAINS 'KeyPath' AND (composedMessage CONTAINS 'Oracle' OR composedMessage CONTAINS '🔮')",
-    "--style", "compact",
+    "--style", "compact"
 ]
 
 // Redirect output to show Oracle logs

@@ -145,7 +145,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
             "output-key-label",
             "output-key-display",
             "output-key-record-button",
-            "save-mapping-button",
+            "save-mapping-button"
         ]
 
         // In a real UI test environment, you would check these exist
@@ -172,7 +172,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
             ("caps", "esc"),
             ("a", "b"),
             ("space", "tab"),
-            ("f1", "f2"),
+            ("f1", "f2")
         ]
 
         for (input, output) in validMappings {
@@ -184,7 +184,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
         let edgeCases = [
             ("", "6"), // Empty input
             ("5", ""), // Empty output
-            ("5", "5"), // Same key (might be valid for testing)
+            ("5", "5") // Same key (might be valid for testing)
         ]
 
         for (input, output) in edgeCases {
@@ -223,7 +223,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
             .recordingOutput,
             .outputCaptured,
             .saving,
-            .completed,
+            .completed
         ]
 
         XCTAssertGreaterThanOrEqual(states.count, 4, "Should have multiple state transitions")

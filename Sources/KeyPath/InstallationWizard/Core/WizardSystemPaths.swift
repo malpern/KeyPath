@@ -24,12 +24,12 @@ enum WizardSystemPaths {
     /// Single canonical path eliminates TCC permission fragmentation
     static var kanataActiveBinary: String {
         // Always use bundled kanata - single canonical path for consistent permissions
-        return bundledKanataPath
+        bundledKanataPath
     }
 
-    /// All known kanata binary paths for detection/filtering
+    /// All known kanata binary paths for detection/filtering - ONLY bundled version
     static func allKnownKanataPaths() -> [String] {
-        [bundledKanataPath, kanataStandardLocation, kanataBinaryARM].filter {
+        [bundledKanataPath].filter {
             FileManager.default.fileExists(atPath: $0)
         }
     }
@@ -104,16 +104,11 @@ enum WizardSystemPaths {
 
     // MARK: - Helper Methods
 
-    /// Returns the best available kanata binary path
+    /// Returns the best available kanata binary path - ALWAYS use bundled version only
     static func detectKanataBinaryPath() -> String? {
-        // Always prefer the standard location first
-        if FileManager.default.fileExists(atPath: kanataStandardLocation) {
-            return kanataStandardLocation
-        }
-
-        // Check ARM homebrew location as fallback
-        if FileManager.default.fileExists(atPath: kanataBinaryARM) {
-            return kanataBinaryARM
+        // ONLY use bundled kanata - no external binaries
+        if FileManager.default.fileExists(atPath: bundledKanataPath) {
+            return bundledKanataPath
         }
 
         return nil

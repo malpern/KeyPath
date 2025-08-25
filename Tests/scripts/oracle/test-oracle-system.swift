@@ -56,7 +56,7 @@ print(String(repeating: "-", count: 40))
 let possiblePaths = [
     "/opt/homebrew/bin/kanata",
     "/usr/local/bin/kanata",
-    "/usr/bin/kanata",
+    "/usr/bin/kanata"
 ]
 
 var kanataFound = false

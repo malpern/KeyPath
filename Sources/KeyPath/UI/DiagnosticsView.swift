@@ -709,32 +709,32 @@ struct EnhancedStatusSection: View {
                     SystemInfoRow(label: "Code Signature", value: codeSignature, icon: "checkmark.seal")
                     SystemInfoRow(label: "Canonical Path", value: canonicalPath, icon: "folder")
                     SystemInfoRow(label: "Inode", value: inode, icon: "number")
-                    
+
                     Divider()
                         .padding(.vertical, 4)
-                    
+
                     // LaunchDaemon Status
                     SystemInfoRow(label: "LaunchDaemon State", value: launchDaemonState, icon: "gear")
                     SystemInfoRow(label: "Last Exit Status", value: lastExitStatus, icon: "arrow.right.circle")
-                    
+
                     Divider()
                         .padding(.vertical, 4)
-                    
+
                     // Permission Probe Results
                     ProbeStatusRow(
-                        label: "Accessibility", 
-                        result: axProbeResult.0, 
-                        timestamp: axProbeResult.1, 
+                        label: "Accessibility",
+                        result: axProbeResult.0,
+                        timestamp: axProbeResult.1,
                         icon: "accessibility"
                     )
                     ProbeStatusRow(
-                        label: "Input Monitoring", 
-                        result: imProbeResult.0, 
-                        timestamp: imProbeResult.1, 
+                        label: "Input Monitoring",
+                        result: imProbeResult.0,
+                        timestamp: imProbeResult.1,
                         icon: "eye"
                     )
                 }
-                
+
                 HStack {
                     Button("Refresh Status") {
                         Task {
@@ -743,16 +743,16 @@ struct EnhancedStatusSection: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    
+
                     Spacer()
-                    
+
                     Button(showExpandedDetails ? "Hide Details" : "Show Raw Data") {
                         showExpandedDetails.toggle()
                     }
                     .buttonStyle(.plain)
                     .font(.caption)
                 }
-                
+
                 if showExpandedDetails {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 4) {
@@ -760,7 +760,7 @@ struct EnhancedStatusSection: View {
                                 .font(.caption)
                                 .fontWeight(.medium)
                                 .padding(.bottom, 2)
-                            
+
                             Text("Binary Path: \(canonicalPath)")
                             Text("Inode: \(inode)")
                             Text("Code Signature: \(codeSignature)")
@@ -797,14 +797,14 @@ struct EnhancedStatusSection: View {
             }
         }
     }
-    
+
     private func refreshSystemStatus() async {
         isLoading = true
-        
+
         // Get canonical path and inode
         let bundledPath = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
         canonicalPath = bundledPath
-        
+
         if FileManager.default.fileExists(atPath: bundledPath) {
             do {
                 let attributes = try FileManager.default.attributesOfItem(atPath: bundledPath)
@@ -817,33 +817,33 @@ struct EnhancedStatusSection: View {
         } else {
             inode = "File not found"
         }
-        
+
         // Get Kanata version
         await getKanataVersion()
-        
+
         // Get code signature
         await getCodeSignature()
-        
+
         // Get LaunchDaemon state
         await getLaunchDaemonState()
-        
+
         // Probe permissions
         await probePermissions()
-        
+
         await MainActor.run {
             isLoading = false
         }
     }
-    
+
     private func getKanataVersion() async {
         let process = Process()
         let pipe = Pipe()
-        
+
         process.launchPath = canonicalPath
         process.arguments = ["--version"]
         process.standardOutput = pipe
         process.standardError = pipe
-        
+
         do {
             try process.run()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -858,16 +858,16 @@ struct EnhancedStatusSection: View {
             }
         }
     }
-    
+
     private func getCodeSignature() async {
         let process = Process()
         let pipe = Pipe()
-        
+
         process.launchPath = "/usr/bin/codesign"
         process.arguments = ["-dv", "--verbose=2", canonicalPath]
         process.standardOutput = pipe
         process.standardError = pipe
-        
+
         do {
             try process.run()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -893,16 +893,16 @@ struct EnhancedStatusSection: View {
             }
         }
     }
-    
+
     private func getLaunchDaemonState() async {
         let process = Process()
         let pipe = Pipe()
-        
+
         process.launchPath = "/bin/launchctl"
         process.arguments = ["print", "system/com.keypath.kanata"]
         process.standardOutput = pipe
         process.standardError = pipe
-        
+
         do {
             try process.run()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -921,7 +921,7 @@ struct EnhancedStatusSection: View {
                         launchDaemonState = "not loaded"
                     }
                 }
-                
+
                 // Extract last exit status
                 if let exitMatch = output.range(of: "last exit code = (\\d+)", options: .regularExpression) {
                     let exitCode = String(output[exitMatch]).components(separatedBy: " = ").last?.replacingOccurrences(of: ")", with: "") ?? "unknown"
@@ -941,22 +941,22 @@ struct EnhancedStatusSection: View {
             }
         }
     }
-    
+
     private func probePermissions() async {
         let timestamp = Date()
-        
+
         // Check Accessibility
         let axResult = AXIsProcessTrusted()
-        
+
         await MainActor.run {
             axProbeResult = (axResult, timestamp)
         }
-        
+
         // For Input Monitoring, we check if our canonical path is in TCC database
         // This requires Full Disk Access, so we'll use a heuristic approach
         let process = Process()
         let pipe = Pipe()
-        
+
         process.launchPath = "/usr/bin/sqlite3"
         process.arguments = [
             "/Library/Application Support/com.apple.TCC/TCC.db",
@@ -964,7 +964,7 @@ struct EnhancedStatusSection: View {
         ]
         process.standardOutput = pipe
         process.standardError = pipe
-        
+
         do {
             try process.run()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -988,25 +988,25 @@ struct SystemInfoRow: View {
     let label: String
     let value: String
     let icon: String
-    
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .foregroundColor(.secondary)
                 .frame(width: 16)
-            
+
             Text(label + ":")
                 .font(.caption)
                 .fontWeight(.medium)
                 .frame(width: 120, alignment: .leading)
-            
+
             Text(value)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
-            
+
             Spacer()
         }
     }
@@ -1017,32 +1017,32 @@ struct ProbeStatusRow: View {
     let result: Bool
     let timestamp: Date
     let icon: String
-    
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .foregroundColor(.secondary)
                 .frame(width: 16)
-            
+
             Text(label + ":")
                 .font(.caption)
                 .fontWeight(.medium)
                 .frame(width: 120, alignment: .leading)
-            
+
             HStack(spacing: 4) {
                 Circle()
                     .fill(result ? Color.green : Color.red)
                     .frame(width: 6, height: 6)
-                
+
                 Text(result ? "Granted" : "Denied")
                     .font(.caption)
                     .foregroundColor(result ? .green : .red)
-                
+
                 Text("(\(timestamp.formatted(date: .omitted, time: .shortened)))")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
         }
     }

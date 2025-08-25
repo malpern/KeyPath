@@ -52,7 +52,7 @@ let integrationChecks = [
     ("Oracle permission snapshots", "🔮.*Oracle.*snapshot complete"),
     ("Oracle blocking issues", "🔮.*Oracle.*Blocking issue"),
     ("Oracle TCP fallback", "🔮.*Oracle.*TCP unavailable.*fallback"),
-    ("Oracle TCC database access", "🔮.*Oracle.*TCC database"),
+    ("Oracle TCC database access", "🔮.*Oracle.*TCC database")
 ]
 
 for (description, pattern) in integrationChecks {
@@ -72,7 +72,7 @@ let errorChecks = [
     ("TCP timeout handling", "TCP server not reachable"),
     ("TCC database fallback", "TCC database fallback"),
     ("Permission state detection", "KeyPath needs.*permission"),
-    ("Clear error messages", "enable in System Settings"),
+    ("Clear error messages", "enable in System Settings")
 ]
 
 for (description, pattern) in errorChecks {
@@ -92,7 +92,7 @@ let legacyPatterns = [
     ("Old PermissionService complex logic", "checkSystemPermissions.*complex"),
     ("Log parsing heuristics", "parsing.*log.*error"),
     ("CGEvent tap testing", "CGEvent.*tap.*test"),
-    ("Multiple permission sources", "conflicting.*permission"),
+    ("Multiple permission sources", "conflicting.*permission")
 ]
 
 var legacyFound = 0

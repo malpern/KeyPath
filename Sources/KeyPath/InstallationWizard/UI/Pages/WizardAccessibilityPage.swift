@@ -319,8 +319,7 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -341,7 +340,7 @@ struct WizardAccessibilityPage_Previews: PreviewProvider {
                     description: "KeyPath needs Accessibility permission to monitor keyboard events.",
                     autoFixAction: nil,
                     userAction: "Grant permission in System Settings > Privacy & Security > Accessibility"
-                ),
+                )
             ],
             onRefresh: {},
             onNavigateToPage: nil,

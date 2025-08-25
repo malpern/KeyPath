@@ -53,11 +53,14 @@ The Oracle is a Swift Actor providing a **single source of truth** with determin
 
 ```swift
 actor PermissionOracle {
-    // HIERARCHY (DO NOT CHANGE ORDER):
-    // 1. Kanata TCP API (authoritative from kanata itself)
-    // 2. Apple APIs for KeyPath (IOHIDCheckAccess, AXIsProcessTrusted)
+    // HIERARCHY (UPDATED based on macOS TCC limitations):
+    // 1. Apple APIs from GUI (IOHIDCheckAccess - reliable in user session)
+    // 2. Kanata TCP API (functional status, but unreliable for permissions)
     // 3. TCC Database (fallback only)
     // 4. Unknown (never guess)
+    // 
+    // ⚠️ CRITICAL: Kanata TCP reports false negatives for Input Monitoring
+    // due to IOHIDCheckAccess() being unreliable for root processes
 }
 ```
 
@@ -102,6 +105,50 @@ enum Status {
 ```
 
 **Why no .pending or .checking?** Creates race conditions and UI flicker.
+
+### 🚨 macOS Root Process Permission Detection Issues
+
+**Critical Discovery:** `IOHIDCheckAccess()` returns false negatives for root processes on macOS.
+
+#### The Problem
+```bash
+# Kanata (root process) reports:
+tcp_response: {"input_monitoring": "denied"}  # ❌ WRONG
+
+# While actually working:
+kanata_log: "[DEBUG] key press Enter"  # ✅ CAPTURING KEYS
+ps aux | grep kanata
+# root  8177  /Applications/KeyPath.app/.../kanata  # ✅ RUNNING AS ROOT
+```
+
+#### Root Cause
+- Apple's TCC has "responsible process" rules for permission inheritance
+- Preflight permission checks (`IOHIDCheckAccess`) don't account for these patterns
+- Root processes can function when granted permission, but can't self-assess accurately
+- This affects all keyboard remappers that must run with root privileges
+
+#### Current Workaround
+```swift
+private func checkKanataPermissions() async -> PermissionSet {
+    // Check kanata binary permissions from GUI context (reliable)
+    let kanataPath = WizardSystemPaths.bundledKanataPath
+    let inputMonitoring = checkBinaryInputMonitoring(at: kanataPath)
+    
+    // Use TCP only for functional verification, not permission status
+    let functionalStatus = await checkKanataFunctionalStatus()
+    
+    return PermissionSet(
+        inputMonitoring: inputMonitoring,  // From GUI check
+        functionalStatus: functionalStatus,  // From TCP
+        source: "keypath.gui-check",
+        confidence: .high
+    )
+}
+```
+
+#### Industry Pattern
+- **Karabiner-Elements**: GUI handles permissions, root daemon handles HID access
+- **Recommended**: Split architecture with GUI-based permission checking
 
 ### Integration Points (Critical)
 
@@ -374,6 +421,34 @@ func ensureServiceRunning() {
 }
 ```
 
+
+### 4. Root Process Permission Anti-Patterns
+
+```swift
+// ❌ NEVER DO THIS - Trust kanata's self-reported permission status
+let tcpStatus = await kanataClient.checkMacOSPermissions()
+if tcpStatus.input_monitoring == "granted" {
+    // This can be false negative on macOS!
+}
+
+// ❌ NEVER DO THIS - Check permissions from root process context  
+func checkInputMonitoringFromDaemon() -> Bool {
+    return IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+    // Unreliable for root processes
+}
+
+// ❌ NEVER DO THIS - Use TCP permission status for critical decisions
+func shouldStartKanata() async -> Bool {
+    let status = await kanataClient.checkMacOSPermissions()
+    return status.input_monitoring == "granted"  // False negative!
+}
+
+// ✅ CORRECT - Check from GUI, verify functionality via daemon
+let guiCheck = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+let functionalCheck = await kanataClient.testKeyCapture()
+let shouldStart = guiCheck && functionalCheck.canAccess
+```
+
 ---
 
 ## 📉 Architecture Metrics & Success Criteria
@@ -395,6 +470,59 @@ func ensureServiceRunning() {
 - **Installation Wizard:** 35+ files, organized by concern ✅  
 - **Service Management:** Separated by service type ✅
 - **Test Coverage:** Integration tests for critical paths ✅
+
+---
+
+## 🚀 Future Architecture: Split GUI/Daemon Pattern
+
+**Based on industry best practices and macOS TCC limitations discovered in August 2025:**
+
+### Recommended Split Architecture
+```
+[User Session]                    [System (Root)]
+┌─────────────────┐              ┌──────────────────┐
+│ KeyPath.app     │◄─────IPC────►│ Privileged Helper│
+│ - Permission    │              │ - Actual HID     │
+│   checks (✓)    │              │   access         │
+│ - TCC prompts   │              │ - Functional     │
+│ - User guidance │              │   verification   │
+│ - Config UI     │              │ - Never self-    │
+│                 │              │   assesses perms │
+└─────────────────┘              └──────────────────┘
+```
+
+### Benefits of Split Architecture
+1. **Reliable permission detection** from user session context
+2. **Cross-platform GUI pattern** - native app per platform, shared core
+3. **Enhanced IPC protocol** - UDP + TCP for performance and security
+4. **Follows proven patterns** - matches Karabiner-Elements, Docker Desktop
+5. **Better security** - GUI handles TCC, daemon focuses on functionality
+
+### Cross-Platform Strategy
+```
+keypath-core/               # Shared (Rust/Swift)
+├── daemon-manager/         # Start/stop/restart kanata
+├── config-manager/         # Parse/validate configs  
+├── ipc-protocol/          # Common message format (UDP+TCP)
+└── status-types/          # Shared enums and structs
+
+keypath-macos/             # SwiftUI + IOHIDCheckAccess
+keypath-windows/           # WPF/WinUI + Windows APIs  
+keypath-linux/             # GTK/Qt + uinput checks
+```
+
+### Migration Strategy
+- **Phase 1:** Fix Oracle to check from GUI context ✅ (Current)
+- **Phase 2:** Implement enhanced IPC architecture (UDP + TCP)
+- **Phase 3:** Extract cross-platform abstractions  
+- **Phase 4:** Platform-native GUIs for Windows/Linux
+
+### IPC Protocol Evolution
+**Current:** TCP-only for commands and status
+**Future:** 
+- **UDP:** High-frequency status updates, low latency
+- **TCP:** Complex commands, configuration, reliable delivery
+- **Security:** Peer credential validation, signing-pinned connections
 
 ---
 
@@ -482,6 +610,14 @@ swift test --filter WizardNavigationEngineTests
 **Status:** Accepted ✅  
 **Consequences:** Gradual migration path, maintain compatibility
 
+### ADR-005: Root Process Permission Detection Limitations
+**Decision:** Move permission checking from Kanata TCP to GUI context  
+**Status:** Accepted ✅ (August 2025)  
+**Rationale:** IOHIDCheckAccess() unreliable for root processes on macOS - returns false negatives even when permission granted and functional  
+**Evidence:** Kanata captures keystrokes successfully while reporting "input_monitoring": "denied" via TCP API  
+**Consequences:** Reliable permission detection, matches industry best practices (Karabiner-Elements pattern)
+
+
 ---
 
 ## ⚠️ Final Warning
@@ -499,5 +635,5 @@ swift test --filter WizardNavigationEngineTests
 
 ---
 
-*Last Updated: August 23, 2025*  
-*Architecture Version: 2.0 (Oracle Integration Complete)*
+*Last Updated: August 25, 2025*  
+*Architecture Version: 2.1 (Root Process Permission Detection Issues Resolved)*
