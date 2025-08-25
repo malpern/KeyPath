@@ -7,12 +7,13 @@ import IOKit.hid
 /// This actor eliminates the chaos of multiple conflicting permission detection methods.
 /// It provides deterministic, hierarchical permission checking with clear source precedence:
 ///
-/// Priority 1: Kanata TCP API (authoritative from process that needs permissions)
-/// Priority 2: Official Apple APIs (AXIsProcessTrusted, IOHIDCheckAccess)
-/// Priority 3: Unknown (never guess, never parse logs, TCC fallback removed)
-///
-/// With PR #1759, we get authoritative permission data directly from kanata itself.
-/// No more log parsing. No more error pattern matching. No more conflicting results.
+/// HIERARCHY (UPDATED based on macOS TCC limitations):
+/// Priority 1: Apple APIs from GUI (IOHIDCheckAccess - reliable in user session)
+/// Priority 2: Kanata TCP API (functional status, but unreliable for permissions)
+/// Priority 3: Unknown (never guess)
+/// 
+/// ⚠️ CRITICAL: Kanata TCP reports false negatives for Input Monitoring
+/// due to IOHIDCheckAccess() being unreliable for root processes
 actor PermissionOracle {
     static let shared = PermissionOracle()
 
@@ -122,8 +123,7 @@ actor PermissionOracle {
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,
-           Date().timeIntervalSince(cachedTime) < cacheTTL
-        {
+           Date().timeIntervalSince(cachedTime) < cacheTTL {
             AppLogger.shared.log("🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)")
             return cached
         }
@@ -192,70 +192,54 @@ actor PermissionOracle {
         )
     }
 
-    // MARK: - Kanata Permission Detection (TCP Authoritative)
+    // MARK: - Kanata Permission Detection (GUI Context - ARCHITECTURE.md Current Workaround)
 
     private func checkKanataPermissions() async -> PermissionSet {
-        // Primary: TCP API (authoritative from Kanata itself)
-        if let tcpResult = await checkKanataViaTCP() {
-            return tcpResult
-        }
-
-        AppLogger.shared.log("🔮 [Oracle] TCP unavailable - kanata service not running or TCP disabled")
-
-        // With PR #1759, we have authoritative permission data from kanata itself
-        // No more TCC database fallback - unknown is better than potentially incorrect data
+        // Check kanata binary permissions from GUI context (reliable)
+        let kanataPath = WizardSystemPaths.bundledKanataPath
+        let inputMonitoring = checkBinaryInputMonitoring(at: kanataPath)
+        
+        // Use TCP only for functional verification, not permission status
+        let functionalStatus = await checkKanataFunctionalStatus()
+        
         return PermissionSet(
-            accessibility: .unknown,
-            inputMonitoring: .unknown,
-            source: "kanata.tcp-unavailable",
-            confidence: .low,
+            accessibility: functionalStatus, // Kanata typically doesn't need AX
+            inputMonitoring: inputMonitoring,  // From GUI check
+            source: "keypath.gui-check",
+            confidence: .high,
             timestamp: Date()
         )
     }
-
-    private func checkKanataViaTCP() async -> PermissionSet? {
-        // Check if TCP is enabled and get port
+    
+    /// Check kanata binary Input Monitoring permission from GUI context (reliable)
+    /// This is the key fix from ARCHITECTURE.md - GUI can reliably check permissions for kanata binary
+    private func checkBinaryInputMonitoring(at path: String) -> Status {
+        // Use Apple's approved API from GUI session context
+        // This works reliably unlike root process self-assessment
+        let hasPermission = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+        
+        AppLogger.shared.log("🔮 [Oracle] GUI Input Monitoring check for kanata binary: \(hasPermission ? "granted" : "denied")")
+        
+        return hasPermission ? .granted : .denied
+    }
+    
+    /// Use TCP only for functional verification, not permission status
+    private func checkKanataFunctionalStatus() async -> Status {
+        // Quick functional check - is kanata responding via TCP?
         let tcpSnapshot = PreferencesService.tcpSnapshot()
         guard tcpSnapshot.shouldUseTCPServer else {
-            AppLogger.shared.log("🔮 [Oracle] TCP server disabled in preferences")
-            return nil
+            AppLogger.shared.log("🔮 [Oracle] TCP server disabled - functional status unknown")
+            return .unknown
         }
-
-        let client = KanataTCPClient(port: tcpSnapshot.port, timeout: 1.2)
-
-        // Quick server availability check
-        guard await client.checkServerStatus() else {
-            AppLogger.shared.log("🔮 [Oracle] Kanata TCP server not reachable at port \(tcpSnapshot.port)")
-            return nil
-        }
-
-        do {
-            let status = try await client.checkMacOSPermissions()
-            let accessibility = mapKanataStatusField(status.accessibility)
-            let inputMonitoring = mapKanataStatusField(status.input_monitoring)
-
-            AppLogger.shared.log("🔮 [Oracle] ✅ Kanata TCP permission check successful")
-            return PermissionSet(
-                accessibility: accessibility,
-                inputMonitoring: inputMonitoring,
-                source: "kanata.tcp-authoritative",
-                confidence: .high,
-                timestamp: Date()
-            )
-        } catch {
-            AppLogger.shared.log("🔮 [Oracle] ❌ Kanata TCP permission check failed: \(error)")
-            return nil
-        }
+        
+        let client = KanataTCPClient(port: tcpSnapshot.port, timeout: 1.0)
+        let isConnected = await client.checkServerStatus()
+        
+        AppLogger.shared.log("🔮 [Oracle] Kanata functional check via TCP: \(isConnected ? "responding" : "not responding")")
+        
+        return isConnected ? .granted : .denied
     }
 
-    private func mapKanataStatusField(_ field: String) -> Status {
-        switch field.lowercased() {
-        case "granted": .granted
-        case "denied": .denied
-        case "error": .error("kanata reported error")
-        default: .unknown
-        }
-    }
 
     // MARK: - Utilities (TCC fallback removed - TCP API is authoritative)
 

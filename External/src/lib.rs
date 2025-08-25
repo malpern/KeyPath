@@ -6,7 +6,6 @@ use std::str::FromStr;
 #[cfg(all(target_os = "windows", feature = "gui"))]
 pub mod gui;
 pub mod kanata;
-pub mod macos_permissions;
 pub mod oskbd;
 pub mod tcp_server;
 #[cfg(test)]

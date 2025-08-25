@@ -1,11 +1,6 @@
 import Foundation
 import Network
 
-/// Kanata permission status from TCP API (your new PR)
-struct KanataPermissionStatus: Codable {
-    let accessibility: String // "granted" | "denied" | "error"
-    let input_monitoring: String // "granted" | "denied" | "error"
-}
 
 /// TCP client for communicating with Kanata's TCP server for config validation
 class KanataTCPClient {
@@ -138,64 +133,6 @@ class KanataTCPClient {
         }
     }
 
-    // MARK: - Permission Checking (Oracle Integration)
-
-    /// Check Kanata's macOS permissions via TCP API
-    /// This is THE authoritative source for Kanata permission status
-    func checkMacOSPermissions() async throws -> KanataPermissionStatus {
-        AppLogger.shared.log("🔐 [TCP] Checking Kanata macOS permissions")
-
-        // Use correct PR #1759 API format: {"CheckMacosPermissions": {}}
-        let requestData = try JSONEncoder().encode(["CheckMacosPermissions": [:] as [String: String]])
-        AppLogger.shared.log("🔐 [TCP] Request data size: \(requestData.count) bytes")
-        if let requestString = String(data: requestData, encoding: .utf8) {
-            AppLogger.shared.log("🔐 [TCP] Request JSON: \(requestString)")
-        }
-
-        AppLogger.shared.log("🔐 [TCP] Sending TCP request...")
-        let responseData = try await sendTCPRequest(requestData)
-
-        AppLogger.shared.log("🔐 [TCP] Received response data size: \(responseData.count) bytes")
-        if let responseString = String(data: responseData, encoding: .utf8) {
-            AppLogger.shared.log("🔐 [TCP] Response JSON: \(responseString)")
-        } else {
-            AppLogger.shared.log("🔐 [TCP] ❌ Response is not valid UTF-8")
-        }
-
-        // Parse the MacosPermissions response (should be a single JSON message now)
-        do {
-            AppLogger.shared.log("🔐 [TCP] Parsing MacosPermissions JSON response...")
-            if let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] {
-                AppLogger.shared.log("🔐 [TCP] JSON root keys: \(Array(json.keys))")
-
-                if let permissions = json["MacosPermissions"] as? [String: Any] {
-                    AppLogger.shared.log("🔐 [TCP] MacosPermissions keys: \(Array(permissions.keys))")
-
-                    let accessibility = permissions["accessibility"] as? String ?? "unknown"
-                    let inputMonitoring = permissions["input_monitoring"] as? String ?? "unknown"
-
-                    AppLogger.shared.log("🔐 [TCP] Raw permission values - accessibility: '\(accessibility)', input_monitoring: '\(inputMonitoring)'")
-
-                    let status = KanataPermissionStatus(
-                        accessibility: accessibility,
-                        input_monitoring: inputMonitoring
-                    )
-
-                    AppLogger.shared.log("🔐 [TCP] ✅ Permission check result - Accessibility: \(status.accessibility), Input Monitoring: \(status.input_monitoring)")
-                    return status
-                } else {
-                    AppLogger.shared.log("🔐 [TCP] ❌ No 'MacosPermissions' key found in response")
-                    throw TCPError.invalidResponse
-                }
-            } else {
-                AppLogger.shared.log("🔐 [TCP] ❌ Response is not valid JSON object")
-                throw TCPError.invalidResponse
-            }
-        } catch let parseError {
-            AppLogger.shared.log("🔐 [TCP] ❌ Failed to decode permission response: \(parseError)")
-            throw TCPError.invalidResponse
-        }
-    }
 
     /// Restart Kanata process via TCP API (for post-permission changes)
     /// Use this after user grants permissions to apply changes immediately
@@ -209,8 +146,7 @@ class KanataTCPClient {
 
             // Check if we got {"status":"Ok"} response
             if let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String, status == "Ok"
-            {
+               let status = json["status"] as? String, status == "Ok" {
                 AppLogger.shared.log("✅ [TCP] Kanata restart request sent successfully")
                 return true
             } else {
