@@ -674,7 +674,7 @@ class KanataManager: ObservableObject {
                 // Check if Kanata is still running and stop it
                 guard let self else { return }
 
-                if await MainActor.run { self.isRunning } {
+                if await MainActor.run { isRunning } {
                     AppLogger.shared.log(
                         "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
                     await self.stopKanata()
@@ -712,13 +712,38 @@ class KanataManager: ObservableObject {
         }
         lastStartAttempt = Date()
 
-        // Check if already running or starting
-        if isRunning || isStartingKanata {
-            AppLogger.shared.log("⚠️ [Start] Kanata is already running or starting - skipping start")
-            AppLogger.shared.log(
-                "⚠️ [Start] Current state: isRunning=\(isRunning), isStartingKanata=\(isStartingKanata)"
-            )
+        // Check if already starting (prevent concurrent operations)
+        if isStartingKanata {
+            AppLogger.shared.log("⚠️ [Start] Kanata is already starting - skipping concurrent start")
             return
+        }
+
+        // If Kanata is already running, just restart it efficiently with kickstart -k
+        if isRunning {
+            AppLogger.shared.log("🔄 [Start] Kanata is already running - using efficient kickstart restart")
+
+            isStartingKanata = true
+            defer { isStartingKanata = false }
+
+            let success = await startLaunchDaemonService() // Already uses kickstart -k
+
+            if success {
+                AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via kickstart")
+                // Update service status after restart
+                let serviceStatus = await checkLaunchDaemonStatus()
+                if let pid = serviceStatus.pid {
+                    AppLogger.shared.log("📝 [Start] Service restarted with PID: \(pid)")
+                    let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
+                    await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+                }
+            } else {
+                AppLogger.shared.log("❌ [Start] Kickstart restart failed - will fall through to full startup")
+                // Don't return - let it fall through to full startup sequence
+            }
+
+            if success {
+                return // Successfully restarted, we're done
+            }
         }
 
         // Set flag to prevent concurrent starts
@@ -900,13 +925,15 @@ class KanataManager: ObservableObject {
 
     // MARK: - LaunchDaemon Service Management
 
-    /// Start the Kanata LaunchDaemon service using launchctl
+    /// Start the Kanata LaunchDaemon service using launchctl with OSA script for better permission handling
     private func startLaunchDaemonService() async -> Bool {
         AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service...")
 
+        let script = "do shell script \"launchctl kickstart -k system/com.keypath.kanata\" with administrator privileges with prompt \"KeyPath needs administrator privileges to manage the keyboard remapping service.\""
+
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["launchctl", "kickstart", "-k", "system/com.keypath.kanata"]
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
 
         let pipe = Pipe()
         task.standardOutput = pipe
