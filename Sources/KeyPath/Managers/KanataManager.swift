@@ -232,7 +232,7 @@ class KanataManager: ObservableObject {
     }
 
     /// Result of TCP reload operation with error capture
-    private struct TCPReloadResult {
+    struct TCPReloadResult {
         let success: Bool
         let errorMessage: String?
         let kanataResponse: String?
@@ -289,176 +289,6 @@ class KanataManager: ObservableObject {
 
         try backup.write(toFile: configPath, atomically: true, encoding: .utf8)
         AppLogger.shared.log("🔄 [Restore] Restored last good config successfully")
-    }
-
-    /// Trigger config reload via TCP command with error capture
-    private func triggerTCPReloadWithErrorCapture() async -> TCPReloadResult {
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        guard tcpConfig.shouldUseTCPServer else {
-            AppLogger.shared.log("⚠️ [TCP Reload] TCP server not enabled - falling back to service restart")
-            await restartKanata()
-            return .success(response: "Service restarted (TCP disabled)")
-        }
-
-        AppLogger.shared.log("🌐 [TCP Reload] Triggering config reload via TCP on port \(tcpConfig.port)")
-
-        let client = KanataTCPClient(port: tcpConfig.port)
-
-        // Check if TCP server is available
-        guard await client.checkServerStatus() else {
-            AppLogger.shared.log("❌ [TCP Reload] TCP server not available - falling back to service restart")
-            await restartKanata()
-            return .success(response: "Service restarted (TCP unavailable)")
-        }
-
-        do {
-            // Send reload command as JSON
-            let reloadCommand = #"{"Reload":{}}"#
-            let commandData = reloadCommand.data(using: .utf8)!
-
-            // Use low-level TCP to send reload command
-            let responseData = try await sendTCPCommand(commandData, port: tcpConfig.port)
-            let responseString = String(data: responseData, encoding: .utf8) ?? ""
-
-            AppLogger.shared.log("🌐 [TCP Reload] Server response (\(responseData.count) bytes): \(responseString)")
-            AppLogger.shared.log("🔍 [TCP Reload] Checking for success patterns...")
-            AppLogger.shared.log("🔍 [TCP Reload] Contains 'status:Ok': \(responseString.contains("\"status\":\"Ok\""))")
-            AppLogger.shared.log("🔍 [TCP Reload] Contains 'Live reload successful': \(responseString.contains("Live reload successful"))")
-
-            // Parse response for success/failure
-            if responseString.contains("\"status\":\"Ok\"") || responseString.contains("Live reload successful") {
-                AppLogger.shared.log("✅ [TCP Reload] Config reload successful")
-                return .success(response: responseString)
-            } else if responseString.contains("\"status\":\"Error\"") {
-                // Extract error message from Kanata response
-                let errorMsg = extractErrorFromKanataResponse(responseString)
-                AppLogger.shared.log("❌ [TCP Reload] Config reload failed: \(errorMsg)")
-                return .failure(error: errorMsg, response: responseString)
-            } else {
-                AppLogger.shared.log("⚠️ [TCP Reload] Unexpected response - treating as failure")
-                return .failure(error: "Unexpected response format", response: responseString)
-            }
-
-        } catch {
-            AppLogger.shared.log("❌ [TCP Reload] Failed to send reload command: \(error)")
-            return .failure(error: "TCP communication failed: \(error.localizedDescription)")
-        }
-    }
-
-    /// Extract error message from Kanata's JSON response
-    private func extractErrorFromKanataResponse(_ response: String) -> String {
-        // Parse JSON response to extract error message
-        if let data = response.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let msg = json["msg"] as? String
-        {
-            return msg
-        }
-        return "Unknown error from Kanata"
-    }
-
-    /// Legacy method for backward compatibility
-    private func triggerTCPReload() async {
-        let result = await triggerTCPReloadWithErrorCapture()
-        if !result.success {
-            AppLogger.shared.log("🔄 [TCP Reload] Falling back to service restart due to error: \(result.errorMessage ?? "Unknown")")
-            await restartKanata()
-        }
-    }
-
-    /// Send raw TCP command to Kanata server
-    private func sendTCPCommand(_ data: Data, port: Int) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
-            let queue = DispatchQueue(label: "kanata-tcp-reload")
-
-            guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
-                continuation.resume(throwing: TCPError.invalidPort)
-                return
-            }
-
-            let connection = NWConnection(
-                host: NWEndpoint.Host("127.0.0.1"),
-                port: nwPort,
-                using: .tcp
-            )
-
-            var hasResumed = false
-
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    // Send the reload command
-                    connection.send(content: data, completion: .contentProcessed { error in
-                        if let error {
-                            if !hasResumed {
-                                hasResumed = true
-                                continuation.resume(throwing: error)
-                            }
-                            return
-                        }
-
-                        // Receive the response - accumulate all data from multiple responses
-                        var accumulatedData = Data()
-
-                        func receiveMoreData() {
-                            connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { responseData, _, isComplete, error in
-                                if let error {
-                                    connection.cancel()
-                                    if !hasResumed {
-                                        hasResumed = true
-                                        continuation.resume(throwing: error)
-                                    }
-                                    return
-                                }
-
-                                if let responseData {
-                                    accumulatedData.append(responseData)
-                                }
-
-                                // Check if we have both responses (LayerChange + status)
-                                let responseString = String(data: accumulatedData, encoding: .utf8) ?? ""
-                                let hasLayerChange = responseString.contains("LayerChange")
-                                let hasStatus = responseString.contains("status")
-
-                                if (hasLayerChange && hasStatus) || accumulatedData.count > 1024 || isComplete {
-                                    // We have both responses or connection complete
-                                    connection.cancel()
-                                    if !hasResumed {
-                                        hasResumed = true
-                                        continuation.resume(returning: accumulatedData)
-                                    }
-                                } else {
-                                    // Continue receiving more data
-                                    receiveMoreData()
-                                }
-                            }
-                        }
-
-                        receiveMoreData()
-                    })
-
-                case let .failed(error):
-                    if !hasResumed {
-                        hasResumed = true
-                        continuation.resume(throwing: error)
-                    }
-
-                default:
-                    break
-                }
-            }
-
-            connection.start(queue: queue)
-
-            // Timeout after 5 seconds
-            queue.asyncAfter(deadline: .now() + 5.0) {
-                if !hasResumed {
-                    hasResumed = true
-                    connection.cancel()
-                    continuation.resume(throwing: TCPError.timeout)
-                }
-            }
-        }
     }
 
     func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
@@ -532,8 +362,7 @@ class KanataManager: ObservableObject {
         case 6:
             // Exit code 6 has different causes - check for VirtualHID connection issues
             if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2")
-            {
+                || output.contains("connect_failed asio.system:2") {
                 diagnostics.append(
                     KanataDiagnostic(
                         timestamp: Date(),
@@ -877,8 +706,7 @@ class KanataManager: ObservableObject {
 
         // Prevent rapid successive starts
         if let lastAttempt = lastStartAttempt,
-           Date().timeIntervalSince(lastAttempt) < minStartInterval
-        {
+           Date().timeIntervalSince(lastAttempt) < minStartInterval {
             AppLogger.shared.log("⚠️ [Start] Ignoring rapid start attempt within \(minStartInterval)s")
             return
         }
@@ -1131,8 +959,7 @@ class KanataManager: ObservableObject {
                         let components = line.components(separatedBy: "=")
                         if components.count >= 2,
                            let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
-                           let pid = Int(pidString)
-                        {
+                           let pid = Int(pidString) {
                             AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
                             return (true, pid)
                         }
@@ -1589,8 +1416,7 @@ class KanataManager: ObservableObject {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -1598,14 +1424,12 @@ class KanataManager: ObservableObject {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -1691,8 +1515,7 @@ class KanataManager: ObservableObject {
             let lines = output.components(separatedBy: .newlines)
             for line in lines {
                 if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"),
-                   line.contains("[activated enabled]")
-                {
+                   line.contains("[activated enabled]") {
                     AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
                     return true
                 }
@@ -2120,7 +1943,7 @@ class KanataManager: ObservableObject {
         stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         stopTask.arguments = [
             "-e",
-            "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\"",
+            "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\""
         ]
 
         do {
@@ -2612,7 +2435,7 @@ class KanataManager: ObservableObject {
                 ValidationAlertAction(title: "Open Backup Location", style: .default) { [weak self] in
                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
                     self?.showingValidationAlert = false
-                },
+                }
             ]
 
             showingValidationAlert = true
@@ -2831,7 +2654,7 @@ class KanataManager: ObservableObject {
             "lcmd": "lmet",
             "rcmd": "rmet",
             "leftcmd": "lmet",
-            "rightcmd": "rmet",
+            "rightcmd": "rmet"
         ]
 
         let lowercaseKey = key.lowercased()
@@ -2866,7 +2689,7 @@ class KanataManager: ObservableObject {
             "f9", "f10", "f11", "f12", "pause", "pscr", "slck", "nlck",
             "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
             "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-            "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+            "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"
         ])
 
         if validKanataKeys.contains(sequence.lowercased()) {
@@ -2946,8 +2769,7 @@ class KanataManager: ObservableObject {
 
         for line in lines {
             if line.contains("connect_failed asio.system:2")
-                || line.contains("connect_failed asio.system:61")
-            {
+                || line.contains("connect_failed asio.system:61") {
                 connectionFailureCount += 1
                 AppLogger.shared.log(
                     "⚠️ [LogMonitor] VirtualHID connection failure detected (\(connectionFailureCount)/\(maxConnectionFailures))"
@@ -3129,8 +2951,7 @@ class KanataManager: ObservableObject {
 
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String
-    {
+        async throws -> String {
         // TODO: Integrate with Claude API using the following prompt:
         //
         // "The following Kanata keyboard configuration file is invalid and needs to be repaired:
@@ -3161,8 +2982,7 @@ class KanataManager: ObservableObject {
 
     /// Fallback rule-based repair when Claude is not available
     private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String
-    {
+        async throws -> String {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies
@@ -3327,8 +3147,7 @@ class KanataManager: ObservableObject {
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist

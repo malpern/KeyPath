@@ -34,7 +34,7 @@ final class ErrorHandlingTests: XCTestCase {
             "caps\nlocks", // Embedded newline
             "🚀", // Emoji
             "中文", // Unicode
-            "العربية", // Arabic
+            "العربية" // Arabic
         ]
 
         for invalidInput in invalidInputs {
@@ -59,7 +59,7 @@ final class ErrorHandlingTests: XCTestCase {
             "caps|", // Pipe
             "caps&", // Ampersand
             "caps;", // Semicolon
-            "caps<>", // Angle brackets
+            "caps<>" // Angle brackets
         ]
 
         for specialKey in specialKeys {
@@ -81,7 +81,7 @@ final class ErrorHandlingTests: XCTestCase {
             "(null)",
             "0",
             "false",
-            "NaN",
+            "NaN"
         ]
 
         for input in edgeCaseInputs {
@@ -101,7 +101,7 @@ final class ErrorHandlingTests: XCTestCase {
             -1,
             0,
             65535,
-            -65535,
+            -65535
         ]
 
         for keyCode in extremeKeyCodes {
@@ -124,7 +124,7 @@ final class ErrorHandlingTests: XCTestCase {
             ("caps\n", "escape\n"), // Newlines
             ("caps\0", "escape\0"), // Null characters
             (String(repeating: "a", count: 500), "b"), // Very long input
-            ("a", String(repeating: "b", count: 500)), // Very long output
+            ("a", String(repeating: "b", count: 500)) // Very long output
         ]
 
         for (input, output) in problematicCombos {
@@ -153,7 +153,7 @@ final class ErrorHandlingTests: XCTestCase {
             "defsrc",
             "deflayer",
             "lmet",
-            "rmet",
+            "rmet"
         ]
 
         for specialChar in specialKanataChars {
@@ -177,7 +177,7 @@ final class ErrorHandlingTests: XCTestCase {
             "中", "文", "字", "符", // Chinese
             "العربية", // Arabic
             "🚀", "🎯", "💻", "⌨️", // Emojis
-            "™", "©", "®", "€", // Symbols
+            "™", "©", "®", "€" // Symbols
         ]
 
         for char in internationalChars {
@@ -397,7 +397,7 @@ final class ErrorHandlingTests: XCTestCase {
             "hello world", // Multi-word
             "123", // All numbers
             "!@#$%", // All symbols
-            "aA1!", // Mixed case and symbols
+            "aA1!" // Mixed case and symbols
         ]
 
         for input in problematicInputs {
@@ -421,7 +421,7 @@ final class ErrorHandlingTests: XCTestCase {
             "cmd", "command", "lcmd", "rcmd",
             "leftcmd", "rightcmd", "CMD", "COMMAND",
             "Cmd", "Command", "LCmd", "RCmd",
-            "cmd ", " cmd", "cmd\t", "cmd\n",
+            "cmd ", " cmd", "cmd\t", "cmd\n"
         ]
 
         for cmdVar in cmdVariations {
@@ -444,7 +444,7 @@ final class ErrorHandlingTests: XCTestCase {
             ("caps", "escape"),
             ("space", "return"),
             ("tab", "a"),
-            ("a", "b"),
+            ("a", "b")
         ]
 
         for (input, output) in testCases {

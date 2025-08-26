@@ -136,8 +136,7 @@ class MockSystemEnvironment {
         switch action {
         case "kickstart":
             if fileExists(atPath: "/Library/LaunchDaemons/com.keypath.kanata.plist"),
-               fileExists(atPath: "/usr/local/bin/kanata-cmd")
-            {
+               fileExists(atPath: "/usr/local/bin/kanata-cmd") {
                 addMockProcess(pid: 1234, user: "root", command: "kanata-cmd", isRunning: true)
                 return (0, "Service started successfully")
             } else {
@@ -248,7 +247,7 @@ class MockEnvironmentKanataManager: ObservableObject {
         }
 
         let result = mockEnvironment.mockLaunchctlResult(command: [
-            "kickstart", "system/com.keypath.kanata",
+            "kickstart", "system/com.keypath.kanata"
         ])
 
         await MainActor.run {
@@ -304,7 +303,7 @@ class MockEnvironmentKanataManager: ObservableObject {
             throw NSError(
                 domain: "MockError", code: 1,
                 userInfo: [
-                    NSLocalizedDescriptionKey: "LaunchDaemon missing. Please run: sudo ./install-system.sh",
+                    NSLocalizedDescriptionKey: "LaunchDaemon missing. Please run: sudo ./install-system.sh"
                 ]
             )
         }

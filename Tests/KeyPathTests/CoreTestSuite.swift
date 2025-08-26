@@ -10,7 +10,7 @@ final class CoreTestSuite: XCTestCase {
         let manager = KanataConfigManager()
         let mappings = [
             KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "tab", output: "lctl"),
+            KeyMapping(input: "tab", output: "lctl")
         ]
 
         let configSet = manager.createConfiguration(mappings: mappings)

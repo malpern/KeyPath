@@ -261,7 +261,7 @@ struct WizardTCPServerPage: View {
         if !snapshot.isSystemReady {
             let missingPermissions = [
                 !snapshot.kanata.inputMonitoring.isReady ? "Input Monitoring" : nil,
-                !snapshot.kanata.accessibility.isReady ? "Accessibility" : nil,
+                !snapshot.kanata.accessibility.isReady ? "Accessibility" : nil
             ].compactMap { $0 }
 
             tcpStatus = .failed(
@@ -584,13 +584,13 @@ struct TCPTechnicalDetails: View {
                         ("Port", "\(details.port)"),
                         ("Listening", details.isListening ? "Yes" : "No"),
                         ("Active Connections", "\(details.activeConnections)"),
-                        ("TIME_WAIT Connections", "\(details.timeWaitConnections)"),
+                        ("TIME_WAIT Connections", "\(details.timeWaitConnections)")
                     ])
 
                     TCPDetailGroup(title: "Functionality", rows: [
                         ("Layer Query", details.layerNames?.joined(separator: ", ") ?? "Failed"),
                         ("Reload Command", details.reloadResponse ?? "Failed"),
-                        ("Last Tested", formatTime(details.lastTestedAt)),
+                        ("Last Tested", formatTime(details.lastTestedAt))
                     ])
                 }
                 .transition(.asymmetric(
@@ -711,13 +711,13 @@ enum TCPServerStatus {
         case .checking:
             return [
                 "Testing connection to TCP server",
-                "Verifying configuration reload commands work properly",
+                "Verifying configuration reload commands work properly"
             ]
 
         case let .success(details):
             var insights = [
                 "TCP server allows instant configuration reloading without restarting KeyPath",
-                "External tools can connect to integrate with your keyboard setup",
+                "External tools can connect to integrate with your keyboard setup"
             ]
 
             if details.activeConnections > 0 {
@@ -729,7 +729,7 @@ enum TCPServerStatus {
         case let .failed(error, details):
             var insights = [
                 "Without TCP server, configuration changes require restarting the app",
-                "This might happen if Kanata crashed or port \(details?.port ?? 0) is blocked",
+                "This might happen if Kanata crashed or port \(details?.port ?? 0) is blocked"
             ]
 
             if error.lowercased().contains("disabled") {

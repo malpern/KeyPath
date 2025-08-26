@@ -29,7 +29,7 @@ final class UnitTestSuite: XCTestCase {
         let manager = KanataConfigManager()
         let mappings = [
             KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "space", output: "space"), // passthrough
+            KeyMapping(input: "space", output: "space") // passthrough
         ]
 
         let configSet = manager.createConfiguration(mappings: mappings)

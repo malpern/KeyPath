@@ -63,7 +63,7 @@ final class UtilitiesTests: XCTestCase {
             "Page\\with\\backslashes",
             "Page@with@symbols",
             "页面中文",
-            "🚀 Emoji Page",
+            "🚀 Emoji Page"
         ]
 
         for page in specialPages {
@@ -260,7 +260,7 @@ final class UtilitiesTests: XCTestCase {
         let extremeCases = [
             String(repeating: "x", count: 1000), // Very long page name
             "null\0character", // Null character
-            "\n\r\t", // Control characters
+            "\n\r\t" // Control characters
         ]
 
         for testCase in extremeCases {
