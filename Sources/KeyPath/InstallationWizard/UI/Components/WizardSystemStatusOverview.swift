@@ -49,12 +49,12 @@ struct WizardSystemStatusOverview: View {
     }
 
     // MARK: - Animation Helpers
-    
+
     private func isFinalKeyPathStatus(item: StatusItemModel) -> Bool {
         // The TCP Server is the final status that should get pulse animation when completed
         return item.id == "tcp-server" && item.status == .completed
     }
-    
+
     private func shouldShowInitialClock(for item: StatusItemModel) -> Bool {
         // Show initial clock for all items except those that are truly not started
         // This creates the "all items start checking simultaneously" effect
@@ -408,7 +408,7 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
                     description: "Test conflict",
                     autoFixAction: .terminateConflictingProcesses,
                     userAction: nil
-                )
+                ),
             ],
             stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: { _ in },

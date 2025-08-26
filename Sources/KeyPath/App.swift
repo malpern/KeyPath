@@ -60,7 +60,7 @@ public struct KeyPathApp: App {
                             ),
                             NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
                             NSApplication.AboutPanelOptionKey.applicationVersion: "1.1",
-                            NSApplication.AboutPanelOptionKey.version: "Build 2"
+                            NSApplication.AboutPanelOptionKey.version: "Build 2",
                         ]
                     )
                 }
@@ -183,14 +183,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Check for pending service bounce first
         Task { @MainActor in
             let (shouldBounce, timeSince) = await PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
-            
+
             if shouldBounce {
                 if let timeSince = timeSince {
                     AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce")
                 } else {
                     AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested - performing bounce")
                 }
-                
+
                 let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
                 if bounceSuccess {
                     AppLogger.shared.log("✅ [AppDelegate] Service bounce completed successfully")

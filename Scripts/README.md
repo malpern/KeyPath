@@ -28,4 +28,4 @@ All scripts should be run from the project root:
 ```bash
 ./Scripts/build-and-sign.sh
 ./Scripts/run-tests.sh
-```
+```# Updated pre-commit hook to build, sign, deploy

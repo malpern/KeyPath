@@ -1,7 +1,6 @@
 import Foundation
 import Network
 
-
 /// TCP client for communicating with Kanata's TCP server for config validation
 class KanataTCPClient {
     private let host: String
@@ -133,7 +132,6 @@ class KanataTCPClient {
         }
     }
 
-
     /// Restart Kanata process via TCP API (for post-permission changes)
     /// Use this after user grants permissions to apply changes immediately
     func restartKanata() async -> Bool {
@@ -146,7 +144,8 @@ class KanataTCPClient {
 
             // Check if we got {"status":"Ok"} response
             if let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String, status == "Ok" {
+               let status = json["status"] as? String, status == "Ok"
+            {
                 AppLogger.shared.log("✅ [TCP] Kanata restart request sent successfully")
                 return true
             } else {

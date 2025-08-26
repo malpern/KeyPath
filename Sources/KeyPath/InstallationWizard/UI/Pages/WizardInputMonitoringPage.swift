@@ -472,7 +472,7 @@ struct WizardInputMonitoringPage_Previews: PreviewProvider {
                     description: "KeyPath needs Input Monitoring permission to capture keyboard events.",
                     autoFixAction: nil,
                     userAction: "Grant permission in System Settings > Privacy & Security > Input Monitoring"
-                )
+                ),
             ],
             onRefresh: {},
             onNavigateToPage: nil,

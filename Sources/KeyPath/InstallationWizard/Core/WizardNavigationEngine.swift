@@ -194,7 +194,7 @@ class WizardNavigationEngine: WizardNavigating {
             .accessibility, // Accessibility permission
             .karabinerComponents, // Karabiner driver and VirtualHID setup
             .kanataComponents, // Kanata binary and service setup
-            .service // Start keyboard service
+            .service, // Start keyboard service
         ]
     }
 

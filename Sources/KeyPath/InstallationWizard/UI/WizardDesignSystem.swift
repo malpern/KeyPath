@@ -789,15 +789,15 @@ struct AnimatedStatusIcon: View {
     let status: InstallationStatus
     let isFinalStatus: Bool
     let showInitialClock: Bool
-    
+
     @State private var hasAnimated = false
-    
+
     init(status: InstallationStatus, isFinalStatus: Bool = false, showInitialClock: Bool = false) {
         self.status = status
         self.isFinalStatus = isFinalStatus
         self.showInitialClock = showInitialClock
     }
-    
+
     var body: some View {
         Group {
             if showInitialClock && (status == .completed || status == .failed) {
@@ -828,37 +828,37 @@ struct AnimatedStatusIcon: View {
             } else {
                 // Standard behavior for other states
                 switch status {
-                    case .notStarted:
-                        // Empty circle
-                        Image(systemName: "circle")
-                            .foregroundColor(WizardDesign.Colors.secondaryText)
-                            .font(.system(size: 16))
-                        
-                    case .inProgress:
-                        // Animated clock
-                        Image(systemName: "clock.fill")
-                            .foregroundColor(WizardDesign.Colors.inProgress)
-                            .font(.system(size: 16))
-                            
-                    case .completed:
-                        // Direct green checkmark
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(WizardDesign.Colors.success)
-                            .font(.system(size: 16))
-                            .symbolEffect(.bounce, options: .nonRepeating)
-                            .symbolEffect(.bounce, options: isFinalStatus ? .repeating : .nonRepeating)
-                        
-                    case .failed:
-                        // Direct red X
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(WizardDesign.Colors.error)
-                            .font(.system(size: 16))
-                            .symbolEffect(.bounce, options: .nonRepeating)
+                case .notStarted:
+                    // Empty circle
+                    Image(systemName: "circle")
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
+                        .font(.system(size: 16))
+
+                case .inProgress:
+                    // Animated clock
+                    Image(systemName: "clock.fill")
+                        .foregroundColor(WizardDesign.Colors.inProgress)
+                        .font(.system(size: 16))
+
+                case .completed:
+                    // Direct green checkmark
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(WizardDesign.Colors.success)
+                        .font(.system(size: 16))
+                        .symbolEffect(.bounce, options: .nonRepeating)
+                        .symbolEffect(.bounce, options: isFinalStatus ? .repeating : .nonRepeating)
+
+                case .failed:
+                    // Direct red X
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(WizardDesign.Colors.error)
+                        .font(.system(size: 16))
+                        .symbolEffect(.bounce, options: .nonRepeating)
                 }
             }
         }
     }
-    
+
     private var finalStateIcon: String {
         switch status {
         case .completed: "checkmark.circle.fill"
@@ -866,7 +866,7 @@ struct AnimatedStatusIcon: View {
         default: "circle"
         }
     }
-    
+
     private var finalStateColor: Color {
         switch status {
         case .completed: WizardDesign.Colors.success

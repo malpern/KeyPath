@@ -11,7 +11,7 @@ import IOKit.hid
 /// Priority 1: Apple APIs from GUI (IOHIDCheckAccess - reliable in user session)
 /// Priority 2: Kanata TCP API (functional status, but unreliable for permissions)
 /// Priority 3: Unknown (never guess)
-/// 
+///
 /// ⚠️ CRITICAL: Kanata TCP reports false negatives for Input Monitoring
 /// due to IOHIDCheckAccess() being unreliable for root processes
 actor PermissionOracle {
@@ -123,7 +123,8 @@ actor PermissionOracle {
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,
-           Date().timeIntervalSince(cachedTime) < cacheTTL {
+           Date().timeIntervalSince(cachedTime) < cacheTTL
+        {
             AppLogger.shared.log("🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)")
             return cached
         }
@@ -198,31 +199,31 @@ actor PermissionOracle {
         // Check kanata binary permissions from GUI context (reliable)
         let kanataPath = WizardSystemPaths.bundledKanataPath
         let inputMonitoring = checkBinaryInputMonitoring(at: kanataPath)
-        
+
         // Use TCP only for functional verification, not permission status
         let functionalStatus = await checkKanataFunctionalStatus()
-        
+
         return PermissionSet(
             accessibility: functionalStatus, // Kanata typically doesn't need AX
-            inputMonitoring: inputMonitoring,  // From GUI check
+            inputMonitoring: inputMonitoring, // From GUI check
             source: "keypath.gui-check",
             confidence: .high,
             timestamp: Date()
         )
     }
-    
+
     /// Check kanata binary Input Monitoring permission from GUI context (reliable)
     /// This is the key fix from ARCHITECTURE.md - GUI can reliably check permissions for kanata binary
-    private func checkBinaryInputMonitoring(at path: String) -> Status {
+    private func checkBinaryInputMonitoring(at _: String) -> Status {
         // Use Apple's approved API from GUI session context
         // This works reliably unlike root process self-assessment
         let hasPermission = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-        
+
         AppLogger.shared.log("🔮 [Oracle] GUI Input Monitoring check for kanata binary: \(hasPermission ? "granted" : "denied")")
-        
+
         return hasPermission ? .granted : .denied
     }
-    
+
     /// Use TCP only for functional verification, not permission status
     private func checkKanataFunctionalStatus() async -> Status {
         // Quick functional check - is kanata responding via TCP?
@@ -231,15 +232,14 @@ actor PermissionOracle {
             AppLogger.shared.log("🔮 [Oracle] TCP server disabled - functional status unknown")
             return .unknown
         }
-        
+
         let client = KanataTCPClient(port: tcpSnapshot.port, timeout: 1.0)
         let isConnected = await client.checkServerStatus()
-        
+
         AppLogger.shared.log("🔮 [Oracle] Kanata functional check via TCP: \(isConnected ? "responding" : "not responding")")
-        
+
         return isConnected ? .granted : .denied
     }
-
 
     // MARK: - Utilities (TCC fallback removed - TCP API is authoritative)
 

@@ -105,7 +105,7 @@ class IntegrationTests: XCTestCase {
         // Create configuration
         let mappings = [
             KeyMapping(input: "caps", output: "esc"),
-            KeyMapping(input: "tab", output: "ctrl")
+            KeyMapping(input: "tab", output: "ctrl"),
         ]
 
         let configSet = configManager.createConfiguration(mappings: mappings)
@@ -324,7 +324,7 @@ class IntegrationTests: XCTestCase {
             KeyMapping(input: "caps", output: "esc"),
             KeyMapping(input: "tab", output: "ctrl"),
             KeyMapping(input: "space", output: "space"),
-            KeyMapping(input: "return", output: "return")
+            KeyMapping(input: "return", output: "return"),
         ]
 
         let complexConfig = configManager.createConfiguration(mappings: powerUserMappings)
@@ -426,7 +426,7 @@ class ErrorInjectionTests: XCTestCase {
             "", // Empty config
             "(defcfg", // Unclosed parenthesis
             "invalid syntax", // Not S-expression
-            "(defcfg\n  unknown-option yes\n)" // Unknown option
+            "(defcfg\n  unknown-option yes\n)", // Unknown option
         ]
 
         for (index, invalidConfig) in invalidConfigs.enumerated() {

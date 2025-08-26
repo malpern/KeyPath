@@ -85,7 +85,7 @@ struct IndeterminateProgressBar: View {
                             .init(color: Color.blue.opacity(0.8), location: 0.25),
                             .init(color: Color.blue, location: 0.5),
                             .init(color: Color.blue.opacity(0.8), location: 0.75),
-                            .init(color: Color.blue.opacity(0.0), location: 1.0)
+                            .init(color: Color.blue.opacity(0.0), location: 1.0),
                         ],
                         startPoint: .leading,
                         endPoint: .trailing

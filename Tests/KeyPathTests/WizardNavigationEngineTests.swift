@@ -126,7 +126,7 @@ class WizardNavigationEngineTests: XCTestCase {
             .service,
             .kanataComponents,
             .service,
-            .summary
+            .summary,
         ]
 
         // When: Getting page order
@@ -197,7 +197,7 @@ class WizardNavigationEngineTests: XCTestCase {
             (.initializing, "Checking system..."),
             (.conflictsDetected(conflicts: []), "Resolving conflicts..."),
             (.ready, "Ready to start..."),
-            (.active, "Setup complete!")
+            (.active, "Setup complete!"),
         ]
 
         // When/Then: Each state should have appropriate description
@@ -217,7 +217,7 @@ class WizardNavigationEngineTests: XCTestCase {
             (.conflicts, "Resolve Conflicts"),
             (.inputMonitoring, "Open Settings"),
             (.kanataComponents, "Install Components"),
-            (.service, "Manage Service")
+            (.service, "Manage Service"),
         ]
 
         // When/Then: Each page should have appropriate button text
