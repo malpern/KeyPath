@@ -6,25 +6,25 @@
 
 ## Executive Summary
 
-This plan addresses critical architectural issues in KeyPath while maintaining build stability, code signing integrity, and the working CGEvent tap architecture. The refactoring will reduce KanataManager from 3,777 lines to ~800-1,000 lines through incremental extraction of services, introduce clear contracts via protocols, and eliminate manager class proliferation without breaking runtime behavior.
+This plan addresses critical architectural issues in KeyPath while maintaining build stability, code signing integrity, and functional behavior. The refactoring will reduce KanataManager from 3,777 lines to ~800-1,000 lines through incremental extraction of services, introduce clear contracts via protocols, and carefully consolidate manager class proliferation without breaking runtime behavior.
 
-**Key Approach:** Introduce contracts first, split large files using extensions, then progressively delegate to extracted services while keeping legacy class names as thin facades. Each milestone compiles independently and can be merged safely.
+**Key Approach:** Introduce contracts first, split large files using extensions, then progressively delegate to extracted services while carefully consolidating overlapping managers. Each milestone compiles independently and can be merged safely.
 
 ## Critical Constraints
 
 ### Must Preserve
 - ✅ **Build stability** - zero functional changes during refactoring
 - ✅ **Code signing identity** - bundle ID, entitlements, deployment target unchanged
-- ✅ **Separate CGEvent taps** - current working architecture uses multiple managers to avoid tap conflicts
-- ✅ **Public APIs** - all existing method signatures remain identical
+- ✅ **PermissionOracle** - single source of truth for all permission checking
+- ✅ **Public APIs** - all existing method signatures remain identical during transition
 - ✅ **Threading model** - main thread, runloop, and queue behaviors unchanged
 - ✅ **TCC-safe deployment** - preserve Input Monitoring permissions
 
-### Non-Goals (Initially)
+### Non-Goals (This Phase)
 - ❌ Renaming public types or moving modules
-- ❌ Consolidating CGEvent taps (causes conflicts per CLAUDE.md)
 - ❌ Adding third-party dependencies
 - ❌ Changing functional behavior
+- ❌ CGEvent tap architecture changes (see FUTURE ENHANCEMENTS)
 
 ## Current Architecture Issues
 
@@ -53,6 +53,8 @@ LaunchDaemonPIDCache.swift          (178 lines)   - PID caching
 - Responsibility overlap between KanataManager, SimpleKanataManager, and KanataLifecycleManager
 - No clear contracts defining boundaries
 - Difficult to understand interaction patterns
+- Duplicate lifecycle logic across multiple managers
+- Inconsistent permission checking patterns bypassing PermissionOracle
 
 ## Target Architecture
 
@@ -82,20 +84,26 @@ LaunchDaemonPIDCache.swift          (178 lines)   - PID caching
 
 ### Key Architectural Decisions
 
-1. **Multiple CGEvent Taps Preserved**
-   - TapSupervisor coordinates without consolidating
-   - Each manager retains its tap to avoid conflicts
-   - Event tagging prevents processing loops
+1. **PermissionOracle as Single Source of Truth**
+   - All permission checking must delegate to PermissionOracle.shared
+   - No direct system API calls outside Oracle
+   - Services can wrap Oracle calls but never bypass them
 
 2. **Protocol-Based Contracts**
    - Clear boundaries via protocols
    - Dependency inversion for testability
    - Explicit interfaces for all services
 
-3. **Incremental Delegation**
-   - Legacy classes become thin facades
+3. **Manager Consolidation Strategy**
+   - Carefully merge overlapping functionality
+   - Preserve working behavior during transition
+   - Eliminate duplicate lifecycle and permission logic
+   - Unified service orchestration
+
+4. **Incremental Delegation**
    - Internal composition changes only
-   - Public APIs remain unchanged
+   - Public APIs remain unchanged during transition
+   - Services provide focused responsibilities
 
 ## Phased Implementation Plan
 
@@ -192,50 +200,29 @@ protocol ConfigurationProviding {
 - [ ] Zero behavior changes
 - [ ] Documentation for each protocol
 
-### Milestone 3: Event Tap Coordination System
-**Duration:** 4 days  
-**Risk:** Medium  
+### Milestone 3: Manager Consolidation Analysis
+**Duration:** 3 days  
+**Risk:** Low  
 
-**Objective:** Implement TapSupervisor and EventTag system for conflict prevention.
+**Objective:** Analyze and plan consolidation of overlapping manager responsibilities.
 
-**Files to Create:**
-```
-Sources/KeyPath/Infrastructure/Input/
-├── EventTag.swift
-├── TapSupervisor.swift
-└── TapHandle.swift
-```
+**Analysis Tasks:**
+- Map exact functionality overlap between KanataManager, SimpleKanataManager, KanataLifecycleManager
+- Identify shared lifecycle logic that can be unified
+- Document permission checking patterns that bypass PermissionOracle
+- Plan consolidation approach that preserves all current functionality
 
-**EventTag Implementation:**
-```swift
-struct EventTag {
-    static let namespace: Int32 = 0x4B50 // 'KP' for KeyPath
-    
-    static func tag(event: CGEvent, processorId: Int32, phase: Int32) {
-        // Uses CGEventField.eventSourceUserData for 32-bit tagged value
-        // Format: 0xNNPPPP (namespace, processorId, phase)
-    }
-    
-    static func readTag(from event: CGEvent) -> (namespace: Int32, processorId: Int32, phase: Int32)?
-}
-```
-
-**TapSupervisor Features:**
-- Non-owning registry of active taps
-- Event processor registration with scope filtering
-- Loop prevention via event tagging
-- No tap consolidation (preserves working architecture)
-
-**Integration Strategy:**
-- Feature flag: `let useTapSupervisor = false` (default)
-- Optional integration guarded by flag
-- Wire only when ready to avoid behavior changes
+**Deliverables:**
+- `docs/MANAGER_CONSOLIDATION_PLAN.md` - Detailed consolidation strategy
+- Dependency mapping between managers
+- Transition plan for unified lifecycle management
+- Permission checking audit results
 
 **Success Criteria:**
-- [ ] TapSupervisor correctly registers/unregisters taps
-- [ ] Event tagging works without conflicts
-- [ ] Feature flag allows safe rollback
-- [ ] No existing CGEventField usage conflicts
+- [ ] Complete functionality overlap analysis
+- [ ] Consolidation plan preserves all current behavior
+- [ ] Clear transition path identified
+- [ ] No breaking changes to public APIs
 
 ### Milestone 4: Configuration Service Extraction
 **Duration:** 3 days  
@@ -382,17 +369,38 @@ Sources/KeyPath/Infrastructure/Output/
 └── OutputSynthesizer.swift
 
 Sources/KeyPath/Infrastructure/Permissions/
-└── AccessibilityPermissionService.swift
+└── PermissionService.swift
 
-Sources/KeyPath/Infrastructure/Input/
-└── EventTapOwner.swift
+Sources/KeyPath/Infrastructure/Config/
+└── ConfigurationService.swift (if not created in Milestone 4)
 ```
 
 **Service Responsibilities:**
 - **MappingEngine**: Key mapping logic, layer management, macro execution
 - **OutputSynthesizer**: CGEvent posting and synthesis
-- **AccessibilityPermissionService**: Permission checks and requests
-- **EventTapOwner**: Generic tap ownership and lifecycle
+- **PermissionService**: Oracle-delegated permission facade (no direct system calls)
+- **ConfigurationService**: Centralized config management
+
+**Critical: PermissionService Implementation**
+```swift
+final class PermissionService {
+    // NEVER call system APIs directly - always delegate to Oracle
+    func hasAccessibilityPermission() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.accessibility.isReady
+    }
+    
+    func hasInputMonitoringPermission() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.inputMonitoring.isReady
+    }
+    
+    func getBlockingIssue() async -> String? {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.blockingIssue
+    }
+}
+```
 
 **Adapter Pattern:**
 - Keep existing manager class names
@@ -517,7 +525,7 @@ final class CompositionRoot {
 - [ ] Clear separation of concerns
 - [ ] Testable components via protocols
 - [ ] Maintainable code structure
-- [ ] Preserved CGEvent tap architecture
+- [ ] No CGEvent tap architectural changes (deferred to FUTURE)
 - [ ] Documentation for all new services
 
 ## Implementation Timeline
@@ -527,7 +535,7 @@ final class CompositionRoot {
 
 ```
 Week 1: Milestones 0-1 (Documentation + File Split)
-Week 2: Milestones 2-3 (Protocols + Tap Coordination)  
+Week 2: Milestones 2-3 (Protocols + Manager Analysis)  
 Week 3: Milestones 4-5 (Config Service + Event Processing)
 Week 4: Milestone 6 (Lifecycle Orchestration) 
 Week 5: Milestones 7-8 (Service Extraction + Slimming)
@@ -554,3 +562,67 @@ Week 6: Milestone 9 + Testing (Composition + Validation)
 ---
 
 **This plan maintains KeyPath's stability while addressing architectural debt systematically. Each milestone can be implemented, tested, and merged independently, ensuring continuous delivery capability throughout the refactoring process.**
+
+---
+
+## FUTURE ENHANCEMENTS (Do Not Implement Now)
+
+### CGEvent Tap Architecture Modernization
+
+**Background:** ARCHITECTURE.md ADR-006 calls for eliminating GUI CGEvent taps to follow the "one event tapper" rule and prevent keyboard freezing. This is a complex architectural change that should be tackled separately after the current refactoring is complete.
+
+### Future Milestone: TCP-Based Key Recording
+**When:** After current refactoring complete (Milestone 9+)  
+**Objective:** Replace KeyboardCapture CGEvent taps with TCP-based communication  
+
+**Approach:**
+- Remove KeyboardCapture CGEvent taps entirely
+- Implement key recording via kanata TCP API
+- Follow Karabiner-Elements pattern (daemon-only taps)
+- GUI communicates with daemon for key capture needs
+
+**Files to Create (Future):**
+```
+Sources/KeyPath/Services/
+├── TCPKeyRecording.swift
+└── KanataClient.swift (enhanced)
+```
+
+**Implementation Strategy:**
+```swift
+// Future: TCP-based key recording
+final class TCPKeyRecording {
+    private let kanataClient: KanataClient
+    
+    func startRecording(callback: @escaping (String) -> Void) async {
+        // Send TCP command to kanata daemon to start recording
+        // Daemon handles all CGEvent taps
+        await kanataClient.sendCommand(.startKeyRecording)
+        
+        // Listen for key events via TCP
+        await kanataClient.listenForKeyEvents(callback)
+    }
+}
+```
+
+**Benefits:**
+- Eliminates GUI CGEvent taps (ADR-006 compliance)
+- Prevents keyboard freezing from multiple taps
+- Follows proven industry pattern
+- Single event tapper rule compliance
+
+**Why Future:** This change affects core functionality and requires extensive testing with real keyboard input. Should be done after the current architectural refactoring is stable.
+
+### Future Milestone: Event Processing Modernization
+**When:** After TCP-based recording implemented  
+**Objective:** Modernize event processing without CGEvent tap conflicts
+
+**Files to Create (Future):**
+```
+Sources/KeyPath/Core/Events/
+├── EventProcessor.swift
+├── EventRouter.swift (simplified)
+└── TCPEventHandler.swift
+```
+
+**Note:** The EventTag and TapSupervisor concepts from the original Milestone 3 may still be valuable for this future work, adapted for TCP-based event handling rather than multiple CGEvent taps.
