@@ -512,10 +512,11 @@ keypath-linux/             # GTK/Qt + uinput checks
 ```
 
 ### Migration Strategy
-- **Phase 1:** Fix Oracle to check from GUI context ✅ (Current)
-- **Phase 2:** Implement enhanced IPC architecture (UDP + TCP)
-- **Phase 3:** Extract cross-platform abstractions  
-- **Phase 4:** Platform-native GUIs for Windows/Linux
+- **Phase 1:** Fix Oracle to check from GUI context ✅ (Completed - August 2025)
+- **Phase 2:** Fix CGEvent tap conflicts ⚠️ (In Progress - Week 3)
+- **Phase 3:** Implement enhanced IPC architecture (UDP + TCP)
+- **Phase 4:** Extract cross-platform abstractions  
+- **Phase 5:** Platform-native GUIs for Windows/Linux
 
 ### IPC Protocol Evolution
 **Current:** TCP-only for commands and status
@@ -612,10 +613,17 @@ swift test --filter WizardNavigationEngineTests
 
 ### ADR-005: Root Process Permission Detection Limitations
 **Decision:** Move permission checking from Kanata TCP to GUI context  
-**Status:** Accepted ✅ (August 2025)  
+**Status:** Completed ✅ (August 2025)  
 **Rationale:** IOHIDCheckAccess() unreliable for root processes on macOS - returns false negatives even when permission granted and functional  
 **Evidence:** Kanata captures keystrokes successfully while reporting "input_monitoring": "denied" via TCP API  
 **Consequences:** Reliable permission detection, matches industry best practices (Karabiner-Elements pattern)
+
+### ADR-006: CGEvent Tap Conflict Resolution
+**Decision:** Move all event tap creation to root daemon only, eliminate GUI event taps  
+**Status:** In Progress ⚠️ (Week 3 - August 2025)  
+**Rationale:** Multiple event taps cause keyboard freezing, violates macOS "one event tapper" rule  
+**Evidence:** KeyPath GUI creates competing event taps with kanata daemon, causing system instability  
+**Implementation:** TCP-based key recording instead of GUI CGEvent taps, following Karabiner-Elements pattern
 
 
 ---
@@ -635,5 +643,5 @@ swift test --filter WizardNavigationEngineTests
 
 ---
 
-*Last Updated: August 25, 2025*  
-*Architecture Version: 2.1 (Root Process Permission Detection Issues Resolved)*
+*Last Updated: August 26, 2025*  
+*Architecture Version: 2.2 (Week 3: CGEvent Tap Conflict Resolution In Progress)*
