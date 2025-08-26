@@ -4,7 +4,6 @@ import SwiftUI
 // Note: @main attribute moved to KeyPathCLI/main.swift for proper SPM building
 public struct KeyPathApp: App {
     @StateObject private var kanataManager = KanataManager()
-    @StateObject private var simpleKanataManager: SimpleKanataManager
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var showingEmergencyStopDialog = false
 
@@ -16,10 +15,9 @@ public struct KeyPathApp: App {
         isHeadlessMode =
             args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
 
-        // Create SimpleKanataManager using the same KanataManager instance
+        // Initialize KanataManager
         let manager = KanataManager()
         _kanataManager = StateObject(wrappedValue: manager)
-        _simpleKanataManager = StateObject(wrappedValue: SimpleKanataManager(kanataManager: manager))
 
         // Set activation policy based on mode
         if isHeadlessMode {
@@ -39,7 +37,6 @@ public struct KeyPathApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(kanataManager)
-                .environmentObject(simpleKanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionService, PermissionService.shared)
                 .sheet(isPresented: $showingEmergencyStopDialog) {
@@ -60,7 +57,7 @@ public struct KeyPathApp: App {
                             ),
                             NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
                             NSApplication.AboutPanelOptionKey.applicationVersion: "1.1",
-                            NSApplication.AboutPanelOptionKey.version: "Build 2"
+                            NSApplication.AboutPanelOptionKey.version: "Build 2",
                         ]
                     )
                 }
@@ -92,7 +89,6 @@ public struct KeyPathApp: App {
         Settings {
             SettingsView()
                 .environmentObject(kanataManager)
-                .environmentObject(simpleKanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionService, PermissionService.shared)
         }

@@ -59,6 +59,31 @@ struct KeyMapping: Codable, Equatable, Identifiable {
     }
 }
 
+/// Simple UI-focused state model (from SimpleKanataManager)
+enum SimpleKanataState: String, CaseIterable {
+    case starting // App launched, attempting auto-start
+    case running // Kanata is running successfully
+    case needsHelp = "needs_help" // Auto-start failed, user intervention required
+    case stopped // User manually stopped
+
+    var displayName: String {
+        switch self {
+        case .starting: "Starting..."
+        case .running: "Running"
+        case .needsHelp: "Needs Help"
+        case .stopped: "Stopped"
+        }
+    }
+
+    var isWorking: Bool {
+        self == .running
+    }
+
+    var needsUserAction: Bool {
+        self == .needsHelp
+    }
+}
+
 /// Manages the Kanata process lifecycle and configuration directly.
 // Detailed diagnostic information for Kanata issues
 struct KanataDiagnostic {
@@ -117,6 +142,29 @@ class KanataManager: ObservableObject {
     @Published var lastProcessExitCode: Int32?
     @Published var lastConfigUpdate: Date = .init()
 
+    // MARK: - UI State Properties (from SimpleKanataManager)
+
+    /// Simple lifecycle state for UI display
+    @Published private(set) var currentState: SimpleKanataState = .starting
+    @Published private(set) var errorReason: String?
+    @Published private(set) var showWizard: Bool = false
+    @Published private(set) var launchFailureStatus: LaunchFailureStatus?
+    @Published private(set) var autoStartAttempts: Int = 0
+    @Published private(set) var lastHealthCheck: Date?
+    @Published private(set) var retryCount: Int = 0
+    @Published private(set) var isRetryingAfterFix: Bool = false
+
+    // MARK: - Lifecycle State Properties (from KanataLifecycleManager)
+
+    @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
+    @Published var lifecycleErrorMessage: String?
+    @Published var isBusy: Bool = false
+    @Published var canPerformActions: Bool = true
+    @Published var autoStartAttempted: Bool = false
+    @Published var autoStartSucceeded: Bool = false
+    @Published var autoStartFailureReason: String?
+    @Published var shouldShowWizard: Bool = false
+
     // Validation-specific UI state
     @Published var showingValidationAlert = false
     @Published var validationAlertTitle = ""
@@ -158,6 +206,19 @@ class KanataManager: ObservableObject {
     private let processLifecycleManager: ProcessLifecycleManager
     var isInitializing = false
     private let isHeadlessMode: Bool
+
+    // MARK: - UI State Management Properties (from SimpleKanataManager)
+
+    private var healthTimer: Timer?
+    private var statusTimer: Timer?
+    private let maxAutoStartAttempts = 2
+    private let maxRetryAttempts = 3
+    private var lastPermissionState: (input: Bool, accessibility: Bool) = (false, false)
+
+    // MARK: - Lifecycle State Machine (from KanataLifecycleManager)
+
+    // Note: Removed stateMachine to avoid MainActor isolation issues
+    // Lifecycle management is now handled directly in this class
 
     // MARK: - Process Synchronization (Phase 1)
 
@@ -362,7 +423,8 @@ class KanataManager: ObservableObject {
         case 6:
             // Exit code 6 has different causes - check for VirtualHID connection issues
             if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2") {
+                || output.contains("connect_failed asio.system:2")
+            {
                 diagnostics.append(
                     KanataDiagnostic(
                         timestamp: Date(),
@@ -706,7 +768,8 @@ class KanataManager: ObservableObject {
 
         // Prevent rapid successive starts
         if let lastAttempt = lastStartAttempt,
-           Date().timeIntervalSince(lastAttempt) < minStartInterval {
+           Date().timeIntervalSince(lastAttempt) < minStartInterval
+        {
             AppLogger.shared.log("⚠️ [Start] Ignoring rapid start attempt within \(minStartInterval)s")
             return
         }
@@ -923,6 +986,199 @@ class KanataManager: ObservableObject {
         await updateStatus()
     }
 
+    // MARK: - UI-Focused Lifecycle Methods (from SimpleKanataManager)
+
+    /// Start the automatic Kanata launch sequence
+    func startAutoLaunch() async {
+        AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
+
+        // Check if we've already shown the wizard before
+        let hasShownWizardBefore = UserDefaults.standard.bool(forKey: "KeyPath.HasShownWizard")
+        AppLogger.shared.log(
+            "🔍 [KanataManager] KeyPath.HasShownWizard flag: \(hasShownWizardBefore)")
+
+        if hasShownWizardBefore {
+            AppLogger.shared.log(
+                "ℹ️ [KanataManager] Wizard already shown before - skipping auto-wizard, attempting quiet start"
+            )
+            AppLogger.shared.log(
+                "🤫 [KanataManager] This means NO wizard will auto-show, only manual access via button"
+            )
+            // Try to start silently without showing wizard
+            await attemptQuietStart()
+        } else {
+            AppLogger.shared.log(
+                "🆕 [KanataManager] First launch detected - proceeding with normal auto-launch")
+            AppLogger.shared.log(
+                "🆕 [KanataManager] This means wizard MAY auto-show if system needs help")
+            currentState = .starting
+            errorReason = nil
+            showWizard = false
+            autoStartAttempts = 0
+            await attemptAutoStart()
+        }
+
+        AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE ==========")
+    }
+
+    /// Attempt to start quietly without showing wizard (for subsequent app launches)
+    private func attemptQuietStart() async {
+        AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START ATTEMPT ==========")
+        currentState = .starting
+        errorReason = nil
+        showWizard = false // Never show wizard on quiet starts
+        autoStartAttempts = 0
+
+        // Try to start, but if it fails, just show error state without wizard
+        await attemptAutoStart()
+
+        // If we ended up in needsHelp state, don't show wizard - just stay in error state
+        if currentState == .needsHelp {
+            AppLogger.shared.log(
+                "🤫 [KanataManager] Quiet start failed - staying in error state without wizard")
+            showWizard = false // Explicitly ensure wizard doesn't show
+        }
+
+        AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START COMPLETE ==========")
+    }
+
+    /// Show wizard specifically for input monitoring permissions
+    func showWizardForInputMonitoring() async {
+        AppLogger.shared.log("🧙‍♂️ [KanataManager] Showing wizard for input monitoring permissions")
+
+        await MainActor.run {
+            showWizard = true
+            currentState = .needsHelp
+            errorReason = "Input monitoring permission required"
+            launchFailureStatus = .permissionDenied("Input monitoring permission required")
+        }
+    }
+
+    /// Manual start triggered by user action
+    func manualStart() async {
+        AppLogger.shared.log("👆 [KanataManager] Manual start requested")
+        await startKanata()
+        await refreshStatus()
+    }
+
+    /// Manual stop triggered by user action
+    func manualStop() async {
+        AppLogger.shared.log("👆 [KanataManager] Manual stop requested")
+        await stopKanata()
+        await MainActor.run {
+            currentState = .stopped
+        }
+    }
+
+    /// Force refresh the current status
+    func forceRefreshStatus() async {
+        AppLogger.shared.log("🔄 [KanataManager] Force refresh status requested")
+        await refreshStatus()
+    }
+
+    /// Refresh status and update UI state
+    private func refreshStatus() async {
+        await updateStatus()
+
+        // Update currentState based on isRunning
+        await MainActor.run {
+            if isRunning {
+                currentState = .running
+                errorReason = nil
+                launchFailureStatus = nil
+            } else if !isRunning, currentState == .running {
+                currentState = .stopped
+            }
+        }
+    }
+
+    /// Attempt auto-start with retry logic
+    private func attemptAutoStart() async {
+        autoStartAttempts += 1
+        AppLogger.shared.log(
+            "🔄 [KanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) ==========")
+
+        // Try to start Kanata
+        await startKanata()
+        await refreshStatus()
+
+        // Check if start was successful
+        if isRunning {
+            AppLogger.shared.log("✅ [KanataManager] Auto-start successful!")
+            await MainActor.run {
+                currentState = .running
+                errorReason = nil
+                launchFailureStatus = nil
+            }
+        } else {
+            AppLogger.shared.log("❌ [KanataManager] Auto-start failed")
+            await handleAutoStartFailure()
+        }
+
+        AppLogger.shared.log(
+            "🔄 [KanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) COMPLETE ==========")
+    }
+
+    /// Handle auto-start failure with retry logic
+    private func handleAutoStartFailure() async {
+        // Check if we should retry
+        if autoStartAttempts < maxAutoStartAttempts {
+            AppLogger.shared.log("🔄 [KanataManager] Retrying auto-start...")
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // Wait 3 seconds
+            await attemptAutoStart()
+            return
+        }
+
+        // Max attempts reached - show help
+        await MainActor.run {
+            currentState = .needsHelp
+            errorReason = "Failed to start Kanata after \(maxAutoStartAttempts) attempts"
+            showWizard = true
+        }
+    }
+
+    /// Retry after manual fix (from SimpleKanataManager)
+    func retryAfterFix(_ feedbackMessage: String) async {
+        AppLogger.shared.log("🔄 [KanataManager] Retry after fix requested: \(feedbackMessage)")
+
+        await MainActor.run {
+            isRetryingAfterFix = true
+            retryCount += 1
+            currentState = .starting
+            errorReason = nil
+            showWizard = false
+        }
+
+        // Try to start Kanata
+        await startKanata()
+        await refreshStatus()
+
+        await MainActor.run {
+            isRetryingAfterFix = false
+        }
+
+        AppLogger.shared.log("🔄 [KanataManager] Retry after fix completed")
+    }
+
+    /// Called when wizard is closed (from SimpleKanataManager)
+    func onWizardClosed() async {
+        AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed - attempting retry")
+
+        await MainActor.run {
+            showWizard = false
+        }
+
+        // Try to refresh status and start if needed
+        await refreshStatus()
+
+        if !isRunning {
+            await startKanata()
+            await refreshStatus()
+        }
+
+        AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed handling completed")
+    }
+
     // MARK: - LaunchDaemon Service Management
 
     /// Start the Kanata LaunchDaemon service using launchctl with OSA script for better permission handling
@@ -986,7 +1242,8 @@ class KanataManager: ObservableObject {
                         let components = line.components(separatedBy: "=")
                         if components.count >= 2,
                            let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
-                           let pid = Int(pidString) {
+                           let pid = Int(pidString)
+                        {
                             AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
                             return (true, pid)
                         }
@@ -1443,7 +1700,8 @@ class KanataManager: ObservableObject {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -1451,12 +1709,14 @@ class KanataManager: ObservableObject {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -1542,7 +1802,8 @@ class KanataManager: ObservableObject {
             let lines = output.components(separatedBy: .newlines)
             for line in lines {
                 if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"),
-                   line.contains("[activated enabled]") {
+                   line.contains("[activated enabled]")
+                {
                     AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
                     return true
                 }
@@ -1970,7 +2231,7 @@ class KanataManager: ObservableObject {
         stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         stopTask.arguments = [
             "-e",
-            "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\""
+            "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\"",
         ]
 
         do {
@@ -2462,7 +2723,7 @@ class KanataManager: ObservableObject {
                 ValidationAlertAction(title: "Open Backup Location", style: .default) { [weak self] in
                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
                     self?.showingValidationAlert = false
-                }
+                },
             ]
 
             showingValidationAlert = true
@@ -2681,7 +2942,7 @@ class KanataManager: ObservableObject {
             "lcmd": "lmet",
             "rcmd": "rmet",
             "leftcmd": "lmet",
-            "rightcmd": "rmet"
+            "rightcmd": "rmet",
         ]
 
         let lowercaseKey = key.lowercased()
@@ -2716,7 +2977,7 @@ class KanataManager: ObservableObject {
             "f9", "f10", "f11", "f12", "pause", "pscr", "slck", "nlck",
             "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
             "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-            "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"
+            "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
         ])
 
         if validKanataKeys.contains(sequence.lowercased()) {
@@ -2796,7 +3057,8 @@ class KanataManager: ObservableObject {
 
         for line in lines {
             if line.contains("connect_failed asio.system:2")
-                || line.contains("connect_failed asio.system:61") {
+                || line.contains("connect_failed asio.system:61")
+            {
                 connectionFailureCount += 1
                 AppLogger.shared.log(
                     "⚠️ [LogMonitor] VirtualHID connection failure detected (\(connectionFailureCount)/\(maxConnectionFailures))"
@@ -2978,7 +3240,8 @@ class KanataManager: ObservableObject {
 
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
+        async throws -> String
+    {
         // TODO: Integrate with Claude API using the following prompt:
         //
         // "The following Kanata keyboard configuration file is invalid and needs to be repaired:
@@ -3009,7 +3272,8 @@ class KanataManager: ObservableObject {
 
     /// Fallback rule-based repair when Claude is not available
     private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
+        async throws -> String
+    {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies
@@ -3174,7 +3438,8 @@ class KanataManager: ObservableObject {
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist

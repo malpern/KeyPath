@@ -16,8 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Latest Build:** Successfully built, signed, and deployed (Notarization ID: 0cb2adbc-f6b8-4826-a4d3-56fe71776814)
 
 **Critical Architecture Notes:**
-- Working version has separate managers: KanataManager, SimpleKanataManager, ProcessLifecycleManager
-- NEVER consolidate these - causes CGEvent tap conflicts leading to keyboard freezing
+- Manager consolidation completed: All functionality now unified in KanataManager
+- CGEvent taps are safely isolated in KeyboardCapture service (no conflicts with managers)
 - GUI creates CGEvent taps (known TCC violation - documented in SOMEDAY.md for future fix)
 - Only bundled kanata at `/Applications/KeyPath.app/Contents/Library/KeyPath/kanata` should exist
 
@@ -48,8 +48,8 @@ KeyPath.app (SwiftUI) → KanataManager → launchctl → Kanata daemon
 - **System Integration**: Uses CGEvent taps for key capture and launchctl for service management
 
 ### Key Manager Classes
-- `KanataManager`: Central service coordinator, manages daemon lifecycle and configuration
-- `KeyboardCapture`: Handles CGEvent-based keyboard input recording
+- `KanataManager`: **Unified manager** - handles daemon lifecycle, configuration, UI state, and user interactions
+- `KeyboardCapture`: Handles CGEvent-based keyboard input recording (isolated service)
 - `InstallationWizard/`: Multi-step setup flow with auto-fix capabilities
   - `WizardSystemState`: Single source of truth for system state
   - `SystemStateDetector`: Pure functions for state detection

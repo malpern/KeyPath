@@ -3,7 +3,6 @@ import SwiftUI
 struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
     @EnvironmentObject var kanataManager: KanataManager
-    @EnvironmentObject var simpleKanataManager: SimpleKanataManager
     @State private var isRecording = false
     @State private var isRecordingOutput = false
     @State private var recordedInput = ""
@@ -39,7 +38,7 @@ struct ContentView: View {
                 recordedInput: $recordedInput, recordedOutput: $recordedOutput,
                 isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
                 kanataManager: kanataManager, keyboardCapture: $keyboardCapture,
-                showStatusMessage: showStatusMessage, simpleKanataManager: simpleKanataManager
+                showStatusMessage: showStatusMessage
             )
 
             // Enhanced Error Display - persistent and actionable
@@ -109,10 +108,10 @@ struct ContentView: View {
                     // When wizard closes, call SimpleKanataManager to handle the closure
                     AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
                     AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
-                    AppLogger.shared.log("🎭 [ContentView] Calling simpleKanataManager.onWizardClosed()")
+                    AppLogger.shared.log("🎭 [ContentView] Calling kanataManager.onWizardClosed()")
 
                     Task {
-                        await simpleKanataManager.onWizardClosed()
+                        await kanataManager.onWizardClosed()
                     }
                 }
                 .environmentObject(kanataManager)
@@ -120,7 +119,7 @@ struct ContentView: View {
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
             AppLogger.shared.log(
-                "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(simpleKanataManager.showWizard)"
+                "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(kanataManager.showWizard)"
             )
 
             // Check if we're returning from permission granting (Input Monitoring settings)
@@ -134,12 +133,12 @@ struct ContentView: View {
             if !isReturningFromPermissionGrant {
                 Task {
                     AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
-                    await simpleKanataManager.startAutoLaunch()
+                    await kanataManager.startAutoLaunch()
                     AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
                     AppLogger.shared.log(
-                        "✅ [ContentView] Post auto-launch - showWizard: \(simpleKanataManager.showWizard)")
+                        "✅ [ContentView] Post auto-launch - showWizard: \(kanataManager.showWizard)")
                     AppLogger.shared.log(
-                        "✅ [ContentView] Post auto-launch - currentState: \(simpleKanataManager.currentState.rawValue)"
+                        "✅ [ContentView] Post auto-launch - currentState: \(kanataManager.currentState.rawValue)"
                     )
                 }
             } else {
@@ -160,19 +159,19 @@ struct ContentView: View {
 
             // Status monitoring now handled centrally by SimpleKanataManager
         }
-        .onChange(of: simpleKanataManager.showWizard) { shouldShow in
+        .onChange(of: kanataManager.showWizard) { shouldShow in
             AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
             AppLogger.shared.log(
-                "🔍 [ContentView] Current simpleKanataManager state: \(simpleKanataManager.currentState.rawValue)"
+                "🔍 [ContentView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
             )
             AppLogger.shared.log(
-                "🔍 [ContentView] Current errorReason: \(simpleKanataManager.errorReason ?? "nil")")
+                "🔍 [ContentView] Current errorReason: \(kanataManager.errorReason ?? "nil")")
             AppLogger.shared.log("🔍 [ContentView] Setting showingInstallationWizard = \(shouldShow)")
             showingInstallationWizard = shouldShow
             AppLogger.shared.log(
                 "🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
         }
-        .onChange(of: simpleKanataManager.launchFailureStatus) { newStatus in
+        .onChange(of: kanataManager.launchFailureStatus) { newStatus in
             // Show launch failure toast when status changes
             if let failureStatus = newStatus {
                 AppLogger.shared.log("🍞 [ContentView] Showing launch failure toast: \(failureStatus.shortMessage)")
@@ -276,14 +275,14 @@ struct ContentView: View {
             // Perform the permission restart using the coordinator
             PermissionGrantCoordinator.shared.performPermissionRestart(
                 for: permissionType,
-                kanataManager: simpleKanataManager
+                kanataManager: kanataManager
             ) { _ in
                 // Show wizard after service restart completes to display results
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     // Reopen wizard to the appropriate permission page
                     PermissionGrantCoordinator.shared.reopenWizard(
                         for: permissionType,
-                        kanataManager: simpleKanataManager
+                        kanataManager: kanataManager
                     )
                 }
             }
@@ -370,9 +369,6 @@ struct RecordingSection: View {
     @ObservedObject var kanataManager: KanataManager
     @Binding var keyboardCapture: KeyboardCapture?
     let showStatusMessage: (String) -> Void
-
-    // Simple Kanata Manager Integration
-    let simpleKanataManager: SimpleKanataManager?
     @State private var outputInactivityTimer: Timer?
     @State private var showingConfigCorruptionAlert = false
     @State private var configCorruptionDetails = ""
@@ -1017,7 +1013,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             "xmark.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             "exclamationmark.triangle.fill"
         } else {
             "checkmark.circle.fill"
@@ -1028,7 +1025,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             .orange
         } else {
             .green
@@ -1039,7 +1037,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.1)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             Color.orange.opacity(0.1)
         } else {
             Color.green.opacity(0.1)
@@ -1050,7 +1049,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.3)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             Color.orange.opacity(0.3)
         } else {
             Color.green.opacity(0.3)

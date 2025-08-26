@@ -86,7 +86,8 @@ class SystemStatusChecker {
         // Check cache first
         if let cached = cachedStateResult,
            let timestamp = cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < cacheValidDuration {
+           Date().timeIntervalSince(timestamp) < cacheValidDuration
+        {
             AppLogger.shared.log("🔍 [SystemStatusChecker] Returning cached state (age: \(String(format: "%.1f", Date().timeIntervalSince(timestamp)))s)")
             return cached
         }
@@ -438,7 +439,8 @@ class SystemStatusChecker {
     }
 
     private func convertToSystemConflicts(_ processes: [ProcessLifecycleManager.ProcessInfo])
-        -> [SystemConflict] {
+        -> [SystemConflict]
+    {
         // With PID file tracking, all external processes are conflicts
         // The ProcessLifecycleManager already filtered out our owned process
         processes.map { process in
@@ -552,7 +554,8 @@ class SystemStatusChecker {
 
         // Check if VHIDDevice Manager needs activation
         if components.missing.contains(.vhidDeviceActivation),
-           components.installed.contains(.vhidDeviceManager) {
+           components.installed.contains(.vhidDeviceManager)
+        {
             actions.append(.activateVHIDDeviceManager)
         }
 
@@ -755,7 +758,7 @@ class SystemStatusChecker {
                 description: "Kanata binary needs Input Monitoring permission to intercept keystrokes.",
                 autoFixAction: nil,
                 userAction: "Grant permission in System Settings > Privacy & Security > Input Monitoring"
-            )
+            ),
         ]
 
         return SystemStateResult(

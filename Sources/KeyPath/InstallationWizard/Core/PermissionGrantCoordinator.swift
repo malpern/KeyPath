@@ -41,7 +41,8 @@ class PermissionGrantCoordinator: ObservableObject {
 
     func initiatePermissionGrant(for permissionType: CoordinatorPermissionType,
                                  instructions: String,
-                                 onComplete: (() -> Void)? = nil) {
+                                 onComplete: (() -> Void)? = nil)
+    {
         logger.log("SAVING wizard state for \(permissionType.displayName) restart:")
 
         // Reset completion guard for new permission grant flow
@@ -80,7 +81,8 @@ class PermissionGrantCoordinator: ObservableObject {
 
     private func showInstructionsDialog(for permissionType: CoordinatorPermissionType,
                                         instructions: String,
-                                        onComplete: @escaping () -> Void) {
+                                        onComplete: @escaping () -> Void)
+    {
         let alert = NSAlert()
         alert.messageText = "\(permissionType.displayName) Permission Required"
         alert.informativeText = instructions
@@ -145,8 +147,9 @@ class PermissionGrantCoordinator: ObservableObject {
     }
 
     func performPermissionRestart(for permissionType: CoordinatorPermissionType,
-                                  kanataManager: SimpleKanataManager,
-                                  completion: @escaping (Bool) -> Void) {
+                                  kanataManager: KanataManager,
+                                  completion: @escaping (Bool) -> Void)
+    {
         let timestamp = UserDefaults.standard.double(forKey: permissionType.timestampKey)
         let originalDate = Date(timeIntervalSince1970: timestamp)
         let timeSince = Date().timeIntervalSince1970 - timestamp
@@ -156,7 +159,7 @@ class PermissionGrantCoordinator: ObservableObject {
         logger.log("  - Time elapsed: \(String(format: "%.1f", timeSince))s  ")
         logger.log("  - Assumption: User granted \(permissionType.displayName) permissions to KeyPath and/or kanata")
         logger.log("  - Action: Restarting kanata process to pick up new permissions")
-        logger.log("  - Method: SimpleKanataManager retryAfterFix for complete restart")
+        logger.log("  - Method: KanataManager retryAfterFix for complete restart")
 
         // Skip auto-launch to prevent resetting wizard flag
         logger.log("SKIPPING auto-launch (would reset wizard flag)")
@@ -206,7 +209,7 @@ class PermissionGrantCoordinator: ObservableObject {
         }
     }
 
-    private func attemptKanataRestart(kanataManager: SimpleKanataManager) async -> Bool {
+    private func attemptKanataRestart(kanataManager: KanataManager) async -> Bool {
         // Use the retryAfterFix method which handles complete restarts
         await kanataManager.retryAfterFix("Restarting after permission grant")
 
@@ -272,20 +275,20 @@ class PermissionGrantCoordinator: ObservableObject {
         }
     }
 
-    func reopenWizard(for permissionType: CoordinatorPermissionType, kanataManager: SimpleKanataManager) {
+    func reopenWizard(for permissionType: CoordinatorPermissionType, kanataManager: KanataManager) {
         logger.log("REOPENING wizard to \(permissionType.displayName) page")
 
         // Set the appropriate wizard return flag and call the appropriate method
         switch permissionType {
         case .accessibility:
             UserDefaults.standard.set(true, forKey: "wizard_return_to_accessibility")
-            logger.log("SimpleKanataManager.showWizardForInputMonitoring called (using generic method)")
+            logger.log("KanataManager.showWizardForInputMonitoring called (using generic method)")
             Task { @MainActor in
                 await kanataManager.showWizardForInputMonitoring()
             }
         case .inputMonitoring:
             UserDefaults.standard.set(true, forKey: "wizard_return_to_input_monitoring")
-            logger.log("SimpleKanataManager.showWizardForInputMonitoring called")
+            logger.log("KanataManager.showWizardForInputMonitoring called")
             Task { @MainActor in
                 await kanataManager.showWizardForInputMonitoring()
             }

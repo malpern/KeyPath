@@ -10,8 +10,7 @@ struct WizardKanataServicePage: View {
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var refreshTimer: Timer?
 
-    // Integration with SimpleKanataManager for better error context
-    @State private var simpleKanataManager: SimpleKanataManager?
+    // Integration with KanataManager for better error context
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     enum ServiceStatus: Equatable {

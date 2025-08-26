@@ -266,7 +266,8 @@ extension KanataManager {
         // Parse JSON response to extract error message
         if let data = response.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let msg = json["msg"] as? String {
+           let msg = json["msg"] as? String
+        {
             return msg
         }
         return "Unknown error from Kanata"

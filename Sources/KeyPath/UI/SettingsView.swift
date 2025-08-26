@@ -3,7 +3,6 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataManager: KanataManager
-    @EnvironmentObject var simpleKanataManager: SimpleKanataManager
     @Environment(\.preferencesService) private var preferences: PreferencesService
     @State private var showingResetConfirmation = false
     @State private var showingDiagnostics = false
@@ -13,7 +12,7 @@ struct SettingsView: View {
     // Timer removed - now handled by SimpleKanataManager centrally
 
     private var kanataServiceStatus: String {
-        switch simpleKanataManager.currentState {
+        switch kanataManager.currentState {
         case .running:
             "Running"
         case .starting:
@@ -38,16 +37,16 @@ struct SettingsView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             AppLogger.shared.log("🔍 [SettingsView] onAppear called")
-            AppLogger.shared.log("🔍 [SettingsView] Using shared SimpleKanataManager - state: \(simpleKanataManager.currentState.rawValue)")
-            AppLogger.shared.log("🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(simpleKanataManager.showWizard)")
+            AppLogger.shared.log("🔍 [SettingsView] Using shared SimpleKanataManager - state: \(kanataManager.currentState.rawValue)")
+            AppLogger.shared.log("🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(kanataManager.showWizard)")
 
-            if simpleKanataManager.showWizard {
+            if kanataManager.showWizard {
                 AppLogger.shared.log("🎭 [SettingsView] Triggering wizard from Settings - Kanata needs help")
                 showingInstallationWizard = true
             }
 
             Task {
-                await simpleKanataManager.forceRefreshStatus()
+                await kanataManager.forceRefreshStatus()
             }
         }
         .alert("Enter TCP Port", isPresented: $showingTCPPortAlert) {
@@ -62,7 +61,7 @@ struct SettingsView: View {
                     preferences.tcpServerPort = port
                     AppLogger.shared.log("🔧 [SettingsView] TCP port changed to: \(port)")
 
-                    if simpleKanataManager.currentState == .running {
+                    if kanataManager.currentState == .running {
                         AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for TCP port change")
                     }
 
@@ -84,7 +83,7 @@ struct SettingsView: View {
                 .onDisappear {
                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
                     Task {
-                        await simpleKanataManager.onWizardClosed()
+                        await kanataManager.onWizardClosed()
                     }
                 }
                 .environmentObject(kanataManager)
@@ -92,15 +91,15 @@ struct SettingsView: View {
         .onDisappear {
             AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
         }
-        .onChange(of: simpleKanataManager.showWizard) { shouldShow in
+        .onChange(of: kanataManager.showWizard) { shouldShow in
             AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
-            AppLogger.shared.log("🔍 [SettingsView] Current simpleKanataManager state: \(simpleKanataManager.currentState.rawValue)")
+            AppLogger.shared.log("🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)")
             showingInstallationWizard = shouldShow
         }
         .onChange(of: preferences.tcpServerEnabled) { _ in
             checkTCPServerStatus()
         }
-        .onChange(of: simpleKanataManager.currentState) { _ in
+        .onChange(of: kanataManager.currentState) { _ in
             checkTCPServerStatus()
         }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
@@ -185,9 +184,9 @@ struct SettingsView: View {
                     action: {
                         Task {
                             AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
-                            await simpleKanataManager.manualStop()
+                            await kanataManager.manualStop()
                             try? await Task.sleep(nanoseconds: 1_000_000_000)
-                            await simpleKanataManager.manualStart()
+                            await kanataManager.manualStart()
                         }
                     }
                 )
@@ -200,7 +199,7 @@ struct SettingsView: View {
                     action: {
                         Task {
                             AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
-                            await simpleKanataManager.forceRefreshStatus()
+                            await kanataManager.forceRefreshStatus()
                         }
                     }
                 )
@@ -209,7 +208,7 @@ struct SettingsView: View {
                     title: "Stop Kanata Service",
                     systemImage: "stop.circle",
                     style: .destructive,
-                    disabled: simpleKanataManager.currentState == .stopped,
+                    disabled: kanataManager.currentState == .stopped,
                     accessibilityId: "stop-kanata-service-button",
                     accessibilityHint: "Completely stop the Kanata service and prevent auto-reloading",
                     action: {
@@ -435,9 +434,9 @@ struct SettingsView: View {
                                  action: {
                                      Task {
                                          AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
-                                         await simpleKanataManager.manualStop()
+                                         await kanataManager.manualStop()
                                          try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
-                                         await simpleKanataManager.manualStart()
+                                         await kanataManager.manualStart()
                                      }
                                  }
                              )
@@ -450,7 +449,7 @@ struct SettingsView: View {
                                  action: {
                                      Task {
                                          AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
-                                         await simpleKanataManager.forceRefreshStatus()
+                                         await kanataManager.forceRefreshStatus()
                                      }
                                  }
                              )
@@ -459,7 +458,7 @@ struct SettingsView: View {
                                  title: "Stop Kanata Service",
                                  systemImage: "stop.circle",
                                  style: .destructive,
-                                 disabled: simpleKanataManager.currentState == .stopped,
+                                 disabled: kanataManager.currentState == .stopped,
                                  accessibilityId: "stop-kanata-service-button",
                                  accessibilityHint: "Completely stop the Kanata service and prevent auto-reloading",
                                  action: {
@@ -655,14 +654,14 @@ struct SettingsView: View {
              AppLogger.shared.log("🔍 [SettingsView] onAppear called")
 
              AppLogger.shared.log(
-                 "🔍 [SettingsView] Using shared SimpleKanataManager - state: \(simpleKanataManager.currentState.rawValue)"
+                 "🔍 [SettingsView] Using shared SimpleKanataManager - state: \(kanataManager.currentState.rawValue)"
              )
              AppLogger.shared.log(
-                 "🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(simpleKanataManager.showWizard)"
+                 "🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(kanataManager.showWizard)"
              )
 
              // Check if wizard should be shown immediately
-             if simpleKanataManager.showWizard {
+             if kanataManager.showWizard {
                  AppLogger.shared.log("🎭 [SettingsView] Triggering wizard from Settings - Kanata needs help")
                  showingInstallationWizard = true
              }
@@ -670,7 +669,7 @@ struct SettingsView: View {
              // Status monitoring now handled centrally by SimpleKanataManager
              // Just do an initial status refresh
              Task {
-                 await simpleKanataManager.forceRefreshStatus()
+                 await kanataManager.forceRefreshStatus()
              }
 
              // Check TCP server status
@@ -700,7 +699,7 @@ struct SettingsView: View {
                      AppLogger.shared.log("🔧 [SettingsView] TCP port changed to: \(port)")
 
                      // Suggest service restart if Kanata is running
-                     if simpleKanataManager.currentState == .running {
+                     if kanataManager.currentState == .running {
                          AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for TCP port change")
                      }
 
@@ -725,7 +724,7 @@ struct SettingsView: View {
                  .onDisappear {
                      AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
                      Task {
-                         await simpleKanataManager.onWizardClosed()
+                         await kanataManager.onWizardClosed()
                      }
                  }
                  .environmentObject(kanataManager)
@@ -734,10 +733,10 @@ struct SettingsView: View {
              AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
              // Status monitoring handled centrally - no cleanup needed
          }
-         .onChange(of: simpleKanataManager.showWizard) { shouldShow in
+         .onChange(of: kanataManager.showWizard) { shouldShow in
              AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
              AppLogger.shared.log(
-                 "🔍 [SettingsView] Current simpleKanataManager state: \(simpleKanataManager.currentState.rawValue)"
+                 "🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
              )
              showingInstallationWizard = shouldShow
          }
@@ -745,7 +744,7 @@ struct SettingsView: View {
              // Refresh TCP status when enabled/disabled
              checkTCPServerStatus()
          }
-         .onChange(of: simpleKanataManager.currentState) { _ in
+         .onChange(of: kanataManager.currentState) { _ in
              // Refresh TCP status when Kanata state changes
              checkTCPServerStatus()
          }
@@ -963,7 +962,7 @@ struct SettingsView: View {
 
     private func checkTCPServerStatus() {
         Task {
-            if preferences.tcpServerEnabled, simpleKanataManager.currentState == .running {
+            if preferences.tcpServerEnabled, kanataManager.currentState == .running {
                 let client = KanataTCPClient(port: preferences.tcpServerPort)
                 let isAvailable = await client.checkServerStatus()
 
@@ -985,7 +984,7 @@ struct SettingsView: View {
         do {
             // Step 1: Use SimpleKanataManager to stop gracefully first
             AppLogger.shared.log("🛑 [SettingsView] Step 1: Stopping via SimpleKanataManager")
-            await simpleKanataManager.manualStop()
+            await kanataManager.manualStop()
 
             // Step 2: Force kill the launchd service
             AppLogger.shared.log("🛑 [SettingsView] Step 2: Force killing launchd service")
@@ -1031,7 +1030,7 @@ struct SettingsView: View {
             AppLogger.shared.log("🛑 [SettingsView] ========== KANATA SERVICE STOPPED ==========")
 
             // Refresh status to reflect changes
-            await simpleKanataManager.forceRefreshStatus()
+            await kanataManager.forceRefreshStatus()
 
         } catch {
             AppLogger.shared.log("❌ [SettingsView] Error stopping Kanata service: \(error)")
@@ -1079,11 +1078,11 @@ struct SettingsView: View {
 
         // Step 4: Restart via SimpleKanataManager
         AppLogger.shared.log("🔧 [SettingsView] Step 4: Restarting via SimpleKanataManager")
-        await simpleKanataManager.manualStart()
+        await kanataManager.manualStart()
 
         // Step 5: Refresh status
         AppLogger.shared.log("🔧 [SettingsView] Step 5: Refreshing status")
-        await simpleKanataManager.forceRefreshStatus()
+        await kanataManager.forceRefreshStatus()
 
         AppLogger.shared.log("🔧 [SettingsView] ========== DEV RESET COMPLETED ==========")
     }
