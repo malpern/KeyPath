@@ -128,7 +128,8 @@ final class ErrorHandlingTests: XCTestCase {
         ]
 
         for (input, output) in problematicCombos {
-            let config = manager.generateKanataConfig(input: input, output: output)
+            let mapping = KeyMapping(input: input, output: output)
+            let config = KanataConfiguration.generateFromMappings([mapping])
 
             // Config should still be valid structure
             XCTAssertTrue(config.contains("(defcfg"), "Should contain defcfg even with problematic input")
@@ -157,7 +158,8 @@ final class ErrorHandlingTests: XCTestCase {
         ]
 
         for specialChar in specialKanataChars {
-            let config = manager.generateKanataConfig(input: "caps", output: specialChar)
+            let mapping = KeyMapping(input: "caps", output: specialChar)
+            let config = KanataConfiguration.generateFromMappings([mapping])
 
             // Should handle special Kanata syntax characters
             XCTAssertTrue(config.contains("(defcfg"), "Should handle special Kanata char: \(specialChar)")
@@ -181,8 +183,10 @@ final class ErrorHandlingTests: XCTestCase {
         ]
 
         for char in internationalChars {
-            let inputConfig = manager.generateKanataConfig(input: char, output: "escape")
-            let outputConfig = manager.generateKanataConfig(input: "caps", output: char)
+            let inputMapping = KeyMapping(input: char, output: "escape")
+            let inputConfig = KanataConfiguration.generateFromMappings([inputMapping])
+            let outputMapping = KeyMapping(input: "caps", output: char)
+            let outputConfig = KanataConfiguration.generateFromMappings([outputMapping])
 
             // Should generate valid configs
             XCTAssertTrue(inputConfig.contains("(defcfg"), "Should handle international input char: \(char)")
@@ -281,7 +285,8 @@ final class ErrorHandlingTests: XCTestCase {
             let largeInput = String(repeating: "caps", count: 100)
             let largeOutput = String(repeating: "escape", count: 100)
 
-            let config = manager.generateKanataConfig(input: largeInput, output: largeOutput)
+            let mapping = KeyMapping(input: largeInput, output: largeOutput)
+            let config = KanataConfiguration.generateFromMappings([mapping])
 
             // Should still generate valid config structure
             XCTAssertTrue(config.contains("(defcfg"), "Should handle large inputs under memory pressure: iteration \(iteration)")
@@ -448,8 +453,9 @@ final class ErrorHandlingTests: XCTestCase {
         ]
 
         for (input, output) in testCases {
-            let config1 = manager.generateKanataConfig(input: input, output: output)
-            let config2 = manager.generateKanataConfig(input: input, output: output)
+            let mapping = KeyMapping(input: input, output: output)
+            let config1 = KanataConfiguration.generateFromMappings([mapping])
+            let config2 = KanataConfiguration.generateFromMappings([mapping])
 
             // Same inputs should produce same outputs
             XCTAssertEqual(config1, config2, "Configuration generation should be deterministic")
@@ -468,7 +474,8 @@ final class ErrorHandlingTests: XCTestCase {
         }
 
         for input in randomInputs {
-            let config = manager.generateKanataConfig(input: input, output: "escape")
+            let mapping = KeyMapping(input: input, output: "escape")
+            let config = KanataConfiguration.generateFromMappings([mapping])
 
             // All configs should have required sections
             XCTAssertTrue(config.contains("(defcfg"), "Random config should have defcfg: \(input)")

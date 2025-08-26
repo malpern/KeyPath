@@ -48,12 +48,12 @@ enum ConfigError: Error, LocalizedError {
 }
 
 /// Represents a simple key mapping from input to output
-struct KeyMapping: Codable, Equatable, Identifiable {
-    let id = UUID()
-    let input: String
-    let output: String
+public struct KeyMapping: Codable, Equatable, Identifiable {
+    public let id = UUID()
+    public let input: String
+    public let output: String
 
-    init(input: String, output: String) {
+    public init(input: String, output: String) {
         self.input = input
         self.output = output
     }
@@ -202,6 +202,10 @@ class KanataManager: ObservableObject {
     // Removed kanataProcess: Process? - now using LaunchDaemon service exclusively
     let configDirectory = "\(NSHomeDirectory())/.config/keypath"
     let configFileName = "keypath.kbd"
+
+    // MARK: - Service Dependencies (Milestone 4)
+
+    let configurationService: ConfigurationService
     private var isStartingKanata = false
     private let processLifecycleManager: ProcessLifecycleManager
     var isInitializing = false
@@ -232,7 +236,7 @@ class KanataManager: ObservableObject {
     private let maxConnectionFailures = 10 // Trigger recovery after 10 consecutive failures
 
     var configPath: String {
-        "\(configDirectory)/\(configFileName)"
+        configurationService.configurationPath
     }
 
     init() {
@@ -240,6 +244,9 @@ class KanataManager: ObservableObject {
         isHeadlessMode =
             ProcessInfo.processInfo.arguments.contains("--headless")
                 || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
+
+        // Initialize service dependencies
+        configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
 
         // Initialize process lifecycle manager
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
@@ -1409,31 +1416,25 @@ class KanataManager: ObservableObject {
             saveStatus = .saving
         }
 
-        // Parse existing mappings from config file
-        await loadExistingMappings()
-
-        // Create new mapping
-        let newMapping = KeyMapping(input: input, output: output)
-
-        // Remove any existing mapping with the same input
-        keyMappings.removeAll { $0.input == input }
-
-        // Add the new mapping
-        keyMappings.append(newMapping)
-
-        // Generate config with all mappings
-        let config = generateKanataConfigWithMappings(keyMappings)
-
-        // Validation-on-demand: Save first, validate only on failure
-        AppLogger.shared.log("⚡ [Config] Using validation-on-demand for faster saves")
-
         do {
+            // Parse existing mappings from config file
+            await loadExistingMappings()
+
+            // Create new mapping
+            let newMapping = KeyMapping(input: input, output: output)
+
+            // Remove any existing mapping with the same input
+            keyMappings.removeAll { $0.input == input }
+
+            // Add the new mapping
+            keyMappings.append(newMapping)
+
             // Backup current config before making changes
             try await backupCurrentConfig()
 
-            // Save config directly without validation
-            try config.write(to: URL(fileURLWithPath: configPath), atomically: true, encoding: .utf8)
-            AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings")
+            // Delegate to ConfigurationService for saving
+            try await configurationService.saveConfiguration(keyMappings: keyMappings)
+            AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationService")
 
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { SoundManager.shared.playTinkSound() }
@@ -2838,7 +2839,8 @@ class KanataManager: ObservableObject {
     private func generateKanataConfigWithMappings(_ mappings: [KeyMapping]) -> String {
         guard !mappings.isEmpty else {
             // Return default config with caps->esc if no mappings
-            return generateKanataConfig(input: "caps", output: "escape")
+            let defaultMapping = KeyMapping(input: "caps", output: "escape")
+            return KanataConfiguration.generateFromMappings([defaultMapping])
         }
 
         let mappingsList = mappings.map { "\($0.input) -> \($0.output)" }.joined(separator: ", ")
@@ -2888,7 +2890,8 @@ class KanataManager: ObservableObject {
     }
 
     func resetToDefaultConfig() async throws {
-        let defaultConfig = generateKanataConfig(input: "caps", output: "escape")
+        let defaultMapping = KeyMapping(input: "caps", output: "escape")
+        let defaultConfig = KanataConfiguration.generateFromMappings([defaultMapping])
         let configURL = URL(fileURLWithPath: configPath)
 
         // Ensure config directory exists
@@ -3214,7 +3217,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
                 return (true, [])
             } else {
-                let errors = parseKanataErrors(output)
+                let errors = configurationService.parseKanataErrors(output)
                 AppLogger.shared.log("❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
                 for (index, error) in errors.enumerated() {
                     AppLogger.shared.log("   Error \(index + 1): \(error)")
@@ -3462,7 +3465,8 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
 
         // Create and apply safe config
-        let safeConfig = generateKanataConfig(input: "caps", output: "escape")
+        let defaultMapping = KeyMapping(input: "caps", output: "escape")
+        let safeConfig = KanataConfiguration.generateFromMappings([defaultMapping])
         try await saveValidatedConfig(safeConfig)
 
         // Update in-memory mappings to reflect the safe state

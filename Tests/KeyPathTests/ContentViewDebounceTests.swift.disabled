@@ -35,7 +35,8 @@ class ContentViewDebounceTests: XCTestCase {
         let finalInput = "caps"
         let finalOutput = "ctrl"
 
-        let config = manager.generateKanataConfig(input: finalInput, output: finalOutput)
+        let mapping = KeyMapping(input: finalInput, output: finalOutput)
+        let config = KanataConfiguration.generateFromMappings([mapping])
         XCTAssertTrue(config.contains(finalInput), "Configuration should contain final input mapping")
         XCTAssertTrue(config.contains(finalOutput), "Configuration should contain final output mapping")
 
@@ -77,7 +78,8 @@ class ContentViewDebounceTests: XCTestCase {
         do {
             // This would normally call manager.saveConfiguration(input:output:)
             // For now, we test the configuration generation
-            let config = manager.generateKanataConfig(input: "caps", output: "esc")
+            let mapping = KeyMapping(input: "caps", output: "esc")
+            let config = KanataConfiguration.generateFromMappings([mapping])
 
             XCTAssertTrue(config.contains("caps"))
             XCTAssertTrue(config.contains("esc"))
@@ -99,7 +101,8 @@ class ContentViewDebounceTests: XCTestCase {
 
                 // In a real test, this would call the debounced save function
                 // For now, we test the configuration generation under concurrent access
-                let config = manager.generateKanataConfig(input: "key\(taskId)", output: "output\(taskId)")
+                let mapping = KeyMapping(input: "key\(taskId)", output: "output\(taskId)")
+                let config = KanataConfiguration.generateFromMappings([mapping])
 
                 XCTAssertTrue(config.contains("key\(taskId)"))
                 AppLogger.shared.log("🧪 [Test] Completed concurrent save task \(taskId)")
@@ -135,7 +138,8 @@ class Phase1LoggingTests: XCTestCase {
         let manager = KanataManager()
 
         // Test that we can generate a config and logging reflects the operation
-        let config = manager.generateKanataConfig(input: "f1", output: "f13")
+        let mapping = KeyMapping(input: "f1", output: "f13")
+        let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Verify the actual config generation worked (tests business logic)
         XCTAssertTrue(config.contains("(defsrc f1)"), "Config should contain source key definition")
