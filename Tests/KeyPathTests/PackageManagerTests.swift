@@ -261,7 +261,8 @@ class MockPackageManager: PackageManager {
             isInstalled: mockKanataInstalled,
             path: mockKanataPath,
             installationType: mockInstallationType,
-            version: mockKanataInstalled ? "0.8.0" : nil
+            version: mockKanataInstalled ? "0.8.0" : nil,
+            codeSigningStatus: .unsigned
         )
     }
 }

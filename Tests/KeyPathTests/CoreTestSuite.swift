@@ -1,172 +1,123 @@
 @testable import KeyPath
 import XCTest
 
-/// Core test suite combining essential functionality tests
-/// Replaces scattered test files with focused, CI-friendly tests
-@MainActor
+/// Core integration tests for essential system interactions
+/// Tests real components with minimal mocking
 final class CoreTestSuite: XCTestCase {
-    private var mockEnvironment: MockSystemEnvironment!
+    // MARK: - KanataConfigManager Integration Tests
 
-    override func setUp() async throws {
-        mockEnvironment = MockSystemEnvironment()
-    }
-
-    override func tearDown() async throws {
-        mockEnvironment = nil
-    }
-
-    // MARK: - Configuration Management Tests
-
-    func testKanataConfigGeneration() async throws {
+    func testConfigurationCreationAndValidation() throws {
         let manager = KanataConfigManager()
-        let mapping = KeyMapping(inputKey: "caps", outputKey: "escape")
+        let mappings = [
+            KeyMapping(input: "caps", output: "esc"),
+            KeyMapping(input: "tab", output: "lctl"),
+        ]
 
-        let config = try manager.generateConfig(mappings: [mapping])
+        let configSet = manager.createConfiguration(mappings: mappings)
 
-        XCTAssertTrue(config.contains("defsrc"))
-        XCTAssertTrue(config.contains("deflayer"))
+        // Verify configuration structure
+        XCTAssertEqual(configSet.mappings.count, 2)
+        XCTAssertTrue(configSet.validationResult.isValid)
+        XCTAssertFalse(configSet.validationResult.hasBlockingErrors)
+
+        // Verify generated config contains required sections
+        let config = configSet.generatedConfig
+        XCTAssertTrue(config.contains("(defcfg"))
+        XCTAssertTrue(config.contains("(defsrc"))
+        XCTAssertTrue(config.contains("(deflayer"))
         XCTAssertTrue(config.contains("caps"))
         XCTAssertTrue(config.contains("esc"))
     }
 
-    func testConfigValidation() async throws {
+    func testConfigurationTemplates() throws {
         let manager = KanataConfigManager()
 
-        // Valid config
-        let validConfig = """
-        (defcfg process-unmapped-keys yes)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        // Test all built-in templates
+        for template in KanataConfigManager.ConfigTemplate.allCases {
+            let configSet = manager.createConfigurationFromTemplate(template)
 
-        let result = try manager.validateConfig(validConfig)
-        XCTAssertTrue(result.isValid)
-        XCTAssertTrue(result.errors.isEmpty)
-    }
-
-    // MARK: - Manager State Tests
-
-    func testSimpleKanataManagerStates() async throws {
-        let manager = SimpleKanataManager(
-            lifecycleManager: mockEnvironment.lifecycleManager,
-            systemChecker: mockEnvironment.systemChecker
-        )
-
-        // Initial state
-        XCTAssertEqual(manager.currentState, .starting)
-
-        // Mock successful start
-        mockEnvironment.mockKanataRunning = true
-        await manager.checkSystemHealth()
-
-        XCTAssertEqual(manager.currentState, .running)
-    }
-
-    func testProcessLifecycleBasics() async throws {
-        let manager = ProcessLifecycleManager()
-
-        // Test PID detection
-        let mockProcess = MockProcess(pid: 12345, isRunning: true)
-        mockEnvironment.mockProcess = mockProcess
-
-        let isRunning = manager.isKanataRunning()
-        XCTAssertTrue(isRunning)
-    }
-
-    // MARK: - Permission Service Tests
-
-    func testPermissionChecking() async throws {
-        let service = PermissionService()
-
-        // Mock permission states
-        mockEnvironment.mockAccessibilityPermission = true
-        mockEnvironment.mockInputMonitoringPermission = false
-
-        let accessibility = service.checkAccessibilityPermission()
-        let inputMonitoring = service.checkInputMonitoringPermission()
-
-        XCTAssertTrue(accessibility)
-        XCTAssertFalse(inputMonitoring)
-    }
-
-    // MARK: - TCP Integration Tests
-
-    func testTCPClientConnection() async throws {
-        let client = KanataTCPClient()
-
-        // Test connection failure (expected in CI)
-        do {
-            _ = try await client.connect(to: 37000)
-            XCTFail("Should not connect in test environment")
-        } catch {
-            // Expected failure in CI
-            XCTAssertTrue(error is KanataTCPClient.TCPError)
+            XCTAssertTrue(configSet.validationResult.isValid,
+                          "Template \(template) should generate valid config")
+            XCTAssertFalse(configSet.mappings.isEmpty,
+                           "Template \(template) should have mappings")
+            XCTAssertTrue(configSet.generatedConfig.contains("(defcfg"),
+                          "Template \(template) should generate proper Kanata config")
         }
     }
 
-    // MARK: - Wizard Core Logic Tests
+    // MARK: - LifecycleStateMachine Integration Tests
 
-    func testSystemStatusDetection() async throws {
-        let checker = SystemStatusChecker()
+    func testLifecycleStateEnumeration() throws {
+        // Test state enumeration completeness
+        let allStates = LifecycleStateMachine.KanataState.allCases
+        XCTAssertTrue(allStates.contains(.uninitialized))
+        XCTAssertTrue(allStates.contains(.starting))
+        XCTAssertTrue(allStates.contains(.running))
+        XCTAssertTrue(allStates.contains(.stopped))
+        XCTAssertTrue(allStates.contains(.error))
 
-        // Mock system states
-        mockEnvironment.mockKanataInstalled = true
-        mockEnvironment.mockKanataRunning = false
-
-        let status = await checker.checkSystemStatus()
-
-        XCTAssertTrue(status.kanataInstalled)
-        XCTAssertFalse(status.kanataRunning)
+        // Test state display names
+        XCTAssertFalse(LifecycleStateMachine.KanataState.starting.displayName.isEmpty)
+        XCTAssertFalse(LifecycleStateMachine.KanataState.running.displayName.isEmpty)
     }
 
-    func testAutoFixerDecisionMaking() async throws {
-        let fixer = WizardAutoFixer(systemChecker: mockEnvironment.systemChecker)
+    // MARK: - PreferencesService Integration Tests
 
-        // Test fix recommendation
-        mockEnvironment.mockKanataInstalled = false
-        let recommendations = await fixer.generateFixRecommendations()
+    @MainActor
+    func testPreferencesServiceTCPConfiguration() throws {
+        let service = PreferencesService()
 
-        XCTAssertTrue(recommendations.contains { $0.contains("install") })
+        // Test that service initializes with valid defaults
+        XCTAssertNotNil(service.tcpServerPort)
+        XCTAssertTrue(service.isValidTCPPort(service.tcpServerPort))
+
+        // Test TCP port validation
+        XCTAssertTrue(service.isValidTCPPort(37000))
+        XCTAssertTrue(service.isValidTCPPort(65535))
+        XCTAssertFalse(service.isValidTCPPort(1023)) // Below valid range
+        XCTAssertFalse(service.isValidTCPPort(65536)) // Above valid range
+
+        // Test configuration changes
+        service.tcpServerEnabled = false
+        XCTAssertFalse(service.tcpServerEnabled)
+        XCTAssertFalse(service.shouldUseTCPServer)
+
+        service.tcpServerEnabled = true
+        service.tcpServerPort = 37000
+        XCTAssertTrue(service.shouldUseTCPServer)
+        XCTAssertEqual(service.tcpEndpoint, "127.0.0.1:37000")
     }
 
-    // MARK: - Error Handling Tests
+    // MARK: - Sound Manager Integration Tests
 
-    func testEnhancedErrorHandlerFormatting() throws {
-        let handler = EnhancedErrorHandler()
-        let error = NSError(domain: "TestError", code: 123, userInfo: [NSLocalizedDescriptionKey: "Test error"])
+    func testSoundManagerSharedInstance() throws {
+        let soundManager = SoundManager.shared
 
-        let formatted = handler.formatError(error)
+        XCTAssertNotNil(soundManager)
 
-        XCTAssertTrue(formatted.contains("Test error"))
-        XCTAssertTrue(formatted.contains("123"))
+        // Test that sound methods don't throw (even if no sound plays in test environment)
+        XCTAssertNoThrow(soundManager.playTinkSound())
+        XCTAssertNoThrow(soundManager.playGlassSound())
     }
 
-    // MARK: - Utilities Tests
+    // MARK: - Key Mapping Validation Tests
 
-    func testAppRestarter() throws {
-        let restarter = AppRestarter()
+    func testKeyMappingValidation() throws {
+        // Test valid mappings
+        let validMapping = KeyMapping(input: "caps", output: "esc")
+        XCTAssertFalse(validMapping.input.isEmpty)
+        XCTAssertFalse(validMapping.output.isEmpty)
+        XCTAssertEqual(validMapping.input, "caps")
+        XCTAssertEqual(validMapping.output, "esc")
 
-        // Test validation only (don't actually restart in tests)
-        XCTAssertNoThrow(restarter.validateRestartCapability())
-    }
+        // Test edge cases
+        let spaceMapping = KeyMapping(input: "space", output: "ctrl")
+        XCTAssertEqual(spaceMapping.input, "space")
+        XCTAssertEqual(spaceMapping.output, "ctrl")
 
-    func testLoggingConfiguration() throws {
-        let logger = Logger.shared
-
-        // Test logger initialization
-        XCTAssertNotNil(logger)
-        XCTAssertNoThrow(logger.info("Test log message"))
-    }
-}
-
-// MARK: - Mock Classes for Testing
-
-private class MockProcess {
-    let pid: Int32
-    let isRunning: Bool
-
-    init(pid: Int32, isRunning: Bool) {
-        self.pid = pid
-        self.isRunning = isRunning
+        // Test complex mappings
+        let complexMapping = KeyMapping(input: "semicolon", output: "colon")
+        XCTAssertEqual(complexMapping.input, "semicolon")
+        XCTAssertEqual(complexMapping.output, "colon")
     }
 }

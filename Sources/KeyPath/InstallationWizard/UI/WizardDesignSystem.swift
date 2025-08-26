@@ -800,7 +800,7 @@ struct AnimatedStatusIcon: View {
 
     var body: some View {
         Group {
-            if showInitialClock && (status == .completed || status == .failed) {
+            if showInitialClock, status == .completed || status == .failed {
                 // Clock-to-final-state animation for completed/failed items
                 if hasAnimated {
                     // Final state

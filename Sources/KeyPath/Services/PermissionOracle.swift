@@ -198,28 +198,26 @@ actor PermissionOracle {
     private func checkKanataPermissions() async -> PermissionSet {
         // ARCHITECTURE.md: Use split architecture - functional verification for root processes
         let kanataPath = WizardSystemPaths.bundledKanataPath
-        
+
         // Use functional verification as primary method for kanata permissions
         let functionalStatus = await checkKanataFunctionalStatus()
-        
+
         // For accessibility, kanata typically doesn't need it, so use functional status
         let accessibility: Status = functionalStatus
-        
+
         // For Input Monitoring, combine binary existence check with functional status
         let binaryCheck = checkBinaryInputMonitoring(at: kanataPath)
-        let inputMonitoring: Status
-        
-        switch (binaryCheck, functionalStatus) {
-        case (.error(let msg), _):
-            inputMonitoring = .error(msg) // Binary missing is definitive error
+        let inputMonitoring: Status = switch (binaryCheck, functionalStatus) {
+        case let (.error(msg), _):
+            .error(msg) // Binary missing is definitive error
         case (_, .granted):
-            inputMonitoring = .granted // Functional = granted means permissions work
+            .granted // Functional = granted means permissions work
         case (_, .denied):
-            inputMonitoring = .denied // Functional = denied suggests permission issues
+            .denied // Functional = denied suggests permission issues
         case (_, .unknown):
-            inputMonitoring = .unknown // Conservative when we can't verify
-        case (_, .error(let msg)):
-            inputMonitoring = .error(msg) // TCP errors
+            .unknown // Conservative when we can't verify
+        case let (_, .error(msg)):
+            .error(msg) // TCP errors
         }
 
         let source = "keypath.functional-verification"
@@ -227,7 +225,7 @@ actor PermissionOracle {
             if case .unknown = functionalStatus { return .low }
             return .high
         }()
-        
+
         AppLogger.shared.log("🔮 [Oracle] Kanata permissions: AX=\(accessibility), IM=\(inputMonitoring) via \(source)")
 
         return PermissionSet(
@@ -244,24 +242,24 @@ actor PermissionOracle {
     private func checkBinaryInputMonitoring(at kanataPath: String) -> Status {
         // ARCHITECTURE.md: Root processes have unreliable IOHIDCheckAccess() results
         // Instead, we verify functionality via TCP if kanata is running with permissions
-        
+
         // First check if the binary exists
         guard FileManager.default.fileExists(atPath: kanataPath) else {
             AppLogger.shared.log("🔮 [Oracle] Kanata binary not found at \(kanataPath)")
             return .error("Kanata binary not found")
         }
-        
+
         // For Input Monitoring, the most reliable test is functional verification:
         // If kanata TCP server is responding, it likely has the required permissions
         // This avoids the IOHIDCheckAccess() reliability issues for root processes
-        
+
         let tcpSnapshot = PreferencesService.tcpSnapshot()
         guard tcpSnapshot.shouldUseTCPServer else {
             AppLogger.shared.log("🔮 [Oracle] TCP disabled - cannot verify kanata Input Monitoring via functional test")
             // Fallback: assume permissions are needed (conservative approach)
             return .unknown
         }
-        
+
         // Note: We can't do synchronous TCP check here without blocking
         // The functional check happens in checkKanataFunctionalStatus()
         // For now, assume .unknown and let functional verification handle it

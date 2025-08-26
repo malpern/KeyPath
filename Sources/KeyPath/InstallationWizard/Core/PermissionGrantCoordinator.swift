@@ -354,7 +354,7 @@ class PermissionGrantCoordinator: ObservableObject {
                 var error: NSDictionary?
                 let result = appleScript?.executeAndReturnError(&error)
 
-                if let error = error {
+                if let error {
                     self.logger.log("❌ [ServiceBounce] Failed to bounce service: \(error)")
                     continuation.resume(returning: false)
                 } else {

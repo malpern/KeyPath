@@ -152,11 +152,11 @@ class KanataManager: ObservableObject {
     }
 
     // Removed kanataProcess: Process? - now using LaunchDaemon service exclusively
-    private let configDirectory = "\(NSHomeDirectory())/.config/keypath"
-    private let configFileName = "keypath.kbd"
+    let configDirectory = "\(NSHomeDirectory())/.config/keypath"
+    let configFileName = "keypath.kbd"
     private var isStartingKanata = false
     private let processLifecycleManager: ProcessLifecycleManager
-    private var isInitializing = false
+    var isInitializing = false
     private let isHeadlessMode: Bool
 
     // MARK: - Process Synchronization (Phase 1)
@@ -195,51 +195,6 @@ class KanataManager: ObservableObject {
         }
     }
 
-    private func performInitialization() async {
-        // Prevent concurrent initialization
-        if isInitializing {
-            AppLogger.shared.log("⚠️ [Init] Already initializing - skipping duplicate initialization")
-            return
-        }
-
-        isInitializing = true
-        defer { isInitializing = false }
-
-        await updateStatus()
-
-        // First, adopt any existing KeyPath-looking kanata processes before deciding to auto-start
-        var lifecycle: ProcessLifecycleManager!
-        await MainActor.run {
-            lifecycle = ProcessLifecycleManager(kanataManager: self)
-        }
-        await lifecycle.recoverFromCrash()
-        await updateStatus()
-        // Try to start Kanata automatically on launch if all requirements are met
-        let status = await getSystemRequirementsStatus()
-
-        // Check if Kanata is already running before attempting to start
-        if isRunning {
-            AppLogger.shared.log("✅ [Init] Kanata is already running - skipping initialization")
-            return
-        }
-
-        // Auto-start kanata if all requirements are met
-        AppLogger.shared.log(
-            "🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)"
-        )
-
-        if status.installed, status.permissions, status.driver, status.daemon {
-            AppLogger.shared.log("✅ [Init] All requirements met - auto-starting Kanata")
-            await startKanata()
-        } else {
-            AppLogger.shared.log("⚠️ [Init] Requirements not met - skipping auto-start")
-            if !status.installed { AppLogger.shared.log("  - Missing: Kanata binary") }
-            if !status.permissions { AppLogger.shared.log("  - Missing: Required permissions") }
-            if !status.driver { AppLogger.shared.log("  - Missing: VirtualHID driver") }
-            if !status.daemon { AppLogger.shared.log("  - Missing: VirtualHID daemon") }
-        }
-    }
-
     // MARK: - Diagnostics
 
     func addDiagnostic(_ diagnostic: KanataDiagnostic) {
@@ -258,102 +213,9 @@ class KanataManager: ObservableObject {
     }
 
     /// Attempts to recover from zombie keyboard capture when VirtualHID connection fails
-    private func attemptKeyboardRecovery() async {
-        AppLogger.shared.log("🔧 [Recovery] Starting keyboard recovery process...")
-
-        // Step 1: Ensure all Kanata processes are killed
-        AppLogger.shared.log("🔧 [Recovery] Step 1: Killing any remaining Kanata processes")
-        await killAllKanataProcesses()
-
-        // Step 2: Wait for system to release keyboard control
-        AppLogger.shared.log("🔧 [Recovery] Step 2: Waiting 2 seconds for keyboard release...")
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-        // Step 3: Restart VirtualHID daemon
-        AppLogger.shared.log("🔧 [Recovery] Step 3: Attempting to restart Karabiner daemon...")
-        await restartKarabinerDaemon()
-
-        // Step 4: Wait before retry
-        AppLogger.shared.log("🔧 [Recovery] Step 4: Waiting 3 seconds before retry...")
-        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-
-        // Step 5: Try starting Kanata again with validation
-        AppLogger.shared.log(
-            "🔧 [Recovery] Step 5: Attempting to restart Kanata with VirtualHID validation...")
-        await startKanataWithValidation()
-
-        AppLogger.shared.log("🔧 [Recovery] Keyboard recovery process complete")
-    }
-
-    /// Kills all Kanata processes for recovery purposes
-    private func killAllKanataProcesses() async {
-        let script = """
-        do shell script "/usr/bin/pkill -f kanata" with administrator privileges
-        """
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", script]
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("🔧 [Recovery] Killed all Kanata processes")
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [Recovery] Failed to kill Kanata processes - exit code: \(task.terminationStatus)")
-            }
-        } catch {
-            AppLogger.shared.log("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
-        }
-    }
-
-    /// Restarts the Karabiner VirtualHID daemon to fix connection issues
-    private func restartKarabinerDaemon() async {
-        // First kill the daemon
-        let killScript =
-            "do shell script \"/usr/bin/pkill -f Karabiner-VirtualHIDDevice-Daemon\" with administrator privileges with prompt \"KeyPath needs to restart the virtual keyboard daemon.\""
-
-        let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        killTask.arguments = ["-e", killScript]
-
-        do {
-            try killTask.run()
-            killTask.waitUntilExit()
-
-            if killTask.terminationStatus == 0 {
-                AppLogger.shared.log("🔧 [Recovery] Killed Karabiner daemon")
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [Recovery] Failed to kill Karabiner daemon - exit code: \(killTask.terminationStatus)")
-            }
-
-            // Wait a moment then check if it auto-restarts
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-
-            if !isKarabinerDaemonRunning() {
-                AppLogger.shared.log("🔧 [Recovery] Daemon not auto-restarted, attempting manual start...")
-
-                let startScript =
-                    "do shell script \\\"\\\"/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon\\\" > /dev/null 2>&1 &\\\" with administrator privileges with prompt \\\"KeyPath needs to manually start the virtual keyboard daemon.\\\""
-
-                let startTask = Process()
-                startTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                startTask.arguments = ["-e", startScript]
-
-                try? startTask.run()
-                AppLogger.shared.log("🔧 [Recovery] Attempted to start Karabiner daemon")
-            }
-        } catch {
-            AppLogger.shared.log("⚠️ [Recovery] Failed to restart Karabiner daemon: \(error)")
-        }
-    }
 
     /// Starts Kanata with VirtualHID connection validation
-    private func startKanataWithValidation() async {
+    func startKanataWithValidation() async {
         // Check if VirtualHID daemon is running first
         if !isKarabinerDaemonRunning() {
             AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
@@ -367,75 +229,6 @@ class KanataManager: ObservableObject {
 
         // Try starting Kanata normally
         await startKanata()
-    }
-
-    func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
-        guard FileManager.default.fileExists(atPath: configPath) else {
-            return (false, ["Config file does not exist at: \(configPath)"])
-        }
-
-        // Try TCP validation first if enabled and Kanata is running
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        if tcpConfig.shouldUseTCPServer, isRunning {
-            AppLogger.shared.log("🌐 [Validation] Attempting TCP validation")
-            if let tcpResult = await validateConfigViaTCP() {
-                return tcpResult
-            } else {
-                AppLogger.shared.log(
-                    "🌐 [Validation] TCP validation unavailable, falling back to file-based validation")
-            }
-        }
-
-        // Fallback to traditional file-based validation
-        AppLogger.shared.log("📄 [Validation] Using file-based validation")
-        return validateConfigViaFile()
-    }
-
-    /// Validate configuration via TCP with proper async timeout
-    private func validateConfigViaTCP() async -> (isValid: Bool, errors: [String])? {
-        do {
-            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            let tcpConfig = PreferencesService.tcpSnapshot()
-            let client = KanataTCPClient(port: tcpConfig.port)
-
-            // Use proper async timeout with Task cancellation
-            let tcpResult = try await withThrowingTaskGroup(of: TCPValidationResult.self) { group in
-                group.addTask {
-                    await client.validateConfig(configContent)
-                }
-
-                group.addTask {
-                    try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-                    throw TCPError.timeout
-                }
-
-                // Return the first result (either validation or timeout)
-                let result = try await group.next()!
-                group.cancelAll()
-                return result
-            }
-
-            switch tcpResult {
-            case .success:
-                return (true, [])
-            case let .failure(configErrors):
-                let errorMessages = configErrors.map(\.description)
-                return (false, errorMessages)
-            case let .networkError(message):
-                AppLogger.shared.log("❌ [TCP Validation] Network error: \(message)")
-                return nil // Signal fallback needed
-            }
-
-        } catch is CancellationError {
-            AppLogger.shared.log("⏰ [TCP Validation] Cancelled - falling back to file validation")
-            return nil
-        } catch TCPError.timeout {
-            AppLogger.shared.log("⏰ [TCP Validation] Timeout - falling back to file validation")
-            return nil
-        } catch {
-            AppLogger.shared.log("❌ [TCP Validation] Failed to read config file: \(error)")
-            return nil
-        }
     }
 
     /// Result of TCP reload operation with error capture
@@ -666,72 +459,6 @@ class KanataManager: ObservableObject {
                 }
             }
         }
-    }
-
-    /// Traditional file-based validation method
-    private func validateConfigViaFile() -> (isValid: Bool, errors: [String]) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
-        task.arguments = buildKanataArguments(configPath: configPath, checkOnly: true)
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        var errors: [String] = []
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus != 0 {
-                // Parse Kanata error output
-                errors = parseKanataErrors(output)
-
-                // In testing environment, be more permissive with validation failures
-                // since kanata might not run properly in test context
-                let isInTestingEnvironment = NSClassFromString("XCTestCase") != nil
-                if isInTestingEnvironment, errors.isEmpty {
-                    AppLogger.shared.log(
-                        "⚠️ [FileValidation] Validation failed in test environment but no specific errors - treating as valid"
-                    )
-                    return (true, [])
-                }
-
-                return (false, errors)
-            } else {
-                return (true, [])
-            }
-        } catch {
-            return (false, ["Failed to validate config: \(error.localizedDescription)"])
-        }
-    }
-
-    private func parseKanataErrors(_ output: String) -> [String] {
-        var errors: [String] = []
-        let lines = output.components(separatedBy: .newlines)
-
-        for line in lines {
-            if line.contains("[ERROR]") {
-                // Extract the actual error message
-                if let errorRange = line.range(of: "[ERROR]") {
-                    let errorMessage = String(line[errorRange.upperBound...]).trimmingCharacters(
-                        in: .whitespaces)
-                    errors.append(errorMessage)
-                }
-            }
-        }
-
-        // Don't return empty strings - if no specific errors found and output is empty/whitespace,
-        // return empty array instead of an array with empty string
-        if errors.isEmpty {
-            let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmedOutput.isEmpty ? [] : [trimmedOutput]
-        }
-        return errors
     }
 
     func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
@@ -2710,46 +2437,7 @@ class KanataManager: ObservableObject {
         return success
     }
 
-    private func createInitialConfigIfNeeded() async {
-        // Create config directory if it doesn't exist
-        do {
-            try FileManager.default.createDirectory(
-                atPath: configDirectory, withIntermediateDirectories: true, attributes: nil
-            )
-            AppLogger.shared.log("✅ [Config] Config directory created at \(configDirectory)")
-        } catch {
-            AppLogger.shared.log("❌ [Config] Failed to create config directory: \(error)")
-            return
-        }
-
-        // Create initial config if it doesn't exist
-        if !FileManager.default.fileExists(atPath: configPath) {
-            let initialConfig = generateKanataConfig(input: "caps", output: "escape")
-
-            do {
-                try initialConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-                AppLogger.shared.log("✅ [Config] Initial config created at \(configPath)")
-            } catch {
-                AppLogger.shared.log("❌ [Config] Failed to create initial config: \(error)")
-            }
-        }
-    }
-
     // createSystemConfigIfNeeded() removed - no longer needed since LaunchDaemon reads user config directly
-
-    /// Public wrapper to ensure a default user config exists.
-    /// Returns true if the config exists after this call.
-    func createDefaultUserConfigIfMissing() async -> Bool {
-        AppLogger.shared.log("🛠️ [Config] Ensuring default user config at \(configPath)")
-        await createInitialConfigIfNeeded()
-        let exists = FileManager.default.fileExists(atPath: configPath)
-        if exists {
-            AppLogger.shared.log("✅ [Config] Verified user config exists at \(configPath)")
-        } else {
-            AppLogger.shared.log("❌ [Config] User config still missing at \(configPath)")
-        }
-        return exists
-    }
 
     private func prepareDaemonDirectories() async {
         AppLogger.shared.log("🔧 [Daemon] Preparing Karabiner daemon directories...")
@@ -3075,31 +2763,6 @@ class KanataManager: ObservableObject {
     }
 
     // MARK: - Methods Expected by Tests
-
-    func generateKanataConfig(input: String, output: String) -> String {
-        let inputKey = convertToKanataKey(input)
-        let outputKey = convertToKanataSequence(output)
-
-        return """
-        ;; Generated by KeyPath
-        ;; Input: \(input) -> Output: \(output)
-        ;;
-        ;; SAFETY FEATURES:
-        ;; - process-unmapped-keys no: Only process explicitly mapped keys
-
-        (defcfg
-          process-unmapped-keys no
-        )
-
-        (defsrc
-          \(inputKey)
-        )
-
-        (deflayer base
-          \(outputKey)
-        )
-        """
-    }
 
     func isServiceInstalled() -> Bool {
         true // No service needed - kanata runs directly
@@ -3762,7 +3425,7 @@ class KanataManager: ObservableObject {
     // MARK: - Kanata Arguments Builder
 
     /// Builds Kanata command line arguments including TCP port when enabled
-    private func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
+    func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
         var arguments = ["--cfg", configPath]
 
         // Add TCP port if enabled and valid

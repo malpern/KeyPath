@@ -185,7 +185,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let (shouldBounce, timeSince) = await PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
 
             if shouldBounce {
-                if let timeSince = timeSince {
+                if let timeSince {
                     AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce")
                 } else {
                     AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested - performing bounce")
