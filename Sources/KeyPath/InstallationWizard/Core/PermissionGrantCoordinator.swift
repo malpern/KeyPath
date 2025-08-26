@@ -32,6 +32,10 @@ class PermissionGrantCoordinator: ObservableObject {
 
     // Prevent double-dismiss race conditions
     private var didFireCompletion = false
+    
+    // Service bounce flag keys
+    private static let serviceBounceNeededKey = "keypath_service_bounce_needed"
+    private static let serviceBounceTimestampKey = "keypath_service_bounce_timestamp"
 
     private init() {}
 
@@ -288,5 +292,73 @@ class PermissionGrantCoordinator: ObservableObject {
         }
 
         logger.log("  - Wizard will be shown")
+    }
+    
+    // MARK: - Service Bounce Management
+    
+    /// Set flag to indicate Kanata service should be bounced on next app restart
+    func setServiceBounceNeeded(reason: String) {
+        let timestamp = Date().timeIntervalSince1970
+        UserDefaults.standard.set(true, forKey: Self.serviceBounceNeededKey)
+        UserDefaults.standard.set(timestamp, forKey: Self.serviceBounceTimestampKey)
+        UserDefaults.standard.synchronize()
+        
+        logger.log("🔄 [ServiceBounce] Bounce scheduled for next restart - reason: \(reason)")
+        logger.log("🔄 [ServiceBounce] Timestamp: \(timestamp)")
+    }
+    
+    /// Check if service bounce is needed and return details
+    func checkServiceBounceNeeded() -> (shouldBounce: Bool, timeSinceScheduled: TimeInterval?) {
+        let needsBounce = UserDefaults.standard.bool(forKey: Self.serviceBounceNeededKey)
+        let timestamp = UserDefaults.standard.double(forKey: Self.serviceBounceTimestampKey)
+        
+        guard needsBounce && timestamp > 0 else {
+            return (shouldBounce: false, timeSinceScheduled: nil)
+        }
+        
+        let currentTime = Date().timeIntervalSince1970
+        let timeSince = currentTime - timestamp
+        
+        // Clear if too old (older than max return time)
+        if timeSince > maxReturnTime {
+            clearServiceBounceFlag()
+            logger.log("🔄 [ServiceBounce] Clearing expired bounce flag (age: \(Int(timeSince))s)")
+            return (shouldBounce: false, timeSinceScheduled: nil)
+        }
+        
+        return (shouldBounce: true, timeSinceScheduled: timeSince)
+    }
+    
+    /// Clear the service bounce flag
+    func clearServiceBounceFlag() {
+        UserDefaults.standard.removeObject(forKey: Self.serviceBounceNeededKey)
+        UserDefaults.standard.removeObject(forKey: Self.serviceBounceTimestampKey)
+        UserDefaults.standard.synchronize()
+        logger.log("🔄 [ServiceBounce] Bounce flag cleared")
+    }
+    
+    /// Perform the service bounce using launchctl kickstart with admin privileges
+    func performServiceBounce() async -> Bool {
+        logger.log("🔄 [ServiceBounce] Starting Kanata service bounce with launchctl kickstart")
+        
+        let script = """
+        do shell script "launchctl kickstart -k system/com.keypath.kanata" with administrator privileges with prompt "KeyPath needs admin access to restart the keyboard service after permission changes."
+        """
+        
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let appleScript = NSAppleScript(source: script)
+                var error: NSDictionary?
+                let result = appleScript?.executeAndReturnError(&error)
+                
+                if let error = error {
+                    self.logger.log("❌ [ServiceBounce] Failed to bounce service: \(error)")
+                    continuation.resume(returning: false)
+                } else {
+                    self.logger.log("✅ [ServiceBounce] Service bounce completed successfully")
+                    continuation.resume(returning: true)
+                }
+            }
+        }
     }
 }

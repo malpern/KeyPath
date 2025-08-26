@@ -203,6 +203,11 @@ struct WizardKanataComponentsPage: View {
                                                                 atomically: true, encoding: .utf8
                                                             )
 
+                                                        // Set service bounce flag before performing auto-fix
+                                                        await MainActor.run {
+                                                            PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Kanata engine fix - \(autoFixAction)")
+                                                        }
+
                                                         let success = await onAutoFix(autoFixAction)
 
                                                         // Remove this issue from fixing state

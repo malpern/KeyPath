@@ -182,6 +182,8 @@ struct WizardAccessibilityPage: View {
                                 Spacer()
                                 if keyPathAccessibilityStatus != .completed {
                                     Button("Fix") {
+                                        // Set service bounce flag before showing permission grant
+                                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Accessibility permission fix for KeyPath.app")
                                         openAccessibilityPermissionGrant()
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
@@ -204,6 +206,8 @@ struct WizardAccessibilityPage: View {
                                 if kanataAccessibilityStatus != .completed {
                                     Button("Fix") {
                                         AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix button clicked for kanata")
+                                        // Set service bounce flag before showing permission grant
+                                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Accessibility permission fix for kanata binary")
                                         openAccessibilityPermissionGrant()
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
@@ -233,6 +237,8 @@ struct WizardAccessibilityPage: View {
                 if hasAccessibilityIssues {
                     // When permissions needed, Grant Permission is primary
                     Button("Grant Permission") {
+                        // Set service bounce flag before showing permission grant
+                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Accessibility permission grant via primary button")
                         openAccessibilityPermissionGrant()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())

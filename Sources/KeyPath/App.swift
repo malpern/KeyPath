@@ -180,6 +180,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("🔍 [AppDelegate] applicationDidFinishLaunching called")
         AppLogger.shared.log("🔍 [AppDelegate] applicationDidFinishLaunching called")
 
+        // Check for pending service bounce first
+        Task { @MainActor in
+            let (shouldBounce, timeSince) = await PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
+            
+            if shouldBounce {
+                if let timeSince = timeSince {
+                    AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce")
+                } else {
+                    AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested - performing bounce")
+                }
+                
+                let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
+                if bounceSuccess {
+                    AppLogger.shared.log("✅ [AppDelegate] Service bounce completed successfully")
+                    await PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+                } else {
+                    AppLogger.shared.log("❌ [AppDelegate] Service bounce failed - flag remains for retry")
+                }
+            }
+        }
+
         if isHeadlessMode {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - starting kanata service automatically")
 

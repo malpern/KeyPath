@@ -694,7 +694,7 @@ struct WizardButton: View {
     }
 }
 
-/// Reusable wizard status item component
+/// Reusable wizard status item component with animated status transitions
 struct WizardStatusItem: View {
     let icon: String
     let title: String
@@ -702,11 +702,15 @@ struct WizardStatusItem: View {
     let status: InstallationStatus
     let isNavigable: Bool
     let action: (() -> Void)?
+    let isFinalStatus: Bool
+    let showInitialClock: Bool
 
     init(
         icon: String, title: String, subtitle: String? = nil, status: InstallationStatus,
         isNavigable: Bool = false,
-        action: (() -> Void)? = nil
+        action: (() -> Void)? = nil,
+        isFinalStatus: Bool = false,
+        showInitialClock: Bool = false
     ) {
         self.icon = icon
         self.title = title
@@ -714,6 +718,8 @@ struct WizardStatusItem: View {
         self.status = status
         self.isNavigable = isNavigable
         self.action = action
+        self.isFinalStatus = isFinalStatus
+        self.showInitialClock = showInitialClock
     }
 
     var body: some View {
@@ -741,22 +747,12 @@ struct WizardStatusItem: View {
 
             // All status indicators on the right
             HStack(spacing: 8) {
-                // Status indicator - icon for all states
-                Group {
-                    if status == .notStarted {
-                        Image(systemName: statusIcon)
-                            .foregroundColor(statusColor)
-                            .font(.system(size: 16))
-                            .symbolEffect(.bounce.up, options: .repeating)
-                            .symbolEffect(.pulse.byLayer, options: .repeating)
-                            .contentTransition(.symbolEffect(.replace))
-                    } else {
-                        Image(systemName: statusIcon)
-                            .foregroundColor(statusColor)
-                            .font(.system(size: 16))
-                            .contentTransition(.symbolEffect(.replace))
-                    }
-                }
+                // Enhanced animated status indicator
+                AnimatedStatusIcon(
+                    status: status,
+                    isFinalStatus: isFinalStatus,
+                    showInitialClock: showInitialClock
+                )
 
                 // Navigation indicator
                 if isNavigable {
@@ -778,30 +774,104 @@ struct WizardStatusItem: View {
         .accessibilityHint(isNavigable ? "Tap to navigate to \(title) page" : "")
     }
 
-    private var statusIcon: String {
-        switch status {
-        case .notStarted: "circle"
-        case .inProgress: "clock"
-        case .completed: "checkmark.circle.fill"
-        case .failed: "xmark.circle.fill"
-        }
-    }
-
-    private var statusColor: Color {
-        switch status {
-        case .notStarted: WizardDesign.Colors.secondaryText
-        case .inProgress: WizardDesign.Colors.inProgress
-        case .completed: WizardDesign.Colors.success
-        case .failed: WizardDesign.Colors.error
-        }
-    }
-
     private var statusText: String {
         switch status {
         case .notStarted: "Not Started"
         case .inProgress: "In Progress"
         case .completed: "Completed"
         case .failed: "Failed"
+        }
+    }
+}
+
+/// Animated status icon that shows clock -> colored final state transitions
+struct AnimatedStatusIcon: View {
+    let status: InstallationStatus
+    let isFinalStatus: Bool
+    let showInitialClock: Bool
+    
+    @State private var hasAnimated = false
+    
+    init(status: InstallationStatus, isFinalStatus: Bool = false, showInitialClock: Bool = false) {
+        self.status = status
+        self.isFinalStatus = isFinalStatus
+        self.showInitialClock = showInitialClock
+    }
+    
+    var body: some View {
+        Group {
+            if showInitialClock && (status == .completed || status == .failed) {
+                // Clock-to-final-state animation for completed/failed items
+                if hasAnimated {
+                    // Final state
+                    Image(systemName: finalStateIcon)
+                        .foregroundColor(finalStateColor)
+                        .font(.system(size: 16))
+                        .symbolEffect(.bounce, options: .nonRepeating)
+                        .symbolEffect(.bounce, options: isFinalStatus ? .repeating : .nonRepeating)
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.8)),
+                            removal: .opacity
+                        ))
+                } else {
+                    // Initial clock state
+                    Image(systemName: "clock.fill")
+                        .foregroundColor(WizardDesign.Colors.inProgress)
+                        .font(.system(size: 16))
+                        .onAppear {
+                            // Animate to final state immediately (no delay)
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                                hasAnimated = true
+                            }
+                        }
+                }
+            } else {
+                // Standard behavior for other states
+                switch status {
+                    case .notStarted:
+                        // Empty circle
+                        Image(systemName: "circle")
+                            .foregroundColor(WizardDesign.Colors.secondaryText)
+                            .font(.system(size: 16))
+                        
+                    case .inProgress:
+                        // Animated clock
+                        Image(systemName: "clock.fill")
+                            .foregroundColor(WizardDesign.Colors.inProgress)
+                            .font(.system(size: 16))
+                            
+                    case .completed:
+                        // Direct green checkmark
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(WizardDesign.Colors.success)
+                            .font(.system(size: 16))
+                            .symbolEffect(.bounce, options: .nonRepeating)
+                            .symbolEffect(.bounce, options: isFinalStatus ? .repeating : .nonRepeating)
+                        
+                    case .failed:
+                        // Direct red X
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(WizardDesign.Colors.error)
+                            .font(.system(size: 16))
+                            .symbolEffect(.bounce, options: .nonRepeating)
+                }
+            }
+        }
+    }
+    
+    private var finalStateIcon: String {
+        switch status {
+        case .completed: "checkmark.circle.fill"
+        case .failed: "xmark.circle.fill"
+        default: "circle"
+        }
+    }
+    
+    private var finalStateColor: Color {
+        switch status {
+        case .completed: WizardDesign.Colors.success
+        case .failed: WizardDesign.Colors.error
+        default: WizardDesign.Colors.secondaryText
         }
     }
 }
