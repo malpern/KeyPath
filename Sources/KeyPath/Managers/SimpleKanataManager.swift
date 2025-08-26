@@ -459,6 +459,7 @@ class SimpleKanataManager: ObservableObject {
 
     private func findKanataExecutable() async -> String {
         let possiblePaths = [
+            WizardSystemPaths.bundledKanataPath, // Bundled kanata (preferred - signed)
             "/usr/local/bin/kanata", // canonical path for KeyPath
             "/opt/homebrew/bin/kanata",
             "/usr/bin/kanata"
