@@ -397,44 +397,56 @@ public final class ConfigurationService: FileConfigurationProviding {
 public enum KanataKeyConverter {
     /// Convert KeyPath input key to Kanata key format
     public static func convertToKanataKey(_ input: String) -> String {
+        // Use the same key mapping logic as the original KanataManager
+        let keyMap: [String: String] = [
+            "caps": "caps",
+            "capslock": "caps",
+            "caps lock": "caps",
+            "space": "spc",
+            "spacebar": "spc",
+            "enter": "ret",
+            "return": "ret",
+            "tab": "tab",
+            "escape": "esc",
+            "esc": "esc",
+            "backspace": "bspc",
+            "delete": "del",
+            "cmd": "lmet",
+            "command": "lmet",
+            "lcmd": "lmet",
+            "rcmd": "rmet",
+            "leftcmd": "lmet",
+            "rightcmd": "rmet",
+            "left command": "lmet",
+            "right command": "rmet",
+            "left shift": "lsft",
+            "lshift": "lsft",
+            "right shift": "rsft",
+            "rshift": "rsft",
+            "left control": "lctl",
+            "lctrl": "lctl",
+            "right control": "rctl",
+            "rctrl": "rctl",
+            "left option": "lalt",
+            "lalt": "lalt",
+            "right option": "ralt",
+            "ralt": "ralt"
+        ]
+
         let lowercased = input.lowercased()
-        switch lowercased {
-        case "caps lock", "caps", "capslock":
-            return "caps"
-        case "space", "spacebar":
-            return "space"
-        case "tab":
-            return "tab"
-        case "escape", "esc":
-            return "escape"
-        case "return", "enter":
-            return "return"
-        case "delete", "backspace":
-            return "delete"
-        case "left command", "left cmd", "lcmd":
-            return "lmeta"
-        case "right command", "right cmd", "rcmd":
-            return "rmeta"
-        case "left shift", "lshift":
-            return "lshift"
-        case "right shift", "rshift":
-            return "rshift"
-        case "left control", "left ctrl", "lctrl":
-            return "lctrl"
-        case "right control", "right ctrl", "rctrl":
-            return "rctrl"
-        case "left option", "left alt", "lalt":
-            return "lalt"
-        case "right option", "right alt", "ralt":
-            return "ralt"
-        default:
-            // For single characters, return as-is
-            if lowercased.count == 1 {
-                return lowercased
-            }
-            // For function keys and others, return as-is but lowercased
+
+        // Check if we have a specific mapping
+        if let mapped = keyMap[lowercased] {
+            return mapped
+        }
+
+        // For single characters, return as-is
+        if lowercased.count == 1 {
             return lowercased
         }
+
+        // For function keys and others, return as-is but lowercased
+        return lowercased
     }
 
     /// Convert KeyPath output sequence to Kanata output format
