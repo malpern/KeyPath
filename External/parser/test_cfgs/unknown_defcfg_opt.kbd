@@ -1,6 +1,0 @@
-(defcfg
-  this-should-error yes
-)
-
-(defsrc)
-(deflayer base)

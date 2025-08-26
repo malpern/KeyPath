@@ -1,3 +1,0 @@
-(defsrc a)
-(include included-bad2.kbd)
-(defalias no-action-uh-oh)

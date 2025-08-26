@@ -13,7 +13,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-KANATA_SOURCE="$PROJECT_ROOT/External"
+KANATA_SOURCE="$PROJECT_ROOT/External/kanata"
 BUILD_DIR="$PROJECT_ROOT/build"
 CACHE_INFO="$BUILD_DIR/kanata-cache.info"
 

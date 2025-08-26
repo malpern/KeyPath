@@ -1,3 +1,0 @@
-(defsrc a)
-(include included-non-existing-file.kbd)
-(include included-good.kbd)

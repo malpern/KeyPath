@@ -1,4 +1,0 @@
-;; This config file is invalid and should be rejected
-(defcfg)
-(defsrc 1)
-(deflayer	(base	icon base.png 🖻 n.ico	) 1)
