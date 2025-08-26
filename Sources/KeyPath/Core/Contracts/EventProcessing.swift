@@ -42,7 +42,7 @@ import Foundation
 ///
 /// Event processing occurs on the event tap's thread. Implementations should
 /// avoid blocking operations and ensure thread-safe access to shared state.
-protocol EventProcessing {
+public protocol EventProcessing {
     /// Processes a CGEvent from an event tap.
     ///
     /// This method is called for each event captured by an event tap. The processor
@@ -92,7 +92,7 @@ extension EventProcessing {
 }
 
 /// Specialized event processing for keyboard events.
-protocol KeyboardEventProcessing: EventProcessing {
+public protocol KeyboardEventProcessing: EventProcessing {
     /// Processes a keyboard-specific event with extracted key information.
     ///
     /// This method provides a higher-level interface for keyboard event processing,
