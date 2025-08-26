@@ -177,11 +177,18 @@ struct WizardStateInterpreter {
                 }
                 return false
             }
-        case .tcpServer:
-            // TCP Server issues
+        case .communication:
+            // Communication Server issues
             issues.filter { issue in
-                if case .component(.kanataTCPServer) = issue.identifier {
-                    return true
+                if case let .component(component) = issue.identifier {
+                    switch component {
+                    case .kanataUDPServer,
+                         .communicationServerConfiguration, .communicationServerNotResponding,
+                         .udpServerConfiguration, .udpServerNotResponding:
+                        return true
+                    default:
+                        return false
+                    }
                 }
                 return false
             }

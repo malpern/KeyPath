@@ -584,10 +584,12 @@ extension AutoFixAction {
             "Install Log Rotation"
         case .replaceKanataWithBundled:
             "Replace Kanata with Bundled Version"
-        case .regenerateTCPServiceConfiguration:
-            "Regenerate TCP Service Configuration"
-        case .restartTCPServer:
-            "Restart TCP Server"
+        case .enableUDPServer:
+            "Enable UDP Server"
+        case .regenerateCommServiceConfiguration:
+            "Regenerate UDP Service Configuration"
+        case .restartCommServer:
+            "Restart UDP Server"
         }
     }
 }

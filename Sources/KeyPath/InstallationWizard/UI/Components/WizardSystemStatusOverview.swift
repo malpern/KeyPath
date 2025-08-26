@@ -51,8 +51,8 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Animation Helpers
 
     private func isFinalKeyPathStatus(item: StatusItemModel) -> Bool {
-        // The TCP Server is the final status that should get pulse animation when completed
-        item.id == "tcp-server" && item.status == .completed
+        // The Communication Server is the final status that should get pulse animation when completed
+        item.id == "communication-server" && item.status == .completed
     }
 
     private func shouldShowInitialClock(for item: StatusItemModel) -> Bool {
@@ -164,17 +164,17 @@ struct WizardSystemStatusOverview: View {
                 targetPage: serviceNavigation.page
             ))
 
-        // 8. Kanata TCP Server (shown at end, requires Kanata to be running)
-        let tcpServerStatus = getKanataTCPServerStatus()
+        // 8. Communication Server (shown at end, requires Kanata to be running)
+        let commServerStatus = getCommunicationServerStatus()
         items.append(
             StatusItemModel(
-                id: "tcp-server",
+                id: "communication-server",
                 icon: "network",
-                title: "Kanata TCP Server",
-                subtitle: tcpServerStatus == .notStarted && !kanataIsRunning ? "Kanata isn't running" : nil,
-                status: tcpServerStatus,
+                title: "Communication Server",
+                subtitle: commServerStatus == .notStarted && !kanataIsRunning ? "Kanata isn't running" : nil,
+                status: commServerStatus,
                 isNavigable: true,
-                targetPage: .tcpServer
+                targetPage: .communication
             ))
 
         return items
@@ -289,7 +289,7 @@ struct WizardSystemStatusOverview: View {
         return hasKanataIssues ? .failed : .completed
     }
 
-    private func getKanataTCPServerStatus() -> InstallationStatus {
+    private func getCommunicationServerStatus() -> InstallationStatus {
         // If system is still initializing, don't show status
         if systemState == .initializing {
             return .notStarted
@@ -300,11 +300,13 @@ struct WizardSystemStatusOverview: View {
             return .notStarted
         }
 
-        // Check for TCP server issues (including configuration and response issues)
-        let hasTCPServerIssues = issues.contains { issue in
+        // Check for communication server issues (including configuration and response issues)
+        let hasCommServerIssues = issues.contains { issue in
             if case let .component(component) = issue.identifier {
                 switch component {
-                case .kanataTCPServer, .tcpServerConfiguration, .tcpServerNotResponding:
+                case .kanataUDPServer,
+                     .communicationServerConfiguration, .communicationServerNotResponding,
+                     .udpServerConfiguration, .udpServerNotResponding:
                     return true
                 default:
                     return false
@@ -313,8 +315,8 @@ struct WizardSystemStatusOverview: View {
             return false
         }
 
-        // If Kanata is running and there are no TCP issues, consider TCP as working
-        if !hasTCPServerIssues {
+        // If Kanata is running and there are no communication issues, consider it as working
+        if !hasCommServerIssues {
             return .completed
         }
 

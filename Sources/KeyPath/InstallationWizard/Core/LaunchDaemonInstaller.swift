@@ -944,7 +944,7 @@ class LaunchDaemonInstaller {
             // Use osascript to execute the script with admin privileges
             // Custom prompt to clearly identify KeyPath (not osascript)
             let osascriptCode = """
-            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management. This will enable the TCP server on port \(PreferencesService.tcpSnapshot().port)."
+            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management. This will enable the UDP server on port \(PreferencesService.communicationSnapshot().udpPort)."
             """
 
             let task = Process()
@@ -1790,18 +1790,18 @@ class LaunchDaemonInstaller {
 
     // MARK: - Argument Building
 
-    /// Builds Kanata command line arguments for LaunchDaemon plist including TCP port when enabled
+    /// Builds Kanata command line arguments for LaunchDaemon plist including UDP port when enabled
     private func buildKanataPlistArguments(binaryPath: String) -> [String] {
         var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
 
-        // Add TCP port if enabled and valid
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        if tcpConfig.shouldUseTCPServer {
-            arguments.append("--port")
-            arguments.append(String(tcpConfig.port))
-            AppLogger.shared.log("🌐 [LaunchDaemon] TCP server enabled on port \(tcpConfig.port)")
+        // Add UDP port if enabled and valid
+        let commConfig = PreferencesService.communicationSnapshot()
+        if commConfig.shouldUseUDP {
+            // Add UDP communication arguments
+            arguments.append(contentsOf: commConfig.communicationLaunchArguments)
+            AppLogger.shared.log("📡 [LaunchDaemon] UDP server enabled on port \(commConfig.udpPort)")
         } else {
-            AppLogger.shared.log("🌐 [LaunchDaemon] TCP server disabled")
+            AppLogger.shared.log("📡 [LaunchDaemon] UDP server disabled")
         }
 
         arguments.append("--debug")

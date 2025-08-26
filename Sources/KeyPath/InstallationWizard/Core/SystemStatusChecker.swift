@@ -408,7 +408,7 @@ class SystemStatusChecker {
         }
 
         // Check Kanata TCP server configuration and status
-        await checkTCPConfiguration(missing: &missing, installed: &installed)
+        await checkUDPConfiguration(missing: &missing, installed: &installed)
 
         AppLogger.shared.log("🔍 [SystemStatusChecker] Component check complete:")
         AppLogger.shared.log("  - Installed: \(installed.count) components")
@@ -618,78 +618,78 @@ class SystemStatusChecker {
         return .ready
     }
 
-    // MARK: - TCP Server Status
+    // MARK: - UDP Server Status
 
-    /// Check TCP server configuration and status with detailed detection
-    private func checkTCPConfiguration(missing: inout [ComponentRequirement], installed: inout [ComponentRequirement]) async {
-        let tcpConfig = PreferencesService.tcpSnapshot()
+    /// Check UDP server configuration and status with detailed detection
+    private func checkUDPConfiguration(missing: inout [ComponentRequirement], installed: inout [ComponentRequirement]) async {
+        let commConfig = PreferencesService.communicationSnapshot()
 
-        // If TCP is disabled in preferences, mark as installed (no issue)
-        guard tcpConfig.shouldUseTCPServer else {
-            installed.append(.kanataTCPServer)
-            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server disabled in preferences - no issue")
+        // If UDP is disabled in preferences, mark as installed (no issue)
+        guard commConfig.shouldUseUDP else {
+            installed.append(.kanataUDPServer)
+            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server disabled in preferences - no issue")
             return
         }
 
-        AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server enabled in preferences (port \(tcpConfig.port))")
+        AppLogger.shared.log("📡 [SystemStatusChecker] UDP server enabled in preferences (port \(commConfig.udpPort))")
 
-        // First, check if kanata service is actually healthy - TCP requires kanata to be running
+        // First, check if kanata service is actually healthy - UDP requires kanata to be running
         let serviceStatus = launchDaemonInstaller.getServiceStatus()
         guard serviceStatus.kanataServiceLoaded, serviceStatus.kanataServiceHealthy else {
-            AppLogger.shared.log("⚠️ [SystemStatusChecker] Skipping TCP checks - kanata service not healthy (loaded: \(serviceStatus.kanataServiceLoaded), healthy: \(serviceStatus.kanataServiceHealthy))")
-            AppLogger.shared.log("💡 [SystemStatusChecker] TCP server requires kanata to be running - fix service issues first")
-            return // Don't report TCP issues if the underlying service isn't working
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] Skipping UDP checks - kanata service not healthy (loaded: \(serviceStatus.kanataServiceLoaded), healthy: \(serviceStatus.kanataServiceHealthy))")
+            AppLogger.shared.log("💡 [SystemStatusChecker] UDP server requires kanata to be running - fix service issues first")
+            return // Don't report UDP issues if the underlying service isn't working
         }
 
-        AppLogger.shared.log("✅ [SystemStatusChecker] Kanata service is healthy, proceeding with TCP diagnostics")
+        AppLogger.shared.log("✅ [SystemStatusChecker] Kanata service is healthy, proceeding with UDP diagnostics")
 
-        // Check if LaunchDaemon plist has matching TCP configuration
+        // Check if LaunchDaemon plist has matching UDP configuration
         guard launchDaemonInstaller.isServiceConfigurationCurrent() else {
-            missing.append(.tcpServerConfiguration)
-            AppLogger.shared.log("❌ [SystemStatusChecker] TCP server configuration mismatch - plist needs regeneration")
+            missing.append(.udpServerConfiguration)
+            AppLogger.shared.log("❌ [SystemStatusChecker] UDP server configuration mismatch - plist needs regeneration")
             return
         }
 
-        AppLogger.shared.log("✅ [SystemStatusChecker] TCP configuration matches LaunchDaemon plist")
+        AppLogger.shared.log("✅ [SystemStatusChecker] UDP configuration matches LaunchDaemon plist")
 
-        // Check if TCP server is actually responding
-        let tcpServerWorking = await checkTCPServerStatus()
-        if tcpServerWorking {
-            installed.append(.kanataTCPServer)
-            AppLogger.shared.log("✅ [SystemStatusChecker] TCP server responding on port \(tcpConfig.port)")
+        // Check if UDP server is actually responding
+        let udpServerWorking = await checkUDPServerStatus()
+        if udpServerWorking {
+            installed.append(.kanataUDPServer)
+            AppLogger.shared.log("✅ [SystemStatusChecker] UDP server responding on port \(commConfig.udpPort)")
         } else {
-            missing.append(.tcpServerNotResponding)
-            AppLogger.shared.log("❌ [SystemStatusChecker] TCP server configured but not responding")
+            missing.append(.udpServerNotResponding)
+            AppLogger.shared.log("❌ [SystemStatusChecker] UDP server configured but not responding")
         }
     }
 
-    /// Check if Kanata TCP server is responding
-    private func checkTCPServerStatus() async -> Bool {
-        let tcpConfig = PreferencesService.tcpSnapshot()
+    /// Check if Kanata UDP server is responding
+    private func checkUDPServerStatus() async -> Bool {
+        let commConfig = PreferencesService.communicationSnapshot()
 
-        // If TCP is disabled in preferences, consider it as not working
-        guard tcpConfig.shouldUseTCPServer else {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server disabled in preferences")
+        // If UDP is disabled in preferences, consider it as not working
+        guard commConfig.shouldUseUDP else {
+            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server disabled in preferences")
             return false
         }
 
-        // Check if kanata service is actually running with TCP port
+        // Check if kanata service is actually running with UDP port
         if !kanataManager.isRunning {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] WARNING: KanataManager.isRunning=false but continuing TCP check anyway")
-            // Continue anyway - let's see if TCP actually works
+            AppLogger.shared.log("📡 [SystemStatusChecker] WARNING: KanataManager.isRunning=false but continuing UDP check anyway")
+            // Continue anyway - let's see if UDP actually works
         } else {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] KanataManager.isRunning=true, proceeding with TCP check")
+            AppLogger.shared.log("📡 [SystemStatusChecker] KanataManager.isRunning=true, proceeding with UDP check")
         }
 
-        // Use KanataTCPClient to check server status
-        let client = KanataTCPClient(port: tcpConfig.port, timeout: 2.0)
+        // Use KanataUDPClient to check server status
+        let client = KanataUDPClient(port: commConfig.udpPort, timeout: 2.0)
         let serverResponding = await client.checkServerStatus()
 
         if serverResponding {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - responding")
+            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server status check: port \(commConfig.udpPort) - responding")
             return true
         } else {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - not responding")
+            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server status check: port \(commConfig.udpPort) - not responding")
             return false
         }
     }

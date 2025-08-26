@@ -323,10 +323,12 @@ class IssueGenerator {
         case .launchDaemonServices: "LaunchDaemon Services Not Installed"
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .packageManager: "Package Manager (Homebrew) Missing"
-        case .kanataTCPServer: "TCP Server Not Responding"
+        case .kanataUDPServer: "UDP Server Not Responding"
         case .orphanedKanataProcess: "Orphaned Kanata Process"
-        case .tcpServerConfiguration: "TCP Server Configuration Outdated"
-        case .tcpServerNotResponding: "TCP Server Not Responding"
+        case .communicationServerConfiguration: "Communication Server Configuration Outdated"
+        case .communicationServerNotResponding: "Communication Server Not Responding"
+        case .udpServerConfiguration: "UDP Server Configuration Outdated"
+        case .udpServerNotResponding: "UDP Server Not Responding"
         }
     }
 
@@ -358,8 +360,8 @@ class IssueGenerator {
             "LaunchDaemon services are loaded but crashing or failing. This usually indicates a configuration problem or permission issue that can be fixed by restarting the services."
         case .packageManager:
             "Homebrew package manager is not installed. This is needed to automatically install missing dependencies like Kanata. Install from https://brew.sh"
-        case .kanataTCPServer:
-            "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
+        case .kanataUDPServer:
+            "Kanata UDP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with UDP enabled."
         case .orphanedKanataProcess:
             """
             Kanata is running outside of LaunchDaemon management. This prevents reliable lifecycle control and hot-reload functionality.
@@ -370,17 +372,29 @@ class IssueGenerator {
 
             The wizard will automatically choose the best option based on your configuration.
             """
-        case .tcpServerConfiguration:
+        case .communicationServerConfiguration:
             """
-            The TCP server is enabled in KeyPath preferences but the system service is not configured with the current TCP settings.
+            The communication server is enabled in KeyPath preferences but the system service is not configured with the current settings.
 
-            This happens when TCP preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current TCP port configuration.
+            This happens when communication preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current protocol configuration.
             """
-        case .tcpServerNotResponding:
+        case .communicationServerNotResponding:
             """
-            The TCP server is properly configured but not responding on port \(PreferencesService.tcpSnapshot().port).
+            The communication server is properly configured but not responding.
 
             This prevents reliable permission detection and may affect external integrations. The service may need to be restarted.
+            """
+        case .udpServerConfiguration:
+            """
+            The UDP server is enabled in KeyPath preferences but the system service is not configured with the current UDP settings.
+
+            This happens when UDP preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current UDP port and authentication configuration.
+            """
+        case .udpServerNotResponding:
+            """
+            The UDP server is properly configured but not responding on port \(PreferencesService.communicationSnapshot().udpPort).
+
+            This prevents low-latency communication and may affect external integrations. The service may need to be restarted.
             """
         }
     }
@@ -388,33 +402,37 @@ class IssueGenerator {
     private func getAutoFixAction(for component: ComponentRequirement) -> AutoFixAction? {
         switch component {
         case .karabinerDriver, .vhidDeviceManager, .packageManager:
-            nil // These require manual installation
+            return nil // These require manual installation
         case .vhidDeviceActivation:
-            .activateVHIDDeviceManager
+            return .activateVHIDDeviceManager
         case .vhidDeviceRunning:
-            .restartVirtualHIDDaemon
+            return .restartVirtualHIDDaemon
         case .vhidDaemonMisconfigured:
-            .repairVHIDDaemonServices
+            return .repairVHIDDaemonServices
         case .launchDaemonServices:
-            .installLaunchDaemonServices
+            return .installLaunchDaemonServices
         case .launchDaemonServicesUnhealthy:
-            .restartUnhealthyServices
+            return .restartUnhealthyServices
         case .kanataBinary:
-            .installViaBrew // Can be installed via Homebrew if available
+            return .installViaBrew // Can be installed via Homebrew if available
         case .kanataBinaryUnsigned:
-            .replaceKanataWithBundled // Replace with bundled Developer ID signed binary
+            return .replaceKanataWithBundled // Replace with bundled Developer ID signed binary
         case .kanataService:
-            .installLaunchDaemonServices // Service configuration files
-        case .kanataTCPServer:
-            .restartUnhealthyServices // TCP server requires service restart with updated config
+            return .installLaunchDaemonServices // Service configuration files
+        case .kanataUDPServer:
+            return .restartUnhealthyServices // UDP server requires service restart with updated config
         case .orphanedKanataProcess:
-            .adoptOrphanedProcess // Default to adopting the orphaned process
-        case .tcpServerConfiguration:
-            .regenerateTCPServiceConfiguration // Update LaunchDaemon plist with TCP settings
-        case .tcpServerNotResponding:
-            .restartTCPServer // Restart service to enable TCP functionality
+            return .adoptOrphanedProcess // Default to adopting the orphaned process
+        case .communicationServerConfiguration:
+            return .regenerateCommServiceConfiguration // Update LaunchDaemon plist with communication settings
+        case .communicationServerNotResponding:
+            return .restartCommServer // Restart service to enable communication functionality
+        case .udpServerConfiguration:
+            return .enableUDPServer // Enable UDP server
+        case .udpServerNotResponding:
+            return .enableUDPServer // Enable UDP server functionality
         default:
-            .installMissingComponents
+            return .installMissingComponents
         }
     }
 
@@ -430,10 +448,14 @@ class IssueGenerator {
             "Use the Installation Wizard to install Kanata automatically"
         case .kanataBinaryUnsigned:
             "Click 'Replace with Signed Version' to use KeyPath's bundled Developer ID signed kanata"
-        case .tcpServerConfiguration:
-            "Click 'Fix' to update the service with current settings"
-        case .tcpServerNotResponding:
-            "Click 'Fix' to restart the service with TCP functionality"
+        case .communicationServerConfiguration:
+            "Click 'Fix' to update the service with current communication settings"
+        case .communicationServerNotResponding:
+            "Click 'Fix' to restart the service with communication functionality"
+        case .udpServerConfiguration:
+            "Click 'Fix' to enable UDP server"
+        case .udpServerNotResponding:
+            "Click 'Fix' to restart the service with UDP functionality"
         default:
             nil
         }
@@ -449,10 +471,6 @@ class IssueGenerator {
             "Use the Installation Wizard to install Kanata automatically"
         case .kanataBinaryUnsigned:
             "Use the Installation Wizard to replace with signed version"
-        case .tcpServerConfiguration:
-            "Use the Installation Wizard to fix TCP configuration"
-        case .tcpServerNotResponding:
-            "Use the Installation Wizard to restart TCP server"
         default:
             nil
         }

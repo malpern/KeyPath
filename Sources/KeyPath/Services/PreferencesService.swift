@@ -3,25 +3,14 @@ import Observation
 
 /// Communication protocol options for Kanata integration
 enum CommunicationProtocol: String, CaseIterable {
-    case tcp
     case udp
 
     var displayName: String {
-        switch self {
-        case .tcp:
-            return "TCP (Traditional)"
-        case .udp:
-            return "UDP (Low Latency)"
-        }
+        return "UDP (High Performance)"
     }
 
     var description: String {
-        switch self {
-        case .tcp:
-            return "Traditional TCP connection with higher latency but guaranteed delivery"
-        case .udp:
-            return "Modern UDP protocol with ~10x lower latency and token-based security"
-        }
+        return "High-performance UDP protocol with ~10x lower latency and token-based security"
     }
 }
 
@@ -40,31 +29,6 @@ final class PreferencesService {
         didSet {
             UserDefaults.standard.set(communicationProtocol.rawValue, forKey: Keys.communicationProtocol)
             AppLogger.shared.log("🔧 [PreferencesService] Communication protocol: \(communicationProtocol.rawValue)")
-        }
-    }
-
-    // MARK: - TCP Server Configuration
-
-    /// Whether TCP server should be enabled for config validation
-    var tcpServerEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(tcpServerEnabled, forKey: Keys.tcpServerEnabled)
-            AppLogger.shared.log("🔧 [PreferencesService] TCP server enabled: \(tcpServerEnabled)")
-        }
-    }
-
-    /// TCP server port for Kanata communication
-    var tcpServerPort: Int {
-        didSet {
-            // Validate port range and revert if invalid
-            if !isValidPort(tcpServerPort) {
-                AppLogger.shared.log(
-                    "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)")
-                tcpServerPort = oldValue
-            } else {
-                UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
-                AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
-            }
         }
     }
 
@@ -131,8 +95,6 @@ final class PreferencesService {
 
     private enum Keys {
         static let communicationProtocol = "KeyPath.Communication.Protocol"
-        static let tcpServerEnabled = "KeyPath.TCP.ServerEnabled"
-        static let tcpServerPort = "KeyPath.TCP.ServerPort"
         static let udpServerEnabled = "KeyPath.UDP.ServerEnabled"
         static let udpServerPort = "KeyPath.UDP.ServerPort"
         static let udpAuthToken = "KeyPath.UDP.AuthToken"
@@ -142,9 +104,7 @@ final class PreferencesService {
     // MARK: - Defaults
 
     private enum Defaults {
-        static let communicationProtocol = CommunicationProtocol.udp // Default to UDP for better performance
-        static let tcpServerEnabled = false // TCP as fallback only
-        static let tcpServerPort = 54141 // Default port for Kanata TCP server
+        static let communicationProtocol = CommunicationProtocol.udp // UDP-only for high performance
         static let udpServerEnabled = true // Enable UDP by default
         static let udpServerPort = 37001 // Default port for Kanata UDP server
         static let udpAuthToken = "" // Auto-generate token
@@ -157,12 +117,6 @@ final class PreferencesService {
         // Load stored preferences or use defaults
         let protocolString = UserDefaults.standard.string(forKey: Keys.communicationProtocol) ?? Defaults.communicationProtocol.rawValue
         communicationProtocol = CommunicationProtocol(rawValue: protocolString) ?? Defaults.communicationProtocol
-
-        tcpServerEnabled =
-            UserDefaults.standard.object(forKey: Keys.tcpServerEnabled) as? Bool
-                ?? Defaults.tcpServerEnabled
-        tcpServerPort =
-            UserDefaults.standard.object(forKey: Keys.tcpServerPort) as? Int ?? Defaults.tcpServerPort
 
         udpServerEnabled =
             UserDefaults.standard.object(forKey: Keys.udpServerEnabled) as? Bool
@@ -195,7 +149,7 @@ final class PreferencesService {
             UserDefaults.standard.object(forKey: Keys.udpSessionTimeout) as? Int ?? Defaults.udpSessionTimeout
 
         AppLogger.shared.log(
-            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP enabled: \(tcpServerEnabled), UDP enabled: \(udpServerEnabled)"
+            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), UDP enabled: \(udpServerEnabled)"
         )
     }
 
@@ -204,20 +158,11 @@ final class PreferencesService {
     /// Reset all communication settings to defaults
     func resetCommunicationSettings() {
         communicationProtocol = Defaults.communicationProtocol
-        tcpServerEnabled = Defaults.tcpServerEnabled
-        tcpServerPort = Defaults.tcpServerPort
         udpServerEnabled = Defaults.udpServerEnabled
         udpServerPort = Defaults.udpServerPort
         udpAuthToken = Defaults.udpAuthToken
         udpSessionTimeout = Defaults.udpSessionTimeout
         AppLogger.shared.log("🔧 [PreferencesService] All communication settings reset to defaults")
-    }
-
-    /// Reset TCP settings to defaults (backward compatibility)
-    func resetTCPSettings() {
-        tcpServerEnabled = Defaults.tcpServerEnabled
-        tcpServerPort = Defaults.tcpServerPort
-        AppLogger.shared.log("🔧 [PreferencesService] TCP settings reset to defaults")
     }
 
     /// Reset UDP settings to defaults
@@ -234,26 +179,10 @@ final class PreferencesService {
         port >= 1024 && port <= 65535
     }
 
-    /// Validate TCP port is in acceptable range (backward compatibility)
-    func isValidTCPPort(_ port: Int) -> Bool {
-        isValidPort(port)
-    }
-
     /// Get current communication configuration as string for logging
     var communicationConfigDescription: String {
-        let protocolName = communicationProtocol.rawValue.uppercased()
-        switch communicationProtocol {
-        case .tcp:
-            return "\(protocolName) \(tcpServerEnabled ? "enabled" : "disabled") on port \(tcpServerPort)"
-        case .udp:
-            let tokenStatus = udpAuthToken.isEmpty ? "auto-generated" : "custom"
-            return "\(protocolName) \(udpServerEnabled ? "enabled" : "disabled") on port \(udpServerPort) (secure token: \(tokenStatus))"
-        }
-    }
-
-    /// Get current TCP configuration as string for logging (backward compatibility)
-    var tcpConfigDescription: String {
-        "TCP \(tcpServerEnabled ? "enabled" : "disabled") on port \(tcpServerPort)"
+        let tokenStatus = udpAuthToken.isEmpty ? "auto-generated" : "custom"
+        return "UDP \(udpServerEnabled ? "enabled" : "disabled") on port \(udpServerPort) (secure token: \(tokenStatus))"
     }
 }
 
@@ -270,26 +199,10 @@ extension PreferencesService {
         communicationProtocol == .udp && udpServerEnabled && isValidPort(udpServerPort)
     }
 
-    /// Check if TCP should be used for communication (fallback or explicit preference)
-    var shouldUseTCP: Bool {
-        communicationProtocol == .tcp && tcpServerEnabled && isValidPort(tcpServerPort)
-    }
-
-    /// Get the full TCP endpoint URL if enabled
-    var tcpEndpoint: String? {
-        guard tcpServerEnabled else { return nil }
-        return "127.0.0.1:\(tcpServerPort)"
-    }
-
     /// Get the full UDP endpoint URL if enabled
     var udpEndpoint: String? {
         guard udpServerEnabled else { return nil }
         return "127.0.0.1:\(udpServerPort)"
-    }
-
-    /// Check if TCP server should be included in Kanata launch arguments (backward compatibility)
-    var shouldUseTCPServer: Bool {
-        shouldUseTCP
     }
 
     /// Check if UDP server should be included in Kanata launch arguments
@@ -299,12 +212,7 @@ extension PreferencesService {
 
     /// Get the active communication endpoint based on protocol preference
     var activeEndpoint: String? {
-        switch communicationProtocol {
-        case .udp:
-            return udpEndpoint
-        case .tcp:
-            return tcpEndpoint
-        }
+        return udpEndpoint
     }
 
     /// Get UDP launch arguments for Kanata if UDP is enabled
@@ -332,30 +240,16 @@ extension PreferencesService {
         return args
     }
 
-    /// Get TCP launch arguments for Kanata if TCP is enabled (backward compatibility)
-    var tcpLaunchArguments: [String] {
-        guard shouldUseTCP else { return [] }
-        return ["--port", "\(tcpServerPort)"]
-    }
-
     /// Get communication launch arguments based on protocol preference
     var communicationLaunchArguments: [String] {
-        switch communicationProtocol {
-        case .udp:
-            return udpLaunchArguments
-        case .tcp:
-            return tcpLaunchArguments
-        }
+        return udpLaunchArguments
     }
 }
 
 // MARK: - Thread-Safe Snapshot API
 
-/// Thread-safe snapshot of communication configuration for use from non-MainActor contexts
+/// Thread-safe snapshot of UDP communication configuration for use from non-MainActor contexts
 struct CommunicationSnapshot: Sendable {
-    let `protocol`: CommunicationProtocol
-    let tcpEnabled: Bool
-    let tcpPort: Int
     let udpEnabled: Bool
     let udpPort: Int
     let udpAuthToken: String
@@ -363,82 +257,41 @@ struct CommunicationSnapshot: Sendable {
 
     /// Check if UDP server should be used based on snapshot values
     var shouldUseUDP: Bool {
-        `protocol` == .udp && udpEnabled && (1024 ... 65535).contains(udpPort)
+        udpEnabled && (1024 ... 65535).contains(udpPort)
     }
 
-    /// Check if TCP server should be used based on snapshot values
-    var shouldUseTCP: Bool {
-        `protocol` == .tcp && tcpEnabled && (1024 ... 65535).contains(tcpPort)
-    }
-
-    /// Check if TCP server should be used based on snapshot values (backward compatibility)
-    var shouldUseTCPServer: Bool {
-        shouldUseTCP
-    }
-
-    /// Get active endpoint based on protocol preference
+    /// Get active UDP endpoint
     var activeEndpoint: String? {
-        switch `protocol` {
-        case .udp where shouldUseUDP:
-            return "127.0.0.1:\(udpPort)"
-        case .tcp where shouldUseTCP:
-            return "127.0.0.1:\(tcpPort)"
-        default:
-            return nil
-        }
+        guard shouldUseUDP else { return nil }
+        return "127.0.0.1:\(udpPort)"
     }
 
-    /// Get launch arguments for the preferred protocol
+    /// Get UDP launch arguments
     var communicationLaunchArguments: [String] {
-        switch `protocol` {
-        case .udp where shouldUseUDP:
-            var args = ["--udp-port", "\(udpPort)"]
-            // Load token securely for launch arguments
-            let secureToken: String
-            do {
-                secureToken = try KeychainService.shared.retrieveUDPToken() ?? ""
-            } catch {
-                secureToken = ""
-            }
+        guard shouldUseUDP else { return [] }
 
-            if !secureToken.isEmpty {
-                args.append(contentsOf: ["--udp-auth-token", secureToken])
-            }
-            if udpSessionTimeout != 1800 { // Default timeout
-                args.append(contentsOf: ["--udp-session-timeout", "\(udpSessionTimeout)"])
-            }
-            return args
-        case .tcp where shouldUseTCP:
-            return ["--port", "\(tcpPort)"]
-        default:
-            return []
+        var args = ["--udp-port", "\(udpPort)"]
+
+        // Use provided token (from snapshot)
+        if !udpAuthToken.isEmpty {
+            args.append(contentsOf: ["--udp-auth-token", udpAuthToken])
         }
-    }
-}
 
-/// Thread-safe snapshot of TCP configuration for use from non-MainActor contexts (backward compatibility)
-struct TCPConfigSnapshot: Sendable {
-    let enabled: Bool
-    let port: Int
+        if udpSessionTimeout != 1800 { // Default timeout
+            args.append(contentsOf: ["--udp-session-timeout", "\(udpSessionTimeout)"])
+        }
 
-    /// Check if TCP server should be used based on snapshot values
-    var shouldUseTCPServer: Bool {
-        enabled && (1024 ... 65535).contains(port)
+        return args
     }
 }
 
 extension PreferencesService {
-    /// Get thread-safe snapshot of communication configuration
+    /// Get thread-safe snapshot of UDP communication configuration
     /// Safe to call from any actor context
     nonisolated static func communicationSnapshot() -> CommunicationSnapshot {
-        let protocolString = UserDefaults.standard.string(forKey: "KeyPath.Communication.Protocol") ?? "udp"
-        let protocolValue = CommunicationProtocol(rawValue: protocolString) ?? .udp
-
-        let tcpEnabled = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerEnabled") as? Bool ?? false
-        let tcpPort = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 54141
-
         let udpEnabled = UserDefaults.standard.object(forKey: "KeyPath.UDP.ServerEnabled") as? Bool ?? true
         let udpPort = UserDefaults.standard.object(forKey: "KeyPath.UDP.ServerPort") as? Int ?? 37001
+
         // Load UDP token from Keychain (thread-safe)
         let udpAuthToken: String
         do {
@@ -447,25 +300,14 @@ extension PreferencesService {
             // Fallback to empty string if Keychain fails
             udpAuthToken = ""
         }
+
         let udpSessionTimeout = UserDefaults.standard.object(forKey: "KeyPath.UDP.SessionTimeout") as? Int ?? 1800
 
         return CommunicationSnapshot(
-            protocol: protocolValue,
-            tcpEnabled: tcpEnabled,
-            tcpPort: tcpPort,
             udpEnabled: udpEnabled,
             udpPort: udpPort,
             udpAuthToken: udpAuthToken,
             udpSessionTimeout: udpSessionTimeout
         )
-    }
-
-    /// Get thread-safe snapshot of TCP configuration (backward compatibility)
-    /// Safe to call from any actor context
-    nonisolated static func tcpSnapshot() -> TCPConfigSnapshot {
-        let enabled = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerEnabled") as? Bool ?? false
-        let port = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 54141
-
-        return TCPConfigSnapshot(enabled: enabled, port: port)
     }
 }

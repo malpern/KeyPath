@@ -72,7 +72,7 @@ public struct KanataConfiguration {
 ///
 /// This service handles all configuration-related operations:
 /// - Loading and saving configuration files
-/// - Validation via TCP and file-based checks
+/// - Validation via UDP and file-based checks
 /// - File watching and change detection
 /// - Key mapping generation and conversion
 public final class ConfigurationService: FileConfigurationProviding {
@@ -297,44 +297,6 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         } catch {
             AppLogger.shared.log("⚠️ [ConfigService] UDP validation failed with error: \(error)")
-            return nil
-        }
-    }
-
-    /// Validate configuration via TCP with proper async timeout (backward compatibility)
-    public func validateConfigViaTCP() async -> (isValid: Bool, errors: [String])? {
-        do {
-            let config = await current()
-            let tcpConfig = PreferencesService.tcpSnapshot()
-            let client = KanataTCPClient(port: tcpConfig.port)
-
-            // Use proper async timeout with Task cancellation
-            let tcpResult = try await withThrowingTaskGroup(of: TCPValidationResult.self) { group in
-                group.addTask {
-                    await client.validateConfig(config.content)
-                }
-
-                group.addTask {
-                    try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-                    return TCPValidationResult.networkError("Validation timeout")
-                }
-
-                return try await group.next()!
-            }
-
-            switch tcpResult {
-            case .success:
-                return (true, [])
-            case let .failure(errors: configErrors):
-                let errorMessages = configErrors.map { "Line \($0.line):\($0.column) - \($0.message)" }
-                return (false, errorMessages)
-            case let .networkError(message):
-                AppLogger.shared.log("❌ [ConfigService] TCP validation network error: \(message)")
-                return nil
-            }
-
-        } catch {
-            AppLogger.shared.log("⚠️ [ConfigService] TCP validation failed with error: \(error)")
             return nil
         }
     }

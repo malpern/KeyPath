@@ -111,10 +111,12 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to install log rotation
         case .replaceKanataWithBundled:
             true // We can always attempt to replace kanata with bundled version
-        case .regenerateTCPServiceConfiguration:
-            true // We can always attempt to regenerate TCP service configuration
-        case .restartTCPServer:
-            true // We can always attempt to restart TCP server
+        case .enableUDPServer:
+            true // We can always attempt to enable UDP server
+        case .regenerateCommServiceConfiguration:
+            true // We can always attempt to regenerate communication service configuration
+        case .restartCommServer:
+            true // We can always attempt to restart communication server
         }
     }
 
@@ -158,10 +160,12 @@ class WizardAutoFixer: AutoFixCapable {
             return await installLogRotation()
         case .replaceKanataWithBundled:
             return await replaceKanataWithBundled()
-        case .regenerateTCPServiceConfiguration:
-            return await regenerateTCPServiceConfiguration()
-        case .restartTCPServer:
-            return await restartTCPServer()
+        case .enableUDPServer:
+            return await enableUDPServer()
+        case .regenerateCommServiceConfiguration:
+            return await regenerateCommServiceConfiguration()
+        case .restartCommServer:
+            return await restartCommServer()
         }
     }
 
@@ -1032,67 +1036,55 @@ class WizardAutoFixer: AutoFixCapable {
         }
     }
 
-    // MARK: - TCP Server Auto-Fix Actions
+    // MARK: - UDP Communication Server Auto-Fix Actions
 
-    /// Regenerates the Kanata service configuration with current TCP settings
-    private func regenerateTCPServiceConfiguration() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Regenerating TCP service configuration")
+    private func enableUDPServer() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Enabling UDP server")
 
         await MainActor.run {
-            toastManager.showInfo("🔧 Updating TCP server configuration...")
+            PreferencesService.shared.udpServerEnabled = true
         }
 
-        let success = launchDaemonInstaller.regenerateServiceWithCurrentSettings()
+        // Restart service with UDP enabled
+        return await regenerateCommServiceConfiguration()
+    }
+
+    private func regenerateCommServiceConfiguration() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Regenerating communication service configuration")
+
+        // Use the existing service configuration regeneration method
+        let success = await launchDaemonInstaller.regenerateServiceWithCurrentSettings()
 
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully regenerated TCP service configuration")
+            AppLogger.shared.log("✅ [AutoFixer] Successfully regenerated communication service configuration")
             await MainActor.run {
-                toastManager.showSuccess("✅ TCP configuration updated - restarting service...")
-            }
-
-            // Restart the service to apply the new configuration
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-            let restartSuccess = await launchDaemonInstaller.restartUnhealthyServices()
-
-            if restartSuccess {
-                await MainActor.run {
-                    toastManager.showSuccess("✅ TCP server restarted successfully!")
-                }
-            } else {
-                await MainActor.run {
-                    toastManager.showInfo("⚠️ TCP configuration updated - may need to restart KeyPath")
-                }
+                toastManager.showSuccess("✅ Communication service configuration updated")
             }
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate TCP service configuration")
+            AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate communication service configuration")
             await MainActor.run {
-                toastManager.showError("❌ Failed to update TCP configuration - check permissions")
+                toastManager.showError("❌ Failed to update communication service - check configuration")
             }
         }
 
         return success
     }
 
-    /// Restarts the Kanata service to enable TCP functionality
-    private func restartTCPServer() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Restarting TCP server")
-
-        await MainActor.run {
-            toastManager.showInfo("🔧 Restarting kanata service to enable TCP...")
-        }
+    private func restartCommServer() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Restarting communication server")
 
         // Use the existing unhealthy services restart method
         let success = await launchDaemonInstaller.restartUnhealthyServices()
 
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully restarted TCP server")
+            AppLogger.shared.log("✅ [AutoFixer] Successfully restarted communication server")
             await MainActor.run {
-                toastManager.showSuccess("✅ TCP server restarted successfully")
+                toastManager.showSuccess("✅ Communication server restarted successfully")
             }
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to restart TCP server")
+            AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server")
             await MainActor.run {
-                toastManager.showError("❌ Failed to restart TCP server - check service configuration")
+                toastManager.showError("❌ Failed to restart communication server - check service configuration")
             }
         }
 

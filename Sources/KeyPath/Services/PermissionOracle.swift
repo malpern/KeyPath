@@ -9,10 +9,10 @@ import IOKit.hid
 ///
 /// HIERARCHY (UPDATED based on macOS TCC limitations):
 /// Priority 1: Apple APIs from GUI (IOHIDCheckAccess - reliable in user session)
-/// Priority 2: Kanata TCP API (functional status, but unreliable for permissions)
+/// Priority 2: Kanata UDP API (functional status, but unreliable for permissions)
 /// Priority 3: Unknown (never guess)
 ///
-/// ⚠️ CRITICAL: Kanata TCP reports false negatives for Input Monitoring
+/// ⚠️ CRITICAL: Kanata UDP reports false negatives for Input Monitoring
 /// due to IOHIDCheckAccess() being unreliable for root processes
 actor PermissionOracle {
     static let shared = PermissionOracle()
@@ -97,7 +97,7 @@ actor PermissionOracle {
     }
 
     enum Confidence {
-        case high // TCP API, Official Apple APIs
+        case high // UDP API, Official Apple APIs
         case low // Unknown/unavailable states (TCC fallback removed)
     }
 
@@ -134,7 +134,7 @@ actor PermissionOracle {
         // Get KeyPath permissions (local, always authoritative)
         let keyPathSet = await checkKeyPathPermissions()
 
-        // Get Kanata permissions (TCP primary, TCC fallback)
+        // Get Kanata permissions (UDP primary, functional verification)
         let kanataSet = await checkKanataPermissions()
 
         let snapshot = Snapshot(
@@ -216,7 +216,7 @@ actor PermissionOracle {
         case (_, .unknown):
             .unknown // Conservative when we can't verify
         case let (_, .error(msg)):
-            .error(msg) // TCP errors
+            .error(msg) // UDP errors
         }
 
         let source = "keypath.functional-verification"
@@ -237,10 +237,10 @@ actor PermissionOracle {
     }
 
     /// Check kanata binary Input Monitoring permission using functional verification
-    /// Since IOHIDCheckAccess() is unreliable for root processes, we use TCP functional testing
+    /// Since IOHIDCheckAccess() is unreliable for root processes, we use UDP functional testing
     private func checkBinaryInputMonitoring(at kanataPath: String) -> Status {
         // ARCHITECTURE.md: Root processes have unreliable IOHIDCheckAccess() results
-        // Instead, we verify functionality via TCP if kanata is running with permissions
+        // Instead, we verify functionality via UDP if kanata is running with permissions
 
         // First check if the binary exists
         guard FileManager.default.fileExists(atPath: kanataPath) else {
@@ -249,61 +249,61 @@ actor PermissionOracle {
         }
 
         // For Input Monitoring, the most reliable test is functional verification:
-        // If kanata TCP server is responding, it likely has the required permissions
+        // If kanata UDP server is responding, it likely has the required permissions
         // This avoids the IOHIDCheckAccess() reliability issues for root processes
 
-        let tcpSnapshot = PreferencesService.tcpSnapshot()
-        guard tcpSnapshot.shouldUseTCPServer else {
-            AppLogger.shared.log("🔮 [Oracle] TCP disabled - cannot verify kanata Input Monitoring via functional test")
+        let commSnapshot = PreferencesService.communicationSnapshot()
+        guard commSnapshot.shouldUseUDP else {
+            AppLogger.shared.log("🔮 [Oracle] UDP disabled - cannot verify kanata Input Monitoring via functional test")
             // Fallback: assume permissions are needed (conservative approach)
             return .unknown
         }
 
-        // Note: We can't do synchronous TCP check here without blocking
+        // Note: We can't do synchronous UDP check here without blocking
         // The functional check happens in checkKanataFunctionalStatus()
         // For now, assume .unknown and let functional verification handle it
         AppLogger.shared.log("🔮 [Oracle] Input Monitoring check deferred to functional verification")
         return .unknown
     }
 
-    /// Use TCP only for functional verification, not permission status
+    /// Use UDP for functional verification, not permission status
     private func checkKanataFunctionalStatus() async -> Status {
-        // Quick functional check - is kanata responding via TCP?
-        let tcpSnapshot = PreferencesService.tcpSnapshot()
-        guard tcpSnapshot.shouldUseTCPServer else {
-            AppLogger.shared.log("🔮 [Oracle] TCP server disabled - functional status unknown")
+        // Quick functional check - is kanata responding via UDP?
+        let commSnapshot = PreferencesService.communicationSnapshot()
+        guard commSnapshot.shouldUseUDP else {
+            AppLogger.shared.log("🔮 [Oracle] UDP server disabled - functional status unknown")
             return .unknown
         }
 
-        let client = KanataTCPClient(port: tcpSnapshot.port, timeout: 1.0)
+        let client = KanataUDPClient(port: commSnapshot.udpPort, timeout: 1.0)
         let isConnected = await client.checkServerStatus()
 
-        AppLogger.shared.log("🔮 [Oracle] Kanata functional check via TCP: \(isConnected ? "responding" : "not responding")")
+        AppLogger.shared.log("🔮 [Oracle] Kanata functional check via UDP: \(isConnected ? "responding" : "not responding")")
 
         return isConnected ? .granted : .denied
     }
 
-    // MARK: - Utilities (TCC fallback removed - TCP API is authoritative)
+    // MARK: - Utilities (TCC fallback removed - UDP API is authoritative)
 
-    // MARK: - TCP Restart Integration
+    // MARK: - UDP Restart Integration
 
-    /// Restart Kanata after permission changes (if TCP available)
+    /// Restart Kanata after permission changes (if UDP available)
     func restartKanataAfterPermissionChange() async -> Bool {
-        let tcpSnapshot = PreferencesService.tcpSnapshot()
-        guard tcpSnapshot.shouldUseTCPServer else {
-            AppLogger.shared.log("🔮 [Oracle] TCP disabled, cannot restart Kanata via TCP")
+        let commSnapshot = PreferencesService.communicationSnapshot()
+        guard commSnapshot.shouldUseUDP else {
+            AppLogger.shared.log("🔮 [Oracle] UDP disabled, cannot restart Kanata via UDP")
             return false
         }
 
-        let client = KanataTCPClient(port: tcpSnapshot.port, timeout: 2.0)
+        let client = KanataUDPClient(port: commSnapshot.udpPort, timeout: 2.0)
         let success = await client.restartKanata()
 
         if success {
-            AppLogger.shared.log("🔮 [Oracle] ✅ Kanata restarted successfully via TCP")
+            AppLogger.shared.log("🔮 [Oracle] ✅ Kanata restarted successfully via UDP")
             // Invalidate cache to force fresh permission check
             await forceRefresh()
         } else {
-            AppLogger.shared.log("🔮 [Oracle] ❌ Failed to restart Kanata via TCP")
+            AppLogger.shared.log("🔮 [Oracle] ❌ Failed to restart Kanata via UDP")
         }
 
         return success

@@ -17,7 +17,7 @@ actor KanataUDPClient {
     private var activeConnection: NWConnection?
 
     // Size limits for UDP reliability
-    private static let maxUDPPayloadSize = 1200 // Safe MTU size
+    static let maxUDPPayloadSize = 1200 // Safe MTU size
     private static let maxConfigSize = 1000 // Leave room for JSON wrapping
 
     // MARK: - Initialization
@@ -38,7 +38,7 @@ actor KanataUDPClient {
         guard let requestData = try? JSONEncoder().encode(["Authenticate": authRequest]),
               requestData.count <= Self.maxUDPPayloadSize
         else {
-            AppLogger.shared.log("❌ [UDP] Authentication payload too large for UDP (\(requestData?.count ?? 0) bytes)")
+            AppLogger.shared.log("❌ [UDP] Authentication payload too large for UDP")
             return false
         }
         AppLogger.shared.log("🔐 [UDP] Attempting authentication")
@@ -53,10 +53,11 @@ actor KanataUDPClient {
                 sessionExpiryDate = Date().addingTimeInterval(TimeInterval(authResult.expires_in_seconds))
 
                 // Store session info in Keychain service for persistence
+                let expiryDate = sessionExpiryDate!
                 await MainActor.run {
                     KeychainService.shared.cacheSessionExpiry(
                         sessionId: authResult.session_id,
-                        expiryDate: self.sessionExpiryDate!
+                        expiryDate: expiryDate
                     )
                 }
 
@@ -441,6 +442,17 @@ private struct UDPReloadRequest: Codable {
 }
 
 // MARK: - Result Types
+
+/// Public configuration error structure
+struct ConfigValidationError {
+    let line: Int
+    let column: Int
+    let message: String
+
+    var description: String {
+        "Line \(line), Column \(column): \(message)"
+    }
+}
 
 /// UDP validation result
 enum UDPValidationResult {

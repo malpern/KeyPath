@@ -1439,12 +1439,12 @@ class KanataManager: ObservableObject {
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { SoundManager.shared.playTinkSound() }
 
-            // Attempt TCP reload and capture any errors
-            let reloadResult = await triggerTCPReloadWithErrorCapture()
+            // Attempt UDP reload and capture any errors
+            let reloadResult = await triggerUDPReload()
 
-            if reloadResult.success {
-                // TCP reload succeeded - config is valid
-                AppLogger.shared.log("✅ [Config] TCP reload successful, config is valid")
+            if reloadResult.isSuccess {
+                // UDP reload succeeded - config is valid
+                AppLogger.shared.log("✅ [Config] UDP reload successful, config is valid")
 
                 // Play glass sound asynchronously to avoid blocking completion
                 Task { SoundManager.shared.playGlassSound() }
@@ -1453,10 +1453,10 @@ class KanataManager: ObservableObject {
                     saveStatus = .success
                 }
             } else {
-                // TCP reload failed - this is a critical error for validation-on-demand
-                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
-                AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
-                AppLogger.shared.log("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
+                // UDP reload failed - this is a critical error for validation-on-demand
+                let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
+                AppLogger.shared.log("❌ [Config] UDP reload FAILED: \(errorMessage)")
+                AppLogger.shared.log("❌ [Config] UDP server is required for validation-on-demand - restoring backup")
 
                 // Play error sound asynchronously
                 Task { SoundManager.shared.playErrorSound() }
@@ -2903,20 +2903,20 @@ class KanataManager: ObservableObject {
 
         AppLogger.shared.log("💾 [Config] Reset to default configuration")
 
-        // Apply changes immediately via TCP reload if service is running
+        // Apply changes immediately via UDP reload if service is running
         if isRunning {
-            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via TCP...")
-            let reloadResult = await triggerTCPReloadWithErrorCapture()
+            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via UDP...")
+            let reloadResult = await triggerUDPReload()
 
-            if reloadResult.success {
-                let response = reloadResult.kanataResponse ?? "Success"
-                AppLogger.shared.log("✅ [Reset] Default config applied successfully via TCP: \(response)")
+            if reloadResult.isSuccess {
+                let response = reloadResult.response ?? "Success"
+                AppLogger.shared.log("✅ [Reset] Default config applied successfully via UDP: \(response)")
             } else {
                 let error = reloadResult.errorMessage ?? "Unknown error"
-                let response = reloadResult.kanataResponse ?? "No response"
-                AppLogger.shared.log("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
-                AppLogger.shared.log("📝 [Reset] TCP response: \(response)")
-                // If TCP reload fails, fall back to service restart
+                let response = reloadResult.response ?? "No response"
+                AppLogger.shared.log("⚠️ [Reset] UDP reload failed (\(error)), fallback restart initiated")
+                AppLogger.shared.log("📝 [Reset] UDP response: \(response)")
+                // If UDP reload fails, fall back to service restart
                 await restartKanata()
             }
         }
@@ -3110,44 +3110,48 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
 
-        // First try TCP validation if server is available
-        if let tcpPort = await getTCPPort() {
-            AppLogger.shared.log("🌐 [Validation] TCP port configured: \(tcpPort)")
-            let tcpClient = KanataTCPClient(port: tcpPort)
+        // First try UDP validation if server is available
+        if let udpPort = await getUDPPort() {
+            AppLogger.shared.log("📡 [Validation] UDP port configured: \(udpPort)")
+            let udpClient = KanataUDPClient(port: udpPort)
 
-            // Check if TCP server is available
-            AppLogger.shared.log("🌐 [Validation] Checking TCP server availability on port \(tcpPort)...")
-            if await tcpClient.checkServerStatus() {
-                AppLogger.shared.log("🌐 [Validation] TCP server is AVAILABLE, using TCP validation")
-                let tcpStart = Date()
-                let result = await tcpClient.validateConfig(config)
-                let tcpDuration = Date().timeIntervalSince(tcpStart)
-                AppLogger.shared.log("⏱️ [Validation] TCP validation completed in \(String(format: "%.3f", tcpDuration)) seconds")
+            // Check if UDP server is available
+            AppLogger.shared.log("📡 [Validation] Checking UDP server availability on port \(udpPort)...")
+            if await udpClient.checkServerStatus() {
+                AppLogger.shared.log("📡 [Validation] UDP server is AVAILABLE, using UDP validation")
+                let udpStart = Date()
+                let result = await udpClient.validateConfig(config)
+                let udpDuration = Date().timeIntervalSince(udpStart)
+                AppLogger.shared.log("⏱️ [Validation] UDP validation completed in \(String(format: "%.3f", udpDuration)) seconds")
 
                 switch result {
                 case .success:
-                    AppLogger.shared.log("✅ [Validation] TCP validation PASSED")
+                    AppLogger.shared.log("✅ [Validation] UDP validation PASSED")
                     AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (true, [])
-                case let .failure(tcpErrors):
-                    AppLogger.shared.log("❌ [Validation] TCP validation FAILED with \(tcpErrors.count) errors:")
-                    let errorStrings = tcpErrors.map(\.description)
+                case let .failure(udpErrors):
+                    AppLogger.shared.log("❌ [Validation] UDP validation FAILED with \(udpErrors.count) errors:")
+                    let errorStrings = udpErrors.map(\.description)
                     for (index, error) in errorStrings.enumerated() {
                         AppLogger.shared.log("   Error \(index + 1): \(error)")
                     }
                     AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (false, errorStrings)
                 case let .networkError(error):
-                    AppLogger.shared.log("⚠️ [Validation] TCP validation network error: \(error)")
+                    AppLogger.shared.log("⚠️ [Validation] UDP validation network error: \(error)")
+                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
+                // Fall through to CLI validation
+                case .authenticationRequired:
+                    AppLogger.shared.log("⚠️ [Validation] UDP authentication required")
                     AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
                     // Fall through to CLI validation
                 }
             } else {
-                AppLogger.shared.log("⚠️ [Validation] TCP server NOT available on port \(tcpPort)")
+                AppLogger.shared.log("⚠️ [Validation] UDP server NOT available on port \(udpPort)")
                 AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
             }
         } else {
-            AppLogger.shared.log("ℹ️ [Validation] No TCP port configured or TCP disabled")
+            AppLogger.shared.log("ℹ️ [Validation] No UDP port configured or UDP disabled")
             AppLogger.shared.log("ℹ️ [Validation] Using CLI validation as primary method")
         }
 
@@ -3158,13 +3162,13 @@ class KanataManager: ObservableObject {
         return cliResult
     }
 
-    /// Get TCP port for validation if TCP server is enabled
-    private func getTCPPort() async -> Int? {
-        let preferences = await PreferencesService.shared
-        guard await preferences.tcpServerEnabled else {
+    /// Get UDP port for validation if UDP server is enabled
+    private func getUDPPort() async -> Int? {
+        let commSnapshot = PreferencesService.communicationSnapshot()
+        guard commSnapshot.shouldUseUDP else {
             return nil
         }
-        return await preferences.tcpServerPort
+        return commSnapshot.udpPort
     }
 
     private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
@@ -3312,33 +3316,37 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("🔍 [DEBUG] Target config path: \(configPath)")
         AppLogger.shared.log("🔍 [DEBUG] Config size: \(config.count) characters")
 
-        // Perform final validation via TCP if available
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        if tcpConfig.shouldUseTCPServer, isRunning {
-            AppLogger.shared.log("🌐 [SaveConfig] Performing final TCP validation before save")
+        // Perform final validation via UDP if available
+        let commConfig = PreferencesService.communicationSnapshot()
+        if commConfig.shouldUseUDP, isRunning {
+            AppLogger.shared.log("📡 [SaveConfig] Performing final UDP validation before save")
 
-            let client = KanataTCPClient(port: tcpConfig.port)
+            let client = KanataUDPClient(port: commConfig.udpPort)
             let validationResult = await client.validateConfig(config)
 
             switch validationResult {
             case .success:
-                AppLogger.shared.log("✅ [SaveConfig] TCP validation passed")
+                AppLogger.shared.log("✅ [SaveConfig] UDP validation passed")
             case let .failure(errors):
                 let errorMessages = errors.map(\.description).joined(separator: ", ")
-                AppLogger.shared.log("❌ [SaveConfig] TCP validation failed: \(errorMessages)")
+                AppLogger.shared.log("❌ [SaveConfig] UDP validation failed: \(errorMessages)")
 
-                // In testing environment, treat TCP validation failures as warnings rather than errors
+                // In testing environment, treat UDP validation failures as warnings rather than errors
                 let isInTestingEnvironment = NSClassFromString("XCTestCase") != nil
                 if isInTestingEnvironment {
                     AppLogger.shared.log(
-                        "⚠️ [SaveConfig] TCP validation failed in test environment - proceeding with save")
+                        "⚠️ [SaveConfig] UDP validation failed in test environment - proceeding with save")
                 } else {
                     throw ConfigError.validationFailed(errors.map(\.description))
                 }
             case let .networkError(message):
                 AppLogger.shared.log(
-                    "⚠️ [SaveConfig] TCP validation unavailable: \(message) - proceeding with save")
-                // Continue with save since TCP validation is optional
+                    "⚠️ [SaveConfig] UDP validation unavailable: \(message) - proceeding with save")
+            // Continue with save since UDP validation is optional
+            case .authenticationRequired:
+                AppLogger.shared.log(
+                    "⚠️ [SaveConfig] UDP authentication required - proceeding with save")
+                // Continue with save since UDP validation is optional
             }
         }
 
@@ -3532,14 +3540,13 @@ class KanataManager: ObservableObject {
     func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
         var arguments = ["--cfg", configPath]
 
-        // Add TCP port if enabled and valid
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        if tcpConfig.shouldUseTCPServer {
-            arguments.append("--port")
-            arguments.append(String(tcpConfig.port))
-            AppLogger.shared.log("🌐 [KanataArgs] TCP server enabled on port \(tcpConfig.port)")
+        // Add UDP communication arguments if enabled
+        let commConfig = PreferencesService.communicationSnapshot()
+        if commConfig.shouldUseUDP {
+            arguments.append(contentsOf: commConfig.communicationLaunchArguments)
+            AppLogger.shared.log("📡 [KanataArgs] UDP server enabled on port \(commConfig.udpPort)")
         } else {
-            AppLogger.shared.log("🌐 [KanataArgs] TCP server disabled")
+            AppLogger.shared.log("📡 [KanataArgs] UDP server disabled")
         }
 
         if checkOnly {

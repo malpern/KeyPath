@@ -10,7 +10,7 @@ enum WizardPage: String, CaseIterable {
     case conflicts = "Resolve Conflicts"
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
-    case tcpServer = "TCP Server"
+    case communication = "Communication"
     case karabinerComponents = "Karabiner Components"
     case kanataComponents = "Kanata Components"
     case service = "Start Service"
@@ -25,7 +25,7 @@ enum WizardPage: String, CaseIterable {
         case .accessibility: "Accessibility Permission"
         case .karabinerComponents: "Karabiner Driver Setup"
         case .kanataComponents: "Kanata Engine Setup"
-        case .tcpServer: "TCP Server Configuration"
+        case .communication: "Communication Protocol"
         case .service: "Start Keyboard Service"
         }
     }
@@ -40,7 +40,7 @@ enum WizardPage: String, CaseIterable {
         case .accessibility: "accessibility"
         case .karabinerComponents: "karabiner-components"
         case .kanataComponents: "kanata-components"
-        case .tcpServer: "tcp-server"
+        case .communication: "communication"
         case .service: "service"
         }
     }
@@ -123,10 +123,12 @@ enum ComponentRequirement: Equatable {
     case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case packageManager // Homebrew or other package manager
     case vhidDaemonMisconfigured
-    case kanataTCPServer // TCP server for Kanata communication and config validation
+    case kanataUDPServer // UDP server for Kanata communication and config validation
     case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
-    case tcpServerConfiguration // TCP enabled but not configured in service
-    case tcpServerNotResponding // TCP configured but not responding
+    case communicationServerConfiguration // Communication server enabled but not configured in service
+    case communicationServerNotResponding // Communication server configured but not responding
+    case udpServerConfiguration // UDP enabled but not configured in service
+    case udpServerNotResponding // UDP configured but not responding
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -146,8 +148,9 @@ enum AutoFixAction: Equatable {
     case replaceOrphanedProcess // Kill orphaned process and start managed one
     case installLogRotation // Install log rotation service to keep logs under 10MB
     case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
-    case regenerateTCPServiceConfiguration // Update LaunchDaemon plist with TCP settings
-    case restartTCPServer // Restart service to enable TCP functionality
+    case enableUDPServer // Enable UDP server for communication
+    case regenerateCommServiceConfiguration // Update LaunchDaemon plist with UDP settings
+    case restartCommServer // Restart service to enable UDP functionality
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation

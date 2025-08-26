@@ -15,7 +15,7 @@ final class KeychainService {
     private let udpTokenAccount = "udp-auth-token"
 
     /// Store UDP authentication token securely in Keychain
-    func storeUDPToken(_ token: String) throws {
+    nonisolated func storeUDPToken(_ token: String) throws {
         let tokenData = token.data(using: .utf8) ?? Data()
 
         let query: [String: Any] = [
@@ -39,7 +39,7 @@ final class KeychainService {
     }
 
     /// Retrieve UDP authentication token from Keychain
-    func retrieveUDPToken() throws -> String? {
+    nonisolated func retrieveUDPToken() throws -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -67,7 +67,7 @@ final class KeychainService {
     }
 
     /// Delete UDP authentication token from Keychain
-    func deleteUDPToken() throws {
+    nonisolated func deleteUDPToken() throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,

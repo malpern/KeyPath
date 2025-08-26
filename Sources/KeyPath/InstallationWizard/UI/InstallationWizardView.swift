@@ -254,8 +254,8 @@ struct InstallationWizardView: View {
                         onRefresh: { refreshState() },
                         kanataManager: kanataManager
                     )
-                case .tcpServer:
-                    WizardTCPServerPage(
+                case .communication:
+                    WizardCommunicationPage(
                         onAutoFix: performAutoFix
                     )
                 case .service:
@@ -660,10 +660,12 @@ struct InstallationWizardView: View {
             "Install log rotation to keep logs under 10MB"
         case .replaceKanataWithBundled:
             "Replace kanata with Developer ID signed version"
-        case .regenerateTCPServiceConfiguration:
-            "Fix TCP server configuration"
-        case .restartTCPServer:
-            "Fix TCP server"
+        case .enableUDPServer:
+            "Enable UDP server"
+        case .regenerateCommServiceConfiguration:
+            "Update UDP service configuration"
+        case .restartCommServer:
+            "Restart UDP server"
         }
 
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")
