@@ -161,7 +161,7 @@ public class KeyboardCapture: ObservableObject {
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .listenOnly, // ADR-006: Use listen-only to avoid grabbing devices
+            options: .defaultTap, // Recording mode: intercept and suppress events
             eventsOfInterest: CGEventMask(eventMask),
             callback: { tapProxy, _, event, refcon -> Unmanaged<CGEvent>? in
                 guard let refcon else { return Unmanaged.passRetained(event) }
@@ -181,13 +181,13 @@ public class KeyboardCapture: ObservableObject {
                     if let processedEvent = result.processedEvent {
                         capture.handleKeyEvent(processedEvent)
                     }
-                    // Listen-only mode: always pass through the original event unmodified
-                    return Unmanaged.passUnretained(event)
+                    // Recording mode: suppress the event (prevent system beeps/errors)
+                    return nil
                 } else {
                     // Legacy behavior - process directly
                     capture.handleKeyEvent(event)
-                    // Listen-only mode: always pass through the original event unmodified
-                    return Unmanaged.passUnretained(event)
+                    // Recording mode: suppress the event (prevent system beeps/errors)
+                    return nil
                 }
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
