@@ -1013,8 +1013,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             "xmark.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
-        {
+            || message.contains("backed up") {
             "exclamationmark.triangle.fill"
         } else {
             "checkmark.circle.fill"
@@ -1025,8 +1024,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
-        {
+            || message.contains("backed up") {
             .orange
         } else {
             .green
@@ -1037,8 +1035,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.1)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
-        {
+            || message.contains("backed up") {
             Color.orange.opacity(0.1)
         } else {
             Color.green.opacity(0.1)
@@ -1049,8 +1046,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.3)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
-        {
+            || message.contains("backed up") {
             Color.orange.opacity(0.3)
         } else {
             Color.green.opacity(0.3)

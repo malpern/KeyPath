@@ -144,8 +144,7 @@ class KanataTCPClient {
 
             // Check if we got {"status":"Ok"} response
             if let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String, status == "Ok"
-            {
+               let status = json["status"] as? String, status == "Ok" {
                 AppLogger.shared.log("✅ [TCP] Kanata restart request sent successfully")
                 return true
             } else {

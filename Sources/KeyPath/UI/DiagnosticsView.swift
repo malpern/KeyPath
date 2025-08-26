@@ -960,7 +960,7 @@ struct EnhancedStatusSection: View {
         process.launchPath = "/usr/bin/sqlite3"
         process.arguments = [
             "/Library/Application Support/com.apple.TCC/TCC.db",
-            "SELECT client FROM access WHERE service='kTCCServiceListenEvent' AND client LIKE '%kanata%';",
+            "SELECT client FROM access WHERE service='kTCCServiceListenEvent' AND client LIKE '%kanata%';"
         ]
         process.standardOutput = pipe
         process.standardError = pipe
