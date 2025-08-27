@@ -301,10 +301,8 @@ final class ProcessLifecycleManager {
 
         // Check against all known kanata paths (bundled, homebrew, standard locations)
         let knownPaths = WizardSystemPaths.allKnownKanataPaths()
-        for path in knownPaths {
-            if command.contains(path) {
-                return true
-            }
+        for path in knownPaths where command.contains(path) {
+            return true
         }
 
         // Look for actual kanata binary - be more specific

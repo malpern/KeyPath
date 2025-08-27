@@ -149,6 +149,7 @@ enum AutoFixAction: Equatable {
     case installLogRotation // Install log rotation service to keep logs under 10MB
     case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
     case enableUDPServer // Enable UDP server for communication
+    case setupUDPAuthentication // Generate and configure UDP authentication token
     case regenerateCommServiceConfiguration // Update LaunchDaemon plist with UDP settings
     case restartCommServer // Restart service to enable UDP functionality
 }

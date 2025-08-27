@@ -365,11 +365,11 @@ struct ErrorDisplayCard: View {
 
                 Spacer()
 
-                Button(action: { withAnimation { isExpanded.toggle() } }) {
+                Button(action: { withAnimation { isExpanded.toggle() } }, label: {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                }
+                })
                 .buttonStyle(.plain)
 
                 Button("×") {
@@ -460,7 +460,7 @@ struct RecoveryActionButton: View {
     var body: some View {
         Button(action: {
             Task { await onExecute() }
-        }) {
+        }, label: {
             HStack(spacing: 12) {
                 Image(systemName: action.icon)
                     .font(.headline)
@@ -505,7 +505,7 @@ struct RecoveryActionButton: View {
                             .stroke(Color.blue.opacity(0.3), lineWidth: 1)
                     )
             )
-        }
+        })
         .buttonStyle(.plain)
         .disabled(isExecuting)
         .scaleEffect(isPressed ? 0.98 : 1.0)

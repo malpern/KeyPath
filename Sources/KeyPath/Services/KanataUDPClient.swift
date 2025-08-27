@@ -105,25 +105,61 @@ actor KanataUDPClient {
         AppLogger.shared.log("🔐 [UDP] Authentication cleared")
     }
 
+    /// Automatically authenticate using shared token if not already authenticated
+    func ensureAuthenticated() async -> Bool {
+        if isAuthenticated {
+            return true
+        }
+
+        // Phase 2/3: Use shared token file for automatic authentication
+        guard let sharedToken = CommunicationSnapshot.readSharedUDPToken(), !sharedToken.isEmpty else {
+            AppLogger.shared.log("⚠️ [UDP] No shared token available for automatic authentication")
+            return false
+        }
+
+        return await authenticate(token: sharedToken)
+    }
+
     // MARK: - Server Status
 
     /// Check if UDP server is available and authenticate if token provided
     func checkServerStatus(authToken: String? = nil) async -> Bool {
         AppLogger.shared.log("🌐 [UDP] Checking server status for \(host):\(port)")
 
-        // Simple ping message to test connectivity
+        // Use RequestCurrentLayerName which is a valid kanata command
         do {
-            let pingData = try JSONEncoder().encode(["Ping": [:] as [String: String]])
-            _ = try await sendUDPMessage(pingData, requiresAuth: false)
+            let pingData = try JSONEncoder().encode(["RequestCurrentLayerName": [:] as [String: String]])
+            let responseData = try await sendUDPMessage(pingData, requiresAuth: false)
 
-            AppLogger.shared.log("✅ [UDP] Server is responding")
+            // Parse the response
+            if let responseString = String(data: responseData, encoding: .utf8) {
+                AppLogger.shared.log("🌐 [UDP] Server response: \(responseString)")
 
-            // If auth token provided, attempt authentication
-            if let token = authToken {
-                return await authenticate(token: token)
+                // Any valid response (including "AuthRequired") means server is working
+                if responseString.contains("AuthRequired") || responseString.contains("Auth") {
+                    AppLogger.shared.log("✅ [UDP] Server is responding (auth required)")
+                } else {
+                    AppLogger.shared.log("✅ [UDP] Server is responding")
+                }
+
+                // Try authentication with provided token or shared token
+                let tokenToUse: String?
+                if let token = authToken {
+                    tokenToUse = token
+                } else {
+                    // Phase 2/3: Use shared token file for automatic authentication
+                    tokenToUse = CommunicationSnapshot.readSharedUDPToken()
+                }
+
+                if let token = tokenToUse, !token.isEmpty {
+                    return await authenticate(token: token)
+                }
+
+                return true
+            } else {
+                AppLogger.shared.log("❌ [UDP] Invalid response format")
+                return false
             }
-
-            return true
         } catch {
             AppLogger.shared.log("❌ [UDP] Server status check failed: \(error)")
             return false

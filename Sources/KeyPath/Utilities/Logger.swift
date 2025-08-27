@@ -24,14 +24,8 @@ class AppLogger {
     private var flushTimer: Timer?
 
     private init() {
-        // Set log directory to project directory for easy access during development
-        let projectPath = "/Volumes/FlashGordon/Dropbox/code/KeyPath"
-        if FileManager.default.fileExists(atPath: projectPath) {
-            logDirectory = projectPath + "/logs"
-        } else {
-            // Fallback to user directory if project path not available
-            logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
-        }
+        // Use standard macOS app logs directory
+        logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
 
         dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -53,8 +47,7 @@ class AppLogger {
 
         // Start automatic flush timer
         DispatchQueue.main.async {
-            self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) {
-                _ in
+            self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) { _ in
                 self.flushBuffer()
             }
         }

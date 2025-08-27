@@ -662,6 +662,8 @@ struct InstallationWizardView: View {
             "Replace kanata with Developer ID signed version"
         case .enableUDPServer:
             "Enable UDP server"
+        case .setupUDPAuthentication:
+            "Setup UDP authentication for secure communication"
         case .regenerateCommServiceConfiguration:
             "Update UDP service configuration"
         case .restartCommServer:

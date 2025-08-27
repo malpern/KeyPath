@@ -117,7 +117,7 @@ struct WizardCommunicationPage: View {
                         // Fix button or status indicator
                         if commStatus.canAutoFix {
                             WizardButton(
-                                "Enable UDP Server",
+                                commStatus.fixButtonText,
                                 style: .primary,
                                 isLoading: isFixing
                             ) {
@@ -128,6 +128,14 @@ struct WizardCommunicationPage: View {
                                 ProgressView()
                                     .scaleEffect(0.8)
                                 Text("Checking communication server...")
+                                    .font(WizardDesign.Typography.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else if case .authTesting = commStatus {
+                            VStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Setting up secure connection...")
                                     .font(WizardDesign.Typography.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -183,10 +191,50 @@ struct WizardCommunicationPage: View {
         let client = KanataUDPClient(port: preferences.udpServerPort)
         let isAvailable = await client.checkServerStatus()
 
-        if isAvailable {
-            commStatus = .ready("UDP server is running and responsive")
-        } else {
+        if !isAvailable {
             commStatus = .needsSetup("UDP server is not responding on port \(preferences.udpServerPort)")
+            return
+        }
+
+        // Server is available, now test authentication
+        await testAuthentication(client: client)
+    }
+
+    private func testAuthentication(client: KanataUDPClient) async {
+        commStatus = .authTesting("Testing secure connection...")
+
+        // Check if we already have a valid auth token
+        let authToken = preferences.udpAuthToken
+        if !authToken.isEmpty {
+            // Try existing token
+            if await client.checkServerStatus(authToken: authToken) {
+                // Test config reload capability
+                if await testConfigReload(client: client) {
+                    commStatus = .ready("Ready for instant configuration changes and external integrations")
+                    return
+                } else {
+                    commStatus = .authRequired("Authentication works but config reload failed - may need fresh token")
+                    return
+                }
+            }
+        }
+
+        // Need new authentication
+        commStatus = .authRequired("Secure connection required for configuration changes")
+    }
+
+    private func testConfigReload(client: KanataUDPClient) async -> Bool {
+        // Test a simple config reload to ensure full functionality
+        let result = await client.reloadConfig()
+        switch result {
+        case .success:
+            return true
+        case .authenticationRequired:
+            return false
+        case .failure:
+            return false
+        case .networkError:
+            return false
         }
     }
 
@@ -198,13 +246,18 @@ struct WizardCommunicationPage: View {
         isFixing = true
         showingFixFeedback = false
 
-        let action: AutoFixAction = .enableUDPServer
-        let success = await onAutoFix(action)
+        let (action, successMessage, failureMessage) = getAutoFixAction()
+        var success = await onAutoFix(action)
+
+        // For authentication setup, we need additional steps
+        if success, commStatus.isAuthenticationRelated {
+            success = await setupAuthentication()
+        }
 
         isFixing = false
         fixResult = FixResult(
             success: success,
-            message: success ? "UDP server enabled successfully" : "Failed to enable UDP server",
+            message: success ? successMessage : failureMessage,
             timestamp: Date()
         )
         showingFixFeedback = true
@@ -214,6 +267,42 @@ struct WizardCommunicationPage: View {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             await checkCommunicationStatus()
         }
+    }
+
+    private func getAutoFixAction() -> (AutoFixAction, String, String) {
+        switch commStatus {
+        case .needsSetup:
+            return (.enableUDPServer, "UDP server enabled successfully", "Failed to enable UDP server")
+        case .authRequired:
+            return (.setupUDPAuthentication, "Secure connection established successfully", "Failed to setup authentication")
+        default:
+            return (.enableUDPServer, "Issue resolved", "Failed to fix issue")
+        }
+    }
+
+    private func setupAuthentication() async -> Bool {
+        // Generate a new auth token
+        let newToken = generateAuthToken()
+
+        // Update preferences with new token
+        await MainActor.run {
+            preferences.udpAuthToken = newToken
+        }
+
+        // Test the new token
+        let client = KanataUDPClient(port: preferences.udpServerPort)
+        if await client.authenticate(token: newToken) {
+            // Test config reload to ensure full functionality
+            return await testConfigReload(client: client)
+        } else {
+            return false
+        }
+    }
+
+    private func generateAuthToken() -> String {
+        // Generate a secure random token for UDP authentication
+        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return String((0 ..< 32).map { _ in characters.randomElement()! })
     }
 }
 
@@ -229,6 +318,8 @@ enum CommunicationStatus: Equatable {
     case checking
     case ready(String)
     case needsSetup(String)
+    case authRequired(String)
+    case authTesting(String)
     case error(String)
 
     var isSuccess: Bool {
@@ -242,7 +333,16 @@ enum CommunicationStatus: Equatable {
 
     var canAutoFix: Bool {
         switch self {
-        case .needsSetup:
+        case .needsSetup, .authRequired:
+            return true
+        default:
+            return false
+        }
+    }
+
+    var isAuthenticationRelated: Bool {
+        switch self {
+        case .authRequired:
             return true
         default:
             return false
@@ -253,7 +353,7 @@ enum CommunicationStatus: Equatable {
         switch self {
         case .checking:
             return "Checking communication server status..."
-        case let .ready(msg), let .needsSetup(msg), let .error(msg):
+        case let .ready(msg), let .needsSetup(msg), let .authRequired(msg), let .authTesting(msg), let .error(msg):
             return msg
         }
     }
@@ -262,7 +362,9 @@ enum CommunicationStatus: Equatable {
         switch self {
         case .ready:
             return WizardDesign.Colors.success
-        case .needsSetup:
+        case .needsSetup, .authRequired:
+            return WizardDesign.Colors.warning
+        case .authTesting:
             return WizardDesign.Colors.warning
         case .error:
             return WizardDesign.Colors.error
@@ -277,10 +379,25 @@ enum CommunicationStatus: Equatable {
             return "checkmark.circle.fill"
         case .needsSetup:
             return "exclamationmark.triangle.fill"
+        case .authRequired:
+            return "key.fill"
+        case .authTesting:
+            return "clock.fill"
         case .error:
             return "xmark.circle.fill"
         case .checking:
             return "clock.fill"
+        }
+    }
+
+    var fixButtonText: String {
+        switch self {
+        case .needsSetup:
+            return "Enable UDP Server"
+        case .authRequired:
+            return "Setup Authentication"
+        default:
+            return "Fix Issue"
         }
     }
 }

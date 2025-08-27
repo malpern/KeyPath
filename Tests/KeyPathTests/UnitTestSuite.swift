@@ -104,24 +104,10 @@ final class UnitTestSuite: XCTestCase {
     func testPreferenceDefaults() throws {
         let service = PreferencesService()
 
-        // Test that service initializes with defaults
-        XCTAssertNotNil(service.tcpServerPort)
-        XCTAssertTrue(service.isValidTCPPort(service.tcpServerPort))
-        // Test that shouldUseTCPServer logic works correctly
-        let expectedShouldUse = service.tcpServerEnabled && service.isValidTCPPort(service.tcpServerPort)
-        XCTAssertEqual(service.shouldUseTCPServer, expectedShouldUse)
-    }
-
-    @MainActor
-    func testPreferenceStorage() throws {
-        let service = PreferencesService()
-
-        // Test setting and getting preferences
-        service.tcpServerEnabled = false
-        service.tcpServerPort = 37001
-
-        XCTAssertFalse(service.tcpServerEnabled)
-        XCTAssertEqual(service.tcpServerPort, 37001)
+        // Test that service initializes with defaults (UDP only)
+        XCTAssertTrue(service.udpServerEnabled)
+        XCTAssertEqual(service.communicationProtocol, .udp)
+        XCTAssertTrue(service.isValidPort(service.udpServerPort))
     }
 
     // MARK: - Sound Manager Tests

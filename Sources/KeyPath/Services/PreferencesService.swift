@@ -221,16 +221,15 @@ extension PreferencesService {
 
         var args = ["--udp-port", "\(udpServerPort)"]
 
-        // Load token securely for launch arguments
-        let secureToken: String
-        do {
-            secureToken = try KeychainService.shared.retrieveUDPToken() ?? ""
-        } catch {
-            secureToken = ""
-        }
-
-        if !secureToken.isEmpty {
-            args.append(contentsOf: ["--udp-auth-token", secureToken])
+        // Phase 1-3: Multi-phase token authentication
+        let sharedTokenPath = CommunicationSnapshot.udpAuthTokenPath()
+        if let sharedToken = try? String(contentsOfFile: sharedTokenPath, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+           !sharedToken.isEmpty {
+            // Phase 2/3: Use shared token file for cross-platform compatibility
+            args.append(contentsOf: ["--udp-auth-token", sharedToken])
+        } else {
+            // Phase 1: Disable auth for immediate functionality
+            args.append("--udp-no-auth")
         }
 
         if udpSessionTimeout != Defaults.udpSessionTimeout {
@@ -266,15 +265,109 @@ struct CommunicationSnapshot: Sendable {
         return "127.0.0.1:\(udpPort)"
     }
 
+    /// Get cross-platform path for shared UDP auth token file
+    static func udpAuthTokenPath() -> String {
+        #if os(macOS)
+            return NSHomeDirectory() + "/.config/keypath/udp-auth-token"
+        #elseif os(Windows)
+            return NSHomeDirectory() + "/AppData/Roaming/keypath/udp-auth-token"
+        #else
+            return NSHomeDirectory() + "/.config/keypath/udp-auth-token"
+        #endif
+    }
+
+    /// Generate secure 32-character UDP auth token
+    static func generateUDPAuthToken() -> String {
+        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return String((0 ..< 32).map { _ in characters.randomElement()! })
+    }
+
+    /// Write shared UDP auth token to cross-platform file location
+    static func writeSharedUDPToken(_ token: String) -> Bool {
+        let tokenPath = udpAuthTokenPath()
+        let tokenDir = (tokenPath as NSString).deletingLastPathComponent
+
+        do {
+            // Create directory if it doesn't exist
+            try FileManager.default.createDirectory(
+                atPath: tokenDir,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+
+            // Write token to file
+            try token.write(toFile: tokenPath, atomically: true, encoding: .utf8)
+
+            // Set secure permissions (owner read/write only)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: tokenPath
+            )
+
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [UDP Auth] Failed to write shared token: \(error)")
+            return false
+        }
+    }
+
+    /// Read shared UDP auth token from cross-platform file location
+    static func readSharedUDPToken() -> String? {
+        let tokenPath = udpAuthTokenPath()
+        do {
+            let token = try String(contentsOfFile: tokenPath, encoding: .utf8)
+            return token.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            return nil
+        }
+    }
+
+    /// Ensure shared UDP token exists, generating one if needed
+    static func ensureSharedUDPToken() -> String {
+        // Try to read existing token
+        if let existingToken = readSharedUDPToken(), !existingToken.isEmpty {
+            return existingToken
+        }
+
+        // Generate new token
+        let newToken = generateUDPAuthToken()
+
+        // Write to shared file
+        if writeSharedUDPToken(newToken) {
+            AppLogger.shared.log("🔐 [UDP Auth] Generated new shared token")
+
+            // Also store in Keychain for backup/persistence
+            do {
+                try KeychainService.shared.storeUDPToken(newToken)
+            } catch {
+                AppLogger.shared.log("⚠️ [UDP Auth] Failed to backup token in Keychain: \(error)")
+            }
+
+            return newToken
+        } else {
+            AppLogger.shared.log("❌ [UDP Auth] Failed to write shared token, using generated token")
+            return newToken
+        }
+    }
+
     /// Get UDP launch arguments
     var communicationLaunchArguments: [String] {
         guard shouldUseUDP else { return [] }
 
         var args = ["--udp-port", "\(udpPort)"]
 
-        // Use provided token (from snapshot)
-        if !udpAuthToken.isEmpty {
+        // Phase 1-3: Multi-phase token authentication
+        let sharedTokenPath = CommunicationSnapshot.udpAuthTokenPath()
+        if let sharedToken = try? String(contentsOfFile: sharedTokenPath, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+           !sharedToken.isEmpty {
+            // Phase 2/3: Use shared token file for cross-platform compatibility
+            args.append(contentsOf: ["--udp-auth-token", sharedToken])
+        } else if !udpAuthToken.isEmpty {
+            // Fallback: Use provided token (from snapshot/keychain)
             args.append(contentsOf: ["--udp-auth-token", udpAuthToken])
+        } else {
+            // Phase 1: Disable auth for immediate functionality
+            args.append("--udp-no-auth")
         }
 
         if udpSessionTimeout != 1800 { // Default timeout
@@ -309,5 +402,15 @@ extension PreferencesService {
             udpAuthToken: udpAuthToken,
             udpSessionTimeout: udpSessionTimeout
         )
+    }
+
+    /// Get communication configuration for external clients
+    /// Returns endpoint URL and shared token path for cross-platform integration
+    nonisolated static func externalClientConfiguration() -> (endpoint: String?, tokenPath: String) {
+        let snapshot = communicationSnapshot()
+        let endpoint = snapshot.activeEndpoint
+        let tokenPath = CommunicationSnapshot.udpAuthTokenPath()
+
+        return (endpoint: endpoint, tokenPath: tokenPath)
     }
 }

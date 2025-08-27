@@ -176,6 +176,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("🔍 [AppDelegate] applicationDidFinishLaunching called")
         AppLogger.shared.log("🔍 [AppDelegate] applicationDidFinishLaunching called")
 
+        // Phase 2/3: Ensure shared UDP token exists for cross-platform compatibility
+        Task { @MainActor in
+            let sharedToken = CommunicationSnapshot.ensureSharedUDPToken()
+            AppLogger.shared.log("🔐 [AppDelegate] UDP auth token ready: \(sharedToken.prefix(8))...")
+        }
+
         // Check for pending service bounce first
         Task { @MainActor in
             let (shouldBounce, timeSince) = await PermissionGrantCoordinator.shared.checkServiceBounceNeeded()

@@ -26,6 +26,9 @@ struct ContentView: View {
     // Toast manager for launch failure notifications
     @State private var toastManager = WizardToastManager()
 
+    // Diagnostics view state
+    @State private var showingDiagnostics = false
+
     // Timer removed - now handled by SimpleKanataManager centrally
 
     var body: some View {
@@ -38,7 +41,7 @@ struct ContentView: View {
                 recordedInput: $recordedInput, recordedOutput: $recordedOutput,
                 isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
                 kanataManager: kanataManager, keyboardCapture: $keyboardCapture,
-                showStatusMessage: showStatusMessage
+                showStatusMessage: showStatusMessage, showingDiagnostics: $showingDiagnostics
             )
 
             // Enhanced Error Display - persistent and actionable
@@ -73,13 +76,15 @@ struct ContentView: View {
                 .padding(.top, 8)
             }
 
-            // TODO: Diagnostic Summary (show critical issues) - commented out to revert to previous behavior
-            // if !kanataManager.diagnostics.isEmpty {
-            //     let criticalIssues = kanataManager.diagnostics.filter { $0.severity == .critical || $0.severity == .error }
-            //     if !criticalIssues.isEmpty {
-            //         DiagnosticSummarySection(criticalIssues: criticalIssues, kanataManager: kanataManager)
-            //     }
-            // }
+            // Diagnostic Summary (show critical issues)
+            if !kanataManager.diagnostics.isEmpty {
+                let criticalIssues = kanataManager.diagnostics.filter { $0.severity == .critical || $0.severity == .error }
+                if !criticalIssues.isEmpty {
+                    DiagnosticSummaryView(criticalIssues: criticalIssues) {
+                        showingDiagnostics = true
+                    }
+                }
+            }
         }
         .padding()
         .frame(width: 500)
@@ -338,11 +343,11 @@ struct ContentViewHeader: View {
                     AppLogger.shared.log(
                         "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
                     showingInstallationWizard = true
-                }) {
+                }, label: {
                     Image(systemName: "keyboard")
                         .font(.largeTitle)
                         .foregroundColor(.blue)
-                }
+                })
                 .buttonStyle(PlainButtonStyle())
                 .accessibilityIdentifier("launch-installation-wizard-button")
                 .accessibilityLabel("Launch Installation Wizard")
@@ -369,6 +374,7 @@ struct RecordingSection: View {
     @ObservedObject var kanataManager: KanataManager
     @Binding var keyboardCapture: KeyboardCapture?
     let showStatusMessage: (String) -> Void
+    @Binding var showingDiagnostics: Bool
     @State private var outputInactivityTimer: Timer?
     @State private var showingConfigCorruptionAlert = false
     @State private var configCorruptionDetails = ""
@@ -411,10 +417,10 @@ struct RecordingSection: View {
                         } else {
                             startRecording()
                         }
-                    }) {
+                    }, label: {
                         Image(systemName: getInputButtonIcon())
                             .font(.title2)
-                    }
+                    })
                     .buttonStyle(.plain)
                     .frame(height: 44)
                     .frame(minWidth: 44)
@@ -459,10 +465,10 @@ struct RecordingSection: View {
                         } else {
                             startOutputRecording()
                         }
-                    }) {
+                    }, label: {
                         Image(systemName: getOutputButtonIcon())
                             .font(.title2)
-                    }
+                    })
                     .buttonStyle(.plain)
                     .frame(height: 44)
                     .frame(minWidth: 44)
@@ -485,7 +491,7 @@ struct RecordingSection: View {
                 Spacer()
                 Button(action: {
                     debouncedSave()
-                }) {
+                }, label: {
                     HStack {
                         if kanataManager.saveStatus.isActive {
                             ProgressView()
@@ -495,7 +501,7 @@ struct RecordingSection: View {
                         Text(kanataManager.saveStatus.message.isEmpty ? "Save" : kanataManager.saveStatus.message)
                     }
                     .frame(minWidth: 100)
-                }
+                })
                 .buttonStyle(.borderedProminent)
                 .disabled(recordedInput.isEmpty || recordedOutput.isEmpty || kanataManager.saveStatus.isActive)
                 .accessibilityIdentifier("save-mapping-button")
@@ -512,7 +518,7 @@ struct RecordingSection: View {
             }
             Button("View Diagnostics") {
                 showingConfigCorruptionAlert = false
-                // TODO: Open diagnostics view
+                showingDiagnostics = true
             }
         } message: {
             Text(configCorruptionDetails)
@@ -527,7 +533,7 @@ struct RecordingSection: View {
             }
             Button("View Diagnostics") {
                 showingRepairFailedAlert = false
-                // TODO: Open diagnostics view
+                showingDiagnostics = true
             }
         } message: {
             Text(repairFailedDetails)
@@ -552,6 +558,9 @@ struct RecordingSection: View {
             }
         } message: {
             Text(kanataManager.validationAlertMessage)
+        }
+        .sheet(isPresented: $showingDiagnostics) {
+            DiagnosticsView(kanataManager: kanataManager)
         }
     }
 
@@ -699,8 +708,7 @@ struct RecordingSection: View {
         AppLogger.shared.log("💾 [Save] Debounced save initiated - starting timer")
 
         // Create new timer
-        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) {
-            _ in
+        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) { _ in
             AppLogger.shared.log("💾 [Save] Debounce timer fired - executing save")
             Task {
                 await saveKeyPath()
@@ -1051,6 +1059,80 @@ struct StatusMessageView: View {
         } else {
             Color.green.opacity(0.3)
         }
+    }
+}
+
+struct DiagnosticSummaryView: View {
+    let criticalIssues: [KanataDiagnostic]
+    let onViewDiagnostics: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("System Issues Detected")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text("\(criticalIssues.count) critical issue\(criticalIssues.count == 1 ? "" : "s") need attention")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button(action: onViewDiagnostics, label: {
+                    Text("View Details")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                })
+                .buttonStyle(.plain)
+            }
+
+            // Show first 2 critical issues as preview
+            ForEach(Array(criticalIssues.prefix(2).enumerated()), id: \.offset) { _, issue in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: issue.severity == .critical ? "exclamationmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(issue.severity == .critical ? .red : .orange)
+                        .font(.caption)
+                        .padding(.top, 2)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(issue.title)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+
+                        if !issue.description.isEmpty {
+                            Text(issue.description)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+
+            if criticalIssues.count > 2 {
+                Text("... and \(criticalIssues.count - 2) more issue\(criticalIssues.count - 2 == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 16)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.orange.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
 }
 

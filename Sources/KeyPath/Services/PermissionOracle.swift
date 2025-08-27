@@ -115,6 +115,13 @@ actor PermissionOracle {
 
     // MARK: - 🎯 THE ONLY PUBLIC API
 
+    /// Force cache invalidation - useful after UDP configuration changes
+    func invalidateCache() {
+        AppLogger.shared.log("🔮 [Oracle] Cache invalidated - next check will be fresh")
+        lastSnapshot = nil
+        lastSnapshotTime = nil
+    }
+
     /// Get current permission snapshot - THE authoritative permission state
     ///
     /// This is the ONLY method other components should call.
@@ -201,8 +208,11 @@ actor PermissionOracle {
         // Use functional verification as primary method for kanata permissions
         let functionalStatus = await checkKanataFunctionalStatus()
 
-        // For accessibility, kanata typically doesn't need it, so use functional status
-        let accessibility: Status = functionalStatus
+        // For accessibility, only mark as granted when positive; otherwise unknown
+        let accessibility: Status = switch functionalStatus {
+        case .granted: .granted
+        default: .unknown
+        }
 
         // For Input Monitoring, combine binary existence check with functional status
         let binaryCheck = checkBinaryInputMonitoring(at: kanataPath)
@@ -211,12 +221,8 @@ actor PermissionOracle {
             .error(msg) // Binary missing is definitive error
         case (_, .granted):
             .granted // Functional = granted means permissions work
-        case (_, .denied):
-            .denied // Functional = denied suggests permission issues
-        case (_, .unknown):
-            .unknown // Conservative when we can't verify
-        case let (_, .error(msg)):
-            .error(msg) // UDP errors
+        default:
+            .unknown // Conservative when we can't verify - don't assume denied
         }
 
         let source = "keypath.functional-verification"
@@ -275,12 +281,15 @@ actor PermissionOracle {
             return .unknown
         }
 
-        let client = KanataUDPClient(port: commSnapshot.udpPort, timeout: 1.0)
+        let client = KanataUDPClient(port: commSnapshot.udpPort, timeout: 5.0)
+        AppLogger.shared.log("🔮 [Oracle] Testing UDP connection to port \(commSnapshot.udpPort)...")
         let isConnected = await client.checkServerStatus()
 
-        AppLogger.shared.log("🔮 [Oracle] Kanata functional check via UDP: \(isConnected ? "responding" : "not responding")")
+        AppLogger.shared.log("🔮 [Oracle] UDP connection result: \(isConnected)")
+        AppLogger.shared.log("🔮 [Oracle] Kanata functional check: \(isConnected ? "GRANTED (responding)" : "UNKNOWN (not responding)")")
 
-        return isConnected ? .granted : .denied
+        // Only grant on positive signal; otherwise unknown (don't mark as denied)
+        return isConnected ? .granted : .unknown
     }
 
     // MARK: - Utilities (TCC fallback removed - UDP API is authoritative)

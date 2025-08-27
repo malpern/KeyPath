@@ -36,30 +36,31 @@ jobs:
         swift build
         echo "✅ Build completed successfully"
     
-    - name: Run Core Tests
+    - name: Run All Tests
       run: |
-        echo "🧪 Running KeyPath Core Tests..."
+        echo "🧪 Running KeyPath Full Test Suite..."
         
         # Set CI environment variables
         export CI_ENVIRONMENT=true
         export KEYPATH_TESTING=true
-        export CI_INTEGRATION_TESTS=false  # Disable integration tests in CI by default
         
-        # Run our simplified core test suite
-        ./run-core-tests.sh || {
+        # Run full test suite to catch all issues
+        if swift test --parallel; then
+          echo "TEST_STATUS=passed" >> $GITHUB_ENV
+          echo "✅ All tests passed"
+        else
           echo "TEST_STATUS=failed" >> $GITHUB_ENV
-          # Don't exit - let CI continue for build verification
-        }
-        
-        echo "✅ Core test execution completed"
+          echo "❌ Some tests failed"
+          # Continue CI for build verification but mark as failed
+        fi
     
     - name: Upload Test Results
       if: always()  # Upload results even if tests failed
       uses: actions/upload-artifact@v4
       with:
-        name: core-test-results
-        path: test-results/
-        retention-days: 7  # Reduced retention for core tests
+        name: test-results
+        path: .build/debug/
+        retention-days: 7
     
     - name: Generate Test Summary
       if: always()
@@ -67,36 +68,29 @@ jobs:
         echo "📋 Generating test summary..."
         
         # Create summary for GitHub Actions
-        echo "## 🧪 KeyPath Core Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "## 🧪 KeyPath Full Test Results" >> $GITHUB_STEP_SUMMARY
         
         if [ "$TEST_STATUS" = "failed" ]; then
-          echo "❌ **Core Tests Failed**" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **Tests Failed**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Some core tests failed, but CI continued for build verification." >> $GITHUB_STEP_SUMMARY
-          echo "Check the core-test-results artifact for detailed logs." >> $GITHUB_STEP_SUMMARY
+          echo "Some tests failed. Build verification continued." >> $GITHUB_STEP_SUMMARY
+          echo "Check the test-results artifact for detailed logs." >> $GITHUB_STEP_SUMMARY
         else
-          echo "✅ **Core Tests Passed**" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All Tests Passed**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Extract results from core test logs
-          if [ -f "test-results/Unit Tests.log" ]; then
-            UNIT_COUNT=$(grep -c "Test Suite.*passed" "test-results/Unit Tests.log" 2>/dev/null || echo "0")
-            echo "- **Unit Tests:** $UNIT_COUNT suites passed" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -f "test-results/Core Tests.log" ]; then
-            CORE_COUNT=$(grep -c "Test Suite.*passed" "test-results/Core Tests.log" 2>/dev/null || echo "0")
-            echo "- **Core Tests:** $CORE_COUNT suites passed" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "Full test suite executed successfully including:" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit tests (core functionality)" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration tests (system interactions)" >> $GITHUB_STEP_SUMMARY
+          echo "- UDP client tests (network communication)" >> $GITHUB_STEP_SUMMARY
+          echo "- Manager tests (service coordination)" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📊 Test Architecture" >> $GITHUB_STEP_SUMMARY
-        echo "- **Unit Tests:** Fast, no dependencies" >> $GITHUB_STEP_SUMMARY
-        echo "- **Core Tests:** Essential functionality with mocks" >> $GITHUB_STEP_SUMMARY
-        echo "- **Integration Tests:** Disabled in CI (enable with CI_INTEGRATION_TESTS=true)" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "- **Full Test Suite:** All tests run in CI" >> $GITHUB_STEP_SUMMARY
+        echo "- **TCP Tests:** Removed (UDP-only architecture)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deprecated Tests:** Moved to Tests/Deprecated/" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "*Deprecated tests moved to Tests/Deprecated/ folder*" >> $GITHUB_STEP_SUMMARY
         echo "---" >> $GITHUB_STEP_SUMMARY
     
     - name: Build Release

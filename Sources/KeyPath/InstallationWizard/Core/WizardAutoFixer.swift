@@ -113,6 +113,8 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to replace kanata with bundled version
         case .enableUDPServer:
             true // We can always attempt to enable UDP server
+        case .setupUDPAuthentication:
+            true // We can always attempt to setup UDP authentication
         case .regenerateCommServiceConfiguration:
             true // We can always attempt to regenerate communication service configuration
         case .restartCommServer:
@@ -162,6 +164,8 @@ class WizardAutoFixer: AutoFixCapable {
             return await replaceKanataWithBundled()
         case .enableUDPServer:
             return await enableUDPServer()
+        case .setupUDPAuthentication:
+            return await setupUDPAuthentication()
         case .regenerateCommServiceConfiguration:
             return await regenerateCommServiceConfiguration()
         case .restartCommServer:
@@ -1047,6 +1051,36 @@ class WizardAutoFixer: AutoFixCapable {
 
         // Restart service with UDP enabled
         return await regenerateCommServiceConfiguration()
+    }
+
+    private func setupUDPAuthentication() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Setting up UDP authentication")
+
+        // Generate a new auth token
+        let newToken = generateAuthToken()
+
+        // Update preferences with new token
+        await MainActor.run {
+            PreferencesService.shared.udpAuthToken = newToken
+        }
+
+        // Test the new token
+        let commSnapshot = PreferencesService.communicationSnapshot()
+        let client = KanataUDPClient(port: commSnapshot.udpPort)
+
+        if await client.authenticate(token: newToken) {
+            AppLogger.shared.log("✅ [AutoFixer] UDP authentication setup successful")
+            return true
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] UDP authentication setup failed")
+            return false
+        }
+    }
+
+    private func generateAuthToken() -> String {
+        // Generate a secure random token for UDP authentication
+        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return String((0 ..< 32).map { _ in characters.randomElement()! })
     }
 
     private func regenerateCommServiceConfiguration() async -> Bool {

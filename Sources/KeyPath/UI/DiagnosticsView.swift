@@ -534,7 +534,7 @@ struct ConfigStatusSection: View {
                 .padding(.vertical, 4)
 
             VStack(alignment: .leading, spacing: 8) {
-                Button(action: { showConfigContent.toggle() }) {
+                Button(action: { showConfigContent.toggle() }, label: {
                     HStack {
                         Image(systemName: showConfigContent ? "chevron.down" : "chevron.right")
                             .font(.caption)
@@ -543,7 +543,7 @@ struct ConfigStatusSection: View {
                         Text(showConfigContent ? "Hide Configuration" : "Show Configuration")
                             .font(.subheadline)
                     }
-                }
+                })
                 .buttonStyle(.plain)
 
                 if showConfigContent {
@@ -874,14 +874,12 @@ struct EnhancedStatusSection: View {
             if let output = String(data: data, encoding: .utf8) {
                 // Extract Team ID or Authority from codesign output
                 let lines = output.components(separatedBy: .newlines)
-                for line in lines {
-                    if line.contains("Authority=") {
-                        let authority = line.components(separatedBy: "Authority=").last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Unknown"
-                        await MainActor.run {
-                            codeSignature = authority
-                        }
-                        return
+                for line in lines where line.contains("Authority=") {
+                    let authority = line.components(separatedBy: "Authority=").last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Unknown"
+                    await MainActor.run {
+                        codeSignature = authority
                     }
+                    return
                 }
                 await MainActor.run {
                     codeSignature = "Signed but no authority found"

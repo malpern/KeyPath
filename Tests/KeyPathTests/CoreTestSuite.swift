@@ -64,28 +64,27 @@ final class CoreTestSuite: XCTestCase {
     // MARK: - PreferencesService Integration Tests
 
     @MainActor
-    func testPreferencesServiceTCPConfiguration() throws {
+    func testPreferencesServiceUDPConfiguration() throws {
         let service = PreferencesService()
 
         // Test that service initializes with valid defaults
-        XCTAssertNotNil(service.tcpServerPort)
-        XCTAssertTrue(service.isValidTCPPort(service.tcpServerPort))
+        XCTAssertNotNil(service.udpServerPort)
+        XCTAssertTrue(service.isValidPort(service.udpServerPort))
 
-        // Test TCP port validation
-        XCTAssertTrue(service.isValidTCPPort(37000))
-        XCTAssertTrue(service.isValidTCPPort(65535))
-        XCTAssertFalse(service.isValidTCPPort(1023)) // Below valid range
-        XCTAssertFalse(service.isValidTCPPort(65536)) // Above valid range
+        // Test UDP port validation
+        XCTAssertTrue(service.isValidPort(37000))
+        XCTAssertTrue(service.isValidPort(65535))
+        XCTAssertFalse(service.isValidPort(1023)) // Below valid range
+        XCTAssertFalse(service.isValidPort(65536)) // Above valid range
 
         // Test configuration changes
-        service.tcpServerEnabled = false
-        XCTAssertFalse(service.tcpServerEnabled)
-        XCTAssertFalse(service.shouldUseTCPServer)
+        service.udpServerEnabled = false
+        XCTAssertFalse(service.udpServerEnabled)
 
-        service.tcpServerEnabled = true
-        service.tcpServerPort = 37000
-        XCTAssertTrue(service.shouldUseTCPServer)
-        XCTAssertEqual(service.tcpEndpoint, "127.0.0.1:37000")
+        service.udpServerEnabled = true
+        service.udpServerPort = 37000
+        XCTAssertTrue(service.udpServerEnabled)
+        XCTAssertEqual(service.udpServerPort, 37000)
     }
 
     // MARK: - Sound Manager Integration Tests

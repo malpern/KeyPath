@@ -586,6 +586,8 @@ extension AutoFixAction {
             "Replace Kanata with Bundled Version"
         case .enableUDPServer:
             "Enable UDP Server"
+        case .setupUDPAuthentication:
+            "Setup UDP Authentication"
         case .regenerateCommServiceConfiguration:
             "Regenerate UDP Service Configuration"
         case .restartCommServer:

@@ -225,8 +225,7 @@ public class KeyboardCapture: ObservableObject {
         pauseTimer?.invalidate()
 
         // Start new timer for auto-stop after pause
-        pauseTimer = Timer.scheduledTimer(withTimeInterval: pauseDuration, repeats: false) {
-            [weak self] _ in
+        pauseTimer = Timer.scheduledTimer(withTimeInterval: pauseDuration, repeats: false) { [weak self] _ in
             DispatchQueue.main.async {
                 self?.stopCapture()
             }

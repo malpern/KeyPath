@@ -299,20 +299,7 @@ class KanataManager: ObservableObject {
         await startKanata()
     }
 
-    /// Result of TCP reload operation with error capture
-    struct TCPReloadResult {
-        let success: Bool
-        let errorMessage: String?
-        let kanataResponse: String?
-
-        static func success(response: String) -> TCPReloadResult {
-            TCPReloadResult(success: true, errorMessage: nil, kanataResponse: response)
-        }
-
-        static func failure(error: String, response: String? = nil) -> TCPReloadResult {
-            TCPReloadResult(success: false, errorMessage: error, kanataResponse: response)
-        }
-    }
+    // UDP reload result is now handled by the KanataUDPClient.UDPReloadResult enum
 
     /// Configuration management errors
     private enum ConfigError: Error, LocalizedError {
@@ -1190,7 +1177,11 @@ class KanataManager: ObservableObject {
     private func startLaunchDaemonService() async -> Bool {
         AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service...")
 
-        let script = "do shell script \"launchctl kickstart -k system/com.keypath.kanata\" with administrator privileges with prompt \"KeyPath needs administrator privileges to manage the keyboard remapping service.\""
+        let script = """
+        do shell script "launchctl kickstart -k system/com.keypath.kanata" \
+        with administrator privileges \
+        with prompt "KeyPath needs administrator privileges to manage the keyboard remapping service."
+        """
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -1242,15 +1233,13 @@ class KanataManager: ObservableObject {
             if task.terminationStatus == 0 {
                 // Look for "pid = XXXX" in the output
                 let lines = output.components(separatedBy: .newlines)
-                for line in lines {
-                    if line.contains("pid =") {
-                        let components = line.components(separatedBy: "=")
-                        if components.count >= 2,
-                           let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
-                           let pid = Int(pidString) {
-                            AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
-                            return (true, pid)
-                        }
+                for line in lines where line.contains("pid =") {
+                    let components = line.components(separatedBy: "=")
+                    if components.count >= 2,
+                       let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
+                       let pid = Int(pidString) {
+                        AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
+                        return (true, pid)
                     }
                 }
                 // Service loaded but no PID found (may be starting)
@@ -1466,9 +1455,9 @@ class KanataManager: ObservableObject {
 
                 // Set error status
                 await MainActor.run {
-                    saveStatus = .failed("TCP server required for hot reload failed: \(errorMessage)")
+                    saveStatus = .failed("UDP server required for hot reload failed: \(errorMessage)")
                 }
-                throw ConfigError.reloadFailed("TCP server required for validation-on-demand failed: \(errorMessage)")
+                throw ConfigError.reloadFailed("UDP server required for validation-on-demand failed: \(errorMessage)")
             }
 
             // Reset to idle after a delay
@@ -2200,10 +2189,14 @@ class KanataManager: ObservableObject {
 
         let stopScript = """
         # Stop old Karabiner Elements system LaunchDaemon (runs as root)
-        launchctl bootout system "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" 2>/dev/null || true
+        launchctl bootout system \
+            "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" \
+            2>/dev/null || true
 
         # Stop old Karabiner Elements user LaunchAgent
-        launchctl bootout gui/$(id -u) "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" 2>/dev/null || true
+        launchctl bootout gui/$(id -u) \
+            "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" \
+            2>/dev/null || true
 
         # Kill old karabiner_grabber processes
         pkill -f karabiner_grabber 2>/dev/null || true
@@ -2553,8 +2546,11 @@ class KanataManager: ObservableObject {
         let tmpPath = "/Library/Application Support/org.pqrs/tmp"
 
         // Use AppleScript to run commands with admin privileges
-        let createDirScript =
-            "do shell script \"mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'\" with administrator privileges with prompt \"KeyPath needs to prepare system directories for the virtual keyboard.\""
+        let createDirScript = """
+        do shell script "mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'" \
+        with administrator privileges \
+        with prompt "KeyPath needs to prepare system directories for the virtual keyboard."
+        """
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -2814,22 +2810,18 @@ class KanataManager: ObservableObject {
 
         // Match up src and layer keys, filtering out invalid keys
         var tempMappings: [KeyMapping] = []
-        for (index, srcKey) in srcKeys.enumerated() {
-            if index < layerKeys.count {
-                // Skip obviously invalid keys
-                if srcKey != "invalid", !srcKey.isEmpty {
-                    tempMappings.append(KeyMapping(input: srcKey, output: layerKeys[index]))
-                }
+        for (index, srcKey) in srcKeys.enumerated() where index < layerKeys.count {
+            // Skip obviously invalid keys
+            if srcKey != "invalid", !srcKey.isEmpty {
+                tempMappings.append(KeyMapping(input: srcKey, output: layerKeys[index]))
             }
         }
 
         // Deduplicate mappings - keep only the last mapping for each input key
         var seenInputs: Set<String> = []
-        for mapping in tempMappings.reversed() {
-            if !seenInputs.contains(mapping.input) {
-                mappings.insert(mapping, at: 0)
-                seenInputs.insert(mapping.input)
-            }
+        for mapping in tempMappings.reversed() where !seenInputs.contains(mapping.input) {
+            mappings.insert(mapping, at: 0)
+            seenInputs.insert(mapping.input)
         }
 
         AppLogger.shared.log("🔍 [Parse] Found \(srcKeys.count) src keys, \(layerKeys.count) layer keys, deduplicated to \(mappings.count) unique mappings")
@@ -3240,32 +3232,38 @@ class KanataManager: ObservableObject {
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
         async throws -> String {
-        // TODO: Integrate with Claude API using the following prompt:
-        //
-        // "The following Kanata keyboard configuration file is invalid and needs to be repaired:
-        //
-        // INVALID CONFIG:
-        // ```
-        // \(config)
-        // ```
-        //
-        // VALIDATION ERRORS:
-        // \(errors.joined(separator: "\n"))
-        //
-        // INTENDED KEY MAPPINGS:
-        // \(mappings.map { "\($0.input) -> \($0.output)" }.joined(separator: "\n"))
-        //
-        // Please generate a corrected Kanata configuration that:
-        // 1. Fixes all validation errors
-        // 2. Preserves the intended key mappings
-        // 3. Uses proper Kanata syntax
-        // 4. Includes defcfg with process-unmapped-keys no and danger-enable-cmd yes
-        // 5. Has proper defsrc and deflayer sections
-        //
-        // Return ONLY the corrected configuration file content, no explanations."
+        // Try Claude API first, fallback to rule-based repair
+        do {
+            let prompt = """
+            The following Kanata keyboard configuration file is invalid and needs to be repaired:
 
-        // For now, use rule-based repair as fallback
-        try await performRuleBasedRepair(config: config, errors: errors, mappings: mappings)
+            INVALID CONFIG:
+            ```
+            \(config)
+            ```
+
+            VALIDATION ERRORS:
+            \(errors.joined(separator: "\n"))
+
+            INTENDED KEY MAPPINGS:
+            \(mappings.map { "\($0.input) -> \($0.output)" }.joined(separator: "\n"))
+
+            Please generate a corrected Kanata configuration that:
+            1. Fixes all validation errors
+            2. Preserves the intended key mappings
+            3. Uses proper Kanata syntax
+            4. Includes defcfg with process-unmapped-keys no and danger-enable-cmd yes
+            5. Has proper defsrc and deflayer sections
+
+            Return ONLY the corrected configuration file content, no explanations.
+            """
+
+            return try await callClaudeAPI(prompt: prompt)
+        } catch {
+            AppLogger.shared.log("⚠️ [KanataManager] Claude API failed: \(error), falling back to rule-based repair")
+            // For now, use rule-based repair as fallback
+            return try await performRuleBasedRepair(config: config, errors: errors, mappings: mappings)
+        }
     }
 
     /// Fallback rule-based repair when Claude is not available
@@ -3559,5 +3557,85 @@ class KanataManager: ObservableObject {
 
         AppLogger.shared.log("🔧 [KanataArgs] Built arguments: \(arguments.joined(separator: " "))")
         return arguments
+    }
+
+    // MARK: - Claude API Integration
+
+    /// Call Claude API to repair configuration
+    private func callClaudeAPI(prompt: String) async throws -> String {
+        // Check for API key in environment or keychain
+        guard let apiKey = getClaudeAPIKey() else {
+            throw NSError(domain: "ClaudeAPI", code: 1, userInfo: [NSLocalizedDescriptionKey: "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or store in Keychain."])
+        }
+
+        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+
+        let requestBody: [String: Any] = [
+            "model": "claude-3-5-sonnet-20241022",
+            "max_tokens": 4096,
+            "messages": [
+                [
+                    "role": "user",
+                    "content": prompt
+                ]
+            ]
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(domain: "ClaudeAPI", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        }
+
+        guard 200 ... 299 ~= httpResponse.statusCode else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(domain: "ClaudeAPI", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "API request failed (\(httpResponse.statusCode)): \(errorMessage)"])
+        }
+
+        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let content = jsonResponse["content"] as? [[String: Any]],
+              let firstContent = content.first,
+              let text = firstContent["text"] as? String
+        else {
+            throw NSError(domain: "ClaudeAPI", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to parse Claude API response"])
+        }
+
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Get Claude API key from environment variable or keychain
+    private func getClaudeAPIKey() -> String? {
+        // First try environment variable
+        if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
+            return envKey
+        }
+
+        // Try keychain (using the same pattern as other keychain access in the app)
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "KeyPath",
+            kSecAttrAccount as String: "claude-api-key",
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var dataTypeRef: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+
+        guard status == errSecSuccess,
+              let data = dataTypeRef as? Data,
+              let key = String(data: data, encoding: .utf8)
+        else {
+            return nil
+        }
+
+        return key
     }
 }
