@@ -304,12 +304,9 @@ actor KanataUDPClient {
         }
 
         AppLogger.shared.log("📡 [UDP] Sending message to \(host):\(port) (\(data.count) bytes)")
-        // Redact sensitive message content from logs
-        if let messageString = String(data: data, encoding: .utf8), !messageString.contains("token") {
-            AppLogger.shared.log("📡 [UDP] Message content: \(messageString)")
-        } else {
-            AppLogger.shared.log("📡 [UDP] Message content: [REDACTED - contains sensitive data]")
-        }
+        // Sanitized logging with proper redaction
+        let sanitized = sanitizeForLog(data)
+        AppLogger.shared.log("📡 [UDP] Message content: \(sanitized)")
 
         return try await withCheckedThrowingContinuation { continuation in
             let queue = DispatchQueue(label: "kanata-udp-client")
@@ -430,6 +427,48 @@ actor KanataUDPClient {
             return msg
         }
         return "Unknown error from Kanata"
+    }
+
+    /// Sanitize log data by redacting sensitive fields
+    private func sanitizeForLog(_ data: Data) -> String {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return "[non-JSON payload redacted]"
+        }
+
+        let sensitiveFields = ["token", "auth_token", "session_id"]
+
+        // Recursively redact sensitive fields
+        guard let sanitized = redactSensitiveFields(json, fields: sensitiveFields) as? [String: Any] else {
+            return "[redaction failed]"
+        }
+
+        guard let safeData = try? JSONSerialization.data(withJSONObject: sanitized),
+              let result = String(data: safeData, encoding: .utf8)
+        else {
+            return "[JSON serialization failed]"
+        }
+
+        return result
+    }
+
+    /// Recursively redact sensitive fields from JSON object
+    private func redactSensitiveFields(_ object: Any, fields: [String]) -> Any {
+        if var dict = object as? [String: Any] {
+            for field in fields {
+                if dict[field] != nil {
+                    dict[field] = "***"
+                }
+            }
+            // Recursively process nested objects
+            for (key, value) in dict {
+                dict[key] = redactSensitiveFields(value, fields: fields)
+            }
+            return dict
+        } else if let array = object as? [Any] {
+            return array.map { redactSensitiveFields($0, fields: fields) }
+        } else {
+            return object
+        }
     }
 }
 

@@ -5,7 +5,6 @@ import XCTest
 
 /// Comprehensive tests for KanataUDPClient
 class KanataUDPClientTests: XCTestCase {
-
     // MARK: - Initialization Tests
 
     func testUDPClientInitialization() async {

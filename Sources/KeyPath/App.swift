@@ -178,8 +178,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Phase 2/3: Ensure shared UDP token exists for cross-platform compatibility
         Task { @MainActor in
-            let sharedToken = CommunicationSnapshot.ensureSharedUDPToken()
-            AppLogger.shared.log("🔐 [AppDelegate] UDP auth token ready: \(sharedToken.prefix(8))...")
+            do {
+                _ = try await UDPAuthTokenManager.shared.ensureToken()
+                await UDPAuthTokenManager.shared.migrateExistingTokens()
+                AppLogger.shared.log("🔐 [AppDelegate] UDP auth token ready")
+            } catch {
+                AppLogger.shared.log("❌ [AppDelegate] Failed to setup UDP auth token: \(error)")
+            }
         }
 
         // Check for pending service bounce first

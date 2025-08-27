@@ -1056,31 +1056,47 @@ class WizardAutoFixer: AutoFixCapable {
     private func setupUDPAuthentication() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Setting up UDP authentication")
 
-        // Generate a new auth token
-        let newToken = generateAuthToken()
+        // Generate a new auth token using centralized manager
+        let newToken = await UDPAuthTokenManager.shared.generateSecureToken()
 
-        // Update preferences with new token
-        await MainActor.run {
-            PreferencesService.shared.udpAuthToken = newToken
-        }
+        do {
+            // Update token via centralized manager
+            try await UDPAuthTokenManager.shared.setToken(newToken)
 
-        // Test the new token
-        let commSnapshot = PreferencesService.communicationSnapshot()
-        let client = KanataUDPClient(port: commSnapshot.udpPort)
+            // Also update preferences for consistency
+            await MainActor.run {
+                PreferencesService.shared.udpAuthToken = newToken
+            }
 
-        if await client.authenticate(token: newToken) {
-            AppLogger.shared.log("✅ [AutoFixer] UDP authentication setup successful")
-            return true
-        } else {
-            AppLogger.shared.log("❌ [AutoFixer] UDP authentication setup failed")
+            // Regenerate service configuration with new token
+            let regenSuccess = await regenerateCommServiceConfiguration()
+            guard regenSuccess else {
+                AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate service configuration")
+                return false
+            }
+
+            // Restart server to adopt new token
+            let restartSuccess = await restartCommServer()
+            guard restartSuccess else {
+                AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server")
+                return false
+            }
+
+            // Test the new token
+            let commSnapshot = PreferencesService.communicationSnapshot()
+            let client = KanataUDPClient(port: commSnapshot.udpPort)
+
+            if await client.authenticate(token: newToken) {
+                AppLogger.shared.log("✅ [AutoFixer] UDP authentication setup successful")
+                return true
+            } else {
+                AppLogger.shared.log("❌ [AutoFixer] UDP authentication test failed")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to set token via TokenManager: \(error)")
             return false
         }
-    }
-
-    private func generateAuthToken() -> String {
-        // Generate a secure random token for UDP authentication
-        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return String((0 ..< 32).map { _ in characters.randomElement()! })
     }
 
     private func regenerateCommServiceConfiguration() async -> Bool {

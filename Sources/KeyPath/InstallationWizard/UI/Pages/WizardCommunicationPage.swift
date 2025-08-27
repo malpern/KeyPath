@@ -281,28 +281,38 @@ struct WizardCommunicationPage: View {
     }
 
     private func setupAuthentication() async -> Bool {
-        // Generate a new auth token
-        let newToken = generateAuthToken()
+        // Generate a new auth token using centralized manager
+        let newToken = await UDPAuthTokenManager.shared.generateSecureToken()
 
-        // Update preferences with new token
-        await MainActor.run {
-            preferences.udpAuthToken = newToken
-        }
+        // Update token via centralized manager
+        do {
+            try await UDPAuthTokenManager.shared.setToken(newToken)
 
-        // Test the new token
-        let client = KanataUDPClient(port: preferences.udpServerPort)
-        if await client.authenticate(token: newToken) {
-            // Test config reload to ensure full functionality
-            return await testConfigReload(client: client)
-        } else {
+            // Also update preferences for UI consistency
+            await MainActor.run {
+                preferences.udpAuthToken = newToken
+            }
+
+            // Regenerate service configuration with new token
+            if let autoFix = onAutoFix {
+                _ = await autoFix(.regenerateCommServiceConfiguration)
+
+                // Restart communication server to adopt new token
+                _ = await autoFix(.restartCommServer)
+            }
+
+            // Test the new token
+            let client = KanataUDPClient(port: preferences.udpServerPort)
+            if await client.authenticate(token: newToken) {
+                // Test config reload to ensure full functionality
+                return await testConfigReload(client: client)
+            } else {
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("❌ [WizardComm] Failed to set token via TokenManager: \(error)")
             return false
         }
-    }
-
-    private func generateAuthToken() -> String {
-        // Generate a secure random token for UDP authentication
-        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return String((0 ..< 32).map { _ in characters.randomElement()! })
     }
 }
 
