@@ -682,8 +682,10 @@ class SystemStatusChecker {
         }
 
         // Use KanataUDPClient to check server status
-        let client = KanataUDPClient(port: commConfig.udpPort, timeout: 2.0)
+        let client = KanataUDPClient(port: commConfig.udpPort, timeout: 10.0)
+        AppLogger.shared.log("🧪 [SystemStatusChecker] Testing UDP server on port \(commConfig.udpPort) with timeout 10.0s...")
         let serverResponding = await client.checkServerStatus()
+        AppLogger.shared.log("🧪 [SystemStatusChecker] UDP client.checkServerStatus() returned: \(serverResponding)")
 
         if serverResponding {
             AppLogger.shared.log("📡 [SystemStatusChecker] UDP server status check: port \(commConfig.udpPort) - responding")

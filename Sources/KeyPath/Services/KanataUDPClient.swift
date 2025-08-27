@@ -22,7 +22,7 @@ actor KanataUDPClient {
 
     // MARK: - Initialization
 
-    init(host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 3.0) {
+    init(host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 5.0) {
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -44,7 +44,7 @@ actor KanataUDPClient {
         AppLogger.shared.log("🔐 [UDP] Attempting authentication")
 
         do {
-            let responseData = try await sendUDPMessage(requestData)
+            let responseData = try await sendUDPMessage(requestData, requiresAuth: false)
             let response = try JSONDecoder().decode([String: UDPAuthResponse].self, from: responseData)
 
             if let authResult = response["AuthResult"], authResult.success {
@@ -321,14 +321,29 @@ actor KanataUDPClient {
                 port: nwPort,
                 using: .udp
             )
+            AppLogger.shared.log("📡 [UDP] Creating new connection")
 
             var hasResumed = false
+            var connectionEstablished = false
+
+            // Connection establishment timeout - fail fast if server isn't responding
+            let connectionTimeout: TimeInterval = 2.0 // Increased for reliability
+            let connectionTimeoutTimer = queue.asyncAfter(deadline: .now() + connectionTimeout) {
+                if !connectionEstablished && !hasResumed {
+                    AppLogger.shared.log("📡 [UDP] ⏰ Connection establishment timeout after \(connectionTimeout)s")
+                    hasResumed = true
+                    connection.cancel()
+                    continuation.resume(throwing: UDPError.timeout)
+                }
+            }
 
             connection.stateUpdateHandler = { state in
                 AppLogger.shared.log("📡 [UDP] Connection state: \(state)")
                 switch state {
                 case .ready:
-                    // Send the message
+                    connectionEstablished = true
+
+                    // Send the message immediately when connection is ready
                     connection.send(content: data, completion: .contentProcessed { error in
                         if let error = error {
                             AppLogger.shared.log("📡 [UDP] ❌ Send error: \(error)")
@@ -342,8 +357,21 @@ actor KanataUDPClient {
 
                         AppLogger.shared.log("📡 [UDP] ✅ Message sent - waiting for response")
 
-                        // Receive the response
-                        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { responseData, _, _, error in
+                        // Use the actor's timeout if provided, fall back to default
+                        let responseTimeout: TimeInterval = self.timeout > 0 ? self.timeout : 3.0
+
+                        // Receive response with its own timeout
+                        let responseTimer = queue.asyncAfter(deadline: .now() + responseTimeout) {
+                            if !hasResumed {
+                                AppLogger.shared.log("📡 [UDP] ⏰ Response timeout after \(responseTimeout)s - no server response")
+                                hasResumed = true
+                                connection.cancel()
+                                continuation.resume(throwing: UDPError.timeout)
+                            }
+                        }
+
+                        // IMPORTANT: For UDP use receiveMessage, not receive(minimumIncompleteLength:maximumLength:)
+                        connection.receiveMessage { responseData, context, _, error in
                             if let error = error {
                                 AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error)")
                                 connection.cancel()
@@ -356,7 +384,9 @@ actor KanataUDPClient {
 
                             if let responseData = responseData {
                                 AppLogger.shared.log("📡 [UDP] ✅ Received response: \(responseData.count) bytes")
-                                connection.cancel()
+                                if let context = context {
+                                    AppLogger.shared.log("📡 [UDP] Response context: \(context)")
+                                }
                                 if !hasResumed {
                                     hasResumed = true
                                     continuation.resume(returning: responseData)
@@ -379,27 +409,24 @@ actor KanataUDPClient {
                     }
                 case .cancelled:
                     AppLogger.shared.log("📡 [UDP] Connection cancelled")
-                default:
-                    break
+                    if !hasResumed {
+                        hasResumed = true
+                        continuation.resume(throwing: UDPError.noResponse)
+                    }
+                case let .waiting(waitingError):
+                    AppLogger.shared.log("📡 [UDP] Connection waiting: \(waitingError)")
+                // For UDP waiting typically means network issues or no route to host
+                // Don't fail immediately - let connection timeout handle it
+                case .setup:
+                    AppLogger.shared.log("📡 [UDP] Connection setup")
+                    case .preparing:
+                    AppLogger.shared.log("📡 [UDP] Connection preparing")
+                @unknown default:
+                    AppLogger.shared.log("📡 [UDP] ⚠️ Unknown connection state: \(state)")
                 }
             }
 
             connection.start(queue: queue)
-
-            // Store connection for potential reuse
-            if !requiresAuth {
-                activeConnection = connection
-            }
-
-            // Timeout handling
-            queue.asyncAfter(deadline: .now() + timeout) {
-                if !hasResumed {
-                    hasResumed = true
-                    AppLogger.shared.log("📡 [UDP] ⏰ Request timeout after \(self.timeout)s")
-                    connection.cancel()
-                    continuation.resume(throwing: UDPError.timeout)
-                }
-            }
         }
     }
 

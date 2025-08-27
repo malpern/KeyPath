@@ -1016,10 +1016,14 @@ class KanataManager: ObservableObject {
     /// Attempt to start quietly without showing wizard (for subsequent app launches)
     private func attemptQuietStart() async {
         AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START ATTEMPT ==========")
-        currentState = .starting
-        errorReason = nil
-        showWizard = false // Never show wizard on quiet starts
-        autoStartAttempts = 0
+        await MainActor.run {
+            currentState = .starting
+            errorReason = nil
+            showWizard = false // Never show wizard on quiet starts
+        }
+        await MainActor.run {
+            autoStartAttempts = 0
+        }
 
         // Try to start, but if it fails, just show error state without wizard
         await attemptAutoStart()
@@ -1028,7 +1032,9 @@ class KanataManager: ObservableObject {
         if currentState == .needsHelp {
             AppLogger.shared.log(
                 "🤫 [KanataManager] Quiet start failed - staying in error state without wizard")
-            showWizard = false // Explicitly ensure wizard doesn't show
+            await MainActor.run {
+                showWizard = false // Explicitly ensure wizard doesn't show
+            }
         }
 
         AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START COMPLETE ==========")

@@ -187,11 +187,14 @@ struct WizardCommunicationPage: View {
             return
         }
 
-        // Try to connect to UDP server
+        // Try to ping UDP server without authentication
         let client = KanataUDPClient(port: preferences.udpServerPort)
+        AppLogger.shared.log("🧪 [WizardComm] Checking UDP server status on port \(preferences.udpServerPort)")
         let isAvailable = await client.checkServerStatus()
+        AppLogger.shared.log("🧪 [WizardComm] UDP server status check result: \(isAvailable)")
 
         if !isAvailable {
+            AppLogger.shared.log("❌ [WizardComm] UDP server marked as not available")
             commStatus = .needsSetup("UDP server is not responding on port \(preferences.udpServerPort)")
             return
         }
@@ -207,7 +210,8 @@ struct WizardCommunicationPage: View {
         let authToken = preferences.udpAuthToken
         if !authToken.isEmpty {
             // Try existing token
-            if await client.checkServerStatus(authToken: authToken) {
+            let authenticated = await client.authenticate(token: authToken)
+            if authenticated {
                 // Test config reload capability
                 if await testConfigReload(client: client) {
                     commStatus = .ready("Ready for instant configuration changes and external integrations")
@@ -221,6 +225,20 @@ struct WizardCommunicationPage: View {
 
         // Need new authentication
         commStatus = .authRequired("Secure connection required for configuration changes")
+    }
+
+    private func authenticateWithRetries(client: KanataUDPClient, token: String, attempts: Int = 5, initialDelay: TimeInterval = 0.2) async -> Bool {
+        var delay = initialDelay
+        for attempt in 1 ... attempts {
+            AppLogger.shared.log("🔐 [WizardComm] Authentication attempt \(attempt)/\(attempts)")
+            if await client.authenticate(token: token) {
+                return true
+            }
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            delay = min(delay * 1.6, 1.0)
+        }
+        AppLogger.shared.log("❌ [WizardComm] Authentication failed after \(attempts) attempts")
+        return false
     }
 
     private func testConfigReload(client: KanataUDPClient) async -> Bool {
@@ -281,36 +299,56 @@ struct WizardCommunicationPage: View {
     }
 
     private func setupAuthentication() async -> Bool {
-        // Generate a new auth token using centralized manager
-        let newToken = await UDPAuthTokenManager.shared.generateSecureToken()
+        // Generate a new secure auth token
+        var randomBytes = [UInt8](repeating: 0, count: 32)
+        let result = SecRandomCopyBytes(kSecRandomDefault, 32, &randomBytes)
+        guard result == errSecSuccess else {
+            AppLogger.shared.log("❌ [WizardComm] Failed to generate secure random token")
+            return false
+        }
 
-        // Update token via centralized manager
-        do {
-            try await UDPAuthTokenManager.shared.setToken(newToken)
+        let newToken = Data(randomBytes).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
 
-            // Also update preferences for UI consistency
-            await MainActor.run {
-                preferences.udpAuthToken = newToken
-            }
+        // Update token directly to shared file
+        await MainActor.run {
+            preferences.udpAuthToken = newToken
+        }
 
-            // Regenerate service configuration with new token
-            if let autoFix = onAutoFix {
-                _ = await autoFix(.regenerateCommServiceConfiguration)
-
-                // Restart communication server to adopt new token
-                _ = await autoFix(.restartCommServer)
-            }
-
-            // Test the new token
-            let client = KanataUDPClient(port: preferences.udpServerPort)
-            if await client.authenticate(token: newToken) {
-                // Test config reload to ensure full functionality
-                return await testConfigReload(client: client)
-            } else {
+        // Regenerate service configuration with new token
+        if let autoFix = onAutoFix {
+            let regenOK = await autoFix(.regenerateCommServiceConfiguration)
+            guard regenOK else {
+                AppLogger.shared.log("❌ [WizardComm] Failed to regenerate communication service configuration")
                 return false
             }
-        } catch {
-            AppLogger.shared.log("❌ [WizardComm] Failed to set token via TokenManager: \(error)")
+
+            // Restart communication server to adopt new token
+            let restartOK = await autoFix(.restartCommServer)
+            guard restartOK else {
+                AppLogger.shared.log("❌ [WizardComm] Failed to restart communication server")
+                return false
+            }
+        }
+
+        // Wait for the UDP server to be ready before authenticating
+        AppLogger.shared.log("🔄 [WizardComm] Waiting for UDP server to be ready...")
+        let client = KanataUDPClient(port: preferences.udpServerPort)
+        let ready = await client.checkServerStatus()
+        if !ready {
+            AppLogger.shared.log("❌ [WizardComm] UDP server did not become ready in time after restart")
+            return false
+        }
+        AppLogger.shared.log("✅ [WizardComm] UDP server is ready, proceeding with authentication")
+
+        // Retry authenticate with small backoff to ride out any last startup work
+        let authed = await authenticateWithRetries(client: client, token: newToken, attempts: 5, initialDelay: 0.2)
+        if authed {
+            // Test config reload to ensure full functionality
+            return await testConfigReload(client: client)
+        } else {
             return false
         }
     }

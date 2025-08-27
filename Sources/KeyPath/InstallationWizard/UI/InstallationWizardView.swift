@@ -667,7 +667,7 @@ struct InstallationWizardView: View {
         case .regenerateCommServiceConfiguration:
             "Update UDP service configuration"
         case .restartCommServer:
-            "Restart UDP server"
+            "Restart Service with Authentication"
         }
 
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")
