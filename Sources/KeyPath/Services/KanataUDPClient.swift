@@ -291,6 +291,101 @@ actor KanataUDPClient {
         }
     }
 
+    // MARK: - Connection Management
+
+    /// Create or reuse UDP connection to avoid race conditions
+    private func getOrCreateConnection() -> NWConnection {
+        if let conn = activeConnection {
+            return conn
+        }
+
+        let params = NWParameters.udp
+        params.allowLocalEndpointReuse = true // Better reuse behavior
+
+        guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
+            fatalError("Invalid UDP port: \(port)")
+        }
+
+        let conn = NWConnection(
+            host: NWEndpoint.Host(host),
+            port: nwPort,
+            using: params
+        )
+
+        let queue = DispatchQueue(label: "kanata-udp-client-\(port)")
+        conn.stateUpdateHandler = { [weak self] state in
+            AppLogger.shared.log("📡 [UDP] Connection state: \(state)")
+            if case .failed = state {
+                // Drop broken connection so next call recreates it
+                Task { @MainActor in
+                    await self?.clearBrokenConnection()
+                }
+            }
+        }
+        conn.start(queue: queue)
+        activeConnection = conn
+        return conn
+    }
+
+    /// Clear broken connection
+    private func clearBrokenConnection() {
+        activeConnection?.cancel()
+        activeConnection = nil
+        AppLogger.shared.log("📡 [UDP] Cleared broken connection")
+    }
+
+    /// Wait until connection is ready with timeout
+    private func waitUntilReady(_ connection: NWConnection, timeout: TimeInterval) async throws {
+        if connection.state == .ready {
+            return
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let queue = DispatchQueue(label: "kanata-udp-ready-wait")
+            var hasResumed = false
+
+            // Connection establishment timeout
+            let timeoutTimer = queue.asyncAfter(deadline: .now() + timeout) {
+                if !hasResumed {
+                    hasResumed = true
+                    AppLogger.shared.log("📡 [UDP] ⏰ Connection establishment timeout after \(timeout)s")
+                    continuation.resume(throwing: UDPError.timeout)
+                }
+            }
+
+            // Check current state or wait for ready
+            if connection.state == .ready {
+                if !hasResumed {
+                    hasResumed = true
+                    continuation.resume()
+                }
+                return
+            }
+
+            // Install temporary state handler to wait for ready
+            let originalHandler = connection.stateUpdateHandler
+            connection.stateUpdateHandler = { state in
+                originalHandler?(state) // Call original handler first
+
+                if !hasResumed {
+                    switch state {
+                    case .ready:
+                        hasResumed = true
+                        continuation.resume()
+                    case let .failed(error):
+                        hasResumed = true
+                        continuation.resume(throwing: error)
+                    case .cancelled:
+                        hasResumed = true
+                        continuation.resume(throwing: UDPError.noResponse)
+                    default:
+                        break
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Low-level UDP Communication
 
     private func sendUDPMessage(_ data: Data, requiresAuth: Bool = true) async throws -> Data {
@@ -308,125 +403,90 @@ actor KanataUDPClient {
         let sanitized = sanitizeForLog(data)
         AppLogger.shared.log("📡 [UDP] Message content: \(sanitized)")
 
+        // Use connection reuse to avoid race conditions
+        let connection = getOrCreateConnection()
+
+        do {
+            try await waitUntilReady(connection, timeout: timeout)
+        } catch {
+            // Clear broken connection and retry once
+            clearBrokenConnection()
+            let newConnection = getOrCreateConnection()
+            try await waitUntilReady(newConnection, timeout: timeout)
+        }
+
         return try await withCheckedThrowingContinuation { continuation in
-            let queue = DispatchQueue(label: "kanata-udp-client")
-
-            guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
-                continuation.resume(throwing: UDPError.invalidPort)
-                return
-            }
-
-            let connection = NWConnection(
-                host: NWEndpoint.Host(host),
-                port: nwPort,
-                using: .udp
-            )
-            AppLogger.shared.log("📡 [UDP] Creating new connection")
-
             var hasResumed = false
-            var connectionEstablished = false
 
-            // Connection establishment timeout - fail fast if server isn't responding
-            let connectionTimeout: TimeInterval = 2.0 // Increased for reliability
-            let connectionTimeoutTimer = queue.asyncAfter(deadline: .now() + connectionTimeout) {
-                if !connectionEstablished && !hasResumed {
-                    AppLogger.shared.log("📡 [UDP] ⏰ Connection establishment timeout after \(connectionTimeout)s")
-                    hasResumed = true
-                    connection.cancel()
-                    continuation.resume(throwing: UDPError.timeout)
-                }
+            // Log local endpoint to verify stable binding
+            if let localEndpoint = connection.currentPath?.localEndpoint {
+                AppLogger.shared.log("📡 [UDP] Local endpoint: \(localEndpoint)")
+            } else {
+                AppLogger.shared.log("📡 [UDP] WARNING: No local endpoint available yet")
             }
 
-            connection.stateUpdateHandler = { state in
-                AppLogger.shared.log("📡 [UDP] Connection state: \(state)")
-                switch state {
-                case .ready:
-                    connectionEstablished = true
+            // CRITICAL FIX: Arm receive BEFORE send to avoid localhost race condition
+            // On localhost, server responds instantly before receive handler gets installed
+            AppLogger.shared.log("📡 [UDP] Arming receive handler BEFORE send to prevent race condition")
 
-                    // Send the message immediately when connection is ready
-                    connection.send(content: data, completion: .contentProcessed { error in
-                        if let error = error {
-                            AppLogger.shared.log("📡 [UDP] ❌ Send error: \(error)")
-                            if !hasResumed {
-                                hasResumed = true
-                                connection.cancel()
-                                continuation.resume(throwing: error)
-                            }
-                            return
-                        }
-
-                        AppLogger.shared.log("📡 [UDP] ✅ Message sent - waiting for response")
-
-                        // Use the actor's timeout if provided, fall back to default
-                        let responseTimeout: TimeInterval = self.timeout > 0 ? self.timeout : 3.0
-
-                        // Receive response with its own timeout
-                        let responseTimer = queue.asyncAfter(deadline: .now() + responseTimeout) {
-                            if !hasResumed {
-                                AppLogger.shared.log("📡 [UDP] ⏰ Response timeout after \(responseTimeout)s - no server response")
-                                hasResumed = true
-                                connection.cancel()
-                                continuation.resume(throwing: UDPError.timeout)
-                            }
-                        }
-
-                        // IMPORTANT: For UDP use receiveMessage, not receive(minimumIncompleteLength:maximumLength:)
-                        connection.receiveMessage { responseData, context, _, error in
-                            if let error = error {
-                                AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error)")
-                                connection.cancel()
-                                if !hasResumed {
-                                    hasResumed = true
-                                    continuation.resume(throwing: error)
-                                }
-                                return
-                            }
-
-                            if let responseData = responseData {
-                                AppLogger.shared.log("📡 [UDP] ✅ Received response: \(responseData.count) bytes")
-                                if let context = context {
-                                    AppLogger.shared.log("📡 [UDP] Response context: \(context)")
-                                }
-                                if !hasResumed {
-                                    hasResumed = true
-                                    continuation.resume(returning: responseData)
-                                }
-                            } else {
-                                AppLogger.shared.log("📡 [UDP] ❌ No response data received")
-                                connection.cancel()
-                                if !hasResumed {
-                                    hasResumed = true
-                                    continuation.resume(throwing: UDPError.noResponse)
-                                }
-                            }
-                        }
-                    })
-                case let .failed(error):
-                    AppLogger.shared.log("📡 [UDP] ❌ Connection failed: \(error)")
+            connection.receiveMessage { responseData, context, _, error in
+                if let error = error {
+                    AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error)")
                     if !hasResumed {
                         hasResumed = true
                         continuation.resume(throwing: error)
                     }
-                case .cancelled:
-                    AppLogger.shared.log("📡 [UDP] Connection cancelled")
+                    return
+                }
+
+                if let responseData = responseData {
+                    AppLogger.shared.log("📡 [UDP] ✅ Received response: \(responseData.count) bytes")
+                    if let context = context {
+                        AppLogger.shared.log("📡 [UDP] Response context: \(context)")
+                    }
+                    if !hasResumed {
+                        hasResumed = true
+                        continuation.resume(returning: responseData)
+                    }
+                } else {
+                    AppLogger.shared.log("📡 [UDP] ❌ No response data received")
                     if !hasResumed {
                         hasResumed = true
                         continuation.resume(throwing: UDPError.noResponse)
                     }
-                case let .waiting(waitingError):
-                    AppLogger.shared.log("📡 [UDP] Connection waiting: \(waitingError)")
-                // For UDP waiting typically means network issues or no route to host
-                // Don't fail immediately - let connection timeout handle it
-                case .setup:
-                    AppLogger.shared.log("📡 [UDP] Connection setup")
-                    case .preparing:
-                    AppLogger.shared.log("📡 [UDP] Connection preparing")
-                @unknown default:
-                    AppLogger.shared.log("📡 [UDP] ⚠️ Unknown connection state: \(state)")
                 }
             }
 
-            connection.start(queue: queue)
+            // Now send after receive handler is armed
+            AppLogger.shared.log("📡 [UDP] Sending message after receive handler is armed")
+            connection.send(content: data, completion: .contentProcessed { error in
+                if let error = error {
+                    AppLogger.shared.log("📡 [UDP] ❌ Send error: \(error)")
+                    if !hasResumed {
+                        hasResumed = true
+                        continuation.resume(throwing: error)
+                    }
+                    return
+                }
+
+                // Log local endpoint after send to verify stability
+                if let localEndpoint = connection.currentPath?.localEndpoint {
+                    AppLogger.shared.log("📡 [UDP] ✅ Message sent from local endpoint: \(localEndpoint)")
+                } else {
+                    AppLogger.shared.log("📡 [UDP] ⚠️ Message sent but no local endpoint info available")
+                }
+                AppLogger.shared.log("📡 [UDP] ✅ Message sent - receive handler already armed")
+            })
+
+            // Overall timeout for the entire request-response cycle
+            let queue = DispatchQueue(label: "kanata-udp-timeout")
+            queue.asyncAfter(deadline: .now() + timeout) {
+                if !hasResumed {
+                    hasResumed = true
+                    AppLogger.shared.log("📡 [UDP] ⏰ Request-response timeout after \(self.timeout)s")
+                    continuation.resume(throwing: UDPError.timeout)
+                }
+            }
         }
     }
 

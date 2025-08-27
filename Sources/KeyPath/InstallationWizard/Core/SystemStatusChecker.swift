@@ -681,11 +681,12 @@ class SystemStatusChecker {
             AppLogger.shared.log("📡 [SystemStatusChecker] KanataManager.isRunning=true, proceeding with UDP check")
         }
 
-        // Use KanataUDPClient to check server status
-        let client = KanataUDPClient(port: commConfig.udpPort, timeout: 10.0)
-        AppLogger.shared.log("🧪 [SystemStatusChecker] Testing UDP server on port \(commConfig.udpPort) with timeout 10.0s...")
+        // Use SharedUDPClientService to check server status
+        let sharedService = await SharedUDPClientService.shared
+        let client = await sharedService.getClient(port: commConfig.udpPort)
+        AppLogger.shared.log("🧪 [SystemStatusChecker] Testing UDP server on port \(commConfig.udpPort) with race-free implementation...")
         let serverResponding = await client.checkServerStatus()
-        AppLogger.shared.log("🧪 [SystemStatusChecker] UDP client.checkServerStatus() returned: \(serverResponding)")
+        AppLogger.shared.log("🧪 [SystemStatusChecker] SharedUDPClientService client.checkServerStatus() returned: \(serverResponding)")
 
         if serverResponding {
             AppLogger.shared.log("📡 [SystemStatusChecker] UDP server status check: port \(commConfig.udpPort) - responding")
