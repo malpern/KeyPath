@@ -4,10 +4,11 @@ struct WizardConflictsPage: View {
     let issues: [WizardIssue]
     let isFixing: Bool
     let onAutoFix: () -> Void
-    let onRefresh: () async -> Void
+    let onRefresh: () -> Void
     let kanataManager: KanataManager
 
     @State private var isScanning = false
+    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
     @State private var isDisablingPermanently = false
 
     // Check if there are Karabiner-related conflicts
@@ -18,111 +19,221 @@ struct WizardConflictsPage: View {
     }
 
     var body: some View {
-        VStack(spacing: WizardDesign.Spacing.sectionGap) {
-            // Header using design system - simplified for no conflicts case
+        VStack(spacing: 0) {
             if issues.isEmpty {
-                WizardPageHeader(
-                    icon: "checkmark.circle.fill",
-                    title: "No Conflicts Detected",
-                    subtitle: "No conflicting keyboard remapping processes found. You're ready to proceed!",
-                    status: .success
-                )
-            }
+                // Large centered hero section - Icon, Headline, and Supporting Copy
+                VStack(spacing: 0) {
+                    Spacer()
 
-            // Clean Conflicts Card - handles conflicts case with its own header
-            if !issues.isEmpty {
-                CleanConflictsCard(
-                    conflictCount: issues.count,
-                    isFixing: isFixing,
-                    onAutoFix: onAutoFix,
-                    onRefresh: onRefresh,
-                    issues: issues,
-                    kanataManager: kanataManager
-                )
-                .wizardPagePadding()
-            }
-
-            // Information Card
-            if issues.isEmpty {
-                VStack(spacing: WizardDesign.Spacing.itemGap) {
-                    HStack(spacing: WizardDesign.Spacing.labelGap) {
+                    // Centered hero block with padding
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        // Large green check for success
                         Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 115, weight: .light))
                             .foregroundColor(WizardDesign.Colors.success)
-                            .font(WizardDesign.Typography.body)
-                        Text("System Status: Clean")
-                            .font(WizardDesign.Typography.status)
-                    }
-                    .foregroundColor(WizardDesign.Colors.success)
+                            .symbolRenderingMode(.hierarchical)
+                            .symbolEffect(.bounce, options: .nonRepeating)
 
-                    Text(
-                        "KeyPath checked for conflicts and found none. The system is ready for keyboard remapping."
-                    )
-                    .font(WizardDesign.Typography.body)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
-                    .multilineTextAlignment(.center)
-                }
-                .wizardCard()
-                .wizardPagePadding()
-            }
+                        // Larger headline (23pt to match Full Disk Access)
+                        Text("No Conflicts Detected")
+                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
 
-            Spacer()
+                        // Supporting copy - shortened
+                        Text("No conflicting keyboard remapping software found")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
 
-            // Action buttons at bottom
-            HStack {
-                // Reset button for nuclear option
-                Button("Reset Everything") {
-                    Task {
-                        isScanning = true
-                        let toastManager = WizardToastManager() // Temporary instance for reset operation
-                        let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
-                        await autoFixer.resetEverything()
-                        await onRefresh()
-                        isScanning = false
-                    }
-                }
-                .buttonStyle(WizardDesign.Component.DestructiveButton())
-                .disabled(isFixing || isScanning)
-                .help("Kill all processes, clear PID files, and reset to clean state")
+                        // Blue links under the subheading
+                        HStack(spacing: WizardDesign.Spacing.itemGap) {
+                            Button(action: {
+                                isScanning = true
+                                onRefresh()
+                                // Keep spinner visible for a moment so user sees the action
+                                Task {
+                                    try? await Task.sleep(nanoseconds: 500_000_000)
+                                    isScanning = false
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    if isScanning {
+                                        ProgressView()
+                                            .scaleEffect(0.6)
+                                            .progressViewStyle(CircularProgressViewStyle())
+                                    }
+                                    Text(isScanning ? "Scanning..." : "Check Again")
+                                }
+                            }
+                            .buttonStyle(.link)
+                            .disabled(isFixing || isScanning)
 
-                Spacer()
+                            Text("•")
+                                .foregroundColor(.secondary)
 
-                // Re-scan button
-                Button(action: {
-                    Task {
-                        isScanning = true
-                        await onRefresh()
-                        // Keep spinner visible for a moment so user sees the action
-                        try? await Task.sleep(nanoseconds: 500_000_000)
-                        isScanning = false
-                    }
-                }) {
-                    HStack(spacing: 4) {
-                        if isScanning {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                                .progressViewStyle(CircularProgressViewStyle())
+                            Button("Reset Everything") {
+                                Task {
+                                    isScanning = true
+                                    let toastManager = WizardToastManager() // Temporary instance for reset operation
+                                    let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
+                                    await autoFixer.resetEverything()
+                                    onRefresh()
+                                    isScanning = false
+                                }
+                            }
+                            .buttonStyle(.link)
+                            .foregroundColor(.red)
+                            .disabled(isFixing || isScanning)
+                            .help("Kill all processes, clear PID files, and reset to clean state")
                         }
-                        Text(
-                            isScanning
-                                ? "Scanning..." : (issues.isEmpty ? "Re-scan for Conflicts" : "Check Again")
-                        )
-                        .font(.subheadline)
+                        .padding(.top, WizardDesign.Spacing.elementGap)
                     }
-                    .foregroundColor(.blue)
-                }
-                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                .disabled(isFixing || isScanning)
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical) // Add padding above and below the hero block
 
-                Spacer()
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                // No component details - conflicts are system-wide, no individual components to fix
+            } else {
+                // Original design for when conflicts are detected
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    // Custom header with colored triangle icon
+                    VStack(spacing: WizardDesign.Spacing.elementGap) {
+                        // Simple warning icon for errors
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 60, weight: .light))
+                            .foregroundColor(WizardDesign.Colors.error)
+                            .symbolRenderingMode(.hierarchical)
+                            .symbolEffect(.bounce, options: .nonRepeating)
+                            .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
+
+                        // Title
+                        Text("Conflicts Detected")
+                            .font(WizardDesign.Typography.sectionTitle)
+                            .fontWeight(.semibold)
+
+                        // Subtitle
+                        Text("\(issues.count) conflicting process\(issues.count == 1 ? "" : "es") found that must be resolved.")
+                            .font(WizardDesign.Typography.subtitle)
+                            .foregroundColor(WizardDesign.Colors.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .wizardContentSpacing()
+                    }
+                    .padding(.top, 12)
+
+                    // Main content area with conflicts
+                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
+                        // Show conflicts with auto-fix options
+                        CleanConflictsCard(
+                            conflictCount: issues.count,
+                            isFixing: isFixing,
+                            onAutoFix: onAutoFix,
+                            onRefresh: onRefresh,
+                            issues: issues,
+                            kanataManager: kanataManager
+                        )
+
+                        Spacer(minLength: 60)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(WizardDesign.Spacing.cardPadding)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                }
             }
-            .padding(.bottom, 32) // Add comfortable padding from bottom
+
+            // Smaller spacing before buttons
+            Spacer()
+                .frame(height: WizardDesign.Spacing.sectionGap)
+
+            // Primary Continue button for no-conflict state, existing buttons for conflict state
+            VStack {
+                if issues.isEmpty {
+                    // No conflicts - show only Continue button centered
+                    Button("Continue") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Conflicts page")
+                        navigateToNextPage()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                } else {
+                    // Conflicts detected - show existing button pattern
+                    HStack(spacing: WizardDesign.Spacing.itemGap) {
+                        // Existing buttons on the left/center
+                        Button(action: {
+                            isScanning = true
+                            onRefresh()
+                            // Keep spinner visible for a moment so user sees the action
+                            Task {
+                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                isScanning = false
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                if isScanning {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                }
+                                Text(
+                                    isScanning
+                                        ? "Scanning..." : "Check Again"
+                                )
+                            }
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                        .disabled(isFixing || isScanning)
+
+                        // Reset button for nuclear option
+                        Button("Reset Everything") {
+                            Task {
+                                isScanning = true
+                                let toastManager = WizardToastManager() // Temporary instance for reset operation
+                                let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
+                                await autoFixer.resetEverything()
+                                onRefresh()
+                                isScanning = false
+                            }
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                        .foregroundColor(.red)
+                        .disabled(isFixing || isScanning)
+                        .help("Kill all processes, clear PID files, and reset to clean state")
+
+                        Spacer()
+
+                        // Primary continue button (always present, far right)
+                        Button("Continue") {
+                            AppLogger.shared.log("ℹ️ [Wizard] User continuing from Conflicts page")
+                            navigateToNextPage()
+                        }
+                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
-        .task {
+        .onAppear {
             // Force a refresh when the page appears to avoid stale conflict snapshots
-            await onRefresh()
+            onRefresh()
         }
+    }
+
+    // MARK: - Helper Methods
+
+    private func navigateToNextPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex < allPages.count - 1
+        else { return }
+        let nextPage = allPages[currentIndex + 1]
+        navigationCoordinator.navigateToPage(nextPage)
+        AppLogger.shared.log("➡️ [Conflicts] Navigated to next page: \(nextPage.displayName)")
     }
 }
 
@@ -132,7 +243,7 @@ struct CleanConflictsCard: View {
     let conflictCount: Int
     let isFixing: Bool
     let onAutoFix: () -> Void
-    let onRefresh: () async -> Void
+    let onRefresh: () -> Void
     let issues: [WizardIssue]
     let kanataManager: KanataManager
 
@@ -194,7 +305,7 @@ struct CleanConflictsCard: View {
                             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
 
                             // Trigger a refresh to update the conflict state
-                            await onRefresh()
+                            onRefresh()
 
                             // Hide success message
                             showSuccessMessage = false

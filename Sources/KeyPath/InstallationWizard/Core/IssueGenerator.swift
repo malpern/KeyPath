@@ -224,6 +224,18 @@ class IssueGenerator {
         )
     }
 
+    func createLogRotationIssue() -> WizardIssue {
+        WizardIssue(
+            identifier: .component(.kanataBinary), // Use existing identifier
+            severity: .info,
+            category: .installation,
+            title: "Log Rotation Recommended",
+            description: "Install log rotation to automatically manage Kanata logs and keep them under 10MB total. This prevents performance issues from large log files.",
+            autoFixAction: .installLogRotation,
+            userAction: nil
+        )
+    }
+
     func createConfigPathIssues(from result: ConfigPathMismatchResult) -> [WizardIssue] {
         var issues: [WizardIssue] = []
 
@@ -300,6 +312,7 @@ class IssueGenerator {
     private func componentTitle(for component: ComponentRequirement) -> String {
         switch component {
         case .kanataBinary: WizardConstants.Titles.kanataBinaryMissing
+        case .kanataBinaryUnsigned: "Kanata Binary Unsigned"
         case .kanataService: "Kanata Service Missing"
         case .karabinerDriver: WizardConstants.Titles.karabinerDriverMissing
         case .karabinerDaemon: WizardConstants.Titles.daemonNotRunning
@@ -310,8 +323,12 @@ class IssueGenerator {
         case .launchDaemonServices: "LaunchDaemon Services Not Installed"
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .packageManager: "Package Manager (Homebrew) Missing"
-        case .kanataTCPServer: "TCP Server Not Responding"
+        case .kanataUDPServer: "UDP Server Not Responding"
         case .orphanedKanataProcess: "Orphaned Kanata Process"
+        case .communicationServerConfiguration: "Communication Server Configuration Outdated"
+        case .communicationServerNotResponding: "Communication Server Not Responding"
+        case .udpServerConfiguration: "UDP Server Configuration Outdated"
+        case .udpServerNotResponding: "UDP Server Not Responding"
         }
     }
 
@@ -319,6 +336,8 @@ class IssueGenerator {
         switch component {
         case .kanataBinary:
             "The kanata binary is not installed or not found in expected locations. Checked paths: /opt/homebrew/bin/kanata, /usr/local/bin/kanata, ~/.cargo/bin/kanata"
+        case .kanataBinaryUnsigned:
+            "The system kanata executable is not Developer ID signed. Replace it with the signed version bundled with KeyPath to receive Input Monitoring permission."
         case .kanataService:
             "Kanata service configuration is missing."
         case .karabinerDriver:
@@ -331,8 +350,8 @@ class IssueGenerator {
             "The VirtualHIDDevice Manager needs to be activated to enable virtual HID functionality."
         case .vhidDeviceRunning:
             "The VirtualHIDDevice daemon is not running properly or has connection issues. " +
-            "This may indicate the manager needs activation, restart, or there are VirtualHID " +
-            "connection failures preventing keyboard remapping."
+                "This may indicate the manager needs activation, restart, or there are VirtualHID " +
+                "connection failures preventing keyboard remapping."
         case .vhidDaemonMisconfigured:
             "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
         case .launchDaemonServices:
@@ -341,8 +360,8 @@ class IssueGenerator {
             "LaunchDaemon services are loaded but crashing or failing. This usually indicates a configuration problem or permission issue that can be fixed by restarting the services."
         case .packageManager:
             "Homebrew package manager is not installed. This is needed to automatically install missing dependencies like Kanata. Install from https://brew.sh"
-        case .kanataTCPServer:
-            "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
+        case .kanataUDPServer:
+            "Kanata UDP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with UDP enabled."
         case .orphanedKanataProcess:
             """
             Kanata is running outside of LaunchDaemon management. This prevents reliable lifecycle control and hot-reload functionality.
@@ -353,33 +372,67 @@ class IssueGenerator {
 
             The wizard will automatically choose the best option based on your configuration.
             """
+        case .communicationServerConfiguration:
+            """
+            The communication server is enabled in KeyPath preferences but the system service is not configured with the current settings.
+
+            This happens when communication preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current protocol configuration.
+            """
+        case .communicationServerNotResponding:
+            """
+            The communication server is properly configured but not responding.
+
+            This prevents reliable permission detection and may affect external integrations. The service may need to be restarted.
+            """
+        case .udpServerConfiguration:
+            """
+            The UDP server is enabled in KeyPath preferences but the system service is not configured with the current UDP settings.
+
+            This happens when UDP preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current UDP port and authentication configuration.
+            """
+        case .udpServerNotResponding:
+            """
+            The UDP server is properly configured but not responding on port \(PreferencesService.communicationSnapshot().udpPort).
+
+            This prevents low-latency communication and may affect external integrations. The service may need to be restarted.
+            """
         }
     }
 
     private func getAutoFixAction(for component: ComponentRequirement) -> AutoFixAction? {
         switch component {
         case .karabinerDriver, .vhidDeviceManager, .packageManager:
-            nil // These require manual installation
+            return nil // These require manual installation
         case .vhidDeviceActivation:
-            .activateVHIDDeviceManager
+            return .activateVHIDDeviceManager
         case .vhidDeviceRunning:
-            .restartVirtualHIDDaemon
+            return .restartVirtualHIDDaemon
         case .vhidDaemonMisconfigured:
-            .repairVHIDDaemonServices
+            return .repairVHIDDaemonServices
         case .launchDaemonServices:
-            .installLaunchDaemonServices
+            return .installLaunchDaemonServices
         case .launchDaemonServicesUnhealthy:
-            .restartUnhealthyServices
+            return .restartUnhealthyServices
         case .kanataBinary:
-            .installViaBrew // Can be installed via Homebrew if available
+            return .installViaBrew // Can be installed via Homebrew if available
+        case .kanataBinaryUnsigned:
+            return .replaceKanataWithBundled // Replace with bundled Developer ID signed binary
         case .kanataService:
-            .installLaunchDaemonServices // Service configuration files
-        case .kanataTCPServer:
-            .restartUnhealthyServices // TCP server requires service restart with updated config
+            return .installLaunchDaemonServices // Service configuration files
+        case .kanataUDPServer:
+            return .restartUnhealthyServices // UDP server requires service restart with updated config
         case .orphanedKanataProcess:
-            .adoptOrphanedProcess // Default to adopting the orphaned process
+            return .adoptOrphanedProcess // Default to adopting the orphaned process
+        case .communicationServerConfiguration:
+            return .regenerateCommServiceConfiguration // Update LaunchDaemon plist with communication settings
+        case .communicationServerNotResponding:
+            return .restartCommServer // Restart service to enable communication functionality
+        case .udpServerConfiguration:
+            return .enableUDPServer // Enable UDP server
+        case .udpServerNotResponding:
+            return .enableUDPServer // Enable UDP server functionality
         default:
-            .installMissingComponents
+            return .installMissingComponents
         }
     }
 
@@ -393,6 +446,16 @@ class IssueGenerator {
             "Install Homebrew from https://brew.sh"
         case .kanataBinary:
             "Use the Installation Wizard to install Kanata automatically"
+        case .kanataBinaryUnsigned:
+            "Click 'Replace with Signed Version' to use KeyPath's bundled Developer ID signed kanata"
+        case .communicationServerConfiguration:
+            "Click 'Fix' to update the service with current communication settings"
+        case .communicationServerNotResponding:
+            "Click 'Fix' to restart the service with communication functionality"
+        case .udpServerConfiguration:
+            "Click 'Fix' to enable UDP server"
+        case .udpServerNotResponding:
+            "Click 'Fix' to restart the service with UDP functionality"
         default:
             nil
         }
@@ -406,6 +469,8 @@ class IssueGenerator {
             "Install Homebrew from https://brew.sh"
         case .kanataBinary:
             "Use the Installation Wizard to install Kanata automatically"
+        case .kanataBinaryUnsigned:
+            "Use the Installation Wizard to replace with signed version"
         default:
             nil
         }

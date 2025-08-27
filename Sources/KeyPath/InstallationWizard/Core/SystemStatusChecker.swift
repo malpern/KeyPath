@@ -1,14 +1,15 @@
 import ApplicationServices
 import Foundation
 
-/// Unified system status checker that consolidates all detection logic
-/// Replaces: ComponentDetector, SystemHealthChecker, SystemRequirements, SystemStateDetector
+/// Unified system status checker that handles all wizard detection logic
 ///
-/// ENHANCED WITH FUNCTIONAL PERMISSION VERIFICATION:
-/// - Detects actual Kanata permission failures by analyzing service logs
-/// - Checks for IOHIDDeviceOpen errors and device access failures
-/// - Prevents false positives that occur when TCC database is out of sync
-/// - Uses multiple verification methods with confidence scoring
+/// FEATURES:
+/// - Comprehensive permission detection with TCC database integration
+/// - Functional verification through service log analysis and TCP connectivity
+/// - Component installation and health checking
+/// - Conflict detection and resolution
+/// - Automatic issue generation with actionable fixes
+/// - Performance optimized with intelligent caching
 @MainActor
 class SystemStatusChecker {
     private let kanataManager: KanataManager
@@ -17,6 +18,18 @@ class SystemStatusChecker {
     private let packageManager: PackageManager
     private let processLifecycleManager: ProcessLifecycleManager
     private let issueGenerator: IssueGenerator
+
+    // MARK: - Cache Properties
+
+    private var cachedStateResult: SystemStateResult?
+    private var cacheTimestamp: Date?
+    private let cacheValidDuration: TimeInterval = 2.0 // 2-second cache
+
+    // MARK: - Debouncing State (from SystemStateDetector)
+
+    private var lastConflictState: Bool = false
+    private var lastStateChange: Date = .init()
+    private let stateChangeDebounceTime: TimeInterval = 0.5 // 500ms
 
     init(kanataManager: KanataManager) {
         self.kanataManager = kanataManager
@@ -32,9 +45,52 @@ class SystemStatusChecker {
     /// Debug flag to force Input Monitoring issues for testing purposes
     static var debugForceInputMonitoringIssues = false
 
+    // MARK: - Cache Management
+
+    /// Clear the cached state to force a fresh detection
+    func clearCache() {
+        cachedStateResult = nil
+        cacheTimestamp = nil
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Cache cleared")
+    }
+
+    // MARK: - Component-Specific Refresh Methods
+
+    /// Check only permissions without full system scan
+    func checkPermissionsOnly() async -> PermissionCheckResult {
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Quick permission check only")
+        return await checkPermissionsInternal()
+    }
+
+    /// Check only components without full system scan
+    func checkComponentsOnly() async -> ComponentCheckResult {
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Quick component check only")
+        return await checkComponentsInternal()
+    }
+
+    /// Check only conflicts without full system scan
+    func checkConflictsOnly() async -> ConflictDetectionResult {
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Quick conflict check only")
+        return await checkConflictsInternal()
+    }
+
+    /// Check only system health without full system scan
+    func checkHealthOnly() async -> HealthCheckResult {
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Quick health check only")
+        return await performSystemHealthCheck()
+    }
+
     // MARK: - Main Detection Method
 
     func detectCurrentState() async -> SystemStateResult {
+        // Check cache first
+        if let cached = cachedStateResult,
+           let timestamp = cacheTimestamp,
+           Date().timeIntervalSince(timestamp) < cacheValidDuration {
+            AppLogger.shared.log("🔍 [SystemStatusChecker] Returning cached state (age: \(String(format: "%.1f", Date().timeIntervalSince(timestamp)))s)")
+            return cached
+        }
+
         AppLogger.shared.log("🔍 [SystemStatusChecker] Starting comprehensive system state detection")
 
         // Debug override for testing Input Monitoring page
@@ -72,6 +128,12 @@ class SystemStatusChecker {
             allIssues.append(issueGenerator.createDaemonIssue())
         }
 
+        // Check if log rotation should be recommended
+        let needsLogRotation = await shouldInstallLogRotation()
+        if needsLogRotation {
+            allIssues.append(issueGenerator.createLogRotationIssue())
+        }
+
         // Determine system state
         let systemState = determineSystemState(
             compatibility: compatibilityResult,
@@ -86,19 +148,27 @@ class SystemStatusChecker {
             conflicts: conflictResult,
             permissions: permissionResult,
             components: componentResult,
-            health: healthStatus
+            health: healthStatus,
+            needsLogRotation: needsLogRotation
         )
 
         AppLogger.shared.log(
             "🔍 [SystemStatusChecker] Detection complete: \(systemState), \(allIssues.count) issues, \(autoFixableActions.count) auto-fixes"
         )
 
-        return SystemStateResult(
+        let result = SystemStateResult(
             state: systemState,
             issues: allIssues,
             autoFixActions: autoFixableActions,
             detectionTimestamp: Date()
         )
+
+        // Update cache
+        cachedStateResult = result
+        cacheTimestamp = Date()
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Cache updated with fresh state")
+
+        return result
     }
 
     // MARK: - System Compatibility
@@ -119,89 +189,64 @@ class SystemStatusChecker {
         var granted: [PermissionRequirement] = []
         var missing: [PermissionRequirement] = []
 
-        // Use simplified PermissionService
-        let systemStatus = PermissionService.shared.checkSystemPermissions(
-            kanataBinaryPath: WizardSystemPaths.kanataActiveBinary)
+        // Resolve kanata path once and use consistently
+        let kanataPath = WizardSystemPaths.kanataActiveBinary
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Using kanata binary for permission checks: \(kanataPath)")
 
-        // KeyPath permissions (these are reliable)
-        if systemStatus.keyPath.hasInputMonitoring {
+        // 🔮 Use Oracle for authoritative permission detection
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+
+        // KeyPath permissions (from Apple APIs)
+        if snapshot.keyPath.inputMonitoring.isReady {
             granted.append(.keyPathInputMonitoring)
         } else {
             missing.append(.keyPathInputMonitoring)
         }
 
-        if systemStatus.keyPath.hasAccessibility {
+        if snapshot.keyPath.accessibility.isReady {
             granted.append(.keyPathAccessibility)
         } else {
             missing.append(.keyPathAccessibility)
         }
 
-        // Kanata permissions - use enhanced functional verification
-        let functionalVerification = PermissionService.shared.verifyKanataFunctionalPermissions(
-            at: WizardSystemPaths.kanataActiveBinary
-        )
+        // Kanata permissions (from TCP or TCC fallback)
+        let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady
+        let kanataHasAccessibility = snapshot.kanata.accessibility.isReady
 
         AppLogger.shared.log(
-            "🔍 [SystemStatusChecker] Kanata functional verification: method=\(functionalVerification.verificationMethod), confidence=\(functionalVerification.confidence), hasAll=\(functionalVerification.hasAllRequiredPermissions)"
+            "🔮 [SystemStatusChecker] Oracle permission detection: source=\(snapshot.kanata.source), confidence=\(snapshot.kanata.confidence), hasAll=\(snapshot.kanata.hasAllPermissions)"
         )
 
-        // Log any error details for debugging
-        if !functionalVerification.errorDetails.isEmpty {
+        // Log any blocking issues
+        if let issue = snapshot.blockingIssue {
             AppLogger.shared.log(
-                "⚠️ [SystemStatusChecker] Kanata permission verification found errors:")
-            for error in functionalVerification.errorDetails {
-                AppLogger.shared.log("  - \(error)")
-            }
+                "⚠️ [SystemStatusChecker] Oracle detected blocking issue: \(issue)")
         }
 
-        // Only grant permissions if functional verification is confident they work
-        if functionalVerification.hasInputMonitoring &&
-            functionalVerification.confidence != .low &&
-            functionalVerification.confidence != .unknown {
+        // Oracle provides deterministic permission state
+        if kanataHasInputMonitoring {
             granted.append(.kanataInputMonitoring)
+            AppLogger.shared.log(
+                "✅ [SystemStatusChecker] Kanata Input Monitoring: Oracle confirmed granted")
         } else {
             missing.append(.kanataInputMonitoring)
             AppLogger.shared.log(
-                "❌ [SystemStatusChecker] Kanata Input Monitoring: functional verification failed")
+                "❌ [SystemStatusChecker] Kanata Input Monitoring: Oracle reports not granted")
         }
 
-        if functionalVerification.hasAccessibility &&
-            functionalVerification.confidence != .low &&
-            functionalVerification.confidence != .unknown {
+        if kanataHasAccessibility {
             granted.append(.kanataAccessibility)
+            AppLogger.shared.log(
+                "✅ [SystemStatusChecker] Kanata Accessibility: Oracle confirmed granted")
         } else {
             missing.append(.kanataAccessibility)
             AppLogger.shared.log(
-                "❌ [SystemStatusChecker] Kanata Accessibility: functional verification failed")
+                "❌ [SystemStatusChecker] Kanata Accessibility: Oracle reports not granted")
         }
 
-        // For low confidence results, fall back to TCC database but warn about uncertainty
-        if functionalVerification.confidence == .low || functionalVerification.confidence == .unknown {
-            AppLogger.shared.log(
-                "⚠️ [SystemStatusChecker] Low confidence verification - falling back to TCC database with warning")
-
-            // Check TCC database as fallback
-            let tccInputMonitoring = PermissionService.checkTCCForInputMonitoring(
-                path: WizardSystemPaths.kanataActiveBinary)
-            let tccAccessibility = PermissionService.checkTCCForAccessibility(
-                path: WizardSystemPaths.kanataActiveBinary)
-
-            // Only override missing permissions if TCC says they're granted
-            // This prevents completely blocking the wizard on detection failures
-            if tccInputMonitoring, !granted.contains(.kanataInputMonitoring) {
-                granted.append(.kanataInputMonitoring)
-                missing.removeAll { $0 == .kanataInputMonitoring }
-                AppLogger.shared.log(
-                    "ℹ️ [SystemStatusChecker] TCC fallback: granted kanata Input Monitoring")
-            }
-
-            if tccAccessibility, !granted.contains(.kanataAccessibility) {
-                granted.append(.kanataAccessibility)
-                missing.removeAll { $0 == .kanataAccessibility }
-                AppLogger.shared.log(
-                    "ℹ️ [SystemStatusChecker] TCC fallback: granted kanata Accessibility")
-            }
-        }
+        // Always consult TCC (not only as a fallback) so positive grants are honored.
+        // Oracle already handled TCC database checking as fallback - no redundant checks needed
+        AppLogger.shared.log("🔮 [SystemStatusChecker] Oracle completed all permission detection (TCP/APIs/TCC hierarchy)")
 
         // Check system extensions (not part of PermissionService - different category)
         let systemRequirements = SystemRequirements()
@@ -239,11 +284,23 @@ class SystemStatusChecker {
         var installed: [ComponentRequirement] = []
         var missing: [ComponentRequirement] = []
 
-        // Check Kanata binary - use KanataManager's method for consistency
-        if kanataManager.isInstalled() {
-            installed.append(.kanataBinary)
+        // Check Kanata binary and its signing status
+        let kanataInfo = packageManager.detectKanataInstallation()
+        if kanataInfo.isInstalled {
+            switch kanataInfo.codeSigningStatus {
+            case .developerIDSigned:
+                // Properly signed binary - mark as installed
+                installed.append(.kanataBinary)
+                AppLogger.shared.log("✅ [SystemStatusChecker] Kanata binary is properly signed")
+            case .adhocSigned, .unsigned, .invalid:
+                // Binary exists but is not properly signed - treat as unsigned issue
+                missing.append(.kanataBinaryUnsigned)
+                AppLogger.shared.log("⚠️ [SystemStatusChecker] Kanata binary is not Developer ID signed: \(kanataInfo.codeSigningStatus)")
+            }
         } else {
+            // No kanata binary found at all
             missing.append(.kanataBinary)
+            AppLogger.shared.log("❌ [SystemStatusChecker] No kanata binary found")
         }
 
         // Check package manager (Homebrew) - use PackageManager's method
@@ -350,15 +407,8 @@ class SystemStatusChecker {
             AppLogger.shared.log("❌ [SystemStatusChecker] Kanata service missing: \(reason)")
         }
 
-        // Check Kanata TCP server status
-        let tcpServerWorking = await checkTCPServerStatus()
-        if tcpServerWorking {
-            installed.append(.kanataTCPServer)
-            AppLogger.shared.log("✅ [SystemStatusChecker] Kanata TCP server: responding")
-        } else {
-            missing.append(.kanataTCPServer)
-            AppLogger.shared.log("❌ [SystemStatusChecker] Kanata TCP server: not responding")
-        }
+        // Check Kanata TCP server configuration and status
+        await checkUDPConfiguration(missing: &missing, installed: &installed)
 
         AppLogger.shared.log("🔍 [SystemStatusChecker] Component check complete:")
         AppLogger.shared.log("  - Installed: \(installed.count) components")
@@ -475,7 +525,8 @@ class SystemStatusChecker {
         conflicts: ConflictDetectionResult,
         permissions _: PermissionCheckResult,
         components: ComponentCheckResult,
-        health: HealthCheckResult
+        health: HealthCheckResult,
+        needsLogRotation: Bool = false
     ) -> [AutoFixAction] {
         var actions: [AutoFixAction] = []
 
@@ -508,6 +559,11 @@ class SystemStatusChecker {
         // Check if LaunchDaemon services need installation
         if components.missing.contains(.launchDaemonServices) {
             actions.append(.installLaunchDaemonServices)
+        }
+
+        // Check if log rotation should be installed
+        if needsLogRotation {
+            actions.append(.installLogRotation)
         }
 
         return actions
@@ -562,36 +618,121 @@ class SystemStatusChecker {
         return .ready
     }
 
-    // MARK: - TCP Server Status
+    // MARK: - UDP Server Status
 
-    /// Check if Kanata TCP server is responding
-    private func checkTCPServerStatus() async -> Bool {
-        let tcpConfig = PreferencesService.tcpSnapshot()
+    /// Check UDP server configuration and status with detailed detection
+    private func checkUDPConfiguration(missing: inout [ComponentRequirement], installed: inout [ComponentRequirement]) async {
+        let commConfig = PreferencesService.communicationSnapshot()
 
-        // If TCP is disabled in preferences, consider it as not working
-        guard tcpConfig.shouldUseTCPServer else {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server disabled in preferences")
+        // If UDP is disabled in preferences, mark as installed (no issue)
+        guard commConfig.shouldUseUDP else {
+            installed.append(.kanataUDPServer)
+            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server disabled in preferences - no issue")
+            return
+        }
+
+        AppLogger.shared.log("📡 [SystemStatusChecker] UDP server enabled in preferences (port \(commConfig.udpPort))")
+
+        // First, check if kanata service is actually healthy - UDP requires kanata to be running
+        let serviceStatus = launchDaemonInstaller.getServiceStatus()
+        guard serviceStatus.kanataServiceLoaded, serviceStatus.kanataServiceHealthy else {
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] Skipping UDP checks - kanata service not healthy (loaded: \(serviceStatus.kanataServiceLoaded), healthy: \(serviceStatus.kanataServiceHealthy))")
+            AppLogger.shared.log("💡 [SystemStatusChecker] UDP server requires kanata to be running - fix service issues first")
+            return // Don't report UDP issues if the underlying service isn't working
+        }
+
+        AppLogger.shared.log("✅ [SystemStatusChecker] Kanata service is healthy, proceeding with UDP diagnostics")
+
+        // Check if LaunchDaemon plist has matching UDP configuration
+        guard launchDaemonInstaller.isServiceConfigurationCurrent() else {
+            missing.append(.udpServerConfiguration)
+            AppLogger.shared.log("❌ [SystemStatusChecker] UDP server configuration mismatch - plist needs regeneration")
+            return
+        }
+
+        AppLogger.shared.log("✅ [SystemStatusChecker] UDP configuration matches LaunchDaemon plist")
+
+        // Check if UDP server is actually responding
+        let udpServerWorking = await checkUDPServerStatus()
+        if udpServerWorking {
+            installed.append(.kanataUDPServer)
+            AppLogger.shared.log("✅ [SystemStatusChecker] UDP server responding on port \(commConfig.udpPort)")
+        } else {
+            missing.append(.udpServerNotResponding)
+            AppLogger.shared.log("❌ [SystemStatusChecker] UDP server configured but not responding")
+        }
+    }
+
+    /// Check if Kanata UDP server is responding
+    private func checkUDPServerStatus() async -> Bool {
+        let commConfig = PreferencesService.communicationSnapshot()
+
+        // If UDP is disabled in preferences, consider it as not working
+        guard commConfig.shouldUseUDP else {
+            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server disabled in preferences")
             return false
         }
 
-        // Check if kanata service is actually running with TCP port
+        // Check if kanata service is actually running with UDP port
         if !kanataManager.isRunning {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] WARNING: KanataManager.isRunning=false but continuing TCP check anyway")
-            // Continue anyway - let's see if TCP actually works
+            AppLogger.shared.log("📡 [SystemStatusChecker] WARNING: KanataManager.isRunning=false but continuing UDP check anyway")
+            // Continue anyway - let's see if UDP actually works
         } else {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] KanataManager.isRunning=true, proceeding with TCP check")
+            AppLogger.shared.log("📡 [SystemStatusChecker] KanataManager.isRunning=true, proceeding with UDP check")
         }
 
-        // Use KanataTCPClient to check server status
-        let client = KanataTCPClient(port: tcpConfig.port, timeout: 2.0)
+        // Use SharedUDPClientService to check server status
+        let sharedService = await SharedUDPClientService.shared
+        let client = await sharedService.getClient(port: commConfig.udpPort)
+        AppLogger.shared.log("🧪 [SystemStatusChecker] Testing UDP server on port \(commConfig.udpPort) with race-free implementation...")
         let serverResponding = await client.checkServerStatus()
+        AppLogger.shared.log("🧪 [SystemStatusChecker] SharedUDPClientService client.checkServerStatus() returned: \(serverResponding)")
 
         if serverResponding {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - responding")
+            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server status check: port \(commConfig.udpPort) - responding")
             return true
         } else {
-            AppLogger.shared.log("🌐 [SystemStatusChecker] TCP server status check: port \(tcpConfig.port) - not responding")
+            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server status check: port \(commConfig.udpPort) - not responding")
             return false
+        }
+    }
+
+    // MARK: - Log Rotation Detection
+
+    /// Check if log rotation should be installed (for new users or when logs exceed size limits)
+    private func shouldInstallLogRotation() async -> Bool {
+        // Check if log rotation service is already installed
+        if launchDaemonInstaller.isLogRotationServiceInstalled() {
+            AppLogger.shared.log("📝 [LogRotation] Log rotation service already installed")
+            return false
+        }
+
+        // Check current Kanata log size (fast check)
+        let logPath = "/var/log/kanata.log"
+        guard FileManager.default.fileExists(atPath: logPath) else {
+            AppLogger.shared.log("📝 [LogRotation] No Kanata log found yet - recommending installation for new users")
+            return true // Install for new users
+        }
+
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: logPath)
+            let fileSize = attributes[.size] as? Int ?? 0
+            let sizeMB = fileSize / (1024 * 1024)
+
+            // Recommend installation if log is large, OR if log is very small (proactive installation for new systems)
+            if sizeMB >= 5 {
+                AppLogger.shared.log("📝 [LogRotation] Kanata log is \(sizeMB)MB - recommending log rotation installation")
+                return true
+            } else if fileSize < 1024 { // Less than 1KB - likely a fresh system
+                AppLogger.shared.log("📝 [LogRotation] Kanata log is very small (\(fileSize) bytes) - recommending proactive log rotation installation")
+                return true
+            } else {
+                AppLogger.shared.log("📝 [LogRotation] Kanata log is \(sizeMB)MB - within size limits, not recommending")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("📝 [LogRotation] Error checking log size: \(error) - recommending installation")
+            return true // Install if we can't check size
         }
     }
 

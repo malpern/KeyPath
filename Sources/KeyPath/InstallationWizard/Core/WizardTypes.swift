@@ -10,9 +10,9 @@ enum WizardPage: String, CaseIterable {
     case conflicts = "Resolve Conflicts"
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
+    case communication = "Communication"
     case karabinerComponents = "Karabiner Components"
     case kanataComponents = "Kanata Components"
-    case tcpServer = "TCP Server"
     case service = "Start Service"
 
     /// User-friendly display name for accessibility and UI
@@ -25,7 +25,7 @@ enum WizardPage: String, CaseIterable {
         case .accessibility: "Accessibility Permission"
         case .karabinerComponents: "Karabiner Driver Setup"
         case .kanataComponents: "Kanata Engine Setup"
-        case .tcpServer: "TCP Server Configuration"
+        case .communication: "Communication Protocol"
         case .service: "Start Keyboard Service"
         }
     }
@@ -40,7 +40,7 @@ enum WizardPage: String, CaseIterable {
         case .accessibility: "accessibility"
         case .karabinerComponents: "karabiner-components"
         case .kanataComponents: "kanata-components"
-        case .tcpServer: "tcp-server"
+        case .communication: "communication"
         case .service: "service"
         }
     }
@@ -52,6 +52,28 @@ enum InstallationStatus {
     case inProgress
     case completed
     case failed
+}
+
+/// Launch failure status for Kanata service failures
+/// Decoupled from manager types to avoid UI-Manager coupling
+enum LaunchFailureStatus: Equatable {
+    case permissionDenied(String)
+    case configError(String)
+    case serviceFailure(String)
+    case missingDependency(String)
+
+    var shortMessage: String {
+        switch self {
+        case .permissionDenied:
+            "Kanata needs permissions"
+        case .configError:
+            "Configuration error"
+        case .serviceFailure:
+            "Kanata service failed"
+        case .missingDependency:
+            "Kanata not installed"
+        }
+    }
 }
 
 // MARK: - Consolidated State Models
@@ -90,6 +112,7 @@ enum PermissionRequirement: Equatable {
 /// Component requirements that need installation
 enum ComponentRequirement: Equatable {
     case kanataBinary
+    case kanataBinaryUnsigned // Kanata binary exists but lacks proper Developer ID signing
     case kanataService
     case karabinerDriver
     case karabinerDaemon
@@ -100,8 +123,12 @@ enum ComponentRequirement: Equatable {
     case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case packageManager // Homebrew or other package manager
     case vhidDaemonMisconfigured
-    case kanataTCPServer // TCP server for Kanata communication and config validation
+    case kanataUDPServer // UDP server for Kanata communication and config validation
     case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
+    case communicationServerConfiguration // Communication server enabled but not configured in service
+    case communicationServerNotResponding // Communication server configured but not responding
+    case udpServerConfiguration // UDP enabled but not configured in service
+    case udpServerNotResponding // UDP configured but not responding
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -119,6 +146,12 @@ enum AutoFixAction: Equatable {
     case restartUnhealthyServices // Restart services that are loaded but crashed
     case adoptOrphanedProcess // Install LaunchDaemon to manage existing process
     case replaceOrphanedProcess // Kill orphaned process and start managed one
+    case installLogRotation // Install log rotation service to keep logs under 10MB
+    case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
+    case enableUDPServer // Enable UDP server for communication
+    case setupUDPAuthentication // Generate and configure UDP authentication token
+    case regenerateCommServiceConfiguration // Update LaunchDaemon plist with UDP settings
+    case restartCommServer // Restart service to enable UDP functionality
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
@@ -312,17 +345,15 @@ enum WizardConstants {
         static let componentMissing = "Required component is missing"
         static let daemonRequired = "Daemon required for virtual HID functionality"
     }
+
+    enum Actions {
+        static let fixInSetup = "Fix in Setup"
+    }
 }
 
 // MARK: - Protocols
 
-/// Protocol for objects that can detect system state
-protocol SystemStateDetecting {
-    func detectCurrentState() async -> SystemStateResult
-    func detectConflicts() async -> ConflictDetectionResult
-    func checkPermissions() async -> PermissionCheckResult
-    func checkComponents() async -> ComponentCheckResult
-}
+// SystemStateDetecting protocol removed - SystemStatusChecker is now the single detection system
 
 /// Protocol for objects that can automatically fix issues
 protocol AutoFixCapable {

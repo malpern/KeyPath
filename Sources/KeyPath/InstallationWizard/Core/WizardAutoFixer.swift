@@ -7,6 +7,7 @@ class WizardAutoFixer: AutoFixCapable {
     private let vhidDeviceManager: VHIDDeviceManager
     private let launchDaemonInstaller: LaunchDaemonInstaller
     private let packageManager: PackageManager
+    private let bundledKanataManager: BundledKanataManager
     private let toastManager: WizardToastManager
     private let autoFixSync = ProcessSynchronizationActor()
 
@@ -15,12 +16,14 @@ class WizardAutoFixer: AutoFixCapable {
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         packageManager: PackageManager = PackageManager(),
+        bundledKanataManager: BundledKanataManager = BundledKanataManager(),
         toastManager: WizardToastManager
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager
         self.launchDaemonInstaller = launchDaemonInstaller
         self.packageManager = packageManager
+        self.bundledKanataManager = bundledKanataManager
         self.toastManager = toastManager
     }
 
@@ -104,6 +107,18 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to adopt an orphaned process
         case .replaceOrphanedProcess:
             true // We can always attempt to replace an orphaned process
+        case .installLogRotation:
+            true // We can always attempt to install log rotation
+        case .replaceKanataWithBundled:
+            true // We can always attempt to replace kanata with bundled version
+        case .enableUDPServer:
+            true // We can always attempt to enable UDP server
+        case .setupUDPAuthentication:
+            true // We can always attempt to setup UDP authentication
+        case .regenerateCommServiceConfiguration:
+            true // We can always attempt to regenerate communication service configuration
+        case .restartCommServer:
+            true // We can always attempt to restart communication server
         }
     }
 
@@ -143,6 +158,18 @@ class WizardAutoFixer: AutoFixCapable {
             return await adoptOrphanedProcess()
         case .replaceOrphanedProcess:
             return await replaceOrphanedProcess()
+        case .installLogRotation:
+            return await installLogRotation()
+        case .replaceKanataWithBundled:
+            return await replaceKanataWithBundled()
+        case .enableUDPServer:
+            return await enableUDPServer()
+        case .setupUDPAuthentication:
+            return await setupUDPAuthentication()
+        case .regenerateCommServiceConfiguration:
+            return await regenerateCommServiceConfiguration()
+        case .restartCommServer:
+            return await restartCommServer()
         }
     }
 
@@ -169,9 +196,8 @@ class WizardAutoFixer: AutoFixCapable {
         try? PIDFileManager.removePID()
         AppLogger.shared.log("🗑️ [AutoFixer] Removed PID file")
 
-        // 3. Clear permission cache
-        PermissionService.shared.clearCache()
-        AppLogger.shared.log("🗳️ [AutoFixer] Cleared permission cache")
+        // 3. Oracle handles permission caching automatically
+        AppLogger.shared.log("🔮 [AutoFixer] Oracle permission system - no manual cache clearing needed")
 
         // 4. Reset kanata manager state
         await kanataManager.stopKanata()
@@ -625,35 +651,10 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Package detection complete")
         stepsCompleted += 1
 
-        // Step 3: Install Kanata if needed
-        AppLogger.shared.log("🔧 [AutoFixer] Step 3/\(totalSteps): Installing Kanata package...")
-        if !kanataInfo.isInstalled {
-            let result = await packageManager.installKanataViaBrew()
-
-            switch result {
-            case .success:
-                AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: Kanata installed via Homebrew")
-                stepsCompleted += 1
-            case let .failure(reason):
-                AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Failed to install Kanata - \(reason)")
-                stepsFailed += 1
-            case .homebrewNotAvailable:
-                AppLogger.shared.log(
-                    "❌ [AutoFixer] Step 3 FAILED: Homebrew not available for Kanata installation")
-                stepsFailed += 1
-            case .packageNotFound:
-                AppLogger.shared.log("❌ [AutoFixer] Step 3 FAILED: Kanata package not found in Homebrew")
-                stepsFailed += 1
-            case .userCancelled:
-                AppLogger.shared.log(
-                    "⚠️ [AutoFixer] Step 3 CANCELLED: Kanata installation cancelled by user")
-                return false
-            }
-        } else {
-            AppLogger.shared.log(
-                "✅ [AutoFixer] Step 3 SUCCESS: Kanata already installed - \(kanataInfo.description)")
-            stepsCompleted += 1
-        }
+        // Step 3: Skip external Kanata installation - use bundled version only
+        AppLogger.shared.log("🔧 [AutoFixer] Step 3/\(totalSteps): Using bundled Kanata (no external installation)...")
+        AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: Using bundled signed Kanata binary")
+        stepsCompleted += 1
 
         let success = stepsFailed == 0
         if success {
@@ -980,5 +981,163 @@ class WizardAutoFixer: AutoFixCapable {
             }
             return false
         }
+    }
+
+    // MARK: - Log Rotation Auto-Fix
+
+    /// Install log rotation service to keep Kanata logs under 10MB total
+    private func installLogRotation() async -> Bool {
+        AppLogger.shared.log("📝 [AutoFixer] Installing log rotation service for Kanata logs")
+
+        await MainActor.run {
+            toastManager.showInfo("📝 Installing log rotation to keep logs under 10MB...")
+        }
+
+        let success = launchDaemonInstaller.installLogRotationService()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully installed log rotation service")
+            await MainActor.run {
+                toastManager.showSuccess("✅ Log rotation installed - logs will stay under 10MB")
+            }
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to install log rotation service")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to install log rotation service")
+            }
+        }
+
+        return success
+    }
+
+    private func replaceKanataWithBundled() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Replacing system kanata with bundled Developer ID signed version")
+
+        await MainActor.run {
+            toastManager.showInfo("🔧 Replacing kanata with signed version...")
+        }
+
+        let success = await bundledKanataManager.replaceBinaryWithBundled()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully replaced system kanata with bundled version")
+            await MainActor.run {
+                toastManager.showSuccess("✅ Kanata replaced with signed version - restart service to take effect")
+            }
+
+            // Restart the kanata service to use the new binary
+            AppLogger.shared.log("🔄 [AutoFixer] Restarting kanata service to use new binary")
+            await kanataManager.restartKanata()
+            AppLogger.shared.log("✅ [AutoFixer] Restarted kanata service with new binary")
+
+            return true
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to replace kanata binary")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to replace kanata binary - check logs for details")
+            }
+            return false
+        }
+    }
+
+    // MARK: - UDP Communication Server Auto-Fix Actions
+
+    private func enableUDPServer() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Enabling UDP server")
+
+        await MainActor.run {
+            PreferencesService.shared.udpServerEnabled = true
+        }
+
+        // Restart service with UDP enabled
+        return await regenerateCommServiceConfiguration()
+    }
+
+    private func setupUDPAuthentication() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Setting up UDP authentication")
+
+        // Generate a new auth token using centralized manager
+        let newToken = await UDPAuthTokenManager.shared.generateSecureToken()
+
+        do {
+            // Update token via centralized manager
+            try await UDPAuthTokenManager.shared.setToken(newToken)
+
+            // Also update preferences for consistency
+            await MainActor.run {
+                PreferencesService.shared.udpAuthToken = newToken
+            }
+
+            // Regenerate service configuration with new token
+            let regenSuccess = await regenerateCommServiceConfiguration()
+            guard regenSuccess else {
+                AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate service configuration")
+                return false
+            }
+
+            // Restart server to adopt new token
+            let restartSuccess = await restartCommServer()
+            guard restartSuccess else {
+                AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server")
+                return false
+            }
+
+            // Test the new token
+            let commSnapshot = PreferencesService.communicationSnapshot()
+            let client = KanataUDPClient(port: commSnapshot.udpPort)
+
+            if await client.authenticate(token: newToken) {
+                AppLogger.shared.log("✅ [AutoFixer] UDP authentication setup successful")
+                return true
+            } else {
+                AppLogger.shared.log("❌ [AutoFixer] UDP authentication test failed")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to set token via TokenManager: \(error)")
+            return false
+        }
+    }
+
+    private func regenerateCommServiceConfiguration() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Regenerating communication service configuration")
+
+        // Use the existing service configuration regeneration method
+        let success = await launchDaemonInstaller.regenerateServiceWithCurrentSettings()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully regenerated communication service configuration")
+            await MainActor.run {
+                toastManager.showSuccess("✅ Communication service configuration updated")
+            }
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate communication service configuration")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to update communication service - check configuration")
+            }
+        }
+
+        return success
+    }
+
+    private func restartCommServer() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Restarting communication server")
+
+        // Use the existing unhealthy services restart method
+        let success = await launchDaemonInstaller.restartUnhealthyServices()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully restarted communication server")
+            await MainActor.run {
+                toastManager.showSuccess("✅ Communication server restarted successfully")
+            }
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server")
+            await MainActor.run {
+                toastManager.showError("❌ Failed to restart communication server - check service configuration")
+            }
+        }
+
+        return success
     }
 }

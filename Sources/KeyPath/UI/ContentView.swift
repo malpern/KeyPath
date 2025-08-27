@@ -1,9 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var keyboardCapture = KeyboardCapture()
+    @State private var keyboardCapture: KeyboardCapture?
     @EnvironmentObject var kanataManager: KanataManager
-    @EnvironmentObject var simpleKanataManager: SimpleKanataManager
     @State private var isRecording = false
     @State private var isRecordingOutput = false
     @State private var recordedInput = ""
@@ -21,6 +20,15 @@ struct ContentView: View {
     @State private var statusMessage = ""
     @State private var showingEmergencyAlert = false
 
+    // Enhanced error handling
+    @State private var enhancedErrorInfo: ErrorInfo?
+
+    // Toast manager for launch failure notifications
+    @State private var toastManager = WizardToastManager()
+
+    // Diagnostics view state
+    @State private var showingDiagnostics = false
+
     // Timer removed - now handled by SimpleKanataManager centrally
 
     var body: some View {
@@ -32,63 +40,83 @@ struct ContentView: View {
             RecordingSection(
                 recordedInput: $recordedInput, recordedOutput: $recordedOutput,
                 isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
-                kanataManager: kanataManager, keyboardCapture: keyboardCapture,
-                showStatusMessage: showStatusMessage, simpleKanataManager: simpleKanataManager
+                kanataManager: kanataManager, keyboardCapture: $keyboardCapture,
+                showStatusMessage: showStatusMessage, showingDiagnostics: $showingDiagnostics
             )
 
-            // Error Section (only show if there's an error)
-            if let error = kanataManager.lastError, !kanataManager.isRunning {
+            // Enhanced Error Display - persistent and actionable
+            EnhancedErrorHandler(errorInfo: $enhancedErrorInfo)
+
+            // Legacy Error Section (only show if there's an error and no enhanced error)
+            if let error = kanataManager.lastError, !kanataManager.isRunning, enhancedErrorInfo == nil {
                 ErrorSection(
                     kanataManager: kanataManager, showingInstallationWizard: $showingInstallationWizard,
                     error: error
                 )
             }
 
-            // Status Message - Fixed at bottom with stable layout
-            StatusMessageView(message: statusMessage, isVisible: showStatusMessage)
-                .frame(height: showStatusMessage ? nil : 0)
+            // Status Message - Only show for success messages, errors use enhanced handler
+            StatusMessageView(message: statusMessage, isVisible: showStatusMessage && !statusMessage.contains("❌"))
+                .frame(height: (showStatusMessage && !statusMessage.contains("❌")) ? nil : 0)
                 .clipped()
 
-            // TODO: Diagnostic Summary (show critical issues) - commented out to revert to previous behavior
-            // if !kanataManager.diagnostics.isEmpty {
-            //     let criticalIssues = kanataManager.diagnostics.filter { $0.severity == .critical || $0.severity == .error }
-            //     if !criticalIssues.isEmpty {
-            //         DiagnosticSummarySection(criticalIssues: criticalIssues, kanataManager: kanataManager)
-            //     }
-            // }
+            // Kanata Launch Failure Toast - inline, non-blocking design
+            if let toast = toastManager.currentToast {
+                WizardToastView(
+                    toast: toast,
+                    onDismiss: {
+                        toastManager.dismissToast()
+                    },
+                    onAction: {
+                        // Handle launch failure toast action (open setup wizard)
+                        toastManager.dismissToast()
+                        showingInstallationWizard = true
+                    }
+                )
+                .padding(.top, 8)
+            }
+
+            // Diagnostic Summary (show critical issues)
+            if !kanataManager.diagnostics.isEmpty {
+                let criticalIssues = kanataManager.diagnostics.filter { $0.severity == .critical || $0.severity == .error }
+                if !criticalIssues.isEmpty {
+                    DiagnosticSummaryView(criticalIssues: criticalIssues) {
+                        showingDiagnostics = true
+                    }
+                }
+            }
         }
         .padding()
         .frame(width: 500)
         .fixedSize(horizontal: false, vertical: true)
-        .sheet(
-            isPresented: Binding(
-                get: {
-                    let shouldShow = simpleKanataManager.showWizard
-                    if shouldShow != showingInstallationWizard {
-                        AppLogger.shared.log(
-                            "🎭 [ContentView] Wizard state change: \(showingInstallationWizard) -> \(shouldShow)")
-                    }
-                    showingInstallationWizard = shouldShow
-                    return shouldShow
-                },
-                set: { newValue in
-                    AppLogger.shared.log("🎭 [ContentView] Sheet binding set to: \(newValue)")
-                    showingInstallationWizard = newValue
+        .sheet(isPresented: $showingInstallationWizard) {
+            // Determine initial page if we're returning from permission granting
+            let initialPage: WizardPage? = {
+                if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
+                    UserDefaults.standard.removeObject(forKey: "wizard_return_to_input_monitoring")
+                    return .inputMonitoring
+                } else if UserDefaults.standard.bool(forKey: "wizard_return_to_accessibility") {
+                    UserDefaults.standard.removeObject(forKey: "wizard_return_to_accessibility")
+                    return .accessibility
                 }
-            )
-        ) {
-            InstallationWizardView()
+                return nil
+            }()
+
+            InstallationWizardView(initialPage: initialPage)
                 .onAppear {
                     AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
+                    if let page = initialPage {
+                        AppLogger.shared.log("🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
+                    }
                 }
                 .onDisappear {
                     // When wizard closes, call SimpleKanataManager to handle the closure
                     AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
                     AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
-                    AppLogger.shared.log("🎭 [ContentView] Calling simpleKanataManager.onWizardClosed()")
+                    AppLogger.shared.log("🎭 [ContentView] Calling kanataManager.onWizardClosed()")
 
                     Task {
-                        await simpleKanataManager.onWizardClosed()
+                        await kanataManager.onWizardClosed()
                     }
                 }
                 .environmentObject(kanataManager)
@@ -96,19 +124,33 @@ struct ContentView: View {
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
             AppLogger.shared.log(
-                "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(simpleKanataManager.showWizard)"
+                "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(kanataManager.showWizard)"
             )
 
-            // Start the auto-launch sequence
-            Task {
-                AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
-                await simpleKanataManager.startAutoLaunch()
-                AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
-                AppLogger.shared.log(
-                    "✅ [ContentView] Post auto-launch - showWizard: \(simpleKanataManager.showWizard)")
-                AppLogger.shared.log(
-                    "✅ [ContentView] Post auto-launch - currentState: \(simpleKanataManager.currentState.rawValue)"
-                )
+            // Check if we're returning from permission granting (Input Monitoring settings)
+            let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
+
+            // Set up notification handlers for recovery actions
+            setupRecoveryActionHandlers()
+
+            // Start the auto-launch sequence ONLY if we're not returning from permission granting
+            // Otherwise the auto-launch will reset showWizard to false
+            if !isReturningFromPermissionGrant {
+                Task {
+                    AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
+                    await kanataManager.startAutoLaunch()
+                    AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
+                    AppLogger.shared.log(
+                        "✅ [ContentView] Post auto-launch - showWizard: \(kanataManager.showWizard)")
+                    AppLogger.shared.log(
+                        "✅ [ContentView] Post auto-launch - currentState: \(kanataManager.currentState.rawValue)"
+                    )
+                }
+            } else {
+                AppLogger.shared.log("🔧 [ContentView] Skipping auto-launch - returning from permission granting")
+
+                // Log to file for debugging
+                WizardLogger.shared.log("SKIPPING auto-launch (would reset wizard flag)")
             }
 
             if !hasCheckedRequirements {
@@ -122,17 +164,24 @@ struct ContentView: View {
 
             // Status monitoring now handled centrally by SimpleKanataManager
         }
-        .onChange(of: simpleKanataManager.showWizard) { shouldShow in
+        .onChange(of: kanataManager.showWizard) { shouldShow in
             AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
             AppLogger.shared.log(
-                "🔍 [ContentView] Current simpleKanataManager state: \(simpleKanataManager.currentState.rawValue)"
+                "🔍 [ContentView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
             )
             AppLogger.shared.log(
-                "🔍 [ContentView] Current errorReason: \(simpleKanataManager.errorReason ?? "nil")")
+                "🔍 [ContentView] Current errorReason: \(kanataManager.errorReason ?? "nil")")
             AppLogger.shared.log("🔍 [ContentView] Setting showingInstallationWizard = \(shouldShow)")
             showingInstallationWizard = shouldShow
             AppLogger.shared.log(
                 "🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
+        }
+        .onChange(of: kanataManager.launchFailureStatus) { newStatus in
+            // Show launch failure toast when status changes
+            if let failureStatus = newStatus {
+                AppLogger.shared.log("🍞 [ContentView] Showing launch failure toast: \(failureStatus.shortMessage)")
+                toastManager.showLaunchFailure(failureStatus)
+            }
         }
         .onChange(of: kanataManager.lastConfigUpdate) { _ in
             // Show status message when config is updated externally
@@ -140,7 +189,7 @@ struct ContentView: View {
         }
         .onDisappear {
             // Stop emergency monitoring when view disappears
-            keyboardCapture.stopEmergencyMonitoring()
+            keyboardCapture?.stopEmergencyMonitoring()
 
             // Status monitoring handled centrally - no cleanup needed
         }
@@ -167,34 +216,121 @@ struct ContentView: View {
     }
 
     private func showStatusMessage(message: String) {
-        statusMessage = message
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            showStatusMessage = true
-        }
+        // Check if this is an error message
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            // Use enhanced error handler for errors
+            let errorText = message.replacingOccurrences(of: "❌ ", with: "")
+            let error = NSError(domain: "KeyPath", code: -1, userInfo: [NSLocalizedDescriptionKey: errorText])
 
-        // Hide after 3 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            withAnimation(.easeOut(duration: 0.3)) {
-                showStatusMessage = false
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                enhancedErrorInfo = ErrorInfo.from(error)
+            }
+        } else {
+            // Use traditional status message for success/info messages
+            statusMessage = message
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                showStatusMessage = true
+            }
+            // Hide after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    showStatusMessage = false
+                }
             }
         }
     }
 
     private func startEmergencyMonitoringIfPossible() {
-        // Only try if we're not already monitoring
-        if !keyboardCapture.checkAccessibilityPermissionsSilently() {
-            // Don't have permissions yet - we'll try again later
-            return
+        // Initialize KeyboardCapture lazily if needed and we have permissions
+        if keyboardCapture == nil {
+            Task {
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                await MainActor.run {
+                    if snapshot.keyPath.accessibility.isReady {
+                        keyboardCapture = KeyboardCapture()
+                        AppLogger.shared.log("🎹 [ContentView] KeyboardCapture initialized for emergency monitoring")
+                    } else {
+                        // Don't have permissions yet - we'll try again later
+                        return
+                    }
+                }
+            }
         }
 
+        guard let capture = keyboardCapture else { return }
+
         // We have permissions, start monitoring
-        keyboardCapture.startEmergencyMonitoring {
+        capture.startEmergencyMonitoring {
             showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
             showingEmergencyAlert = true
         }
     }
 
     // Status monitoring functions removed - now handled centrally by SimpleKanataManager
+
+    /// Check if we're returning from granting permissions using the unified coordinator
+    /// Returns true if we detected a pending permission grant restart, false otherwise
+    @discardableResult
+    private func checkForPendingPermissionGrant() -> Bool {
+        let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
+
+        if result.shouldRestart, let permissionType = result.permissionType {
+            AppLogger.shared.log("🔧 [ContentView] Detected return from \(permissionType.displayName) permission granting")
+
+            // Perform the permission restart using the coordinator
+            PermissionGrantCoordinator.shared.performPermissionRestart(
+                for: permissionType,
+                kanataManager: kanataManager
+            ) { _ in
+                // Show wizard after service restart completes to display results
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    // Reopen wizard to the appropriate permission page
+                    PermissionGrantCoordinator.shared.reopenWizard(
+                        for: permissionType,
+                        kanataManager: kanataManager
+                    )
+                }
+            }
+
+            return true // We detected and are handling the permission grant restart
+        }
+
+        return false // No pending permission grant restart
+    }
+
+    /// Set up notification handlers for recovery actions
+    private func setupRecoveryActionHandlers() {
+        // Handle opening installation wizard
+        NotificationCenter.default.addObserver(forName: .openInstallationWizard, object: nil, queue: .main) { _ in
+            showingInstallationWizard = true
+        }
+
+        // Handle resetting to safe config
+        NotificationCenter.default.addObserver(forName: .resetToSafeConfig, object: nil, queue: .main) { _ in
+            Task {
+                do {
+                    _ = try await kanataManager.createDefaultUserConfigIfMissing()
+                    await kanataManager.updateStatus()
+                    showStatusMessage(message: "✅ Configuration reset to safe defaults")
+                } catch {
+                    showStatusMessage(message: "❌ Failed to reset configuration: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        // Handle opening diagnostics
+        NotificationCenter.default.addObserver(forName: .openDiagnostics, object: nil, queue: .main) { _ in
+            // This would open a diagnostics window - implementation depends on app structure
+            showStatusMessage(message: "ℹ️ Opening diagnostics view...")
+        }
+
+        // Handle user feedback from PermissionGrantCoordinator
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: .main) { notification in
+            if let message = notification.userInfo?["message"] as? String {
+                showStatusMessage(message: message)
+            }
+        }
+    }
 }
 
 struct ContentViewHeader: View {
@@ -207,11 +343,11 @@ struct ContentViewHeader: View {
                     AppLogger.shared.log(
                         "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
                     showingInstallationWizard = true
-                }) {
+                }, label: {
                     Image(systemName: "keyboard")
                         .font(.largeTitle)
                         .foregroundColor(.blue)
-                }
+                })
                 .buttonStyle(PlainButtonStyle())
                 .accessibilityIdentifier("launch-installation-wizard-button")
                 .accessibilityLabel("Launch Installation Wizard")
@@ -236,11 +372,9 @@ struct RecordingSection: View {
     @Binding var isRecording: Bool
     @Binding var isRecordingOutput: Bool
     @ObservedObject var kanataManager: KanataManager
-    @ObservedObject var keyboardCapture: KeyboardCapture
+    @Binding var keyboardCapture: KeyboardCapture?
     let showStatusMessage: (String) -> Void
-
-    // Simple Kanata Manager Integration
-    let simpleKanataManager: SimpleKanataManager?
+    @Binding var showingDiagnostics: Bool
     @State private var outputInactivityTimer: Timer?
     @State private var showingConfigCorruptionAlert = false
     @State private var configCorruptionDetails = ""
@@ -283,10 +417,10 @@ struct RecordingSection: View {
                         } else {
                             startRecording()
                         }
-                    }) {
+                    }, label: {
                         Image(systemName: getInputButtonIcon())
                             .font(.title2)
-                    }
+                    })
                     .buttonStyle(.plain)
                     .frame(height: 44)
                     .frame(minWidth: 44)
@@ -331,10 +465,10 @@ struct RecordingSection: View {
                         } else {
                             startOutputRecording()
                         }
-                    }) {
+                    }, label: {
                         Image(systemName: getOutputButtonIcon())
                             .font(.title2)
-                    }
+                    })
                     .buttonStyle(.plain)
                     .frame(height: 44)
                     .frame(minWidth: 44)
@@ -357,7 +491,7 @@ struct RecordingSection: View {
                 Spacer()
                 Button(action: {
                     debouncedSave()
-                }) {
+                }, label: {
                     HStack {
                         if kanataManager.saveStatus.isActive {
                             ProgressView()
@@ -367,7 +501,7 @@ struct RecordingSection: View {
                         Text(kanataManager.saveStatus.message.isEmpty ? "Save" : kanataManager.saveStatus.message)
                     }
                     .frame(minWidth: 100)
-                }
+                })
                 .buttonStyle(.borderedProminent)
                 .disabled(recordedInput.isEmpty || recordedOutput.isEmpty || kanataManager.saveStatus.isActive)
                 .accessibilityIdentifier("save-mapping-button")
@@ -384,7 +518,7 @@ struct RecordingSection: View {
             }
             Button("View Diagnostics") {
                 showingConfigCorruptionAlert = false
-                // TODO: Open diagnostics view
+                showingDiagnostics = true
             }
         } message: {
             Text(configCorruptionDetails)
@@ -399,7 +533,7 @@ struct RecordingSection: View {
             }
             Button("View Diagnostics") {
                 showingRepairFailedAlert = false
-                // TODO: Open diagnostics view
+                showingDiagnostics = true
             }
         } message: {
             Text(repairFailedDetails)
@@ -424,6 +558,9 @@ struct RecordingSection: View {
             }
         } message: {
             Text(kanataManager.validationAlertMessage)
+        }
+        .sheet(isPresented: $showingDiagnostics) {
+            DiagnosticsView(kanataManager: kanataManager)
         }
     }
 
@@ -451,38 +588,76 @@ struct RecordingSection: View {
         isRecording = true
         recordedInput = ""
 
-        keyboardCapture.startCapture { keyName in
-            recordedInput = keyName
-            isRecording = false
+        Task {
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            await MainActor.run {
+                guard snapshot.keyPath.accessibility.isReady else {
+                    recordedInput = "⚠️ Accessibility permission required for recording"
+                    isRecording = false
+                    return
+                }
+                if keyboardCapture == nil {
+                    keyboardCapture = KeyboardCapture()
+                    AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
+                }
+                guard let capture = keyboardCapture else {
+                    recordedInput = "⚠️ Failed to initialize keyboard capture"
+                    isRecording = false
+                    return
+                }
+                capture.startCapture { keyName in
+                    recordedInput = keyName
+                    isRecording = false
+                }
+            }
         }
     }
 
     private func stopRecording() {
         isRecording = false
-        keyboardCapture.stopCapture()
+        keyboardCapture?.stopCapture()
     }
 
     private func startOutputRecording() {
         isRecordingOutput = true
         recordedOutput = ""
 
-        keyboardCapture.startContinuousCapture { keyName in
-            if !recordedOutput.isEmpty {
-                recordedOutput += " "
+        Task {
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            await MainActor.run {
+                guard snapshot.keyPath.accessibility.isReady else {
+                    recordedOutput = "⚠️ Accessibility permission required for recording"
+                    isRecordingOutput = false
+                    return
+                }
+                if keyboardCapture == nil {
+                    keyboardCapture = KeyboardCapture()
+                    AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
+                }
+                guard let capture = keyboardCapture else {
+                    recordedOutput = "⚠️ Failed to initialize keyboard capture"
+                    isRecordingOutput = false
+                    return
+                }
+                capture.startContinuousCapture { keyName in
+                    if !recordedOutput.isEmpty {
+                        recordedOutput += " "
+                    }
+                    recordedOutput += keyName
+
+                    // Reset the inactivity timer each time a key is pressed
+                    resetOutputInactivityTimer()
+                }
+
+                // Start the initial inactivity timer
+                resetOutputInactivityTimer()
             }
-            recordedOutput += keyName
-
-            // Reset the inactivity timer each time a key is pressed
-            resetOutputInactivityTimer()
         }
-
-        // Start the initial inactivity timer
-        resetOutputInactivityTimer()
     }
 
     private func stopOutputRecording() {
         isRecordingOutput = false
-        keyboardCapture.stopCapture()
+        keyboardCapture?.stopCapture()
         cancelOutputInactivityTimer()
     }
 
@@ -533,8 +708,7 @@ struct RecordingSection: View {
         AppLogger.shared.log("💾 [Save] Debounced save initiated - starting timer")
 
         // Create new timer
-        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) {
-            _ in
+        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) { _ in
             AppLogger.shared.log("💾 [Save] Debounce timer fired - executing save")
             Task {
                 await saveKeyPath()
@@ -885,6 +1059,80 @@ struct StatusMessageView: View {
         } else {
             Color.green.opacity(0.3)
         }
+    }
+}
+
+struct DiagnosticSummaryView: View {
+    let criticalIssues: [KanataDiagnostic]
+    let onViewDiagnostics: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("System Issues Detected")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text("\(criticalIssues.count) critical issue\(criticalIssues.count == 1 ? "" : "s") need attention")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button(action: onViewDiagnostics, label: {
+                    Text("View Details")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                })
+                .buttonStyle(.plain)
+            }
+
+            // Show first 2 critical issues as preview
+            ForEach(Array(criticalIssues.prefix(2).enumerated()), id: \.offset) { _, issue in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: issue.severity == .critical ? "exclamationmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(issue.severity == .critical ? .red : .orange)
+                        .font(.caption)
+                        .padding(.top, 2)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(issue.title)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+
+                        if !issue.description.isEmpty {
+                            Text(issue.description)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+
+            if criticalIssues.count > 2 {
+                Text("... and \(criticalIssues.count - 2) more issue\(criticalIssues.count - 2 == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 16)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.orange.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
 }
 

@@ -2,13 +2,16 @@ import SwiftUI
 
 struct WizardKanataServicePage: View {
     @ObservedObject var kanataManager: KanataManager
+    let systemState: WizardSystemState
+    let issues: [WizardIssue]
+
     @State private var isPerformingAction = false
     @State private var lastError: String?
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var refreshTimer: Timer?
 
-    // Integration with SimpleKanataManager for better error context
-    @State private var simpleKanataManager: SimpleKanataManager?
+    // Integration with KanataManager for better error context
+    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     enum ServiceStatus: Equatable {
         case unknown
@@ -51,116 +54,254 @@ struct WizardKanataServicePage: View {
     }
 
     var body: some View {
-        VStack(spacing: WizardDesign.Spacing.sectionGap) {
-            // Header
-            WizardPageHeader(
-                icon: "keyboard.chevron.compact.down.fill",
-                title: "Kanata Service",
-                subtitle: "Monitor and control the keyboard remapping service",
-                status: statusForHeader
-            )
+        VStack(spacing: 0) {
+            // Use experimental hero design when service is running
+            if serviceStatus == .running {
+                VStack(spacing: 0) {
+                    Spacer()
 
-            // Service Status Card
-            VStack(spacing: 20) {
-                // Status Indicator
-                HStack(spacing: 16) {
-                    Image(systemName: serviceStatus.icon)
-                        .font(.system(size: 48))
-                        .foregroundColor(serviceStatus.color)
-                        .animation(.easeInOut(duration: 0.3), value: serviceStatus.icon)
+                    // Centered hero block with padding
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        // Green gears icon with green check overlay
+                        ZStack {
+                            Image(systemName: "gearshape.2")
+                                .font(.system(size: 115, weight: .light))
+                                .foregroundColor(WizardDesign.Colors.success)
+                                .symbolRenderingMode(.hierarchical)
+                                .symbolEffect(.bounce, options: .nonRepeating)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(statusTitle)
-                            .font(.title2)
+                            // Green check overlay in top right
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 40, weight: .medium))
+                                        .foregroundColor(WizardDesign.Colors.success)
+                                        .background(WizardDesign.Colors.wizardBackground)
+                                        .clipShape(Circle())
+                                        .offset(x: 15, y: -5) // Move to the right
+                                }
+                                Spacer()
+                            }
+                            .frame(width: 115, height: 115)
+                        }
+
+                        // Headline
+                        Text("Kanata Service")
+                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+
+                        // Subtitle
+                        Text("Service is running and processing keyboard events")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(1)
+
+                        // Service control links below the subheader
+                        HStack(spacing: WizardDesign.Spacing.itemGap) {
+                            Button(action: startService) {
+                                Text("Start")
+                            }
+                            .buttonStyle(.link)
+                            .disabled(true)
+                            .foregroundColor(.secondary)
+
+                            Text("•")
+                                .foregroundColor(.secondary)
+
+                            Button(action: restartService) {
+                                Text("Restart")
+                            }
+                            .buttonStyle(.link)
+                            .foregroundColor(.red)
+                            .disabled(isPerformingAction)
+
+                            Text("•")
+                                .foregroundColor(.secondary)
+
+                            Button(action: stopService) {
+                                Text("Stop")
+                            }
+                            .buttonStyle(.link)
+                            .foregroundColor(.red)
+                            .disabled(isPerformingAction)
+                        }
+                        .padding(.top, WizardDesign.Spacing.elementGap)
+                    }
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Header for other states with action link
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    // Custom header with colored play icon
+                    VStack(spacing: WizardDesign.Spacing.elementGap) {
+                        // Colored gears icon with appropriate overlay
+                        ZStack {
+                            Image(systemName: "gearshape.2")
+                                .font(.system(size: 60, weight: .light))
+                                .foregroundColor(serviceStatus.color)
+                                .symbolRenderingMode(.hierarchical)
+                                .symbolEffect(.bounce, options: .nonRepeating)
+
+                            // Status overlay in top right
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: serviceStatus.icon)
+                                        .font(.system(size: 24, weight: .medium))
+                                        .foregroundColor(serviceStatus.color)
+                                        .background(WizardDesign.Colors.wizardBackground)
+                                        .clipShape(Circle())
+                                        .offset(x: 8, y: -3) // Move to the right for smaller icon
+                                        .contentTransition(.symbolEffect(.replace))
+                                }
+                                Spacer()
+                            }
+                            .frame(width: 60, height: 60)
+                        }
+                        .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
+
+                        // Title
+                        Text("Kanata Service")
+                            .font(WizardDesign.Typography.sectionTitle)
                             .fontWeight(.semibold)
 
-                        Text(serviceStatus.description)
-                            .font(.body)
-                            .foregroundColor(.secondary)
+                        // Subtitle
+                        Text("Monitor and control the keyboard remapping service")
+                            .font(WizardDesign.Typography.subtitle)
+                            .foregroundColor(WizardDesign.Colors.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .wizardContentSpacing()
                     }
+                    .padding(.top, 12)
 
-                    Spacer()
+                    // Check Status link under the subheader
+                    Button("Check Status") {
+                        refreshStatus()
+                    }
+                    .buttonStyle(.link)
                 }
-                .padding(24)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(12)
-
-                // Service Details
-                VStack(alignment: .leading, spacing: 12) {
-                    DetailRow(label: "Process ID", value: pidValue)
-                    DetailRow(label: "Config File", value: configPath)
-                    DetailRow(label: "Log File", value: WizardSystemPaths.kanataLogFile)
-                    DetailRow(label: "Uptime", value: uptimeValue)
-
-                    if let error = lastError {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Last Error", systemImage: "exclamationmark.triangle.fill")
-                                .font(.headline)
-                                .foregroundColor(.red)
-
-                            Text(error)
-                                .font(.system(.body, design: .monospaced))
-                                .padding(12)
-                                .background(Color.red.opacity(0.1))
-                                .cornerRadius(8)
-                                .textSelection(.enabled)
-                        }
-                        .padding(.top, 8)
-                    }
-                }
-                .padding(.horizontal, 24)
-
-                // Control Buttons
-                HStack(spacing: 16) {
-                    Button(action: startService) {
-                        Label("Start", systemImage: "play.fill")
-                            .frame(width: WizardDesign.Layout.buttonWidthSmall)
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                    .disabled(isPerformingAction || serviceStatus == .running)
-
-                    Button(action: restartService) {
-                        Label("Restart", systemImage: "arrow.clockwise")
-                            .frame(width: WizardDesign.Layout.buttonWidthSmall)
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                    .disabled(isPerformingAction)
-
-                    Button(action: stopService) {
-                        Label("Stop", systemImage: "stop.fill")
-                            .frame(width: WizardDesign.Layout.buttonWidthSmall)
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                    .disabled(isPerformingAction || serviceStatus == .stopped)
-
-                    Spacer()
-
-                    Button(action: refreshStatus) {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                    .disabled(isPerformingAction)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 12)
             }
-            .padding(.horizontal, 40)
+
+            // No content card - service status is shown in hero section
+            if serviceStatus != .running {
+                VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
+                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                        Text("Service Status: \(serviceStatus.description)")
+                            .font(WizardDesign.Typography.body)
+                            .foregroundColor(.primary)
+
+                        Text("Service Details:")
+                            .font(WizardDesign.Typography.subsectionTitle)
+                            .foregroundColor(.primary)
+                            .padding(.top, WizardDesign.Spacing.itemGap)
+
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                            DetailRow(label: "Process ID", value: pidValue)
+                            DetailRow(label: "Config File", value: configPath)
+                            DetailRow(label: "Log File", value: WizardSystemPaths.displayPath(for: WizardSystemPaths.kanataLogFile))
+                            DetailRow(label: "Status", value: uptimeValue)
+                        }
+
+                        if let error = lastError {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Last Error", systemImage: "exclamationmark.triangle.fill")
+                                    .font(.headline)
+                                    .foregroundColor(.red)
+
+                                Text(error)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .padding(12)
+                                    .background(Color.red.opacity(0.1))
+                                    .cornerRadius(8)
+                                    .textSelection(.enabled)
+                            }
+                            .padding(.top, 8)
+                        }
+
+                        if case .crashed = serviceStatus {
+                            Text("If the service keeps crashing, check the log file for details or try restarting.")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .padding(.top, WizardDesign.Spacing.itemGap)
+                        }
+                    }
+
+                    Spacer(minLength: 60)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(WizardDesign.Spacing.cardPadding)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            }
 
             Spacer()
 
-            // Help Text
-            VStack(spacing: 8) {
-                Text("The Kanata service handles keyboard remapping in the background.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            // Centered buttons
+            VStack(spacing: WizardDesign.Spacing.elementGap) {
+                // Service control buttons - only show for non-running states
+                if serviceStatus != .running {
+                    HStack(spacing: WizardDesign.Spacing.itemGap) {
+                        Button(action: startService) {
+                            HStack(spacing: 4) {
+                                if serviceStatus == .starting {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                }
+                                Text("Start")
+                            }
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                        .disabled(isPerformingAction || serviceStatus == .running)
 
-                if case .crashed = serviceStatus {
-                    Text("If the service keeps crashing, check the log file for details.")
-                        .font(.caption)
-                        .foregroundColor(.orange)
+                        Button(action: restartService) {
+                            HStack(spacing: 4) {
+                                if serviceStatus == .stopping || serviceStatus == .starting {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                }
+                                Text("Restart")
+                            }
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                        .disabled(isPerformingAction)
+
+                        Button(action: stopService) {
+                            HStack(spacing: 4) {
+                                if serviceStatus == .stopping {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                }
+                                Text("Stop")
+                            }
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                        .disabled(isPerformingAction || serviceStatus == .stopped)
+                    }
+                }
+
+                // Primary done button (centered)
+                HStack {
+                    Spacer()
+                    Button("Done") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User completing setup from Kanata Service page")
+                        navigateToNextPage()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    Spacer()
                 }
             }
-            .padding(.horizontal, 40)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -171,6 +312,15 @@ struct WizardKanataServicePage: View {
         .onDisappear {
             stopAutoRefresh()
         }
+    }
+
+    // MARK: - Helper Methods
+
+    private func navigateToNextPage() {
+        // Return to Summary page from Kanata Service with backward navigation animation
+        // Use spring animation to suggest moving "back" in the navigation stack
+        navigationCoordinator.navigateToPage(.summary, animation: .spring(response: 0.4, dampingFraction: 0.8))
+        AppLogger.shared.log("⬅️ [Kanata Service] Navigated back to Summary page")
     }
 
     // MARK: - Computed Properties
@@ -233,8 +383,8 @@ struct WizardKanataServicePage: View {
 
             await MainActor.run {
                 isPerformingAction = false
-                refreshStatus()
             }
+            await refreshStatusAsync()
         }
     }
 
@@ -255,8 +405,8 @@ struct WizardKanataServicePage: View {
 
             await MainActor.run {
                 isPerformingAction = false
-                refreshStatus()
             }
+            await refreshStatusAsync()
         }
     }
 
@@ -272,19 +422,42 @@ struct WizardKanataServicePage: View {
 
             await MainActor.run {
                 isPerformingAction = false
-                refreshStatus()
             }
+            await refreshStatusAsync()
         }
     }
 
     private func refreshStatus() {
-        // Check if service is running
-        if kanataManager.isRunning {
-            serviceStatus = .running
-            lastError = nil
-        } else {
-            // Check if it crashed by looking for recent errors
-            checkForCrash()
+        Task {
+            await refreshStatusAsync()
+        }
+    }
+
+    private func refreshStatusAsync() async {
+        // Use the same ServiceStatusEvaluator as summary page (SINGLE SOURCE OF TRUTH)
+        let processStatus = ServiceStatusEvaluator.evaluate(
+            kanataIsRunning: kanataManager.isRunning,
+            systemState: systemState,
+            issues: issues
+        )
+
+        await MainActor.run {
+            switch processStatus {
+            case .running:
+                serviceStatus = .running
+                lastError = nil
+                AppLogger.shared.log("✅ [ServiceStatus] Service confirmed functional via shared evaluator")
+
+            case let .failed(message):
+                serviceStatus = .crashed(error: message ?? "Permission or service issue detected")
+                lastError = message
+                AppLogger.shared.log("⚠️ [ServiceStatus] Service failed via shared evaluator: \(message ?? "unknown")")
+
+            case .stopped:
+                // Preserve existing crash log heuristic when stopped
+                checkForCrash()
+                AppLogger.shared.log("🔍 [ServiceStatus] Service stopped - checking for crash indicators")
+            }
         }
     }
 
@@ -364,6 +537,10 @@ struct DetailRow: View {
 
 struct WizardKanataServicePage_Previews: PreviewProvider {
     static var previews: some View {
-        WizardKanataServicePage(kanataManager: KanataManager())
+        WizardKanataServicePage(
+            kanataManager: KanataManager(),
+            systemState: .ready,
+            issues: []
+        )
     }
 }

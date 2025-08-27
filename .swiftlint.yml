@@ -7,6 +7,7 @@ excluded:
   - dist
   - Tests/InstallationWizardTests.disabled
   - "*.generated.swift"
+  - peekaboo  # Exclude nested peekaboo project
 
 # Configure rules - make everything warnings for CI
 line_length:

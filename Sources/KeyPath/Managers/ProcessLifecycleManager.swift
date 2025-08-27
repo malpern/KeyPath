@@ -299,6 +299,12 @@ final class ProcessLifecycleManager {
             return false
         }
 
+        // Check against all known kanata paths (bundled, homebrew, standard locations)
+        let knownPaths = WizardSystemPaths.allKnownKanataPaths()
+        for path in knownPaths where command.contains(path) {
+            return true
+        }
+
         // Look for actual kanata binary - be more specific
         return command.contains("/bin/kanata") || command.hasPrefix("kanata ") || command == "kanata"
     }

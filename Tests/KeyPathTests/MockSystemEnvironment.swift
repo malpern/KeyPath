@@ -24,6 +24,11 @@ class MockSystemEnvironment {
         let isRunning: Bool
     }
 
+    // MARK: - Mock System State Properties
+
+    var mockKanataInstalled = false
+    var mockKanataRunning = false
+
     // MARK: - Setup Methods
 
     func reset() {

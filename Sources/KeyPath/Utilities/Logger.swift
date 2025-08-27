@@ -5,7 +5,7 @@ class AppLogger {
 
     // MARK: - Configuration
 
-    private let maxLogSize: Int = 10 * 1024 * 1024 // 10MB max log file size
+    private let maxLogSize: Int = 5 * 1024 * 1024 // 5MB max log file size (keeps total under 10MB)
     private let maxLogFiles: Int = 3 // Keep 3 rotated logs (current + 2 backups)
     private let bufferSize: Int = 100 // Buffer up to 100 messages before writing
     private let flushInterval: TimeInterval = 5.0 // Auto-flush every 5 seconds
@@ -24,14 +24,8 @@ class AppLogger {
     private var flushTimer: Timer?
 
     private init() {
-        // Set log directory to project directory for easy access during development
-        let projectPath = "/Volumes/FlashGordon/Dropbox/code/KeyPath"
-        if FileManager.default.fileExists(atPath: projectPath) {
-            logDirectory = projectPath + "/logs"
-        } else {
-            // Fallback to user directory if project path not available
-            logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
-        }
+        // Use standard macOS app logs directory
+        logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
 
         dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -53,8 +47,7 @@ class AppLogger {
 
         // Start automatic flush timer
         DispatchQueue.main.async {
-            self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) {
-                _ in
+            self.flushTimer = Timer.scheduledTimer(withTimeInterval: self.flushInterval, repeats: true) { _ in
                 self.flushBuffer()
             }
         }

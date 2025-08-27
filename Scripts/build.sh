@@ -5,10 +5,14 @@
 
 set -e
 
-echo "Building KeyPath..."
+echo "🦀 Building bundled kanata for development..."
+# Build kanata from source with STABLE Developer ID signing
+# CRITICAL: Never use ad-hoc signing - breaks TCC identity persistence
+CODESIGN_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)" ./Scripts/build-kanata.sh
 
-# Build the Swift package
-swift build -c release
+echo "🏗️  Building KeyPath..."
+# Build the Swift package (disable whole-module optimization to avoid hang)
+swift build -c release -Xswiftc -no-whole-module-optimization
 
 # Create app bundle structure
 APP_BUNDLE="build/KeyPath.app"
@@ -19,9 +23,13 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 echo "Creating app bundle structure..."
 mkdir -p "$MACOS_DIR"
 mkdir -p "$RESOURCES_DIR"
+mkdir -p "$CONTENTS_DIR/Library/KeyPath"
 
 # Copy executable
 cp .build/arm64-apple-macosx/release/KeyPath "$MACOS_DIR/KeyPath"
+
+# Copy bundled kanata binary
+cp build/kanata-universal "$CONTENTS_DIR/Library/KeyPath/kanata"
 
 # Copy app icon
 if [ -f "Sources/KeyPath/Resources/AppIcon.icns" ]; then
@@ -62,12 +70,18 @@ cat > "$CONTENTS_DIR/Info.plist" << EOF
 </plist>
 EOF
 
-# Optional: Sign for development to preserve permissions
+# REQUIRED: Sign with stable Developer ID for TCC persistence
+SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
 if command -v codesign >/dev/null 2>&1; then
-    echo "Signing app bundle for development..."
-    codesign --force --sign - --entitlements kanata.entitlements --deep --timestamp=none "$APP_BUNDLE" 2>/dev/null || {
-        echo "Note: Code signing failed, permissions may reset on each build"
-    }
+    echo "Signing app bundle with stable Developer ID..."
+    # Sign kanata binary first for stable identity
+    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS_DIR/Library/KeyPath/kanata"
+    # Sign main app bundle
+    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+    echo "✅ Signed with stable identity for TCC persistence"
+else
+    echo "❌ ERROR: codesign not found - TCC will reset every build!"
+    exit 1
 fi
 
 echo "App bundle created at: $APP_BUNDLE"
@@ -78,4 +92,4 @@ echo
 echo "To install the Kanata service:"
 echo "  sudo ./install-system.sh"
 echo
-echo "Note: If permissions reset, use './build-and-sign.sh' instead for stable identity"
+echo "✅ Build uses stable Developer ID - TCC permissions persist across builds"

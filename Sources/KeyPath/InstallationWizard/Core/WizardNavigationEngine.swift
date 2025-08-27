@@ -61,7 +61,28 @@ class WizardNavigationEngine: WizardNavigating {
             return .accessibility
         }
 
-        // 3. Karabiner Components - driver, VirtualHID, background services
+        // 3. Communication Server Configuration Issues (critical for permission detection)
+        let hasCommunicationIssues = issues.contains { issue in
+            if issue.category == .installation {
+                switch issue.identifier {
+                case .component(.communicationServerConfiguration),
+                     .component(.communicationServerNotResponding),
+                     .component(.udpServerConfiguration),
+                     .component(.udpServerNotResponding):
+                    return true
+                default:
+                    return false
+                }
+            }
+            return false
+        }
+
+        if hasCommunicationIssues {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .communication (found communication configuration issues)")
+            return .communication
+        }
+
+        // 4. Karabiner Components - driver, VirtualHID, background services
         let hasKarabinerIssues = issues.contains { issue in
             // Installation issues related to Karabiner
             if issue.category == .installation {
@@ -88,7 +109,7 @@ class WizardNavigationEngine: WizardNavigating {
             return .karabinerComponents
         }
 
-        // 4. Kanata Components - binary and service
+        // 5. Kanata Components - binary and service
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {
@@ -198,7 +219,7 @@ class WizardNavigationEngine: WizardNavigating {
             false // Can manage service state
         case .fullDiskAccess:
             false // Optional, not blocking
-        case .tcpServer:
+        case .communication:
             false // Optional, not blocking
         case .summary:
             false // Final state
@@ -238,7 +259,7 @@ class WizardNavigationEngine: WizardNavigating {
             "Install Karabiner Components"
         case .kanataComponents:
             "Install Kanata Components"
-        case .tcpServer:
+        case .communication:
             "Check TCP Server"
         case .service:
             "Start Keyboard Service"
@@ -277,7 +298,7 @@ class WizardNavigationEngine: WizardNavigating {
                 return !missing.isEmpty
             }
             return true // Can always try to install components
-        case .tcpServer:
+        case .communication:
             return true // Can always check TCP server
         case .service:
             return true // Can always manage service

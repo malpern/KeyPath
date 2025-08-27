@@ -4,8 +4,8 @@ import SwiftUI
 // Note: @main attribute moved to KeyPathCLI/main.swift for proper SPM building
 public struct KeyPathApp: App {
     @StateObject private var kanataManager = KanataManager()
-    @StateObject private var simpleKanataManager: SimpleKanataManager
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @State private var showingEmergencyStopDialog = false
 
     private let isHeadlessMode: Bool
 
@@ -15,10 +15,9 @@ public struct KeyPathApp: App {
         isHeadlessMode =
             args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
 
-        // Create SimpleKanataManager using the same KanataManager instance
+        // Initialize KanataManager
         let manager = KanataManager()
         _kanataManager = StateObject(wrappedValue: manager)
-        _simpleKanataManager = StateObject(wrappedValue: SimpleKanataManager(kanataManager: manager))
 
         // Set activation policy based on mode
         if isHeadlessMode {
@@ -38,9 +37,12 @@ public struct KeyPathApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(kanataManager)
-                .environmentObject(simpleKanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionService, PermissionService.shared)
+                .sheet(isPresented: $showingEmergencyStopDialog) {
+                    EmergencyStopDialog()
+                        .interactiveDismissDisabled(false)
+                }
         }
         .windowResizability(.contentSize)
         .commands {
@@ -74,13 +76,19 @@ public struct KeyPathApp: App {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("How to Emergency Stop") {
+                    showingEmergencyStopDialog = true
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
             }
         }
 
         Settings {
             SettingsView()
                 .environmentObject(kanataManager)
-                .environmentObject(simpleKanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionService, PermissionService.shared)
         }
@@ -167,6 +175,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         print("🔍 [AppDelegate] applicationDidFinishLaunching called")
         AppLogger.shared.log("🔍 [AppDelegate] applicationDidFinishLaunching called")
+
+        // Phase 2/3: Ensure shared UDP token exists for cross-platform compatibility
+        Task { @MainActor in
+            do {
+                _ = try await UDPAuthTokenManager.shared.ensureToken()
+                await UDPAuthTokenManager.shared.migrateExistingTokens()
+                AppLogger.shared.log("🔐 [AppDelegate] UDP auth token ready")
+            } catch {
+                AppLogger.shared.log("❌ [AppDelegate] Failed to setup UDP auth token: \(error)")
+            }
+        }
+
+        // Check for pending service bounce first
+        Task { @MainActor in
+            let (shouldBounce, timeSince) = await PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
+
+            if shouldBounce {
+                if let timeSince {
+                    AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce")
+                } else {
+                    AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested - performing bounce")
+                }
+
+                let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
+                if bounceSuccess {
+                    AppLogger.shared.log("✅ [AppDelegate] Service bounce completed successfully")
+                    await PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+                } else {
+                    AppLogger.shared.log("❌ [AppDelegate] Service bounce failed - flag remains for retry")
+                }
+            }
+        }
 
         if isHeadlessMode {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - starting kanata service automatically")

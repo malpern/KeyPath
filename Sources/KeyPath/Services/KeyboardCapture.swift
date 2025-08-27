@@ -2,7 +2,12 @@ import Carbon
 import Foundation
 import SwiftUI
 
-class KeyboardCapture: ObservableObject {
+// Import the event processing infrastructure
+#if canImport(KeyPath)
+    // This is to handle potential circular dependencies during build
+#endif
+
+public class KeyboardCapture: ObservableObject {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var captureCallback: ((String) -> Void)?
@@ -10,6 +15,39 @@ class KeyboardCapture: ObservableObject {
     private var isContinuous = false
     private var pauseTimer: Timer?
     private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
+
+    /// Event router for processing captured events through the event processing chain
+    private var eventRouter: EventRouter?
+
+    /// Enable/disable event router integration (for backward compatibility)
+    /// Default: false to maintain legacy behavior and avoid CGEvent tap conflicts
+    public var useEventRouter: Bool = false
+
+    /// Reference to KanataManager to check if Kanata is running (to avoid tap conflicts)
+    private weak var kanataManager: KanataManager?
+
+    // MARK: - Event Router Configuration
+
+    /// Set the event router for processing captured events
+    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager? = nil) {
+        eventRouter = router
+        self.kanataManager = kanataManager
+        AppLogger.shared.log("📋 [KeyboardCapture] Event router \(router != nil ? "enabled" : "disabled")")
+    }
+
+    /// Enable event router integration with the default router
+    public func enableEventRouter() {
+        // Note: We avoid importing defaultEventRouter here to prevent circular dependencies
+        // Instead, it should be set externally via setEventRouter()
+        useEventRouter = true
+        AppLogger.shared.log("📋 [KeyboardCapture] Event router integration enabled")
+    }
+
+    /// Disable event router integration (fallback to legacy behavior)
+    public func disableEventRouter() {
+        useEventRouter = false
+        AppLogger.shared.log("📋 [KeyboardCapture] Event router integration disabled")
+    }
 
     // Emergency stop sequence detection
     private var emergencyEventTap: CFMachPort?
@@ -103,21 +141,54 @@ class KeyboardCapture: ObservableObject {
     }
 
     private func setupEventTap() {
+        // Safety check: avoid CGEvent tap conflicts when Kanata is running
+        // Per ADR-006, we should not create competing event taps
+        if let kanataManager, kanataManager.isRunning {
+            AppLogger.shared.log("⚠️ [KeyboardCapture] Skipping CGEvent tap setup - Kanata is running (ADR-006 compliance)")
+            // Fall back to disabling capture to avoid conflicts
+            isCapturing = false
+            isContinuous = false
+            captureCallback = nil
+
+            DispatchQueue.main.async {
+                self.captureCallback?("⚠️ Cannot capture while Kanata is running")
+            }
+            return
+        }
+
         let eventMask = (1 << CGEventType.keyDown.rawValue)
 
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .defaultTap,
+            options: .defaultTap, // Recording mode: intercept and suppress events
             eventsOfInterest: CGEventMask(eventMask),
-            callback: { _, _, event, refcon -> Unmanaged<CGEvent>? in
+            callback: { tapProxy, _, event, refcon -> Unmanaged<CGEvent>? in
                 guard let refcon else { return Unmanaged.passRetained(event) }
 
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
-                capture.handleKeyEvent(event)
 
-                // Return nil to suppress the event
-                return nil
+                // Process through event router if enabled
+                if capture.useEventRouter, let router = capture.eventRouter {
+                    let result = router.route(
+                        event: event,
+                        location: .cgSessionEventTap,
+                        proxy: tapProxy,
+                        scope: .keyboard
+                    )
+
+                    // Handle the routing result
+                    if let processedEvent = result.processedEvent {
+                        capture.handleKeyEvent(processedEvent)
+                    }
+                    // Recording mode: suppress the event (prevent system beeps/errors)
+                    return nil
+                } else {
+                    // Legacy behavior - process directly
+                    capture.handleKeyEvent(event)
+                    // Recording mode: suppress the event (prevent system beeps/errors)
+                    return nil
+                }
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         )
@@ -154,8 +225,7 @@ class KeyboardCapture: ObservableObject {
         pauseTimer?.invalidate()
 
         // Start new timer for auto-stop after pause
-        pauseTimer = Timer.scheduledTimer(withTimeInterval: pauseDuration, repeats: false) {
-            [weak self] _ in
+        pauseTimer = Timer.scheduledTimer(withTimeInterval: pauseDuration, repeats: false) { [weak self] _ in
             DispatchQueue.main.async {
                 self?.stopCapture()
             }
@@ -206,6 +276,13 @@ class KeyboardCapture: ObservableObject {
     func startEmergencyMonitoring(callback: @escaping () -> Void) {
         guard !isMonitoringEmergency else { return }
 
+        // Safety check: avoid CGEvent tap conflicts when Kanata is running
+        // Per ADR-006, emergency monitoring should also respect the single tap rule
+        if let kanataManager, kanataManager.isRunning {
+            AppLogger.shared.log("⚠️ [KeyboardCapture] Emergency monitoring disabled - Kanata is running (ADR-006 compliance)")
+            return
+        }
+
         emergencyCallback = callback
         isMonitoringEmergency = true
 
@@ -243,7 +320,7 @@ class KeyboardCapture: ObservableObject {
         emergencyEventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .defaultTap,
+            options: .listenOnly, // ADR-006: Use listen-only for emergency monitoring
             eventsOfInterest: CGEventMask(eventMask),
             callback: { _, type, event, refcon -> Unmanaged<CGEvent>? in
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon!).takeUnretainedValue()

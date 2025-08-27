@@ -48,14 +48,39 @@ enum ConfigError: Error, LocalizedError {
 }
 
 /// Represents a simple key mapping from input to output
-struct KeyMapping: Codable, Equatable, Identifiable {
-    let id = UUID()
-    let input: String
-    let output: String
+public struct KeyMapping: Codable, Equatable, Identifiable {
+    public let id = UUID()
+    public let input: String
+    public let output: String
 
-    init(input: String, output: String) {
+    public init(input: String, output: String) {
         self.input = input
         self.output = output
+    }
+}
+
+/// Simple UI-focused state model (from SimpleKanataManager)
+enum SimpleKanataState: String, CaseIterable {
+    case starting // App launched, attempting auto-start
+    case running // Kanata is running successfully
+    case needsHelp = "needs_help" // Auto-start failed, user intervention required
+    case stopped // User manually stopped
+
+    var displayName: String {
+        switch self {
+        case .starting: "Starting..."
+        case .running: "Running"
+        case .needsHelp: "Needs Help"
+        case .stopped: "Stopped"
+        }
+    }
+
+    var isWorking: Bool {
+        self == .running
+    }
+
+    var needsUserAction: Bool {
+        self == .needsHelp
     }
 }
 
@@ -117,6 +142,29 @@ class KanataManager: ObservableObject {
     @Published var lastProcessExitCode: Int32?
     @Published var lastConfigUpdate: Date = .init()
 
+    // MARK: - UI State Properties (from SimpleKanataManager)
+
+    /// Simple lifecycle state for UI display
+    @Published private(set) var currentState: SimpleKanataState = .starting
+    @Published private(set) var errorReason: String?
+    @Published private(set) var showWizard: Bool = false
+    @Published private(set) var launchFailureStatus: LaunchFailureStatus?
+    @Published private(set) var autoStartAttempts: Int = 0
+    @Published private(set) var lastHealthCheck: Date?
+    @Published private(set) var retryCount: Int = 0
+    @Published private(set) var isRetryingAfterFix: Bool = false
+
+    // MARK: - Lifecycle State Properties (from KanataLifecycleManager)
+
+    @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
+    @Published var lifecycleErrorMessage: String?
+    @Published var isBusy: Bool = false
+    @Published var canPerformActions: Bool = true
+    @Published var autoStartAttempted: Bool = false
+    @Published var autoStartSucceeded: Bool = false
+    @Published var autoStartFailureReason: String?
+    @Published var shouldShowWizard: Bool = false
+
     // Validation-specific UI state
     @Published var showingValidationAlert = false
     @Published var validationAlertTitle = ""
@@ -152,12 +200,29 @@ class KanataManager: ObservableObject {
     }
 
     // Removed kanataProcess: Process? - now using LaunchDaemon service exclusively
-    private let configDirectory = "\(NSHomeDirectory())/.config/keypath"
-    private let configFileName = "keypath.kbd"
+    let configDirectory = "\(NSHomeDirectory())/.config/keypath"
+    let configFileName = "keypath.kbd"
+
+    // MARK: - Service Dependencies (Milestone 4)
+
+    let configurationService: ConfigurationService
     private var isStartingKanata = false
     private let processLifecycleManager: ProcessLifecycleManager
-    private var isInitializing = false
+    var isInitializing = false
     private let isHeadlessMode: Bool
+
+    // MARK: - UI State Management Properties (from SimpleKanataManager)
+
+    private var healthTimer: Timer?
+    private var statusTimer: Timer?
+    private let maxAutoStartAttempts = 2
+    private let maxRetryAttempts = 3
+    private var lastPermissionState: (input: Bool, accessibility: Bool) = (false, false)
+
+    // MARK: - Lifecycle State Machine (from KanataLifecycleManager)
+
+    // Note: Removed stateMachine to avoid MainActor isolation issues
+    // Lifecycle management is now handled directly in this class
 
     // MARK: - Process Synchronization (Phase 1)
 
@@ -171,7 +236,7 @@ class KanataManager: ObservableObject {
     private let maxConnectionFailures = 10 // Trigger recovery after 10 consecutive failures
 
     var configPath: String {
-        "\(configDirectory)/\(configFileName)"
+        configurationService.configurationPath
     }
 
     init() {
@@ -179,6 +244,9 @@ class KanataManager: ObservableObject {
         isHeadlessMode =
             ProcessInfo.processInfo.arguments.contains("--headless")
                 || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
+
+        // Initialize service dependencies
+        configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
 
         // Initialize process lifecycle manager
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
@@ -192,51 +260,6 @@ class KanataManager: ObservableObject {
 
         if isHeadlessMode {
             AppLogger.shared.log("🤖 [KanataManager] Initialized in headless mode")
-        }
-    }
-
-    private func performInitialization() async {
-        // Prevent concurrent initialization
-        if isInitializing {
-            AppLogger.shared.log("⚠️ [Init] Already initializing - skipping duplicate initialization")
-            return
-        }
-
-        isInitializing = true
-        defer { isInitializing = false }
-
-        await updateStatus()
-
-        // First, adopt any existing KeyPath-looking kanata processes before deciding to auto-start
-        var lifecycle: ProcessLifecycleManager!
-        await MainActor.run {
-            lifecycle = ProcessLifecycleManager(kanataManager: self)
-        }
-        await lifecycle.recoverFromCrash()
-        await updateStatus()
-        // Try to start Kanata automatically on launch if all requirements are met
-        let status = getSystemRequirementsStatus()
-
-        // Check if Kanata is already running before attempting to start
-        if isRunning {
-            AppLogger.shared.log("✅ [Init] Kanata is already running - skipping initialization")
-            return
-        }
-
-        // Auto-start kanata if all requirements are met
-        AppLogger.shared.log(
-            "🔍 [Init] Status: installed=\(status.installed), permissions=\(status.permissions), driver=\(status.driver), daemon=\(status.daemon)"
-        )
-
-        if status.installed, status.permissions, status.driver, status.daemon {
-            AppLogger.shared.log("✅ [Init] All requirements met - auto-starting Kanata")
-            await startKanata()
-        } else {
-            AppLogger.shared.log("⚠️ [Init] Requirements not met - skipping auto-start")
-            if !status.installed { AppLogger.shared.log("  - Missing: Kanata binary") }
-            if !status.permissions { AppLogger.shared.log("  - Missing: Required permissions") }
-            if !status.driver { AppLogger.shared.log("  - Missing: VirtualHID driver") }
-            if !status.daemon { AppLogger.shared.log("  - Missing: VirtualHID daemon") }
         }
     }
 
@@ -258,102 +281,9 @@ class KanataManager: ObservableObject {
     }
 
     /// Attempts to recover from zombie keyboard capture when VirtualHID connection fails
-    private func attemptKeyboardRecovery() async {
-        AppLogger.shared.log("🔧 [Recovery] Starting keyboard recovery process...")
-
-        // Step 1: Ensure all Kanata processes are killed
-        AppLogger.shared.log("🔧 [Recovery] Step 1: Killing any remaining Kanata processes")
-        await killAllKanataProcesses()
-
-        // Step 2: Wait for system to release keyboard control
-        AppLogger.shared.log("🔧 [Recovery] Step 2: Waiting 2 seconds for keyboard release...")
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-        // Step 3: Restart VirtualHID daemon
-        AppLogger.shared.log("🔧 [Recovery] Step 3: Attempting to restart Karabiner daemon...")
-        await restartKarabinerDaemon()
-
-        // Step 4: Wait before retry
-        AppLogger.shared.log("🔧 [Recovery] Step 4: Waiting 3 seconds before retry...")
-        try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-
-        // Step 5: Try starting Kanata again with validation
-        AppLogger.shared.log(
-            "🔧 [Recovery] Step 5: Attempting to restart Kanata with VirtualHID validation...")
-        await startKanataWithValidation()
-
-        AppLogger.shared.log("🔧 [Recovery] Keyboard recovery process complete")
-    }
-
-    /// Kills all Kanata processes for recovery purposes
-    private func killAllKanataProcesses() async {
-        let script = """
-        do shell script "/usr/bin/pkill -f kanata" with administrator privileges
-        """
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", script]
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("🔧 [Recovery] Killed all Kanata processes")
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [Recovery] Failed to kill Kanata processes - exit code: \(task.terminationStatus)")
-            }
-        } catch {
-            AppLogger.shared.log("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
-        }
-    }
-
-    /// Restarts the Karabiner VirtualHID daemon to fix connection issues
-    private func restartKarabinerDaemon() async {
-        // First kill the daemon
-        let killScript =
-            "do shell script \"/usr/bin/pkill -f Karabiner-VirtualHIDDevice-Daemon\" with administrator privileges with prompt \"KeyPath needs to restart the virtual keyboard daemon.\""
-
-        let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        killTask.arguments = ["-e", killScript]
-
-        do {
-            try killTask.run()
-            killTask.waitUntilExit()
-
-            if killTask.terminationStatus == 0 {
-                AppLogger.shared.log("🔧 [Recovery] Killed Karabiner daemon")
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [Recovery] Failed to kill Karabiner daemon - exit code: \(killTask.terminationStatus)")
-            }
-
-            // Wait a moment then check if it auto-restarts
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-
-            if !isKarabinerDaemonRunning() {
-                AppLogger.shared.log("🔧 [Recovery] Daemon not auto-restarted, attempting manual start...")
-
-                let startScript =
-                    "do shell script \\\"\\\"/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon\\\" > /dev/null 2>&1 &\\\" with administrator privileges with prompt \\\"KeyPath needs to manually start the virtual keyboard daemon.\\\""
-
-                let startTask = Process()
-                startTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                startTask.arguments = ["-e", startScript]
-
-                try? startTask.run()
-                AppLogger.shared.log("🔧 [Recovery] Attempted to start Karabiner daemon")
-            }
-        } catch {
-            AppLogger.shared.log("⚠️ [Recovery] Failed to restart Karabiner daemon: \(error)")
-        }
-    }
 
     /// Starts Kanata with VirtualHID connection validation
-    private func startKanataWithValidation() async {
+    func startKanataWithValidation() async {
         // Check if VirtualHID daemon is running first
         if !isKarabinerDaemonRunning() {
             AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
@@ -369,89 +299,7 @@ class KanataManager: ObservableObject {
         await startKanata()
     }
 
-    func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
-        guard FileManager.default.fileExists(atPath: configPath) else {
-            return (false, ["Config file does not exist at: \(configPath)"])
-        }
-
-        // Try TCP validation first if enabled and Kanata is running
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        if tcpConfig.shouldUseTCPServer, isRunning {
-            AppLogger.shared.log("🌐 [Validation] Attempting TCP validation")
-            if let tcpResult = await validateConfigViaTCP() {
-                return tcpResult
-            } else {
-                AppLogger.shared.log(
-                    "🌐 [Validation] TCP validation unavailable, falling back to file-based validation")
-            }
-        }
-
-        // Fallback to traditional file-based validation
-        AppLogger.shared.log("📄 [Validation] Using file-based validation")
-        return validateConfigViaFile()
-    }
-
-    /// Validate configuration via TCP with proper async timeout
-    private func validateConfigViaTCP() async -> (isValid: Bool, errors: [String])? {
-        do {
-            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            let tcpConfig = PreferencesService.tcpSnapshot()
-            let client = KanataTCPClient(port: tcpConfig.port)
-
-            // Use proper async timeout with Task cancellation
-            let tcpResult = try await withThrowingTaskGroup(of: TCPValidationResult.self) { group in
-                group.addTask {
-                    await client.validateConfig(configContent)
-                }
-
-                group.addTask {
-                    try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-                    throw TCPError.timeout
-                }
-
-                // Return the first result (either validation or timeout)
-                let result = try await group.next()!
-                group.cancelAll()
-                return result
-            }
-
-            switch tcpResult {
-            case .success:
-                return (true, [])
-            case let .failure(configErrors):
-                let errorMessages = configErrors.map(\.description)
-                return (false, errorMessages)
-            case let .networkError(message):
-                AppLogger.shared.log("❌ [TCP Validation] Network error: \(message)")
-                return nil // Signal fallback needed
-            }
-
-        } catch is CancellationError {
-            AppLogger.shared.log("⏰ [TCP Validation] Cancelled - falling back to file validation")
-            return nil
-        } catch TCPError.timeout {
-            AppLogger.shared.log("⏰ [TCP Validation] Timeout - falling back to file validation")
-            return nil
-        } catch {
-            AppLogger.shared.log("❌ [TCP Validation] Failed to read config file: \(error)")
-            return nil
-        }
-    }
-
-    /// Result of TCP reload operation with error capture
-    private struct TCPReloadResult {
-        let success: Bool
-        let errorMessage: String?
-        let kanataResponse: String?
-        
-        static func success(response: String) -> TCPReloadResult {
-            TCPReloadResult(success: true, errorMessage: nil, kanataResponse: response)
-        }
-        
-        static func failure(error: String, response: String? = nil) -> TCPReloadResult {
-            TCPReloadResult(success: false, errorMessage: error, kanataResponse: response)
-        }
-    }
+    // UDP reload result is now handled by the KanataUDPClient.UDPReloadResult enum
 
     /// Configuration management errors
     private enum ConfigError: Error, LocalizedError {
@@ -459,24 +307,24 @@ class KanataManager: ObservableObject {
         case reloadFailed(String)
         case validationFailed([String])
         case postSaveValidationFailed(errors: [String])
-        
+
         var errorDescription: String? {
             switch self {
             case .noBackupAvailable:
-                return "No backup configuration available for rollback"
-            case .reloadFailed(let message):
-                return "Config reload failed: \(message)"
-            case .validationFailed(let errors):
-                return "Config validation failed: \(errors.joined(separator: ", "))"
-            case .postSaveValidationFailed(let errors):
-                return "Post-save validation failed: \(errors.joined(separator: ", "))"
+                "No backup configuration available for rollback"
+            case let .reloadFailed(message):
+                "Config reload failed: \(message)"
+            case let .validationFailed(errors):
+                "Config validation failed: \(errors.joined(separator: ", "))"
+            case let .postSaveValidationFailed(errors):
+                "Post-save validation failed: \(errors.joined(separator: ", "))"
             }
         }
     }
 
     /// Config backup for rollback capability
     private var lastGoodConfig: String?
-    
+
     /// Backup current working config before making changes
     private func backupCurrentConfig() async {
         do {
@@ -487,230 +335,15 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("⚠️ [Backup] Failed to backup current config: \(error)")
         }
     }
-    
+
     /// Restore last known good config in case of validation failure
     private func restoreLastGoodConfig() async throws {
         guard let backup = lastGoodConfig else {
             throw ConfigError.noBackupAvailable
         }
-        
+
         try backup.write(toFile: configPath, atomically: true, encoding: .utf8)
         AppLogger.shared.log("🔄 [Restore] Restored last good config successfully")
-    }
-
-    /// Trigger config reload via TCP command with error capture
-    private func triggerTCPReloadWithErrorCapture() async -> TCPReloadResult {
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        guard tcpConfig.shouldUseTCPServer else {
-            AppLogger.shared.log("❌ [TCP Reload] TCP server not enabled - cannot proceed with reload-first approach")
-            return .failure(error: "TCP server not enabled in preferences")
-        }
-
-        AppLogger.shared.log("🌐 [TCP Reload] Triggering config reload via TCP on port \(tcpConfig.port)")
-        
-        let client = KanataTCPClient(port: tcpConfig.port)
-        
-        // Check if TCP server is available
-        guard await client.checkServerStatus() else {
-            AppLogger.shared.log("❌ [TCP Reload] TCP server not available - cannot proceed")
-            return .failure(error: "TCP server not available on port \(tcpConfig.port)")
-        }
-
-        do {
-            // Send reload command as JSON
-            let reloadCommand = #"{"Reload":{}}"#
-            let commandData = reloadCommand.data(using: .utf8)!
-            
-            // Use low-level TCP to send reload command
-            let responseData = try await sendTCPCommand(commandData, port: tcpConfig.port)
-            let responseString = String(data: responseData, encoding: .utf8) ?? ""
-            
-            AppLogger.shared.log("🌐 [TCP Reload] Server response: \(responseString)")
-            
-            // Parse response for success/failure
-            if responseString.contains("\"status\":\"Ok\"") || 
-               responseString.contains("Live reload successful") ||
-               responseString.contains("\"LayerChange\"") {
-                AppLogger.shared.log("✅ [TCP Reload] Config reload successful")
-                return .success(response: responseString)
-            } else if responseString.contains("\"status\":\"Error\"") {
-                // Extract error message from Kanata response
-                let errorMsg = extractErrorFromKanataResponse(responseString)
-                AppLogger.shared.log("❌ [TCP Reload] Config reload failed: \(errorMsg)")
-                return .failure(error: errorMsg, response: responseString)
-            } else {
-                AppLogger.shared.log("⚠️ [TCP Reload] Unexpected response - treating as failure")
-                return .failure(error: "Unexpected response format", response: responseString)
-            }
-            
-        } catch {
-            AppLogger.shared.log("❌ [TCP Reload] Failed to send reload command: \(error)")
-            return .failure(error: "TCP communication failed: \(error.localizedDescription)")
-        }
-    }
-    
-    /// Extract error message from Kanata's JSON response
-    private func extractErrorFromKanataResponse(_ response: String) -> String {
-        // Parse JSON response to extract error message
-        if let data = response.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let msg = json["msg"] as? String {
-            return msg
-        }
-        return "Unknown error from Kanata"
-    }
-
-    /// Legacy method for backward compatibility
-    private func triggerTCPReload() async {
-        let result = await triggerTCPReloadWithErrorCapture()
-        if !result.success {
-            AppLogger.shared.log("🔄 [TCP Reload] Falling back to service restart due to error: \(result.errorMessage ?? "Unknown")")
-            await restartKanata()
-        }
-    }
-
-    /// Send raw TCP command to Kanata server
-    private func sendTCPCommand(_ data: Data, port: Int) async throws -> Data {
-        return try await withCheckedThrowingContinuation { continuation in
-            let queue = DispatchQueue(label: "kanata-tcp-reload")
-            
-            guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
-                continuation.resume(throwing: TCPError.invalidPort)
-                return
-            }
-            
-            let connection = NWConnection(
-                host: NWEndpoint.Host("127.0.0.1"),
-                port: nwPort,
-                using: .tcp
-            )
-            
-            var hasResumed = false
-            
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    // Send the reload command
-                    connection.send(content: data, completion: .contentProcessed { error in
-                        if let error {
-                            if !hasResumed {
-                                hasResumed = true
-                                continuation.resume(throwing: error)
-                            }
-                            return
-                        }
-                        
-                        // Receive the response
-                        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { responseData, _, isComplete, error in
-                            connection.cancel()
-                            
-                            if let error {
-                                if !hasResumed {
-                                    hasResumed = true
-                                    continuation.resume(throwing: error)
-                                }
-                                return
-                            }
-                            
-                            if !hasResumed {
-                                hasResumed = true
-                                if let responseData {
-                                    continuation.resume(returning: responseData)
-                                } else {
-                                    continuation.resume(throwing: TCPError.noResponse)
-                                }
-                            }
-                        }
-                    })
-                    
-                case let .failed(error):
-                    if !hasResumed {
-                        hasResumed = true
-                        continuation.resume(throwing: error)
-                    }
-                    
-                default:
-                    break
-                }
-            }
-            
-            connection.start(queue: queue)
-            
-            // Timeout after 5 seconds
-            queue.asyncAfter(deadline: .now() + 5.0) {
-                if !hasResumed {
-                    hasResumed = true
-                    connection.cancel()
-                    continuation.resume(throwing: TCPError.timeout)
-                }
-            }
-        }
-    }
-
-    /// Traditional file-based validation method
-    private func validateConfigViaFile() -> (isValid: Bool, errors: [String]) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: WizardSystemPaths.kanataActiveBinary)
-        task.arguments = buildKanataArguments(configPath: configPath, checkOnly: true)
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        var errors: [String] = []
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus != 0 {
-                // Parse Kanata error output
-                errors = parseKanataErrors(output)
-
-                // In testing environment, be more permissive with validation failures
-                // since kanata might not run properly in test context
-                let isInTestingEnvironment = NSClassFromString("XCTestCase") != nil
-                if isInTestingEnvironment, errors.isEmpty {
-                    AppLogger.shared.log(
-                        "⚠️ [FileValidation] Validation failed in test environment but no specific errors - treating as valid"
-                    )
-                    return (true, [])
-                }
-
-                return (false, errors)
-            } else {
-                return (true, [])
-            }
-        } catch {
-            return (false, ["Failed to validate config: \(error.localizedDescription)"])
-        }
-    }
-
-    private func parseKanataErrors(_ output: String) -> [String] {
-        var errors: [String] = []
-        let lines = output.components(separatedBy: .newlines)
-
-        for line in lines {
-            if line.contains("[ERROR]") {
-                // Extract the actual error message
-                if let errorRange = line.range(of: "[ERROR]") {
-                    let errorMessage = String(line[errorRange.upperBound...]).trimmingCharacters(
-                        in: .whitespaces)
-                    errors.append(errorMessage)
-                }
-            }
-        }
-
-        // Don't return empty strings - if no specific errors found and output is empty/whitespace,
-        // return empty array instead of an array with empty string
-        if errors.isEmpty {
-            let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmedOutput.isEmpty ? [] : [trimmedOutput]
-        }
-        return errors
     }
 
     func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
@@ -1048,9 +681,9 @@ class KanataManager: ObservableObject {
     }
 
     // Check if permission issues should trigger the wizard
-    func shouldShowWizardForPermissions() -> Bool {
-        !PermissionService.shared.hasInputMonitoringPermission()
-            || !PermissionService.shared.hasAccessibilityPermission()
+    func shouldShowWizardForPermissions() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.blockingIssue != nil
     }
 
     // MARK: - Public Interface
@@ -1134,13 +767,38 @@ class KanataManager: ObservableObject {
         }
         lastStartAttempt = Date()
 
-        // Check if already running or starting
-        if isRunning || isStartingKanata {
-            AppLogger.shared.log("⚠️ [Start] Kanata is already running or starting - skipping start")
-            AppLogger.shared.log(
-                "⚠️ [Start] Current state: isRunning=\(isRunning), isStartingKanata=\(isStartingKanata)"
-            )
+        // Check if already starting (prevent concurrent operations)
+        if isStartingKanata {
+            AppLogger.shared.log("⚠️ [Start] Kanata is already starting - skipping concurrent start")
             return
+        }
+
+        // If Kanata is already running, just restart it efficiently with kickstart -k
+        if isRunning {
+            AppLogger.shared.log("🔄 [Start] Kanata is already running - using efficient kickstart restart")
+
+            isStartingKanata = true
+            defer { isStartingKanata = false }
+
+            let success = await startLaunchDaemonService() // Already uses kickstart -k
+
+            if success {
+                AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via kickstart")
+                // Update service status after restart
+                let serviceStatus = await checkLaunchDaemonStatus()
+                if let pid = serviceStatus.pid {
+                    AppLogger.shared.log("📝 [Start] Service restarted with PID: \(pid)")
+                    let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
+                    await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+                }
+            } else {
+                AppLogger.shared.log("❌ [Start] Kickstart restart failed - will fall through to full startup")
+                // Don't return - let it fall through to full startup sequence
+            }
+
+            if success {
+                return // Successfully restarted, we're done
+            }
         }
 
         // Set flag to prevent concurrent starts
@@ -1320,15 +978,220 @@ class KanataManager: ObservableObject {
         await updateStatus()
     }
 
+    // MARK: - UI-Focused Lifecycle Methods (from SimpleKanataManager)
+
+    /// Start the automatic Kanata launch sequence
+    func startAutoLaunch() async {
+        AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
+
+        // Check if we've already shown the wizard before
+        let hasShownWizardBefore = UserDefaults.standard.bool(forKey: "KeyPath.HasShownWizard")
+        AppLogger.shared.log(
+            "🔍 [KanataManager] KeyPath.HasShownWizard flag: \(hasShownWizardBefore)")
+
+        if hasShownWizardBefore {
+            AppLogger.shared.log(
+                "ℹ️ [KanataManager] Wizard already shown before - skipping auto-wizard, attempting quiet start"
+            )
+            AppLogger.shared.log(
+                "🤫 [KanataManager] This means NO wizard will auto-show, only manual access via button"
+            )
+            // Try to start silently without showing wizard
+            await attemptQuietStart()
+        } else {
+            AppLogger.shared.log(
+                "🆕 [KanataManager] First launch detected - proceeding with normal auto-launch")
+            AppLogger.shared.log(
+                "🆕 [KanataManager] This means wizard MAY auto-show if system needs help")
+            currentState = .starting
+            errorReason = nil
+            showWizard = false
+            autoStartAttempts = 0
+            await attemptAutoStart()
+        }
+
+        AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE ==========")
+    }
+
+    /// Attempt to start quietly without showing wizard (for subsequent app launches)
+    private func attemptQuietStart() async {
+        AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START ATTEMPT ==========")
+        await MainActor.run {
+            currentState = .starting
+            errorReason = nil
+            showWizard = false // Never show wizard on quiet starts
+        }
+        await MainActor.run {
+            autoStartAttempts = 0
+        }
+
+        // Try to start, but if it fails, just show error state without wizard
+        await attemptAutoStart()
+
+        // If we ended up in needsHelp state, don't show wizard - just stay in error state
+        if currentState == .needsHelp {
+            AppLogger.shared.log(
+                "🤫 [KanataManager] Quiet start failed - staying in error state without wizard")
+            await MainActor.run {
+                showWizard = false // Explicitly ensure wizard doesn't show
+            }
+        }
+
+        AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START COMPLETE ==========")
+    }
+
+    /// Show wizard specifically for input monitoring permissions
+    func showWizardForInputMonitoring() async {
+        AppLogger.shared.log("🧙‍♂️ [KanataManager] Showing wizard for input monitoring permissions")
+
+        await MainActor.run {
+            showWizard = true
+            currentState = .needsHelp
+            errorReason = "Input monitoring permission required"
+            launchFailureStatus = .permissionDenied("Input monitoring permission required")
+        }
+    }
+
+    /// Manual start triggered by user action
+    func manualStart() async {
+        AppLogger.shared.log("👆 [KanataManager] Manual start requested")
+        await startKanata()
+        await refreshStatus()
+    }
+
+    /// Manual stop triggered by user action
+    func manualStop() async {
+        AppLogger.shared.log("👆 [KanataManager] Manual stop requested")
+        await stopKanata()
+        await MainActor.run {
+            currentState = .stopped
+        }
+    }
+
+    /// Force refresh the current status
+    func forceRefreshStatus() async {
+        AppLogger.shared.log("🔄 [KanataManager] Force refresh status requested")
+        await refreshStatus()
+    }
+
+    /// Refresh status and update UI state
+    private func refreshStatus() async {
+        await updateStatus()
+
+        // Update currentState based on isRunning
+        await MainActor.run {
+            if isRunning {
+                currentState = .running
+                errorReason = nil
+                launchFailureStatus = nil
+            } else if !isRunning, currentState == .running {
+                currentState = .stopped
+            }
+        }
+    }
+
+    /// Attempt auto-start with retry logic
+    private func attemptAutoStart() async {
+        autoStartAttempts += 1
+        AppLogger.shared.log(
+            "🔄 [KanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) ==========")
+
+        // Try to start Kanata
+        await startKanata()
+        await refreshStatus()
+
+        // Check if start was successful
+        if isRunning {
+            AppLogger.shared.log("✅ [KanataManager] Auto-start successful!")
+            await MainActor.run {
+                currentState = .running
+                errorReason = nil
+                launchFailureStatus = nil
+            }
+        } else {
+            AppLogger.shared.log("❌ [KanataManager] Auto-start failed")
+            await handleAutoStartFailure()
+        }
+
+        AppLogger.shared.log(
+            "🔄 [KanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) COMPLETE ==========")
+    }
+
+    /// Handle auto-start failure with retry logic
+    private func handleAutoStartFailure() async {
+        // Check if we should retry
+        if autoStartAttempts < maxAutoStartAttempts {
+            AppLogger.shared.log("🔄 [KanataManager] Retrying auto-start...")
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // Wait 3 seconds
+            await attemptAutoStart()
+            return
+        }
+
+        // Max attempts reached - show help
+        await MainActor.run {
+            currentState = .needsHelp
+            errorReason = "Failed to start Kanata after \(maxAutoStartAttempts) attempts"
+            showWizard = true
+        }
+    }
+
+    /// Retry after manual fix (from SimpleKanataManager)
+    func retryAfterFix(_ feedbackMessage: String) async {
+        AppLogger.shared.log("🔄 [KanataManager] Retry after fix requested: \(feedbackMessage)")
+
+        await MainActor.run {
+            isRetryingAfterFix = true
+            retryCount += 1
+            currentState = .starting
+            errorReason = nil
+            showWizard = false
+        }
+
+        // Try to start Kanata
+        await startKanata()
+        await refreshStatus()
+
+        await MainActor.run {
+            isRetryingAfterFix = false
+        }
+
+        AppLogger.shared.log("🔄 [KanataManager] Retry after fix completed")
+    }
+
+    /// Called when wizard is closed (from SimpleKanataManager)
+    func onWizardClosed() async {
+        AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed - attempting retry")
+
+        await MainActor.run {
+            showWizard = false
+        }
+
+        // Try to refresh status and start if needed
+        await refreshStatus()
+
+        if !isRunning {
+            await startKanata()
+            await refreshStatus()
+        }
+
+        AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed handling completed")
+    }
+
     // MARK: - LaunchDaemon Service Management
 
-    /// Start the Kanata LaunchDaemon service using launchctl
+    /// Start the Kanata LaunchDaemon service using launchctl with OSA script for better permission handling
     private func startLaunchDaemonService() async -> Bool {
         AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service...")
 
+        let script = """
+        do shell script "launchctl kickstart -k system/com.keypath.kanata" \
+        with administrator privileges \
+        with prompt "KeyPath needs administrator privileges to manage the keyboard remapping service."
+        """
+
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["launchctl", "kickstart", "-k", "system/com.keypath.kanata"]
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
 
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -1376,15 +1239,13 @@ class KanataManager: ObservableObject {
             if task.terminationStatus == 0 {
                 // Look for "pid = XXXX" in the output
                 let lines = output.components(separatedBy: .newlines)
-                for line in lines {
-                    if line.contains("pid =") {
-                        let components = line.components(separatedBy: "=")
-                        if components.count >= 2,
-                           let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
-                           let pid = Int(pidString) {
-                            AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
-                            return (true, pid)
-                        }
+                for line in lines where line.contains("pid =") {
+                    let components = line.components(separatedBy: "=")
+                    if components.count >= 2,
+                       let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
+                       let pid = Int(pidString) {
+                        AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
+                        return (true, pid)
                     }
                 }
                 // Service loaded but no PID found (may be starting)
@@ -1550,82 +1411,66 @@ class KanataManager: ObservableObject {
             saveStatus = .saving
         }
 
-        // Parse existing mappings from config file
-        await loadExistingMappings()
-
-        // Create new mapping
-        let newMapping = KeyMapping(input: input, output: output)
-
-        // Remove any existing mapping with the same input
-        keyMappings.removeAll { $0.input == input }
-
-        // Add the new mapping
-        keyMappings.append(newMapping)
-
-        // Generate config with all mappings
-        let config = generateKanataConfigWithMappings(keyMappings)
-
-        // Reload-first approach: Save first, reload via TCP, validate only on failure
-        AppLogger.shared.log("⚡ [Config] Using reload-first approach for fast config updates")
-
         do {
+            // Parse existing mappings from config file
+            await loadExistingMappings()
+
+            // Create new mapping
+            let newMapping = KeyMapping(input: input, output: output)
+
+            // Remove any existing mapping with the same input
+            keyMappings.removeAll { $0.input == input }
+
+            // Add the new mapping
+            keyMappings.append(newMapping)
+
             // Backup current config before making changes
             try await backupCurrentConfig()
-            
-            // Save config directly without validation
-            try config.write(to: URL(fileURLWithPath: configPath), atomically: true, encoding: .utf8)
-            AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings")
-            
-            // Attempt TCP reload and capture any errors
-            let reloadResult = await triggerTCPReloadWithErrorCapture()
-            
-            if reloadResult.success {
-                // TCP reload succeeded - config is valid
-                AppLogger.shared.log("✅ [Config] TCP reload successful, config is valid")
-                
-                // Play success sound to indicate hot reload worked
-                SoundPlayer.shared.playSuccessSound()
-                
+
+            // Delegate to ConfigurationService for saving
+            try await configurationService.saveConfiguration(keyMappings: keyMappings)
+            AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationService")
+
+            // Play tink sound asynchronously to avoid blocking save pipeline
+            Task { SoundManager.shared.playTinkSound() }
+
+            // Attempt UDP reload and capture any errors
+            let reloadResult = await triggerUDPReload()
+
+            if reloadResult.isSuccess {
+                // UDP reload succeeded - config is valid
+                AppLogger.shared.log("✅ [Config] UDP reload successful, config is valid")
+
+                // Play glass sound asynchronously to avoid blocking completion
+                Task { SoundManager.shared.playGlassSound() }
+
                 await MainActor.run {
                     saveStatus = .success
                 }
             } else {
-                // TCP reload failed - get detailed error via TCP validation
-                AppLogger.shared.log("❌ [Config] TCP reload FAILED, getting detailed error...")
-                
-                let detailedError = await getTCPValidationError()
-                let errorMessage = detailedError ?? reloadResult.errorMessage ?? "Config error"
-                
-                AppLogger.shared.log("❌ [Config] Detailed error: \(errorMessage)")
-                
-                // Play error sound to indicate config reload failed
-                SoundPlayer.shared.playErrorSound()
-                
-                // Show error to user with revert option
-                let shouldRevert = await showConfigErrorDialog(errorMessage)
-                
-                if shouldRevert {
-                    // User chose to revert - restore backup
-                    AppLogger.shared.log("🔄 [Config] User chose to revert - restoring backup")
-                    try await restoreLastGoodConfig()
-                    await MainActor.run {
-                        saveStatus = .failed("Reverted due to config error: \(errorMessage)")
-                    }
-                    throw ConfigError.reloadFailed("Config reverted: \(errorMessage)")
-                } else {
-                    // User chose to keep invalid config - this is their choice
-                    AppLogger.shared.log("⚠️ [Config] User chose to keep invalid config")
-                    await MainActor.run {
-                        saveStatus = .failed("Config saved but may have errors: \(errorMessage)")
-                    }
+                // UDP reload failed - this is a critical error for validation-on-demand
+                let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
+                AppLogger.shared.log("❌ [Config] UDP reload FAILED: \(errorMessage)")
+                AppLogger.shared.log("❌ [Config] UDP server is required for validation-on-demand - restoring backup")
+
+                // Play error sound asynchronously
+                Task { SoundManager.shared.playErrorSound() }
+
+                // Restore backup since we can't verify the config was applied
+                try await restoreLastGoodConfig()
+
+                // Set error status
+                await MainActor.run {
+                    saveStatus = .failed("UDP server required for hot reload failed: \(errorMessage)")
                 }
+                throw ConfigError.reloadFailed("UDP server required for validation-on-demand failed: \(errorMessage)")
             }
 
             // Reset to idle after a delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.saveStatus = .idle
             }
-            
+
         } catch {
             // Handle any errors
             await MainActor.run {
@@ -1634,53 +1479,7 @@ class KanataManager: ObservableObject {
             throw error
         }
 
-        AppLogger.shared.log("⚡ [Config] Reload-first save completed")
-    }
-    
-    /// Get detailed TCP validation error message from Kanata
-    private func getTCPValidationError() async -> String? {
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        guard tcpConfig.shouldUseTCPServer else {
-            return "TCP server not enabled"
-        }
-        
-        let client = KanataTCPClient(port: tcpConfig.port)
-        
-        // Check if TCP server is available
-        guard await client.checkServerStatus() else {
-            return "TCP server not available"
-        }
-        
-        do {
-            // Read the current config and validate it via TCP
-            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            let validationResult = await client.validateConfig(configContent)
-            
-            switch validationResult {
-            case .success:
-                return "Config validation passed but reload failed"
-            case .failure(let errors):
-                // Format detailed error messages from Kanata
-                let errorMessages = errors.map { error in
-                    "Line \(error.line), Column \(error.column): \(error.message)"
-                }
-                return errorMessages.joined(separator: "\n")
-            case .networkError(let message):
-                return "TCP validation network error: \(message)"
-            }
-        } catch {
-            return "Failed to read config for validation: \(error.localizedDescription)"
-        }
-    }
-    
-    /// Show error dialog to user with option to revert config
-    @MainActor
-    private func showConfigErrorDialog(_ errorMessage: String) async -> Bool {
-        // For now, return true to revert automatically
-        // In a full implementation, this would show a dialog to the user
-        AppLogger.shared.log("🔍 [Config] Would show error dialog: \(errorMessage)")
-        AppLogger.shared.log("🔍 [Config] Auto-reverting for now (dialog not implemented)")
-        return true
+        AppLogger.shared.log("⚡ [Config] Validation-on-demand save completed")
     }
 
     func updateStatus() async {
@@ -1823,31 +1622,33 @@ class KanataManager: ObservableObject {
         isInstalled()
     }
 
-    // Compatibility wrappers for legacy tests
-    func hasInputMonitoringPermission() -> Bool {
-        PermissionService.shared.hasInputMonitoringPermission()
+    // Compatibility wrappers for legacy tests - using Oracle
+    func hasInputMonitoringPermission() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.inputMonitoring.isReady
     }
 
-    func hasAccessibilityPermission() -> Bool {
-        PermissionService.shared.hasAccessibilityPermission()
+    func hasAccessibilityPermission() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.accessibility.isReady
     }
 
     // REMOVED: checkAccessibilityForPath() - now handled by PermissionService.checkTCCForAccessibility()
 
     // REMOVED: checkTCCForAccessibility() - now handled by PermissionService
 
-    func checkBothAppsHavePermissions() -> (
+    func checkBothAppsHavePermissions() async -> (
         keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
     ) {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+
         let keyPathPath = Bundle.main.bundlePath
         let kanataPath = WizardSystemPaths.kanataActiveBinary
 
-        let keyPathHasInputMonitoring = PermissionService.shared.hasInputMonitoringPermission()
-        let keyPathHasAccessibility = PermissionService.shared.hasAccessibilityPermission()
-
-        // Kanata permissions are now checked on actual use, not pre-checked
-        let kanataHasInputMonitoring = true // Assume OK until proven otherwise
-        let kanataHasAccessibility = true // Assume OK until proven otherwise
+        let keyPathHasInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
+        let keyPathHasAccessibility = snapshot.keyPath.accessibility.isReady
+        let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady
+        let kanataHasAccessibility = snapshot.kanata.accessibility.isReady
 
         let keyPathOverall = keyPathHasInputMonitoring && keyPathHasAccessibility
         let kanataOverall = kanataHasInputMonitoring && kanataHasAccessibility
@@ -1867,22 +1668,24 @@ class KanataManager: ObservableObject {
 
     // REMOVED: checkTCCForInputMonitoring() - now handled by PermissionService
 
-    func hasAllRequiredPermissions() -> Bool {
-        PermissionService.shared.hasInputMonitoringPermission()
-            && PermissionService.shared.hasAccessibilityPermission()
+    func hasAllRequiredPermissions() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.hasAllPermissions
     }
 
-    func hasAllSystemRequirements() -> Bool {
-        isInstalled() && hasAllRequiredPermissions() && isKarabinerDriverInstalled()
+    func hasAllSystemRequirements() async -> Bool {
+        let hasPermissions = await hasAllRequiredPermissions()
+        return isInstalled() && hasPermissions && isKarabinerDriverInstalled()
             && isKarabinerDaemonRunning()
     }
 
-    func getSystemRequirementsStatus() -> (
+    func getSystemRequirementsStatus() async -> (
         installed: Bool, permissions: Bool, driver: Bool, daemon: Bool
     ) {
-        (
+        let permissions = await hasAllRequiredPermissions()
+        return (
             installed: isInstalled(),
-            permissions: hasAllRequiredPermissions(),
+            permissions: permissions,
             driver: isKarabinerDriverInstalled(),
             daemon: isKarabinerDaemonRunning()
         )
@@ -2392,10 +2195,14 @@ class KanataManager: ObservableObject {
 
         let stopScript = """
         # Stop old Karabiner Elements system LaunchDaemon (runs as root)
-        launchctl bootout system "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" 2>/dev/null || true
+        launchctl bootout system \
+            "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" \
+            2>/dev/null || true
 
         # Stop old Karabiner Elements user LaunchAgent
-        launchctl bootout gui/$(id -u) "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" 2>/dev/null || true
+        launchctl bootout gui/$(id -u) \
+            "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" \
+            2>/dev/null || true
 
         # Kill old karabiner_grabber processes
         pkill -f karabiner_grabber 2>/dev/null || true
@@ -2734,46 +2541,7 @@ class KanataManager: ObservableObject {
         return success
     }
 
-    private func createInitialConfigIfNeeded() async {
-        // Create config directory if it doesn't exist
-        do {
-            try FileManager.default.createDirectory(
-                atPath: configDirectory, withIntermediateDirectories: true, attributes: nil
-            )
-            AppLogger.shared.log("✅ [Config] Config directory created at \(configDirectory)")
-        } catch {
-            AppLogger.shared.log("❌ [Config] Failed to create config directory: \(error)")
-            return
-        }
-
-        // Create initial config if it doesn't exist
-        if !FileManager.default.fileExists(atPath: configPath) {
-            let initialConfig = generateKanataConfig(input: "caps", output: "escape")
-
-            do {
-                try initialConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-                AppLogger.shared.log("✅ [Config] Initial config created at \(configPath)")
-            } catch {
-                AppLogger.shared.log("❌ [Config] Failed to create initial config: \(error)")
-            }
-        }
-    }
-
     // createSystemConfigIfNeeded() removed - no longer needed since LaunchDaemon reads user config directly
-
-    /// Public wrapper to ensure a default user config exists.
-    /// Returns true if the config exists after this call.
-    func createDefaultUserConfigIfMissing() async -> Bool {
-        AppLogger.shared.log("🛠️ [Config] Ensuring default user config at \(configPath)")
-        await createInitialConfigIfNeeded()
-        let exists = FileManager.default.fileExists(atPath: configPath)
-        if exists {
-            AppLogger.shared.log("✅ [Config] Verified user config exists at \(configPath)")
-        } else {
-            AppLogger.shared.log("❌ [Config] User config still missing at \(configPath)")
-        }
-        return exists
-    }
 
     private func prepareDaemonDirectories() async {
         AppLogger.shared.log("🔧 [Daemon] Preparing Karabiner daemon directories...")
@@ -2784,8 +2552,11 @@ class KanataManager: ObservableObject {
         let tmpPath = "/Library/Application Support/org.pqrs/tmp"
 
         // Use AppleScript to run commands with admin privileges
-        let createDirScript =
-            "do shell script \"mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'\" with administrator privileges with prompt \"KeyPath needs to prepare system directories for the virtual keyboard.\""
+        let createDirScript = """
+        do shell script "mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'" \
+        with administrator privileges \
+        with prompt "KeyPath needs to prepare system directories for the virtual keyboard."
+        """
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -3045,22 +2816,18 @@ class KanataManager: ObservableObject {
 
         // Match up src and layer keys, filtering out invalid keys
         var tempMappings: [KeyMapping] = []
-        for (index, srcKey) in srcKeys.enumerated() {
-            if index < layerKeys.count {
-                // Skip obviously invalid keys
-                if srcKey != "invalid", !srcKey.isEmpty {
-                    tempMappings.append(KeyMapping(input: srcKey, output: layerKeys[index]))
-                }
+        for (index, srcKey) in srcKeys.enumerated() where index < layerKeys.count {
+            // Skip obviously invalid keys
+            if srcKey != "invalid", !srcKey.isEmpty {
+                tempMappings.append(KeyMapping(input: srcKey, output: layerKeys[index]))
             }
         }
 
         // Deduplicate mappings - keep only the last mapping for each input key
         var seenInputs: Set<String> = []
-        for mapping in tempMappings.reversed() {
-            if !seenInputs.contains(mapping.input) {
-                mappings.insert(mapping, at: 0)
-                seenInputs.insert(mapping.input)
-            }
+        for mapping in tempMappings.reversed() where !seenInputs.contains(mapping.input) {
+            mappings.insert(mapping, at: 0)
+            seenInputs.insert(mapping.input)
         }
 
         AppLogger.shared.log("🔍 [Parse] Found \(srcKeys.count) src keys, \(layerKeys.count) layer keys, deduplicated to \(mappings.count) unique mappings")
@@ -3070,7 +2837,8 @@ class KanataManager: ObservableObject {
     private func generateKanataConfigWithMappings(_ mappings: [KeyMapping]) -> String {
         guard !mappings.isEmpty else {
             // Return default config with caps->esc if no mappings
-            return generateKanataConfig(input: "caps", output: "escape")
+            let defaultMapping = KeyMapping(input: "caps", output: "escape")
+            return KanataConfiguration.generateFromMappings([defaultMapping])
         }
 
         let mappingsList = mappings.map { "\($0.input) -> \($0.output)" }.joined(separator: ", ")
@@ -3100,31 +2868,6 @@ class KanataManager: ObservableObject {
 
     // MARK: - Methods Expected by Tests
 
-    func generateKanataConfig(input: String, output: String) -> String {
-        let inputKey = convertToKanataKey(input)
-        let outputKey = convertToKanataSequence(output)
-
-        return """
-        ;; Generated by KeyPath
-        ;; Input: \(input) -> Output: \(output)
-        ;;
-        ;; SAFETY FEATURES:
-        ;; - process-unmapped-keys no: Only process explicitly mapped keys
-
-        (defcfg
-          process-unmapped-keys no
-        )
-
-        (defsrc
-          \(inputKey)
-        )
-
-        (deflayer base
-          \(outputKey)
-        )
-        """
-    }
-
     func isServiceInstalled() -> Bool {
         true // No service needed - kanata runs directly
     }
@@ -3145,7 +2888,8 @@ class KanataManager: ObservableObject {
     }
 
     func resetToDefaultConfig() async throws {
-        let defaultConfig = generateKanataConfig(input: "caps", output: "escape")
+        let defaultMapping = KeyMapping(input: "caps", output: "escape")
+        let defaultConfig = KanataConfiguration.generateFromMappings([defaultMapping])
         let configURL = URL(fileURLWithPath: configPath)
 
         // Ensure config directory exists
@@ -3157,20 +2901,20 @@ class KanataManager: ObservableObject {
 
         AppLogger.shared.log("💾 [Config] Reset to default configuration")
 
-        // Apply changes immediately via TCP reload if service is running
+        // Apply changes immediately via UDP reload if service is running
         if isRunning {
-            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via TCP...")
-            let reloadResult = await triggerTCPReloadWithErrorCapture()
-            
-            if reloadResult.success {
-                let response = reloadResult.kanataResponse ?? "Success"
-                AppLogger.shared.log("✅ [Reset] Default config applied successfully via TCP: \(response)")
+            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via UDP...")
+            let reloadResult = await triggerUDPReload()
+
+            if reloadResult.isSuccess {
+                let response = reloadResult.response ?? "Success"
+                AppLogger.shared.log("✅ [Reset] Default config applied successfully via UDP: \(response)")
             } else {
                 let error = reloadResult.errorMessage ?? "Unknown error"
-                let response = reloadResult.kanataResponse ?? "No response"
-                AppLogger.shared.log("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
-                AppLogger.shared.log("📝 [Reset] TCP response: \(response)")
-                // If TCP reload fails, fall back to service restart
+                let response = reloadResult.response ?? "No response"
+                AppLogger.shared.log("⚠️ [Reset] UDP reload failed (\(error)), fallback restart initiated")
+                AppLogger.shared.log("📝 [Reset] UDP response: \(response)")
+                // If UDP reload fails, fall back to service restart
                 await restartKanata()
             }
         }
@@ -3364,44 +3108,48 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
 
-        // First try TCP validation if server is available
-        if let tcpPort = await getTCPPort() {
-            AppLogger.shared.log("🌐 [Validation] TCP port configured: \(tcpPort)")
-            let tcpClient = KanataTCPClient(port: tcpPort)
+        // First try UDP validation if server is available
+        if let udpPort = await getUDPPort() {
+            AppLogger.shared.log("📡 [Validation] UDP port configured: \(udpPort)")
+            let udpClient = KanataUDPClient(port: udpPort)
 
-            // Check if TCP server is available
-            AppLogger.shared.log("🌐 [Validation] Checking TCP server availability on port \(tcpPort)...")
-            if await tcpClient.checkServerStatus() {
-                AppLogger.shared.log("🌐 [Validation] TCP server is AVAILABLE, using TCP validation")
-                let tcpStart = Date()
-                let result = await tcpClient.validateConfig(config)
-                let tcpDuration = Date().timeIntervalSince(tcpStart)
-                AppLogger.shared.log("⏱️ [Validation] TCP validation completed in \(String(format: "%.3f", tcpDuration)) seconds")
+            // Check if UDP server is available
+            AppLogger.shared.log("📡 [Validation] Checking UDP server availability on port \(udpPort)...")
+            if await udpClient.checkServerStatus() {
+                AppLogger.shared.log("📡 [Validation] UDP server is AVAILABLE, using UDP validation")
+                let udpStart = Date()
+                let result = await udpClient.validateConfig(config)
+                let udpDuration = Date().timeIntervalSince(udpStart)
+                AppLogger.shared.log("⏱️ [Validation] UDP validation completed in \(String(format: "%.3f", udpDuration)) seconds")
 
                 switch result {
                 case .success:
-                    AppLogger.shared.log("✅ [Validation] TCP validation PASSED")
+                    AppLogger.shared.log("✅ [Validation] UDP validation PASSED")
                     AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (true, [])
-                case let .failure(tcpErrors):
-                    AppLogger.shared.log("❌ [Validation] TCP validation FAILED with \(tcpErrors.count) errors:")
-                    let errorStrings = tcpErrors.map(\.description)
+                case let .failure(udpErrors):
+                    AppLogger.shared.log("❌ [Validation] UDP validation FAILED with \(udpErrors.count) errors:")
+                    let errorStrings = udpErrors.map(\.description)
                     for (index, error) in errorStrings.enumerated() {
                         AppLogger.shared.log("   Error \(index + 1): \(error)")
                     }
                     AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (false, errorStrings)
                 case let .networkError(error):
-                    AppLogger.shared.log("⚠️ [Validation] TCP validation network error: \(error)")
+                    AppLogger.shared.log("⚠️ [Validation] UDP validation network error: \(error)")
+                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
+                // Fall through to CLI validation
+                case .authenticationRequired:
+                    AppLogger.shared.log("⚠️ [Validation] UDP authentication required")
                     AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
                     // Fall through to CLI validation
                 }
             } else {
-                AppLogger.shared.log("⚠️ [Validation] TCP server NOT available on port \(tcpPort)")
+                AppLogger.shared.log("⚠️ [Validation] UDP server NOT available on port \(udpPort)")
                 AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
             }
         } else {
-            AppLogger.shared.log("ℹ️ [Validation] No TCP port configured or TCP disabled")
+            AppLogger.shared.log("ℹ️ [Validation] No UDP port configured or UDP disabled")
             AppLogger.shared.log("ℹ️ [Validation] Using CLI validation as primary method")
         }
 
@@ -3412,13 +3160,13 @@ class KanataManager: ObservableObject {
         return cliResult
     }
 
-    /// Get TCP port for validation if TCP server is enabled
-    private func getTCPPort() async -> Int? {
-        let preferences = await PreferencesService.shared
-        guard await preferences.tcpServerEnabled else {
+    /// Get UDP port for validation if UDP server is enabled
+    private func getUDPPort() async -> Int? {
+        let commSnapshot = PreferencesService.communicationSnapshot()
+        guard commSnapshot.shouldUseUDP else {
             return nil
         }
-        return await preferences.tcpServerPort
+        return commSnapshot.udpPort
     }
 
     private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
@@ -3471,7 +3219,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
                 return (true, [])
             } else {
-                let errors = parseKanataErrors(output)
+                let errors = configurationService.parseKanataErrors(output)
                 AppLogger.shared.log("❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
                 for (index, error) in errors.enumerated() {
                     AppLogger.shared.log("   Error \(index + 1): \(error)")
@@ -3490,32 +3238,38 @@ class KanataManager: ObservableObject {
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
         async throws -> String {
-        // TODO: Integrate with Claude API using the following prompt:
-        //
-        // "The following Kanata keyboard configuration file is invalid and needs to be repaired:
-        //
-        // INVALID CONFIG:
-        // ```
-        // \(config)
-        // ```
-        //
-        // VALIDATION ERRORS:
-        // \(errors.joined(separator: "\n"))
-        //
-        // INTENDED KEY MAPPINGS:
-        // \(mappings.map { "\($0.input) -> \($0.output)" }.joined(separator: "\n"))
-        //
-        // Please generate a corrected Kanata configuration that:
-        // 1. Fixes all validation errors
-        // 2. Preserves the intended key mappings
-        // 3. Uses proper Kanata syntax
-        // 4. Includes defcfg with process-unmapped-keys no and danger-enable-cmd yes
-        // 5. Has proper defsrc and deflayer sections
-        //
-        // Return ONLY the corrected configuration file content, no explanations."
+        // Try Claude API first, fallback to rule-based repair
+        do {
+            let prompt = """
+            The following Kanata keyboard configuration file is invalid and needs to be repaired:
 
-        // For now, use rule-based repair as fallback
-        try await performRuleBasedRepair(config: config, errors: errors, mappings: mappings)
+            INVALID CONFIG:
+            ```
+            \(config)
+            ```
+
+            VALIDATION ERRORS:
+            \(errors.joined(separator: "\n"))
+
+            INTENDED KEY MAPPINGS:
+            \(mappings.map { "\($0.input) -> \($0.output)" }.joined(separator: "\n"))
+
+            Please generate a corrected Kanata configuration that:
+            1. Fixes all validation errors
+            2. Preserves the intended key mappings
+            3. Uses proper Kanata syntax
+            4. Includes defcfg with process-unmapped-keys no and danger-enable-cmd yes
+            5. Has proper defsrc and deflayer sections
+
+            Return ONLY the corrected configuration file content, no explanations.
+            """
+
+            return try await callClaudeAPI(prompt: prompt)
+        } catch {
+            AppLogger.shared.log("⚠️ [KanataManager] Claude API failed: \(error), falling back to rule-based repair")
+            // For now, use rule-based repair as fallback
+            return try await performRuleBasedRepair(config: config, errors: errors, mappings: mappings)
+        }
     }
 
     /// Fallback rule-based repair when Claude is not available
@@ -3566,33 +3320,37 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("🔍 [DEBUG] Target config path: \(configPath)")
         AppLogger.shared.log("🔍 [DEBUG] Config size: \(config.count) characters")
 
-        // Perform final validation via TCP if available
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        if tcpConfig.shouldUseTCPServer, isRunning {
-            AppLogger.shared.log("🌐 [SaveConfig] Performing final TCP validation before save")
+        // Perform final validation via UDP if available
+        let commConfig = PreferencesService.communicationSnapshot()
+        if commConfig.shouldUseUDP, isRunning {
+            AppLogger.shared.log("📡 [SaveConfig] Performing final UDP validation before save")
 
-            let client = KanataTCPClient(port: tcpConfig.port)
+            let client = KanataUDPClient(port: commConfig.udpPort)
             let validationResult = await client.validateConfig(config)
 
             switch validationResult {
             case .success:
-                AppLogger.shared.log("✅ [SaveConfig] TCP validation passed")
+                AppLogger.shared.log("✅ [SaveConfig] UDP validation passed")
             case let .failure(errors):
                 let errorMessages = errors.map(\.description).joined(separator: ", ")
-                AppLogger.shared.log("❌ [SaveConfig] TCP validation failed: \(errorMessages)")
+                AppLogger.shared.log("❌ [SaveConfig] UDP validation failed: \(errorMessages)")
 
-                // In testing environment, treat TCP validation failures as warnings rather than errors
+                // In testing environment, treat UDP validation failures as warnings rather than errors
                 let isInTestingEnvironment = NSClassFromString("XCTestCase") != nil
                 if isInTestingEnvironment {
                     AppLogger.shared.log(
-                        "⚠️ [SaveConfig] TCP validation failed in test environment - proceeding with save")
+                        "⚠️ [SaveConfig] UDP validation failed in test environment - proceeding with save")
                 } else {
                     throw ConfigError.validationFailed(errors.map(\.description))
                 }
             case let .networkError(message):
                 AppLogger.shared.log(
-                    "⚠️ [SaveConfig] TCP validation unavailable: \(message) - proceeding with save")
-                // Continue with save since TCP validation is optional
+                    "⚠️ [SaveConfig] UDP validation unavailable: \(message) - proceeding with save")
+            // Continue with save since UDP validation is optional
+            case .authenticationRequired:
+                AppLogger.shared.log(
+                    "⚠️ [SaveConfig] UDP authentication required - proceeding with save")
+                // Continue with save since UDP validation is optional
             }
         }
 
@@ -3719,7 +3477,8 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
 
         // Create and apply safe config
-        let safeConfig = generateKanataConfig(input: "caps", output: "escape")
+        let defaultMapping = KeyMapping(input: "caps", output: "escape")
+        let safeConfig = KanataConfiguration.generateFromMappings([defaultMapping])
         try await saveValidatedConfig(safeConfig)
 
         // Update in-memory mappings to reflect the safe state
@@ -3782,17 +3541,16 @@ class KanataManager: ObservableObject {
     // MARK: - Kanata Arguments Builder
 
     /// Builds Kanata command line arguments including TCP port when enabled
-    private func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
+    func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
         var arguments = ["--cfg", configPath]
 
-        // Add TCP port if enabled and valid
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        if tcpConfig.shouldUseTCPServer {
-            arguments.append("--port")
-            arguments.append(String(tcpConfig.port))
-            AppLogger.shared.log("🌐 [KanataArgs] TCP server enabled on port \(tcpConfig.port)")
+        // Add UDP communication arguments if enabled
+        let commConfig = PreferencesService.communicationSnapshot()
+        if commConfig.shouldUseUDP {
+            arguments.append(contentsOf: commConfig.communicationLaunchArguments)
+            AppLogger.shared.log("📡 [KanataArgs] UDP server enabled on port \(commConfig.udpPort)")
         } else {
-            AppLogger.shared.log("🌐 [KanataArgs] TCP server disabled")
+            AppLogger.shared.log("📡 [KanataArgs] UDP server disabled")
         }
 
         if checkOnly {
@@ -3805,5 +3563,85 @@ class KanataManager: ObservableObject {
 
         AppLogger.shared.log("🔧 [KanataArgs] Built arguments: \(arguments.joined(separator: " "))")
         return arguments
+    }
+
+    // MARK: - Claude API Integration
+
+    /// Call Claude API to repair configuration
+    private func callClaudeAPI(prompt: String) async throws -> String {
+        // Check for API key in environment or keychain
+        guard let apiKey = getClaudeAPIKey() else {
+            throw NSError(domain: "ClaudeAPI", code: 1, userInfo: [NSLocalizedDescriptionKey: "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or store in Keychain."])
+        }
+
+        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+
+        let requestBody: [String: Any] = [
+            "model": "claude-3-5-sonnet-20241022",
+            "max_tokens": 4096,
+            "messages": [
+                [
+                    "role": "user",
+                    "content": prompt
+                ]
+            ]
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(domain: "ClaudeAPI", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        }
+
+        guard 200 ... 299 ~= httpResponse.statusCode else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(domain: "ClaudeAPI", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "API request failed (\(httpResponse.statusCode)): \(errorMessage)"])
+        }
+
+        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let content = jsonResponse["content"] as? [[String: Any]],
+              let firstContent = content.first,
+              let text = firstContent["text"] as? String
+        else {
+            throw NSError(domain: "ClaudeAPI", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to parse Claude API response"])
+        }
+
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Get Claude API key from environment variable or keychain
+    private func getClaudeAPIKey() -> String? {
+        // First try environment variable
+        if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
+            return envKey
+        }
+
+        // Try keychain (using the same pattern as other keychain access in the app)
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "KeyPath",
+            kSecAttrAccount as String: "claude-api-key",
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var dataTypeRef: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+
+        guard status == errSecSuccess,
+              let data = dataTypeRef as? Data,
+              let key = String(data: data, encoding: .utf8)
+        else {
+            return nil
+        }
+
+        return key
     }
 }

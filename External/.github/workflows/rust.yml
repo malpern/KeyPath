@@ -1,0 +1,155 @@
+name: cargo-checks
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - Cargo.*
+      - src/**/*
+      - keyberon/**/*
+      - cfg_samples/**/*
+      - parser/**/*
+      - .github/workflows/rust.yml
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - Cargo.*
+      - src/**/*
+      - keyberon/**/*
+      - parser/**/*
+      - cfg_samples/**/*
+      - .github/workflows/rust.yml
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Check fmt
+      run: cargo fmt --all --check
+
+  build-test-clippy-linux:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - build: linux
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: "persist-cross-job"
+        workspaces: ./
+    - run: rustup component add clippy
+
+    - name: Run tests no features
+      run: cargo test --all --no-default-features
+    - name: Run clippy no features
+      run: cargo clippy --all --no-default-features -- -D warnings
+
+    - name: Run tests default features
+      run: cargo test --all
+    - name: Run clippy default features
+      run: cargo clippy --all -- -D warnings
+
+    - name: Run tests cmd
+      run: cargo test --all --features=cmd
+    - name: Run clippy cmd
+      run: cargo clippy --all --features=cmd -- -D warnings
+
+    - name: Run tests simulated output
+      run: cargo test --features=simulated_output -- sim_tests
+    - name: Run tests simulated output on_idle
+      run: cargo test --features=simulated_output -- must_be_single_threaded --ignored --test-threads=1
+    - name: Run clippy simulated output
+      run: cargo clippy --all --features=simulated_output,cmd -- -D warnings
+
+    - name: Run clippy for parser with lsp feature
+      run: cargo clippy -p kanata-parser --features=lsp -- -D warnings
+
+  build-test-clippy-windows:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - build: windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: "persist-cross-job"
+        workspaces: ./
+    - run: rustup component add clippy
+
+    - name: Run tests no features
+      run: cargo test --all --no-default-features
+    - name: Run clippy no features
+      run: cargo clippy --all --no-default-features -- -D warnings
+
+    - name: Run tests default features
+      run: cargo test --all
+    - name: Run clippy default features
+      run: cargo clippy --all -- -D warnings
+
+    - name: Run tests winIOv2
+      run: cargo test --all --features=cmd,win_llhook_read_scancodes,win_sendinput_send_scancodes
+    - name: Run clippy all winIOv2
+      run: cargo clippy --all --features=cmd,win_llhook_read_scancodes,win_sendinput_send_scancodes -- -D warnings
+
+    - name: Run tests all features
+      run: cargo test --all --features=cmd,interception_driver,win_sendinput_send_scancodes
+    - name: Run clippy all features
+      run: cargo clippy --all --features=cmd,interception_driver,win_sendinput_send_scancodes -- -D warnings
+
+    - name: Run tests simulated output
+      run: cargo test --features=simulated_output -- sim_tests
+    - name: Run tests simulated output on_idle
+      run: cargo test --features=simulated_output -- sim_tests::vkey_sim_tests::on_idle --ignored
+    - name: Run clippy simulated output
+      run: cargo clippy --all --features=simulated_output,cmd -- -D warnings
+
+    - name: Run tests gui
+      run: cargo test --all --features=gui
+    - name: Run clippy gui
+      run: cargo clippy --all --features=gui -- -D warnings
+
+    - name: Check gui+cmd+interception
+      run: cargo check --features gui,cmd,interception_driver
+
+  build-test-clippy-macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - build: macos
+            os: macos-latest
+            target: x86_64-apple-darwin
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: "persist-cross-job"
+        workspaces: ./
+    - run: rustup component add clippy
+
+    - name: Run tests default features
+      run: cargo test --all
+    - name: Run clippy default features
+      run: cargo clippy --all -- -D warnings
+
+    - name: Run tests cmd
+      run: cargo test --all --features=cmd
+    - name: Run clippy all features
+      run: cargo clippy --all --features=cmd -- -D warnings

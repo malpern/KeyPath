@@ -11,117 +11,259 @@ struct WizardInputMonitoringPage: View {
 
     @State private var showingStaleEntryCleanup = false
     @State private var staleEntryDetails: [String] = []
-    @State private var attemptingProgrammaticRequest = false
-    @State private var programmaticRequestFailed = false
+
+    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
-        VStack(spacing: WizardDesign.Spacing.sectionGap) {
-            // Header
-            WizardPageHeader(
-                icon: !hasInputMonitoringIssues ? "checkmark.circle.fill" : "eye",
-                title: !hasInputMonitoringIssues ? "Input Monitoring Granted" : "Input Monitoring Required",
-                subtitle: !hasInputMonitoringIssues
-                    ? "KeyPath has the necessary Input Monitoring permission."
-                    : "KeyPath needs Input Monitoring permission to capture keyboard events for remapping.",
-                status: !hasInputMonitoringIssues ? .success : .warning
-            )
-
-            VStack(spacing: WizardDesign.Spacing.elementGap) {
-                // Show cleanup instructions if stale entries detected
-                if showingStaleEntryCleanup {
-                    StaleEntryCleanupInstructions(
-                        staleEntryDetails: staleEntryDetails,
-                        onContinue: {
-                            showingStaleEntryCleanup = false
-                            openInputMonitoringSettings()
-                        }
-                    )
-                } else {
-                    // KeyPath Input Monitoring Permission
-                    PermissionCard(
-                        appName: "KeyPath",
-                        appPath: "/Applications/KeyPath.app",
-                        status: keyPathInputMonitoringStatus,
-                        permissionType: "Input Monitoring",
-                        kanataManager: kanataManager
-                    )
-
-                    // Kanata Input Monitoring Permission
-                    PermissionCard(
-                        appName: "kanata",
-                        appPath: "/usr/local/bin/kanata",
-                        status: kanataInputMonitoringStatus,
-                        permissionType: "Input Monitoring",
-                        kanataManager: kanataManager
-                    )
-
-                    if hasInputMonitoringIssues {
-                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                            Text("Why This Permission Is Needed")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Label("Capture keyboard events for remapping", systemImage: "keyboard")
-                                Label("Detect key combinations and shortcuts", systemImage: "command")
-                                Label("Process input for configuration testing", systemImage: "gear")
-                            }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                            if programmaticRequestFailed {
-                                Text(
-                                    "⚠️ Automatic permission request was denied. Please grant permission manually in System Settings."
-                                )
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                                .padding(.top, 4)
-                            } else {
-                                Text("Click 'Grant Permission' to enable Input Monitoring")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                                    .padding(.top, 4)
-                            }
-                        }
-                        .padding()
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(WizardDesign.Layout.cornerRadius)
-                    }
-
+        VStack(spacing: 0) {
+            // Use experimental hero design when permissions are granted
+            if !hasInputMonitoringIssues {
+                VStack(spacing: 0) {
                     Spacer()
 
-                    // Action Buttons
-                    HStack(spacing: 12) {
-                        // Manual Refresh Button
+                    // Centered hero block with padding
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        // Green eye icon with green check overlay
+                        ZStack {
+                            Image(systemName: "eye")
+                                .font(.system(size: 115, weight: .light))
+                                .foregroundColor(WizardDesign.Colors.success)
+                                .symbolRenderingMode(.hierarchical)
+                                .symbolEffect(.bounce, options: .nonRepeating)
+
+                            // Green check overlay in top right
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 40, weight: .medium))
+                                        .foregroundColor(WizardDesign.Colors.success)
+                                        .background(WizardDesign.Colors.wizardBackground)
+                                        .clipShape(Circle())
+                                }
+                                Spacer()
+                            }
+                            .frame(width: 115, height: 115)
+                        }
+
+                        // Headline
+                        Text("Input Monitoring")
+                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+
+                        // Subtitle
+                        Text("KeyPath has permission to capture keyboard events")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+
+                        // Component details card below the subheading - horizontally centered
+                        HStack {
+                            Spacer()
+                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("KeyPath.app")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Main application captures keyboard input")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("kanata")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Remapping engine processes keyboard events")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                    }
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Use hero design for error state too, with blue links below
+                VStack(spacing: 0) {
+                    Spacer()
+
+                    // Centered hero block with padding
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        // Orange eye icon with warning overlay
+                        ZStack {
+                            Image(systemName: "eye")
+                                .font(.system(size: 115, weight: .light))
+                                .foregroundColor(WizardDesign.Colors.warning)
+                                .symbolRenderingMode(.hierarchical)
+                                .symbolEffect(.bounce, options: .nonRepeating)
+
+                            // Warning overlay in top right
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 40, weight: .medium))
+                                        .foregroundColor(WizardDesign.Colors.warning)
+                                        .background(WizardDesign.Colors.wizardBackground)
+                                        .clipShape(Circle())
+                                }
+                                Spacer()
+                            }
+                            .frame(width: 115, height: 115)
+                        }
+
+                        // Headline
+                        Text("Input Monitoring Required")
+                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+
+                        // Subtitle
+                        Text("KeyPath needs Input Monitoring permission to capture keyboard events for remapping")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+
+                        // Component details for error state
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                            HStack(spacing: 12) {
+                                Image(systemName: keyPathInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("KeyPath.app")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Main application needs permission")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
+                                }
+                                Spacer()
+                                if keyPathInputMonitoringStatus != .completed {
+                                    Button("Fix") {
+                                        openInputMonitoringSettings()
+                                    }
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
+                                }
+                            }
+
+                            HStack(spacing: 12) {
+                                Image(systemName: kanataInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("kanata")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Remapping engine needs permission")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
+                                }
+                                Spacer()
+                                if kanataInputMonitoringStatus != .completed {
+                                    Button("Fix") {
+                                        openInputMonitoringSettings()
+                                    }
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+
+                        // Check Again link
                         Button("Check Again") {
                             Task {
-                                programmaticRequestFailed = false
                                 await onRefresh()
+
+                                // Oracle handles permission state - no manual marking needed
+                                AppLogger.shared.log("🔮 [WizardInputMonitoringPage] Oracle will detect permission changes automatically")
                             }
                         }
-                        .buttonStyle(.bordered)
-                        .disabled(attemptingProgrammaticRequest)
-
-                        Spacer()
-
-                        // Smart Grant Permission Button
-                        Button(action: handleGrantPermission) {
-                            if attemptingProgrammaticRequest {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .frame(width: 16, height: 16)
-                            } else {
-                                Text(programmaticRequestFailed ? "Open Settings" : "Grant Permission")
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(attemptingProgrammaticRequest)
+                        .buttonStyle(.link)
+                        .padding(.top, WizardDesign.Spacing.elementGap)
                     }
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                    Spacer()
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+
+            Spacer()
+
+            // Bottom buttons - primary action changes based on state
+            HStack {
+                Spacer()
+
+                if hasInputMonitoringIssues {
+                    // When permissions needed, Grant Permission is primary
+                    Button("Grant Permission") {
+                        openInputMonitoringSettings()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+
+                    Button("Continue Anyway") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Input Monitoring page despite issues")
+                        navigationCoordinator.userInteractionMode = true
+                        navigateToNextPage()
+                    }
+                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                } else {
+                    // When permissions granted, Continue is primary
+                    Button("Continue") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Input Monitoring page")
+                        navigateToNextPage()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                }
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WizardDesign.Colors.wizardBackground)
         .onAppear {
             checkForStaleEntries()
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    private func navigateToNextPage() {
+        if let next = navigationCoordinator.getNextPage(for: systemState, issues: issues) {
+            navigationCoordinator.userInteractionMode = true // respect user choice
+            navigationCoordinator.navigateToPage(next)
+            AppLogger.shared.log("➡️ [Input Monitoring] Navigated to next page: \(next.displayName)")
+        } else {
+            AppLogger.shared.log("ℹ️ [Input Monitoring] No next page determined by NavigationEngine")
+            onDismiss?()
         }
     }
 
@@ -154,56 +296,35 @@ struct WizardInputMonitoringPage: View {
     // MARK: - Actions
 
     private func checkForStaleEntries() {
-        let detection = PermissionService.detectPossibleStaleEntries()
-        if detection.hasStaleEntries {
-            staleEntryDetails = detection.details
-            AppLogger.shared.log(
-                "🔐 [WizardInputMonitoringPage] Stale entries detected: \(detection.details.joined(separator: ", "))"
-            )
-        }
-    }
-
-    private func handleGrantPermission() {
-        // First check for stale entries
-        let detection = PermissionService.detectPossibleStaleEntries()
-
-        if detection.hasStaleEntries {
-            // Show cleanup instructions first
-            staleEntryDetails = detection.details
-            showingStaleEntryCleanup = true
-            AppLogger.shared.log(
-                "🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
-        } else {
-            // Try programmatic request for clean installs
-            if #available(macOS 10.15, *), !programmaticRequestFailed {
-                attemptProgrammaticRequest()
-            } else {
-                // Fall back to manual process
-                openInputMonitoringSettings()
+        Task {
+            // Oracle system - no stale entry detection needed
+            let detection = (hasStaleEntries: false, details: [String]())
+            await MainActor.run {
+                if detection.hasStaleEntries {
+                    staleEntryDetails = detection.details
+                    AppLogger.shared.log(
+                        "🔐 [WizardInputMonitoringPage] Stale entries detected: \(detection.details.joined(separator: ", "))"
+                    )
+                }
             }
         }
     }
 
-    @available(macOS 10.15, *)
-    private func attemptProgrammaticRequest() {
-        AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Attempting programmatic permission request")
-        attemptingProgrammaticRequest = true
+    private func handleHelpWithPermission() {
+        Task {
+            // First check for stale entries
+            // Oracle system - no stale entry detection needed
+            let detection = (hasStaleEntries: false, details: [String]())
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let granted = PermissionService.requestInputMonitoringPermission()
-            attemptingProgrammaticRequest = false
-
-            if granted {
-                AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Permission granted programmatically!")
-                Task {
-                    await onRefresh()
-                }
-            } else {
-                AppLogger.shared.log(
-                    "🔐 [WizardInputMonitoringPage] Programmatic request denied, falling back to manual")
-                programmaticRequestFailed = true
-                // Give user a moment to see the status change before opening settings
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            await MainActor.run {
+                if detection.hasStaleEntries {
+                    // Show cleanup instructions first
+                    staleEntryDetails = detection.details
+                    showingStaleEntryCleanup = true
+                    AppLogger.shared.log(
+                        "🔐 [WizardInputMonitoringPage] Showing cleanup instructions for stale entries")
+                } else {
+                    // Always open settings manually - never auto-request
                     openInputMonitoringSettings()
                 }
             }
@@ -211,14 +332,26 @@ struct WizardInputMonitoringPage: View {
     }
 
     private func openInputMonitoringSettings() {
-        AppLogger.shared.log("🔐 [WizardInputMonitoringPage] Opening Input Monitoring settings")
+        AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix button clicked - entering permission grant mode")
 
-        PermissionService.openInputMonitoringSettings()
+        let instructions = """
+        KeyPath will now close so you can grant permissions:
 
-        // Dismiss wizard after opening settings for better UX
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            onDismiss?()
-        }
+        1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
+        2. Make sure both checkboxes are enabled
+        3. Restart KeyPath when you're done
+
+        KeyPath will automatically restart the keyboard service to pick up your new permissions.
+        """
+
+        PermissionGrantCoordinator.shared.initiatePermissionGrant(
+            for: .inputMonitoring,
+            instructions: instructions,
+            onComplete: {
+                // Close wizard after user confirms the dialog
+                onDismiss?()
+            }
+        )
     }
 }
 

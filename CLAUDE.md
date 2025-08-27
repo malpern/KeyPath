@@ -2,6 +2,30 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CURRENT SESSION STATUS (Aug 24, 2025 6:15 PM)
+
+**COMPLETED:** Successfully resolved keyboard freezing issue and implemented TCC-safe architecture.
+
+**Key Fixes Applied:**
+1. **Reverted to Working Architecture:** Back to commit 179cba0 (multi-manager architecture)
+2. **Fixed TCC Identity Issues:** Removed unsigned Homebrew kanata, now only uses bundled version
+3. **Stable Signing:** All builds use Developer ID (X2RKZ5TG99) - never ad-hoc
+4. **Bundled-Only Strategy:** Wizard no longer installs external kanata binaries
+5. **TCC-Safe Updates:** Created `/doit` command for stable deployments
+
+**Latest Build:** Successfully built, signed, and deployed (Notarization ID: 0cb2adbc-f6b8-4826-a4d3-56fe71776814)
+
+**Critical Architecture Notes:**
+- Manager consolidation completed: All functionality now unified in KanataManager
+- CGEvent taps are safely isolated in KeyboardCapture service (no conflicts with managers)
+- GUI creates CGEvent taps (known TCC violation - documented in SOMEDAY.md for future fix)
+- Only bundled kanata at `/Applications/KeyPath.app/Contents/Library/KeyPath/kanata` should exist
+
+**Next Steps:**
+- Test if wizard now shows proper kanata signing status (should be resolved)
+- Verify Input Monitoring permissions persist across updates using `/doit` command
+- Eventually fix GUI CGEvent tap violation (see SOMEDAY.md priority item)
+
 ## Project Overview
 
 KeyPath is a macOS application that provides keyboard remapping using Kanata as the backend engine. It features a SwiftUI frontend and a LaunchDaemon architecture for reliable system-level key remapping.
@@ -24,8 +48,8 @@ KeyPath.app (SwiftUI) → KanataManager → launchctl → Kanata daemon
 - **System Integration**: Uses CGEvent taps for key capture and launchctl for service management
 
 ### Key Manager Classes
-- `KanataManager`: Central service coordinator, manages daemon lifecycle and configuration
-- `KeyboardCapture`: Handles CGEvent-based keyboard input recording
+- `KanataManager`: **Unified manager** - handles daemon lifecycle, configuration, UI state, and user interactions
+- `KeyboardCapture`: Handles CGEvent-based keyboard input recording (isolated service)
 - `InstallationWizard/`: Multi-step setup flow with auto-fix capabilities
   - `WizardSystemState`: Single source of truth for system state
   - `SystemStateDetector`: Pure functions for state detection
@@ -240,14 +264,33 @@ Production builds require:
 
 ## Deployment Instructions
 
-When asked to deploy or prepare for deployment:
+**CRITICAL: TCC-Safe Deployment Process**
+
+For ALL deployments, use this TCC-safe process to preserve Input Monitoring permissions:
+
+```bash
+# Use the /doit command (recommended)
+/doit
+
+# OR manual equivalent:
+./Scripts/build-and-sign.sh && cp -r dist/KeyPath.app /Applications/
+```
+
+**NEVER:**
+- Use `build.sh` for production (lacks notarization)
+- Move app to different locations during updates
+- Use unsigned builds  
+- Change bundle identifier or signing certificate
+
+**Why This Matters:**
+- Preserves stable TCC identity (Team ID + Bundle ID + Path)
+- Users won't need to re-grant Input Monitoring permissions
+- In-place replacement maintains TCC database entries
+
+**Pre-Deployment Steps:**
 1. Format code with Swift formatter (if SwiftFormat is available)
 2. Fix linting issues with SwiftLint (if available): `swiftlint --fix --quiet`
-3. Build the release version: `swift build -c release`
-4. **SKIP TESTS** unless explicitly requested (e.g., "run tests", "test before deploying")
-5. Create app bundle: `./Scripts/build.sh`
-6. Sign and notarize (if signing identity available): `./Scripts/build-and-sign.sh`
-7. Install to /Applications: `cp -r build/KeyPath.app /Applications/`
+3. **SKIP TESTS** unless explicitly requested (e.g., "run tests", "test before deploying")
 
 This speeds up deployment by avoiding the test suite which can be time-consuming.
 

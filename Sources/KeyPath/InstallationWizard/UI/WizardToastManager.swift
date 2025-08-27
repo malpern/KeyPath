@@ -11,18 +11,40 @@ class WizardToastManager {
     private var toastTask: Task<Void, Never>?
 
     /// Show a success toast notification
-    func showSuccess(_ message: String, duration: TimeInterval = 3.0) {
+    func showSuccess(_ message: String, duration: TimeInterval = WizardDesign.Toast.Duration.info) {
         showToast(.success(message), duration: duration)
     }
 
     /// Show an error toast notification
-    func showError(_ message: String, duration: TimeInterval = 4.0) {
+    func showError(_ message: String, duration: TimeInterval = WizardDesign.Toast.Duration.error) {
         showToast(.error(message), duration: duration)
     }
 
     /// Show an info toast notification
-    func showInfo(_ message: String, duration: TimeInterval = 3.0) {
+    func showInfo(_ message: String, duration: TimeInterval = WizardDesign.Toast.Duration.info) {
         showToast(.info(message), duration: duration)
+    }
+
+    /// Show a launch failure toast notification
+    func showLaunchFailure(_ status: LaunchFailureStatus, duration: TimeInterval = WizardDesign.Toast.Duration.launchFailure) {
+        showToast(makeActionableToast(from: status), duration: duration)
+    }
+
+    /// Maps LaunchFailureStatus to actionable toast (UI layer mapping)
+    private func makeActionableToast(from status: LaunchFailureStatus) -> WizardToast {
+        let message = status.shortMessage
+        let actionTitle = WizardConstants.Actions.fixInSetup
+
+        switch status {
+        case .permissionDenied:
+            return .actionable(message: message, icon: "lock.circle", style: .warning, actionTitle: actionTitle)
+        case .configError:
+            return .actionable(message: message, icon: "exclamationmark.triangle", style: .error, actionTitle: actionTitle)
+        case .serviceFailure:
+            return .actionable(message: message, icon: "gear.badge.xmark", style: .error, actionTitle: actionTitle)
+        case .missingDependency:
+            return .actionable(message: message, icon: "minus.circle", style: .info, actionTitle: actionTitle)
+        }
     }
 
     /// Dismiss the current toast immediately
@@ -48,15 +70,26 @@ class WizardToastManager {
     }
 }
 
+/// Toast style for consistent theming
+enum ToastStyle: Equatable {
+    case success
+    case error
+    case info
+    case warning
+}
+
 /// Represents different types of toast notifications
 enum WizardToast: Equatable {
     case success(String)
     case error(String)
     case info(String)
+    case actionable(message: String, icon: String, style: ToastStyle, actionTitle: String)
 
     var message: String {
         switch self {
         case let .success(message), let .error(message), let .info(message):
+            message
+        case let .actionable(message, _, _, _):
             message
         }
     }
@@ -66,14 +99,32 @@ enum WizardToast: Equatable {
         case .success: "checkmark.circle.fill"
         case .error: "exclamationmark.triangle.fill"
         case .info: "info.circle.fill"
+        case let .actionable(_, icon, _, _): icon
+        }
+    }
+
+    var style: ToastStyle {
+        switch self {
+        case .success: .success
+        case .error: .error
+        case .info: .info
+        case let .actionable(_, _, style, _): style
         }
     }
 
     var color: Color {
+        switch style {
+        case .success: WizardDesign.Colors.success
+        case .error: WizardDesign.Colors.error
+        case .info: WizardDesign.Colors.info
+        case .warning: WizardDesign.Colors.warning
+        }
+    }
+
+    var actionTitle: String? {
         switch self {
-        case .success: .green
-        case .error: .red
-        case .info: .blue
+        case .success, .error, .info: nil
+        case let .actionable(_, _, _, actionTitle): actionTitle
         }
     }
 }
@@ -82,44 +133,72 @@ enum WizardToast: Equatable {
 struct WizardToastView: View {
     let toast: WizardToast
     let onDismiss: () -> Void
+    let onAction: (() -> Void)?
+
+    @State private var isVisible = false
+
+    init(toast: WizardToast, onDismiss: @escaping () -> Void, onAction: (() -> Void)? = nil) {
+        self.toast = toast
+        self.onDismiss = onDismiss
+        self.onAction = onAction
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: toast.icon)
-                .foregroundColor(toast.color)
-                .font(.system(size: 16, weight: .medium))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Image(systemName: toast.icon)
+                    .foregroundColor(toast.color)
+                    .font(.system(size: 16, weight: .medium))
 
-            Text(toast.message)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.primary)
-                .multilineTextAlignment(.leading)
+                Text(toast.message)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
 
-            Spacer()
+                Spacer()
 
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss notification")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Dismiss notification")
+
+            // Action button for actionable toasts
+            if let actionTitle = toast.actionTitle, let action = onAction {
+                HStack {
+                    Spacer()
+                    Button(action: action) {
+                        Text(actionTitle)
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                }
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-        }
+        .padding(.horizontal, WizardDesign.Spacing.cardPadding)
+        .padding(.vertical, WizardDesign.Spacing.itemGap)
+        .wizardToastCard()
         .overlay {
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
                 .stroke(toast.color.opacity(0.3), lineWidth: 1)
         }
-        .frame(maxWidth: 400)
+        .scaleEffect(isVisible ? 1.0 : 0.95)
+        .opacity(isVisible ? 1.0 : 0.0)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isVisible)
+        .onAppear {
+            withAnimation {
+                isVisible = true
+            }
+        }
+        .onDisappear {
+            isVisible = false
+        }
         .transition(
             .asymmetric(
-                insertion: .move(edge: .top).combined(with: .opacity),
-                removal: .move(edge: .top).combined(with: .opacity)
+                insertion: .scale(scale: 0.95).combined(with: .opacity),
+                removal: .scale(scale: 0.95).combined(with: .opacity)
             ))
     }
 }
@@ -127,14 +206,24 @@ struct WizardToastView: View {
 /// View modifier to add toast support to any view
 struct ToastModifier: ViewModifier {
     @Bindable var toastManager: WizardToastManager
+    let onToastAction: (() -> Void)?
+
+    init(toastManager: WizardToastManager, onToastAction: (() -> Void)? = nil) {
+        self.toastManager = toastManager
+        self.onToastAction = onToastAction
+    }
 
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .top) {
                 if let toast = toastManager.currentToast {
-                    WizardToastView(toast: toast) {
-                        toastManager.dismissToast()
-                    }
+                    WizardToastView(
+                        toast: toast,
+                        onDismiss: {
+                            toastManager.dismissToast()
+                        },
+                        onAction: onToastAction
+                    )
                     .padding(.top, 16)
                     .padding(.horizontal, 20)
                     .zIndex(1000)
@@ -146,7 +235,7 @@ struct ToastModifier: ViewModifier {
 
 extension View {
     /// Add toast notification support to a view
-    func withToasts(_ toastManager: WizardToastManager) -> some View {
-        modifier(ToastModifier(toastManager: toastManager))
+    func withToasts(_ toastManager: WizardToastManager, onToastAction: (() -> Void)? = nil) -> some View {
+        modifier(ToastModifier(toastManager: toastManager, onToastAction: onToastAction))
     }
 }

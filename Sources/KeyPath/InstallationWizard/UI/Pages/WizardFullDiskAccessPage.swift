@@ -24,145 +24,113 @@ struct WizardFullDiskAccessPage: View {
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
-        VStack(spacing: WizardDesign.Spacing.sectionGap) {
-            // Header
-            WizardPageHeader(
-                icon: "folder.badge.gearshape",
-                title: "Full Disk Access (Optional)",
-                subtitle: "Enhance wizard capabilities for better diagnostics",
-                status: hasFullDiskAccess ? .success : .info
-            )
+        VStack(spacing: 0) {
+            // Large centered hero section - Icon, Headline, and Supporting Copy
+            VStack(spacing: 0) {
+                Spacer()
 
-            // Main content
-            VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                // Explanation card
-                VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
-                    Label("Why Full Disk Access?", systemImage: "questionmark.circle")
-                        .font(WizardDesign.Typography.body)
-                        .foregroundColor(.primary)
+                // Centered hero block with padding
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    // Basic folder icon with appropriate overlay
+                    ZStack {
+                        Image(systemName: "folder")
+                            .font(.system(size: 115, weight: .light))
+                            .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.info)
+                            .symbolRenderingMode(.hierarchical)
+                            .symbolEffect(.bounce, options: .nonRepeating)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        BenefitRow(
-                            icon: "magnifyingglass",
-                            title: "Better Diagnostics",
-                            description: "Accurately detect which permissions are granted"
-                        )
-
-                        BenefitRow(
-                            icon: "wrench.and.screwdriver",
-                            title: "Automatic Resolution",
-                            description: "Fix more issues automatically without manual intervention"
-                        )
-
-                        BenefitRow(
-                            icon: "chart.line.uptrend.xyaxis",
-                            title: "Progress Tracking",
-                            description: "Monitor installation progress more precisely"
-                        )
-
-                        BenefitRow(
-                            icon: "shield.checkered",
-                            title: "Enhanced Security Checks",
-                            description: "Verify system integrity and detect conflicts"
-                        )
+                        // Overlay hanging off right side based on FDA status
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Image(systemName: hasFullDiskAccess ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 40, weight: .medium))
+                                    .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.secondaryText)
+                                    .background(WizardDesign.Colors.wizardBackground)
+                                    .clipShape(Circle())
+                                    .offset(x: 25, y: -5) // Hang further off the right side
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                            Spacer()
+                        }
+                        .frame(width: 115, height: 115)
                     }
 
-                    Text(
-                        "Note: This is completely optional. The wizard will work without it, but some automatic fixes may not be available."
-                    )
-                    .font(WizardDesign.Typography.caption)
-                    .foregroundColor(WizardDesign.Colors.secondaryText)
-                    .padding(.top, 8)
-                }
-                .wizardCard()
+                    // Larger headline (19pt + 20% = 23pt)
+                    Text(hasFullDiskAccess ? "Full Disk Access" : "Enable Full Disk Access (optional)")
+                        .font(.system(size: 23, weight: .semibold, design: .default))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
 
-                // Current status with animation
-                if hasCheckedPermission {
-                    HStack(spacing: WizardDesign.Spacing.labelGap) {
-                        if showSuccessAnimation {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .font(WizardDesign.Typography.body)
-                                .scaleEffect(showSuccessAnimation ? 1.2 : 1.0)
-                                .animation(
-                                    .spring(response: 0.3, dampingFraction: 0.6), value: showSuccessAnimation
-                                )
-                        } else {
-                            Image(systemName: hasFullDiskAccess ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundColor(
-                                    hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.warning
-                                )
-                                .font(WizardDesign.Typography.body)
+                    // Supporting copy - more descriptive since no content card
+                    Text(hasFullDiskAccess ? "Enhanced diagnostics and automatic issue resolution" : "Optional: Enhanced diagnostics and automatic issue resolution")
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    // Help link below subheader (only when FDA not granted)
+                    if !hasFullDiskAccess {
+                        Button("Why is this safe?") {
+                            showingDetails = true
+                        }
+                        .buttonStyle(.link)
+                        .font(WizardDesign.Typography.caption)
+                        .padding(.top, WizardDesign.Spacing.elementGap)
+                    }
+                }
+                .padding(.vertical, WizardDesign.Spacing.pageVertical) // Add padding above and below the hero block
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // No component details - FDA is optional and never needs fixing
+            Spacer()
+                .frame(height: WizardDesign.Spacing.sectionGap)
+
+            // Action buttons (anchored to bottom)
+            // Standard pattern: Existing buttons on left/center, Continue button on far right
+            HStack(spacing: WizardDesign.Spacing.itemGap) {
+                // Existing buttons on the left/center
+                if !hasFullDiskAccess {
+                    Button("Grant Full Disk Access") {
+                        AppLogger.shared.log("🔒 [FDA Page] Grant Full Disk Access button clicked")
+
+                        // Open System Settings for Full Disk Access
+                        openFullDiskAccessSettings()
+
+                        // Close Settings windows if they're open
+                        for window in NSApplication.shared.windows {
+                            let windowTitle = window.title
+                            if windowTitle.contains("Settings") {
+                                AppLogger.shared.log("🔒 [FDA Page] Closing Settings window: '\(windowTitle)'")
+                                window.close()
+                            }
                         }
 
-                        Text(
-                            hasFullDiskAccess
-                                ? "Full Disk Access granted - enhanced features enabled"
-                                : "Full Disk Access not granted - basic features only"
-                        )
-                        .font(WizardDesign.Typography.status)
-                        .foregroundColor(WizardDesign.Colors.secondaryText)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                hasFullDiskAccess
-                                    ? WizardDesign.Colors.success.opacity(0.1)
-                                    : WizardDesign.Colors.warning.opacity(0.1))
-                    )
-                    .animation(.easeInOut(duration: 0.3), value: hasFullDiskAccess)
-                }
-            }
-            .wizardPagePadding()
-
-            Spacer()
-
-            // Action buttons
-            VStack(spacing: WizardDesign.Spacing.elementGap) {
-                HStack(spacing: WizardDesign.Spacing.itemGap) {
-                    // Skip button (always available)
-                    Button("Skip This Step") {
-                        // User chose to skip - that's fine
-                        AppLogger.shared.log("ℹ️ [Wizard] User skipped Full Disk Access step")
-                        // Navigate to next page
-                        navigationCoordinator.navigateToPage(.summary)
+                        // Dismiss the wizard using SwiftUI's dismiss action
+                        AppLogger.shared.log("🔒 [FDA Page] Dismissing wizard")
+                        dismiss()
                     }
                     .buttonStyle(WizardDesign.Component.SecondaryButton())
+                }
 
-                    // Grant permission button
-                    if !hasFullDiskAccess {
-                        Button("Grant Full Disk Access") {
-                            AppLogger.shared.log("🔒 [FDA Page] Grant Full Disk Access button clicked")
+                Spacer()
 
-                            // Open System Settings for Full Disk Access
-                            openFullDiskAccessSettings()
-
-                            // Close Settings windows if they're open
-                            for window in NSApplication.shared.windows {
-                                let windowTitle = window.title
-                                if windowTitle.contains("Settings") {
-                                    AppLogger.shared.log("🔒 [FDA Page] Closing Settings window: '\(windowTitle)'")
-                                    window.close()
-                                }
-                            }
-
-                            // Dismiss the wizard using SwiftUI's dismiss action
-                            AppLogger.shared.log("🔒 [FDA Page] Dismissing wizard")
-                            dismiss()
-                        }
-                        .buttonStyle(WizardDesign.Component.PrimaryButton())
+                // Primary continue button (centered)
+                HStack {
+                    Spacer()
+                    Button("Continue") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Full Disk Access page")
+                        navigateToNextPage()
                     }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    Spacer()
                 }
-
-                // Help link
-                Button("Why is this safe?") {
-                    showingDetails = true
-                }
-                .buttonStyle(.link)
-                .font(WizardDesign.Typography.caption)
             }
-            .padding(.bottom, WizardDesign.Spacing.pageVertical * 2) // More space from bottom
+            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            .padding(.bottom, WizardDesign.Spacing.pageVertical)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -207,16 +175,23 @@ struct WizardFullDiskAccessPage: View {
                 showSuccessAnimation = true
                 AppLogger.shared.log("✅ [Wizard] Full Disk Access granted - showing success animation")
 
-                // Auto-navigate after a short delay to show success
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    // Navigate to next logical page (summary)
-                    navigationCoordinator.navigateToPage(.summary)
-                }
+                // Don't auto-navigate - let user navigate manually
+                // User can use navigation buttons or close dialog
             }
         }
     }
 
     // MARK: - Helper Methods
+
+    private func navigateToNextPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex < allPages.count - 1
+        else { return }
+        let nextPage = allPages[currentIndex + 1]
+        navigationCoordinator.navigateToPage(nextPage)
+        AppLogger.shared.log("➡️ [FDA] Navigated to next page: \(nextPage.displayName)")
+    }
 
     private func checkFullDiskAccess() {
         // Check cache first
@@ -403,73 +378,33 @@ private struct FullDiskAccessDetailsSheet: View {
                         Text("What is Full Disk Access?")
                             .font(.headline)
 
-                        Text(
-                            """
-                            Full Disk Access is a macOS security feature that controls which apps can access protected areas of your system. This includes system databases that track permissions.
-                            """
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        Text("A macOS security feature that allows KeyPath to read system permission databases for better diagnostics.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Why does KeyPath request it?")
+                        Text("Benefits")
                             .font(.headline)
 
-                        Text(
-                            """
-                            When granted, KeyPath can:
-                            • Check the exact permission status of the kanata binary
-                            • Detect and resolve conflicts more accurately
-                            • Provide better error messages
-                            • Automatically fix more types of issues
-
-                            Without it, KeyPath still works but relies on less precise detection methods.
-                            """
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Is it safe?")
-                            .font(.headline)
-
-                        Text(
-                            """
-                            Yes! KeyPath only uses this permission to:
-                            • Read permission databases (not modify them)
-                            • Check system status
-                            • Improve diagnostics
-
-                            KeyPath is open source and you can verify exactly what it does with this permission.
-                            """
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        Text("• More accurate issue detection\n• Better automatic fixes\n• Clearer error messages")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color.green.opacity(0.08))
                     .cornerRadius(8)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Can I skip this?")
+                        Text("Completely Optional")
                             .font(.headline)
 
-                        Text(
-                            """
-                            Absolutely! Full Disk Access is completely optional. The wizard will work without it, using alternative detection methods. 
-                            You can always grant it later if you change your mind.
-                            """
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        Text("KeyPath works fine without this permission. You can skip this step and grant it later if needed.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color.blue.opacity(0.08))

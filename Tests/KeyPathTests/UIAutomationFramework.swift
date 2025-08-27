@@ -246,7 +246,8 @@ public class UIAutomationFramework {
         var validation = ValidationResult()
 
         // Check configuration file exists
-        let configExists = await kanataManager.verifyConfigExists()
+        let configPath = "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
+        let configExists = FileManager.default.fileExists(atPath: configPath)
         if !configExists {
             validation.errors.append("Configuration file does not exist")
         }

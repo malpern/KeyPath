@@ -1,0 +1,713 @@
+[
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/FDADetectionTests.swift",
+    "line" : 17,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 24,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/FDADetectionTests.swift",
+    "line" : 13,
+    "reason" : "Prefer non-optional `Data(_:)` initializer when converting `String` to `Data`",
+    "rule_id" : "non_optional_string_data_conversion",
+    "severity" : "Warning",
+    "type" : "Non-optional String -> Data Conversion"
+  },
+  {
+    "character" : 28,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/FDADetectionTests.swift",
+    "line" : 144,
+    "reason" : "Prefer non-optional `Data(_:)` initializer when converting `String` to `Data`",
+    "rule_id" : "non_optional_string_data_conversion",
+    "severity" : "Warning",
+    "type" : "Non-optional String -> Data Conversion"
+  },
+  {
+    "character" : 1,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift",
+    "line" : 278,
+    "reason" : "A doc comment should be attached to a declaration",
+    "rule_id" : "orphaned_doc_comment",
+    "severity" : "Warning",
+    "type" : "Orphaned Doc Comment"
+  },
+  {
+    "character" : 19,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/MockTCPServer.swift",
+    "line" : 78,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 25,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/MockTCPServer.swift",
+    "line" : 78,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 31,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/MockTCPServer.swift",
+    "line" : 78,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 34,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/MockTCPServer.swift",
+    "line" : 78,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 37,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/KeyPathTests/MockTCPServer.swift",
+    "line" : 78,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/scripts/system/test-switch-statement.swift",
+    "line" : 45,
+    "reason" : "Line should be 200 characters or less; currently it has 276 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/scripts/system/test-launchdaemon-fix.swift",
+    "line" : 51,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/scripts/system/test-service-health.swift",
+    "line" : 30,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 21,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/scripts/oracle/test-oracle-live.swift",
+    "line" : 46,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 21,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/DiagnosticsView.swift",
+    "line" : 878,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 64,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/DiagnosticsView.swift",
+    "line" : 537,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 75,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EnhancedErrorHandler.swift",
+    "line" : 368,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 12,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EnhancedErrorHandler.swift",
+    "line" : 463,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+    "line" : 703,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 20,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+    "line" : 341,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 24,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+    "line" : 414,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 24,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+    "line" : 462,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 20,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+    "line" : 488,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 16,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+    "line" : 76,
+    "reason" : "TODOs should be resolved (Diagnostic Summary (show criti...)",
+    "rule_id" : "todo",
+    "severity" : "Warning",
+    "type" : "Todo"
+  },
+  {
+    "character" : 20,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+    "line" : 515,
+    "reason" : "TODOs should be resolved (Open diagnostics view)",
+    "rule_id" : "todo",
+    "severity" : "Warning",
+    "type" : "Todo"
+  },
+  {
+    "character" : 20,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+    "line" : 530,
+    "reason" : "TODOs should be resolved (Open diagnostics view)",
+    "rule_id" : "todo",
+    "severity" : "Warning",
+    "type" : "Todo"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/Deprecated/RaceConditionIntegrationTests.swift",
+    "line" : 113,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Tests/Deprecated/RaceConditionIntegrationTests.swift",
+    "line" : 602,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 21,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 1246,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 2818,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 2829,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 1193,
+    "reason" : "Line should be 200 characters or less; currently it has 218 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 2203,
+    "reason" : "Line should be 200 characters or less; currently it has 232 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 2206,
+    "reason" : "Line should be 200 characters or less; currently it has 239 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 2557,
+    "reason" : "Line should be 200 characters or less; currently it has 246 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : 1,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 87,
+    "reason" : "A doc comment should be attached to a declaration",
+    "rule_id" : "orphaned_doc_comment",
+    "severity" : "Warning",
+    "type" : "Orphaned Doc Comment"
+  },
+  {
+    "character" : 5,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 3437,
+    "reason" : "A doc comment should be attached to a declaration",
+    "rule_id" : "orphaned_doc_comment",
+    "severity" : "Warning",
+    "type" : "Orphaned Doc Comment"
+  },
+  {
+    "character" : 12,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift",
+    "line" : 3243,
+    "reason" : "TODOs should be resolved (Integrate with Claude API usin...)",
+    "rule_id" : "todo",
+    "severity" : "Warning",
+    "type" : "Todo"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataConfigManager.swift",
+    "line" : 25,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataConfigManager.swift",
+    "line" : 50,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/ProcessLifecycleManager.swift",
+    "line" : 305,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 49,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 232,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 243,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 257,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 277,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 308,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 341,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 374,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 402,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 410,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 435,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 518,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+    "line" : 526,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 17,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Logger.swift",
+    "line" : 57,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 24,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift",
+    "line" : 111,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 24,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift",
+    "line" : 133,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
+    "line" : 413,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 32,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
+    "line" : 60,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 28,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
+    "line" : 173,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 20,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
+    "line" : 316,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : 24,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
+    "line" : 375,
+    "reason" : "Trailing closure syntax should not be used when passing more than one closure argument",
+    "rule_id" : "multiple_closures_with_trailing_closure",
+    "severity" : "Warning",
+    "type" : "Multiple Closures with Trailing Closure"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/SystemStatusChecker.swift",
+    "line" : 639,
+    "reason" : "Line should be 200 characters or less; currently it has 203 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/PermissionGrantCoordinator.swift",
+    "line" : 345,
+    "reason" : "Line should be 200 characters or less; currently it has 203 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/BundledKanataManager.swift",
+    "line" : 65,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/PackageManager.swift",
+    "line" : 60,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/PackageManager.swift",
+    "line" : 83,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/PackageManager.swift",
+    "line" : 114,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/PackageManager.swift",
+    "line" : 385,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift",
+    "line" : 53,
+    "reason" : "Line should be 200 characters or less; currently it has 209 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift",
+    "line" : 456,
+    "reason" : "Line should be 200 characters or less; currently it has 203 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift",
+    "line" : 947,
+    "reason" : "Line should be 200 characters or less; currently it has 280 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift",
+    "line" : 1105,
+    "reason" : "Line should be 200 characters or less; currently it has 247 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  },
+  {
+    "character" : 13,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Config/ConfigurationService.swift",
+    "line" : 392,
+    "reason" : "`where` clauses are preferred over a single `if` inside a `for`",
+    "rule_id" : "for_where",
+    "severity" : "Warning",
+    "type" : "Prefer For-Where"
+  },
+  {
+    "character" : 19,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift",
+    "line" : 229,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 25,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift",
+    "line" : 229,
+    "reason" : "Closure parameters should be on the same line as opening brace",
+    "rule_id" : "closure_parameter_position",
+    "severity" : "Warning",
+    "type" : "Closure Parameter Position"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/SystemRequirementsChecker.swift",
+    "line" : 19,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 9,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/SystemRequirementsChecker.swift",
+    "line" : 108,
+    "reason" : "Types should be nested at most 1 level deep",
+    "rule_id" : "nesting",
+    "severity" : "Warning",
+    "type" : "Nesting"
+  },
+  {
+    "character" : 1,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPathCLI/TestUIAutomation.swift",
+    "line" : 4,
+    "reason" : "A doc comment should be attached to a declaration",
+    "rule_id" : "orphaned_doc_comment",
+    "severity" : "Warning",
+    "type" : "Orphaned Doc Comment"
+  },
+  {
+    "character" : null,
+    "file" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/dev-tools/debug/debug-wizard-fix-button.swift",
+    "line" : 60,
+    "reason" : "Line should be 200 characters or less; currently it has 239 characters",
+    "rule_id" : "line_length",
+    "severity" : "Warning",
+    "type" : "Line Length"
+  }
+]

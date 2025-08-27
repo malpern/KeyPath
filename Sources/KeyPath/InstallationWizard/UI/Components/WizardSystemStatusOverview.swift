@@ -18,7 +18,9 @@ struct WizardSystemStatusOverview: View {
                     subtitle: item.subtitle,
                     status: item.status,
                     isNavigable: item.isNavigable,
-                    action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil
+                    action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil,
+                    isFinalStatus: isFinalKeyPathStatus(item: item),
+                    showInitialClock: shouldShowInitialClock(for: item)
                 )
 
                 // Show expanded details for failed items
@@ -46,6 +48,19 @@ struct WizardSystemStatusOverview: View {
         }
     }
 
+    // MARK: - Animation Helpers
+
+    private func isFinalKeyPathStatus(item: StatusItemModel) -> Bool {
+        // The Communication Server is the final status that should get pulse animation when completed
+        item.id == "communication-server" && item.status == .completed
+    }
+
+    private func shouldShowInitialClock(for item: StatusItemModel) -> Bool {
+        // Show initial clock for all items except those that are truly not started
+        // This creates the "all items start checking simultaneously" effect
+        item.status == .completed || item.status == .failed
+    }
+
     // MARK: - Status Items Creation
 
     private var statusItems: [StatusItemModel] {
@@ -62,7 +77,7 @@ struct WizardSystemStatusOverview: View {
         items.append(
             StatusItemModel(
                 id: "full-disk-access",
-                icon: "folder.badge.gearshape",
+                icon: "folder",
                 title: "Full Disk Access (Optional)",
                 status: fullDiskAccessStatus,
                 isNavigable: true,
@@ -135,28 +150,31 @@ struct WizardSystemStatusOverview: View {
                 targetPage: .kanataComponents
             ))
 
-        // 7. TCP Server Status
-        let tcpServerStatus = getTCPServerStatus()
-        items.append(
-            StatusItemModel(
-                id: "tcp-server",
-                icon: "network",
-                title: "TCP Server",
-                subtitle: tcpServerStatus == .completed ? "Port \(PreferencesService.shared.tcpServerPort) responding" : "Not available",
-                status: tcpServerStatus,
-                isNavigable: true,
-                targetPage: .tcpServer // Navigate to dedicated TCP server page
-            ))
-
-        // 8. Start Keyboard Service
+        // 7. Start Keyboard Service
+        let serviceStatus = getServiceStatus()
+        let serviceNavigation = getServiceNavigationTarget()
         items.append(
             StatusItemModel(
                 id: "service",
-                icon: "play.fill",
+                icon: "gearshape.2",
                 title: "Start Keyboard Service",
-                status: getServiceStatus(),
+                subtitle: serviceStatus == .failed ? "Fix permissions to enable service" : nil,
+                status: serviceStatus,
                 isNavigable: true,
-                targetPage: .service
+                targetPage: serviceNavigation.page
+            ))
+
+        // 8. Communication Server (shown at end, requires Kanata to be running)
+        let commServerStatus = getCommunicationServerStatus()
+        items.append(
+            StatusItemModel(
+                id: "communication-server",
+                icon: "network",
+                title: "Communication Server",
+                subtitle: commServerStatus == .notStarted && !kanataIsRunning ? "Kanata isn't running" : nil,
+                status: commServerStatus,
+                isNavigable: true,
+                targetPage: .communication
             ))
 
         return items
@@ -189,6 +207,7 @@ struct WizardSystemStatusOverview: View {
         if systemState == .initializing {
             return .notStarted
         }
+
         let hasInputMonitoringIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
@@ -203,6 +222,7 @@ struct WizardSystemStatusOverview: View {
         if systemState == .initializing {
             return .notStarted
         }
+
         let hasAccessibilityIssues = issues.contains { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
@@ -217,6 +237,7 @@ struct WizardSystemStatusOverview: View {
         if systemState == .initializing {
             return .notStarted
         }
+
         // Check for Karabiner-related issues
         let hasKarabinerIssues = issues.contains { issue in
             // Installation issues related to Karabiner
@@ -247,11 +268,13 @@ struct WizardSystemStatusOverview: View {
         if systemState == .initializing {
             return .notStarted
         }
+
         // Check for Kanata-related issues
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {
                 case .component(.kanataBinary),
+                     .component(.kanataBinaryUnsigned),
                      .component(.kanataService),
                      .component(.packageManager),
                      .component(.orphanedKanataProcess):
@@ -266,50 +289,75 @@ struct WizardSystemStatusOverview: View {
         return hasKanataIssues ? .failed : .completed
     }
 
-    private func getTCPServerStatus() -> InstallationStatus {
-        // If system is still initializing, don't show completed status
+    private func getCommunicationServerStatus() -> InstallationStatus {
+        // If system is still initializing, don't show status
         if systemState == .initializing {
             return .notStarted
         }
-        // Check for TCP server issues
-        let hasTCPServerIssues = issues.contains { issue in
-            if case .component(.kanataTCPServer) = issue.identifier {
-                return true
+
+        // NEW BEHAVIOR: If Kanata isn't running, show as not started (empty circle)
+        guard kanataIsRunning else {
+            return .notStarted
+        }
+
+        // Check for communication server issues (including configuration and response issues)
+        let hasCommServerIssues = issues.contains { issue in
+            if case let .component(component) = issue.identifier {
+                switch component {
+                case .kanataUDPServer,
+                     .communicationServerConfiguration, .communicationServerNotResponding,
+                     .udpServerConfiguration, .udpServerNotResponding:
+                    return true
+                default:
+                    return false
+                }
             }
             return false
         }
 
-        // If Kanata is running and there are no TCP issues, consider TCP as working
-        // This provides an optimistic view since TCP server is optional
-        if kanataIsRunning, !hasTCPServerIssues {
+        // If Kanata is running and there are no communication issues, consider it as working
+        if !hasCommServerIssues {
             return .completed
         }
 
-        // If not running or has TCP issues
-        return hasTCPServerIssues ? .failed : .notStarted
+        // If Kanata is running but has TCP issues
+        return .failed
     }
 
     private func getServiceStatus() -> InstallationStatus {
-        // If system is still initializing, don't show completed status
-        if systemState == .initializing {
-            return .notStarted
-        }
-        // Use the authoritative signal - if Kanata process is running, show as completed
-        // This ensures consistency with the detail page regardless of health status
-        if kanataIsRunning {
-            return .completed
+        // Use the shared service status evaluator (same logic as detail page)
+        let processStatus = ServiceStatusEvaluator.evaluate(
+            kanataIsRunning: kanataIsRunning,
+            systemState: systemState,
+            issues: issues
+        )
+        return ServiceStatusEvaluator.toInstallationStatus(processStatus, systemState: systemState)
+    }
+
+    private func getServiceNavigationTarget() -> (page: WizardPage, reason: String) {
+        // When service fails, navigate to the most critical missing permission
+        let hasInputMonitoringIssues = issues.contains { issue in
+            if case let .permission(permission) = issue.identifier {
+                return permission == .kanataInputMonitoring
+            }
+            return false
         }
 
-        // Fallback to system state when not running
-        switch systemState {
-        case .active:
-            return .completed // Redundant but safe
-        case .initializing:
-            return .inProgress
-        case .serviceNotRunning, .ready:
-            return .notStarted
-        default:
-            return .notStarted
+        let hasAccessibilityIssues = issues.contains { issue in
+            if case let .permission(permission) = issue.identifier {
+                return permission == .kanataAccessibility
+            }
+            return false
+        }
+
+        // Navigate to the first blocking permission page
+        if hasInputMonitoringIssues {
+            return (.inputMonitoring, "Input Monitoring permission required")
+        } else if hasAccessibilityIssues {
+            return (.accessibility, "Accessibility permission required")
+        } else {
+            // Default to service page if no specific permission issue
+            return (.service, "Check service status")
         }
     }
 }

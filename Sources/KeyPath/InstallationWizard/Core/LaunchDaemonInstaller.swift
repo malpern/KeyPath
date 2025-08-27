@@ -15,6 +15,10 @@ class LaunchDaemonInstaller {
     static let kanataServiceID = "com.keypath.kanata"
     private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
     private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
+    private static let logRotationServiceID = "com.keypath.logrotate"
+
+    /// Path to the log rotation script
+    private static let logRotationScriptPath = "/usr/local/bin/keypath-logrotate.sh"
 
     /// Path to the Kanata service plist file
     static var kanataPlistPath: String {
@@ -484,17 +488,26 @@ class LaunchDaemonInstaller {
             <key>RunAtLoad</key>
             <true/>
             <key>KeepAlive</key>
-            <true/>
+            <false/>
             <key>StandardOutPath</key>
             <string>/var/log/kanata.log</string>
             <key>StandardErrorPath</key>
             <string>/var/log/kanata.log</string>
+            <key>SoftResourceLimits</key>
+            <dict>
+                <key>NumberOfFiles</key>
+                <integer>256</integer>
+            </dict>
             <key>UserName</key>
             <string>root</string>
             <key>GroupName</key>
             <string>wheel</string>
             <key>ThrottleInterval</key>
             <integer>10</integer>
+            <key>AssociatedBundleIdentifiers</key>
+            <array>
+                <string>com.keypath.KeyPath</string>
+            </array>
         </dict>
         </plist>
         """
@@ -931,7 +944,7 @@ class LaunchDaemonInstaller {
             // Use osascript to execute the script with admin privileges
             // Custom prompt to clearly identify KeyPath (not osascript)
             let osascriptCode = """
-            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management. This will enable the TCP server on port \(PreferencesService.tcpSnapshot().port)."
+            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management. This will enable the UDP server on port \(PreferencesService.communicationSnapshot().udpPort)."
             """
 
             let task = Process()
@@ -1649,20 +1662,146 @@ class LaunchDaemonInstaller {
         return ok
     }
 
+    // MARK: - TCP Configuration Detection
+
+    /// Gets the current program arguments from the Kanata LaunchDaemon plist
+    func getKanataProgramArguments() -> [String]? {
+        guard let plistDict = NSDictionary(contentsOfFile: Self.kanataPlistPath) as? [String: Any] else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot read Kanata plist at \(Self.kanataPlistPath)")
+            return nil
+        }
+
+        guard let arguments = plistDict["ProgramArguments"] as? [String] else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] No ProgramArguments found in Kanata plist")
+            return nil
+        }
+
+        AppLogger.shared.log("🔍 [LaunchDaemon] Current plist arguments: \(arguments.joined(separator: " "))")
+        return arguments
+    }
+
+    /// Checks if the current service configuration matches the expected TCP settings
+    func isServiceConfigurationCurrent() -> Bool {
+        guard let currentArgs = getKanataProgramArguments() else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check TCP configuration - plist unreadable")
+            return false
+        }
+
+        let expectedArgs = buildKanataPlistArguments(binaryPath: getKanataBinaryPath())
+
+        // Compare argument arrays for exact match
+        let isMatch = currentArgs == expectedArgs
+
+        AppLogger.shared.log("🔍 [LaunchDaemon] TCP Configuration Check:")
+        AppLogger.shared.log("  Current:  \(currentArgs.joined(separator: " "))")
+        AppLogger.shared.log("  Expected: \(expectedArgs.joined(separator: " "))")
+        AppLogger.shared.log("  Match: \(isMatch)")
+
+        return isMatch
+    }
+
+    /// Regenerates the Kanata service plist with current settings and reloads the service
+    func regenerateServiceWithCurrentSettings() -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Regenerating Kanata service with current TCP settings")
+
+        let kanataBinaryPath = getKanataBinaryPath()
+        let plistContent = generateKanataPlist(binaryPath: kanataBinaryPath)
+        let tempDir = NSTemporaryDirectory()
+        let tempPath = "\(tempDir)\(Self.kanataServiceID).plist"
+
+        do {
+            // Write new plist content to temporary file
+            try plistContent.write(toFile: tempPath, atomically: true, encoding: .utf8)
+
+            // Use bootout/bootstrap for proper service reload
+            let success = reloadService(serviceID: Self.kanataServiceID, plistPath: Self.kanataPlistPath, tempPlistPath: tempPath)
+
+            // Clean up temporary file
+            try? FileManager.default.removeItem(atPath: tempPath)
+
+            return success
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to create temporary plist: \(error)")
+            return false
+        }
+    }
+
+    /// Reloads a service using bootout/bootstrap pattern for plist changes
+    func reloadService(serviceID: String, plistPath: String, tempPlistPath: String) -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Reloading service \(serviceID) with bootout/bootstrap pattern")
+
+        if Self.isTestMode {
+            AppLogger.shared.log("🔧 [LaunchDaemon] Test mode - simulating service reload")
+            do {
+                try FileManager.default.copyItem(atPath: tempPlistPath, toPath: plistPath)
+                return true
+            } catch {
+                AppLogger.shared.log("❌ [LaunchDaemon] Test mode plist copy failed: \(error)")
+                return false
+            }
+        }
+
+        // Create compound command: bootout, install new plist, bootstrap
+        let command = """
+        launchctl bootout system/\(serviceID) 2>/dev/null || echo "Service not loaded" && \
+        cp '\(tempPlistPath)' '\(plistPath)' && \
+        chown root:wheel '\(plistPath)' && \
+        chmod 644 '\(plistPath)' && \
+        launchctl bootstrap system '\(plistPath)' && \
+        launchctl kickstart system/\(serviceID)
+        """
+
+        // Use osascript for admin privileges
+        let escapedCommand = escapeForAppleScript(command)
+        let osascriptCommand = """
+        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to update the TCP server configuration for the keyboard service."
+        """
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", osascriptCommand]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [LaunchDaemon] Successfully reloaded service \(serviceID)")
+                AppLogger.shared.log("🔧 [LaunchDaemon] Reload output: \(output)")
+                // Mark restart time for warm-up detection
+                markRestartTime(for: [serviceID])
+                return true
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] Failed to reload service \(serviceID): \(output)")
+                return false
+            }
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error executing service reload: \(error)")
+            return false
+        }
+    }
+
     // MARK: - Argument Building
 
-    /// Builds Kanata command line arguments for LaunchDaemon plist including TCP port when enabled
+    /// Builds Kanata command line arguments for LaunchDaemon plist including UDP port when enabled
     private func buildKanataPlistArguments(binaryPath: String) -> [String] {
         var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
 
-        // Add TCP port if enabled and valid
-        let tcpConfig = PreferencesService.tcpSnapshot()
-        if tcpConfig.shouldUseTCPServer {
-            arguments.append("--port")
-            arguments.append(String(tcpConfig.port))
-            AppLogger.shared.log("🌐 [LaunchDaemon] TCP server enabled on port \(tcpConfig.port)")
+        // Add UDP port if enabled and valid
+        let commConfig = PreferencesService.communicationSnapshot()
+        if commConfig.shouldUseUDP {
+            // Add UDP communication arguments
+            arguments.append(contentsOf: commConfig.communicationLaunchArguments)
+            AppLogger.shared.log("📡 [LaunchDaemon] UDP server enabled on port \(commConfig.udpPort)")
         } else {
-            AppLogger.shared.log("🌐 [LaunchDaemon] TCP server disabled")
+            AppLogger.shared.log("📡 [LaunchDaemon] UDP server disabled")
         }
 
         arguments.append("--debug")
@@ -1671,6 +1810,196 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Built plist arguments: \(arguments.joined(separator: " "))")
         return arguments
+    }
+
+    // MARK: - Log Rotation Service
+
+    /// Generate log rotation script that keeps logs under 10MB total
+    private func generateLogRotationScript() -> String {
+        """
+        #!/bin/bash
+        # KeyPath Log Rotation Script - Keep logs under 10MB total
+
+        LOG_DIR="/var/log"
+        MAX_SIZE_BYTES=$((5 * 1024 * 1024))  # 5MB per file (2 files = 10MB max)
+
+        # Function to rotate a log file
+        rotate_log() {
+            local logfile="$1"
+            if [[ -f "$logfile" ]]; then
+                local size=$(stat -f%z "$logfile" 2>/dev/null || echo 0)
+
+                if [[ $size -gt $MAX_SIZE_BYTES ]]; then
+                    echo "$(date): Rotating $logfile (size: $size bytes)"
+
+                    # Remove old backup if exists
+                    [[ -f "$logfile.1" ]] && rm -f "$logfile.1"
+
+                    # Move current to backup
+                    mv "$logfile" "$logfile.1"
+
+                    # Create new empty log file with correct permissions
+                    touch "$logfile"
+                    chmod 644 "$logfile"
+                    chown root:wheel "$logfile" 2>/dev/null || true
+
+                    echo "$(date): Log rotation completed for $logfile"
+                fi
+            fi
+        }
+
+        # Rotate kanata log
+        rotate_log "$LOG_DIR/kanata.log"
+
+        # Clean up any oversized KeyPath logs too
+        for logfile in "$LOG_DIR"/keypath*.log; do
+            [[ -f "$logfile" ]] && rotate_log "$logfile"
+        done
+        """
+    }
+
+    /// Generate plist for log rotation service (runs every hour)
+    private func generateLogRotationPlist() -> String {
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>\(Self.logRotationServiceID)</string>
+            <key>ProgramArguments</key>
+            <array>
+                <string>\(Self.logRotationScriptPath)</string>
+            </array>
+            <key>StartCalendarInterval</key>
+            <dict>
+                <key>Minute</key>
+                <integer>0</integer>
+            </dict>
+            <key>StandardOutPath</key>
+            <string>/var/log/keypath-logrotate.log</string>
+            <key>StandardErrorPath</key>
+            <string>/var/log/keypath-logrotate.log</string>
+            <key>UserName</key>
+            <string>root</string>
+        </dict>
+        </plist>
+        """
+    }
+
+    /// Check if log rotation service is already installed
+    func isLogRotationServiceInstalled() -> Bool {
+        let plistPath = "\(Self.systemLaunchDaemonsDir)/\(Self.logRotationServiceID).plist"
+        let scriptPath = Self.logRotationScriptPath
+
+        let plistExists = FileManager.default.fileExists(atPath: plistPath)
+        let scriptExists = FileManager.default.fileExists(atPath: scriptPath)
+
+        AppLogger.shared.log("📝 [LaunchDaemon] Log rotation check: plist=\(plistExists), script=\(scriptExists)")
+
+        return plistExists && scriptExists
+    }
+
+    /// Install log rotation service to keep logs under 10MB
+    func installLogRotationService() -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Installing log rotation service (keeps logs < 10MB)")
+
+        let script = generateLogRotationScript()
+        let plist = generateLogRotationPlist()
+
+        let tempDir = NSTemporaryDirectory()
+        let scriptTempPath = "\(tempDir)keypath-logrotate.sh"
+        let plistTempPath = "\(tempDir)\(Self.logRotationServiceID).plist"
+
+        do {
+            // Write script and plist to temp files
+            try script.write(toFile: scriptTempPath, atomically: true, encoding: .utf8)
+            try plist.write(toFile: plistTempPath, atomically: true, encoding: .utf8)
+
+            // Install both with admin privileges
+            let scriptFinal = Self.logRotationScriptPath
+            let plistFinal = "\(Self.systemLaunchDaemonsDir)/\(Self.logRotationServiceID).plist"
+
+            let command = """
+            mkdir -p /usr/local/bin && \
+            cp '\(scriptTempPath)' '\(scriptFinal)' && \
+            chmod 755 '\(scriptFinal)' && \
+            chown root:wheel '\(scriptFinal)' && \
+            cp '\(plistTempPath)' '\(plistFinal)' && \
+            chmod 644 '\(plistFinal)' && \
+            chown root:wheel '\(plistFinal)' && \
+            launchctl load '\(plistFinal)'
+            """
+
+            // Use osascript approach like other admin operations
+            let escapedCommand = escapeForAppleScript(command)
+            let osascriptCommand = """
+            do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install log rotation service to keep logs under 10MB."
+            """
+
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            task.arguments = ["-e", osascriptCommand]
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+
+            try task.run()
+            task.waitUntilExit()
+
+            let success = task.terminationStatus == 0
+
+            // Clean up temp files
+            try? FileManager.default.removeItem(atPath: scriptTempPath)
+            try? FileManager.default.removeItem(atPath: plistTempPath)
+
+            if success {
+                AppLogger.shared.log("✅ [LaunchDaemon] Log rotation service installed successfully")
+                // Also rotate the current huge log file immediately
+                rotateCurrentLogs()
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] Failed to install log rotation service")
+            }
+
+            return success
+
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error preparing log rotation files: \(error)")
+            return false
+        }
+    }
+
+    /// Immediately rotate current large log files
+    private func rotateCurrentLogs() {
+        AppLogger.shared.log("🔄 [LaunchDaemon] Immediately rotating current large log files")
+
+        let command = """
+        [[ -f /var/log/kanata.log ]] && \
+        size=$(stat -f%z /var/log/kanata.log 2>/dev/null || echo 0) && \
+        if [[ $size -gt 5242880 ]]; then \
+            echo "Rotating kanata.log ($size bytes)"; \
+            [[ -f /var/log/kanata.log.1 ]] && rm -f /var/log/kanata.log.1; \
+            mv /var/log/kanata.log /var/log/kanata.log.1; \
+            touch /var/log/kanata.log && chmod 644 /var/log/kanata.log; \
+        fi
+        """
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", command]
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [LaunchDaemon] Current log files rotated successfully")
+            } else {
+                AppLogger.shared.log("⚠️ [LaunchDaemon] Log rotation completed with warnings")
+            }
+        } catch {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Error during immediate log rotation: \(error)")
+        }
     }
 }
 

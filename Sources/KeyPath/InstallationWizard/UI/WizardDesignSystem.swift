@@ -32,6 +32,25 @@ enum WizardDesign {
 
         /// Indentation for sub-items
         static let indentation: CGFloat = 16
+
+        /// Icon overlay positioning
+        static let overlayOffsetLarge: (x: CGFloat, y: CGFloat) = (15, -5)
+        static let overlayOffsetSmall: (x: CGFloat, y: CGFloat) = (8, -3)
+
+        /// Text line spacing (between title and subtitle)
+        static let textLineSpacing: CGFloat = 2
+    }
+
+    enum Toast {
+        /// Maximum toast width
+        static let maxWidth: CGFloat = Layout.cardWidth
+
+        /// Toast durations
+        enum Duration {
+            static let info: TimeInterval = 3.0
+            static let error: TimeInterval = 4.0
+            static let launchFailure: TimeInterval = 12.0
+        }
     }
 
     enum Layout {
@@ -67,6 +86,18 @@ enum WizardDesign {
 
         /// Status circle size
         static let statusCircleSize: CGFloat = 60 // Reduced from 80
+
+        /// Hero icon sizes
+        static let heroIconSize: CGFloat = 115
+        static let compactIconSize: CGFloat = 60
+
+        /// Icon overlay sizes
+        static let heroOverlaySize: CGFloat = 40
+        static let compactOverlaySize: CGFloat = 24
+
+        /// Icon container frame widths (to accommodate offsets)
+        static let heroIconFrameWidth: CGFloat = 155
+        static let compactIconFrameWidth: CGFloat = 75
 
         /// Standard corner radius for wizard components
         static let cornerRadius: CGFloat = 8
@@ -155,6 +186,9 @@ enum WizardDesign {
         /// Status change animation
         static let statusChange: Double = 0.4
 
+        /// Icon overlay transition
+        static let overlayTransition: Double = 0.2
+
         /// Standard easing for page transitions
         static let pageEasing: SwiftUI.Animation = .easeInOut(duration: pageTransition)
 
@@ -163,6 +197,32 @@ enum WizardDesign {
 
         /// Smooth status transitions
         static let statusTransition: SwiftUI.Animation = .easeInOut(duration: statusChange)
+
+        /// Icon overlay animations
+        static let overlayChange: SwiftUI.Animation = .easeInOut(duration: overlayTransition)
+
+        /// Hero icon entrance effect
+        static let heroIconEntrance: SwiftUI.Animation = .spring(response: 0.6, dampingFraction: 0.8)
+    }
+
+    // MARK: - Symbol Effects
+
+    // Note: Symbol effects are used directly in components due to Swift type system constraints
+
+    // MARK: - Transitions
+
+    enum Transition {
+        /// Card appearance from top
+        static let cardAppear: AnyTransition = .opacity.combined(with: .move(edge: .top))
+
+        /// Overlay icon changes
+        static let overlayChange: AnyTransition = .opacity.combined(with: .scale(scale: 0.8))
+
+        /// Technical details expansion
+        static let detailsExpand: AnyTransition = .asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .opacity
+        )
     }
 
     // MARK: - Component Styles
@@ -176,6 +236,20 @@ enum WizardDesign {
                     .background(WizardDesign.Colors.cardBackground)
                     .cornerRadius(12)
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+            }
+        }
+
+        /// Toast card style for overlay notifications
+        struct ToastCard: ViewModifier {
+            func body(content: Content) -> some View {
+                content
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
+                            .stroke(WizardDesign.Colors.border.opacity(0.3), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                    .frame(maxWidth: WizardDesign.Toast.maxWidth)
             }
         }
 
@@ -293,6 +367,241 @@ enum WizardDesign {
                 .disabled(isLoading)
             }
         }
+
+        // MARK: - Hero Layout Components
+
+        /// Ultra-compact content card for additional information
+        struct CompactContentCard: View {
+            let content: String
+            let alignment: TextAlignment
+
+            init(content: String, alignment: TextAlignment = .leading) {
+                self.content = content
+                self.alignment = alignment
+            }
+
+            var body: some View {
+                VStack(alignment: alignment == .center ? .center : .leading, spacing: WizardDesign.Spacing.itemGap) {
+                    Text(content)
+                        .font(WizardDesign.Typography.body)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(alignment)
+                        .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
+
+                    // Minimal spacer (6pt)
+                    Spacer(minLength: 6)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(WizardDesign.Spacing.cardPadding)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+            }
+        }
+
+        /// Hero section layout component that eliminates duplication across wizard pages
+        struct HeroSection: View {
+            let icon: String
+            let title: String
+            let subtitle: String
+            let status: HeroStatus
+            let actionLinks: [ActionLink]?
+            let contentCard: (() -> AnyView)?
+
+            enum HeroStatus {
+                case success(Color = WizardDesign.Colors.success)
+                case warning(Color = WizardDesign.Colors.warning)
+                case error(Color = WizardDesign.Colors.error)
+                case info(Color = WizardDesign.Colors.info)
+
+                var color: Color {
+                    switch self {
+                    case let .success(color): color
+                    case let .warning(color): color
+                    case let .error(color): color
+                    case let .info(color): color
+                    }
+                }
+
+                var overlayIcon: String {
+                    switch self {
+                    case .success: "checkmark.circle.fill"
+                    case .warning: "exclamationmark.triangle.fill"
+                    case .error: "xmark.circle.fill"
+                    case .info: "info.circle.fill"
+                    }
+                }
+            }
+
+            struct ActionLink {
+                let title: String
+                let action: () -> Void
+            }
+
+            init(
+                icon: String,
+                title: String,
+                subtitle: String,
+                status: HeroStatus,
+                actionLinks: [ActionLink]? = nil,
+                contentCard: (() -> AnyView)? = nil
+            ) {
+                self.icon = icon
+                self.title = title
+                self.subtitle = subtitle
+                self.status = status
+                self.actionLinks = actionLinks
+                self.contentCard = contentCard
+            }
+
+            var body: some View {
+                VStack(spacing: 0) {
+                    Spacer()
+
+                    // Centered hero block with padding
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        // Standardized icon with overlay
+                        IconWithOverlay(
+                            mainIcon: icon,
+                            overlayIcon: status.overlayIcon,
+                            mainColor: status.color,
+                            overlayColor: status.color,
+                            size: .hero,
+                            transparentOverlay: true
+                        )
+
+                        // Standardized title (23pt)
+                        Text(title)
+                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+
+                        // Standardized subtitle (17pt)
+                        Text(subtitle)
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+
+                        // Action links below the subheader (if provided)
+                        if let actionLinks, !actionLinks.isEmpty {
+                            HStack(spacing: WizardDesign.Spacing.itemGap) {
+                                ForEach(Array(actionLinks.enumerated()), id: \.offset) { index, link in
+                                    if index > 0 {
+                                        Text("•")
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    Button(link.title) {
+                                        link.action()
+                                    }
+                                    .buttonStyle(.link)
+                                }
+                            }
+                            .padding(.top, WizardDesign.Spacing.elementGap)
+                        }
+
+                        // Optional content card
+                        if let contentCard {
+                            contentCard()
+                                .padding(.top, WizardDesign.Spacing.sectionGap)
+                        }
+                    }
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+
+        /// Standardized icon with overlay for consistent positioning across wizard pages
+        struct IconWithOverlay: View {
+            let mainIcon: String
+            let overlayIcon: String
+            let mainColor: Color
+            let overlayColor: Color
+            let size: IconSize
+            let transparentOverlay: Bool
+
+            enum IconSize {
+                case hero, compact
+
+                var mainSize: CGFloat {
+                    switch self {
+                    case .hero: WizardDesign.Layout.heroIconSize
+                    case .compact: WizardDesign.Layout.compactIconSize
+                    }
+                }
+
+                var overlaySize: CGFloat {
+                    switch self {
+                    case .hero: WizardDesign.Layout.heroOverlaySize
+                    case .compact: WizardDesign.Layout.compactOverlaySize
+                    }
+                }
+
+                var frameWidth: CGFloat {
+                    switch self {
+                    case .hero: WizardDesign.Layout.heroIconFrameWidth
+                    case .compact: WizardDesign.Layout.compactIconFrameWidth
+                    }
+                }
+
+                var offset: (x: CGFloat, y: CGFloat) {
+                    switch self {
+                    case .hero: WizardDesign.Spacing.overlayOffsetLarge
+                    case .compact: WizardDesign.Spacing.overlayOffsetSmall
+                    }
+                }
+            }
+
+            init(
+                mainIcon: String,
+                overlayIcon: String,
+                mainColor: Color,
+                overlayColor: Color,
+                size: IconSize,
+                transparentOverlay: Bool = true
+            ) {
+                self.mainIcon = mainIcon
+                self.overlayIcon = overlayIcon
+                self.mainColor = mainColor
+                self.overlayColor = overlayColor
+                self.size = size
+                self.transparentOverlay = transparentOverlay
+            }
+
+            var body: some View {
+                ZStack {
+                    // Main icon
+                    Image(systemName: mainIcon)
+                        .font(.system(size: size.mainSize, weight: .light))
+                        .foregroundColor(mainColor)
+                        .symbolRenderingMode(.hierarchical)
+                        .symbolEffect(.bounce, options: .nonRepeating)
+
+                    // Overlay icon in top right
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: overlayIcon)
+                                .font(.system(size: size.overlaySize, weight: .medium))
+                                .foregroundColor(overlayColor)
+                                .background(
+                                    transparentOverlay
+                                        ? Color.clear
+                                        : WizardDesign.Colors.wizardBackground
+                                )
+                                .clipShape(Circle())
+                                .offset(x: size.offset.x, y: size.offset.y)
+                                .transition(WizardDesign.Transition.overlayChange)
+                        }
+                        Spacer()
+                    }
+                    .frame(width: size.frameWidth, height: size.mainSize)
+                }
+            }
+        }
     }
 }
 
@@ -318,6 +627,11 @@ extension View {
     /// Apply standard wizard content spacing
     func wizardContentSpacing() -> some View {
         frame(maxWidth: WizardDesign.Layout.maxContentWidth)
+    }
+
+    /// Apply toast card styling
+    func wizardToastCard() -> some View {
+        modifier(WizardDesign.Component.ToastCard())
     }
 }
 
@@ -380,7 +694,7 @@ struct WizardButton: View {
     }
 }
 
-/// Reusable wizard status item component
+/// Reusable wizard status item component with animated status transitions
 struct WizardStatusItem: View {
     let icon: String
     let title: String
@@ -388,11 +702,15 @@ struct WizardStatusItem: View {
     let status: InstallationStatus
     let isNavigable: Bool
     let action: (() -> Void)?
+    let isFinalStatus: Bool
+    let showInitialClock: Bool
 
     init(
         icon: String, title: String, subtitle: String? = nil, status: InstallationStatus,
         isNavigable: Bool = false,
-        action: (() -> Void)? = nil
+        action: (() -> Void)? = nil,
+        isFinalStatus: Bool = false,
+        showInitialClock: Bool = false
     ) {
         self.icon = icon
         self.title = title
@@ -400,17 +718,13 @@ struct WizardStatusItem: View {
         self.status = status
         self.isNavigable = isNavigable
         self.action = action
+        self.isFinalStatus = isFinalStatus
+        self.showInitialClock = showInitialClock
     }
 
     var body: some View {
         HStack(spacing: WizardDesign.Spacing.iconGap) {
-            // Status icon
-            Image(systemName: statusIcon)
-                .foregroundColor(statusColor)
-                .font(.system(size: WizardDesign.Layout.iconSizeSmall))
-                .frame(width: 20)
-
-            // Main icon
+            // Main icon only (no status icon on left)
             Image(systemName: icon)
                 .foregroundColor(.secondary)
                 .font(.system(size: 16))
@@ -431,15 +745,21 @@ struct WizardStatusItem: View {
 
             Spacer()
 
-            // Status text
-            Text(statusText)
-                .wizardStatusIndicator(status)
+            // All status indicators on the right
+            HStack(spacing: 8) {
+                // Enhanced animated status indicator
+                AnimatedStatusIcon(
+                    status: status,
+                    isFinalStatus: isFinalStatus,
+                    showInitialClock: showInitialClock
+                )
 
-            // Navigation indicator
-            if isNavigable {
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
+                // Navigation indicator
+                if isNavigable {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
             }
         }
         .padding(.vertical, WizardDesign.Spacing.labelGap)
@@ -454,30 +774,104 @@ struct WizardStatusItem: View {
         .accessibilityHint(isNavigable ? "Tap to navigate to \(title) page" : "")
     }
 
-    private var statusIcon: String {
-        switch status {
-        case .notStarted: "circle"
-        case .inProgress: "clock"
-        case .completed: "checkmark.circle.fill"
-        case .failed: "xmark.circle.fill"
-        }
-    }
-
-    private var statusColor: Color {
-        switch status {
-        case .notStarted: WizardDesign.Colors.secondaryText
-        case .inProgress: WizardDesign.Colors.inProgress
-        case .completed: WizardDesign.Colors.success
-        case .failed: WizardDesign.Colors.error
-        }
-    }
-
     private var statusText: String {
         switch status {
         case .notStarted: "Not Started"
         case .inProgress: "In Progress"
         case .completed: "Completed"
         case .failed: "Failed"
+        }
+    }
+}
+
+/// Animated status icon that shows clock -> colored final state transitions
+struct AnimatedStatusIcon: View {
+    let status: InstallationStatus
+    let isFinalStatus: Bool
+    let showInitialClock: Bool
+
+    @State private var hasAnimated = false
+
+    init(status: InstallationStatus, isFinalStatus: Bool = false, showInitialClock: Bool = false) {
+        self.status = status
+        self.isFinalStatus = isFinalStatus
+        self.showInitialClock = showInitialClock
+    }
+
+    var body: some View {
+        Group {
+            if showInitialClock, status == .completed || status == .failed {
+                // Clock-to-final-state animation for completed/failed items
+                if hasAnimated {
+                    // Final state
+                    Image(systemName: finalStateIcon)
+                        .foregroundColor(finalStateColor)
+                        .font(.system(size: 16))
+                        .symbolEffect(.bounce, options: .nonRepeating)
+                        .symbolEffect(.bounce, options: isFinalStatus ? .repeating : .nonRepeating)
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.8)),
+                            removal: .opacity
+                        ))
+                } else {
+                    // Initial clock state
+                    Image(systemName: "clock.fill")
+                        .foregroundColor(WizardDesign.Colors.inProgress)
+                        .font(.system(size: 16))
+                        .onAppear {
+                            // Animate to final state immediately (no delay)
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                                hasAnimated = true
+                            }
+                        }
+                }
+            } else {
+                // Standard behavior for other states
+                switch status {
+                case .notStarted:
+                    // Empty circle
+                    Image(systemName: "circle")
+                        .foregroundColor(WizardDesign.Colors.secondaryText)
+                        .font(.system(size: 16))
+
+                case .inProgress:
+                    // Animated clock
+                    Image(systemName: "clock.fill")
+                        .foregroundColor(WizardDesign.Colors.inProgress)
+                        .font(.system(size: 16))
+
+                case .completed:
+                    // Direct green checkmark
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(WizardDesign.Colors.success)
+                        .font(.system(size: 16))
+                        .symbolEffect(.bounce, options: .nonRepeating)
+                        .symbolEffect(.bounce, options: isFinalStatus ? .repeating : .nonRepeating)
+
+                case .failed:
+                    // Direct red X
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(WizardDesign.Colors.error)
+                        .font(.system(size: 16))
+                        .symbolEffect(.bounce, options: .nonRepeating)
+                }
+            }
+        }
+    }
+
+    private var finalStateIcon: String {
+        switch status {
+        case .completed: "checkmark.circle.fill"
+        case .failed: "xmark.circle.fill"
+        default: "circle"
+        }
+    }
+
+    private var finalStateColor: Color {
+        switch status {
+        case .completed: WizardDesign.Colors.success
+        case .failed: WizardDesign.Colors.error
+        default: WizardDesign.Colors.secondaryText
         }
     }
 }

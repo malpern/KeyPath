@@ -9,86 +9,273 @@ struct WizardAccessibilityPage: View {
     let onDismiss: (() -> Void)?
     let kanataManager: KanataManager
 
+    @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+
+    // State interpreter for consistent status computation
+    private let stateInterpreter = WizardStateInterpreter()
+
     var body: some View {
-        VStack(spacing: WizardDesign.Spacing.sectionGap) {
-            // Header
-            WizardPageHeader(
-                icon: !hasAccessibilityIssues ? "checkmark.circle.fill" : "accessibility",
-                title: !hasAccessibilityIssues ? "Accessibility Granted" : "Accessibility Required",
-                subtitle: !hasAccessibilityIssues
-                    ? "KeyPath has the necessary Accessibility permission."
-                    : "KeyPath needs Accessibility permission to monitor keyboard events and provide emergency stop functionality.",
-                status: !hasAccessibilityIssues ? .success : .warning
-            )
+        VStack(spacing: 0) {
+            // Use experimental hero design when permissions are granted
+            if !hasAccessibilityIssues {
+                VStack(spacing: 0) {
+                    Spacer()
 
-            VStack(spacing: WizardDesign.Spacing.elementGap) {
-                // KeyPath Accessibility Permission
-                PermissionCard(
-                    appName: "KeyPath",
-                    appPath: "/Applications/KeyPath.app",
-                    status: keyPathAccessibilityStatus,
-                    permissionType: "Accessibility",
-                    kanataManager: kanataManager
-                )
+                    // Centered hero block with padding
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        // Green accessibility icon with green check overlay
+                        ZStack {
+                            Image(systemName: "accessibility")
+                                .font(.system(size: 115, weight: .light))
+                                .foregroundColor(WizardDesign.Colors.success)
+                                .symbolRenderingMode(.hierarchical)
+                                .symbolEffect(.bounce, options: .nonRepeating)
 
-                // Kanata Accessibility Permission
-                PermissionCard(
-                    appName: "kanata",
-                    appPath: "/usr/local/bin/kanata",
-                    status: kanataAccessibilityStatus,
-                    permissionType: "Accessibility",
-                    kanataManager: kanataManager
-                )
+                            // Green check overlay positioned at right edge
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 40, weight: .medium))
+                                        .foregroundColor(WizardDesign.Colors.success)
+                                        .background(WizardDesign.Colors.wizardBackground)
+                                        .clipShape(Circle())
+                                        .offset(x: 15, y: -5) // Move further right and slightly up
+                                }
+                                Spacer()
+                            }
+                            .frame(width: 140, height: 115)
+                        }
+
+                        // Headline
+                        Text("Accessibility")
+                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+
+                        // Subtitle
+                        Text("KeyPath has system-level access for keyboard monitoring & safety controls")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(1)
+
+                        // Component details card below the subheading - horizontally centered
+                        HStack {
+                            Spacer()
+                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("KeyPath.app")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Emergency stop detection and system monitoring")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("kanata")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Keyboard monitoring and remapping engine")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                    }
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Use hero design for error state too, with blue links below
+                VStack(spacing: 0) {
+                    Spacer()
+
+                    // Centered hero block with padding
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        // Orange accessibility icon with warning overlay
+                        ZStack {
+                            Image(systemName: "accessibility")
+                                .font(.system(size: 115, weight: .light))
+                                .foregroundColor(WizardDesign.Colors.warning)
+                                .symbolRenderingMode(.hierarchical)
+                                .symbolEffect(.bounce, options: .nonRepeating)
+
+                            // Warning overlay positioned at right edge
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 40, weight: .medium))
+                                        .foregroundColor(WizardDesign.Colors.warning)
+                                        .offset(x: 15, y: -5) // Move further right and slightly up
+                                }
+                                Spacer()
+                            }
+                            .frame(width: 155, height: 115)
+                        }
+
+                        // Headline
+                        Text("Accessibility")
+                            .font(.system(size: 23, weight: .semibold, design: .default))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+
+                        // Subtitle
+                        Text("KeyPath needs Accessibility permission for keyboard monitoring & safety controls")
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(1)
+
+                        // Action links below the subheader
+                        HStack(spacing: WizardDesign.Spacing.itemGap) {
+                            Button("Check Again") {
+                                Task {
+                                    await onRefresh()
+                                }
+                            }
+                            .buttonStyle(.link)
+
+                            Text("•")
+                                .foregroundColor(.secondary)
+
+                            Button("Open Settings Manually") {
+                                openAccessibilitySettings()
+                            }
+                            .buttonStyle(.link)
+                        }
+                        .padding(.top, WizardDesign.Spacing.elementGap)
+
+                        // Component details for error state
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                            HStack(spacing: 12) {
+                                Image(systemName: keyPathAccessibilityStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(keyPathAccessibilityStatus == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("KeyPath.app")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Emergency stop detection")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
+                                }
+                                Spacer()
+                                if keyPathAccessibilityStatus != .completed {
+                                    Button("Fix") {
+                                        // Set service bounce flag before showing permission grant
+                                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Accessibility permission fix for KeyPath.app")
+                                        openAccessibilityPermissionGrant()
+                                    }
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
+                                }
+                            }
+
+                            HStack(spacing: 12) {
+                                Image(systemName: kanataAccessibilityStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(kanataAccessibilityStatus == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("kanata")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Keyboard monitoring engine")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
+                                }
+                                Spacer()
+                                if kanataAccessibilityStatus != .completed {
+                                    Button("Fix") {
+                                        AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix button clicked for kanata")
+                                        // Set service bounce flag before showing permission grant
+                                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Accessibility permission fix for kanata binary")
+                                        openAccessibilityPermissionGrant()
+                                    }
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                    }
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
+            Spacer()
+
+            // Bottom buttons - primary action changes based on state
+            HStack {
+                Spacer()
 
                 if hasAccessibilityIssues {
-                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                        Text("Why This Permission Is Needed")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label(
-                                "Emergency stop sequence detection (Cmd+Opt+Ctrl+Shift+K)",
-                                systemImage: "exclamationmark.triangle"
-                            )
-                            Label("Monitor system keyboard events", systemImage: "keyboard")
-                            Label("Provide safe fallback when Kanata encounters issues", systemImage: "shield")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                        Text("Grant this permission in System Settings > Privacy & Security > Accessibility")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                            .padding(.top, 4)
+                    // When permissions needed, Grant Permission is primary
+                    Button("Grant Permission") {
+                        // Set service bounce flag before showing permission grant
+                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Accessibility permission grant via primary button")
+                        openAccessibilityPermissionGrant()
                     }
-                    .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(WizardDesign.Layout.cornerRadius)
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+
+                    Button("Continue Anyway") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page despite issues")
+                        navigateToNextPage()
+                    }
+                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                } else {
+                    // When permissions granted, Continue is primary
+                    Button("Continue") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page")
+                        navigateToNextPage()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
                 }
 
                 Spacer()
-
-                // Action Buttons
-                HStack(spacing: 12) {
-                    // Manual Refresh Button (no auto-refresh to prevent invasive checks)
-                    Button("Check Again") {
-                        Task {
-                            await onRefresh()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-
-                    Spacer()
-
-                    // Open Accessibility Settings Button
-                    Button("Grant Permission") {
-                        openAccessibilitySettings()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WizardDesign.Colors.wizardBackground)
+    }
+
+    // MARK: - Helper Methods
+
+    private func navigateToNextPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex < allPages.count - 1
+        else { return }
+        let nextPage = allPages[currentIndex + 1]
+        navigationCoordinator.navigateToPage(nextPage)
+        AppLogger.shared.log("➡️ [Accessibility] Navigated to next page: \(nextPage.displayName)")
     }
 
     // MARK: - Computed Properties
@@ -98,58 +285,48 @@ struct WizardAccessibilityPage: View {
     }
 
     private var keyPathAccessibilityStatus: InstallationStatus {
-        let hasKeyPathIssue = issues.contains { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathAccessibility
-            }
-            return false
-        }
-        return hasKeyPathIssue ? .notStarted : .completed
+        stateInterpreter.getPermissionStatus(.keyPathAccessibility, in: issues)
     }
 
     private var kanataAccessibilityStatus: InstallationStatus {
-        let hasKanataIssue = issues.contains { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .kanataAccessibility
-            }
-            return false
-        }
-        return hasKanataIssue ? .notStarted : .completed
+        let status = stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues)
+        AppLogger.shared.log("🔍 [WizardAccessibilityPage] kanataAccessibilityStatus: \(status)")
+        return status
     }
 
     // MARK: - Actions
 
+    private func openAccessibilityPermissionGrant() {
+        AppLogger.shared.log("🔐 [WizardAccessibilityPage] Starting unified permission grant flow for Accessibility")
+
+        let instructions = """
+        KeyPath will now close so you can grant permissions:
+
+        1. Add KeyPath and kanata to Accessibility (use the '+' button)
+        2. Make sure both checkboxes are enabled
+        3. Restart KeyPath when you're done
+
+        KeyPath will automatically restart the keyboard service to pick up your new permissions.
+        """
+
+        PermissionGrantCoordinator.shared.initiatePermissionGrant(
+            for: .accessibility,
+            instructions: instructions,
+            onComplete: {
+                // Close wizard after user confirms the dialog
+                onDismiss?()
+            }
+        )
+    }
+
     private func openAccessibilitySettings() {
         AppLogger.shared.log(
-            "🔐 [WizardAccessibilityPage] Opening Accessibility settings and dismissing wizard")
+            "🔐 [WizardAccessibilityPage] Opening Accessibility settings manually")
 
-        // Open System Settings > Privacy & Security > Accessibility
+        // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
             string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
-        }
-
-        // Simulate pressing Escape to close the wizard after a brief delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            let escapeKeyEvent = NSEvent.keyEvent(
-                with: .keyDown,
-                location: NSPoint.zero,
-                modifierFlags: [],
-                timestamp: 0,
-                windowNumber: 0,
-                context: nil,
-                characters: "\u{1B}", // Escape character
-                charactersIgnoringModifiers: "\u{1B}",
-                isARepeat: false,
-                keyCode: 53 // Escape key code
-            )
-
-            if let escapeEvent = escapeKeyEvent {
-                NSApp.postEvent(escapeEvent, atStart: false)
-            }
-
-            // Fallback: call dismiss callback if available
-            onDismiss?()
         }
     }
 }
