@@ -773,10 +773,23 @@ class KanataManager: ObservableObject {
             return
         }
 
-        // If Kanata is already running, just restart it efficiently with kickstart -k
+        // If Kanata is already running, check if it's healthy before restarting
         if isRunning {
-            AppLogger.shared.log("🔄 [Start] Kanata is already running - using efficient kickstart restart")
+            AppLogger.shared.log("🔍 [Start] Kanata is already running - checking health before restart")
 
+            // Try to check health via UDP first (no admin privileges required)
+            if let udpClient = await createUDPClient() {
+                let isHealthy = await udpClient.checkServerStatus()
+                if isHealthy {
+                    AppLogger.shared.log("✅ [Start] Kanata is healthy - no restart needed")
+                    return
+                }
+                AppLogger.shared.log("⚠️ [Start] Kanata health check failed - proceeding with restart")
+            } else {
+                AppLogger.shared.log("⚠️ [Start] Could not create UDP client - proceeding with restart")
+            }
+
+            AppLogger.shared.log("🔄 [Start] Performing necessary restart via kickstart")
             isStartingKanata = true
             defer { isStartingKanata = false }
 
@@ -3096,6 +3109,14 @@ class KanataManager: ObservableObject {
             return nil
         }
         return commSnapshot.udpPort
+    }
+
+    /// Create a UDP client for health checking
+    private func createUDPClient() async -> KanataUDPClient? {
+        guard let udpPort = await getUDPPort() else {
+            return nil
+        }
+        return KanataUDPClient(port: udpPort)
     }
 
     private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
