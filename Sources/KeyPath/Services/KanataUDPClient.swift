@@ -13,8 +13,10 @@ actor KanataUDPClient {
     private var sessionId: String?
     private var sessionExpiryDate: Date?
 
-    // Connection reuse
+    // Connection reuse and management
     private var activeConnection: NWConnection?
+    private var connectionCreatedAt: Date?
+    private let connectionMaxAge: TimeInterval = 30.0 // Close idle connections after 30 seconds
 
     // Size limits for UDP reliability
     static let maxUDPPayloadSize = 1200 // Safe MTU size
@@ -26,6 +28,15 @@ actor KanataUDPClient {
         self.host = host
         self.port = port
         self.timeout = timeout
+    }
+
+    deinit {
+        // Clean up connection on deallocation
+        if let conn = activeConnection {
+            conn.stateUpdateHandler = nil
+            conn.cancel()
+        }
+        AppLogger.shared.log("📡 [UDP] Client deallocated, connection cleaned up")
     }
 
     // MARK: - Authentication
@@ -295,8 +306,15 @@ actor KanataUDPClient {
 
     /// Create or reuse UDP connection to avoid race conditions
     private func getOrCreateConnection() -> NWConnection {
-        if let conn = activeConnection {
-            return conn
+        // Check if existing connection is still valid and not too old
+        if let conn = activeConnection, let createdAt = connectionCreatedAt {
+            let connectionAge = Date().timeIntervalSince(createdAt)
+            if connectionAge < connectionMaxAge && !isConnectionFailed(conn.state) && conn.state != .cancelled {
+                return conn
+            } else {
+                AppLogger.shared.log("📡 [UDP] Connection too old (\(String(format: "%.1f", connectionAge))s) or invalid - creating new one")
+                clearBrokenConnection()
+            }
         }
 
         let params = NWParameters.udp
@@ -324,13 +342,29 @@ actor KanataUDPClient {
         }
         conn.start(queue: queue)
         activeConnection = conn
+        connectionCreatedAt = Date()
+        AppLogger.shared.log("📡 [UDP] Created new connection to \(host):\(port)")
         return conn
     }
 
-    /// Clear broken connection
+    /// Check if connection is in failed state
+    private func isConnectionFailed(_ state: NWConnection.State) -> Bool {
+        if case .failed = state {
+            return true
+        }
+        return false
+    }
+
+    /// Clear broken connection and properly clean up handlers
     private func clearBrokenConnection() {
-        activeConnection?.cancel()
+        if let conn = activeConnection {
+            // Reset state handler to prevent leaks
+            conn.stateUpdateHandler = nil
+            conn.cancel()
+            AppLogger.shared.log("📡 [UDP] Canceled connection and cleared handlers")
+        }
         activeConnection = nil
+        connectionCreatedAt = nil
         AppLogger.shared.log("📡 [UDP] Cleared broken connection")
     }
 
@@ -364,23 +398,41 @@ actor KanataUDPClient {
 
             // Install temporary state handler to wait for ready
             let originalHandler = connection.stateUpdateHandler
-            connection.stateUpdateHandler = { state in
+            var timeoutTask: Task<Void, Never>?
+
+            let cleanup = {
+                connection.stateUpdateHandler = originalHandler
+                timeoutTask?.cancel()
+            }
+
+            connection.stateUpdateHandler = { [weak connection] state in
                 originalHandler?(state) // Call original handler first
 
                 if !hasResumed {
                     switch state {
                     case .ready:
                         hasResumed = true
+                        cleanup()
                         continuation.resume()
                     case let .failed(error):
                         hasResumed = true
+                        cleanup()
                         continuation.resume(throwing: error)
                     case .cancelled:
                         hasResumed = true
+                        cleanup()
                         continuation.resume(throwing: UDPError.noResponse)
                     default:
                         break
                     }
+                }
+            }
+
+            // Timeout cleanup
+            timeoutTask = Task.detached {
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                if !hasResumed {
+                    cleanup()
                 }
             }
         }

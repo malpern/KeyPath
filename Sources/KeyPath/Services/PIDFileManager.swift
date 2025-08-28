@@ -145,7 +145,7 @@ enum PIDFileManager {
             try? FileManager.default.createDirectory(
                 atPath: pidDirectory,
                 withIntermediateDirectories: true,
-                attributes: nil
+                attributes: [.posixPermissions: 0o755]
             )
         }
     }

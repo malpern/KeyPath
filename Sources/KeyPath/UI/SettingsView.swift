@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject var kanataManager: KanataManager
     @Environment(\.preferencesService) private var preferences: PreferencesService
     @State private var showingResetConfirmation = false
+    @State private var showingDevResetConfirmation = false
     @State private var showingDiagnostics = false
     @State private var showingInstallationWizard = false
     @State private var showingUDPPortAlert = false
@@ -146,6 +147,26 @@ struct SettingsView: View {
             }
         } message: {
             Text("This will reset your configuration to the default mapping (Caps Lock → Escape). Your current configuration will be lost.")
+        }
+        .alert("Developer Reset", isPresented: $showingDevResetConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) {
+                Task {
+                    await performDevReset()
+                }
+            }
+        } message: {
+            Text("""
+            This will perform a complete developer reset:
+
+            • Stop the Kanata daemon service
+            • Clear all system logs (/var/log/kanata.log)
+            • Wait 2 seconds for cleanup
+            • Restart the service via KanataManager
+            • Refresh system status
+
+            TCC permissions will NOT be affected.
+            """)
         }
     }
 
@@ -430,9 +451,7 @@ struct SettingsView: View {
                     accessibilityId: "reset-dev-button",
                     accessibilityHint: "Stop daemon, clear logs, restart - does not touch TCC permissions",
                     action: {
-                        Task {
-                            await performDevReset()
-                        }
+                        showingDevResetConfirmation = true
                     }
                 )
 
@@ -689,9 +708,7 @@ struct SettingsView: View {
                                  accessibilityId: "reset-dev-button",
                                  accessibilityHint: "Stop daemon, clear logs, restart - does not touch TCC permissions",
                                  action: {
-                                     Task {
-                                         await performDevReset()
-                                     }
+                                     showingDevResetConfirmation = true
                                  }
                              )
 

@@ -201,7 +201,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     public func createInitialConfigIfNeeded() async throws {
         // Create config directory if it doesn't exist
         try FileManager.default.createDirectory(
-            atPath: configDirectory, withIntermediateDirectories: true, attributes: nil
+            atPath: configDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o755]
         )
         AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
 

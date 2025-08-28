@@ -777,16 +777,39 @@ class KanataManager: ObservableObject {
         if isRunning {
             AppLogger.shared.log("🔍 [Start] Kanata is already running - checking health before restart")
 
-            // Try to check health via UDP first (no admin privileges required)
-            if let udpClient = await createUDPClient() {
-                let isHealthy = await udpClient.checkServerStatus()
-                if isHealthy {
-                    AppLogger.shared.log("✅ [Start] Kanata is healthy - no restart needed")
-                    return
-                }
-                AppLogger.shared.log("⚠️ [Start] Kanata health check failed - proceeding with restart")
+            // First check: Verify process is actually running
+            let processStatus = await checkLaunchDaemonStatus()
+            if !processStatus.isRunning {
+                AppLogger.shared.log("🔍 [Start] LaunchDaemon reports service not running - restart needed")
             } else {
-                AppLogger.shared.log("⚠️ [Start] Could not create UDP client - proceeding with restart")
+                AppLogger.shared.log("🔍 [Start] LaunchDaemon confirms service is running (PID: \(processStatus.pid?.description ?? "unknown"))")
+
+                // Second check: Try UDP health check with retries (faster timeout)
+                if let udpClient = await createUDPClient(timeout: 1.0) {
+                    var isHealthy = false
+                    let maxRetries = 3
+
+                    for attempt in 1 ... maxRetries {
+                        AppLogger.shared.log("🔍 [Start] UDP health check attempt \(attempt)/\(maxRetries)")
+                        isHealthy = await udpClient.checkServerStatus()
+                        if isHealthy {
+                            break
+                        }
+                        // Brief pause between retries
+                        if attempt < maxRetries {
+                            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                        }
+                    }
+
+                    if isHealthy {
+                        AppLogger.shared.log("✅ [Start] Kanata is healthy - no restart needed")
+                        return
+                    } else {
+                        AppLogger.shared.log("⚠️ [Start] UDP health check failed after \(maxRetries) attempts")
+                    }
+                } else {
+                    AppLogger.shared.log("⚠️ [Start] Could not create UDP client - service may need restart")
+                }
             }
 
             AppLogger.shared.log("🔄 [Start] Performing necessary restart via kickstart")
@@ -993,27 +1016,64 @@ class KanataManager: ObservableObject {
 
     // MARK: - UI-Focused Lifecycle Methods (from SimpleKanataManager)
 
+    /// Check if this is a fresh install (no Kanata binary or config)
+    private func isFirstTimeInstall() -> Bool {
+        // Check for bundled Kanata binary
+        let bundledKanataPaths = [
+            Bundle.main.path(forResource: "kanata", ofType: nil, inDirectory: "Contents/Library/KeyPath"),
+            Bundle.main.bundlePath + "/Contents/Library/KeyPath/kanata"
+        ]
+
+        let hasBundledKanata = bundledKanataPaths.compactMap { $0 }.contains { path in
+            FileManager.default.fileExists(atPath: path)
+        }
+
+        if !hasBundledKanata {
+            AppLogger.shared.log("🆕 [FreshInstall] No bundled Kanata binary found - fresh install detected")
+            return true
+        }
+
+        // Check for user config file
+        let configPath = NSHomeDirectory() + "/Library/Application Support/KeyPath/keypath.kbd"
+        let hasUserConfig = FileManager.default.fileExists(atPath: configPath)
+
+        if !hasUserConfig {
+            AppLogger.shared.log("🆕 [FreshInstall] No user config found at \(configPath) - fresh install detected")
+            return true
+        }
+
+        AppLogger.shared.log("✅ [FreshInstall] Both Kanata binary and user config exist - returning user")
+        return false
+    }
+
     /// Start the automatic Kanata launch sequence
     func startAutoLaunch() async {
         AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
 
-        // Check if we've already shown the wizard before
+        // Check if this is a fresh install first
+        let isFreshInstall = isFirstTimeInstall()
         let hasShownWizardBefore = UserDefaults.standard.bool(forKey: "KeyPath.HasShownWizard")
-        AppLogger.shared.log(
-            "🔍 [KanataManager] KeyPath.HasShownWizard flag: \(hasShownWizardBefore)")
 
-        if hasShownWizardBefore {
+        AppLogger.shared.log(
+            "🔍 [KanataManager] Fresh install: \(isFreshInstall), HasShownWizard: \(hasShownWizardBefore)")
+
+        if isFreshInstall {
+            // Fresh install - show wizard immediately without trying to start
+            AppLogger.shared.log("🆕 [KanataManager] Fresh install detected - showing wizard immediately")
+            await MainActor.run {
+                currentState = .needsHelp
+                errorReason = "Welcome! Let's set up KeyPath on your Mac."
+                showWizard = true
+            }
+        } else if hasShownWizardBefore {
             AppLogger.shared.log(
-                "ℹ️ [KanataManager] Wizard already shown before - skipping auto-wizard, attempting quiet start"
-            )
-            AppLogger.shared.log(
-                "🤫 [KanataManager] This means NO wizard will auto-show, only manual access via button"
+                "ℹ️ [KanataManager] Returning user - attempting quiet start"
             )
             // Try to start silently without showing wizard
             await attemptQuietStart()
         } else {
             AppLogger.shared.log(
-                "🆕 [KanataManager] First launch detected - proceeding with normal auto-launch")
+                "🆕 [KanataManager] First launch on existing system - proceeding with normal auto-launch")
             AppLogger.shared.log(
                 "🆕 [KanataManager] This means wizard MAY auto-show if system needs help")
             currentState = .starting
@@ -1181,6 +1241,16 @@ class KanataManager: ObservableObject {
 
         // Try to refresh status and start if needed
         await refreshStatus()
+
+        // If Kanata is now running successfully, mark wizard as completed
+        if isRunning {
+            AppLogger.shared.log("✅ [KanataManager] Wizard completed successfully - Kanata is running")
+            UserDefaults.standard.set(true, forKey: "KeyPath.HasShownWizard")
+            UserDefaults.standard.synchronize()
+            AppLogger.shared.log("✅ [KanataManager] Set KeyPath.HasShownWizard = true for future launches")
+        } else {
+            AppLogger.shared.log("⚠️ [KanataManager] Wizard closed but Kanata is not running - will retry setup on next launch")
+        }
 
         if !isRunning {
             await startKanata()
@@ -3150,11 +3220,11 @@ class KanataManager: ObservableObject {
     }
 
     /// Create a UDP client for health checking
-    private func createUDPClient() async -> KanataUDPClient? {
+    private func createUDPClient(timeout: TimeInterval = 1.0) async -> KanataUDPClient? {
         guard let udpPort = await getUDPPort() else {
             return nil
         }
-        return KanataUDPClient(port: udpPort)
+        return KanataUDPClient(port: udpPort, timeout: timeout)
     }
 
     private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {

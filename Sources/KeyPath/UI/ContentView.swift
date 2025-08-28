@@ -406,29 +406,32 @@ struct RecordingSection: View {
                     .font(.headline)
                     .accessibilityIdentifier("input-key-label")
 
-                Spacer()
+                HStack {
+                    Spacer()
 
-                Button(action: {
-                    isSequenceMode.toggle()
-                    // Show placeholder text once button is pressed (persists even when toggled back)
-                    showPlaceholderText = true
-                }, label: {
-                    Image(systemName: "list.number")
-                        .font(.title2)
-                        .foregroundColor(isSequenceMode ? .white : .blue)
-                })
-                .buttonStyle(.plain)
-                .frame(width: 32, height: 32)
-                .background(isSequenceMode ? Color.blue : Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.blue, lineWidth: 1)
-                )
-                .cornerRadius(6)
-                .help(isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
-                .accessibilityIdentifier("sequence-mode-toggle")
-                .accessibilityLabel(isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
-                .accessibilityHint("Toggle between combo capture and sequence capture modes")
+                    Button(action: {
+                        isSequenceMode.toggle()
+                        // Show placeholder text once button is pressed (persists even when toggled back)
+                        showPlaceholderText = true
+                    }, label: {
+                        Image(systemName: "list.number")
+                            .font(.title2)
+                            .foregroundColor(isSequenceMode ? .white : .blue)
+                    })
+                    .buttonStyle(.plain)
+                    .frame(width: 32, height: 32)
+                    .background(isSequenceMode ? Color.blue : Color.clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.blue, lineWidth: 1)
+                    )
+                    .cornerRadius(6)
+                    .help(isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
+                    .accessibilityIdentifier("sequence-mode-toggle")
+                    .accessibilityLabel(isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
+                    .accessibilityHint("Toggle between combo capture and sequence capture modes")
+                }
+                .frame(minWidth: 44) // Match the record button width
             }
 
             // Input Recording Container

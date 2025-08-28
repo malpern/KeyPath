@@ -467,6 +467,30 @@ class LaunchDaemonInstaller {
     private func generateKanataPlist(binaryPath: String) -> String {
         let arguments = buildKanataPlistArguments(binaryPath: binaryPath)
 
+        // Generate environment variables XML for secure token passing
+        let commConfig = PreferencesService.communicationSnapshot()
+        let environmentVariables = commConfig.communicationEnvironmentVariables
+        var environmentXML = ""
+
+        if !environmentVariables.isEmpty {
+            environmentXML = """
+
+                        <key>EnvironmentVariables</key>
+                        <dict>
+            """
+            for (key, value) in environmentVariables {
+                environmentXML += """
+
+                                <key>\(key)</key>
+                                <string>\(value)</string>
+                """
+            }
+            environmentXML += """
+
+                        </dict>
+            """
+        }
+
         var argumentsXML = ""
         for arg in arguments {
             argumentsXML += "                <string>\(arg)</string>\n"
@@ -484,7 +508,7 @@ class LaunchDaemonInstaller {
             <key>ProgramArguments</key>
             <array>
             \(argumentsXML)
-            </array>
+            </array>\(environmentXML)
             <key>RunAtLoad</key>
             <true/>
             <key>KeepAlive</key>
