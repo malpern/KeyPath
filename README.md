@@ -10,7 +10,7 @@
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
 
-KeyPath makes keyboard remapping on macOS simple and reliable. No complex configuration files, no command-line tools - just click to record your keys and save.
+KeyPath makes keyboard remapping on macOS simple and reliable. Built on top of the powerful [Kanata](https://github.com/jtroo/kanata) engine, KeyPath provides a native macOS installer and interface that handles all the complex system setup, dependency management, and debugging that typically requires command-line expertise.
 
 ## ✨ What is KeyPath?
 
@@ -22,6 +22,7 @@ KeyPath is the easiest way to remap your keyboard on macOS. Whether you want to 
 - **⚡ Instant Changes**: Your mappings work immediately - no restarts needed
 - **🛡️ Safe & Reliable**: Built-in safety features prevent you from getting locked out
 - **🎨 Native macOS App**: Looks and feels like it belongs on your Mac
+- **🔧 Kanata Made Easy**: Harnesses the full power of Kanata without the complexity - no manual driver installation, permission debugging, or configuration file editing required
 
 ## 🚀 Getting Started
 
@@ -32,7 +33,7 @@ Download the latest release from the [Releases page](https://github.com/youruser
 ```bash
 git clone https://github.com/yourusername/KeyPath.git
 cd KeyPath
-./Scripts/build.sh
+./Scripts/build-and-sign.sh
 ```
 
 ### 2. Launch KeyPath
@@ -42,24 +43,65 @@ Double-click KeyPath.app to launch. The setup wizard will guide you through ever
 ### 3. Create Your First Mapping
 
 1. Click the record button next to "Input Key"
-2. Press the key you want to remap (e.g., Caps Lock)
+2. Press what you want to trigger the mapping:
+   - **Single key** (e.g., Caps Lock)
+   - **Key combo** (e.g., Cmd+Space)
+   - **Key sequence** (e.g., press A, then B, then C)
 3. Click the record button next to "Output Key"  
-4. Press what you want it to become (e.g., Escape)
+4. Press what you want it to do:
+   - **Single key** (e.g., Escape)
+   - **Key combo** (e.g., Cmd+C for copy)
+   - **Multiple keys** (e.g., type "hello world")
 5. Click Save
 
-That's it! Your key is now remapped.
+That's it! Your mapping is now active.
+
+## 🚀 Powered by Kanata
+
+KeyPath is built on top of [Kanata](https://github.com/jtroo/kanata), a powerful cross-platform keyboard remapping engine. While Kanata is incredibly capable, setting it up on macOS traditionally requires significant technical expertise:
+
+### What KeyPath's Installer Handles For You
+
+**Complex System Dependencies:**
+- Automatically installs and manages the Karabiner VirtualHID driver
+- Handles code signing and notarization for all components
+- Manages launchd services and daemon lifecycle
+- Resolves TCC (Transparency, Consent, Control) permission issues
+
+**Advanced Debugging & Diagnostics:**
+- Built-in system state detection and conflict resolution
+- Automatic log analysis and error interpretation  
+- Real-time UDP communication monitoring and authentication
+- Visual permission status with automated fix suggestions
+
+**Seamless Kanata Integration:**
+- Bundles a properly signed Kanata binary for macOS
+- Generates Kanata configuration files automatically via AI
+- Provides hot-reload capability without service restarts
+- Handles complex key sequence and modifier mappings
+
+**Normally, using Kanata on macOS requires:**
+- Manual driver installation via command line
+- Understanding launchd, SMJobBless, and system service management
+- Debugging TCC permissions and Input Monitoring issues
+- Writing complex Kanata configuration syntax by hand
+- Resolving signing and notarization conflicts
+
+**KeyPath eliminates all of this complexity** while preserving Kanata's full power and flexibility. You get enterprise-grade keyboard remapping with consumer-grade ease of use.
 
 ## 🎁 Features
 
 ### For Everyone
-- **Visual Key Recording** - See exactly what keys you're pressing
+- **Flexible Input** - Record single keys, combos (Cmd+C), or sequences (A→B→C)
+- **Flexible Output** - Map to single keys, combos, or entire phrases
+- **Visual Recording** - See exactly what keys you're pressing
 - **Instant Apply** - Changes work immediately, no restart needed
 - **Safety First** - Emergency stop prevents getting locked out (Ctrl+Space+Esc)
 - **Smart Setup** - Wizard handles all the technical stuff for you
 
 ### For Power Users  
-- **Multi-Key Sequences** - Map one key to type multiple keys
-- **Hot Reload** - Edit config files directly, changes apply instantly
+- **Complex Mappings** - Chain multiple actions from a single trigger
+- **Hot Reload** - Edit config files directly, changes apply instantly via UDP
 - **System Integration** - Runs at startup, works everywhere
 - **Extensive Logging** - Debug issues with detailed logs
 
@@ -72,10 +114,11 @@ That's it! Your key is now remapped.
 - **Broken Key Workaround** - Remap a broken key to a working one
 
 ### Advanced Uses
-- **Hyper Key** - Turn Caps Lock into Cmd+Ctrl+Alt+Shift
-- **App Launchers** - Single key to launch favorite apps
-- **Text Snippets** - Type your email with one key
-- **Gaming** - Custom WASD alternatives
+- **Hyper Key** - Turn Caps Lock into Cmd+Ctrl+Alt+Shift combo
+- **App Launchers** - Map key sequences to launch favorite apps
+- **Text Snippets** - Type your email address with a key combo
+- **Gaming** - Create custom key combinations for complex moves
+- **Workflows** - Map one key to perform multiple actions in sequence
 
 ## 🛡️ Safety & Security
 
@@ -99,8 +142,8 @@ The setup wizard will guide you through granting these permissions.
 
 ### KeyPath Won't Start?
 1. Make sure you have macOS 13 or later
-2. Check that Kanata is installed: `brew install kanata`
-3. Run the setup wizard again from the File menu
+2. Run the setup wizard again from the File menu
+3. Check system logs: `tail -f /var/log/kanata.log`
 
 ### Keys Not Remapping?
 1. Check the status indicator in the app
@@ -119,7 +162,7 @@ The setup wizard will guide you through granting these permissions.
 - Apple Silicon or Intel Mac
 
 ### Dependencies (Handled Automatically)
-- **Kanata** - The remapping engine (installed via Homebrew)
+- **Kanata** - The remapping engine (bundled with app)
 - **Karabiner VirtualHID Driver** - For system-level key events
 
 The setup wizard will check for these and help you install them if needed.
@@ -148,11 +191,11 @@ git clone https://github.com/yourusername/KeyPath.git
 cd KeyPath
 
 # Build and test
-./Scripts/build.sh
-./Scripts/run-tests.sh
-
-# Make your changes, then test again
+swift build
 swift test
+
+# Production build
+./Scripts/build-and-sign.sh
 ```
 
 ## 📚 Documentation
