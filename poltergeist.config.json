@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "projectType": "swift",
+  "targets": [
+    {
+      "name": "debug",
+      "type": "executable",
+      "buildCommand": "swift build",
+      "outputPath": ".build/debug/App",
+      "watchPaths": [
+        "Sources/**/*.swift",
+        "Package.swift"
+      ]
+    }
+  ]
+}

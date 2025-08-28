@@ -150,14 +150,24 @@ jobs:
           brew install swiftformat
         fi
     
-    - name: SwiftLint
+    - name: SwiftLint Analysis
       run: |
-        echo "🔍 Running SwiftLint..."
-        swiftlint --reporter github-actions-logging || {
-          echo "⚠️ SwiftLint found issues, but not failing CI"
-          exit 0
-        }
-        echo "✅ SwiftLint completed"
+        echo "🔍 Running comprehensive SwiftLint analysis..."
+        
+        # Full SwiftLint check (moved from pre-commit)
+        echo "📋 SwiftLint Report:"
+        if swiftlint --reporter github-actions-logging; then
+          echo "✅ No SwiftLint violations found"
+          SWIFTLINT_STATUS="passed"
+        else
+          echo "⚠️ SwiftLint found issues (details above)"
+          SWIFTLINT_STATUS="issues_found"
+          # Don't fail CI, just report
+        fi
+        
+        # Store status for summary
+        echo "SWIFTLINT_STATUS=$SWIFTLINT_STATUS" >> $GITHUB_ENV
+        echo "✅ SwiftLint analysis completed"
     
     - name: SwiftFormat Check
       run: |
@@ -170,45 +180,134 @@ jobs:
         }
         echo "✅ SwiftFormat check completed"
     
-    - name: Check for Critical Issues
+    - name: Critical Pattern Analysis
       run: |
-        echo "🔍 Checking for critical code issues..."
+        echo "🔍 Running critical code pattern checks (moved from pre-commit)..."
         
-        # Check for force unwraps in critical files
-        if grep -r "!" Sources/KeyPath/Managers/ --include="*.swift" | grep -v "!=" | head -5; then
-          echo "⚠️ Found force unwraps in manager files (review recommended)"
+        # Critical TODOs/FIXMEs (blocking issues)
+        echo "📋 Checking for critical TODOs/FIXMEs..."
+        if grep -r 'TODO.*CRITICAL\|FIXME.*URGENT' Sources/ --include='*.swift'; then
+          echo "❌ CRITICAL issues found that should block deployment"
+          echo "CRITICAL_ISSUES=found" >> $GITHUB_ENV
+        else
+          echo "✅ No critical TODOs/FIXMEs found"
+          echo "CRITICAL_ISSUES=none" >> $GITHUB_ENV
         fi
         
-        # Check for TODO/FIXME
-        if grep -r "TODO\|FIXME" Sources/ --include="*.swift" | head -5; then
-          echo "ℹ️ Found TODO/FIXME comments"
+        echo "✅ Critical pattern analysis completed"
+    
+    - name: Code Smell Detection  
+      run: |
+        echo "🔍 Running code smell detection (moved from pre-commit)..."
+        
+        FORCE_UNWRAPS=0
+        PRINT_STATEMENTS=0
+        
+        # Check for force unwraps in critical manager files
+        echo "📋 Checking for force unwraps in manager files..."
+        if grep -r "!" Sources/KeyPath/Managers/ --include="*.swift" | grep -v "!=" | grep -v "// swiftlint:disable" >/dev/null 2>&1; then
+          echo "⚠️ Force unwraps found in manager files:"
+          grep -r "!" Sources/KeyPath/Managers/ --include="*.swift" | grep -v "!=" | grep -v "// swiftlint:disable" | head -10
+          FORCE_UNWRAPS=1
+        else
+          echo "✅ No problematic force unwraps in manager files"
         fi
         
-        echo "✅ Code quality check completed"
+        # Check for print statements (should use Logger)
+        echo "📋 Checking for print statements..."
+        if grep -r "print(" Sources/ --include="*.swift" | grep -v "// debug" >/dev/null 2>&1; then
+          echo "⚠️ print() statements found (consider using Logger):"
+          grep -r "print(" Sources/ --include="*.swift" | grep -v "// debug" | head -10
+          PRINT_STATEMENTS=1
+        else
+          echo "✅ No print() statements found"
+        fi
+        
+        # Store results for summary
+        echo "FORCE_UNWRAPS=$FORCE_UNWRAPS" >> $GITHUB_ENV
+        echo "PRINT_STATEMENTS=$PRINT_STATEMENTS" >> $GITHUB_ENV
+        
+        echo "✅ Code smell detection completed"
+    
+    - name: Additional Code Quality
+      run: |
+        echo "🔍 Additional code quality checks..."
+        
+        # Check for general TODO/FIXME (informational)
+        echo "📋 Checking for general TODO/FIXME comments..."
+        if grep -r "TODO\|FIXME" Sources/ --include="*.swift" | head -10; then
+          echo "ℹ️ Found TODO/FIXME comments (informational)"
+          echo "TODO_COMMENTS=found" >> $GITHUB_ENV
+        else
+          echo "✅ No TODO/FIXME comments found" 
+          echo "TODO_COMMENTS=none" >> $GITHUB_ENV
+        fi
+        
+        echo "✅ Additional quality checks completed"
     
     - name: Generate Code Quality Summary
       if: always()
       run: |
-        echo "📋 Generating code quality summary..."
+        echo "📋 Generating comprehensive code quality summary..."
         
-        echo "## 🔍 Code Quality Results" >> $GITHUB_STEP_SUMMARY
+        echo "## 🔍 Code Quality Analysis Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        # SwiftLint results (approximate since we disabled errors)
-        echo "### SwiftLint Analysis" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **No critical violations found**" >> $GITHUB_STEP_SUMMARY
-        echo "ℹ️ SwiftLint configured with relaxed rules for CI compatibility" >> $GITHUB_STEP_SUMMARY
+        # SwiftLint results
+        echo "### 📋 SwiftLint Analysis (moved from pre-commit)" >> $GITHUB_STEP_SUMMARY
+        if [ "${SWIFTLINT_STATUS:-unknown}" = "passed" ]; then
+          echo "✅ **No SwiftLint violations found**" >> $GITHUB_STEP_SUMMARY
+        elif [ "${SWIFTLINT_STATUS:-unknown}" = "issues_found" ]; then
+          echo "⚠️ **SwiftLint issues detected** - See job logs for details" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "ℹ️ SwiftLint status unknown" >> $GITHUB_STEP_SUMMARY
+        fi
         echo "" >> $GITHUB_STEP_SUMMARY
         
         # SwiftFormat results
-        echo "### SwiftFormat Analysis" >> $GITHUB_STEP_SUMMARY
-        echo "ℹ️ Formatting check completed (non-blocking)" >> $GITHUB_STEP_SUMMARY
+        echo "### 📝 SwiftFormat Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "ℹ️ Formatting check completed (pre-commit handles auto-fixes)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        echo "### Additional Checks" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Critical code pattern analysis completed" >> $GITHUB_STEP_SUMMARY
-        echo "✅ TODO/FIXME comment review completed" >> $GITHUB_STEP_SUMMARY
+        # Critical patterns
+        echo "### 🚨 Critical Pattern Analysis (moved from pre-commit)" >> $GITHUB_STEP_SUMMARY
+        if [ "${CRITICAL_ISSUES:-unknown}" = "none" ]; then
+          echo "✅ **No critical TODOs/FIXMEs found**" >> $GITHUB_STEP_SUMMARY
+        elif [ "${CRITICAL_ISSUES:-unknown}" = "found" ]; then
+          echo "❌ **CRITICAL issues found** - Review urgently" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "ℹ️ Critical pattern status unknown" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Code smell detection
+        echo "### 🔍 Code Smell Detection (moved from pre-commit)" >> $GITHUB_STEP_SUMMARY
+        SMELLS_FOUND=0
+        if [ "${FORCE_UNWRAPS:-0}" = "1" ]; then
+          echo "⚠️ Force unwraps found in manager files" >> $GITHUB_STEP_SUMMARY
+          SMELLS_FOUND=1
+        fi
+        if [ "${PRINT_STATEMENTS:-0}" = "1" ]; then
+          echo "⚠️ print() statements found (consider using Logger)" >> $GITHUB_STEP_SUMMARY 
+          SMELLS_FOUND=1
+        fi
+        if [ "$SMELLS_FOUND" = "0" ]; then
+          echo "✅ **No code smells detected**" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # General TODO/FIXME
+        echo "### 📝 General TODO/FIXME Comments" >> $GITHUB_STEP_SUMMARY
+        if [ "${TODO_COMMENTS:-unknown}" = "none" ]; then
+          echo "✅ No TODO/FIXME comments found" >> $GITHUB_STEP_SUMMARY
+        elif [ "${TODO_COMMENTS:-unknown}" = "found" ]; then
+          echo "ℹ️ TODO/FIXME comments present (informational)" >> $GITHUB_STEP_SUMMARY
+        fi
         echo "" >> $GITHUB_STEP_SUMMARY
         
         echo "---" >> $GITHUB_STEP_SUMMARY
-        echo "*Code quality checks are informational and do not block CI*" >> $GITHUB_STEP_SUMMARY
+        echo "### 🎯 Pre-commit vs CI Responsibilities" >> $GITHUB_STEP_SUMMARY
+        echo "- **Pre-commit:** SwiftFormat + SwiftLint auto-fixes only" >> $GITHUB_STEP_SUMMARY 
+        echo "- **CI:** Comprehensive analysis, reporting, and quality gates" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "*Most checks are informational and do not block CI*" >> $GITHUB_STEP_SUMMARY

@@ -29,6 +29,12 @@ struct ContentView: View {
     // Diagnostics view state
     @State private var showingDiagnostics = false
 
+    // Capture mode toggle - default to combo (false = combo, true = sequence)
+    @State private var isSequenceMode = false
+
+    // Track if placeholder text should be shown (persists after toggling modes)
+    @State private var showPlaceholderText = false
+
     // Timer removed - now handled by SimpleKanataManager centrally
 
     var body: some View {
@@ -41,7 +47,8 @@ struct ContentView: View {
                 recordedInput: $recordedInput, recordedOutput: $recordedOutput,
                 isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
                 kanataManager: kanataManager, keyboardCapture: $keyboardCapture,
-                showStatusMessage: showStatusMessage, showingDiagnostics: $showingDiagnostics
+                showStatusMessage: showStatusMessage, showingDiagnostics: $showingDiagnostics,
+                isSequenceMode: $isSequenceMode, showPlaceholderText: $showPlaceholderText
             )
 
             // Enhanced Error Display - persistent and actionable
@@ -375,7 +382,10 @@ struct RecordingSection: View {
     @Binding var keyboardCapture: KeyboardCapture?
     let showStatusMessage: (String) -> Void
     @Binding var showingDiagnostics: Bool
-    @State private var outputInactivityTimer: Timer?
+    @Binding var isSequenceMode: Bool
+    @Binding var showPlaceholderText: Bool
+    @State private var capturedInputSequence: KeySequence?
+    @State private var capturedOutputSequence: KeySequence?
     @State private var showingConfigCorruptionAlert = false
     @State private var configCorruptionDetails = ""
     @State private var configRepairSuccessful = false
@@ -390,13 +400,39 @@ struct RecordingSection: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Input Recording
-            VStack(alignment: .leading, spacing: 8) {
-                // Accessibility container for input recording section
-                Text("Input Key:")
+            // Mode Toggle Header
+            HStack {
+                Text("Input Key")
                     .font(.headline)
                     .accessibilityIdentifier("input-key-label")
 
+                Spacer()
+
+                Button(action: {
+                    isSequenceMode.toggle()
+                    // Show placeholder text once button is pressed (persists even when toggled back)
+                    showPlaceholderText = true
+                }, label: {
+                    Image(systemName: "list.number")
+                        .font(.title2)
+                        .foregroundColor(isSequenceMode ? .white : .blue)
+                })
+                .buttonStyle(.plain)
+                .frame(width: 32, height: 32)
+                .background(isSequenceMode ? Color.blue : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.blue, lineWidth: 1)
+                )
+                .cornerRadius(6)
+                .help(isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
+                .accessibilityIdentifier("sequence-mode-toggle")
+                .accessibilityLabel(isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
+                .accessibilityHint("Toggle between combo capture and sequence capture modes")
+            }
+
+            // Input Recording Container
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(getInputDisplayText())
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -434,13 +470,16 @@ struct RecordingSection: View {
                         isRecording ? "Stop recording the input key" : "Start recording a key to remap")
                 }
             }
+            .padding()
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
             .accessibilityIdentifier("input-recording-section")
             .accessibilityLabel("Input key recording section")
 
-            // Output Recording
+            // Output Recording Container
             VStack(alignment: .leading, spacing: 8) {
                 // Accessibility container for output recording section
-                Text("Output Key:")
+                Text("Output Key")
                     .font(.headline)
                     .accessibilityIdentifier("output-key-label")
 
@@ -483,10 +522,13 @@ struct RecordingSection: View {
                             ? "Stop recording the output key" : "Start recording the replacement key")
                 }
             }
+            .padding()
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
             .accessibilityIdentifier("output-recording-section")
             .accessibilityLabel("Output key recording section")
 
-            // Save Button
+            // Save Button - Outside containers
             HStack {
                 Spacer()
                 Button(action: {
@@ -503,15 +545,12 @@ struct RecordingSection: View {
                     .frame(minWidth: 100)
                 })
                 .buttonStyle(.borderedProminent)
-                .disabled(recordedInput.isEmpty || recordedOutput.isEmpty || kanataManager.saveStatus.isActive)
+                .disabled(capturedInputSequence == nil || capturedOutputSequence == nil || kanataManager.saveStatus.isActive)
                 .accessibilityIdentifier("save-mapping-button")
                 .accessibilityLabel(kanataManager.saveStatus.message.isEmpty ? "Save key mapping" : kanataManager.saveStatus.message)
                 .accessibilityHint("Save the input and output key mapping to your configuration")
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
         .alert("Configuration Issue Detected", isPresented: $showingConfigCorruptionAlert) {
             Button("OK") {
                 showingConfigCorruptionAlert = false
@@ -605,8 +644,13 @@ struct RecordingSection: View {
                     isRecording = false
                     return
                 }
-                capture.startCapture { keyName in
-                    recordedInput = keyName
+
+                // Use appropriate capture mode based on toggle
+                let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
+
+                capture.startSequenceCapture(mode: captureMode) { keySequence in
+                    capturedInputSequence = keySequence
+                    recordedInput = keySequence.displayString
                     isRecording = false
                 }
             }
@@ -639,18 +683,15 @@ struct RecordingSection: View {
                     isRecordingOutput = false
                     return
                 }
-                capture.startContinuousCapture { keyName in
-                    if !recordedOutput.isEmpty {
-                        recordedOutput += " "
-                    }
-                    recordedOutput += keyName
 
-                    // Reset the inactivity timer each time a key is pressed
-                    resetOutputInactivityTimer()
+                // Use appropriate capture mode based on toggle
+                let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
+
+                capture.startSequenceCapture(mode: captureMode) { keySequence in
+                    capturedOutputSequence = keySequence
+                    recordedOutput = keySequence.displayString
+                    isRecordingOutput = false
                 }
-
-                // Start the initial inactivity timer
-                resetOutputInactivityTimer()
             }
         }
     }
@@ -658,31 +699,15 @@ struct RecordingSection: View {
     private func stopOutputRecording() {
         isRecordingOutput = false
         keyboardCapture?.stopCapture()
-        cancelOutputInactivityTimer()
-    }
-
-    private func resetOutputInactivityTimer() {
-        // Cancel existing timer
-        outputInactivityTimer?.invalidate()
-
-        // Start new 5-second timer
-        outputInactivityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
-            if isRecordingOutput {
-                stopOutputRecording()
-            }
-        }
-    }
-
-    private func cancelOutputInactivityTimer() {
-        outputInactivityTimer?.invalidate()
-        outputInactivityTimer = nil
     }
 
     private func getInputDisplayText() -> String {
         if !recordedInput.isEmpty {
             recordedInput
         } else if isRecording {
-            "Press a key..."
+            isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+        } else if showPlaceholderText {
+            isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
         } else {
             ""
         }
@@ -692,7 +717,9 @@ struct RecordingSection: View {
         if !recordedOutput.isEmpty {
             recordedOutput
         } else if isRecordingOutput {
-            "Press keys..."
+            isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+        } else if showPlaceholderText {
+            isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
         } else {
             ""
         }
@@ -720,24 +747,38 @@ struct RecordingSection: View {
         AppLogger.shared.log("💾 [Save] ========== SAVE OPERATION START ==========")
 
         do {
-            let inputKey = recordedInput
-            let outputKey = recordedOutput
+            guard let inputSequence = capturedInputSequence,
+                  let outputSequence = capturedOutputSequence
+            else {
+                AppLogger.shared.log("❌ [Save] Missing captured sequences")
+                await MainActor.run {
+                    showStatusMessage("❌ Please capture both input and output keys first")
+                }
+                return
+            }
 
-            AppLogger.shared.log("💾 [Save] Saving mapping: \(inputKey) → \(outputKey)")
+            AppLogger.shared.log("💾 [Save] Saving mapping: \(inputSequence.displayString) → \(outputSequence.displayString)")
 
-            // Use direct KanataManager for save operation (SimpleKanataManager handles service management)
-            AppLogger.shared.log("💾 [Save] Using direct KanataManager for save operation")
-            try await kanataManager.saveConfiguration(input: inputKey, output: outputKey)
+            // Use KanataConfigGenerator to create proper configuration
+            let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
+            let generatedConfig = try await configGenerator.generateMapping(input: inputSequence, output: outputSequence)
+
+            AppLogger.shared.log("💾 [Save] Generated config via Claude API")
+
+            // Save the generated configuration
+            try await kanataManager.saveGeneratedConfiguration(generatedConfig)
 
             AppLogger.shared.log("💾 [Save] Configuration saved successfully")
 
             // Show status message and clear the form
             await MainActor.run {
-                showStatusMessage("Key mapping saved: \(inputKey) → \(outputKey)")
+                showStatusMessage("Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
 
                 // Clear the form
                 recordedInput = ""
                 recordedOutput = ""
+                capturedInputSequence = nil
+                capturedOutputSequence = nil
             }
 
             // Update status

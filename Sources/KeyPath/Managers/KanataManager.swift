@@ -1430,6 +1430,44 @@ class KanataManager: ObservableObject {
         await startKanata()
     }
 
+    /// Save a complete generated configuration (for Claude API generated configs)
+    func saveGeneratedConfiguration(_ configContent: String) async throws {
+        AppLogger.shared.log("💾 [KanataManager] Saving generated configuration")
+
+        // Set saving status
+        await MainActor.run {
+            saveStatus = .saving
+        }
+
+        do {
+            // Ensure config directory exists
+            let configDirectoryURL = URL(fileURLWithPath: configDirectory)
+            try FileManager.default.createDirectory(at: configDirectoryURL, withIntermediateDirectories: true)
+
+            // Write the configuration file
+            let configURL = URL(fileURLWithPath: configPath)
+            try configContent.write(to: configURL, atomically: true, encoding: .utf8)
+
+            AppLogger.shared.log("✅ [KanataManager] Generated configuration saved to \(configPath)")
+
+            // Update last config update timestamp
+            lastConfigUpdate = Date()
+
+            // Parse the saved config to update key mappings (for UI display)
+            let parsedMappings = parseKanataConfig(configContent)
+            await MainActor.run {
+                keyMappings = parsedMappings
+                saveStatus = .success
+            }
+
+        } catch {
+            await MainActor.run {
+                saveStatus = .failed("Failed to save generated configuration: \(error.localizedDescription)")
+            }
+            throw error
+        }
+    }
+
     func saveConfiguration(input: String, output: String) async throws {
         // Set saving status
         await MainActor.run {

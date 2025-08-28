@@ -11,10 +11,20 @@ public class KeyboardCapture: ObservableObject {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var captureCallback: ((String) -> Void)?
+    private var sequenceCallback: ((KeySequence) -> Void)?
     private var isCapturing = false
     private var isContinuous = false
     private var pauseTimer: Timer?
     private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
+
+    // Enhanced sequence capture properties
+    private var captureMode: CaptureMode = .single
+    private var capturedKeys: [KeyPress] = []
+    private let chordWindow: TimeInterval = 0.05 // 50ms window for chord detection
+    private let sequenceTimeout: TimeInterval = 2.0 // 2 seconds for sequence completion
+    private var lastKeyTime: Date?
+    private var chordTimer: Timer?
+    private var sequenceTimer: Timer?
 
     /// Event router for processing captured events through the event processing chain
     private var eventRouter: EventRouter?
@@ -118,16 +128,56 @@ public class KeyboardCapture: ObservableObject {
         setupEventTap()
     }
 
+    /// Enhanced capture method that supports different capture modes
+    func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) {
+        guard !isCapturing else { return }
+
+        captureMode = mode
+        sequenceCallback = callback
+        capturedKeys = []
+        lastKeyTime = nil
+        isCapturing = true
+        isContinuous = (mode == .sequence)
+
+        // Check permissions first
+        if !hasAccessibilityPermissions() {
+            isCapturing = false
+            sequenceCallback = nil
+            let errorSequence = KeySequence(keys: [], captureMode: mode)
+            callback(errorSequence)
+
+            // Trigger permission wizard
+            NotificationCenter.default.post(
+                name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
+                object: nil,
+                userInfo: ["reason": "Accessibility permission required for \(mode.displayName.lowercased()) capture"]
+            )
+
+            AppLogger.shared.log("⚠️ [KeyboardCapture] Accessibility permission missing for \(mode) capture")
+            return
+        }
+
+        AppLogger.shared.log("🎹 [KeyboardCapture] Starting \(mode) capture")
+        setupEventTap()
+    }
+
     func stopCapture() {
         guard isCapturing else { return }
 
         isCapturing = false
         isContinuous = false
         captureCallback = nil
+        sequenceCallback = nil
+        capturedKeys = []
+        lastKeyTime = nil
 
-        // Cancel pause timer
+        // Cancel all timers
         pauseTimer?.invalidate()
         pauseTimer = nil
+        chordTimer?.invalidate()
+        chordTimer = nil
+        sequenceTimer?.invalidate()
+        sequenceTimer = nil
 
         if let eventTap {
             CFMachPortInvalidate(eventTap)
@@ -206,18 +256,90 @@ public class KeyboardCapture: ObservableObject {
     private func handleKeyEvent(_ event: CGEvent) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let keyName = keyCodeToString(keyCode)
+        let modifiers = ModifierSet(cgEventFlags: event.flags)
+        let now = Date()
+
+        // Create KeyPress
+        let keyPress = KeyPress(
+            baseKey: keyName,
+            modifiers: modifiers,
+            timestamp: now,
+            keyCode: keyCode
+        )
 
         DispatchQueue.main.async {
-            self.captureCallback?(keyName)
+            // Handle legacy callback if set (for backward compatibility)
+            if self.sequenceCallback == nil, let legacyCallback = self.captureCallback {
+                legacyCallback(keyName)
 
-            if !self.isContinuous {
-                // Single key capture - stop immediately
-                self.stopCapture()
+                if !self.isContinuous {
+                    self.stopCapture()
+                } else {
+                    self.resetPauseTimer()
+                }
+                return
+            }
+
+            // Handle new sequence capture
+            self.processKeyPress(keyPress)
+        }
+    }
+
+    private func processKeyPress(_ keyPress: KeyPress) {
+        let now = keyPress.timestamp
+
+        switch captureMode {
+        case .single:
+            // Single key - complete immediately
+            let sequence = KeySequence(keys: [keyPress], captureMode: .single)
+            sequenceCallback?(sequence)
+            stopCapture()
+
+        case .chord:
+            // Chord detection - look for keys pressed within window
+            if let lastTime = lastKeyTime, now.timeIntervalSince(lastTime) <= chordWindow {
+                // Add to existing chord
+                capturedKeys.append(keyPress)
             } else {
-                // Continuous capture - reset pause timer
-                self.resetPauseTimer()
+                // Start new chord or single key
+                capturedKeys = [keyPress]
+            }
+
+            lastKeyTime = now
+
+            // Reset chord timer
+            chordTimer?.invalidate()
+            chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { _ in
+                self.completeChord()
+            }
+
+        case .sequence:
+            // Sequence capture - accumulate keys
+            capturedKeys.append(keyPress)
+            lastKeyTime = now
+
+            // Reset sequence timer
+            sequenceTimer?.invalidate()
+            sequenceTimer = Timer.scheduledTimer(withTimeInterval: sequenceTimeout, repeats: false) { _ in
+                self.completeSequence()
             }
         }
+    }
+
+    private func completeChord() {
+        guard !capturedKeys.isEmpty else { return }
+
+        let sequence = KeySequence(keys: capturedKeys, captureMode: .chord)
+        sequenceCallback?(sequence)
+        stopCapture()
+    }
+
+    private func completeSequence() {
+        guard !capturedKeys.isEmpty else { return }
+
+        let sequence = KeySequence(keys: capturedKeys, captureMode: .sequence)
+        sequenceCallback?(sequence)
+        stopCapture()
     }
 
     private func resetPauseTimer() {
