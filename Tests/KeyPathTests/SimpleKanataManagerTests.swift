@@ -2,7 +2,7 @@ import XCTest
 
 @testable import KeyPath
 
-/// Tests for SimpleKanataManager - focuses on public interface and state management
+/// Tests for KanataManager state management - focuses on public interface and state management
 /// These tests address the specific issues we solved: timer consolidation and wizard triggering
 @MainActor
 final class SimpleKanataManagerTests: XCTestCase {
@@ -13,16 +13,15 @@ final class SimpleKanataManagerTests: XCTestCase {
         // This is a basic smoke test since we can't easily mock the dependencies
 
         let kanataManager = KanataManager()
-        let simpleManager = SimpleKanataManager(kanataManager: kanataManager)
 
         // Initial state should be starting
-        XCTAssertEqual(simpleManager.currentState, .starting, "Initial state should be starting")
-        XCTAssertFalse(simpleManager.showWizard, "Should not show wizard initially")
+        XCTAssertEqual(kanataManager.currentState, .starting, "Initial state should be starting")
+        XCTAssertFalse(kanataManager.showWizard, "Should not show wizard initially")
 
         // Test that public methods exist and can be called
-        await simpleManager.manualStart()
-        await simpleManager.manualStop()
-        await simpleManager.forceRefreshStatus()
+        await kanataManager.manualStart()
+        await kanataManager.manualStop()
+        await kanataManager.forceRefreshStatus()
 
         // These should complete without throwing
         XCTAssertTrue(true, "Public methods completed successfully")
@@ -32,10 +31,9 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Test wizard state can be managed
 
         let kanataManager = KanataManager()
-        let simpleManager = SimpleKanataManager(kanataManager: kanataManager)
 
         // Test wizard callback exists
-        await simpleManager.onWizardClosed()
+        await kanataManager.onWizardClosed()
 
         // Should complete without errors
         XCTAssertTrue(true, "Wizard state management methods work")
@@ -44,7 +42,7 @@ final class SimpleKanataManagerTests: XCTestCase {
     func testStateEnumValues() {
         // Test that all required state enum values exist
 
-        let states: [SimpleKanataManager.State] = [.starting, .running, .needsHelp, .stopped]
+        let states: [SimpleKanataState] = [.starting, .running, .needsHelp, .stopped]
 
         for state in states {
             // Each state should have a display name
@@ -56,15 +54,15 @@ final class SimpleKanataManagerTests: XCTestCase {
         }
 
         // Specific state behavior tests
-        XCTAssertTrue(SimpleKanataManager.State.running.isWorking, "Running state should be working")
+        XCTAssertTrue(SimpleKanataState.running.isWorking, "Running state should be working")
         XCTAssertFalse(
-            SimpleKanataManager.State.starting.isWorking, "Starting state should not be working"
+            SimpleKanataState.starting.isWorking, "Starting state should not be working"
         )
         XCTAssertTrue(
-            SimpleKanataManager.State.needsHelp.needsUserAction, "NeedsHelp should need user action"
+            SimpleKanataState.needsHelp.needsUserAction, "NeedsHelp should need user action"
         )
         XCTAssertFalse(
-            SimpleKanataManager.State.running.needsUserAction, "Running should not need user action"
+            SimpleKanataState.running.needsUserAction, "Running should not need user action"
         )
     }
 
@@ -72,16 +70,15 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Test that all expected public properties exist
 
         let kanataManager = KanataManager()
-        let simpleManager = SimpleKanataManager(kanataManager: kanataManager)
 
         // These should be accessible
-        _ = simpleManager.currentState
-        _ = simpleManager.errorReason
-        _ = simpleManager.showWizard
-        _ = simpleManager.autoStartAttempts
-        _ = simpleManager.lastHealthCheck
-        _ = simpleManager.retryCount
-        _ = simpleManager.isRetryingAfterFix
+        _ = kanataManager.currentState
+        _ = kanataManager.errorReason
+        _ = kanataManager.showWizard
+        _ = kanataManager.autoStartAttempts
+        _ = kanataManager.lastHealthCheck
+        _ = kanataManager.retryCount
+        _ = kanataManager.isRetryingAfterFix
 
         XCTAssertTrue(true, "All expected properties are accessible")
     }
@@ -92,24 +89,23 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Test that auto-start integration works without throwing
 
         let kanataManager = KanataManager()
-        let simpleManager = SimpleKanataManager(kanataManager: kanataManager)
 
         // This may fail in the test environment, but shouldn't throw
-        await simpleManager.startAutoLaunch()
+        await kanataManager.startAutoLaunch()
 
         // State should be defined (either running, needsHelp, or starting)
-        let validStates: [SimpleKanataManager.State] = [.starting, .running, .needsHelp, .stopped]
-        XCTAssertTrue(validStates.contains(simpleManager.currentState), "Should be in a valid state")
+        let validStates: [SimpleKanataState] = [.starting, .running, .needsHelp, .stopped]
+        XCTAssertTrue(validStates.contains(kanataManager.currentState), "Should be in a valid state")
     }
 
     func testRetryMechanism() async {
         // Test retry mechanism exists
 
         let kanataManager = KanataManager()
-        let simpleManager = SimpleKanataManager(kanataManager: kanataManager)
+        // Consolidated: simpleManager is now just kanataManager
 
         // Test retry method exists and can be called
-        await simpleManager.retryAfterFix("Test feedback")
+        await kanataManager.retryAfterFix("Test feedback")
 
         XCTAssertTrue(true, "Retry mechanism is accessible")
     }
@@ -120,10 +116,10 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Verify that status refresh exists (this was part of timer consolidation)
 
         let kanataManager = KanataManager()
-        let simpleManager = SimpleKanataManager(kanataManager: kanataManager)
+        // Consolidated: simpleManager is now just kanataManager
 
         // Should be able to force refresh status
-        await simpleManager.forceRefreshStatus()
+        await kanataManager.forceRefreshStatus()
 
         XCTAssertTrue(true, "Status refresh mechanism exists")
     }
@@ -132,11 +128,11 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Test that multiple refreshes don't cause issues (timer consolidation benefit)
 
         let kanataManager = KanataManager()
-        let simpleManager = SimpleKanataManager(kanataManager: kanataManager)
+        // Consolidated: simpleManager is now just kanataManager
 
         // Multiple rapid refreshes should be handled gracefully
         for _ in 0 ..< 5 {
-            await simpleManager.forceRefreshStatus()
+            await kanataManager.forceRefreshStatus()
         }
 
         XCTAssertTrue(true, "Multiple refreshes handled without throwing")
@@ -148,13 +144,13 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Test that error states are properly handled
 
         let kanataManager = KanataManager()
-        let simpleManager = SimpleKanataManager(kanataManager: kanataManager)
+        // Consolidated: simpleManager is now just kanataManager
 
         // Error reason should be optional
-        XCTAssertNil(simpleManager.errorReason, "Initial error reason should be nil")
+        XCTAssertNil(kanataManager.errorReason, "Initial error reason should be nil")
 
         // Show wizard should be boolean
-        let showWizard = simpleManager.showWizard
+        let showWizard = kanataManager.showWizard
         XCTAssertTrue(showWizard == true || showWizard == false, "ShowWizard should be boolean")
     }
 }

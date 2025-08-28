@@ -2,29 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## ⚠️ CURRENT SESSION STATUS (Aug 24, 2025 6:15 PM)
+## ⚠️ CURRENT SESSION STATUS (August 2024)
 
-**COMPLETED:** Successfully resolved keyboard freezing issue and implemented TCC-safe architecture.
+**COMPLETED:** Successfully transitioned to UDP-only architecture and resolved authentication issues.
 
 **Key Fixes Applied:**
-1. **Reverted to Working Architecture:** Back to commit 179cba0 (multi-manager architecture)
-2. **Fixed TCC Identity Issues:** Removed unsigned Homebrew kanata, now only uses bundled version
-3. **Stable Signing:** All builds use Developer ID (X2RKZ5TG99) - never ad-hoc
-4. **Bundled-Only Strategy:** Wizard no longer installs external kanata binaries
-5. **TCC-Safe Updates:** Created `/doit` command for stable deployments
+1. **UDP-Only Architecture:** Complete transition from TCP to UDP communication (commit d81d809)
+2. **Secure Authentication:** Three-phase UDP authentication with session management
+3. **Race Condition Fix:** Fixed UDP receive/send race conditions in client authentication
+4. **Manager Consolidation:** All functionality now unified in KanataManager
+5. **TCC-Safe Deployment:** Stable deployment process preserves Input Monitoring permissions
 
-**Latest Build:** Successfully built, signed, and deployed (Notarization ID: 0cb2adbc-f6b8-4826-a4d3-56fe71776814)
+**Latest Commits:**
+- Fix CI: Add missing isInitializing argument to WizardSummaryPage (80ae28f)
+- Complete UDP race condition fix and architecture transition (e7a5679)
+- Fix UDP authentication bug by switching to receiveMessage API (d43ac7a)
 
 **Critical Architecture Notes:**
-- Manager consolidation completed: All functionality now unified in KanataManager
-- CGEvent taps are safely isolated in KeyboardCapture service (no conflicts with managers)
-- GUI creates CGEvent taps (known TCC violation - documented in SOMEDAY.md for future fix)
-- Only bundled kanata at `/Applications/KeyPath.app/Contents/Library/KeyPath/kanata` should exist
-
-**Next Steps:**
-- Test if wizard now shows proper kanata signing status (should be resolved)
-- Verify Input Monitoring permissions persist across updates using `/doit` command
-- Eventually fix GUI CGEvent tap violation (see SOMEDAY.md priority item)
+- **UDP Communication:** Primary communication protocol between KeyPath and Kanata
+- **Secure Sessions:** Token-based authentication with session management via Keychain
+- **CGEvent Integration:** KeyboardCapture service handles input recording safely
+- **Bundled Kanata:** Only uses bundled kanata binary for TCC stability
 
 ## Project Overview
 
@@ -156,21 +154,22 @@ sudo launchctl print system/com.keypath.kanata
 # View logs
 tail -f /var/log/kanata.log
 
-# Check if TCP server is running (if enabled)
-netstat -an | grep LISTEN | grep 37000  # or your chosen port
+# Check if UDP server is running (if enabled)
+netstat -an | grep 37000  # or your chosen port
 ```
 
 ### Configuration
 - User config: `~/Library/Application Support/KeyPath/keypath.kbd`
-- Hot reload: Service restarts automatically via KanataManager when config changes
-- TCP server: Add `--port <port>` to Kanata launch arguments to enable external integrations
+- Hot reload: Configuration reloaded via UDP without service restart
+- UDP server: Configured automatically by KeyPath with secure authentication
 
 ## Dependencies
 
-- **Kanata**: Keyboard remapping engine (install via `brew install kanata`)
-- **Location**: `/opt/homebrew/bin/kanata` (ARM) or `/usr/local/bin/kanata` (Intel)
+- **Kanata**: Keyboard remapping engine (bundled with app)
+- **Location**: `/Applications/KeyPath.app/Contents/Library/KeyPath/kanata` (bundled)
 - **macOS 13.0+**
 - **Permissions**: Accessibility (app) + Input Monitoring (kanata binary)
+- **Communication**: UDP server with secure authentication
 
 ## Kanata Config Format
 
@@ -183,37 +182,41 @@ netstat -an | grep LISTEN | grep 37000  # or your chosen port
 (deflayer base esc)
 ```
 
-### TCP Server Configuration
+### UDP Server Configuration
 
-Kanata supports a TCP server for external integrations and monitoring. The TCP server allows:
-- Polling current layer information
-- Receiving layer change events  
-- Sending commands to change layers programmatically
+Kanata supports a UDP server for secure communication with KeyPath. The UDP server enables:
+- Authentication-based session management
+- Configuration validation and hot-reload
+- Secure command execution with token-based auth
 
-**Enable TCP Server:**
+**Enable UDP Server:**
 ```bash
-# Start kanata with TCP server on port 37000 (example)
+# Start kanata with UDP server (configured automatically by KeyPath)
 /usr/local/bin/kanata --cfg /path/to/config.kbd --port 37000
 
-# TCP server listens on localhost only by default for security
-# Connect with netcat for testing: nc 127.0.0.1 37000
+# UDP server listens on localhost only by default for security
+# Authentication required for all operations except initial handshake
 ```
 
-**Common TCP Server Usage:**
-- **Port Range**: Commonly uses ports 37000-37005 or custom ports like 1111, 5829
-- **Client Connection**: `nc 127.0.0.1 <port>` or programmatic TCP clients
-- **Layer Monitoring**: Get current active layer information
-- **Layer Switching**: Send JSON commands to change layers
-- **Script Integration**: Useful for status bars, desktop widgets, automation
+**UDP Server Features:**
+- **Secure Authentication**: Token-based authentication with session expiry
+- **Session Management**: Sessions cached in Keychain with expiration tracking
+- **Config Validation**: Live validation of keyboard configuration files
+- **Hot Reload**: Configuration changes applied without service restart
+- **Size Limits**: UDP packets limited to 1200 bytes for reliability
 
-**Security Note**: TCP server only listens on localhost (127.0.0.1) by default. Be careful with rapid connections as too many open connections can crash Kanata with "Too many open files" error.
+**Security Features:**
+- All operations require valid authentication token
+- Sessions expire automatically for security
+- Localhost-only binding prevents external access
+- Token storage via macOS Keychain for security
 
-**IMPORTANT: TCP Configuration Method**
-- TCP server is configured via **command line arguments only** (`--port <port>`)
+**IMPORTANT: UDP Configuration Method**
+- UDP server is configured via **command line arguments only** (`--port <port>`)
 - **NOT** configured in the `.kbd` config file
 - The `.kbd` file only contains keyboard mappings, layers, and key definitions
-- KeyPath should store TCP preferences in app settings and modify launch arguments
-- No need to regenerate or modify `.kbd` files for TCP functionality
+- KeyPath manages UDP preferences and authentication automatically
+- No manual token management required - handled by KeyPath
 
 ## Key Mapping
 
@@ -269,10 +272,7 @@ Production builds require:
 For ALL deployments, use this TCC-safe process to preserve Input Monitoring permissions:
 
 ```bash
-# Use the /doit command (recommended)
-/doit
-
-# OR manual equivalent:
+# Recommended deployment process:
 ./Scripts/build-and-sign.sh && cp -r dist/KeyPath.app /Applications/
 ```
 

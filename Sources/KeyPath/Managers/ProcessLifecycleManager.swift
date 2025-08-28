@@ -132,6 +132,16 @@ final class ProcessLifecycleManager {
     func detectConflicts() async -> ConflictResolution {
         AppLogger.shared.log("🔍 [ProcessLifecycleManager] Detecting conflicts...")
 
+        // Skip process detection in test environment
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [TestEnvironment] Skipping process conflict detection - returning clean state")
+            return ConflictResolution(
+                externalProcesses: [],
+                managedProcesses: [],
+                canAutoResolve: true
+            )
+        }
+
         // First check our ownership status
         let ownership = PIDFileManager.checkOwnership()
         ownedPID = ownership.pid

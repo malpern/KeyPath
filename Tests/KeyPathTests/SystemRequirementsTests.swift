@@ -223,18 +223,9 @@ final class SystemRequirementsTests: XCTestCase {
     // MARK: - Integration Tests
 
     @MainActor
-    func testSystemRequirements_IntegrationWithSystemStateDetector() {
+    func testSystemRequirements_IntegrationWithSystemStatusChecker() {
         let kanataManager = KanataManager()
-        let vhidManager = VHIDDeviceManager()
-        let launchDaemonInstaller = LaunchDaemonInstaller()
-        let packageManager = PackageManager()
-        let detector = SystemStateDetector(
-            kanataManager: kanataManager,
-            vhidDeviceManager: vhidManager,
-            launchDaemonInstaller: launchDaemonInstaller,
-            systemRequirements: systemRequirements,
-            packageManager: packageManager
-        )
+        let detector = SystemStatusChecker(kanataManager: kanataManager)
 
         // Verify detector can be created with SystemRequirements
         XCTAssertNotNil(detector)

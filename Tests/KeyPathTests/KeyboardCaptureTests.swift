@@ -37,7 +37,8 @@ final class KeyboardCaptureTests: XCTestCase {
 
     func testKeyboardCaptureInitialization() throws {
         XCTAssertNotNil(capture)
-        XCTAssertFalse(capture.checkAccessibilityPermissionsSilently() || !capture.checkAccessibilityPermissionsSilently(), "Should return boolean")
+        let hasPermissions = capture.checkAccessibilityPermissionsSilently()
+        XCTAssert(hasPermissions == true || hasPermissions == false, "Should return boolean")
     }
 
     // MARK: - Key Code Mapping Tests

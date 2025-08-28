@@ -579,6 +579,12 @@ class LaunchDaemonInstaller {
     private func installPlist(content: String, path: String, serviceID: String) -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing plist: \(path)")
 
+        // Skip admin operations in test environment
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [TestEnvironment] Skipping plist installation - returning mock success")
+            return true
+        }
+
         // Create temporary file with plist content
         let tempDir = NSTemporaryDirectory()
         let tempPath = "\(tempDir)\(serviceID).plist"

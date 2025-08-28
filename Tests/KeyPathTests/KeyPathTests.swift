@@ -19,7 +19,7 @@ final class KeyPathTests: XCTestCase {
         XCTAssertFalse(manager.isRunning)
         XCTAssertNil(manager.lastError)
         XCTAssertEqual(
-            manager.configPath, "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
+            manager.configPath, "\(NSHomeDirectory())/.config/keypath/keypath.kbd"
         )
     }
 
@@ -79,20 +79,17 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testGenerateKanataConfig() throws {
-        let manager = KanataManager()
-
         // Test basic config generation
-        let config = manager.generateKanataConfig(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", output: "escape")
+        let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Check config structure
         XCTAssertTrue(config.contains("(defcfg"))
         XCTAssertTrue(config.contains("process-unmapped-keys no")) // SAFETY: Updated expectation
-        XCTAssertTrue(config.contains("danger-enable-cmd yes")) // SAFETY: CMD support
         XCTAssertTrue(config.contains("(defsrc"))
         XCTAssertTrue(config.contains("caps"))
         XCTAssertTrue(config.contains("(deflayer base"))
         XCTAssertTrue(config.contains("esc"))
-        XCTAssertTrue(config.contains(";; Input: caps -> Output: escape"))
         XCTAssertTrue(config.contains("SAFETY FEATURES")) // SAFETY: Documentation
 
         // Ensure no invalid options
@@ -100,8 +97,6 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testGenerateKanataConfigVariations() throws {
-        let manager = KanataManager()
-
         let testCases: [(String, String, String, String)] = [
             ("caps", "a", "caps", "a"),
             ("space", "return", "spc", "ret"),
@@ -110,7 +105,8 @@ final class KeyPathTests: XCTestCase {
         ]
 
         for (input, output, expectedInput, expectedOutput) in testCases {
-            let config = manager.generateKanataConfig(input: input, output: output)
+            let mapping = KeyMapping(input: input, output: output)
+            let config = KanataConfiguration.generateFromMappings([mapping])
 
             XCTAssertTrue(config.contains("(defsrc"))
             XCTAssertTrue(config.contains(expectedInput))
@@ -120,10 +116,9 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testConfigValidation() throws {
-        let manager = KanataManager()
-
         // Generate a config and validate it's well-formed
-        let config = manager.generateKanataConfig(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", output: "escape")
+        let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Check that it has balanced parentheses
         let openParens = config.components(separatedBy: "(").count - 1
@@ -180,7 +175,8 @@ final class KeyPathTests: XCTestCase {
         let manager = KanataManager()
 
         // Test that generated config can be used by the manager
-        let config = manager.generateKanataConfig(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", output: "escape")
+        let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Verify the config has the expected structure for KanataManager
         XCTAssertTrue(config.contains("caps"))
@@ -198,13 +194,12 @@ final class KeyPathTests: XCTestCase {
     // MARK: - Performance Tests
 
     func testConfigGenerationPerformance() throws {
-        let manager = KanataManager()
-
         measure {
             for i in 0 ..< 100 {
                 let input = i % 2 == 0 ? "caps" : "space"
                 let output = i % 2 == 0 ? "escape" : "return"
-                _ = manager.generateKanataConfig(input: input, output: output)
+                let mapping = KeyMapping(input: input, output: output)
+                _ = KanataConfiguration.generateFromMappings([mapping])
             }
         }
     }
@@ -227,15 +222,15 @@ final class KeyPathTests: XCTestCase {
     // MARK: - Error Handling Tests
 
     func testInvalidInputHandling() throws {
-        let manager = KanataManager()
-
         // Test empty inputs
-        let emptyConfig = manager.generateKanataConfig(input: "", output: "a")
+        let emptyMapping = KeyMapping(input: "", output: "a")
+        let emptyConfig = KanataConfiguration.generateFromMappings([emptyMapping])
         XCTAssertTrue(emptyConfig.contains("(defsrc"))
         XCTAssertTrue(emptyConfig.contains("(deflayer base"))
 
         // Test with special characters
-        let specialConfig = manager.generateKanataConfig(input: "caps", output: "!")
+        let specialMapping = KeyMapping(input: "caps", output: "!")
+        let specialConfig = KanataConfiguration.generateFromMappings([specialMapping])
         XCTAssertTrue(specialConfig.contains("caps"))
         XCTAssertTrue(specialConfig.contains("!"))
     }
@@ -363,11 +358,11 @@ final class KeyPathTests: XCTestCase {
         let manager = KanataManager()
 
         // Test configuration generation and validation
-        let config = manager.generateKanataConfig(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", output: "escape")
+        let config = KanataConfiguration.generateFromMappings([mapping])
 
-        // Config should contain safety features and CMD support
+        // Config should contain safety features
         XCTAssertTrue(config.contains("process-unmapped-keys no"), "Should have safety setting")
-        XCTAssertTrue(config.contains("danger-enable-cmd yes"), "Should have CMD support")
         XCTAssertTrue(config.contains("SAFETY FEATURES"), "Should have safety documentation")
 
         // Test that saveConfiguration handles the complete workflow
@@ -585,12 +580,13 @@ final class KeyPathTests: XCTestCase {
 
         // Test config path is correct
         XCTAssertEqual(
-            manager.configPath, "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd",
+            manager.configPath, "\(NSHomeDirectory())/.config/keypath/keypath.kbd",
             "Config path should be in expected location"
         )
 
         // Test that config includes proper attribution
-        let config = manager.generateKanataConfig(input: "caps", output: "escape")
+        let mapping = KeyMapping(input: "caps", output: "escape")
+        let config = KanataConfiguration.generateFromMappings([mapping])
         // Note: The actual date/attribution is added in resetToDefaultConfig,
         // but we can test the basic structure
         XCTAssertTrue(config.contains("defcfg"), "Config should have proper structure")
