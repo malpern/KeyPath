@@ -220,6 +220,8 @@ extension PreferencesService {
     /// Get UDP launch arguments for Kanata if UDP is enabled
     var udpLaunchArguments: [String] {
         guard shouldUseUDP else { return [] }
+        // Ensure a token exists before building arguments/env
+        _ = CommunicationSnapshot.ensureSharedUDPToken()
         return Self.buildUDPArguments(
             port: udpServerPort,
             sessionTimeout: udpSessionTimeout,
@@ -231,15 +233,13 @@ extension PreferencesService {
     nonisolated static func buildUDPArguments(port: Int, sessionTimeout: Int, defaultTimeout: Int) -> [String] {
         var args = ["--udp-port", "\(port)"]
 
-        // Token is now passed via KANATA_UDP_TOKEN environment variable for security
-        // Check if token is available, otherwise use no-auth mode
-        if let fileToken = CommunicationSnapshot.readSharedUDPToken(), !fileToken.isEmpty {
-            // Token will be set via environment variable during process launch
-            AppLogger.shared.log("🔐 [UDP Launch] Token available - will use environment variable")
+        // Always require auth: ensure token exists and will be provided via env
+        let token = CommunicationSnapshot.ensureSharedUDPToken()
+        if token.isEmpty {
+            AppLogger.shared.log("❌ [UDP Launch] Failed to ensure UDP token; refusing to start without auth")
+            // Still return args; caller should decide to abort launch if desired
         } else {
-            // No token available - use no auth
-            args.append("--udp-no-auth")
-            AppLogger.shared.log("⚠️ [UDP Launch] No token available - using no-auth mode")
+            AppLogger.shared.log("🔐 [UDP Launch] Auth token ensured; using environment variable")
         }
 
         if sessionTimeout != defaultTimeout {
@@ -258,12 +258,13 @@ extension PreferencesService {
     var communicationEnvironmentVariables: [String: String] {
         guard shouldUseUDP else { return [:] }
 
-        // Pass UDP token via environment variable for security
-        let token = udpAuthToken
+        // Ensure and pass UDP token via environment variable for security
+        let token = CommunicationSnapshot.ensureSharedUDPToken()
         if !token.isEmpty {
             return ["KANATA_UDP_TOKEN": token]
         }
 
+        AppLogger.shared.log("❌ [PreferencesService] Missing UDP token; not exposing UDP environment")
         return [:]
     }
 }
@@ -369,6 +370,7 @@ struct CommunicationSnapshot: Sendable {
     /// Get UDP launch arguments
     var communicationLaunchArguments: [String] {
         guard shouldUseUDP else { return [] }
+        _ = CommunicationSnapshot.ensureSharedUDPToken()
         return PreferencesService.buildUDPArguments(
             port: udpPort,
             sessionTimeout: udpSessionTimeout,
@@ -379,12 +381,10 @@ struct CommunicationSnapshot: Sendable {
     /// Get environment variables for secure token passing
     var communicationEnvironmentVariables: [String: String] {
         guard shouldUseUDP else { return [:] }
-
-        // Pass UDP token via environment variable for security
-        if !udpAuthToken.isEmpty {
-            return ["KANATA_UDP_TOKEN": udpAuthToken]
+        let token = CommunicationSnapshot.ensureSharedUDPToken()
+        if !token.isEmpty {
+            return ["KANATA_UDP_TOKEN": token]
         }
-
         return [:]
     }
 }

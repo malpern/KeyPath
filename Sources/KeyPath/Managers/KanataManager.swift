@@ -242,6 +242,9 @@ class KanataManager: ObservableObject {
     // Configuration file watching for hot reload
     private var configFileWatcher: ConfigFileWatcher?
 
+    // Configuration backup management
+    private let configBackupManager: ConfigBackupManager
+
     var configPath: String {
         configurationService.configurationPath
     }
@@ -264,6 +267,9 @@ class KanataManager: ObservableObject {
 
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
+
+        // Initialize configuration backup manager
+        configBackupManager = ConfigBackupManager(configPath: "\(NSHomeDirectory())/.config/keypath/keypath.kbd")
 
         // Dispatch heavy initialization work to background thread
         Task.detached { [weak self] in
@@ -3198,6 +3204,29 @@ class KanataManager: ObservableObject {
             return "⚠️ Driver missing"
         } else {
             return "⚠️ Installation incomplete"
+        }
+    }
+
+    // MARK: - Configuration Backup Management
+
+    /// Create a backup before opening config for editing
+    /// Returns true if backup was created successfully
+    func createPreEditBackup() -> Bool {
+        return configBackupManager.createPreEditBackup()
+    }
+
+    /// Get list of available configuration backups
+    func getAvailableBackups() -> [BackupInfo] {
+        return configBackupManager.getAvailableBackups()
+    }
+
+    /// Restore configuration from a specific backup
+    func restoreFromBackup(_ backup: BackupInfo) throws {
+        try configBackupManager.restoreFromBackup(backup)
+
+        // Trigger reload after restoration
+        Task {
+            await self.triggerHotReload()
         }
     }
 

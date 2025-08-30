@@ -883,6 +883,13 @@ struct SettingsView: View {
     }
 
     private func openConfigInZed() {
+        // Create backup before opening for external editing
+        if kanataManager.createPreEditBackup() {
+            AppLogger.shared.log("✅ [SettingsView] Created backup before opening config for editing")
+        } else {
+            AppLogger.shared.log("⚠️ [SettingsView] Failed to create backup before editing")
+        }
+
         let configPath = kanataManager.configPath
         let process = Process()
         process.launchPath = "/usr/local/bin/zed"
