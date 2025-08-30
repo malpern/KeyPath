@@ -948,7 +948,8 @@ class WizardStateManager: ObservableObject {
     var statusChecker: SystemStatusChecker?
 
     func configure(kanataManager: KanataManager) {
-        statusChecker = SystemStatusChecker(kanataManager: kanataManager)
+        statusChecker = SystemStatusChecker.shared(kanataManager: kanataManager)
+        AppLogger.shared.log("🔍 [WizardStateManager] Configured with shared SystemStatusChecker")
     }
 
     func detectCurrentState() async -> SystemStateResult {

@@ -10,8 +10,31 @@ import Foundation
 /// - Conflict detection and resolution
 /// - Automatic issue generation with actionable fixes
 /// - Performance optimized with intelligent caching
+/// - Shared instance pattern for consistent status across all components
 @MainActor
 class SystemStatusChecker {
+    // MARK: - Shared Instance
+
+    private static var sharedInstance: SystemStatusChecker?
+
+    /// Get or create the shared SystemStatusChecker instance
+    static func shared(kanataManager: KanataManager) -> SystemStatusChecker {
+        if let existing = sharedInstance {
+            return existing
+        }
+
+        let newInstance = SystemStatusChecker(kanataManager: kanataManager)
+        sharedInstance = newInstance
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Created shared instance")
+        return newInstance
+    }
+
+    /// Reset the shared instance (primarily for testing)
+    static func resetSharedInstance() {
+        sharedInstance = nil
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Shared instance reset")
+    }
+
     private let kanataManager: KanataManager
     private let vhidDeviceManager: VHIDDeviceManager
     private let launchDaemonInstaller: LaunchDaemonInstaller
@@ -652,33 +675,85 @@ class SystemStatusChecker {
 
         AppLogger.shared.log("✅ [SystemStatusChecker] UDP configuration matches LaunchDaemon plist")
 
-        // Check if UDP server is actually responding
-        let udpServerWorking = await checkUDPServerStatus()
-        if udpServerWorking {
+        // Use comprehensive communication testing for detailed status
+        let commTestResult = await checkComprehensiveCommunicationStatus()
+        AppLogger.shared.log("📡 [SystemStatusChecker] Comprehensive communication test result: \(commTestResult)")
+
+        switch commTestResult {
+        case .fullyFunctional:
             installed.append(.kanataUDPServer)
-            AppLogger.shared.log("✅ [SystemStatusChecker] UDP server responding on port \(commConfig.udpPort)")
-        } else {
+            AppLogger.shared.log("✅ [SystemStatusChecker] UDP server fully functional on port \(commConfig.udpPort)")
+        case .serviceUnhealthy:
+            // Don't add as issue - service health issues are handled by other components
+            // This prevents false UDP errors when the underlying service needs fixing first
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] Service unhealthy - UDP testing skipped (no false UDP errors)")
+        case .configurationOutdated:
+            // Configuration issue - matches what checkUDPConfiguration already detected
+            missing.append(.udpServerConfiguration)
+            AppLogger.shared.log("❌ [SystemStatusChecker] UDP configuration outdated - comprehensive test confirms checkUDPConfiguration")
+        case .notResponding:
             missing.append(.udpServerNotResponding)
-            AppLogger.shared.log("❌ [SystemStatusChecker] UDP server configured but not responding")
+            AppLogger.shared.log("❌ [SystemStatusChecker] UDP server not responding on port \(commConfig.udpPort)")
+        case .authenticationRequired, .reloadFailed:
+            // These are functional issues but server is responding
+            missing.append(.udpServerNotResponding) // Will be handled by communication page for setup
+            AppLogger.shared.log("❌ [SystemStatusChecker] UDP server has authentication/reload issues: \(commTestResult)")
+        case .notEnabled:
+            // This shouldn't happen since we checked shouldUseUDP above, but handle gracefully
+            installed.append(.kanataUDPServer) // No issue if UDP is supposed to be disabled
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] UDP server not enabled (unexpected at this point)")
         }
     }
 
-    /// Check if Kanata UDP server is responding
+    /// Comprehensive communication test result
+    enum CommunicationTestResult {
+        case notEnabled
+        case serviceUnhealthy
+        case configurationOutdated
+        case notResponding
+        case authenticationRequired
+        case reloadFailed
+        case fullyFunctional
+
+        var isWorking: Bool {
+            return self == .fullyFunctional
+        }
+    }
+
+    /// Check if Kanata UDP server is responding with comprehensive testing
     private func checkUDPServerStatus() async -> Bool {
+        let result = await checkComprehensiveCommunicationStatus()
+        return result.isWorking
+    }
+
+    /// Comprehensive communication status check that mirrors WizardCommunicationPage testing
+    func checkComprehensiveCommunicationStatus() async -> CommunicationTestResult {
         let commConfig = PreferencesService.communicationSnapshot()
 
-        // If UDP is disabled in preferences, consider it as not working
+        // If UDP is disabled in preferences, not enabled
         guard commConfig.shouldUseUDP else {
             AppLogger.shared.log("📡 [SystemStatusChecker] UDP server disabled in preferences")
-            return false
+            return .notEnabled
+        }
+
+        // CRITICAL: Check service health before UDP tests to match checkUDPConfiguration logic
+        let serviceStatus = launchDaemonInstaller.getServiceStatus()
+        guard serviceStatus.kanataServiceLoaded, serviceStatus.kanataServiceHealthy else {
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] Service unhealthy (loaded: \(serviceStatus.kanataServiceLoaded), healthy: \(serviceStatus.kanataServiceHealthy)) - cannot test UDP")
+            return .serviceUnhealthy
+        }
+
+        // CRITICAL: Check configuration currency - this is what causes summary/detail inconsistency
+        guard launchDaemonInstaller.isServiceConfigurationCurrent() else {
+            AppLogger.shared.log("❌ [SystemStatusChecker] UDP configuration outdated - plist needs regeneration before testing")
+            return .configurationOutdated
         }
 
         // Check if kanata service is actually running with UDP port
         if !kanataManager.isRunning {
-            AppLogger.shared.log("📡 [SystemStatusChecker] WARNING: KanataManager.isRunning=false but continuing UDP check anyway")
-            // Continue anyway - let's see if UDP actually works
+            AppLogger.shared.log("📡 [SystemStatusChecker] WARNING: KanataManager.isRunning=false but service is healthy, proceeding with UDP check")
         } else {
-            AppLogger.shared.log("📡 [SystemStatusChecker] KanataManager.isRunning=true, proceeding with UDP check")
+            AppLogger.shared.log("📡 [SystemStatusChecker] KanataManager.isRunning=true and service healthy, proceeding with UDP check")
         }
 
         // Use SharedUDPClientService to check server status
@@ -688,12 +763,50 @@ class SystemStatusChecker {
         let serverResponding = await client.checkServerStatus()
         AppLogger.shared.log("🧪 [SystemStatusChecker] SharedUDPClientService client.checkServerStatus() returned: \(serverResponding)")
 
-        if serverResponding {
-            AppLogger.shared.log("📡 [SystemStatusChecker] UDP server status check: port \(commConfig.udpPort) - responding")
-            return true
-        } else {
+        guard serverResponding else {
             AppLogger.shared.log("📡 [SystemStatusChecker] UDP server status check: port \(commConfig.udpPort) - not responding")
-            return false
+            return .notResponding
+        }
+
+        AppLogger.shared.log("📡 [SystemStatusChecker] UDP server responding, testing authentication...")
+
+        // Test authentication like WizardCommunicationPage does
+        return await testUDPAuthentication(client: client)
+    }
+
+    /// Test UDP authentication and config reload capability
+    private func testUDPAuthentication(client: KanataUDPClient) async -> CommunicationTestResult {
+        let preferences = PreferencesService.shared
+        let authToken = preferences.udpAuthToken
+
+        // Check if we have an auth token
+        guard !authToken.isEmpty else {
+            AppLogger.shared.log("🔐 [SystemStatusChecker] No auth token available - authentication required")
+            return .authenticationRequired
+        }
+
+        // Try existing token
+        AppLogger.shared.log("🔐 [SystemStatusChecker] Testing existing auth token...")
+        let authenticated = await client.authenticate(token: authToken)
+        guard authenticated else {
+            AppLogger.shared.log("🔐 [SystemStatusChecker] Existing auth token failed - authentication required")
+            return .authenticationRequired
+        }
+
+        AppLogger.shared.log("✅ [SystemStatusChecker] Authentication successful, testing config reload...")
+
+        // Test config reload capability to ensure full functionality
+        let result = await client.reloadConfig()
+        switch result {
+        case .success:
+            AppLogger.shared.log("✅ [SystemStatusChecker] Config reload test successful - fully functional")
+            return .fullyFunctional
+        case .authenticationRequired:
+            AppLogger.shared.log("❌ [SystemStatusChecker] Config reload requires fresh auth - authentication required")
+            return .authenticationRequired
+        case .failure, .networkError:
+            AppLogger.shared.log("❌ [SystemStatusChecker] Config reload test failed - reload capability broken")
+            return .reloadFailed
         }
     }
 

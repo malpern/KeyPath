@@ -7,6 +7,7 @@ actor KanataUDPClient {
     private let host: String
     private let port: Int
     private let timeout: TimeInterval
+    private let reuseConnection: Bool
 
     // Authentication state
     private var authToken: String?
@@ -18,16 +19,26 @@ actor KanataUDPClient {
     private var connectionCreatedAt: Date?
     private let connectionMaxAge: TimeInterval = 30.0 // Close idle connections after 30 seconds
 
+    // Inflight request tracking - prevents stale receive handler bug
+    private var inflightRequest: InflightRequest?
+
+    private struct InflightRequest {
+        let id: UUID
+        var isCompleted: Bool
+        let cancel: () -> Void
+    }
+
     // Size limits for UDP reliability
     static let maxUDPPayloadSize = 1200 // Safe MTU size
     private static let maxConfigSize = 1000 // Leave room for JSON wrapping
 
     // MARK: - Initialization
 
-    init(host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 5.0) {
+    init(host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 5.0, reuseConnection: Bool = true) {
         self.host = host
         self.port = port
         self.timeout = timeout
+        self.reuseConnection = reuseConnection
     }
 
     deinit {
@@ -37,6 +48,45 @@ actor KanataUDPClient {
             conn.cancel()
         }
         AppLogger.shared.log("📡 [UDP] Client deallocated, connection cleaned up")
+    }
+
+    // MARK: - Connection Lifecycle Management
+
+    /// Cancel any inflight request and close the connection to prevent stale receive handlers
+    func cancelInflightAndCloseConnection() {
+        AppLogger.shared.log("🔌 [UDP] Cancelling inflight request and closing connection")
+
+        if let request = inflightRequest, !request.isCompleted {
+            AppLogger.shared.log("🛑 [UDP] Cancelling inflight request \(request.id)")
+            request.cancel()
+        }
+        inflightRequest = nil
+
+        clearBrokenConnection()
+    }
+
+    /// Timeout utility that properly cancels operations and cleans up connections
+    private func withTimeout<T>(_ seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            // Add the main operation
+            group.addTask {
+                try await operation()
+            }
+
+            // Add the timeout task
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw UDPError.timeout
+            }
+
+            // Wait for first completion
+            let result = try await group.next()!
+
+            // Cancel remaining tasks
+            group.cancelAll()
+
+            return result
+        }
     }
 
     // MARK: - Authentication
@@ -399,7 +449,7 @@ actor KanataUDPClient {
             var hasResumed = false
 
             // Connection establishment timeout
-            let timeoutTimer = queue.asyncAfter(deadline: .now() + timeout) {
+            _ = queue.asyncAfter(deadline: .now() + timeout) {
                 if !hasResumed {
                     hasResumed = true
                     AppLogger.shared.log("📡 [UDP] ⏰ Connection establishment timeout after \(timeout)s")
@@ -461,6 +511,15 @@ actor KanataUDPClient {
     // MARK: - Low-level UDP Communication
 
     private func sendUDPMessage(_ data: Data, requiresAuth: Bool = true) async throws -> Data {
+        let requestId = UUID()
+        AppLogger.shared.log("📡 [UDP] Starting request \(requestId) to \(host):\(port)")
+
+        // Validate port early to avoid fatal errors when constructing NWEndpoint.Port
+        if !(1 ... 65535).contains(port) {
+            AppLogger.shared.log("📡 [UDP] ❌ Invalid port: \(port) [requestId: \(requestId)]")
+            throw UDPError.invalidPort
+        }
+
         if requiresAuth && !isAuthenticated {
             throw UDPError.notAuthenticated
         }
@@ -470,95 +529,123 @@ actor KanataUDPClient {
             throw UDPError.payloadTooLarge(data.count)
         }
 
-        AppLogger.shared.log("📡 [UDP] Sending message to \(host):\(port) (\(data.count) bytes)")
+        // CRITICAL: Cancel any existing inflight request to prevent stale receive handlers
+        if let existingRequest = inflightRequest, !existingRequest.isCompleted {
+            AppLogger.shared.log("🛑 [UDP] Cancelling existing inflight request \(existingRequest.id) before starting \(requestId)")
+            existingRequest.cancel()
+            clearBrokenConnection() // Tear down connection to kill stale handlers
+        }
+
+        AppLogger.shared.log("📡 [UDP] Sending message to \(host):\(port) (\(data.count) bytes) [requestId: \(requestId)]")
         // Sanitized logging with proper redaction
         let sanitized = sanitizeForLog(data)
-        AppLogger.shared.log("📡 [UDP] Message content: \(sanitized)")
+        AppLogger.shared.log("📡 [UDP] Message content: \(sanitized) [requestId: \(requestId)]")
 
-        // Use connection reuse to avoid race conditions
+        // Get or create connection (fresh if previous was torn down)
         let connection = getOrCreateConnection()
 
         do {
             try await waitUntilReady(connection, timeout: timeout)
         } catch {
             // Clear broken connection and retry once
+            AppLogger.shared.log("⚠️ [UDP] Connection not ready, retrying with fresh connection [requestId: \(requestId)]")
             clearBrokenConnection()
             let newConnection = getOrCreateConnection()
             try await waitUntilReady(newConnection, timeout: timeout)
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            var hasResumed = false
+        // Use withTimeout to enforce timeout with proper cleanup
+        do {
+            return try await withTimeout(timeout) {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+                    var requestCompleted = false
 
-            // Log local endpoint to verify stable binding
-            if let localEndpoint = connection.currentPath?.localEndpoint {
-                AppLogger.shared.log("📡 [UDP] Local endpoint: \(localEndpoint)")
-            } else {
-                AppLogger.shared.log("📡 [UDP] WARNING: No local endpoint available yet")
+                    // Set up inflight request tracking
+                    let cancelRequest = {
+                        AppLogger.shared.log("🛑 [UDP] Cancelling request \(requestId) -> tearing down connection")
+                        self.clearBrokenConnection()
+                    }
+
+                    self.inflightRequest = InflightRequest(
+                        id: requestId,
+                        isCompleted: false,
+                        cancel: cancelRequest
+                    )
+
+                    // Log local endpoint to verify stable binding
+                    if let localEndpoint = connection.currentPath?.localEndpoint {
+                        AppLogger.shared.log("📡 [UDP] Local endpoint: \(localEndpoint) [requestId: \(requestId)]")
+                    } else {
+                        AppLogger.shared.log("📡 [UDP] WARNING: No local endpoint available yet [requestId: \(requestId)]")
+                    }
+
+                    // CRITICAL FIX: Arm receive BEFORE send to avoid localhost race condition
+                    // On localhost, server responds instantly before receive handler gets installed
+                    AppLogger.shared.log("📡 [UDP] Arming receive handler BEFORE send to prevent race condition [requestId: \(requestId)]")
+
+                    connection.receiveMessage { responseData, context, _, error in
+                        // Only process if this request hasn't completed
+                        guard !requestCompleted else {
+                            AppLogger.shared.log("🚫 [UDP] Ignoring receive for completed request \(requestId)")
+                            return
+                        }
+
+                        if let error = error {
+                            AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error) [requestId: \(requestId)]")
+                            requestCompleted = true
+                            self.inflightRequest = nil
+                            continuation.resume(throwing: error)
+                            return
+                        }
+
+                        if let responseData = responseData {
+                            AppLogger.shared.log("📡 [UDP] ✅ Received response: \(responseData.count) bytes [requestId: \(requestId)]")
+                            if let context = context {
+                                AppLogger.shared.log("📡 [UDP] Response context: \(context) [requestId: \(requestId)]")
+                            }
+                            requestCompleted = true
+                            self.inflightRequest = nil
+                            continuation.resume(returning: responseData)
+                        } else {
+                            AppLogger.shared.log("📡 [UDP] ❌ No response data received [requestId: \(requestId)]")
+                            requestCompleted = true
+                            self.inflightRequest = nil
+                            continuation.resume(throwing: UDPError.noResponse)
+                        }
+                    }
+
+                    // Now send after receive handler is armed
+                    AppLogger.shared.log("📡 [UDP] Sending message after receive handler is armed [requestId: \(requestId)]")
+                    connection.send(content: data, completion: .contentProcessed { error in
+                        if let error = error {
+                            AppLogger.shared.log("📡 [UDP] ❌ Send error: \(error) [requestId: \(requestId)]")
+                            if !requestCompleted {
+                                requestCompleted = true
+                                self.inflightRequest = nil
+                                continuation.resume(throwing: error)
+                            }
+                            return
+                        }
+
+                        // Log local endpoint after send to verify stability
+                        if let localEndpoint = connection.currentPath?.localEndpoint {
+                            AppLogger.shared.log("📡 [UDP] ✅ Message sent from local endpoint: \(localEndpoint) [requestId: \(requestId)]")
+                        } else {
+                            AppLogger.shared.log("📡 [UDP] ⚠️ Message sent but no local endpoint info available [requestId: \(requestId)]")
+                        }
+                        AppLogger.shared.log("📡 [UDP] ✅ Message sent - receive handler already armed [requestId: \(requestId)]")
+                    })
+                }
             }
-
-            // CRITICAL FIX: Arm receive BEFORE send to avoid localhost race condition
-            // On localhost, server responds instantly before receive handler gets installed
-            AppLogger.shared.log("📡 [UDP] Arming receive handler BEFORE send to prevent race condition")
-
-            connection.receiveMessage { responseData, context, _, error in
-                if let error = error {
-                    AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error)")
-                    if !hasResumed {
-                        hasResumed = true
-                        continuation.resume(throwing: error)
-                    }
-                    return
-                }
-
-                if let responseData = responseData {
-                    AppLogger.shared.log("📡 [UDP] ✅ Received response: \(responseData.count) bytes")
-                    if let context = context {
-                        AppLogger.shared.log("📡 [UDP] Response context: \(context)")
-                    }
-                    if !hasResumed {
-                        hasResumed = true
-                        continuation.resume(returning: responseData)
-                    }
-                } else {
-                    AppLogger.shared.log("📡 [UDP] ❌ No response data received")
-                    if !hasResumed {
-                        hasResumed = true
-                        continuation.resume(throwing: UDPError.noResponse)
-                    }
-                }
+        } catch {
+            // CRITICAL CLEANUP: On timeout or other error, ensure inflight request is cleaned up
+            AppLogger.shared.log("⏰ [UDP] Request \(requestId) failed with error: \(error)")
+            if let request = inflightRequest, request.id == requestId {
+                AppLogger.shared.log("🧹 [UDP] Cleaning up inflight request \(requestId) after error")
+                inflightRequest = nil
+                request.cancel() // This will tear down connection to prevent stale handlers
             }
-
-            // Now send after receive handler is armed
-            AppLogger.shared.log("📡 [UDP] Sending message after receive handler is armed")
-            connection.send(content: data, completion: .contentProcessed { error in
-                if let error = error {
-                    AppLogger.shared.log("📡 [UDP] ❌ Send error: \(error)")
-                    if !hasResumed {
-                        hasResumed = true
-                        continuation.resume(throwing: error)
-                    }
-                    return
-                }
-
-                // Log local endpoint after send to verify stability
-                if let localEndpoint = connection.currentPath?.localEndpoint {
-                    AppLogger.shared.log("📡 [UDP] ✅ Message sent from local endpoint: \(localEndpoint)")
-                } else {
-                    AppLogger.shared.log("📡 [UDP] ⚠️ Message sent but no local endpoint info available")
-                }
-                AppLogger.shared.log("📡 [UDP] ✅ Message sent - receive handler already armed")
-            })
-
-            // Overall timeout for the entire request-response cycle
-            let queue = DispatchQueue(label: "kanata-udp-timeout")
-            queue.asyncAfter(deadline: .now() + timeout) {
-                if !hasResumed {
-                    hasResumed = true
-                    AppLogger.shared.log("📡 [UDP] ⏰ Request-response timeout after \(self.timeout)s")
-                    continuation.resume(throwing: UDPError.timeout)
-                }
-            }
+            throw error
         }
     }
 

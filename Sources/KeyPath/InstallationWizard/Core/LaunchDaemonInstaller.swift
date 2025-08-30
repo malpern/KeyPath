@@ -1710,24 +1710,51 @@ class LaunchDaemonInstaller {
         return arguments
     }
 
-    /// Checks if the current service configuration matches the expected TCP settings
+    /// Checks if the current service configuration matches the expected UDP settings (both arguments and environment variables)
     func isServiceConfigurationCurrent() -> Bool {
         guard let currentArgs = getKanataProgramArguments() else {
-            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check TCP configuration - plist unreadable")
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check UDP configuration - plist unreadable")
             return false
         }
 
         let expectedArgs = buildKanataPlistArguments(binaryPath: getKanataBinaryPath())
 
         // Compare argument arrays for exact match
-        let isMatch = currentArgs == expectedArgs
+        let argsMatch = currentArgs == expectedArgs
 
-        AppLogger.shared.log("🔍 [LaunchDaemon] TCP Configuration Check:")
-        AppLogger.shared.log("  Current:  \(currentArgs.joined(separator: " "))")
-        AppLogger.shared.log("  Expected: \(expectedArgs.joined(separator: " "))")
-        AppLogger.shared.log("  Match: \(isMatch)")
+        AppLogger.shared.log("🔍 [LaunchDaemon] UDP Configuration Check:")
+        AppLogger.shared.log("  Current Args:  \(currentArgs.joined(separator: " "))")
+        AppLogger.shared.log("  Expected Args: \(expectedArgs.joined(separator: " "))")
+        AppLogger.shared.log("  Args Match: \(argsMatch)")
 
-        return isMatch
+        // CRITICAL FIX: Also check environment variables (especially auth token)
+        let currentEnvVars = getKanataEnvironmentVariables()
+        let expectedEnvVars = PreferencesService.communicationSnapshot().communicationEnvironmentVariables
+        let envVarsMatch = currentEnvVars == expectedEnvVars
+
+        AppLogger.shared.log("  Current Env Vars: \(currentEnvVars.keys.sorted()) (token: \(currentEnvVars["KANATA_UDP_TOKEN"]?.isEmpty == false ? "present" : "missing"))")
+        AppLogger.shared.log("  Expected Env Vars: \(expectedEnvVars.keys.sorted()) (token: \(expectedEnvVars["KANATA_UDP_TOKEN"]?.isEmpty == false ? "present" : "missing"))")
+        AppLogger.shared.log("  Env Vars Match: \(envVarsMatch)")
+
+        let overallMatch = argsMatch && envVarsMatch
+        AppLogger.shared.log("  Overall Match: \(overallMatch)")
+
+        return overallMatch
+    }
+
+    /// Gets environment variables from the current Kanata plist
+    private func getKanataEnvironmentVariables() -> [String: String] {
+        guard let plistDict = NSDictionary(contentsOfFile: Self.kanataPlistPath) as? [String: Any] else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot read Kanata plist for environment variables")
+            return [:]
+        }
+
+        guard let envVarsDict = plistDict["EnvironmentVariables"] as? [String: String] else {
+            // No environment variables section - this is valid (empty env vars)
+            return [:]
+        }
+
+        return envVarsDict
     }
 
     /// Regenerates the Kanata service plist with current settings and reloads the service

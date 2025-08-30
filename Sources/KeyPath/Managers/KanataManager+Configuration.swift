@@ -89,6 +89,10 @@ extension KanataManager {
 
     /// UDP-based config reload using secure actor-based client
     func triggerUDPReload() async -> UDPReloadResult {
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [UDP Reload] Skipping UDP reload in test environment")
+            return .networkError("Test environment - UDP disabled")
+        }
         let commConfig = PreferencesService.communicationSnapshot()
         guard commConfig.shouldUseUDP else {
             AppLogger.shared.log("⚠️ [UDP Reload] UDP server not enabled - skipping")

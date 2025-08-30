@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
     @EnvironmentObject var kanataManager: KanataManager
+    @StateObject private var startupValidator = StartupValidator()
     @State private var isRecording = false
     @State private var isRecordingOutput = false
     @State private var recordedInput = ""
@@ -38,7 +39,10 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 20) {
             // Header
-            ContentViewHeader(showingInstallationWizard: $showingInstallationWizard)
+            ContentViewHeader(
+                validator: startupValidator,
+                showingInstallationWizard: $showingInstallationWizard
+            )
 
             // Recording Section
             RecordingSection(
@@ -106,6 +110,8 @@ struct ContentView: View {
 
                     Task {
                         await kanataManager.onWizardClosed()
+                        // Re-run validation to update the status indicator
+                        startupValidator.refreshValidation()
                     }
                 }
                 .environmentObject(kanataManager)
@@ -115,6 +121,12 @@ struct ContentView: View {
             AppLogger.shared.log(
                 "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(kanataManager.showWizard)"
             )
+
+            // Configure startup validator with KanataManager
+            startupValidator.configure(with: kanataManager)
+
+            // Start startup validation
+            startupValidator.performStartupValidation()
 
             // Check if we're returning from permission granting (Input Monitoring settings)
             let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
@@ -127,7 +139,7 @@ struct ContentView: View {
             if !isReturningFromPermissionGrant {
                 Task {
                     AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
-                    await kanataManager.startAutoLaunch()
+                    await kanataManager.startAutoLaunch(presentWizardOnFailure: false)
                     AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
                     AppLogger.shared.log(
                         "✅ [ContentView] Post auto-launch - showWizard: \(kanataManager.showWizard)")
@@ -168,6 +180,12 @@ struct ContentView: View {
         .onChange(of: kanataManager.lastConfigUpdate) { _ in
             // Show status message when config is updated externally
             showStatusMessage(message: "Key mappings updated")
+            // Refresh validation after config changes
+            startupValidator.refreshValidation()
+        }
+        .onChange(of: kanataManager.currentState) { _ in
+            // Refresh validation when lifecycle state changes
+            startupValidator.refreshValidation()
         }
         .onDisappear {
             // Stop emergency monitoring when view disappears
@@ -316,7 +334,9 @@ struct ContentView: View {
 }
 
 struct ContentViewHeader: View {
+    @ObservedObject var validator: StartupValidator
     @Binding var showingInstallationWizard: Bool
+    @EnvironmentObject var kanataManager: KanataManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -338,6 +358,17 @@ struct ContentViewHeader: View {
                 Text("KeyPath")
                     .font(.largeTitle)
                     .fontWeight(.bold)
+
+                Spacer()
+
+                // System Status Indicator in top-right
+                SystemStatusIndicator(
+                    validator: validator,
+                    showingWizard: $showingInstallationWizard,
+                    onClick: {
+                        kanataManager.requestWizardPresentation()
+                    }
+                )
             }
 
             Text("Record keyboard shortcuts and create custom key mappings")

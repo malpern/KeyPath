@@ -7,6 +7,7 @@ struct WizardCommunicationPage: View {
     @State private var showingFixFeedback = false
     @State private var fixResult: FixResult?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
+    @EnvironmentObject var kanataManager: KanataManager
     @Environment(\.preferencesService) private var preferences: PreferencesService
 
     // Auto-fix integration
@@ -31,7 +32,7 @@ struct WizardCommunicationPage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(BounceIfAvailable())
 
                             // Green check overlay in top right
                             VStack {
@@ -78,7 +79,7 @@ struct WizardCommunicationPage: View {
                                 .font(.system(size: 60, weight: .light))
                                 .foregroundColor(commStatus.globeColor)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(BounceIfAvailable())
 
                             // Overlay icon in top right
                             VStack {
@@ -171,61 +172,42 @@ struct WizardCommunicationPage: View {
         }
     }
 
-    // MARK: - Communication Status Check
+    // MARK: - Communication Status Check (Using Shared SystemStatusChecker)
 
     private func checkCommunicationStatus() async {
         commStatus = .checking
         lastCheckTime = Date()
 
-        // Check UDP status only
-        await checkUDPStatus()
+        // Use shared SystemStatusChecker for comprehensive communication testing
+        await checkUDPStatusFromSharedChecker()
     }
 
-    private func checkUDPStatus() async {
-        if !preferences.udpServerEnabled {
+    private func checkUDPStatusFromSharedChecker() async {
+        let systemChecker = SystemStatusChecker.shared(kanataManager: kanataManager)
+        let testResult = await systemChecker.checkComprehensiveCommunicationStatus()
+
+        AppLogger.shared.log("🧪 [WizardComm] Shared SystemStatusChecker communication result: \(testResult)")
+
+        // Convert SystemStatusChecker result to WizardCommunicationPage status
+        switch testResult {
+        case .notEnabled:
             commStatus = .needsSetup("UDP server is not enabled")
-            return
-        }
-
-        // Try to ping UDP server without authentication
-        let client = KanataUDPClient(port: preferences.udpServerPort)
-        AppLogger.shared.log("🧪 [WizardComm] Checking UDP server status on port \(preferences.udpServerPort)")
-        let isAvailable = await client.checkServerStatus()
-        AppLogger.shared.log("🧪 [WizardComm] UDP server status check result: \(isAvailable)")
-
-        if !isAvailable {
-            AppLogger.shared.log("❌ [WizardComm] UDP server marked as not available")
+        case .serviceUnhealthy:
+            commStatus = .needsSetup("Keyboard Service isn't healthy. Start or fix the service before enabling UDP.")
+        case .configurationOutdated:
+            commStatus = .needsSetup("UDP server configuration is outdated and needs to be regenerated")
+        case .notResponding:
             commStatus = .needsSetup("UDP server is not responding on port \(preferences.udpServerPort)")
-            return
+        case .authenticationRequired:
+            commStatus = .authRequired("Secure connection required for configuration changes")
+        case .reloadFailed:
+            commStatus = .authRequired("Authentication works but config reload failed - may need fresh token")
+        case .fullyFunctional:
+            commStatus = .ready("Ready for instant configuration changes and external integrations")
         }
-
-        // Server is available, now test authentication
-        await testAuthentication(client: client)
     }
 
-    private func testAuthentication(client: KanataUDPClient) async {
-        commStatus = .authTesting("Testing secure connection...")
-
-        // Check if we already have a valid auth token
-        let authToken = preferences.udpAuthToken
-        if !authToken.isEmpty {
-            // Try existing token
-            let authenticated = await client.authenticate(token: authToken)
-            if authenticated {
-                // Test config reload capability
-                if await testConfigReload(client: client) {
-                    commStatus = .ready("Ready for instant configuration changes and external integrations")
-                    return
-                } else {
-                    commStatus = .authRequired("Authentication works but config reload failed - may need fresh token")
-                    return
-                }
-            }
-        }
-
-        // Need new authentication
-        commStatus = .authRequired("Secure connection required for configuration changes")
-    }
+    // MARK: - Authentication Helpers (for Auto-Fix functionality)
 
     private func authenticateWithRetries(client: KanataUDPClient, token: String, attempts: Int = 5, initialDelay: TimeInterval = 0.2) async -> Bool {
         var delay = initialDelay
@@ -344,13 +326,46 @@ struct WizardCommunicationPage: View {
         AppLogger.shared.log("✅ [WizardComm] UDP server is ready, proceeding with authentication")
 
         // Retry authenticate with small backoff to ride out any last startup work
-        let authed = await authenticateWithRetries(client: client, token: newToken, attempts: 5, initialDelay: 0.2)
+        let authed = await WizardCommunicationPage.authenticateWithRetries(client: client, token: newToken, attempts: 5, initialDelay: 0.2)
         if authed {
             // Test config reload to ensure full functionality
-            return await testConfigReload(client: client)
+            return await WizardCommunicationPage.testConfigReload(client: client)
         } else {
             return false
         }
+    }
+}
+
+// MARK: - Compatibility helpers
+
+private struct BounceIfAvailable: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.symbolEffect(.bounce, options: .nonRepeating)
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - Local helpers
+
+extension WizardCommunicationPage {
+    static func authenticateWithRetries(client: KanataUDPClient, token: String, attempts: Int, initialDelay: Double) async -> Bool {
+        var delay = initialDelay
+        for _ in 0 ..< max(attempts, 1) {
+            if await client.authenticate(token: token, clientName: "KeyPath") {
+                return true
+            }
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            delay *= 1.5
+        }
+        return false
+    }
+
+    static func testConfigReload(client: KanataUDPClient) async -> Bool {
+        let result = await client.reloadConfig()
+        return result.isSuccess
     }
 }
 

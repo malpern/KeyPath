@@ -127,6 +127,23 @@ actor PermissionOracle {
     /// This is the ONLY method other components should call.
     /// No more direct PermissionService calls, no more guessing from logs.
     func currentSnapshot() async -> Snapshot {
+        // Fast-path for unit tests: avoid heavy OS calls and network timeouts
+        if TestEnvironment.isRunningTests {
+            let now = Date()
+            let placeholder = PermissionSet(
+                accessibility: .unknown,
+                inputMonitoring: .unknown,
+                source: "test.placeholder",
+                confidence: .low,
+                timestamp: now
+            )
+            let snap = Snapshot(keyPath: placeholder, kanata: placeholder, timestamp: now)
+            lastSnapshot = snap
+            lastSnapshotTime = now
+            AppLogger.shared.log("🔮 [Oracle] Test mode snapshot generated (non-blocking)")
+            return snap
+        }
+
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,

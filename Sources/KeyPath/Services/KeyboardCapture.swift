@@ -81,15 +81,21 @@ public class KeyboardCapture: ObservableObject {
             captureCallback = nil
             callback("⚠️ Accessibility permission required")
 
-            // Trigger the wizard to help user fix permissions
-            NotificationCenter.default.post(
-                name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
-                object: nil,
-                userInfo: ["reason": "Accessibility permission required for keyboard capture"]
-            )
+            // In unit tests, avoid posting UI-triggering notifications
+            if !TestEnvironment.isRunningTests {
+                // Trigger the wizard to help user fix permissions
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
+                    object: nil,
+                    userInfo: ["reason": "Accessibility permission required for keyboard capture"]
+                )
 
-            AppLogger.shared.log(
-                "⚠️ [KeyboardCapture] Accessibility permission missing - triggering wizard")
+                AppLogger.shared.log(
+                    "⚠️ [KeyboardCapture] Accessibility permission missing - triggering wizard")
+            } else {
+                AppLogger.shared.log(
+                    "🧪 [KeyboardCapture] Skipping wizard trigger in test environment")
+            }
             return
         }
 
@@ -112,16 +118,21 @@ public class KeyboardCapture: ObservableObject {
             captureCallback = nil
             callback("⚠️ Accessibility permission required")
 
-            // Trigger the wizard to help user fix permissions
-            NotificationCenter.default.post(
-                name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
-                object: nil,
-                userInfo: ["reason": "Accessibility permission required for continuous keyboard capture"]
-            )
+            if !TestEnvironment.isRunningTests {
+                // Trigger the wizard to help user fix permissions
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
+                    object: nil,
+                    userInfo: ["reason": "Accessibility permission required for continuous keyboard capture"]
+                )
 
-            AppLogger.shared.log(
-                "⚠️ [KeyboardCapture] Accessibility permission missing for continuous capture - triggering wizard"
-            )
+                AppLogger.shared.log(
+                    "⚠️ [KeyboardCapture] Accessibility permission missing for continuous capture - triggering wizard"
+                )
+            } else {
+                AppLogger.shared.log(
+                    "🧪 [KeyboardCapture] Skipping wizard trigger (continuous) in test environment")
+            }
             return
         }
 
@@ -146,14 +157,19 @@ public class KeyboardCapture: ObservableObject {
             let errorSequence = KeySequence(keys: [], captureMode: mode)
             callback(errorSequence)
 
-            // Trigger permission wizard
-            NotificationCenter.default.post(
-                name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
-                object: nil,
-                userInfo: ["reason": "Accessibility permission required for \(mode.displayName.lowercased()) capture"]
-            )
+            if !TestEnvironment.isRunningTests {
+                // Trigger permission wizard
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
+                    object: nil,
+                    userInfo: ["reason": "Accessibility permission required for \(mode.displayName.lowercased()) capture"]
+                )
 
-            AppLogger.shared.log("⚠️ [KeyboardCapture] Accessibility permission missing for \(mode) capture")
+                AppLogger.shared.log("⚠️ [KeyboardCapture] Accessibility permission missing for \(mode) capture")
+            } else {
+                AppLogger.shared.log(
+                    "🧪 [KeyboardCapture] Skipping wizard trigger (sequence) in test environment")
+            }
             return
         }
 

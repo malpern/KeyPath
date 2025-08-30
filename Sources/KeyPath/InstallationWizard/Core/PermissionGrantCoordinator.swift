@@ -81,6 +81,12 @@ class PermissionGrantCoordinator: ObservableObject {
     private func showInstructionsDialog(for permissionType: CoordinatorPermissionType,
                                         instructions: String,
                                         onComplete: @escaping () -> Void) {
+        if TestEnvironment.isRunningTests {
+            WizardLogger.shared.log("🧪 [PermissionGrant] Suppressing NSAlert in test environment")
+            onComplete()
+            return
+        }
+
         let alert = NSAlert()
         alert.messageText = "\(permissionType.displayName) Permission Required"
         alert.informativeText = instructions

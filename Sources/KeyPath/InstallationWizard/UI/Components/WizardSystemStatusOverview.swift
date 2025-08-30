@@ -300,7 +300,11 @@ struct WizardSystemStatusOverview: View {
             return .notStarted
         }
 
-        // Check for communication server issues (including configuration and response issues)
+        // Use comprehensive communication testing for accurate status
+        // Note: This will be called synchronously, but SystemStatusChecker uses caching
+        // so the comprehensive tests run by the shared instance will provide fast results
+
+        // Check for communication server issues in the shared issues array first
         let hasCommServerIssues = issues.contains { issue in
             if case let .component(component) = issue.identifier {
                 switch component {
@@ -315,13 +319,21 @@ struct WizardSystemStatusOverview: View {
             return false
         }
 
-        // If Kanata is running and there are no communication issues, consider it as working
-        if !hasCommServerIssues {
-            return .completed
+        // If there are detected issues in the shared state, show as failed
+        if hasCommServerIssues {
+            return .failed
         }
 
-        // If Kanata is running but has TCP issues
-        return .failed
+        // Additional check: UDP server must be enabled in preferences
+        let preferences = PreferencesService.shared
+        guard preferences.udpServerEnabled else {
+            return .failed // UDP disabled - needs setup
+        }
+
+        // If Kanata is running, UDP is enabled, and there are no detected communication issues
+        // in the shared state, show as completed. The comprehensive testing results from
+        // SystemStatusChecker will be reflected in the issues array.
+        return .completed
     }
 
     private func getServiceStatus() -> InstallationStatus {

@@ -540,7 +540,11 @@ class WizardAutoFixer: AutoFixCapable {
                 "⚠️ [AutoFixer] Automatic activation failed - showing user dialog for manual activation")
 
             // Show dialog to guide user through manual driver extension activation
-            await showDriverExtensionDialog()
+            if TestEnvironment.isRunningTests {
+                AppLogger.shared.log("🧪 [AutoFixer] Suppressing driver extension dialog in test environment")
+            } else {
+                await showDriverExtensionDialog()
+            }
 
             // Wait a moment for user to potentially complete the action
             try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds

@@ -283,11 +283,15 @@ class KanataManager: ObservableObject {
         // Initialize configuration backup manager
         configBackupManager = ConfigBackupManager(configPath: "\(NSHomeDirectory())/.config/keypath/keypath.kbd")
 
-        // Dispatch heavy initialization work to background thread
-        Task.detached { [weak self] in
-            // Clean up any orphaned processes first
-            await self?.processLifecycleManager.cleanupOrphanedProcesses()
-            await self?.performInitialization()
+        // Dispatch heavy initialization work to background thread (skip during unit tests)
+        if !TestEnvironment.isRunningTests {
+            Task.detached { [weak self] in
+                // Clean up any orphaned processes first
+                await self?.processLifecycleManager.cleanupOrphanedProcesses()
+                await self?.performInitialization()
+            }
+        } else {
+            AppLogger.shared.log("🧪 [KanataManager] Skipping background initialization in test environment")
         }
 
         if isHeadlessMode {
@@ -896,19 +900,23 @@ class KanataManager: ObservableObject {
                         "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
                     await self.stopKanata()
 
-                    // Show safety notification
+                    // Show safety notification (skip in tests)
                     await MainActor.run {
-                        let alert = NSAlert()
-                        alert.messageText = "Safety Timeout Activated"
-                        alert.informativeText = """
-                        KeyPath automatically stopped the keyboard remapping service after 30 seconds as a safety precaution.
+                        if TestEnvironment.isRunningTests {
+                            AppLogger.shared.log("🧪 [Safety] Suppressing NSAlert in test environment")
+                        } else {
+                            let alert = NSAlert()
+                            alert.messageText = "Safety Timeout Activated"
+                            alert.informativeText = """
+                            KeyPath automatically stopped the keyboard remapping service after 30 seconds as a safety precaution.
 
-                        If the service was working correctly, you can restart it from the main app window.
+                            If the service was working correctly, you can restart it from the main app window.
 
-                        If you experienced keyboard issues, this timeout prevented them from continuing.
-                        """
-                        alert.alertStyle = .informational
-                        alert.runModal()
+                            If you experienced keyboard issues, this timeout prevented them from continuing.
+                            """
+                            alert.alertStyle = .informational
+                            alert.runModal()
+                        }
                     }
                 }
             }
@@ -1247,7 +1255,7 @@ class KanataManager: ObservableObject {
     }
 
     /// Start the automatic Kanata launch sequence
-    func startAutoLaunch() async {
+    func startAutoLaunch(presentWizardOnFailure: Bool = true) async {
         AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
 
         // Check if this is a fresh install first
@@ -1258,19 +1266,24 @@ class KanataManager: ObservableObject {
             "🔍 [KanataManager] Fresh install: \(isFreshInstall), HasShownWizard: \(hasShownWizardBefore)")
 
         if isFreshInstall {
-            // Fresh install - show wizard immediately without trying to start
-            AppLogger.shared.log("🆕 [KanataManager] Fresh install detected - showing wizard immediately")
+            // Fresh install - show wizard immediately without trying to start (unless quiet mode)
+            AppLogger.shared.log("🆕 [KanataManager] Fresh install detected")
             await MainActor.run {
                 currentState = .needsHelp
                 errorReason = "Welcome! Let's set up KeyPath on your Mac."
-                showWizard = true
+                if presentWizardOnFailure {
+                    showWizard = true
+                    AppLogger.shared.log("🆕 [KanataManager] Showing wizard for fresh install")
+                } else {
+                    AppLogger.shared.log("🕊️ [KanataManager] Quiet mode: not presenting wizard on fresh install")
+                }
             }
         } else if hasShownWizardBefore {
             AppLogger.shared.log(
                 "ℹ️ [KanataManager] Returning user - attempting quiet start"
             )
             // Try to start silently without showing wizard
-            await attemptQuietStart()
+            await attemptQuietStart(presentWizardOnFailure: presentWizardOnFailure)
         } else {
             AppLogger.shared.log(
                 "🆕 [KanataManager] First launch on existing system - proceeding with normal auto-launch")
@@ -1280,14 +1293,14 @@ class KanataManager: ObservableObject {
             errorReason = nil
             showWizard = false
             autoStartAttempts = 0
-            await attemptAutoStart()
+            await attemptAutoStart(presentWizardOnFailure: presentWizardOnFailure)
         }
 
         AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE ==========")
     }
 
     /// Attempt to start quietly without showing wizard (for subsequent app launches)
-    private func attemptQuietStart() async {
+    private func attemptQuietStart(presentWizardOnFailure: Bool = true) async {
         AppLogger.shared.log("🤫 [KanataManager] ========== QUIET START ATTEMPT ==========")
         await MainActor.run {
             currentState = .starting
@@ -1299,7 +1312,7 @@ class KanataManager: ObservableObject {
         }
 
         // Try to start, but if it fails, just show error state without wizard
-        await attemptAutoStart()
+        await attemptAutoStart(presentWizardOnFailure: presentWizardOnFailure)
 
         // If we ended up in needsHelp state, don't show wizard - just stay in error state
         if currentState == .needsHelp {
@@ -1364,7 +1377,7 @@ class KanataManager: ObservableObject {
     }
 
     /// Attempt auto-start with retry logic
-    private func attemptAutoStart() async {
+    private func attemptAutoStart(presentWizardOnFailure: Bool = true) async {
         autoStartAttempts += 1
         AppLogger.shared.log(
             "🔄 [KanataManager] ========== AUTO-START ATTEMPT #\(autoStartAttempts) ==========")
@@ -1383,7 +1396,7 @@ class KanataManager: ObservableObject {
             }
         } else {
             AppLogger.shared.log("❌ [KanataManager] Auto-start failed")
-            await handleAutoStartFailure()
+            await handleAutoStartFailure(presentWizardOnFailure: presentWizardOnFailure)
         }
 
         AppLogger.shared.log(
@@ -1391,12 +1404,12 @@ class KanataManager: ObservableObject {
     }
 
     /// Handle auto-start failure with retry logic
-    private func handleAutoStartFailure() async {
+    private func handleAutoStartFailure(presentWizardOnFailure: Bool = true) async {
         // Check if we should retry
         if autoStartAttempts < maxAutoStartAttempts {
             AppLogger.shared.log("🔄 [KanataManager] Retrying auto-start...")
             try? await Task.sleep(nanoseconds: 3_000_000_000) // Wait 3 seconds
-            await attemptAutoStart()
+            await attemptAutoStart(presentWizardOnFailure: presentWizardOnFailure)
             return
         }
 
@@ -1404,7 +1417,12 @@ class KanataManager: ObservableObject {
         await MainActor.run {
             currentState = .needsHelp
             errorReason = "Failed to start Kanata after \(maxAutoStartAttempts) attempts"
-            showWizard = true
+            if presentWizardOnFailure {
+                showWizard = true
+                AppLogger.shared.log("❌ [KanataManager] Max attempts reached - showing wizard")
+            } else {
+                AppLogger.shared.log("🕊️ [KanataManager] Quiet mode: not presenting wizard on max attempts failure")
+            }
         }
     }
 
@@ -1429,6 +1447,14 @@ class KanataManager: ObservableObject {
         }
 
         AppLogger.shared.log("🔄 [KanataManager] Retry after fix completed")
+    }
+
+    /// Request wizard presentation from any UI component
+    @MainActor
+    func requestWizardPresentation(initialPage _: WizardPage? = nil) {
+        AppLogger.shared.log("🧭 [KanataManager] Wizard presentation requested")
+        showWizard = true
+        shouldShowWizard = true
     }
 
     /// Called when wizard is closed (from SimpleKanataManager)
@@ -2286,21 +2312,26 @@ class KanataManager: ObservableObject {
     private func requestPermissionToDisableKarabiner() async -> Bool {
         await withCheckedContinuation { continuation in
             DispatchQueue.main.async {
-                let alert = NSAlert()
-                alert.messageText = "Disable Karabiner Elements?"
-                alert.informativeText = """
-                Karabiner Elements is conflicting with Kanata.
+                if TestEnvironment.isRunningTests {
+                    AppLogger.shared.log("🧪 [Karabiner] Auto-consenting in test environment (no NSAlert)")
+                    continuation.resume(returning: true)
+                } else {
+                    let alert = NSAlert()
+                    alert.messageText = "Disable Karabiner Elements?"
+                    alert.informativeText = """
+                    Karabiner Elements is conflicting with Kanata.
 
-                Disable the conflicting services to allow KeyPath to work?
+                    Disable the conflicting services to allow KeyPath to work?
 
-                Note: Event Viewer and other Karabiner apps will continue working.
-                """
-                alert.addButton(withTitle: "Disable Conflicting Services")
-                alert.addButton(withTitle: "Cancel")
-                alert.alertStyle = .warning
+                    Note: Event Viewer and other Karabiner apps will continue working.
+                    """
+                    alert.addButton(withTitle: "Disable Conflicting Services")
+                    alert.addButton(withTitle: "Cancel")
+                    alert.alertStyle = .warning
 
-                let response = alert.runModal()
-                continuation.resume(returning: response == .alertFirstButtonReturn)
+                    let response = alert.runModal()
+                    continuation.resume(returning: response == .alertFirstButtonReturn)
+                }
             }
         }
     }
@@ -3066,6 +3097,10 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("📢 [Config] Showing validation error dialog to user")
 
         await MainActor.run {
+            if TestEnvironment.isRunningTests {
+                AppLogger.shared.log("🧪 [Config] Suppressing validation alert in test environment")
+                return
+            }
             validationAlertTitle = "Configuration File Invalid"
             validationAlertMessage = """
             KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.
@@ -3084,7 +3119,11 @@ class KanataManager: ObservableObject {
                     self?.showingValidationAlert = false
                 },
                 ValidationAlertAction(title: "Open Backup Location", style: .default) { [weak self] in
-                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
+                    if TestEnvironment.isRunningTests {
+                        AppLogger.shared.log("🧪 [Config] Suppressing NSWorkspace file viewer in test environment")
+                    } else {
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
+                    }
                     self?.showingValidationAlert = false
                 }
             ]
@@ -3251,7 +3290,7 @@ class KanataManager: ObservableObject {
 
         // Trigger reload after restoration
         Task {
-            await self.triggerHotReload()
+            _ = await self.triggerUDPReload()
         }
     }
 
