@@ -52,6 +52,12 @@ extension KanataManager {
             if !status.driver { AppLogger.shared.log("  - Missing: VirtualHID driver") }
             if !status.daemon { AppLogger.shared.log("  - Missing: VirtualHID daemon") }
         }
+
+        // Start config file watching regardless of whether Kanata started
+        // This allows hot reload to work even if Kanata starts later
+        await MainActor.run {
+            startConfigFileWatching()
+        }
     }
 
     // MARK: - Recovery Operations

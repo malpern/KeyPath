@@ -400,136 +400,138 @@ struct RecordingSection: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Mode Toggle Header
-            HStack {
-                Text("Input Key")
-                    .font(.headline)
-                    .accessibilityIdentifier("input-key-label")
+            // Input + Output Containers with centered trailing overlay toggle
+            ZStack(alignment: .trailing) {
+                VStack(spacing: 16) {
+                    // Input Recording Container
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Input Key label with sequence toggle button
+                        HStack {
+                            Text("Input Key")
+                                .font(.headline)
+                                .accessibilityIdentifier("input-key-label")
 
-                HStack {
-                    Spacer()
+                            Spacer()
 
-                    Button(action: {
-                        isSequenceMode.toggle()
-                        // Show placeholder text once button is pressed (persists even when toggled back)
-                        showPlaceholderText = true
-                    }, label: {
-                        Image(systemName: "list.number")
-                            .font(.title2)
-                            .foregroundColor(isSequenceMode ? .white : .blue)
-                    })
-                    .buttonStyle(.plain)
-                    .frame(width: 32, height: 32)
-                    .background(isSequenceMode ? Color.blue : Color.clear)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.blue, lineWidth: 1)
-                    )
-                    .cornerRadius(6)
-                    .help(isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
-                    .accessibilityIdentifier("sequence-mode-toggle")
-                    .accessibilityLabel(isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
-                    .accessibilityHint("Toggle between combo capture and sequence capture modes")
-                }
-                .frame(minWidth: 44) // Match the record button width
-            }
-
-            // Input Recording Container
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(getInputDisplayText())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isRecording ? Color.blue : Color.clear, lineWidth: 2)
-                        )
-                        .accessibilityIdentifier("input-key-display")
-                        .accessibilityLabel("Input key")
-                        .accessibilityValue(recordedInput.isEmpty ? "No key recorded" : "Key: \(recordedInput)")
-
-                    Button(action: {
-                        if isRecording {
-                            stopRecording()
-                        } else {
-                            startRecording()
+                            Button(action: {
+                                isSequenceMode.toggle()
+                                showPlaceholderText = true
+                            }, label: {
+                                Image(systemName: "list.number")
+                                    .font(.title2)
+                                    .foregroundColor(isSequenceMode ? .white : .blue)
+                            })
+                            .buttonStyle(.plain)
+                            .frame(width: 32, height: 32)
+                            .background(isSequenceMode ? Color.blue : Color.clear)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.blue, lineWidth: 1)
+                            )
+                            .cornerRadius(6)
+                            .help(isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
+                            .accessibilityIdentifier("sequence-mode-toggle")
+                            .accessibilityLabel(isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
+                            .accessibilityHint("Toggle between combo capture and sequence capture modes")
+                            .padding(.trailing, 5)
                         }
-                    }, label: {
-                        Image(systemName: getInputButtonIcon())
-                            .font(.title2)
-                    })
-                    .buttonStyle(.plain)
-                    .frame(height: 44)
-                    .frame(minWidth: 44)
-                    .background(Color.accentColor)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                    .disabled(!kanataManager.isCompletelyInstalled() && !isRecording)
-                    .accessibilityIdentifier("input-key-record-button")
-                    .accessibilityLabel(isRecording ? "Stop recording input key" : "Record input key")
-                    .accessibilityHint(
-                        isRecording ? "Stop recording the input key" : "Start recording a key to remap")
-                }
-            }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-            .accessibilityIdentifier("input-recording-section")
-            .accessibilityLabel("Input key recording section")
 
-            // Output Recording Container
-            VStack(alignment: .leading, spacing: 8) {
-                // Accessibility container for output recording section
-                Text("Output Key")
-                    .font(.headline)
-                    .accessibilityIdentifier("output-key-label")
+                        HStack {
+                            Text(getInputDisplayText())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isRecording ? Color.blue : Color.clear, lineWidth: 2)
+                                )
+                                .accessibilityIdentifier("input-key-display")
+                                .accessibilityLabel("Input key")
+                                .accessibilityValue(recordedInput.isEmpty ? "No key recorded" : "Key: \(recordedInput)")
 
-                HStack {
-                    Text(getOutputDisplayText())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isRecordingOutput ? Color.blue : Color.clear, lineWidth: 2)
-                        )
-                        .accessibilityIdentifier("output-key-display")
-                        .accessibilityLabel("Output key")
-                        .accessibilityValue(
-                            recordedOutput.isEmpty ? "No key recorded" : "Key: \(recordedOutput)")
-
-                    Button(action: {
-                        if isRecordingOutput {
-                            stopOutputRecording()
-                        } else {
-                            startOutputRecording()
+                            Button(action: {
+                                if isRecording {
+                                    stopRecording()
+                                } else {
+                                    startRecording()
+                                }
+                            }, label: {
+                                Image(systemName: getInputButtonIcon())
+                                    .font(.title2)
+                            })
+                            .buttonStyle(.plain)
+                            .frame(height: 44)
+                            .frame(minWidth: 44)
+                            .background(Color.accentColor)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                            .disabled(!kanataManager.isCompletelyInstalled() && !isRecording)
+                            .accessibilityIdentifier("input-key-record-button")
+                            .accessibilityLabel(isRecording ? "Stop recording input key" : "Record input key")
+                            .accessibilityHint(
+                                isRecording ? "Stop recording the input key" : "Start recording a key to remap")
                         }
-                    }, label: {
-                        Image(systemName: getOutputButtonIcon())
-                            .font(.title2)
-                    })
-                    .buttonStyle(.plain)
-                    .frame(height: 44)
-                    .frame(minWidth: 44)
-                    .background(Color.accentColor)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                    .disabled(!kanataManager.isCompletelyInstalled() && !isRecordingOutput)
-                    .accessibilityIdentifier("output-key-record-button")
-                    .accessibilityLabel(isRecordingOutput ? "Stop recording output key" : "Record output key")
-                    .accessibilityHint(
-                        isRecordingOutput
-                            ? "Stop recording the output key" : "Start recording the replacement key")
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(12)
+                    .accessibilityIdentifier("input-recording-section")
+                    .accessibilityLabel("Input key recording section")
+
+                    // Output Recording Container
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Accessibility container for output recording section
+                        Text("Output Key")
+                            .font(.headline)
+                            .accessibilityIdentifier("output-key-label")
+
+                        HStack {
+                            Text(getOutputDisplayText())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isRecordingOutput ? Color.blue : Color.clear, lineWidth: 2)
+                                )
+                                .accessibilityIdentifier("output-key-display")
+                                .accessibilityLabel("Output key")
+                                .accessibilityValue(
+                                    recordedOutput.isEmpty ? "No key recorded" : "Key: \(recordedOutput)")
+
+                            Button(action: {
+                                if isRecordingOutput {
+                                    stopOutputRecording()
+                                } else {
+                                    startOutputRecording()
+                                }
+                            }, label: {
+                                Image(systemName: getOutputButtonIcon())
+                                    .font(.title2)
+                            })
+                            .buttonStyle(.plain)
+                            .frame(height: 44)
+                            .frame(minWidth: 44)
+                            .background(Color.accentColor)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                            .disabled(!kanataManager.isCompletelyInstalled() && !isRecordingOutput)
+                            .accessibilityIdentifier("output-key-record-button")
+                            .accessibilityLabel(isRecordingOutput ? "Stop recording output key" : "Record output key")
+                            .accessibilityHint(
+                                isRecordingOutput
+                                    ? "Stop recording the output key" : "Start recording the replacement key")
+                        }
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(12)
+                    .accessibilityIdentifier("output-recording-section")
+                    .accessibilityLabel("Output key recording section")
                 }
             }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-            .accessibilityIdentifier("output-recording-section")
-            .accessibilityLabel("Output key recording section")
 
             // Save Button - Outside containers
             HStack {

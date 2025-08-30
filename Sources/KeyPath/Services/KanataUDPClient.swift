@@ -172,7 +172,27 @@ actor KanataUDPClient {
                 return false
             }
         } catch {
-            AppLogger.shared.log("❌ [UDP] Server status check failed: \(error)")
+            // Provide more detailed error information for better diagnosis
+            if let nwError = error as? NWError {
+                switch nwError {
+                case let .posix(posixError):
+                    if posixError == .ECONNREFUSED {
+                        AppLogger.shared.log("❌ [UDP] Server status check failed: Connection refused (server likely starting up)")
+                    } else {
+                        AppLogger.shared.log("❌ [UDP] Server status check failed: POSIX error \(posixError)")
+                    }
+                case .dns:
+                    AppLogger.shared.log("❌ [UDP] Server status check failed: DNS resolution error")
+                case .tls:
+                    AppLogger.shared.log("❌ [UDP] Server status check failed: TLS error")
+                default:
+                    AppLogger.shared.log("❌ [UDP] Server status check failed: NWError \(nwError)")
+                }
+            } else if error is UDPError {
+                AppLogger.shared.log("❌ [UDP] Server status check failed: UDP timeout or no response")
+            } else {
+                AppLogger.shared.log("❌ [UDP] Server status check failed: \(error)")
+            }
             return false
         }
     }

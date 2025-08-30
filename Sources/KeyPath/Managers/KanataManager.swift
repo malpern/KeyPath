@@ -230,10 +230,17 @@ class KanataManager: ObservableObject {
     private var lastStartAttempt: Date?
     private let minStartInterval: TimeInterval = 2.0
 
+    // UDP server startup grace period
+    private var lastServiceKickstart: Date?
+    private let udpServerGracePeriod: TimeInterval = 10.0 // 10 seconds grace period
+
     // Real-time log monitoring for VirtualHID connection failures
     private var logMonitorTask: Task<Void, Never>?
     private var connectionFailureCount = 0
     private let maxConnectionFailures = 10 // Trigger recovery after 10 consecutive failures
+
+    // Configuration file watching for hot reload
+    private var configFileWatcher: ConfigFileWatcher?
 
     var configPath: String {
         configurationService.configurationPath
@@ -245,11 +252,18 @@ class KanataManager: ObservableObject {
             ProcessInfo.processInfo.arguments.contains("--headless")
                 || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
 
+        // Initialize UDP server grace period timestamp at app startup
+        // This prevents immediate admin requests on launch
+        lastServiceKickstart = Date()
+
         // Initialize service dependencies
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
 
         // Initialize process lifecycle manager
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
+
+        // Initialize configuration file watcher for hot reload
+        configFileWatcher = ConfigFileWatcher()
 
         // Dispatch heavy initialization work to background thread
         Task.detached { [weak self] in
@@ -273,6 +287,136 @@ class KanataManager: ObservableObject {
         // Keep only last 50 diagnostics to prevent memory bloat
         if diagnostics.count > 50 {
             diagnostics.removeFirst(diagnostics.count - 50)
+        }
+    }
+
+    // MARK: - Configuration File Watching
+
+    /// Start watching the configuration file for external changes
+    func startConfigFileWatching() {
+        guard let fileWatcher = configFileWatcher else {
+            AppLogger.shared.log("⚠️ [FileWatcher] ConfigFileWatcher not initialized")
+            return
+        }
+
+        let configPath = self.configPath
+        AppLogger.shared.log("📁 [FileWatcher] Starting to watch config file: \(configPath)")
+
+        fileWatcher.startWatching(path: configPath) { [weak self] in
+            await self?.handleExternalConfigChange()
+        }
+    }
+
+    /// Stop watching the configuration file
+    func stopConfigFileWatching() {
+        configFileWatcher?.stopWatching()
+        AppLogger.shared.log("📁 [FileWatcher] Stopped watching config file")
+    }
+
+    /// Handle external configuration file changes
+    private func handleExternalConfigChange() async {
+        AppLogger.shared.log("📝 [FileWatcher] External config file change detected")
+
+        // Play the initial sound to indicate detection
+        Task { SoundManager.shared.playTinkSound() }
+
+        // Show initial status message
+        await MainActor.run {
+            saveStatus = .saving
+        }
+
+        // Read the updated configuration
+        let configPath = self.configPath
+        guard FileManager.default.fileExists(atPath: configPath) else {
+            AppLogger.shared.log("❌ [FileWatcher] Config file no longer exists: \(configPath)")
+            Task { SoundManager.shared.playErrorSound() }
+            await MainActor.run {
+                saveStatus = .failed("Config file was deleted")
+            }
+            return
+        }
+
+        do {
+            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
+            AppLogger.shared.log("📁 [FileWatcher] Read \(configContent.count) characters from external file")
+
+            // Validate the configuration via UDP if possible
+            let commConfig = PreferencesService.communicationSnapshot()
+            if commConfig.udpEnabled {
+                if let validationResult = await configurationService.validateConfigViaUDP() {
+                    if !validationResult.isValid {
+                        AppLogger.shared.log("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
+                        Task { SoundManager.shared.playErrorSound() }
+
+                        await MainActor.run {
+                            saveStatus = .failed("Invalid config from external edit: \(validationResult.errors.first ?? "Unknown error")")
+                        }
+
+                        // Auto-reset status after delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                            self?.saveStatus = .idle
+                        }
+                        return
+                    }
+                }
+            }
+
+            // Trigger hot reload via UDP
+            let reloadResult = await triggerUDPReload()
+
+            if reloadResult.isSuccess {
+                AppLogger.shared.log("✅ [FileWatcher] External config successfully reloaded")
+                Task { SoundManager.shared.playGlassSound() }
+
+                // Update configuration service with the new content
+                await updateInMemoryConfig(configContent)
+
+                await MainActor.run {
+                    saveStatus = .success
+                }
+
+                AppLogger.shared.log("📝 [FileWatcher] Configuration updated from external file")
+            } else {
+                let errorMessage = reloadResult.errorMessage ?? "Unknown error"
+                AppLogger.shared.log("❌ [FileWatcher] External config reload failed: \(errorMessage)")
+                Task { SoundManager.shared.playErrorSound() }
+
+                await MainActor.run {
+                    saveStatus = .failed("External config reload failed: \(errorMessage)")
+                }
+            }
+
+            // Auto-reset status after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.saveStatus = .idle
+            }
+
+        } catch {
+            AppLogger.shared.log("❌ [FileWatcher] Failed to read external config: \(error)")
+            Task { SoundManager.shared.playErrorSound() }
+
+            await MainActor.run {
+                saveStatus = .failed("Failed to read external config: \(error.localizedDescription)")
+            }
+
+            // Auto-reset status after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.saveStatus = .idle
+            }
+        }
+    }
+
+    /// Update in-memory configuration without saving to file (to avoid triggering file watcher)
+    private func updateInMemoryConfig(_ configContent: String) async {
+        // Parse the configuration to update key mappings in memory
+        do {
+            let parsedConfig = try configurationService.parseConfigurationFromString(configContent)
+            await MainActor.run {
+                keyMappings = parsedConfig.keyMappings
+                lastConfigUpdate = Date()
+            }
+        } catch {
+            AppLogger.shared.log("⚠️ [FileWatcher] Failed to parse config for in-memory update: \(error)")
         }
     }
 
@@ -784,6 +928,15 @@ class KanataManager: ObservableObject {
             } else {
                 AppLogger.shared.log("🔍 [Start] LaunchDaemon confirms service is running (PID: \(processStatus.pid?.description ?? "unknown"))")
 
+                // Check if we should skip UDP health check due to recent service start
+                if let lastKickstart = lastServiceKickstart {
+                    let timeSinceKickstart = Date().timeIntervalSince(lastKickstart)
+                    if timeSinceKickstart < udpServerGracePeriod {
+                        AppLogger.shared.log("⏳ [Start] Process is running and within UDP grace period (\(String(format: "%.1f", timeSinceKickstart))s < \(udpServerGracePeriod)s) - skipping UDP health check")
+                        return
+                    }
+                }
+
                 // Second check: Try UDP health check with retries (faster timeout)
                 if let udpClient = await createUDPClient(timeout: 1.0) {
                     var isHealthy = false
@@ -806,6 +959,17 @@ class KanataManager: ObservableObject {
                         return
                     } else {
                         AppLogger.shared.log("⚠️ [Start] UDP health check failed after \(maxRetries) attempts")
+
+                        // Check if we're within UDP server startup grace period
+                        if let lastKickstart = lastServiceKickstart {
+                            let timeSinceKickstart = Date().timeIntervalSince(lastKickstart)
+                            if timeSinceKickstart < udpServerGracePeriod {
+                                AppLogger.shared.log("⏳ [Start] Within UDP grace period (\(String(format: "%.1f", timeSinceKickstart))s < \(udpServerGracePeriod)s) - skipping restart to allow server to start")
+                                return
+                            } else {
+                                AppLogger.shared.log("🕒 [Start] Grace period expired (\(String(format: "%.1f", timeSinceKickstart))s >= \(udpServerGracePeriod)s) - proceeding with restart")
+                            }
+                        }
                     }
                 } else {
                     AppLogger.shared.log("⚠️ [Start] Could not create UDP client - service may need restart")
@@ -815,6 +979,9 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("🔄 [Start] Performing necessary restart via kickstart")
             isStartingKanata = true
             defer { isStartingKanata = false }
+
+            // Record when we're triggering a service kickstart for grace period tracking
+            lastServiceKickstart = Date()
 
             let success = await startLaunchDaemonService() // Already uses kickstart -k
 
@@ -922,6 +1089,8 @@ class KanataManager: ObservableObject {
 
         do {
             // Start the LaunchDaemon service
+            // Record when we're triggering a service start for grace period tracking
+            lastServiceKickstart = Date()
             let success = await startLaunchDaemonService()
 
             if success {
@@ -1527,7 +1696,35 @@ class KanataManager: ObservableObject {
             let parsedMappings = parseKanataConfig(configContent)
             await MainActor.run {
                 keyMappings = parsedMappings
-                saveStatus = .success
+            }
+
+            // Play tink sound asynchronously to avoid blocking save pipeline
+            Task { SoundManager.shared.playTinkSound() }
+
+            // Trigger hot reload via UDP
+            let reloadResult = await triggerUDPReload()
+            if reloadResult.isSuccess {
+                AppLogger.shared.log("✅ [KanataManager] UDP reload successful, config is active")
+                // Play glass sound asynchronously to avoid blocking completion
+                Task { SoundManager.shared.playGlassSound() }
+                await MainActor.run {
+                    saveStatus = .success
+                }
+            } else {
+                // UDP reload failed - this is a critical error for validation-on-demand
+                let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
+                AppLogger.shared.log("❌ [KanataManager] UDP reload FAILED: \(errorMessage)")
+                // Play error sound asynchronously
+                Task { SoundManager.shared.playErrorSound() }
+                await MainActor.run {
+                    saveStatus = .failed("Config saved but reload failed: \(errorMessage)")
+                }
+                throw ConfigError.reloadFailed("Hot reload failed: \(errorMessage)")
+            }
+
+            // Reset to idle after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.saveStatus = .idle
             }
 
         } catch {

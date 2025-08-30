@@ -383,6 +383,12 @@ public final class ConfigurationService: FileConfigurationProviding {
         return args
     }
 
+    /// Parse configuration from string content
+    public func parseConfigurationFromString(_ content: String) throws -> KanataConfiguration {
+        // Use the existing validate method which handles parsing
+        return try validate(content: content)
+    }
+
     /// Parse Kanata error output to extract error messages
     public func parseKanataErrors(_ output: String) -> [String] {
         var errors: [String] = []
