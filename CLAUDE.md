@@ -167,7 +167,7 @@ netstat -an | grep 37000  # or your chosen port
 
 - **Kanata**: Keyboard remapping engine (bundled with app)
 - **Location**: `/Applications/KeyPath.app/Contents/Library/KeyPath/kanata` (bundled)
-- **macOS 13.0+**
+- **macOS 14.0+**
 - **Permissions**: Accessibility (app) + Input Monitoring (kanata binary)
 - **Communication**: UDP server with secure authentication
 

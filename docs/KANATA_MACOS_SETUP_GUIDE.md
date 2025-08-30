@@ -13,7 +13,7 @@ This guide covers the complete process of installing, configuring, and debugging
 ## Prerequisites
 
 ### System Requirements
-- macOS 13.0 (Ventura) or later
+- macOS 14.0 (Sonoma) or later
 - Apple Developer ID certificate for code signing (required for system-level access)
 - Administrator privileges
 

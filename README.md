@@ -5,7 +5,7 @@
   
   **Remap any key to any other key with a simple, native macOS app**
   
-  [![macOS 13+](https://img.shields.io/badge/macOS-13%2B-blue.svg)](https://www.apple.com/macos/)
+  [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg)](https://www.apple.com/macos/)
   [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
@@ -141,7 +141,7 @@ The setup wizard will guide you through granting these permissions.
 ## 🔧 Troubleshooting
 
 ### KeyPath Won't Start?
-1. Make sure you have macOS 13 or later
+1. Make sure you have macOS 14 or later
 2. Run the setup wizard again from the File menu
 3. Check system logs: `tail -f /var/log/kanata.log`
 
@@ -158,7 +158,7 @@ The setup wizard will guide you through granting these permissions.
 ## 🏗️ Requirements
 
 ### System Requirements
-- macOS 13.0 (Ventura) or later
+- macOS 14.0 (Sonoma) or later
 - Apple Silicon or Intel Mac
 
 ### Dependencies (Handled Automatically)

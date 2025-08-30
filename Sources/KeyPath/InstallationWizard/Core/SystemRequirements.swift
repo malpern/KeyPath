@@ -162,12 +162,12 @@ class SystemRequirements {
         let processInfo = ProcessInfo.processInfo
         let version = processInfo.operatingSystemVersion
 
-        // KeyPath requires macOS 13.0+ based on CLAUDE.md
-        if version.majorVersion < 13 {
+        // KeyPath requires macOS 14.0+ based on CLAUDE.md
+        if version.majorVersion < 14 {
             issues.append(
-                "KeyPath requires macOS 13.0 or later (detected: \(macosVersion.versionString))")
+                "KeyPath requires macOS 14.0 or later (detected: \(macosVersion.versionString))")
             isCompatible = false
-            recommendations.append("Upgrade to macOS 13.0 or later")
+            recommendations.append("Upgrade to macOS 14.0 or later")
         }
 
         // Check for specific version compatibility issues

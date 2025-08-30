@@ -79,7 +79,7 @@ class SystemRequirementsChecker {
             case .logDirectory:
                 "Application log storage"
             case .systemVersion:
-                "Minimum macOS 13.0 required"
+                "Minimum macOS 14.0 required"
             case .architecture:
                 "Intel or Apple Silicon supported"
             }
@@ -376,8 +376,8 @@ class SystemRequirementsChecker {
         let processInfo = ProcessInfo.processInfo
         let version = processInfo.operatingSystemVersion
 
-        // KeyPath requires macOS 13.0+
-        let minimumMajor = 13
+        // KeyPath requires macOS 14.0+
+        let minimumMajor = 14
         let currentMajor = version.majorVersion
 
         if currentMajor >= minimumMajor {
@@ -391,8 +391,8 @@ class SystemRequirementsChecker {
             return RequirementCheckResult(
                 requirement: .systemVersion,
                 status: .missing,
-                details: "macOS \(currentMajor).\(version.minorVersion) detected, requires macOS 13.0+",
-                actionRequired: "Upgrade to macOS 13.0 or later"
+                details: "macOS \(currentMajor).\(version.minorVersion) detected, requires macOS 14.0+",
+                actionRequired: "Upgrade to macOS 14.0 or later"
             )
         }
     }

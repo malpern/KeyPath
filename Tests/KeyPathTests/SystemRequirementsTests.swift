@@ -331,13 +331,13 @@ final class MockSystemRequirementsTests: XCTestCase {
             version: .unknown(version: "9.0.0"),
             isCompatible: false,
             issues: ["Unsupported macOS version"],
-            recommendations: ["Upgrade to macOS 13.0 or later"]
+            recommendations: ["Upgrade to macOS 14.0 or later"]
         )
 
         let validation = mockRequirements.validateSystemCompatibility()
         XCTAssertFalse(validation.isCompatible)
         XCTAssertEqual(validation.issues, ["Unsupported macOS version"])
-        XCTAssertEqual(validation.recommendations, ["Upgrade to macOS 13.0 or later"])
+        XCTAssertEqual(validation.recommendations, ["Upgrade to macOS 14.0 or later"])
     }
 
     func testDriverInstallationInstructions_DriverKit() {

@@ -917,6 +917,19 @@ class KanataManager: ObservableObject {
         }
         lastStartAttempt = Date()
 
+        // Hard requirement: UDP authentication token must exist (fail closed)
+        let ensuredToken = CommunicationSnapshot.ensureSharedUDPToken()
+        if ensuredToken.isEmpty {
+            AppLogger.shared.log("❌ [Start] Missing UDP auth token; aborting start to enforce authenticated UDP")
+            await MainActor.run {
+                self.currentState = .needsHelp
+                self.errorReason = "UDP authentication is required. Failed to create token."
+                self.launchFailureStatus = .configError("Missing UDP authentication token")
+                self.showWizard = true
+            }
+            return
+        }
+
         // Check if already starting (prevent concurrent operations)
         if isStartingKanata {
             AppLogger.shared.log("⚠️ [Start] Kanata is already starting - skipping concurrent start")
