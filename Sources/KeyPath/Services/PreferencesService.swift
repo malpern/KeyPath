@@ -101,6 +101,14 @@ final class PreferencesService {
         }
     }
 
+    /// Whether user notifications are enabled
+    var notificationsEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(notificationsEnabled, forKey: Keys.notificationsEnabled)
+            AppLogger.shared.log("🔔 [PreferencesService] Notifications enabled: \(notificationsEnabled)")
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -109,6 +117,7 @@ final class PreferencesService {
         static let udpServerPort = "KeyPath.UDP.ServerPort"
         static let udpAuthToken = "KeyPath.UDP.AuthToken"
         static let udpSessionTimeout = "KeyPath.UDP.SessionTimeout"
+        static let notificationsEnabled = "KeyPath.Notifications.Enabled"
     }
 
     // MARK: - Defaults
@@ -119,6 +128,7 @@ final class PreferencesService {
         static let udpServerPort = 37001 // Default port for Kanata UDP server
         static let udpAuthToken = "" // Auto-generate token
         static let udpSessionTimeout = 1800 // 30 minutes (same as Kanata default)
+        static let notificationsEnabled = true
     }
 
     // MARK: - Initialization
@@ -136,6 +146,10 @@ final class PreferencesService {
 
         udpSessionTimeout =
             UserDefaults.standard.object(forKey: Keys.udpSessionTimeout) as? Int ?? Defaults.udpSessionTimeout
+
+        notificationsEnabled =
+            UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool
+                ?? Defaults.notificationsEnabled
 
         AppLogger.shared.log(
             "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), UDP enabled: \(udpServerEnabled)"

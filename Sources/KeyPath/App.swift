@@ -31,6 +31,9 @@ public struct KeyPathApp: App {
 
         appDelegate.kanataManager = manager
         appDelegate.isHeadlessMode = isHeadlessMode
+
+        // Request user notification authorization on first launch
+        UserNotificationService.shared.requestAuthorizationIfNeeded()
     }
 
     public var body: some Scene {

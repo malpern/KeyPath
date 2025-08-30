@@ -23,8 +23,6 @@ struct ContentView: View {
     // Enhanced error handling
     @State private var enhancedErrorInfo: ErrorInfo?
 
-    // Toast manager for launch failure notifications
-    @State private var toastManager = WizardToastManager()
 
     // Diagnostics view state
     @State private var showingDiagnostics = false
@@ -66,22 +64,6 @@ struct ContentView: View {
             StatusMessageView(message: statusMessage, isVisible: showStatusMessage && !statusMessage.contains("❌"))
                 .frame(height: (showStatusMessage && !statusMessage.contains("❌")) ? nil : 0)
                 .clipped()
-
-            // Kanata Launch Failure Toast - inline, non-blocking design
-            if let toast = toastManager.currentToast {
-                WizardToastView(
-                    toast: toast,
-                    onDismiss: {
-                        toastManager.dismissToast()
-                    },
-                    onAction: {
-                        // Handle launch failure toast action (open setup wizard)
-                        toastManager.dismissToast()
-                        showingInstallationWizard = true
-                    }
-                )
-                .padding(.top, 8)
-            }
 
             // Diagnostic Summary (show critical issues)
             if !kanataManager.diagnostics.isEmpty {
@@ -182,13 +164,6 @@ struct ContentView: View {
             showingInstallationWizard = shouldShow
             AppLogger.shared.log(
                 "🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
-        }
-        .onChange(of: kanataManager.launchFailureStatus) { newStatus in
-            // Show launch failure toast when status changes
-            if let failureStatus = newStatus {
-                AppLogger.shared.log("🍞 [ContentView] Showing launch failure toast: \(failureStatus.shortMessage)")
-                toastManager.showLaunchFailure(failureStatus)
-            }
         }
         .onChange(of: kanataManager.lastConfigUpdate) { _ in
             // Show status message when config is updated externally

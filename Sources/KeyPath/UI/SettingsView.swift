@@ -203,6 +203,8 @@ struct SettingsView: View {
                 Divider()
                 diagnosticsSection
                 Divider()
+                notificationsSection
+                Divider()
                 communicationSection
                 Divider()
                 developerToolsSection
@@ -355,6 +357,17 @@ struct SettingsView: View {
 
                 diagnosticSummaryView
             }
+        }
+    }
+
+    private var notificationsSection: some View {
+        SettingsSection(title: "Notifications") {
+            Toggle("Enable Notifications", isOn: $preferences.notificationsEnabled)
+                .onChange(of: preferences.notificationsEnabled) { enabled in
+                    if enabled {
+                        UserNotificationService.shared.requestAuthorizationIfNeeded()
+                    }
+                }
         }
     }
 
