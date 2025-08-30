@@ -10,7 +10,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
     private let preferences: PreferencesService
     private let authorizationRequestedKey = "KeyPath.NotificationAuthorizationRequested"
 
-    private override init(preferences: PreferencesService = .shared) {
+    private init(preferences: PreferencesService = .shared) {
         self.preferences = preferences
         super.init()
         center.delegate = self
@@ -51,4 +51,3 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         sendNotification(title: "Kanata Status", body: "Kanata is now \(state.displayName)")
     }
 }
-

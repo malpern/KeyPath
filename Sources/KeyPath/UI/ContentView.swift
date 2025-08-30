@@ -24,7 +24,6 @@ struct ContentView: View {
     // Enhanced error handling
     @State private var enhancedErrorInfo: ErrorInfo?
 
-
     // Diagnostics view state
     @State private var showingDiagnostics = false
 

@@ -148,19 +148,25 @@ class KanataManager: ObservableObject {
     @Published private(set) var currentState: SimpleKanataState = .starting {
         didSet {
             if oldValue != currentState {
-                UserNotificationService.shared.notifyStatusChange(currentState)
+                Task { @MainActor in
+                    UserNotificationService.shared.notifyStatusChange(currentState)
+                }
             }
         }
     }
+
     @Published private(set) var errorReason: String?
     @Published private(set) var showWizard: Bool = false
     @Published private(set) var launchFailureStatus: LaunchFailureStatus? {
         didSet {
             if let status = launchFailureStatus {
-                UserNotificationService.shared.notifyLaunchFailure(status)
+                Task { @MainActor in
+                    UserNotificationService.shared.notifyLaunchFailure(status)
+                }
             }
         }
     }
+
     @Published private(set) var autoStartAttempts: Int = 0
     @Published private(set) var lastHealthCheck: Date?
     @Published private(set) var retryCount: Int = 0

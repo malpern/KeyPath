@@ -362,10 +362,13 @@ struct SettingsView: View {
 
     private var notificationsSection: some View {
         SettingsSection(title: "Notifications") {
-            Toggle("Enable Notifications", isOn: $preferences.notificationsEnabled)
+            @Bindable var bindablePreferences = preferences
+            Toggle("Enable Notifications", isOn: $bindablePreferences.notificationsEnabled)
                 .onChange(of: preferences.notificationsEnabled) { enabled in
                     if enabled {
-                        UserNotificationService.shared.requestAuthorizationIfNeeded()
+                        Task { @MainActor in
+                            UserNotificationService.shared.requestAuthorizationIfNeeded()
+                        }
                     }
                 }
         }
