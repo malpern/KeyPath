@@ -1673,6 +1673,9 @@ class KanataManager: ObservableObject {
     func saveGeneratedConfiguration(_ configContent: String) async throws {
         AppLogger.shared.log("💾 [KanataManager] Saving generated configuration")
 
+        // Suppress file watcher to prevent double reload from our own write
+        configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
+
         // Set saving status
         await MainActor.run {
             saveStatus = .saving
@@ -1736,6 +1739,9 @@ class KanataManager: ObservableObject {
     }
 
     func saveConfiguration(input: String, output: String) async throws {
+        // Suppress file watcher to prevent double reload from our own write
+        configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
+
         // Set saving status
         await MainActor.run {
             saveStatus = .saving
