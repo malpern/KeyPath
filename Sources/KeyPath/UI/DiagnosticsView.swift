@@ -768,8 +768,8 @@ struct EnhancedStatusSection: View {
                             Text("Code Signature: \(codeSignature)")
                             Text("LaunchDaemon: \(launchDaemonState)")
                             Text("Exit Status: \(lastExitStatus)")
-                            Text("AX Check: \(axProbeResult.0) at \(axProbeResult.1.formatted(date: .omitted, time: .shortened))")
-                            Text("IM Check: \(imProbeResult.0) at \(imProbeResult.1.formatted(date: .omitted, time: .shortened))")
+                            Text("AX Check: \(String(describing: axProbeResult.0)) at \(axProbeResult.1.formatted(date: .omitted, time: .shortened))")
+                            Text("IM Check: \(String(describing: imProbeResult.0)) at \(imProbeResult.1.formatted(date: .omitted, time: .shortened))")
                         }
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(.secondary)

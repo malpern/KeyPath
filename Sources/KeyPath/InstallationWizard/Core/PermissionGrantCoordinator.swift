@@ -349,13 +349,17 @@ class PermissionGrantCoordinator: ObservableObject {
             DispatchQueue.global(qos: .userInitiated).async {
                 let appleScript = NSAppleScript(source: script)
                 var error: NSDictionary?
-                let result = appleScript?.executeAndReturnError(&error)
+                _ = appleScript?.executeAndReturnError(&error)
 
                 if let error {
-                    self.logger.log("❌ [ServiceBounce] Failed to bounce service: \(error)")
+                    Task { @MainActor in
+                        self.logger.log("❌ [ServiceBounce] Failed to bounce service: \(error)")
+                    }
                     continuation.resume(returning: false)
                 } else {
-                    self.logger.log("✅ [ServiceBounce] Service bounce completed successfully")
+                    Task { @MainActor in
+                        self.logger.log("✅ [ServiceBounce] Service bounce completed successfully")
+                    }
                     continuation.resume(returning: true)
                 }
             }

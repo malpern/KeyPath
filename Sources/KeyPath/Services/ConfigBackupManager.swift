@@ -198,8 +198,8 @@ public final class ConfigBackupManager {
 
         // Must contain basic Kanata structure
         let hasDefcfg = trimmed.contains("(defcfg")
-        let hasDefsrc = trimmed.contains("(defsrc") || trimmed.isEmpty // Allow empty defsrc
-        let hasDeflayer = trimmed.contains("(deflayer") || trimmed.isEmpty // Allow empty deflayer
+        _ = trimmed.contains("(defsrc") || trimmed.isEmpty // Allow empty defsrc
+        _ = trimmed.contains("(deflayer") || trimmed.isEmpty // Allow empty deflayer
 
         // Basic parentheses balance check
         let openParens = trimmed.filter { $0 == "(" }.count

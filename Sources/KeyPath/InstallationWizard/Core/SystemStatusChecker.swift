@@ -757,8 +757,8 @@ class SystemStatusChecker {
         }
 
         // Use SharedUDPClientService to check server status
-        let sharedService = await SharedUDPClientService.shared
-        let client = await sharedService.getClient(port: commConfig.udpPort)
+        let sharedService = SharedUDPClientService.shared
+        let client = sharedService.getClient(port: commConfig.udpPort)
         AppLogger.shared.log("🧪 [SystemStatusChecker] Testing UDP server on port \(commConfig.udpPort) with race-free implementation...")
         let serverResponding = await client.checkServerStatus()
         AppLogger.shared.log("🧪 [SystemStatusChecker] SharedUDPClientService client.checkServerStatus() returned: \(serverResponding)")

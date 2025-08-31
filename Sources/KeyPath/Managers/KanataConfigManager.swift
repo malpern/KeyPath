@@ -444,7 +444,7 @@ class KanataConfigManager {
 
     private func parseKanataConfig(_: String) throws -> [KeyMapping] {
         // Simplified parser - in a real implementation, this would be more sophisticated
-        var mappings: [KeyMapping] = []
+        let mappings: [KeyMapping] = []
 
         // This is a basic implementation that looks for defsrc and deflayer patterns
         // A full implementation would parse the S-expression syntax properly

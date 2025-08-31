@@ -1,4 +1,17 @@
 import SwiftUI
+import os
+
+// Thread-safe counter for detection attempts
+final class DetectionCounter: @unchecked Sendable {
+    private let lock = OSAllocatedUnfairLock(initialState: 0)
+    
+    func increment() -> Int {
+        lock.withLock { state in
+            state += 1
+            return state
+        }
+    }
+}
 
 /// Wizard page for requesting Full Disk Access permission
 /// This is optional but helps with better diagnostics and automatic problem resolution
@@ -290,39 +303,38 @@ struct WizardFullDiskAccessPage: View {
         systemSettingsDetectionAttempts = 0
 
         // Start enhanced detection timer
-        var detectionCount = 0
-        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { timer in
-            // Keep all uses of timer within the same closure without crossing actor boundaries
-            detectionCount += 1
-            let shouldStop: Bool
-            if performFDACheck() {
-                shouldStop = true
-                cachedFDAStatus = true
-                lastFDACheckTime = Date()
-                Task { @MainActor in
+        // Use a thread-safe counter for detection attempts
+        let detectionCounter = DetectionCounter()
+        
+        detectionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            // Use synchronous MainActor.assumeIsolated to avoid data race
+            MainActor.assumeIsolated {
+                let currentCount = detectionCounter.increment()
+                systemSettingsDetectionAttempts = currentCount
+                
+                let shouldStop: Bool
+                if performFDACheck() {
+                    shouldStop = true
+                    cachedFDAStatus = true
+                    lastFDACheckTime = Date()
                     hasFullDiskAccess = true
                     if showingSystemSettingsWait {
                         showingSystemSettingsWait = false
                         showSuccessAnimation = true
                     }
-                }
-            } else if detectionCount >= maxDetectionAttempts {
-                shouldStop = true
-                Task { @MainActor in
+                } else if currentCount >= maxDetectionAttempts {
+                    shouldStop = true
                     if showingSystemSettingsWait {
                         showingSystemSettingsWait = false
                     }
+                } else {
+                    shouldStop = false
                 }
-            } else {
-                shouldStop = false
-            }
-
-            Task { @MainActor in
-                systemSettingsDetectionAttempts = detectionCount
-            }
-
-            if shouldStop {
-                timer.invalidate()
+                
+                if shouldStop {
+                    detectionTimer?.invalidate()
+                    detectionTimer = nil
+                }
             }
         }
     }

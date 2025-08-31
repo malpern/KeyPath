@@ -52,7 +52,7 @@ public enum TestEnvironment {
 
     /// Combined check for any test-related behavior
     public static var isTestMode: Bool {
-        (try? MainActor.assumeIsolated { forceTestMode }) ?? false || isRunningTests
+        MainActor.assumeIsolated { forceTestMode } || isRunningTests
     }
 
     /// Log test environment status

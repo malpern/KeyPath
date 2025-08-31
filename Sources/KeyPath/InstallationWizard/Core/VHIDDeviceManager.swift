@@ -2,7 +2,7 @@ import Foundation
 
 /// Manages the Karabiner VirtualHIDDevice Manager component
 /// This is critical for keyboard remapping functionality on macOS
-class VHIDDeviceManager {
+final class VHIDDeviceManager: @unchecked Sendable {
     // MARK: - Constants
 
     private static let vhidManagerPath =

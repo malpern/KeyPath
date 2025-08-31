@@ -1150,13 +1150,12 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("🔍 [DEBUG] Config path: \(configPath)")
         AppLogger.shared.log("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
 
-        do {
-            // Start the LaunchDaemon service
-            // Record when we're triggering a service start for grace period tracking
-            lastServiceKickstart = Date()
-            let success = await startLaunchDaemonService()
+        // Start the LaunchDaemon service
+        // Record when we're triggering a service start for grace period tracking
+        lastServiceKickstart = Date()
+        let success = await startLaunchDaemonService()
 
-            if success {
+        if success {
                 // Wait a moment for service to initialize
                 try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
 
@@ -1222,26 +1221,6 @@ class KanataManager: ObservableObject {
                 )
                 addDiagnostic(diagnostic)
             }
-        } catch {
-            updatePublishedProperties(
-                isRunning: false,
-                lastProcessExitCode: 1,
-                lastError: "Exception during LaunchDaemon start: \(error.localizedDescription)"
-            )
-            AppLogger.shared.log("❌ [Start] Exception during LaunchDaemon start: \(error.localizedDescription)")
-
-            let diagnostic = KanataDiagnostic(
-                timestamp: Date(),
-                severity: .error,
-                category: .process,
-                title: "LaunchDaemon Start Exception",
-                description: "Exception occurred while starting Kanata LaunchDaemon service.",
-                technicalDetails: error.localizedDescription,
-                suggestedAction: "Check system logs and LaunchDaemon configuration",
-                canAutoFix: false
-            )
-            addDiagnostic(diagnostic)
-        }
 
         await updateStatus()
     }
@@ -1731,7 +1710,7 @@ class KanataManager: ObservableObject {
             // Stop log monitoring when Kanata stops
             stopLogMonitoring()
 
-            await updatePublishedProperties(
+            updatePublishedProperties(
                 isRunning: false,
                 lastProcessExitCode: nil,
                 lastError: nil

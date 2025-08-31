@@ -126,7 +126,7 @@ final class StartupValidator: ObservableObject {
         AppLogger.shared.log("🔍 [StartupValidator] Blocking issues: \(blockingIssues.count)")
 
         // Update state based on results
-        await updateValidationResults(
+        updateValidationResults(
             issues: result.issues,
             blockingCount: blockingIssues.count,
             totalCount: result.issues.count

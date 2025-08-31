@@ -56,7 +56,7 @@ class WizardAsyncOperationManager {
                 // Check if task was cancelled
                 guard !Task.isCancelled else {
                     AppLogger.shared.log("🛑 [AsyncOp] Operation cancelled: \(operation.name)")
-                    await cleanupOperation(operationId)
+                    cleanupOperation(operationId)
                     return
                 }
 
@@ -85,7 +85,7 @@ class WizardAsyncOperationManager {
             }
 
             // Clean up
-            await cleanupOperation(operationId)
+            cleanupOperation(operationId)
         }
 
         // Store the task reference for cancellation
@@ -123,7 +123,7 @@ class WizardAsyncOperationManager {
     func cancelAllOperationsAsync() {
         // Perform all cancellation work in background without any main thread involvement
         let tasksToCancel = Array(runningTasks.values)
-        let operationIds = Array(runningTasks.keys)
+        _ = Array(runningTasks.keys)
         runningTasks.removeAll()
 
         // Cancel all tasks (this doesn't block)

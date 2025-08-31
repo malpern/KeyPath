@@ -156,7 +156,7 @@ actor PermissionOracle {
         let start = Date()
 
         // Get KeyPath permissions (local, always authoritative)
-        let keyPathSet = await checkKeyPathPermissions()
+        let keyPathSet = checkKeyPathPermissions()
 
         // Get Kanata permissions (UDP primary, functional verification)
         let kanataSet = await checkKanataPermissions()
@@ -327,7 +327,7 @@ actor PermissionOracle {
         if success {
             AppLogger.shared.log("🔮 [Oracle] ✅ Kanata restarted successfully via UDP")
             // Invalidate cache to force fresh permission check
-            await forceRefresh()
+            _ = await forceRefresh()
         } else {
             AppLogger.shared.log("🔮 [Oracle] ❌ Failed to restart Kanata via UDP")
         }

@@ -168,8 +168,8 @@ struct WizardKarabinerComponentsPage: View {
                                             fixingIssues.insert(driverIssue.id)
                                             Task {
                                                 if let autoFixAction = driverIssue.autoFixAction {
-                                                    let success = await onAutoFix(autoFixAction)
-                                                    await MainActor.run {
+                                                    _ = await onAutoFix(autoFixAction)
+                                                    _ = await MainActor.run {
                                                         fixingIssues.remove(driverIssue.id)
                                                     }
                                                 }

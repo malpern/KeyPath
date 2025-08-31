@@ -1,6 +1,21 @@
 import Foundation
 import Network
 
+// Actor to manage request completion state safely across concurrent contexts
+actor RequestCompletionState {
+    private var completed = false
+    
+    func isCompleted() -> Bool {
+        return completed
+    }
+    
+    func markCompleted() -> Bool {
+        guard !completed else { return false }
+        completed = true
+        return true
+    }
+}
+
 /// Secure UDP client for communicating with Kanata's UDP server
 /// Features: Token authentication, size gating, thread safety, secure storage
 actor KanataUDPClient {
@@ -515,8 +530,8 @@ actor KanataUDPClient {
         do {
             return try await withTimeout(timeout) {
                 try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
-                    let completionLock = NSLock()
-                    var requestCompleted = false
+                    // Use an actor to manage request completion state safely
+                    let completionState = RequestCompletionState()
 
                     // Set up inflight request tracking
                     let cancelRequest = {
@@ -538,34 +553,38 @@ actor KanataUDPClient {
                     AppLogger.shared.log("📡 [UDP] Arming receive handler BEFORE send to prevent race condition [requestId: \(requestId)]")
 
                     connection.receiveMessage { responseData, context, _, error in
-                        // Only process if this request hasn't completed
-                        completionLock.lock(); defer { completionLock.unlock() }
-                        guard !requestCompleted else {
-                            AppLogger.shared.log("🚫 [UDP] Ignoring receive for completed request \(requestId)")
-                            return
-                        }
-
-                        if let error {
-                            AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error) [requestId: \(requestId)]")
-                            requestCompleted = true
-                            Task { await self.clearInflight() }
-                            continuation.resume(throwing: error)
-                            return
-                        }
-
-                        if let responseData {
-                            AppLogger.shared.log("📡 [UDP] ✅ Received response: \(responseData.count) bytes [requestId: \(requestId)]")
-                            if let context {
-                                AppLogger.shared.log("📡 [UDP] Response context: \(context) [requestId: \(requestId)]")
+                        Task {
+                            // Only process if this request hasn't completed
+                            guard await !completionState.isCompleted() else {
+                                AppLogger.shared.log("🚫 [UDP] Ignoring receive for completed request \(requestId)")
+                                return
                             }
-                            requestCompleted = true
-                            Task { await self.clearInflight() }
-                            continuation.resume(returning: responseData)
-                        } else {
-                            AppLogger.shared.log("📡 [UDP] ❌ No response data received [requestId: \(requestId)]")
-                            requestCompleted = true
-                            Task { await self.clearInflight() }
-                            continuation.resume(throwing: UDPError.noResponse)
+
+                            if let error {
+                                AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error) [requestId: \(requestId)]")
+                                if await completionState.markCompleted() {
+                                    await self.clearInflight()
+                                    continuation.resume(throwing: error)
+                                }
+                                return
+                            }
+
+                            if let responseData {
+                                AppLogger.shared.log("📡 [UDP] ✅ Received response: \(responseData.count) bytes [requestId: \(requestId)]")
+                                if let context {
+                                    AppLogger.shared.log("📡 [UDP] Response context: \(context) [requestId: \(requestId)]")
+                                }
+                                if await completionState.markCompleted() {
+                                    await self.clearInflight()
+                                    continuation.resume(returning: responseData)
+                                }
+                            } else {
+                                AppLogger.shared.log("📡 [UDP] ❌ No response data received [requestId: \(requestId)]")
+                                if await completionState.markCompleted() {
+                                    await self.clearInflight()
+                                    continuation.resume(throwing: UDPError.noResponse)
+                                }
+                            }
                         }
                     }
 
@@ -574,11 +593,11 @@ actor KanataUDPClient {
                     connection.send(content: data, completion: .contentProcessed { error in
                         if let error {
                             AppLogger.shared.log("📡 [UDP] ❌ Send error: \(error) [requestId: \(requestId)]")
-                            completionLock.lock(); defer { completionLock.unlock() }
-                            if !requestCompleted {
-                                requestCompleted = true
-                                Task { await self.clearInflight() }
-                                continuation.resume(throwing: error)
+                            Task {
+                                if await completionState.markCompleted() {
+                                    await self.clearInflight()
+                                    continuation.resume(throwing: error)
+                                }
                             }
                             return
                         }

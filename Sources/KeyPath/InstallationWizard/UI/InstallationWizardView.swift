@@ -440,7 +440,7 @@ struct InstallationWizardView: View {
         case .inputMonitoring, .accessibility:
             // Quick permission check only
             if let statusChecker = stateManager.statusChecker {
-                let permissionResult = await statusChecker.checkPermissionsOnly()
+                _ = await statusChecker.checkPermissionsOnly()
                 await MainActor.run {
                     // Update only permission-related issues
                     currentIssues = currentIssues.filter { $0.category != .permissions }
@@ -450,7 +450,7 @@ struct InstallationWizardView: View {
         case .conflicts:
             // Quick conflict check only
             if let statusChecker = stateManager.statusChecker {
-                let conflictResult = await statusChecker.checkConflictsOnly()
+                _ = await statusChecker.checkConflictsOnly()
                 await MainActor.run {
                     // Update only conflict-related issues
                     currentIssues = currentIssues.filter { $0.category != .conflicts }
@@ -532,7 +532,7 @@ struct InstallationWizardView: View {
                 if let statusChecker = stateManager.statusChecker {
                     statusChecker.clearCache()
                 }
-                await refreshState()
+                refreshState()
 
                 AppLogger.shared.log("🔍 [NewWizard] *** PERFORMAUTOFIX COMPLETED SUCCESSFULLY ***")
                 Swift.print("*** CRASH-PROOF *** performAutoFix completed successfully")
@@ -555,7 +555,7 @@ struct InstallationWizardView: View {
 
         // Immediately mark auto-fix as running to prevent monitoring loop interference
         let operationId = "auto_fix_\(String(describing: action))"
-        await MainActor.run {
+        _ = await MainActor.run {
             asyncOperationManager.runningOperations.insert(operationId)
         }
 
@@ -569,7 +569,7 @@ struct InstallationWizardView: View {
         return await withCheckedContinuation { continuation in
             Task {
                 // Remove our manual operation ID since execute() will handle it properly
-                await MainActor.run {
+                _ = await MainActor.run {
                     asyncOperationManager.runningOperations.remove(operationId)
                 }
 
@@ -588,7 +588,7 @@ struct InstallationWizardView: View {
                             Task {
                                 // Shorter delay - we have warm-up window to handle startup
                                 try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
-                                await refreshState()
+                                refreshState()
                                 continuation.resume(returning: success)
                             }
                         } else {

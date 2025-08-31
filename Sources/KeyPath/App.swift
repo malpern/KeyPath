@@ -201,7 +201,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested - performing bounce")
                 }
 
-                let bounceSuccess = PermissionGrantCoordinator.shared.performServiceBounce()
+                let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
                 if bounceSuccess {
                     AppLogger.shared.log("✅ [AppDelegate] Service bounce completed successfully")
                     PermissionGrantCoordinator.shared.clearServiceBounceFlag()

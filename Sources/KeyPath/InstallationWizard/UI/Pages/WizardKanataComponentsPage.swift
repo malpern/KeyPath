@@ -208,10 +208,10 @@ struct WizardKanataComponentsPage: View {
                                                             PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Kanata engine fix - \(autoFixAction)")
                                                         }
 
-                                                        let success = await onAutoFix(autoFixAction)
+                                                        _ = await onAutoFix(autoFixAction)
 
                                                         // Remove this issue from fixing state
-                                                        await MainActor.run {
+                                                        _ = await MainActor.run {
                                                             fixingIssues.remove(issue.id)
                                                         }
                                                     }
@@ -378,9 +378,9 @@ struct WizardKanataComponentsPage: View {
             fixingIssues.insert(homebrewIssue.id)
 
             Task {
-                let success = await onAutoFix(.installViaBrew)
+                _ = await onAutoFix(.installViaBrew)
 
-                await MainActor.run {
+                _ = await MainActor.run {
                     fixingIssues.remove(homebrewIssue.id)
                 }
             }

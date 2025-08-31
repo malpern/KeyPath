@@ -8,7 +8,9 @@ final class KeyboardCaptureTests: XCTestCase {
     var capture: KeyboardCapture!
     var receivedNotifications: [Notification] = []
 
-    override func setUpWithError() throws {
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         capture = KeyboardCapture()
         receivedNotifications.removeAll()
 
@@ -21,12 +23,14 @@ final class KeyboardCaptureTests: XCTestCase {
         )
     }
 
-    override func tearDownWithError() throws {
+    @MainActor
+    override func tearDown() async throws {
         capture.stopCapture()
         capture.stopEmergencyMonitoring()
         capture = nil
 
         NotificationCenter.default.removeObserver(self)
+        try await super.tearDown()
     }
 
     @objc private func notificationReceived(_ notification: Notification) {

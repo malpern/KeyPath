@@ -53,7 +53,7 @@ final class ProcessLifecycleManager: @unchecked Sendable {
     func recoverFromCrash() async {
         // Default implementation to clean up orphaned processes
         AppLogger.shared.log("🧹 [ProcessLifecycleManager] Attempting to recover from crash")
-        try? await cleanupOrphanedProcesses()
+        await cleanupOrphanedProcesses()
     }
 
     // MARK: - Types

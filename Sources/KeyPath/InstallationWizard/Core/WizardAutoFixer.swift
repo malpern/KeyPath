@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import os
 
 /// Handles automatic fixing of detected issues - pure action logic
 class WizardAutoFixer: AutoFixCapable {
@@ -223,7 +224,7 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Terminating conflicting kanata processes")
 
         // Use ProcessLifecycleManager to find external kanata processes
-        let processManager = await ProcessLifecycleManager(kanataManager: kanataManager)
+        let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
         let conflicts = await processManager.detectConflicts()
 
         if conflicts.externalProcesses.isEmpty {
@@ -403,16 +404,23 @@ class WizardAutoFixer: AutoFixCapable {
             activateTask.executableURL = URL(fileURLWithPath: managerPath)
             activateTask.arguments = ["forceActivate"]
 
-            // Async-safe guard without NSLock
+            // Thread-safe guard using actor isolation
             let guardQueue = DispatchQueue(label: "vhid-activate-guard")
-            var hasResumed = false
+            let hasResumed = OSAllocatedUnfairLock(initialState: false)
 
             // Set up timeout task
             let timeoutTask = Task {
                 try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 second timeout
                 guardQueue.async {
-                    if !hasResumed {
-                        hasResumed = true
+                    let shouldResume = hasResumed.withLock { resumed in
+                        if !resumed {
+                            resumed = true
+                            return true
+                        }
+                        return false
+                    }
+                    
+                    if shouldResume {
                         AppLogger.shared.log(
                             "⚠️ [AutoFixer] VirtualHID Manager activation timed out after 10 seconds")
                         activateTask.terminate()
@@ -424,8 +432,15 @@ class WizardAutoFixer: AutoFixCapable {
             activateTask.terminationHandler = { process in
                 timeoutTask.cancel()
                 guardQueue.async {
-                    if !hasResumed {
-                        hasResumed = true
+                    let shouldResume = hasResumed.withLock { resumed in
+                        if !resumed {
+                            resumed = true
+                            return true
+                        }
+                        return false
+                    }
+                    
+                    if shouldResume {
                         let success = process.terminationStatus == 0
                         if success {
                             AppLogger.shared.log("✅ [AutoFixer] VirtualHID Manager force activation completed")
@@ -443,8 +458,15 @@ class WizardAutoFixer: AutoFixCapable {
             } catch {
                 timeoutTask.cancel()
                 guardQueue.async {
-                    if !hasResumed {
-                        hasResumed = true
+                    let shouldResume = hasResumed.withLock { resumed in
+                        if !resumed {
+                            resumed = true
+                            return true
+                        }
+                        return false
+                    }
+                    
+                    if shouldResume {
                         AppLogger.shared.log("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
                         continuation.resume(returning: false)
                     }
@@ -632,7 +654,7 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Installing packages via Homebrew")
 
         var stepsCompleted = 0
-        var stepsFailed = 0
+        let stepsFailed = 0
         let totalSteps = 3
 
         // Step 1: Check if Homebrew is available
@@ -648,7 +670,7 @@ class WizardAutoFixer: AutoFixCapable {
         // Step 2: Check what packages need to be installed
         AppLogger.shared.log(
             "🔧 [AutoFixer] Step 2/\(totalSteps): Detecting current package installation...")
-        let kanataInfo = packageManager.detectKanataInstallation()
+        _ = packageManager.detectKanataInstallation()
         AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Package detection complete")
         stepsCompleted += 1
 
@@ -658,15 +680,9 @@ class WizardAutoFixer: AutoFixCapable {
         stepsCompleted += 1
 
         let success = stepsFailed == 0
-        if success {
-            AppLogger.shared.log(
-                "✅ [AutoFixer] Homebrew installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)"
-            )
-        } else {
-            AppLogger.shared.log(
-                "❌ [AutoFixer] Homebrew installation failed (\(stepsFailed) steps failed, \(stepsCompleted)/\(totalSteps) completed)"
-            )
-        }
+        AppLogger.shared.log(
+            "✅ [AutoFixer] Homebrew installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)"
+        )
 
         return success
     }
@@ -777,7 +793,7 @@ class WizardAutoFixer: AutoFixCapable {
 
             let appleScript = NSAppleScript(source: script)
             var error: NSDictionary?
-            let result = appleScript?.executeAndReturnError(&error)
+            _ = appleScript?.executeAndReturnError(&error)
 
             if let error {
                 AppLogger.shared.log("❌ [AutoFixer] AppleScript error: \(error)")
