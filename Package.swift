@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
@@ -26,7 +26,10 @@ let package = Package(
         .executableTarget(
             name: "KeyPathCLI",
             dependencies: ["KeyPath"],
-            path: "Sources/KeyPathCLI"
+            path: "Sources/KeyPathCLI",
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
         ),
         // The main app library with all SwiftUI code
         .target(
@@ -38,13 +41,19 @@ let package = Package(
             ],
             resources: [
                 .process("Resources")
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
             ]
         ),
         // Tests
         .testTarget(
             name: "KeyPathTests",
             dependencies: ["KeyPath"],
-            path: "Tests/KeyPathTests"
+            path: "Tests/KeyPathTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
         )
     ]
 )

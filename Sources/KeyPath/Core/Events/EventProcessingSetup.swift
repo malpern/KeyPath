@@ -47,6 +47,6 @@ public enum EventProcessingSetup {
 
     /// Get current processor configuration (for debugging)
     public static func getCurrentProcessors() -> [String] {
-        return defaultEventRouter.getProcessorNames()
+        defaultEventRouter.getProcessorNames()
     }
 }

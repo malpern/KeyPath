@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 
+@MainActor
 class SoundPlayer {
     static let shared = SoundPlayer()
 

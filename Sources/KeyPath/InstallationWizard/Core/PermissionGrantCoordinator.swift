@@ -225,32 +225,26 @@ class PermissionGrantCoordinator: ObservableObject {
     }
 
     private func logPermissionSnapshot() {
-        logger.log("PRE-RESTART SNAPSHOT:")
+        Task {
+            logger.log("PRE-RESTART SNAPSHOT:")
 
-        // Get current system state for logging
-        let permissionService = PermissionService.shared
-        let keyPathAccessibility = permissionService.hasAccessibilityPermission()
-        let keyPathInputMonitoring = permissionService.hasInputMonitoringPermission()
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
 
-        logger.log("  KeyPath permissions:")
-        logger.log("    • Accessibility: \(keyPathAccessibility ? "granted" : "denied")")
-        logger.log("    • Input Monitoring: \(keyPathInputMonitoring ? "granted" : "denied")")
+            let keyPathAccessibility = snapshot.keyPath.accessibility.isReady
+            let keyPathInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
 
-        // Note: Kanata permissions will be checked via Oracle after restart
-        logger.log("  Kanata permissions (source: tcc.no-fda):")
-        logger.log("    • Accessibility: unknown  ")
-        logger.log("    • Input Monitoring: unknown")
+            logger.log("  KeyPath permissions:")
+            logger.log("    • Accessibility: \(keyPathAccessibility ? "granted" : "denied")")
+            logger.log("    • Input Monitoring: \(keyPathInputMonitoring ? "granted" : "denied")")
 
-        // System readiness
-        let systemReady = keyPathAccessibility && keyPathInputMonitoring
-        logger.log("  System ready: \(systemReady)")
+            logger.log("  Kanata permissions (source: \(snapshot.kanata.source)):")
+            logger.log("    • Accessibility: \(snapshot.kanata.accessibility)")
+            logger.log("    • Input Monitoring: \(snapshot.kanata.inputMonitoring)")
 
-        if !systemReady {
-            if !keyPathAccessibility {
-                logger.log("  Blocking issue: KeyPath needs Accessibility permission - enable in System Settings > Privacy & Security > Accessibility")
-            }
-            if !keyPathInputMonitoring {
-                logger.log("  Blocking issue: KeyPath needs Input Monitoring permission - enable in System Settings > Privacy & Security > Input Monitoring")
+            logger.log("  System ready: \(snapshot.isSystemReady)")
+
+            if !snapshot.isSystemReady, let issue = snapshot.blockingIssue {
+                logger.log("  Blocking issue: \(issue)")
             }
         }
     }

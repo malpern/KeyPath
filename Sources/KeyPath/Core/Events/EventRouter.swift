@@ -195,7 +195,7 @@ public final class EventRouter {
 
     private func eventsEqual(_ event1: CGEvent, _ event2: CGEvent) -> Bool {
         // Basic event comparison - this could be enhanced for more thorough comparison
-        return event1.type == event2.type &&
+        event1.type == event2.type &&
             event1.getIntegerValueField(.keyboardEventKeycode) == event2.getIntegerValueField(.keyboardEventKeycode) &&
             event1.flags == event2.flags
     }

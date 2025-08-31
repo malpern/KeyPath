@@ -6,11 +6,11 @@ enum CommunicationProtocol: String, CaseIterable {
     case udp
 
     var displayName: String {
-        return "UDP (High Performance)"
+        "UDP (High Performance)"
     }
 
     var description: String {
-        return "High-performance UDP protocol with ~10x lower latency and token-based security"
+        "High-performance UDP protocol with ~10x lower latency and token-based security"
     }
 }
 
@@ -157,7 +157,7 @@ final class PreferencesService {
 
         // Handle legacy UserDefaults migration
         let legacyToken = UserDefaults.standard.string(forKey: Keys.udpAuthToken)
-        if let legacyToken = legacyToken, !legacyToken.isEmpty {
+        if let legacyToken, !legacyToken.isEmpty {
             // Migrate to shared file
             let success = CommunicationSnapshot.writeSharedUDPToken(legacyToken)
             if success {
@@ -228,7 +228,7 @@ extension PreferencesService {
 
     /// Get the active communication endpoint based on protocol preference
     var activeEndpoint: String? {
-        return udpEndpoint
+        udpEndpoint
     }
 
     /// Get UDP launch arguments for Kanata if UDP is enabled
@@ -265,7 +265,7 @@ extension PreferencesService {
 
     /// Get communication launch arguments based on protocol preference
     var communicationLaunchArguments: [String] {
-        return udpLaunchArguments
+        udpLaunchArguments
     }
 
     /// Get environment variables for secure token passing
@@ -305,12 +305,12 @@ struct CommunicationSnapshot: Sendable {
 
     /// Get cross-platform path for shared UDP auth token file
     static func udpAuthTokenPath() -> String {
-        return UDPAuthTokenManager.shared.sharedTokenPath()
+        UDPAuthTokenManager.shared.sharedTokenPath()
     }
 
     /// Generate secure 32-character UDP auth token
     static func generateUDPAuthToken() -> String {
-        return UDPAuthTokenManager.shared.generateSecureToken()
+        UDPAuthTokenManager.shared.generateSecureToken()
     }
 
     /// Write shared UDP auth token to cross-platform file location

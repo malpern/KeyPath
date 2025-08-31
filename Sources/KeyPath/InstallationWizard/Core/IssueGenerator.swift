@@ -402,37 +402,37 @@ class IssueGenerator {
     private func getAutoFixAction(for component: ComponentRequirement) -> AutoFixAction? {
         switch component {
         case .karabinerDriver, .vhidDeviceManager, .packageManager:
-            return nil // These require manual installation
+            nil // These require manual installation
         case .vhidDeviceActivation:
-            return .activateVHIDDeviceManager
+            .activateVHIDDeviceManager
         case .vhidDeviceRunning:
-            return .restartVirtualHIDDaemon
+            .restartVirtualHIDDaemon
         case .vhidDaemonMisconfigured:
-            return .repairVHIDDaemonServices
+            .repairVHIDDaemonServices
         case .launchDaemonServices:
-            return .installLaunchDaemonServices
+            .installLaunchDaemonServices
         case .launchDaemonServicesUnhealthy:
-            return .restartUnhealthyServices
+            .restartUnhealthyServices
         case .kanataBinary:
-            return .installViaBrew // Can be installed via Homebrew if available
+            .installViaBrew // Can be installed via Homebrew if available
         case .kanataBinaryUnsigned:
-            return .replaceKanataWithBundled // Replace with bundled Developer ID signed binary
+            .replaceKanataWithBundled // Replace with bundled Developer ID signed binary
         case .kanataService:
-            return .installLaunchDaemonServices // Service configuration files
+            .installLaunchDaemonServices // Service configuration files
         case .kanataUDPServer:
-            return .restartUnhealthyServices // UDP server requires service restart with updated config
+            .restartUnhealthyServices // UDP server requires service restart with updated config
         case .orphanedKanataProcess:
-            return .adoptOrphanedProcess // Default to adopting the orphaned process
+            .adoptOrphanedProcess // Default to adopting the orphaned process
         case .communicationServerConfiguration:
-            return .regenerateCommServiceConfiguration // Update LaunchDaemon plist with communication settings
+            .regenerateCommServiceConfiguration // Update LaunchDaemon plist with communication settings
         case .communicationServerNotResponding:
-            return .restartCommServer // Restart service to enable communication functionality
+            .restartCommServer // Restart service to enable communication functionality
         case .udpServerConfiguration:
-            return .enableUDPServer // Enable UDP server
+            .enableUDPServer // Enable UDP server
         case .udpServerNotResponding:
-            return .enableUDPServer // Enable UDP server functionality
+            .enableUDPServer // Enable UDP server functionality
         default:
-            return .installMissingComponents
+            .installMissingComponents
         }
     }
 

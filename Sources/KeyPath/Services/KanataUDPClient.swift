@@ -67,7 +67,7 @@ actor KanataUDPClient {
 
     /// Timeout utility that properly cancels operations and cleans up connections
     private func withTimeout<T>(_ seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
-        return try await withThrowingTaskGroup(of: T.self) { group in
+        try await withThrowingTaskGroup(of: T.self) { group in
             // Add the main operation
             group.addTask {
                 try await operation()
@@ -138,7 +138,7 @@ actor KanataUDPClient {
 
     /// Check if current session is still valid
     var isAuthenticated: Bool {
-        guard let sessionId = sessionId,
+        guard let sessionId,
               let expiryDate = sessionExpiryDate,
               !sessionId.isEmpty,
               Date() < expiryDate
@@ -204,12 +204,11 @@ actor KanataUDPClient {
                 }
 
                 // Try authentication with provided token or shared token
-                let tokenToUse: String?
-                if let token = authToken {
-                    tokenToUse = token
+                let tokenToUse: String? = if let token = authToken {
+                    token
                 } else {
                     // Phase 2/3: Use shared token file for automatic authentication
-                    tokenToUse = CommunicationSnapshot.readSharedUDPToken()
+                    CommunicationSnapshot.readSharedUDPToken()
                 }
 
                 if let token = tokenToUse, !token.isEmpty {
@@ -251,7 +250,7 @@ actor KanataUDPClient {
 
     /// Validate configuration via UDP server (with size gating)
     func validateConfig(_ configContent: String) async -> UDPValidationResult {
-        guard isAuthenticated, let sessionId = sessionId else {
+        guard isAuthenticated, let sessionId else {
             AppLogger.shared.log("❌ [UDP] Not authenticated for config validation")
             return .authenticationRequired
         }
@@ -299,7 +298,7 @@ actor KanataUDPClient {
 
     /// Restart Kanata process via UDP API
     func restartKanata() async -> Bool {
-        guard isAuthenticated, let sessionId = sessionId else {
+        guard isAuthenticated, let sessionId else {
             AppLogger.shared.log("❌ [UDP] Not authenticated for restart")
             return false
         }
@@ -329,7 +328,7 @@ actor KanataUDPClient {
 
     /// Send reload command to Kanata
     func reloadConfig() async -> UDPReloadResult {
-        guard isAuthenticated, let sessionId = sessionId else {
+        guard isAuthenticated, let sessionId else {
             AppLogger.shared.log("❌ [UDP] Not authenticated for config reload")
             return .authenticationRequired
         }
@@ -379,7 +378,7 @@ actor KanataUDPClient {
         // Check if existing connection is still valid and not too old
         if let conn = activeConnection, let createdAt = connectionCreatedAt {
             let connectionAge = Date().timeIntervalSince(createdAt)
-            if connectionAge < connectionMaxAge && !isConnectionFailed(conn.state) && conn.state != .cancelled {
+            if connectionAge < connectionMaxAge, !isConnectionFailed(conn.state), conn.state != .cancelled {
                 return conn
             } else {
                 AppLogger.shared.log("📡 [UDP] Connection too old (\(String(format: "%.1f", connectionAge))s) or invalid - creating new one")
@@ -520,7 +519,7 @@ actor KanataUDPClient {
             throw UDPError.invalidPort
         }
 
-        if requiresAuth && !isAuthenticated {
+        if requiresAuth, !isAuthenticated {
             throw UDPError.notAuthenticated
         }
 
@@ -590,7 +589,7 @@ actor KanataUDPClient {
                             return
                         }
 
-                        if let error = error {
+                        if let error {
                             AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error) [requestId: \(requestId)]")
                             requestCompleted = true
                             self.inflightRequest = nil
@@ -598,9 +597,9 @@ actor KanataUDPClient {
                             return
                         }
 
-                        if let responseData = responseData {
+                        if let responseData {
                             AppLogger.shared.log("📡 [UDP] ✅ Received response: \(responseData.count) bytes [requestId: \(requestId)]")
-                            if let context = context {
+                            if let context {
                                 AppLogger.shared.log("📡 [UDP] Response context: \(context) [requestId: \(requestId)]")
                             }
                             requestCompleted = true
@@ -617,7 +616,7 @@ actor KanataUDPClient {
                     // Now send after receive handler is armed
                     AppLogger.shared.log("📡 [UDP] Sending message after receive handler is armed [requestId: \(requestId)]")
                     connection.send(content: data, completion: .contentProcessed { error in
-                        if let error = error {
+                        if let error {
                             AppLogger.shared.log("📡 [UDP] ❌ Send error: \(error) [requestId: \(requestId)]")
                             if !requestCompleted {
                                 requestCompleted = true
@@ -793,33 +792,33 @@ enum UDPReloadResult {
     var isSuccess: Bool {
         switch self {
         case .success:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
     var errorMessage: String? {
         switch self {
         case let .failure(error, _):
-            return error
+            error
         case .authenticationRequired:
-            return "Authentication required"
+            "Authentication required"
         case let .networkError(error):
-            return error
+            error
         case .success:
-            return nil
+            nil
         }
     }
 
     var response: String? {
         switch self {
         case let .success(response):
-            return response
+            response
         case let .failure(_, response):
-            return response
+            response
         default:
-            return nil
+            nil
         }
     }
 }
@@ -836,17 +835,17 @@ enum UDPError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .timeout:
-            return "UDP request timed out"
+            "UDP request timed out"
         case .noResponse:
-            return "No response received from server"
+            "No response received from server"
         case .invalidPort:
-            return "Invalid UDP port number"
+            "Invalid UDP port number"
         case .invalidResponse:
-            return "Invalid or malformed response from server"
+            "Invalid or malformed response from server"
         case .notAuthenticated:
-            return "Not authenticated with UDP server"
+            "Not authenticated with UDP server"
         case let .payloadTooLarge(size):
-            return "Payload too large for UDP (\(size) bytes). Maximum: \(KanataUDPClient.maxUDPPayloadSize) bytes"
+            "Payload too large for UDP (\(size) bytes). Maximum: \(KanataUDPClient.maxUDPPayloadSize) bytes"
         }
     }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import Carbon
 import Foundation
 import SwiftUI
@@ -75,7 +76,7 @@ public class KeyboardCapture: ObservableObject {
 
         // Only start capture if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
-        if !hasAccessibilityPermissions() {
+        if !checkAccessibilityPermissionsSilently() {
             // Notify that we need permissions - this should trigger the wizard
             isCapturing = false
             captureCallback = nil
@@ -111,7 +112,7 @@ public class KeyboardCapture: ObservableObject {
 
         // Only start capture if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
-        if !hasAccessibilityPermissions() {
+        if !checkAccessibilityPermissionsSilently() {
             // Notify that we need permissions - this should trigger the wizard
             isCapturing = false
             isContinuous = false
@@ -151,7 +152,7 @@ public class KeyboardCapture: ObservableObject {
         isContinuous = (mode == .sequence)
 
         // Check permissions first
-        if !hasAccessibilityPermissions() {
+        if !checkAccessibilityPermissionsSilently() {
             isCapturing = false
             sequenceCallback = nil
             let errorSequence = KeySequence(keys: [], captureMode: mode)
@@ -390,23 +391,24 @@ public class KeyboardCapture: ObservableObject {
         }
     }
 
-    private func hasAccessibilityPermissions() -> Bool {
-        AXIsProcessTrusted()
-    }
-
-    private func requestAccessibilityPermissions() {
-        let options: [CFString: Any] = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true]
-        AXIsProcessTrustedWithOptions(options as CFDictionary)
-    }
-
     // Check permissions without prompting
     func checkAccessibilityPermissionsSilently() -> Bool {
-        AXIsProcessTrusted()
+        var result = false
+        let semaphore = DispatchSemaphore(value: 0)
+        Task {
+            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            result = snapshot.keyPath.accessibility.isReady
+            semaphore.signal()
+        }
+        semaphore.wait()
+        return result
     }
 
     // Public method to explicitly request permissions (for use in wizard)
     func requestPermissionsExplicitly() {
-        requestAccessibilityPermissions()
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     // MARK: - Emergency Stop Sequence Detection
@@ -426,7 +428,7 @@ public class KeyboardCapture: ObservableObject {
 
         // Only start monitoring if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
-        if !hasAccessibilityPermissions() {
+        if !checkAccessibilityPermissionsSilently() {
             // Silently fail - we'll start monitoring once permissions are granted
             isMonitoringEmergency = false
             return

@@ -716,7 +716,7 @@ class SystemStatusChecker {
         case fullyFunctional
 
         var isWorking: Bool {
-            return self == .fullyFunctional
+            self == .fullyFunctional
         }
     }
 

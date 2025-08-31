@@ -84,7 +84,7 @@ final class StartupValidator: ObservableObject {
             guard let self else { return }
             // Yield once to ensure UI updates (spinner appears) before heavy work
             await Task.yield()
-            await self.runSystemValidation(runID: runID)
+            await runSystemValidation(runID: runID)
         }
     }
 
@@ -96,7 +96,7 @@ final class StartupValidator: ObservableObject {
     // MARK: - Private Implementation
 
     private func runSystemValidation(runID: UUID) async {
-        guard let kanataManager = kanataManager else {
+        guard let kanataManager else {
             AppLogger.shared.log("❌ [StartupValidator] No KanataManager configured; keeping state at .checking")
             // Do not mark as failed because dependency is not ready yet
             return
@@ -183,16 +183,16 @@ final class StartupValidator: ObservableObject {
     var statusTooltip: String {
         switch validationState {
         case .checking:
-            return "Checking system status..."
+            "Checking system status..."
         case .success:
-            return "System is ready - all checks passed"
+            "System is ready - all checks passed"
         case let .failed(blockingCount, totalCount):
             if blockingCount == 1 {
-                return "1 blocking issue found (click to fix)"
+                "1 blocking issue found (click to fix)"
             } else if blockingCount > 1 {
-                return "\(blockingCount) blocking issues found (click to fix)"
+                "\(blockingCount) blocking issues found (click to fix)"
             } else {
-                return "\(totalCount) minor issues found (click to review)"
+                "\(totalCount) minor issues found (click to review)"
             }
         }
     }
@@ -221,11 +221,11 @@ extension StartupValidator {
     var statusMessage: String {
         switch validationState {
         case .checking:
-            return "Checking..."
+            "Checking..."
         case .success:
-            return "Ready"
+            "Ready"
         case let .failed(blockingCount, _):
-            return blockingCount > 0 ? "Issues Found" : "Warnings"
+            blockingCount > 0 ? "Issues Found" : "Warnings"
         }
     }
 }

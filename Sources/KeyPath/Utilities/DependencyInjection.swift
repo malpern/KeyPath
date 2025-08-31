@@ -1,49 +1,24 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Permission Service DI
+// MARK: - Permission Snapshot Provider DI
 
-/// Typed error cases for permission-related operations (reserved for future throwing APIs)
-enum PermissionServiceError: LocalizedError {
-    case notAuthorized
-    case tccAccessDenied
-    case invalidBinaryPath
-    case logReadFailed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .notAuthorized:
-            "Operation requires authorization"
-        case .tccAccessDenied:
-            "Access denied by TCC (Transparency, Consent, and Control)"
-        case .invalidBinaryPath:
-            "Invalid binary path for permission check"
-        case let .logReadFailed(reason):
-            "Failed to read system or application logs: \(reason)"
-        }
-    }
+/// Minimal protocol to provide permission snapshots from the Oracle
+protocol PermissionSnapshotProviding {
+    func currentSnapshot() async -> PermissionOracle.Snapshot
 }
 
-/// Protocol abstraction for the PermissionService to enable dependency injection
-protocol PermissionServicing: AnyObject {
-    func hasInputMonitoringPermission() -> Bool
-    func hasAccessibilityPermission() -> Bool
-    func checkSystemPermissions(kanataBinaryPath: String) -> PermissionService.SystemPermissionStatus
-    func clearCache()
-}
+extension PermissionOracle: PermissionSnapshotProviding {}
 
-/// Adopt the protocol for the existing concrete service
-extension PermissionService: PermissionServicing {}
-
-/// EnvironmentKey for PermissionService (DI)
-private struct PermissionServiceKey: EnvironmentKey {
-    static var defaultValue: PermissionServicing = PermissionService.shared
+/// EnvironmentKey for injecting a permission snapshot provider
+private struct PermissionSnapshotProviderKey: EnvironmentKey {
+    static var defaultValue: PermissionSnapshotProviding = PermissionOracle.shared
 }
 
 extension EnvironmentValues {
-    var permissionService: PermissionServicing {
-        get { self[PermissionServiceKey.self] }
-        set { self[PermissionServiceKey.self] = newValue }
+    var permissionSnapshotProvider: PermissionSnapshotProviding {
+        get { self[PermissionSnapshotProviderKey.self] }
+        set { self[PermissionSnapshotProviderKey.self] = newValue }
     }
 }
 

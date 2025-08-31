@@ -41,7 +41,7 @@ public struct KeyPathApp: App {
             ContentView()
                 .environmentObject(kanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
-                .environment(\.permissionService, PermissionService.shared)
+                .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
                 .sheet(isPresented: $showingEmergencyStopDialog) {
                     EmergencyStopDialog()
                         .interactiveDismissDisabled(false)
@@ -93,7 +93,7 @@ public struct KeyPathApp: App {
             SettingsView()
                 .environmentObject(kanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
-                .environment(\.permissionService, PermissionService.shared)
+                .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
         }
     }
 }

@@ -327,7 +327,7 @@ class KanataManager: ObservableObject {
             return
         }
 
-        let configPath = self.configPath
+        let configPath = configPath
         AppLogger.shared.log("📁 [FileWatcher] Starting to watch config file: \(configPath)")
 
         fileWatcher.startWatching(path: configPath) { [weak self] in
@@ -346,7 +346,7 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("📝 [FileWatcher] External config file change detected")
 
         // Play the initial sound to indicate detection
-        Task { SoundManager.shared.playTinkSound() }
+        Task { await SoundManager.shared.playTinkSound() }
 
         // Show initial status message
         await MainActor.run {
@@ -354,10 +354,10 @@ class KanataManager: ObservableObject {
         }
 
         // Read the updated configuration
-        let configPath = self.configPath
+        let configPath = configPath
         guard FileManager.default.fileExists(atPath: configPath) else {
             AppLogger.shared.log("❌ [FileWatcher] Config file no longer exists: \(configPath)")
-            Task { SoundManager.shared.playErrorSound() }
+            Task { await SoundManager.shared.playErrorSound() }
             await MainActor.run {
                 saveStatus = .failed("Config file was deleted")
             }
@@ -374,7 +374,7 @@ class KanataManager: ObservableObject {
                 if let validationResult = await configurationService.validateConfigViaUDP() {
                     if !validationResult.isValid {
                         AppLogger.shared.log("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
-                        Task { SoundManager.shared.playErrorSound() }
+                        Task { await SoundManager.shared.playErrorSound() }
 
                         await MainActor.run {
                             saveStatus = .failed("Invalid config from external edit: \(validationResult.errors.first ?? "Unknown error")")
@@ -394,7 +394,7 @@ class KanataManager: ObservableObject {
 
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [FileWatcher] External config successfully reloaded")
-                Task { SoundManager.shared.playGlassSound() }
+                Task { await SoundManager.shared.playGlassSound() }
 
                 // Update configuration service with the new content
                 await updateInMemoryConfig(configContent)
@@ -407,7 +407,7 @@ class KanataManager: ObservableObject {
             } else {
                 let errorMessage = reloadResult.errorMessage ?? "Unknown error"
                 AppLogger.shared.log("❌ [FileWatcher] External config reload failed: \(errorMessage)")
-                Task { SoundManager.shared.playErrorSound() }
+                Task { await SoundManager.shared.playErrorSound() }
 
                 await MainActor.run {
                     saveStatus = .failed("External config reload failed: \(errorMessage)")
@@ -421,7 +421,7 @@ class KanataManager: ObservableObject {
 
         } catch {
             AppLogger.shared.log("❌ [FileWatcher] Failed to read external config: \(error)")
-            Task { SoundManager.shared.playErrorSound() }
+            Task { await SoundManager.shared.playErrorSound() }
 
             await MainActor.run {
                 saveStatus = .failed("Failed to read external config: \(error.localizedDescription)")
@@ -901,7 +901,7 @@ class KanataManager: ObservableObject {
                 // Check if Kanata is still running and stop it
                 guard let self else { return }
 
-                if await MainActor.run { self.isRunning } {
+                if await MainActor.run(resultType: Bool.self, body: { self.isRunning }) {
                     AppLogger.shared.log(
                         "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
                     await self.stopKanata()
@@ -1765,14 +1765,14 @@ class KanataManager: ObservableObject {
             }
 
             // Play tink sound asynchronously to avoid blocking save pipeline
-            Task { SoundManager.shared.playTinkSound() }
+            Task { await SoundManager.shared.playTinkSound() }
 
             // Trigger hot reload via UDP
             let reloadResult = await triggerUDPReload()
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [KanataManager] UDP reload successful, config is active")
                 // Play glass sound asynchronously to avoid blocking completion
-                Task { SoundManager.shared.playGlassSound() }
+                Task { await SoundManager.shared.playGlassSound() }
                 await MainActor.run {
                     saveStatus = .success
                 }
@@ -1781,7 +1781,7 @@ class KanataManager: ObservableObject {
                 let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
                 AppLogger.shared.log("❌ [KanataManager] UDP reload FAILED: \(errorMessage)")
                 // Play error sound asynchronously
-                Task { SoundManager.shared.playErrorSound() }
+                Task { await SoundManager.shared.playErrorSound() }
                 await MainActor.run {
                     saveStatus = .failed("Config saved but reload failed: \(errorMessage)")
                 }
@@ -1831,7 +1831,7 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationService")
 
             // Play tink sound asynchronously to avoid blocking save pipeline
-            Task { SoundManager.shared.playTinkSound() }
+            Task { await SoundManager.shared.playTinkSound() }
 
             // Attempt UDP reload and capture any errors
             let reloadResult = await triggerUDPReload()
@@ -1841,7 +1841,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("✅ [Config] UDP reload successful, config is valid")
 
                 // Play glass sound asynchronously to avoid blocking completion
-                Task { SoundManager.shared.playGlassSound() }
+                Task { await SoundManager.shared.playGlassSound() }
 
                 await MainActor.run {
                     saveStatus = .success
@@ -1853,7 +1853,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("❌ [Config] UDP server is required for validation-on-demand - restoring backup")
 
                 // Play error sound asynchronously
-                Task { SoundManager.shared.playErrorSound() }
+                Task { await SoundManager.shared.playErrorSound() }
 
                 // Restore backup since we can't verify the config was applied
                 try await restoreLastGoodConfig()
@@ -2151,7 +2151,7 @@ class KanataManager: ObservableObject {
 
     /// Show floating help bubble near the Finder selection, with fallback positioning
     private func showDragAndDropHelpBubble() {
-        let bubbleText = "👉 Drag ‘kanata’ into Settings → Input Monitoring"
+        let bubbleText = "👉 Drag 'kanata' into Settings → Input Monitoring"
 
         // Try to compute a reasonable screen point below mid of main screen
         let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
@@ -3282,12 +3282,12 @@ class KanataManager: ObservableObject {
     /// Create a backup before opening config for editing
     /// Returns true if backup was created successfully
     func createPreEditBackup() -> Bool {
-        return configBackupManager.createPreEditBackup()
+        configBackupManager.createPreEditBackup()
     }
 
     /// Get list of available configuration backups
     func getAvailableBackups() -> [BackupInfo] {
-        return configBackupManager.getAvailableBackups()
+        configBackupManager.getAvailableBackups()
     }
 
     /// Restore configuration from a specific backup
@@ -3334,11 +3334,11 @@ class KanataManager: ObservableObject {
     }
 
     func convertToKanataKey(_ key: String) -> String {
-        return KanataKeyConverter.convertToKanataKey(key)
+        KanataKeyConverter.convertToKanataKey(key)
     }
 
     func convertToKanataSequence(_ sequence: String) -> String {
-        return KanataKeyConverter.convertToKanataSequence(sequence)
+        KanataKeyConverter.convertToKanataSequence(sequence)
     }
 
     // MARK: - Real-Time VirtualHID Connection Monitoring

@@ -53,7 +53,7 @@ public class KanataConfigGenerator {
 
     /// Build the prompt for Claude API including the captured sequences and config guide
     private func buildPrompt(input: KeySequence, output: KeySequence, configGuide: String) -> String {
-        return """
+        """
         I need to generate a Kanata keyboard configuration for macOS that maps captured key sequences to output sequences.
 
         INPUT SEQUENCE:

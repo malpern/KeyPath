@@ -246,11 +246,11 @@ public enum ConfigBackupError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case let .backupNotFound(path):
-            return "Backup file not found: \(path)"
+            "Backup file not found: \(path)"
         case let .invalidBackup(filename):
-            return "Backup file is invalid: \(filename)"
+            "Backup file is invalid: \(filename)"
         case let .restoreFailed(reason):
-            return "Failed to restore backup: \(reason)"
+            "Failed to restore backup: \(reason)"
         }
     }
 }

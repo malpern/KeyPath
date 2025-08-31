@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 
 /// Manager for system sounds to provide audio feedback
+@MainActor
 class SoundManager {
     static let shared = SoundManager()
 

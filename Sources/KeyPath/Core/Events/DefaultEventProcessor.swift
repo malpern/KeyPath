@@ -76,7 +76,7 @@ public final class DefaultEventProcessor: EventProcessing {
     private func processWithKeyboardCapture(_ event: CGEvent) -> CGEvent? {
         // This would integrate with existing keyboard capture logic
         // For now, we pass through to maintain existing behavior
-        return event
+        event
     }
 
     /// Apply key code mappings (placeholder for future Kanata integration)

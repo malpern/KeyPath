@@ -21,6 +21,7 @@ print("🔐 Input Monitoring from GUI context: \(hasInputMonitoring ? "✅ grant
 
 // Test Accessibility
 import ApplicationServices
+
 let hasAccessibility = AXIsProcessTrusted()
 print("♿ Accessibility from GUI context: \(hasAccessibility ? "✅ granted" : "❌ denied")")
 

@@ -118,7 +118,7 @@ class ConfigFileWatcher: ObservableObject {
 
         // Set up event handler with atomic write detection
         fileMonitorSource?.setEventHandler { [weak self] in
-            guard let self = self, let source = self.fileMonitorSource else { return }
+            guard let self, let source = fileMonitorSource else { return }
             let flags = DispatchSource.FileSystemEvent(rawValue: source.data)
             AppLogger.shared.log("📁 [FileWatcher] File system event received - flags: \(flags)")
             Task {
@@ -228,7 +228,7 @@ class ConfigFileWatcher: ObservableObject {
 
     /// Check if currently watching a file or directory
     var isActive: Bool {
-        return isWatching || isWatchingDirectory
+        isWatching || isWatchingDirectory
     }
 
     // MARK: - Event Handlers

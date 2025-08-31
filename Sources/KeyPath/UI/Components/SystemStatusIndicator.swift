@@ -83,55 +83,55 @@ struct SystemStatusIndicator: View {
     private var backgroundColor: Color {
         switch validator.validationState {
         case .checking:
-            return Color.blue.opacity(0.1)
+            Color.blue.opacity(0.1)
         case .success:
-            return Color.green.opacity(0.1)
+            Color.green.opacity(0.1)
         case let .failed(blockingCount, _):
-            return blockingCount > 0 ? Color.red.opacity(0.1) : Color.orange.opacity(0.1)
+            blockingCount > 0 ? Color.red.opacity(0.1) : Color.orange.opacity(0.1)
         }
     }
 
     private var borderColor: Color {
         switch validator.validationState {
         case .checking:
-            return Color.blue.opacity(0.3)
+            Color.blue.opacity(0.3)
         case .success:
-            return Color.green.opacity(0.3)
+            Color.green.opacity(0.3)
         case let .failed(blockingCount, _):
-            return blockingCount > 0 ? Color.red.opacity(0.3) : Color.orange.opacity(0.3)
+            blockingCount > 0 ? Color.red.opacity(0.3) : Color.orange.opacity(0.3)
         }
     }
 
     private var iconColor: Color {
         switch validator.validationState {
         case .checking:
-            return .blue
+            .blue
         case .success:
-            return .green
+            .green
         case let .failed(blockingCount, _):
-            return blockingCount > 0 ? .red : .orange
+            blockingCount > 0 ? .red : .orange
         }
     }
 
     private var shadowColor: Color {
         switch validator.validationState {
         case .checking:
-            return Color.blue.opacity(0.2)
+            Color.blue.opacity(0.2)
         case .success:
-            return Color.green.opacity(0.2)
+            Color.green.opacity(0.2)
         case let .failed(blockingCount, _):
-            return blockingCount > 0 ? Color.red.opacity(0.2) : Color.orange.opacity(0.2)
+            blockingCount > 0 ? Color.red.opacity(0.2) : Color.orange.opacity(0.2)
         }
     }
 
     private var accessibilityLabel: String {
         switch validator.validationState {
         case .checking:
-            return "System status checking"
+            "System status checking"
         case .success:
-            return "System status good"
+            "System status good"
         case let .failed(blockingCount, _):
-            return blockingCount > 0 ? "System has critical issues" : "System has warnings"
+            blockingCount > 0 ? "System has critical issues" : "System has warnings"
         }
     }
 

@@ -200,7 +200,7 @@ final class ProcessLifecycleManager {
                 "💀 [ProcessLifecycleManager] Terminating external process PID: \(process.pid)")
 
             // Try graceful termination
-            kill(process.pid, SIGTERM)
+            Foundation.kill(process.pid, SIGTERM)
         }
 
         // Wait for processes to terminate
@@ -210,7 +210,7 @@ final class ProcessLifecycleManager {
         let remainingConflicts = await detectConflicts()
         for process in remainingConflicts.externalProcesses {
             AppLogger.shared.log("💀 [ProcessLifecycleManager] Force killing process PID: \(process.pid)")
-            kill(process.pid, SIGKILL)
+            Foundation.kill(process.pid, SIGKILL)
         }
     }
 

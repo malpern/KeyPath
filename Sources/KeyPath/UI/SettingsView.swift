@@ -98,7 +98,7 @@ struct SettingsView: View {
             }
 
             Button("Apply") {
-                if let timeout = Int(tempUDPTimeout), timeout >= 300 && timeout <= 86400 {
+                if let timeout = Int(tempUDPTimeout), timeout >= 300, timeout <= 86400 {
                     preferences.udpSessionTimeout = timeout
                     AppLogger.shared.log("🔧 [SettingsView] UDP session timeout changed to: \(timeout) seconds")
                 }

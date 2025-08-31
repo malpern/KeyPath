@@ -241,7 +241,7 @@ struct WizardCommunicationPage: View {
     // MARK: - Auto Fix
 
     private func performAutoFix() async {
-        guard let onAutoFix = onAutoFix else { return }
+        guard let onAutoFix else { return }
 
         isFixing = true
         showingFixFeedback = false
@@ -272,11 +272,11 @@ struct WizardCommunicationPage: View {
     private func getAutoFixAction() -> (AutoFixAction, String, String) {
         switch commStatus {
         case .needsSetup:
-            return (.enableUDPServer, "UDP server enabled successfully", "Failed to enable UDP server")
+            (.enableUDPServer, "UDP server enabled successfully", "Failed to enable UDP server")
         case .authRequired:
-            return (.setupUDPAuthentication, "Secure connection established successfully", "Failed to setup authentication")
+            (.setupUDPAuthentication, "Secure connection established successfully", "Failed to setup authentication")
         default:
-            return (.enableUDPServer, "Issue resolved", "Failed to fix issue")
+            (.enableUDPServer, "Issue resolved", "Failed to fix issue")
         }
     }
 
@@ -388,79 +388,79 @@ enum CommunicationStatus: Equatable {
     var isSuccess: Bool {
         switch self {
         case .ready:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
     var canAutoFix: Bool {
         switch self {
         case .needsSetup, .authRequired:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
     var isAuthenticationRelated: Bool {
         switch self {
         case .authRequired:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
     var message: String {
         switch self {
         case .checking:
-            return "Checking communication server status..."
+            "Checking communication server status..."
         case let .ready(msg), let .needsSetup(msg), let .authRequired(msg), let .authTesting(msg), let .error(msg):
-            return msg
+            msg
         }
     }
 
     var globeColor: Color {
         switch self {
         case .ready:
-            return WizardDesign.Colors.success
+            WizardDesign.Colors.success
         case .needsSetup, .authRequired:
-            return WizardDesign.Colors.warning
+            WizardDesign.Colors.warning
         case .authTesting:
-            return WizardDesign.Colors.warning
+            WizardDesign.Colors.warning
         case .error:
-            return WizardDesign.Colors.error
+            WizardDesign.Colors.error
         case .checking:
-            return WizardDesign.Colors.warning
+            WizardDesign.Colors.warning
         }
     }
 
     var overlayIcon: String {
         switch self {
         case .ready:
-            return "checkmark.circle.fill"
+            "checkmark.circle.fill"
         case .needsSetup:
-            return "exclamationmark.triangle.fill"
+            "exclamationmark.triangle.fill"
         case .authRequired:
-            return "key.fill"
+            "key.fill"
         case .authTesting:
-            return "clock.fill"
+            "clock.fill"
         case .error:
-            return "xmark.circle.fill"
+            "xmark.circle.fill"
         case .checking:
-            return "clock.fill"
+            "clock.fill"
         }
     }
 
     var fixButtonText: String {
         switch self {
         case .needsSetup:
-            return "Enable UDP Server"
+            "Enable UDP Server"
         case .authRequired:
-            return "Setup Authentication"
+            "Setup Authentication"
         default:
-            return "Fix Issue"
+            "Fix Issue"
         }
     }
 }

@@ -365,7 +365,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         // Simplified key mapping extraction
         // This would need to be enhanced to fully parse Kanata config format
         // For now, return empty array as this is primarily used for round-trip scenarios
-        return []
+        []
     }
 
     private func buildKanataArguments(checkOnly: Bool = false) -> [String] {
@@ -386,7 +386,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Parse configuration from string content
     public func parseConfigurationFromString(_ content: String) throws -> KanataConfiguration {
         // Use the existing validate method which handles parsing
-        return try validate(content: content)
+        try validate(content: content)
     }
 
     /// Parse Kanata error output to extract error messages

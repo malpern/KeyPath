@@ -266,10 +266,12 @@ struct ProcessStatusSection: View {
 struct PermissionStatusSection: View {
     @ObservedObject var kanataManager: KanataManager
     let onShowWizard: () -> Void
+    @Environment(\.permissionSnapshotProvider) private var permissionProvider
+    @State private var snapshot: PermissionOracle.Snapshot?
 
     var body: some View {
-        let inputMonitoring = false // Disabled to prevent auto-addition to Input Monitoring
-        let accessibility = AXIsProcessTrusted()
+        let inputMonitoring = snapshot?.keyPath.inputMonitoring.isReady ?? false
+        let accessibility = snapshot?.keyPath.accessibility.isReady ?? false
         let allPermissions = inputMonitoring && accessibility
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -942,42 +944,10 @@ struct EnhancedStatusSection: View {
 
     private func probePermissions() async {
         let timestamp = Date()
-
-        // Check Accessibility
-        let axResult = AXIsProcessTrusted()
-
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
         await MainActor.run {
-            axProbeResult = (axResult, timestamp)
-        }
-
-        // For Input Monitoring, we check if our canonical path is in TCC database
-        // This requires Full Disk Access, so we'll use a heuristic approach
-        let process = Process()
-        let pipe = Pipe()
-
-        process.launchPath = "/usr/bin/sqlite3"
-        process.arguments = [
-            "/Library/Application Support/com.apple.TCC/TCC.db",
-            "SELECT client FROM access WHERE service='kTCCServiceListenEvent' AND client LIKE '%kanata%';"
-        ]
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        do {
-            try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8) {
-                // If we find kanata in the TCC database, assume IM is granted
-                let hasIMPermission = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                await MainActor.run {
-                    imProbeResult = (hasIMPermission, timestamp)
-                }
-            }
-        } catch {
-            // If we can't check TCC db, fall back to process check
-            await MainActor.run {
-                imProbeResult = (kanataManager.isRunning, timestamp)
-            }
+            axProbeResult = (snapshot.keyPath.accessibility.isReady, timestamp)
+            imProbeResult = (snapshot.keyPath.inputMonitoring.isReady, timestamp)
         }
     }
 }

@@ -1,6 +1,4 @@
-import ApplicationServices
 import Foundation
-import IOKit.hidsystem
 
 /// Phase 4: System Requirements Checker
 ///
@@ -197,7 +195,7 @@ class SystemRequirementsChecker {
         case .kanataExecution:
             await checkKanataExecutable()
         case .accessibilityPermissions:
-            checkAccessibilityPermissions()
+            await checkAccessibilityPermissions()
         case .inputMonitoringPermissions:
             checkInputMonitoringPermissions()
         case .launchDaemonDirectory:
@@ -273,8 +271,9 @@ class SystemRequirementsChecker {
         return (false, "Unknown")
     }
 
-    private func checkAccessibilityPermissions() -> RequirementCheckResult {
-        let trusted = AXIsProcessTrusted()
+    private func checkAccessibilityPermissions() async -> RequirementCheckResult {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let trusted = snapshot.keyPath.accessibility.isReady
 
         if trusted {
             return RequirementCheckResult(
@@ -288,8 +287,7 @@ class SystemRequirementsChecker {
                 requirement: .accessibilityPermissions,
                 status: .missing,
                 details: "Accessibility permissions not granted",
-                actionRequired:
-                "Grant accessibility permissions in System Settings > Privacy & Security > Accessibility"
+                actionRequired: "Grant accessibility permissions in System Settings > Privacy & Security > Accessibility"
             )
         }
     }

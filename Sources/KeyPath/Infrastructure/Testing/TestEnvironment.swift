@@ -76,8 +76,8 @@ public enum TestEnvironment {
 public enum MockSystemData {
     /// Mock launchctl service status
     public static func mockServiceStatus(loaded: Bool = true, running: Bool = false) -> String {
-        if loaded && running {
-            return """
+        if loaded, running {
+            """
             {
                 "LimitLoadToSessionType" = "System";
                 "Label" = "com.keypath.kanata";
@@ -95,7 +95,7 @@ public enum MockSystemData {
             }
             """
         } else if loaded {
-            return """
+            """
             {
                 "LimitLoadToSessionType" = "System";
                 "Label" = "com.keypath.kanata";
@@ -112,7 +112,7 @@ public enum MockSystemData {
             }
             """
         } else {
-            return "launchctl: couldn't find service"
+            "launchctl: couldn't find service"
         }
     }
 

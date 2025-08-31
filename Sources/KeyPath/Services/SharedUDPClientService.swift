@@ -44,6 +44,6 @@ class SharedUDPClientService: ObservableObject {
 
     /// Check if client exists for port
     func hasClient(port: Int) -> Bool {
-        return clients[port] != nil
+        clients[port] != nil
     }
 }

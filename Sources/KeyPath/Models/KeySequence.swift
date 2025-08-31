@@ -18,23 +18,23 @@ public struct KeySequence: Identifiable, Codable, Equatable {
     public var displayString: String {
         switch captureMode {
         case .single:
-            return keys.first?.displayString ?? ""
+            keys.first?.displayString ?? ""
         case .chord:
-            return keys.first?.displayString ?? ""
+            keys.first?.displayString ?? ""
         case .sequence:
-            return keys.map { $0.displayString }.joined(separator: " → ")
+            keys.map(\.displayString).joined(separator: " → ")
         }
     }
 
     /// Technical representation for Claude API
     public var technicalDescription: String {
-        let keyDescriptions = keys.map { $0.technicalDescription }.joined(separator: ", ")
+        let keyDescriptions = keys.map(\.technicalDescription).joined(separator: ", ")
         return "CaptureMode: \(captureMode), Keys: [\(keyDescriptions)]"
     }
 
     /// Check if sequence is empty
     public var isEmpty: Bool {
-        return keys.isEmpty
+        keys.isEmpty
     }
 }
 
@@ -112,7 +112,7 @@ public struct ModifierSet: OptionSet, Codable {
 
     /// Check if any modifiers are present
     public var hasModifiers: Bool {
-        return !isEmpty
+        !isEmpty
     }
 }
 
@@ -124,25 +124,25 @@ public enum CaptureMode: String, CaseIterable, Codable {
 
     public var displayName: String {
         switch self {
-        case .single: return "Single"
-        case .chord: return "Combos"
-        case .sequence: return "Sequence"
+        case .single: "Single"
+        case .chord: "Combos"
+        case .sequence: "Sequence"
         }
     }
 
     public var symbol: String {
         switch self {
-        case .single: return "●" // Single dot for single key
-        case .chord: return "⌘" // Command symbol for combinations
-        case .sequence: return "→" // Arrow for sequences
+        case .single: "●" // Single dot for single key
+        case .chord: "⌘" // Command symbol for combinations
+        case .sequence: "→" // Arrow for sequences
         }
     }
 
     public var description: String {
         switch self {
-        case .single: return "Capture a single key"
-        case .chord: return "Capture key combinations (e.g., Cmd+S)"
-        case .sequence: return "Capture key sequences (e.g., g,g)"
+        case .single: "Capture a single key"
+        case .chord: "Capture key combinations (e.g., Cmd+S)"
+        case .sequence: "Capture key sequences (e.g., g,g)"
         }
     }
 }

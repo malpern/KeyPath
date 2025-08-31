@@ -101,7 +101,7 @@ final class KeychainService {
     }
 
     func getSessionExpiry(sessionId: String) -> Date? {
-        return sessionCache[sessionId]
+        sessionCache[sessionId]
     }
 
     func clearSessionCache() {
@@ -120,11 +120,11 @@ enum KeychainError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .storeFailed(status):
-            return "Failed to store item in Keychain (status: \(status))"
+            "Failed to store item in Keychain (status: \(status))"
         case let .retrieveFailed(status):
-            return "Failed to retrieve item from Keychain (status: \(status))"
+            "Failed to retrieve item from Keychain (status: \(status))"
         case let .deleteFailed(status):
-            return "Failed to delete item from Keychain (status: \(status))"
+            "Failed to delete item from Keychain (status: \(status))"
         }
     }
 }
