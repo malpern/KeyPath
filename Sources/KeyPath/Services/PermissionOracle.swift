@@ -225,34 +225,58 @@ actor PermissionOracle {
 
     private func checkKanataPermissions() async -> PermissionSet {
         // ARCHITECTURE.md: Use split architecture - functional verification for root processes
-        let kanataPath = WizardSystemPaths.bundledKanataPath
+        // Prefer the active binary path used by LaunchDaemon if available
+        let kanataPath = resolveKanataExecutablePath()
 
-        // Use functional verification as primary method for kanata permissions
+        // 1) Primary: functional verification via UDP
         let functionalStatus = await checkKanataFunctionalStatus()
 
-        // For accessibility, only mark as granted when positive; otherwise unknown
-        let accessibility: Status = switch functionalStatus {
-        case .granted: .granted
-        default: .unknown
+        var accessibility: Status = .unknown
+        var inputMonitoring: Status = .unknown
+        var sourceParts: [String] = []
+        var confidence: Confidence = .low
+
+        if case .granted = functionalStatus {
+            // Positive functional signal: both permissions are effectively working
+            accessibility = .granted
+            inputMonitoring = .granted
+            sourceParts.append("functional")
+            confidence = .high
+        } else {
+            // 2) Secondary: TCC database fallback (best-effort, requires FDA)
+            // NOTE: Direct TCC access is necessary here because functional verification
+            // creates a chicken-and-egg problem: we can't start the service to verify
+            // permissions if the wizard thinks permissions are missing, but we can't
+            // verify permissions without starting the service. TCC fallback breaks this cycle.
+            let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
+
+            if let ax = tccAX {
+                accessibility = ax
+                sourceParts.append("tcc-ax")
+                if case .granted = ax { confidence = .high }
+            }
+
+            if let im = tccIM {
+                inputMonitoring = im
+                sourceParts.append("tcc-im")
+                if case .granted = im { confidence = .high }
+            }
+
+            // Keep conservative stance if we still couldn't confirm via TCC
+            if sourceParts.isEmpty {
+                sourceParts.append("functional-unavailable")
+                confidence = .low
+            }
         }
 
-        // For Input Monitoring, combine binary existence check with functional status
+        // Keep the binary existence check for logging only; don't mark permissions as error
         let binaryCheck = checkBinaryInputMonitoring(at: kanataPath)
-        let inputMonitoring: Status = switch (binaryCheck, functionalStatus) {
-        case let (.error(msg), _):
-            .error(msg) // Binary missing is definitive error
-        case (_, .granted):
-            .granted // Functional = granted means permissions work
-        default:
-            .unknown // Conservative when we can't verify - don't assume denied
+        if case let .error(msg) = binaryCheck {
+            AppLogger.shared.log("🔮 [Oracle] Kanata binary check: \(msg) (not treating as permission error)")
+            // Do not override permission statuses here; component checks will handle missing binary
         }
 
-        let source = "keypath.functional-verification"
-        let confidence: Confidence = {
-            if case .unknown = functionalStatus { return .low }
-            return .high
-        }()
-
+        let source = "kanata.\(sourceParts.joined(separator: "+"))"
         AppLogger.shared.log("🔮 [Oracle] Kanata permissions: AX=\(accessibility), IM=\(inputMonitoring) via \(source)")
 
         return PermissionSet(
@@ -394,7 +418,131 @@ actor PermissionOracle {
         }
     }
 
-    // MARK: - Utilities (TCC fallback removed - UDP API is authoritative)
+    // MARK: - Utilities
+
+    // Add this helper to prefer the active daemon path, falling back to bundled path
+    private func resolveKanataExecutablePath() -> String {
+        let active = WizardSystemPaths.kanataActiveBinary
+        if FileManager.default.fileExists(atPath: active) {
+            return active
+        }
+        return WizardSystemPaths.bundledKanataPath
+    }
+
+    // MARK: - TCC Database Fallback (Necessary to break chicken-and-egg problem)
+    
+    // TCC service names across macOS versions
+    private enum TCCServiceName: String {
+        case accessibility = "kTCCServiceAccessibility"
+        case inputMonitoring = "kTCCServiceListenEvent"
+    }
+
+    // Attempt to determine TCC status for Kanata by executable path (best-effort).
+    // Returns (.granted/.denied) if determinable, or nil if inconclusive/unreadable.
+    // NOTE: This direct TCC access was previously removed as "bad practice" but is
+    // necessary here to resolve the chicken-and-egg problem between permission verification
+    // and service startup. This is a legitimate fallback when functional verification fails.
+    private func checkTCCForKanata(executablePath: String) async -> (ax: Status?, im: Status?) {
+        let ax = await tccStatus(forExecutable: executablePath, service: .accessibility)
+        let im = await tccStatus(forExecutable: executablePath, service: .inputMonitoring)
+        return (ax, im)
+    }
+
+    // Query TCC DB for a specific executable path and service
+    // Note: Requires Full Disk Access to read user's TCC.db; gracefully degrades to nil otherwise.
+    // This is similar to how other system utilities (e.g., tccutil, privacy management tools) work.
+    private func tccStatus(forExecutable execPath: String, service: TCCServiceName) async -> Status? {
+        let dbPaths = tccDatabaseCandidates()
+        for db in dbPaths where FileManager.default.fileExists(atPath: db) {
+            if let val = await queryTCCDatabase(dbPath: db, service: service.rawValue, executablePath: execPath) {
+                // Interpret result:
+                // - Newer macOS: auth_value (2=Allow, 0=Deny or Prompt depending on auth_reason)
+                // - Older macOS: allowed (1=Allow, 0=Not allowed)
+                if val >= 2 || val == 1 {
+                    return .granted
+                } else if val == 0 {
+                    // Only report denied if we positively read a 0 from TCC
+                    return .denied
+                }
+            }
+        }
+        // Inconclusive (no readable DB, no rows found, or unexpected schema) => nil
+        return nil
+    }
+
+    // TCC DB locations to try (user first, then system)
+    // Most permission grants are stored in the user's TCC database
+    private func tccDatabaseCandidates() -> [String] {
+        let user = "\(NSHomeDirectory())/Library/Application Support/com.apple.TCC/TCC.db"
+        let system = "/Library/Application Support/com.apple.TCC/TCC.db"
+        return [user, system]
+    }
+
+    // Run a minimal sqlite query with a short timeout.
+    // Returns an integer meaning of auth_value/allowed, or nil if not determinable.
+    // Uses sqlite3 CLI tool which is available on all macOS systems.
+    private func queryTCCDatabase(dbPath: String, service: String, executablePath: String) async -> Int? {
+        // The 'access' table schema varies. We try auth_value first, then allowed.
+        // We check for client_type=1 (path) because Kanata is a CLI binary.
+        let escService = escapeSQLiteLiteral(service)
+        let escExec = escapeSQLiteLiteral(executablePath)
+
+        let queries = [
+            "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY auth_value DESC LIMIT 1;",
+            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;"
+        ]
+
+        for sql in queries {
+            if let out = await runSQLiteQuery(dbPath: dbPath, sql: sql, timeout: 0.4) {
+                let trimmed = out.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let val = Int(trimmed) {
+                    AppLogger.shared.log("🔍 [Oracle] TCC '\(service)' for \(executablePath) via \(dbPath): \(val)")
+                    return val
+                }
+            }
+        }
+        return nil
+    }
+
+    // Escape single quotes in SQL string literals to prevent injection
+    private func escapeSQLiteLiteral(_ s: String) -> String {
+        s.replacingOccurrences(of: "'", with: "''")
+    }
+
+    // Execute sqlite3 query with timeout protection
+    // This is a minimal, defensive implementation that avoids external dependencies
+    private func runSQLiteQuery(dbPath: String, sql: String, timeout: Double) async -> String? {
+        await withCheckedContinuation { continuation in
+            Task.detached {
+                let task = Process()
+                task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+                task.arguments = [dbPath, sql]
+
+                let pipe = Pipe()
+                task.standardOutput = pipe
+                task.standardError = pipe
+
+                var output: String?
+                do {
+                    try task.run()
+                    // Implement a simple timeout by dispatching a kill if needed
+                    let deadline = DispatchTime.now() + timeout
+                    DispatchQueue.global().asyncAfter(deadline: deadline) {
+                        if task.isRunning {
+                            task.terminate() // best-effort timeout protection
+                        }
+                    }
+                    task.waitUntilExit()
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    output = String(data: data, encoding: .utf8)
+                } catch {
+                    AppLogger.shared.log("❌ [Oracle] sqlite3 query failed: \(error)")
+                    output = nil
+                }
+                continuation.resume(returning: output)
+            }
+        }
+    }
 
     // MARK: - UDP Restart Integration
 

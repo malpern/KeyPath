@@ -296,9 +296,9 @@ class SystemStatusChecker {
             missing.append(.keyPathAccessibility)
         }
 
-        // Kanata permissions (from TCP or TCC fallback)
-        let kanataHasInputMonitoring = snapshot.kanata.inputMonitoring.isReady
-        let kanataHasAccessibility = snapshot.kanata.accessibility.isReady
+        // Kanata permissions via Oracle (with TCC fallback to break chicken-and-egg problem)
+        let kanataIMStatus = snapshot.kanata.inputMonitoring
+        let kanataAXStatus = snapshot.kanata.accessibility
 
         AppLogger.shared.log(
             "🔮 [SystemStatusChecker] Oracle permission detection: source=\(snapshot.kanata.source), confidence=\(snapshot.kanata.confidence), hasAll=\(snapshot.kanata.hasAllPermissions)"
@@ -306,29 +306,33 @@ class SystemStatusChecker {
 
         // Log any blocking issues
         if let issue = snapshot.blockingIssue {
-            AppLogger.shared.log(
-                "⚠️ [SystemStatusChecker] Oracle detected blocking issue: \(issue)")
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] Oracle detected blocking issue: \(issue)")
         }
 
-        // Oracle provides deterministic permission state
-        if kanataHasInputMonitoring {
+        // Input Monitoring - only block on definitively denied/error status, not unknown
+        if kanataIMStatus.isReady {
             granted.append(.kanataInputMonitoring)
-            AppLogger.shared.log(
-                "✅ [SystemStatusChecker] Kanata Input Monitoring: Oracle confirmed granted")
-        } else {
+            AppLogger.shared.log("✅ [SystemStatusChecker] Kanata Input Monitoring: Oracle confirmed granted")
+        } else if kanataIMStatus.isBlocking {
+            // Only mark as missing if we're confident it's denied (not just unknown)
             missing.append(.kanataInputMonitoring)
-            AppLogger.shared.log(
-                "❌ [SystemStatusChecker] Kanata Input Monitoring: Oracle reports not granted")
+            AppLogger.shared.log("❌ [SystemStatusChecker] Kanata Input Monitoring: Oracle reports blocked")
+        } else {
+            // Unknown status is inconclusive; don't block wizard - let service startup resolve it
+            AppLogger.shared.log("🟡 [SystemStatusChecker] Kanata Input Monitoring: Oracle inconclusive (unknown)")
         }
 
-        if kanataHasAccessibility {
+        // Accessibility - same logic as Input Monitoring
+        if kanataAXStatus.isReady {
             granted.append(.kanataAccessibility)
-            AppLogger.shared.log(
-                "✅ [SystemStatusChecker] Kanata Accessibility: Oracle confirmed granted")
-        } else {
+            AppLogger.shared.log("✅ [SystemStatusChecker] Kanata Accessibility: Oracle confirmed granted")
+        } else if kanataAXStatus.isBlocking {
+            // Only mark as missing if we're confident it's denied (not just unknown)
             missing.append(.kanataAccessibility)
-            AppLogger.shared.log(
-                "❌ [SystemStatusChecker] Kanata Accessibility: Oracle reports not granted")
+            AppLogger.shared.log("❌ [SystemStatusChecker] Kanata Accessibility: Oracle reports blocked")
+        } else {
+            // Unknown status is inconclusive; don't block wizard - let service startup resolve it
+            AppLogger.shared.log("🟡 [SystemStatusChecker] Kanata Accessibility: Oracle inconclusive (unknown)")
         }
 
         // Always consult TCC (not only as a fallback) so positive grants are honored.
