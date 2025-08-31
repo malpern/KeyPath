@@ -3,6 +3,7 @@ import XCTest
 
 /// Fast unit tests for individual components
 /// No system dependencies, mocked environment
+@MainActor
 final class UnitTestSuite: XCTestCase {
     // MARK: - Key Mapping Tests
 
@@ -116,8 +117,9 @@ final class UnitTestSuite: XCTestCase {
         let soundManager = SoundManager.shared
 
         XCTAssertNotNil(soundManager)
-        XCTAssertNoThrow(soundManager.playTinkSound())
-        XCTAssertNoThrow(soundManager.playGlassSound())
+        // Calls are main-actor; simply invoke to ensure no crash
+        soundManager.playTinkSound()
+        soundManager.playGlassSound()
     }
 
     // MARK: - Logger Tests

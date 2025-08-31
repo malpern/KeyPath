@@ -436,79 +436,33 @@ actor KanataUDPClient {
         AppLogger.shared.log("📡 [UDP] Cleared broken connection")
     }
 
-    /// Wait until connection is ready with timeout
+    /// Clear inflight state safely within actor context
+    private func clearInflight() {
+        inflightRequest = nil
+    }
+
+    private func setInflight(id: UUID, cancel: @escaping () -> Void) {
+        inflightRequest = InflightRequest(id: id, isCompleted: false, cancel: cancel)
+    }
+
+    /// Wait until connection is ready with timeout (polling to avoid cross-actor captures)
     private func waitUntilReady(_ connection: NWConnection, timeout: TimeInterval) async throws {
-        if connection.state == .ready {
-            return
-        }
-
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let queue = DispatchQueue(label: "kanata-udp-ready-wait")
-            let resumeLock = NSLock()
-            var hasResumed = false
-
-            // Connection establishment timeout
-            _ = queue.asyncAfter(deadline: .now() + timeout) {
-                resumeLock.lock(); defer { resumeLock.unlock() }
-                if !hasResumed {
-                    hasResumed = true
-                    AppLogger.shared.log("📡 [UDP] ⏰ Connection establishment timeout after \(timeout)s")
-                    continuation.resume(throwing: UDPError.timeout)
-                }
-            }
-
-            // Check current state or wait for ready
-            if connection.state == .ready {
-                resumeLock.lock(); defer { resumeLock.unlock() }
-                if !hasResumed {
-                    hasResumed = true
-                    continuation.resume()
-                }
+        if connection.state == .ready { return }
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            switch connection.state {
+            case .ready:
                 return
+            case let .failed(error):
+                throw error
+            case .cancelled:
+                throw UDPError.noResponse
+            default:
+                break
             }
-
-            // Install temporary state handler to wait for ready
-            let originalHandler = connection.stateUpdateHandler
-            var timeoutTask: Task<Void, Never>?
-
-            let cleanup: @Sendable () -> Void = {
-                connection.stateUpdateHandler = originalHandler
-                timeoutTask?.cancel()
-            }
-
-            connection.stateUpdateHandler = { [weak connection] state in
-                originalHandler?(state) // Call original handler first
-
-                resumeLock.lock(); defer { resumeLock.unlock() }
-                if !hasResumed {
-                    switch state {
-                    case .ready:
-                        hasResumed = true
-                        cleanup()
-                        continuation.resume()
-                    case let .failed(error):
-                        hasResumed = true
-                        cleanup()
-                        continuation.resume(throwing: error)
-                    case .cancelled:
-                        hasResumed = true
-                        cleanup()
-                        continuation.resume(throwing: UDPError.noResponse)
-                    default:
-                        break
-                    }
-                }
-            }
-
-            // Timeout cleanup
-            timeoutTask = Task.detached {
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                resumeLock.lock(); defer { resumeLock.unlock() }
-                if !hasResumed {
-                    cleanup()
-                }
-            }
+            try await Task.sleep(nanoseconds: 50_000_000) // 50ms
         }
+        throw UDPError.timeout
     }
 
     // MARK: - Low-level UDP Communication
@@ -567,14 +521,10 @@ actor KanataUDPClient {
                     // Set up inflight request tracking
                     let cancelRequest = {
                         AppLogger.shared.log("🛑 [UDP] Cancelling request \(requestId) -> tearing down connection")
-                        self.clearBrokenConnection()
+                        Task { await self.clearBrokenConnection() }
                     }
 
-                    self.inflightRequest = InflightRequest(
-                        id: requestId,
-                        isCompleted: false,
-                        cancel: cancelRequest
-                    )
+                    Task { await self.setInflight(id: requestId, cancel: cancelRequest) }
 
                     // Log local endpoint to verify stable binding
                     if let localEndpoint = connection.currentPath?.localEndpoint {
@@ -598,7 +548,7 @@ actor KanataUDPClient {
                         if let error {
                             AppLogger.shared.log("📡 [UDP] ❌ Receive error: \(error) [requestId: \(requestId)]")
                             requestCompleted = true
-                            self.inflightRequest = nil
+                            Task { await self.clearInflight() }
                             continuation.resume(throwing: error)
                             return
                         }
@@ -609,12 +559,12 @@ actor KanataUDPClient {
                                 AppLogger.shared.log("📡 [UDP] Response context: \(context) [requestId: \(requestId)]")
                             }
                             requestCompleted = true
-                            self.inflightRequest = nil
+                            Task { await self.clearInflight() }
                             continuation.resume(returning: responseData)
                         } else {
                             AppLogger.shared.log("📡 [UDP] ❌ No response data received [requestId: \(requestId)]")
                             requestCompleted = true
-                            self.inflightRequest = nil
+                            Task { await self.clearInflight() }
                             continuation.resume(throwing: UDPError.noResponse)
                         }
                     }
@@ -627,7 +577,7 @@ actor KanataUDPClient {
                             completionLock.lock(); defer { completionLock.unlock() }
                             if !requestCompleted {
                                 requestCompleted = true
-                                self.inflightRequest = nil
+                                Task { await self.clearInflight() }
                                 continuation.resume(throwing: error)
                             }
                             return

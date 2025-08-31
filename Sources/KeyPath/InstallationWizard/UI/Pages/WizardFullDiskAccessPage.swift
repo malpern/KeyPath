@@ -292,25 +292,37 @@ struct WizardFullDiskAccessPage: View {
         // Start enhanced detection timer
         var detectionCount = 0
         Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { timer in
+            // Keep all uses of timer within the same closure without crossing actor boundaries
             detectionCount += 1
-            Task { @MainActor in
-                systemSettingsDetectionAttempts = detectionCount
-
-                if performFDACheck() {
-                    timer.invalidate()
+            let shouldStop: Bool
+            if performFDACheck() {
+                shouldStop = true
+                cachedFDAStatus = true
+                lastFDACheckTime = Date()
+                Task { @MainActor in
                     hasFullDiskAccess = true
-                    cachedFDAStatus = true
-                    lastFDACheckTime = Date()
                     if showingSystemSettingsWait {
                         showingSystemSettingsWait = false
                         showSuccessAnimation = true
                     }
-                } else if detectionCount >= maxDetectionAttempts {
-                    timer.invalidate()
+                }
+            } else if detectionCount >= maxDetectionAttempts {
+                shouldStop = true
+                Task { @MainActor in
                     if showingSystemSettingsWait {
                         showingSystemSettingsWait = false
                     }
                 }
+            } else {
+                shouldStop = false
+            }
+
+            Task { @MainActor in
+                systemSettingsDetectionAttempts = detectionCount
+            }
+
+            if shouldStop {
+                timer.invalidate()
             }
         }
     }

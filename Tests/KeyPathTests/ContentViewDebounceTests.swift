@@ -5,6 +5,7 @@ import XCTest
 
 /// Phase 1 Unit Tests: ContentView Debouncing
 /// Tests the save operation debouncing added in Phase 1.3 to prevent rapid successive saves
+@MainActor
 class ContentViewDebounceTests: XCTestCase {
     var testManager: KanataManager!
 
@@ -132,6 +133,7 @@ class ContentViewDebounceTests: XCTestCase {
 
 // MARK: - Logging and Monitoring Tests
 
+@MainActor
 class Phase1LoggingTests: XCTestCase {
     func testLoggingCapturesActualOperations() {
         // Test that logging captures important operational information

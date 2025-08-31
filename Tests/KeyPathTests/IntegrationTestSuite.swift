@@ -14,7 +14,7 @@ final class IntegrationTestSuite: XCTestCase {
         let description: String
         let setup: (MockSystemEnvironment) -> Void
         let expectedOutcome: String
-        let validation: (MockEnvironmentKanataManager) async throws -> Bool
+        let validation: @MainActor (MockEnvironmentKanataManager) async throws -> Bool
     }
 
     override func setUp() async throws {

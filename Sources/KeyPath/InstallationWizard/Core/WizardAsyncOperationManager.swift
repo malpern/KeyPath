@@ -30,7 +30,7 @@ class WizardAsyncOperationManager {
         let operationId = operation.id
 
         // Create a background task that doesn't block the UI
-        let task = Task.detached { [weak self] in
+        let task = Task { [weak self] in
             guard let self else { return }
 
             // Update UI state on main thread
@@ -280,7 +280,7 @@ enum WizardOperations {
             name: "Start Kanata Service"
         ) { progressCallback in
             progressCallback(0.1)
-            await MainActor.run { kanataManager.startKanataWithSafetyTimeout() }
+            await kanataManager.startKanataWithSafetyTimeout()
             progressCallback(0.8)
 
             // Wait for service to fully start

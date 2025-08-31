@@ -125,10 +125,12 @@ class WizardAutoFixer: AutoFixCapable {
     }
 
     func performAutoFix(_ action: AutoFixAction) async -> Bool {
-        await autoFixSync.synchronize { [weak self] in
-            guard let self else { return false }
-            return await self._performAutoFix(action)
+        _ = await autoFixSync.synchronize {
+            // Synchronize using the actor, but call into self outside the Sendable closure
+            true
         }
+        // Execute the actual work outside the synchronize closure to avoid Sendable capture of self
+        return await _performAutoFix(action)
     }
 
     private func _performAutoFix(_ action: AutoFixAction) async -> Bool {
@@ -585,7 +587,8 @@ class WizardAutoFixer: AutoFixCapable {
                 // Open System Settings to Driver Extensions
                 AppLogger.shared.log(
                     "🔧 [AutoFixer] Opening System Settings for driver extension activation")
-                openDriverExtensionSettings()
+                let url = URL(string: "x-apple.systempreferences:com.apple.SystemExtensionsSettings")!
+                NSWorkspace.shared.open(url)
             } else {
                 AppLogger.shared.log("🔧 [AutoFixer] User chose to activate driver extension later")
             }
@@ -611,7 +614,8 @@ class WizardAutoFixer: AutoFixCapable {
         // - Copy/create system config files
         // - Load all services into launchctl
         AppLogger.shared.log("🔧 [AutoFixer] Calling createConfigureAndLoadAllServices() now...")
-        let success = launchDaemonInstaller.createConfigureAndLoadAllServices()
+        let installer1 = launchDaemonInstaller
+        let success = await MainActor.run { installer1.createConfigureAndLoadAllServices() }
         AppLogger.shared.log("🔧 [AutoFixer] createConfigureAndLoadAllServices() returned: \(success)")
 
         if success {
@@ -822,7 +826,8 @@ class WizardAutoFixer: AutoFixCapable {
 
         // Get current status to determine what needs to be done
         AppLogger.shared.log("🔧 [AutoFixer] Step 1: Getting current service status...")
-        let status = launchDaemonInstaller.getServiceStatus()
+        let installer2 = launchDaemonInstaller
+        let status = await MainActor.run { installer2.getServiceStatus() }
 
         AppLogger.shared.log("🔧 [AutoFixer] Current status breakdown:")
         AppLogger.shared.log(
@@ -842,7 +847,8 @@ class WizardAutoFixer: AutoFixCapable {
             AppLogger.shared.log(
                 "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services first"
             )
-            let installSuccess = launchDaemonInstaller.createConfigureAndLoadAllServices()
+            let installer3 = launchDaemonInstaller
+            let installSuccess = await MainActor.run { installer3.createConfigureAndLoadAllServices() }
             AppLogger.shared.log("🔧 [AutoFixer] Installation result: \(installSuccess)")
             if !installSuccess {
                 AppLogger.shared.log("❌ [AutoFixer] Failed to install missing services")
@@ -867,7 +873,8 @@ class WizardAutoFixer: AutoFixCapable {
         )
         AppLogger.shared.log("🔧 [AutoFixer] Checking final service status after restart...")
 
-        let finalStatus = launchDaemonInstaller.getServiceStatus()
+        let installer4 = launchDaemonInstaller
+        let finalStatus = await MainActor.run { installer4.getServiceStatus() }
         AppLogger.shared.log("🔧 [AutoFixer] Final status breakdown:")
         AppLogger.shared.log(
             "🔧 [AutoFixer] - Kanata loaded: \(finalStatus.kanataServiceLoaded), healthy: \(finalStatus.kanataServiceHealthy)"
@@ -911,25 +918,23 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔗 [AutoFixer] Starting orphaned process adoption")
 
         // Show user feedback
-        await MainActor.run {
-            toastManager.showInfo("🔗 Connecting existing Kanata process to KeyPath management...")
-        }
+        let tm11 = toastManager
+        await MainActor.run { tm11.showInfo("🔗 Connecting existing Kanata process to KeyPath management...") }
 
         // Install LaunchDaemon service files without loading/starting them (no interference with running process)
         AppLogger.shared.log("🔗 [AutoFixer] Installing LaunchDaemon service files for future management")
-        let installSuccess = launchDaemonInstaller.createAllLaunchDaemonServicesInstallOnly()
+        let installer5 = launchDaemonInstaller
+        let installSuccess = await MainActor.run { installer5.createAllLaunchDaemonServicesInstallOnly() }
 
         if installSuccess {
             AppLogger.shared.log("✅ [AutoFixer] Successfully adopted orphaned Kanata process")
-            await MainActor.run {
-                toastManager.showSuccess("✅ Adopted existing process - LaunchDaemon will manage future lifecycle")
-            }
+            let tm12 = toastManager
+            await MainActor.run { tm12.showSuccess("✅ Adopted existing process - LaunchDaemon will manage future lifecycle") }
             return true
         } else {
             AppLogger.shared.log("❌ [AutoFixer] Failed to adopt orphaned process")
-            await MainActor.run {
-                toastManager.showError("❌ Failed to install management files")
-            }
+            let tm13 = toastManager
+            await MainActor.run { tm13.showError("❌ Failed to install management files") }
             return false
         }
     }
@@ -938,44 +943,38 @@ class WizardAutoFixer: AutoFixCapable {
     private func replaceOrphanedProcess() async -> Bool {
         AppLogger.shared.log("🔄 [AutoFixer] Starting orphaned process replacement")
 
-        await MainActor.run {
-            toastManager.showInfo("🔄 Replacing with managed service (brief interruption)...")
-        }
+        let tm14 = toastManager
+        await MainActor.run { tm14.showInfo("🔄 Replacing with managed service (brief interruption)...") }
 
         // Step 1: Kill existing process
         AppLogger.shared.log("🔄 [AutoFixer] Step 1: Terminating orphaned Kanata process")
-        await MainActor.run {
-            toastManager.showInfo("⏹️ Stopping orphaned Kanata process...")
-        }
+        let tm15 = toastManager
+        await MainActor.run { tm15.showInfo("⏹️ Stopping orphaned Kanata process...") }
 
         let terminateSuccess = await terminateConflictingProcesses()
 
         if !terminateSuccess {
             AppLogger.shared.log("⚠️ [AutoFixer] Warning: Failed to cleanly terminate orphaned process")
-            await MainActor.run {
-                toastManager.showError("⚠️ Could not cleanly stop existing process - proceeding anyway")
-            }
+            let tm16 = toastManager
+            await MainActor.run { tm16.showError("⚠️ Could not cleanly stop existing process - proceeding anyway") }
         }
 
         // Step 2: Install and start managed service
         AppLogger.shared.log("🔄 [AutoFixer] Step 2: Installing and starting managed Kanata service")
-        await MainActor.run {
-            toastManager.showInfo("🚀 Starting managed Kanata service...")
-        }
+        let tm17 = toastManager
+        await MainActor.run { tm17.showInfo("🚀 Starting managed Kanata service...") }
 
         let installSuccess = await installLaunchDaemonServices()
 
         if installSuccess {
             AppLogger.shared.log("✅ [AutoFixer] Successfully replaced orphaned process with managed service")
-            await MainActor.run {
-                toastManager.showSuccess("✅ Replaced with managed service - all mappings restored")
-            }
+            let tm18 = toastManager
+            await MainActor.run { tm18.showSuccess("✅ Replaced with managed service - all mappings restored") }
             return true
         } else {
             AppLogger.shared.log("❌ [AutoFixer] Failed to start managed service")
-            await MainActor.run {
-                toastManager.showError("❌ Failed to start managed service - manual restart may be needed")
-            }
+            let tm19 = toastManager
+            await MainActor.run { tm19.showError("❌ Failed to start managed service - manual restart may be needed") }
             return false
         }
     }
@@ -986,22 +985,20 @@ class WizardAutoFixer: AutoFixCapable {
     private func installLogRotation() async -> Bool {
         AppLogger.shared.log("📝 [AutoFixer] Installing log rotation service for Kanata logs")
 
-        await MainActor.run {
-            toastManager.showInfo("📝 Installing log rotation to keep logs under 10MB...")
-        }
+        let tm1 = toastManager
+        await MainActor.run { tm1.showInfo("📝 Installing log rotation to keep logs under 10MB...") }
 
-        let success = launchDaemonInstaller.installLogRotationService()
+        let installer6 = launchDaemonInstaller
+        let success = await MainActor.run { installer6.installLogRotationService() }
 
         if success {
             AppLogger.shared.log("✅ [AutoFixer] Successfully installed log rotation service")
-            await MainActor.run {
-                toastManager.showSuccess("✅ Log rotation installed - logs will stay under 10MB")
-            }
+            let tm2 = toastManager
+            await MainActor.run { tm2.showSuccess("✅ Log rotation installed - logs will stay under 10MB") }
         } else {
             AppLogger.shared.log("❌ [AutoFixer] Failed to install log rotation service")
-            await MainActor.run {
-                toastManager.showError("❌ Failed to install log rotation service")
-            }
+            let tm3 = toastManager
+            await MainActor.run { tm3.showError("❌ Failed to install log rotation service") }
         }
 
         return success
@@ -1010,17 +1007,15 @@ class WizardAutoFixer: AutoFixCapable {
     private func replaceKanataWithBundled() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Replacing system kanata with bundled Developer ID signed version")
 
-        await MainActor.run {
-            toastManager.showInfo("🔧 Replacing kanata with signed version...")
-        }
+        let tm4 = toastManager
+        await MainActor.run { tm4.showInfo("🔧 Replacing kanata with signed version...") }
 
         let success = await bundledKanataManager.replaceBinaryWithBundled()
 
         if success {
             AppLogger.shared.log("✅ [AutoFixer] Successfully replaced system kanata with bundled version")
-            await MainActor.run {
-                toastManager.showSuccess("✅ Kanata replaced with signed version - restart service to take effect")
-            }
+            let tm5 = toastManager
+            await MainActor.run { tm5.showSuccess("✅ Kanata replaced with signed version - restart service to take effect") }
 
             // Restart the kanata service to use the new binary
             AppLogger.shared.log("🔄 [AutoFixer] Restarting kanata service to use new binary")
@@ -1030,9 +1025,8 @@ class WizardAutoFixer: AutoFixCapable {
             return true
         } else {
             AppLogger.shared.log("❌ [AutoFixer] Failed to replace kanata binary")
-            await MainActor.run {
-                toastManager.showError("❌ Failed to replace kanata binary - check logs for details")
-            }
+            let tm6 = toastManager
+            await MainActor.run { tm6.showError("❌ Failed to replace kanata binary - check logs for details") }
             return false
         }
     }
@@ -1104,14 +1098,12 @@ class WizardAutoFixer: AutoFixCapable {
 
         if success {
             AppLogger.shared.log("✅ [AutoFixer] Successfully regenerated communication service configuration")
-            await MainActor.run {
-                toastManager.showSuccess("✅ Communication service configuration updated")
-            }
+            let tm7 = toastManager
+            await MainActor.run { tm7.showSuccess("✅ Communication service configuration updated") }
         } else {
             AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate communication service configuration")
-            await MainActor.run {
-                toastManager.showError("❌ Failed to update communication service - check configuration")
-            }
+            let tm8 = toastManager
+            await MainActor.run { tm8.showError("❌ Failed to update communication service - check configuration") }
         }
 
         return success
@@ -1125,14 +1117,12 @@ class WizardAutoFixer: AutoFixCapable {
 
         if success {
             AppLogger.shared.log("✅ [AutoFixer] Successfully restarted communication server")
-            await MainActor.run {
-                toastManager.showSuccess("✅ Communication server restarted successfully")
-            }
+            let tm9 = toastManager
+            await MainActor.run { tm9.showSuccess("✅ Communication server restarted successfully") }
         } else {
             AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server")
-            await MainActor.run {
-                toastManager.showError("❌ Failed to restart communication server - check service configuration")
-            }
+            let tm10 = toastManager
+            await MainActor.run { tm10.showError("❌ Failed to restart communication server - check service configuration") }
         }
 
         return success

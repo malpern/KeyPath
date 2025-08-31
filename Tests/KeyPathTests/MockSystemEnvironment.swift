@@ -192,6 +192,7 @@ class MockSystemEnvironment {
 }
 
 /// Mock KanataManager for testing (environment-specific)
+@MainActor
 class MockEnvironmentKanataManager: ObservableObject {
     private let mockEnvironment: MockSystemEnvironment
 
@@ -250,27 +251,23 @@ class MockEnvironmentKanataManager: ObservableObject {
             "kickstart", "system/com.keypath.kanata"
         ])
 
-        await MainActor.run {
-            if result.exitCode == 0 {
-                self.isRunning = true
-                self.lastError = nil
-            } else {
-                self.isRunning = false
-                self.lastError = "Failed to start: \(result.output)"
-            }
+        if result.exitCode == 0 {
+            self.isRunning = true
+            self.lastError = nil
+        } else {
+            self.isRunning = false
+            self.lastError = "Failed to start: \(result.output)"
         }
     }
 
     func stopKanata() async {
         let result = mockEnvironment.mockLaunchctlResult(command: ["kill", "system/com.keypath.kanata"])
 
-        await MainActor.run {
-            if result.exitCode == 0 {
-                self.isRunning = false
-                self.lastError = nil
-            } else {
-                self.lastError = "Failed to stop: \(result.output)"
-            }
+        if result.exitCode == 0 {
+            self.isRunning = false
+            self.lastError = nil
+        } else {
+            self.lastError = "Failed to stop: \(result.output)"
         }
     }
 
@@ -280,10 +277,8 @@ class MockEnvironmentKanataManager: ObservableObject {
     }
 
     func emergencyStop() async {
-        await MainActor.run {
-            self.isRunning = false
-            self.lastError = nil
-        }
+        self.isRunning = false
+        self.lastError = nil
     }
 
     func cleanup() async {
