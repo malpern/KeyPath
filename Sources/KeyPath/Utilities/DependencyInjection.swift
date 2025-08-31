@@ -42,3 +42,17 @@ extension EnvironmentValues {
         set { self[PreferencesServiceKey.self] = newValue }
     }
 }
+
+// MARK: - Privileged Operations DI
+
+/// EnvironmentKey for PrivilegedOperations (DI)
+@preconcurrency private struct PrivilegedOperationsKey: EnvironmentKey {
+    static var defaultValue: PrivilegedOperations { LegacyPrivilegedOperations() }
+}
+
+extension EnvironmentValues {
+    var privilegedOperations: PrivilegedOperations {
+        get { self[PrivilegedOperationsKey.self] }
+        set { self[PrivilegedOperationsKey.self] = newValue }
+    }
+}

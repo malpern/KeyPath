@@ -2,6 +2,11 @@ import ApplicationServices
 import Foundation
 import IOKit.hid
 
+/// Errors that can occur during Oracle operations
+enum OracleError: Error {
+    case timeout
+}
+
 /// 🔮 THE ORACLE - Single source of truth for all permission detection in KeyPath
 ///
 /// This actor eliminates the chaos of multiple conflicting permission detection methods.
@@ -298,15 +303,95 @@ actor PermissionOracle {
             return .unknown
         }
 
-        let client = KanataUDPClient(port: commSnapshot.udpPort, timeout: 5.0)
-        AppLogger.shared.log("🔮 [Oracle] Testing UDP connection to port \(commSnapshot.udpPort)...")
-        let isConnected = await client.checkServerStatus()
-
-        AppLogger.shared.log("🔮 [Oracle] UDP connection result: \(isConnected)")
-        AppLogger.shared.log("🔮 [Oracle] Kanata functional check: \(isConnected ? "GRANTED (responding)" : "UNKNOWN (not responding)")")
-
-        // Only grant on positive signal; otherwise unknown (don't mark as denied)
-        return isConnected ? .granted : .unknown
+        // Pre-flight check: verify UDP port is listening before attempting connection
+        // This prevents the UDP client from hanging indefinitely on non-listening ports
+        let port = commSnapshot.udpPort
+        if !isUDPPortListening(port: port) {
+            AppLogger.shared.log("🔮 [Oracle] UDP port \(port) not listening - skipping connection test")
+            AppLogger.shared.log("🔮 [Oracle] Kanata functional check: UNKNOWN (no server)")
+            return .unknown
+        }
+        
+        // Add additional timeout protection to prevent wizard hanging
+        let client = KanataUDPClient(port: port, timeout: 3.0)
+        AppLogger.shared.log("🔮 [Oracle] Testing UDP connection to port \(port)...")
+        
+        do {
+            // Wrap in additional timeout to prevent indefinite hanging
+            let isConnected = try await withTimeout(seconds: 3.5) {
+                await client.checkServerStatus()
+            }
+            
+            AppLogger.shared.log("🔮 [Oracle] UDP connection result: \(isConnected)")
+            AppLogger.shared.log("🔮 [Oracle] Kanata functional check: \(isConnected ? "GRANTED (responding)" : "UNKNOWN (not responding)")")
+            
+            // Only grant on positive signal; otherwise unknown (don't mark as denied)
+            return isConnected ? .granted : .unknown
+        } catch {
+            AppLogger.shared.log("🔮 [Oracle] UDP connection timed out or failed: \(error)")
+            AppLogger.shared.log("🔮 [Oracle] Kanata functional check: UNKNOWN (timeout/error)")
+            return .unknown
+        }
+    }
+    
+    /// Additional timeout wrapper to prevent hanging
+    private func withTimeout<T: Sendable>(seconds: Double, operation: @Sendable @escaping () async -> T) async throws -> T {
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                await operation()
+            }
+            
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw OracleError.timeout
+            }
+            
+            guard let result = try await group.next() else {
+                throw OracleError.timeout
+            }
+            
+            group.cancelAll()
+            return result
+        }
+    }
+    
+    /// Fast check if UDP port is listening using netstat to prevent hanging connections
+    private func isUDPPortListening(port: Int) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/sbin/netstat")
+        task.arguments = ["-an", "-p", "udp"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            // Look for lines containing "*.port" or "127.0.0.1.port" indicating a listening server
+            let listeningPattern = "\\*\\.\(port)\\s"
+            let localhostPattern = "127\\.0\\.0\\.1\\.\(port)\\s"
+            
+            let listeningRegex = try NSRegularExpression(pattern: listeningPattern)
+            let localhostRegex = try NSRegularExpression(pattern: localhostPattern)
+            
+            let range = NSRange(output.startIndex..<output.endIndex, in: output)
+            let hasWildcardListener = listeningRegex.firstMatch(in: output, range: range) != nil
+            let hasLocalhostListener = localhostRegex.firstMatch(in: output, range: range) != nil
+            
+            let isListening = hasWildcardListener || hasLocalhostListener
+            AppLogger.shared.log("🔍 [Oracle] Port \(port) listening check: \(isListening)")
+            return isListening
+            
+        } catch {
+            AppLogger.shared.log("❌ [Oracle] Error checking UDP port \(port): \(error)")
+            // On error, assume port might be listening to avoid false negatives
+            return true
+        }
     }
 
     // MARK: - Utilities (TCC fallback removed - UDP API is authoritative)

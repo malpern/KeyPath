@@ -253,33 +253,11 @@ enum RecoveryAction: Identifiable, CaseIterable {
     // MARK: - Recovery Action Implementations
 
     private func restartKanataService() async throws -> Bool {
-        let script = """
-        tell application "System Events"
-            try
-                set the result to (do shell script "sudo launchctl kickstart -k system/com.keypath.kanata" with administrator privileges)
-                return true
-            on error
-                return false
-            end try
-        end tell
-        """
-
-        return try await executeAppleScript(script)
+        return await PrivilegedOperationsProvider.shared.restartKanataService()
     }
 
     private func startKanataService() async throws -> Bool {
-        let script = """
-        tell application "System Events"
-            try
-                set the result to (do shell script "sudo launchctl kickstart system/com.keypath.kanata" with administrator privileges)
-                return true
-            on error
-                return false
-            end try
-        end tell
-        """
-
-        return try await executeAppleScript(script)
+        return await PrivilegedOperationsProvider.shared.startKanataService()
     }
 
     private func openPermissionSettings() async -> Bool {

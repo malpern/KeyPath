@@ -1,0 +1,1131 @@
+[0/1] Planning build
+Building for debugging...
+[0/8] Write sources
+[2/8] Write swift-version-39B54973F684ADAB.txt
+[4/54] Compiling KeyPath ProcessLifecycleManager.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KeySequence.swift:6:16: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+  4 | /// Represents a captured key sequence including modifiers and timing
+  5 | public struct KeySequence: Identifiable, Codable, Equatable, Sendable {
+  6 |     public let id = UUID()
+    |                |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |                |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |                `- note: make the property mutable instead
+  7 |     public let keys: [KeyPress]
+  8 |     public let captureMode: CaptureMode
+[5/54] Compiling KeyPath KeySequence.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KeySequence.swift:6:16: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+  4 | /// Represents a captured key sequence including modifiers and timing
+  5 | public struct KeySequence: Identifiable, Codable, Equatable, Sendable {
+  6 |     public let id = UUID()
+    |                |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |                |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |                `- note: make the property mutable instead
+  7 |     public let keys: [KeyPress]
+  8 |     public let captureMode: CaptureMode
+[6/54] Compiling KeyPath ConfigBackupManager.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KeySequence.swift:6:16: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+  4 | /// Represents a captured key sequence including modifiers and timing
+  5 | public struct KeySequence: Identifiable, Codable, Equatable, Sendable {
+  6 |     public let id = UUID()
+    |                |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |                |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |                `- note: make the property mutable instead
+  7 |     public let keys: [KeyPress]
+  8 |     public let captureMode: CaptureMode
+[7/54] Compiling KeyPath ConfigFileWatcher.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KeySequence.swift:6:16: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+  4 | /// Represents a captured key sequence including modifiers and timing
+  5 | public struct KeySequence: Identifiable, Codable, Equatable, Sendable {
+  6 |     public let id = UUID()
+    |                |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |                |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |                `- note: make the property mutable instead
+  7 |     public let keys: [KeyPress]
+  8 |     public let captureMode: CaptureMode
+[8/54] Compiling KeyPath KanataUDPClient.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KeySequence.swift:6:16: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+  4 | /// Represents a captured key sequence including modifiers and timing
+  5 | public struct KeySequence: Identifiable, Codable, Equatable, Sendable {
+  6 |     public let id = UUID()
+    |                |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |                |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |                `- note: make the property mutable instead
+  7 |     public let keys: [KeyPress]
+  8 |     public let captureMode: CaptureMode
+[9/54] Compiling KeyPath KeyboardCapture.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KeySequence.swift:6:16: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+  4 | /// Represents a captured key sequence including modifiers and timing
+  5 | public struct KeySequence: Identifiable, Codable, Equatable, Sendable {
+  6 |     public let id = UUID()
+    |                |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |                |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |                `- note: make the property mutable instead
+  7 |     public let keys: [KeyPress]
+  8 |     public let captureMode: CaptureMode
+[10/60] Compiling KeyPath LegacyPrivilegedOperations.swift
+[11/60] Compiling KeyPath PrivilegedOperationsProvider.swift
+[12/60] Compiling KeyPath MockPrivilegedOperations.swift
+[13/60] Compiling KeyPath TestEnvironment.swift
+[14/60] Compiling KeyPath BundledKanataManager.swift
+[15/60] Compiling KeyPath LaunchDaemonInstaller.swift
+[16/60] Compiling KeyPath PermissionGrantCoordinator.swift
+[17/60] Compiling KeyPath WizardKanataServicePage.swift
+[18/60] Compiling KeyPath WizardKarabinerComponentsPage.swift
+[19/60] Compiling KeyPath WizardDesignSystem.swift
+[20/60] Compiling KeyPath KanataConfigManager.swift
+[21/60] Compiling KeyPath KanataManager+Lifecycle.swift
+[22/60] Compiling KeyPath KanataManager.swift
+[23/60] Compiling KeyPath DiagnosticsView.swift
+[24/60] Compiling KeyPath EnhancedErrorHandler.swift
+[25/60] Compiling KeyPath LaunchAgentSettingsView.swift
+[26/60] Compiling KeyPath SettingsView.swift
+[27/60] Compiling KeyPath DependencyInjection.swift
+[28/60] Compiling KeyPath Logger.swift
+[29/63] Compiling KeyPath SystemStatusChecker.swift
+[30/63] Compiling KeyPath VHIDDeviceManager.swift
+[31/63] Compiling KeyPath WizardAsyncOperationManager.swift
+[32/63] Compiling KeyPath WizardAutoFixer.swift
+[33/63] Compiling KeyPath WizardLogger.swift
+[34/63] Compiling KeyPath HelpBubbleOverlay.swift
+[35/63] Compiling KeyPath InstallationWizardView.swift
+[36/63] Compiling KeyPath WizardAccessibilityPage.swift
+[37/63] Compiling KeyPath WizardCommunicationPage.swift
+[38/63] Compiling KeyPath WizardConflictsPage.swift
+[39/63] Compiling KeyPath WizardFullDiskAccessPage.swift
+[40/63] Compiling KeyPath WizardInputMonitoringPage.swift
+[41/63] Compiling KeyPath WizardKanataComponentsPage.swift
+[42/63] Emitting module KeyPath
+[43/63] Compiling KeyPath PermissionOracle.swift
+[44/63] Compiling KeyPath PermissionService.swift
+[45/63] Compiling KeyPath PreferencesService.swift
+[46/63] Compiling KeyPath StartupValidator.swift
+[47/63] Compiling KeyPath UDPAuthTokenManager.swift
+[48/63] Compiling KeyPath ContentView.swift
+[49/63] Compiling KeyPath App.swift
+[50/63] Compiling KeyPath ConfigurationProviding.swift
+[51/63] Compiling KeyPath PrivilegedOperations.swift
+[52/63] Compiling KeyPath DefaultEventProcessor.swift
+[53/63] Compiling KeyPath EventProcessingSetup.swift
+[54/63] Compiling KeyPath EventRouter.swift
+[55/63] Compiling KeyPath ConfigurationService.swift
+[56/65] Compiling KeyPath EmergencyStopDialog.swift
+[57/65] Compiling KeyPath InstallerView.swift
+[58/65] Compiling KeyPath SystemRequirementsChecker.swift
+[59/65] Compiling KeyPath HelpSheets.swift
+[60/65] Compiling KeyPath StatusIndicators.swift
+[61/88] Emitting module KeyPathTests
+[62/90] Emitting module KeyPathCLI
+[63/90] Compiling KeyPathCLI main.swift
+[63/90] Write Objects.LinkFileList
+[64/90] Linking KeyPath
+[65/90] Applying KeyPath
+[67/90] Compiling KeyPathTests UnitTestSuite.swift
+[68/90] Compiling KeyPathTests UtilitiesTests.swift
+[69/90] Compiling KeyPathTests WizardNavigationEngineTests.swift
+[70/90] Compiling KeyPathTests WizardTriggeringTests.swift
+[71/90] Compiling KeyPathTests SimpleKanataManagerTests.swift
+[72/90] Compiling KeyPathTests SwiftTestingWorkaround.swift
+[73/90] Compiling KeyPathTests SystemRequirementsTests.swift
+[74/90] Compiling KeyPathTests IntegrationTestSuite.swift
+[75/90] Compiling KeyPathTests KanataManagerTests.swift
+[76/90] Compiling KeyPathTests KanataUDPClientTests.swift
+[77/90] Compiling KeyPathTests PackageManagerTests.swift
+[78/90] Compiling KeyPathTests ProcessLifecycleIntegrationTests.swift
+[79/90] Compiling KeyPathTests ProcessLifecycleManagerTests.swift
+[80/90] Compiling KeyPathTests KeyPathTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/KeyboardCaptureTests.swift:346:18: warning: variable 'weakCapture' was written to, but never read
+344 | 
+345 |     func testMemoryManagementDuringCapture() throws {
+346 |         weak var weakCapture: KeyboardCapture?
+    |                  `- warning: variable 'weakCapture' was written to, but never read
+347 | 
+348 |         // Create capture in local scope
+[81/90] Compiling KeyPathTests KeyboardCaptureTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/KeyboardCaptureTests.swift:346:18: warning: variable 'weakCapture' was written to, but never read
+344 | 
+345 |     func testMemoryManagementDuringCapture() throws {
+346 |         weak var weakCapture: KeyboardCapture?
+    |                  `- warning: variable 'weakCapture' was written to, but never read
+347 | 
+348 |         // Create capture in local scope
+[82/90] Compiling KeyPathTests MockSystemEnvironment.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/KeyboardCaptureTests.swift:346:18: warning: variable 'weakCapture' was written to, but never read
+344 | 
+345 |     func testMemoryManagementDuringCapture() throws {
+346 |         weak var weakCapture: KeyboardCapture?
+    |                  `- warning: variable 'weakCapture' was written to, but never read
+347 | 
+348 |         // Create capture in local scope
+[83/90] Compiling KeyPathTests ContentViewDebounceTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:14:9: warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+  8 | @MainActor
+  9 | class ContentViewDebounceTests: XCTestCase {
+ 10 |     var testManager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+ 11 | 
+ 12 |     override func setUp() {
+ 13 |         super.setUp()
+ 14 |         testManager = KanataManager()
+    |         `- warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+ 15 |     }
+ 16 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:14:23: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 12 |     override func setUp() {
+ 13 |         super.setUp()
+ 14 |         testManager = KanataManager()
+    |                       `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 15 |     }
+ 16 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift:288:5: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 286 |     }
+ 287 | 
+ 288 |     init() {
+     |     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 289 |         // Check if running in headless mode
+ 290 |         isHeadlessMode =
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:18:9: warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+  8 | @MainActor
+  9 | class ContentViewDebounceTests: XCTestCase {
+ 10 |     var testManager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+ 11 | 
+ 12 |     override func setUp() {
+    :
+ 16 | 
+ 17 |     override func tearDown() {
+ 18 |         testManager = nil
+    |         `- warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+ 19 |         super.tearDown()
+ 20 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:26:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 24 |     func testConfigurationSaveDebouncing() async throws {
+ 25 |         // Test actual debounce behavior by making rapid saves and verifying only the final result persists
+ 26 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 27 | 
+ 28 |         // Create test directory
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:66:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 64 |     func testConfigurationSaveFlow() async throws {
+ 65 |         // Test the complete save flow without UI dependencies
+ 66 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 67 | 
+ 68 |         // Create a test directory for configuration
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:89:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 87 | 
+ 88 |             AppLogger.shared.log("✅ [Test] Configuration save flow structure verified")
+ 89 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 90 |             XCTFail("Configuration save should not fail: \(error)")
+ 91 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:96:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 94 |     func testMultipleConcurrentSaves() async throws {
+ 95 |         // Test that multiple concurrent save attempts are handled gracefully
+ 96 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 97 | 
+ 98 |         // Create multiple concurrent save tasks
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:140:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+138 |     func testLoggingCapturesActualOperations() {
+139 |         // Test that logging captures important operational information
+140 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+141 | 
+142 |         // Test that we can generate a config and logging reflects the operation
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:11:9: warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+  5 | @MainActor
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+  8 |     var capture: KeyboardCapture!
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+    |         `- warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+ 12 |         capture = KeyboardCapture()
+ 13 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:11:19: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+    |                   `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 12 |         capture = KeyboardCapture()
+ 13 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift:288:5: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 286 |     }
+ 287 | 
+ 288 |     init() {
+     |     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 289 |         // Check if running in headless mode
+ 290 |         isHeadlessMode =
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:12:9: warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: mutation of this property is only permitted within the actor
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+ 12 |         capture = KeyboardCapture()
+    |         `- warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+ 13 |     }
+ 14 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:12:19: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+ 12 |         capture = KeyboardCapture()
+    |                   `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 13 |     }
+ 14 | 
+
+KeyPath.KeyboardCapture.init:2:21: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+1 | class KeyboardCapture {
+2 | @MainActor internal init()}
+  |                     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+3 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:16:17: warning: call to main actor-isolated instance method 'stopCapture()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 14 | 
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+    |                 `- warning: call to main actor-isolated instance method 'stopCapture()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift:182:10: note: calls to instance method 'stopCapture()' from outside of its actor context are implicitly asynchronous
+180 |     }
+181 | 
+182 |     func stopCapture() {
+    |          `- note: calls to instance method 'stopCapture()' from outside of its actor context are implicitly asynchronous
+183 |         guard isCapturing else { return }
+184 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:16:9: warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: property declared here
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 14 | 
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+    |         `- warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:17:17: warning: call to main actor-isolated instance method 'stopEmergencyMonitoring()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+    |                 `- warning: call to main actor-isolated instance method 'stopEmergencyMonitoring()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 18 |         manager = nil
+ 19 |         capture = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift:441:10: note: calls to instance method 'stopEmergencyMonitoring()' from outside of its actor context are implicitly asynchronous
+439 |     }
+440 | 
+441 |     func stopEmergencyMonitoring() {
+    |          `- note: calls to instance method 'stopEmergencyMonitoring()' from outside of its actor context are implicitly asynchronous
+442 |         guard isMonitoringEmergency else { return }
+443 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:17:9: warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: property declared here
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+    |         `- warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+ 18 |         manager = nil
+ 19 |         capture = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:18:9: warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+  5 | @MainActor
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+  8 |     var capture: KeyboardCapture!
+  9 | 
+    :
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+    |         `- warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+ 19 |         capture = nil
+ 20 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:19:9: warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: mutation of this property is only permitted within the actor
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+ 19 |         capture = nil
+    |         `- warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+ 20 |     }
+ 21 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/FDADetectionTests.swift:52:13: warning: will never be executed
+ 49 | 
+ 50 |         // Should use cached value
+ 51 |         if timeSinceLastCheck < cacheValidityDuration, cachedStatus {
+    |                                                        `- note: condition always evaluates to false
+ 52 |             XCTAssertTrue(cachedStatus, "Should use cached positive result")
+    |             `- warning: will never be executed
+ 53 |         }
+ 54 | 
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+[84/90] Compiling KeyPathTests ErrorHandlingTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:14:9: warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+  8 | @MainActor
+  9 | class ContentViewDebounceTests: XCTestCase {
+ 10 |     var testManager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+ 11 | 
+ 12 |     override func setUp() {
+ 13 |         super.setUp()
+ 14 |         testManager = KanataManager()
+    |         `- warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+ 15 |     }
+ 16 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:14:23: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 12 |     override func setUp() {
+ 13 |         super.setUp()
+ 14 |         testManager = KanataManager()
+    |                       `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 15 |     }
+ 16 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift:288:5: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 286 |     }
+ 287 | 
+ 288 |     init() {
+     |     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 289 |         // Check if running in headless mode
+ 290 |         isHeadlessMode =
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:18:9: warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+  8 | @MainActor
+  9 | class ContentViewDebounceTests: XCTestCase {
+ 10 |     var testManager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+ 11 | 
+ 12 |     override func setUp() {
+    :
+ 16 | 
+ 17 |     override func tearDown() {
+ 18 |         testManager = nil
+    |         `- warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+ 19 |         super.tearDown()
+ 20 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:26:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 24 |     func testConfigurationSaveDebouncing() async throws {
+ 25 |         // Test actual debounce behavior by making rapid saves and verifying only the final result persists
+ 26 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 27 | 
+ 28 |         // Create test directory
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:66:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 64 |     func testConfigurationSaveFlow() async throws {
+ 65 |         // Test the complete save flow without UI dependencies
+ 66 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 67 | 
+ 68 |         // Create a test directory for configuration
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:89:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 87 | 
+ 88 |             AppLogger.shared.log("✅ [Test] Configuration save flow structure verified")
+ 89 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 90 |             XCTFail("Configuration save should not fail: \(error)")
+ 91 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:96:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 94 |     func testMultipleConcurrentSaves() async throws {
+ 95 |         // Test that multiple concurrent save attempts are handled gracefully
+ 96 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 97 | 
+ 98 |         // Create multiple concurrent save tasks
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:140:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+138 |     func testLoggingCapturesActualOperations() {
+139 |         // Test that logging captures important operational information
+140 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+141 | 
+142 |         // Test that we can generate a config and logging reflects the operation
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:11:9: warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+  5 | @MainActor
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+  8 |     var capture: KeyboardCapture!
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+    |         `- warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+ 12 |         capture = KeyboardCapture()
+ 13 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:11:19: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+    |                   `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 12 |         capture = KeyboardCapture()
+ 13 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift:288:5: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 286 |     }
+ 287 | 
+ 288 |     init() {
+     |     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 289 |         // Check if running in headless mode
+ 290 |         isHeadlessMode =
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:12:9: warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: mutation of this property is only permitted within the actor
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+ 12 |         capture = KeyboardCapture()
+    |         `- warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+ 13 |     }
+ 14 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:12:19: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+ 12 |         capture = KeyboardCapture()
+    |                   `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 13 |     }
+ 14 | 
+
+KeyPath.KeyboardCapture.init:2:21: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+1 | class KeyboardCapture {
+2 | @MainActor internal init()}
+  |                     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+3 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:16:17: warning: call to main actor-isolated instance method 'stopCapture()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 14 | 
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+    |                 `- warning: call to main actor-isolated instance method 'stopCapture()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift:182:10: note: calls to instance method 'stopCapture()' from outside of its actor context are implicitly asynchronous
+180 |     }
+181 | 
+182 |     func stopCapture() {
+    |          `- note: calls to instance method 'stopCapture()' from outside of its actor context are implicitly asynchronous
+183 |         guard isCapturing else { return }
+184 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:16:9: warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: property declared here
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 14 | 
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+    |         `- warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:17:17: warning: call to main actor-isolated instance method 'stopEmergencyMonitoring()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+    |                 `- warning: call to main actor-isolated instance method 'stopEmergencyMonitoring()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 18 |         manager = nil
+ 19 |         capture = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift:441:10: note: calls to instance method 'stopEmergencyMonitoring()' from outside of its actor context are implicitly asynchronous
+439 |     }
+440 | 
+441 |     func stopEmergencyMonitoring() {
+    |          `- note: calls to instance method 'stopEmergencyMonitoring()' from outside of its actor context are implicitly asynchronous
+442 |         guard isMonitoringEmergency else { return }
+443 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:17:9: warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: property declared here
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+    |         `- warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+ 18 |         manager = nil
+ 19 |         capture = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:18:9: warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+  5 | @MainActor
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+  8 |     var capture: KeyboardCapture!
+  9 | 
+    :
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+    |         `- warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+ 19 |         capture = nil
+ 20 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:19:9: warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: mutation of this property is only permitted within the actor
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+ 19 |         capture = nil
+    |         `- warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+ 20 |     }
+ 21 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/FDADetectionTests.swift:52:13: warning: will never be executed
+ 49 | 
+ 50 |         // Should use cached value
+ 51 |         if timeSinceLastCheck < cacheValidityDuration, cachedStatus {
+    |                                                        `- note: condition always evaluates to false
+ 52 |             XCTAssertTrue(cachedStatus, "Should use cached positive result")
+    |             `- warning: will never be executed
+ 53 |         }
+ 54 | 
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+[85/90] Compiling KeyPathTests FDADetectionTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:14:9: warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+  8 | @MainActor
+  9 | class ContentViewDebounceTests: XCTestCase {
+ 10 |     var testManager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+ 11 | 
+ 12 |     override func setUp() {
+ 13 |         super.setUp()
+ 14 |         testManager = KanataManager()
+    |         `- warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+ 15 |     }
+ 16 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:14:23: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 12 |     override func setUp() {
+ 13 |         super.setUp()
+ 14 |         testManager = KanataManager()
+    |                       `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 15 |     }
+ 16 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift:288:5: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 286 |     }
+ 287 | 
+ 288 |     init() {
+     |     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 289 |         // Check if running in headless mode
+ 290 |         isHeadlessMode =
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:18:9: warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+  8 | @MainActor
+  9 | class ContentViewDebounceTests: XCTestCase {
+ 10 |     var testManager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+ 11 | 
+ 12 |     override func setUp() {
+    :
+ 16 | 
+ 17 |     override func tearDown() {
+ 18 |         testManager = nil
+    |         `- warning: main actor-isolated property 'testManager' can not be mutated from a nonisolated context
+ 19 |         super.tearDown()
+ 20 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:26:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 24 |     func testConfigurationSaveDebouncing() async throws {
+ 25 |         // Test actual debounce behavior by making rapid saves and verifying only the final result persists
+ 26 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 27 | 
+ 28 |         // Create test directory
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:66:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 64 |     func testConfigurationSaveFlow() async throws {
+ 65 |         // Test the complete save flow without UI dependencies
+ 66 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 67 | 
+ 68 |         // Create a test directory for configuration
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:89:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 87 | 
+ 88 |             AppLogger.shared.log("✅ [Test] Configuration save flow structure verified")
+ 89 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 90 |             XCTFail("Configuration save should not fail: \(error)")
+ 91 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:96:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 94 |     func testMultipleConcurrentSaves() async throws {
+ 95 |         // Test that multiple concurrent save attempts are handled gracefully
+ 96 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 97 | 
+ 98 |         // Create multiple concurrent save tasks
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ContentViewDebounceTests.swift:140:13: warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+138 |     func testLoggingCapturesActualOperations() {
+139 |         // Test that logging captures important operational information
+140 |         let manager = KanataManager()
+    |             `- warning: initialization of immutable value 'manager' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+141 | 
+142 |         // Test that we can generate a config and logging reflects the operation
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:11:9: warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+  5 | @MainActor
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+  8 |     var capture: KeyboardCapture!
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+    |         `- warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+ 12 |         capture = KeyboardCapture()
+ 13 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:11:19: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+    |                   `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 12 |         capture = KeyboardCapture()
+ 13 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager.swift:288:5: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 286 |     }
+ 287 | 
+ 288 |     init() {
+     |     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+ 289 |         // Check if running in headless mode
+ 290 |         isHeadlessMode =
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:12:9: warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: mutation of this property is only permitted within the actor
+  9 | 
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+ 12 |         capture = KeyboardCapture()
+    |         `- warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+ 13 |     }
+ 14 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:12:19: warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 10 |     override func setUpWithError() throws {
+ 11 |         manager = KanataManager()
+ 12 |         capture = KeyboardCapture()
+    |                   `- warning: call to main actor-isolated initializer 'init()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 13 |     }
+ 14 | 
+
+KeyPath.KeyboardCapture.init:2:21: note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+1 | class KeyboardCapture {
+2 | @MainActor internal init()}
+  |                     `- note: calls to initializer 'init()' from outside of its actor context are implicitly asynchronous
+3 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:16:17: warning: call to main actor-isolated instance method 'stopCapture()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 14 | 
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+    |                 `- warning: call to main actor-isolated instance method 'stopCapture()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift:182:10: note: calls to instance method 'stopCapture()' from outside of its actor context are implicitly asynchronous
+180 |     }
+181 | 
+182 |     func stopCapture() {
+    |          `- note: calls to instance method 'stopCapture()' from outside of its actor context are implicitly asynchronous
+183 |         guard isCapturing else { return }
+184 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:16:9: warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: property declared here
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 14 | 
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+    |         `- warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:17:17: warning: call to main actor-isolated instance method 'stopEmergencyMonitoring()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+    |                 `- warning: call to main actor-isolated instance method 'stopEmergencyMonitoring()' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 18 |         manager = nil
+ 19 |         capture = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift:441:10: note: calls to instance method 'stopEmergencyMonitoring()' from outside of its actor context are implicitly asynchronous
+439 |     }
+440 | 
+441 |     func stopEmergencyMonitoring() {
+    |          `- note: calls to instance method 'stopEmergencyMonitoring()' from outside of its actor context are implicitly asynchronous
+442 |         guard isMonitoringEmergency else { return }
+443 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:17:9: warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: property declared here
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 15 |     override func tearDownWithError() throws {
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+    |         `- warning: main actor-isolated property 'capture' can not be referenced from a nonisolated context
+ 18 |         manager = nil
+ 19 |         capture = nil
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:18:9: warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+  5 | @MainActor
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+    |         `- note: mutation of this property is only permitted within the actor
+  8 |     var capture: KeyboardCapture!
+  9 | 
+    :
+ 16 |         capture.stopCapture()
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+    |         `- warning: main actor-isolated property 'manager' can not be mutated from a nonisolated context
+ 19 |         capture = nil
+ 20 |     }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift:19:9: warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+  6 | final class ErrorHandlingTests: XCTestCase {
+  7 |     var manager: KanataManager!
+  8 |     var capture: KeyboardCapture!
+    |         `- note: mutation of this property is only permitted within the actor
+  9 | 
+ 10 |     override func setUpWithError() throws {
+    :
+ 17 |         capture.stopEmergencyMonitoring()
+ 18 |         manager = nil
+ 19 |         capture = nil
+    |         `- warning: main actor-isolated property 'capture' can not be mutated from a nonisolated context
+ 20 |     }
+ 21 | 
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/FDADetectionTests.swift:52:13: warning: will never be executed
+ 49 | 
+ 50 |         // Should use cached value
+ 51 |         if timeSinceLastCheck < cacheValidityDuration, cachedStatus {
+    |                                                        `- note: condition always evaluates to false
+ 52 |             XCTAssertTrue(cachedStatus, "Should use cached positive result")
+    |             `- warning: will never be executed
+ 53 |         }
+ 54 | 
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+[86/90] Compiling KeyPathTests UDPBasicTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:47:26: warning: no calls to throwing functions occur within 'try' expression
+ 45 |         do {
+ 46 |             // Test basic server status check - should fail gracefully in test environment
+ 47 |             let result = try await client.checkServerStatus()
+    |                          `- warning: no calls to throwing functions occur within 'try' expression
+ 48 | 
+ 49 |             // If it succeeds, verify it returns valid data
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:52:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 50 |             XCTAssertNotNil(result, "Server status check should return result if successful")
+ 51 | 
+ 52 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 53 |             // Expected in test environment - should fail gracefully
+ 54 |             let errorMessage = error.localizedDescription.lowercased()
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:87:31: warning: comparing non-optional value of type 'KanataUDPClient' to 'nil' always returns true
+ 85 |             Task {
+ 86 |                 let client = KanataUDPClient(port: 37000 + port)
+ 87 |                 return client != nil
+    |                               `- warning: comparing non-optional value of type 'KanataUDPClient' to 'nil' always returns true
+ 88 |             }
+ 89 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:109:25: warning: no calls to throwing functions occur within 'try' expression
+107 |             Task {
+108 |                 do {
+109 |                     _ = try await client.checkServerStatus()
+    |                         `- warning: no calls to throwing functions occur within 'try' expression
+110 |                     return true
+111 |                 } catch {
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:111:19: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+109 |                     _ = try await client.checkServerStatus()
+110 |                     return true
+111 |                 } catch {
+    |                   `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+112 |                     // Expected in test environment
+113 |                     return false
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:180:17: warning: no calls to throwing functions occur within 'try' expression
+178 | 
+179 |         do {
+180 |             _ = try await shortTimeoutClient.checkServerStatus()
+    |                 `- warning: no calls to throwing functions occur within 'try' expression
+181 |         } catch {
+182 |             let elapsedTime = Date().timeIntervalSince(startTime)
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:181:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+179 |         do {
+180 |             _ = try await shortTimeoutClient.checkServerStatus()
+181 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+182 |             let elapsedTime = Date().timeIntervalSince(startTime)
+183 |             // Should timeout quickly with short timeout value
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:32:13: warning: initialization of immutable value 'context' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 30 |     /// Automate any key mapping with full UI simulation
+ 31 |     public func automateKeyMapping(_ mapping: KeyMapping) async -> AutomationResult {
+ 32 |         let context = AutomationContext(
+    |             `- warning: initialization of immutable value 'context' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 33 |             mapping: mapping,
+ 34 |             timestamp: Date(),
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:200:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+198 |             return CaptureResult(success: true, capturedKey: input)
+199 | 
+200 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+201 |             return CaptureResult(success: false, error: error)
+202 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:225:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+223 |             return CaptureResult(success: true, capturedKey: output)
+224 | 
+225 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+226 |             return CaptureResult(success: false, error: error)
+227 |         }
+[87/90] Compiling KeyPathTests UDPClientFixTest.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:47:26: warning: no calls to throwing functions occur within 'try' expression
+ 45 |         do {
+ 46 |             // Test basic server status check - should fail gracefully in test environment
+ 47 |             let result = try await client.checkServerStatus()
+    |                          `- warning: no calls to throwing functions occur within 'try' expression
+ 48 | 
+ 49 |             // If it succeeds, verify it returns valid data
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:52:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 50 |             XCTAssertNotNil(result, "Server status check should return result if successful")
+ 51 | 
+ 52 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 53 |             // Expected in test environment - should fail gracefully
+ 54 |             let errorMessage = error.localizedDescription.lowercased()
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:87:31: warning: comparing non-optional value of type 'KanataUDPClient' to 'nil' always returns true
+ 85 |             Task {
+ 86 |                 let client = KanataUDPClient(port: 37000 + port)
+ 87 |                 return client != nil
+    |                               `- warning: comparing non-optional value of type 'KanataUDPClient' to 'nil' always returns true
+ 88 |             }
+ 89 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:109:25: warning: no calls to throwing functions occur within 'try' expression
+107 |             Task {
+108 |                 do {
+109 |                     _ = try await client.checkServerStatus()
+    |                         `- warning: no calls to throwing functions occur within 'try' expression
+110 |                     return true
+111 |                 } catch {
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:111:19: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+109 |                     _ = try await client.checkServerStatus()
+110 |                     return true
+111 |                 } catch {
+    |                   `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+112 |                     // Expected in test environment
+113 |                     return false
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:180:17: warning: no calls to throwing functions occur within 'try' expression
+178 | 
+179 |         do {
+180 |             _ = try await shortTimeoutClient.checkServerStatus()
+    |                 `- warning: no calls to throwing functions occur within 'try' expression
+181 |         } catch {
+182 |             let elapsedTime = Date().timeIntervalSince(startTime)
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:181:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+179 |         do {
+180 |             _ = try await shortTimeoutClient.checkServerStatus()
+181 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+182 |             let elapsedTime = Date().timeIntervalSince(startTime)
+183 |             // Should timeout quickly with short timeout value
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:32:13: warning: initialization of immutable value 'context' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 30 |     /// Automate any key mapping with full UI simulation
+ 31 |     public func automateKeyMapping(_ mapping: KeyMapping) async -> AutomationResult {
+ 32 |         let context = AutomationContext(
+    |             `- warning: initialization of immutable value 'context' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 33 |             mapping: mapping,
+ 34 |             timestamp: Date(),
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:200:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+198 |             return CaptureResult(success: true, capturedKey: input)
+199 | 
+200 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+201 |             return CaptureResult(success: false, error: error)
+202 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:225:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+223 |             return CaptureResult(success: true, capturedKey: output)
+224 | 
+225 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+226 |             return CaptureResult(success: false, error: error)
+227 |         }
+[88/90] Compiling KeyPathTests UIAutomationFramework.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:47:26: warning: no calls to throwing functions occur within 'try' expression
+ 45 |         do {
+ 46 |             // Test basic server status check - should fail gracefully in test environment
+ 47 |             let result = try await client.checkServerStatus()
+    |                          `- warning: no calls to throwing functions occur within 'try' expression
+ 48 | 
+ 49 |             // If it succeeds, verify it returns valid data
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:52:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 50 |             XCTAssertNotNil(result, "Server status check should return result if successful")
+ 51 | 
+ 52 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 53 |             // Expected in test environment - should fail gracefully
+ 54 |             let errorMessage = error.localizedDescription.lowercased()
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:87:31: warning: comparing non-optional value of type 'KanataUDPClient' to 'nil' always returns true
+ 85 |             Task {
+ 86 |                 let client = KanataUDPClient(port: 37000 + port)
+ 87 |                 return client != nil
+    |                               `- warning: comparing non-optional value of type 'KanataUDPClient' to 'nil' always returns true
+ 88 |             }
+ 89 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:109:25: warning: no calls to throwing functions occur within 'try' expression
+107 |             Task {
+108 |                 do {
+109 |                     _ = try await client.checkServerStatus()
+    |                         `- warning: no calls to throwing functions occur within 'try' expression
+110 |                     return true
+111 |                 } catch {
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:111:19: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+109 |                     _ = try await client.checkServerStatus()
+110 |                     return true
+111 |                 } catch {
+    |                   `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+112 |                     // Expected in test environment
+113 |                     return false
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:180:17: warning: no calls to throwing functions occur within 'try' expression
+178 | 
+179 |         do {
+180 |             _ = try await shortTimeoutClient.checkServerStatus()
+    |                 `- warning: no calls to throwing functions occur within 'try' expression
+181 |         } catch {
+182 |             let elapsedTime = Date().timeIntervalSince(startTime)
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UDPBasicTests.swift:181:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+179 |         do {
+180 |             _ = try await shortTimeoutClient.checkServerStatus()
+181 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+182 |             let elapsedTime = Date().timeIntervalSince(startTime)
+183 |             // Should timeout quickly with short timeout value
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:32:13: warning: initialization of immutable value 'context' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 30 |     /// Automate any key mapping with full UI simulation
+ 31 |     public func automateKeyMapping(_ mapping: KeyMapping) async -> AutomationResult {
+ 32 |         let context = AutomationContext(
+    |             `- warning: initialization of immutable value 'context' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 33 |             mapping: mapping,
+ 34 |             timestamp: Date(),
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:200:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+198 |             return CaptureResult(success: true, capturedKey: input)
+199 | 
+200 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+201 |             return CaptureResult(success: false, error: error)
+202 |         }
+
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UIAutomationFramework.swift:225:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+223 |             return CaptureResult(success: true, capturedKey: output)
+224 | 
+225 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+226 |             return CaptureResult(success: false, error: error)
+227 |         }
+[88/90] Write Objects.LinkFileList

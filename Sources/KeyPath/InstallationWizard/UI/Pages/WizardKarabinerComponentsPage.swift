@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Karabiner driver and virtual HID components setup page
 struct WizardKarabinerComponentsPage: View {
+    let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
     let onAutoFix: (AutoFixAction) async -> Bool
@@ -10,6 +11,7 @@ struct WizardKarabinerComponentsPage: View {
 
     // Track which specific issues are being fixed
     @State private var fixingIssues: Set<UUID> = []
+    @State private var showingInstallationGuide = false
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
@@ -77,8 +79,8 @@ struct WizardKarabinerComponentsPage: View {
                                 }
 
                                 HStack(spacing: 12) {
-                                    Image(systemName: backgroundServicesStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundColor(backgroundServicesStatus == .completed ? .green : .red)
+                                    Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
                                     HStack(spacing: 0) {
                                         Text("Background Services")
                                             .font(.headline)
@@ -150,8 +152,8 @@ struct WizardKarabinerComponentsPage: View {
                         // Component details for error state
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
-                                Image(systemName: componentStatus(for: "Karabiner Driver") == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(componentStatus(for: "Karabiner Driver") == .completed ? .green : .red)
+                                Image(systemName: componentStatus(for: .driver) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(componentStatus(for: .driver) == .completed ? .green : .red)
                                 HStack(spacing: 0) {
                                     Text("Karabiner Driver")
                                         .font(.headline)
@@ -161,20 +163,9 @@ struct WizardKarabinerComponentsPage: View {
                                         .fontWeight(.regular)
                                 }
                                 Spacer()
-                                if componentStatus(for: "Karabiner Driver") != .completed {
+                                if componentStatus(for: .driver) != .completed {
                                     Button("Fix") {
-                                        // Find and execute auto-fix for driver issues
-                                        if let driverIssue = karabinerRelatedIssues.first(where: { $0.autoFixAction != nil && $0.title.contains("Driver") }) {
-                                            fixingIssues.insert(driverIssue.id)
-                                            Task {
-                                                if let autoFixAction = driverIssue.autoFixAction {
-                                                    _ = await onAutoFix(autoFixAction)
-                                                    _ = await MainActor.run {
-                                                        fixingIssues.remove(driverIssue.id)
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        showingInstallationGuide = true
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
@@ -182,8 +173,8 @@ struct WizardKarabinerComponentsPage: View {
                             }
 
                             HStack(spacing: 12) {
-                                Image(systemName: backgroundServicesStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(backgroundServicesStatus == .completed ? .green : .red)
+                                Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
                                 HStack(spacing: 0) {
                                     Text("Background Services")
                                         .font(.headline)
@@ -193,7 +184,7 @@ struct WizardKarabinerComponentsPage: View {
                                         .fontWeight(.regular)
                                 }
                                 Spacer()
-                                if backgroundServicesStatus != .completed {
+                                if componentStatus(for: .backgroundServices) != .completed {
                                     Button("Fix") {
                                         openLoginItemsSettings()
                                     }
@@ -253,12 +244,19 @@ struct WizardKarabinerComponentsPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
+        .sheet(isPresented: $showingInstallationGuide) {
+            KarabinerInstallationGuideSheet(kanataManager: kanataManager)
+        }
     }
 
     // MARK: - Helper Methods
 
     private var hasKarabinerIssues: Bool {
-        componentStatus(for: "Karabiner Driver") != .completed || backgroundServicesStatus != .completed || !karabinerRelatedIssues.isEmpty
+        // Use centralized evaluator (single source of truth)
+        KarabinerComponentsStatusEvaluator.evaluate(
+            systemState: systemState,
+            issues: issues
+        ) != .completed
     }
 
     private func navigateToNextPage() {
@@ -272,55 +270,20 @@ struct WizardKarabinerComponentsPage: View {
     }
 
     private var karabinerRelatedIssues: [WizardIssue] {
-        issues.filter { issue in
-            // Include installation issues related to Karabiner
-            if issue.category == .installation {
-                switch issue.identifier {
-                case .component(.karabinerDriver),
-                     .component(.karabinerDaemon),
-                     .component(.vhidDeviceManager),
-                     .component(.vhidDeviceActivation),
-                     .component(.vhidDeviceRunning),
-                     .component(.launchDaemonServices),
-                     .component(.launchDaemonServicesUnhealthy),
-                     .component(.vhidDaemonMisconfigured):
-                    return true
-                default:
-                    return false
-                }
-            }
-
-            // Include daemon category issues (VirtualHID related)
-            if issue.category == .daemon {
-                return true
-            }
-
-            // Include background services issues
-            if issue.category == .backgroundServices {
-                return true
-            }
-
-            return false
-        }
+        // Use centralized evaluator (single source of truth)
+        return KarabinerComponentsStatusEvaluator.getKarabinerRelatedIssues(from: issues)
     }
 
-    private func componentStatus(for componentName: String) -> InstallationStatus {
-        // Check if there's an issue for this component
-        let hasIssue = issues.contains { issue in
-            (issue.category == .installation || issue.category == .daemon)
-                && issue.title.contains(componentName)
-        }
-
-        return hasIssue ? .failed : .completed
-    }
-
-    private var backgroundServicesStatus: InstallationStatus {
-        let hasBackgroundServiceIssues = issues.contains { $0.category == .backgroundServices }
-        return hasBackgroundServiceIssues ? .failed : .completed
+    private func componentStatus(for component: KarabinerComponent) -> InstallationStatus {
+        // Use centralized evaluator for individual components (single source of truth)
+        return KarabinerComponentsStatusEvaluator.getIndividualComponentStatus(
+            component,
+            in: issues
+        )
     }
 
     private var needsManualAction: Bool {
-        backgroundServicesStatus == .failed
+        componentStatus(for: .backgroundServices) == .failed
     }
 
     private func getComponentTitle(for issue: WizardIssue) -> String {

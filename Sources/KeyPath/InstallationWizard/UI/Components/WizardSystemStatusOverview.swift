@@ -138,46 +138,84 @@ struct WizardSystemStatusOverview: View {
                 targetPage: .karabinerComponents
             ))
 
-        // 6. Kanata Engine Setup
-        let kanataComponentsStatus = getKanataComponentsStatus()
-        items.append(
-            StatusItemModel(
-                id: "kanata-components",
-                icon: "cpu.fill",
-                title: "Kanata Engine Setup",
-                status: kanataComponentsStatus,
-                isNavigable: true,
-                targetPage: .kanataComponents
-            ))
+        // Check dependency requirements for remaining items
+        let prerequisitesMet = shouldShowDependentItems()
 
-        // 7. Start Keyboard Service
-        let serviceStatus = getServiceStatus()
-        let serviceNavigation = getServiceNavigationTarget()
-        items.append(
-            StatusItemModel(
-                id: "service",
-                icon: "gearshape.2",
-                title: "Start Keyboard Service",
-                subtitle: serviceStatus == .failed ? "Fix permissions to enable service" : nil,
-                status: serviceStatus,
-                isNavigable: true,
-                targetPage: serviceNavigation.page
-            ))
+        // 6. Kanata Engine Setup (hidden if Karabiner Driver not completed)
+        if prerequisitesMet.showKanataEngineItem {
+            let kanataComponentsStatus = getKanataComponentsStatus()
+            items.append(
+                StatusItemModel(
+                    id: "kanata-components",
+                    icon: "cpu.fill",
+                    title: "Kanata Engine Setup",
+                    status: kanataComponentsStatus,
+                    isNavigable: true,
+                    targetPage: .kanataComponents
+                ))
+        }
 
-        // 8. Communication Server (shown at end, requires Kanata to be running)
-        let commServerStatus = getCommunicationServerStatus()
-        items.append(
-            StatusItemModel(
-                id: "communication-server",
-                icon: "network",
-                title: "Communication Server",
-                subtitle: commServerStatus == .notStarted && !kanataIsRunning ? "Kanata isn't running" : nil,
-                status: commServerStatus,
-                isNavigable: true,
-                targetPage: .communication
-            ))
+        // 7. Start Keyboard Service (hidden if Kanata Engine Setup not completed)
+        if prerequisitesMet.showServiceItem {
+            let serviceStatus = getServiceStatus()
+            let serviceNavigation = getServiceNavigationTarget()
+            items.append(
+                StatusItemModel(
+                    id: "service",
+                    icon: "gearshape.2",
+                    title: "Start Keyboard Service",
+                    subtitle: serviceStatus == .failed ? "Fix permissions to enable service" : nil,
+                    status: serviceStatus,
+                    isNavigable: true,
+                    targetPage: serviceNavigation.page
+                ))
+        }
+
+        // 8. Communication Server (hidden if dependencies not met)
+        if prerequisitesMet.showCommunicationItem {
+            let commServerStatus = getCommunicationServerStatus()
+            items.append(
+                StatusItemModel(
+                    id: "communication-server",
+                    icon: "network",
+                    title: "Communication Server",
+                    subtitle: commServerStatus == .notStarted && !kanataIsRunning ? "Kanata isn't running" : nil,
+                    status: commServerStatus,
+                    isNavigable: true,
+                    targetPage: .communication
+                ))
+        }
 
         return items
+    }
+
+    // MARK: - Dependency Logic
+
+    private struct DependencyVisibility {
+        let showKanataEngineItem: Bool
+        let showServiceItem: Bool
+        let showCommunicationItem: Bool
+    }
+
+    private func shouldShowDependentItems() -> DependencyVisibility {
+        // Prerequisites for Kanata Engine Setup:
+        // - Karabiner Driver Setup must be completed (Kanata requires VirtualHID driver)
+        let karabinerDriverCompleted = getKarabinerComponentsStatus() == .completed
+        
+        // Prerequisites for Service item:
+        // - Kanata Engine Setup must be completed (not failed)
+        let kanataEngineCompleted = getKanataComponentsStatus() == .completed
+        
+        // Prerequisites for Communication Server:
+        // - Kanata Engine Setup must be completed AND
+        // - Service must be available (either completed or at least not blocked)
+        let serviceAvailable = kanataEngineCompleted // Service can only work if Kanata Engine is ready
+        
+        return DependencyVisibility(
+            showKanataEngineItem: karabinerDriverCompleted,
+            showServiceItem: kanataEngineCompleted,
+            showCommunicationItem: kanataEngineCompleted && serviceAvailable
+        )
     }
 
     // MARK: - Status Helpers
@@ -233,34 +271,11 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getKarabinerComponentsStatus() -> InstallationStatus {
-        // If system is still initializing, don't show completed status
-        if systemState == .initializing {
-            return .notStarted
-        }
-
-        // Check for Karabiner-related issues
-        let hasKarabinerIssues = issues.contains { issue in
-            // Installation issues related to Karabiner
-            if issue.category == .installation {
-                switch issue.identifier {
-                case .component(.karabinerDriver),
-                     .component(.karabinerDaemon),
-                     .component(.vhidDeviceManager),
-                     .component(.vhidDeviceActivation),
-                     .component(.vhidDeviceRunning),
-                     .component(.launchDaemonServices),
-                     .component(.launchDaemonServicesUnhealthy), // Include unhealthy state
-                     .component(.vhidDaemonMisconfigured):
-                    return true
-                default:
-                    return false
-                }
-            }
-            // Include daemon and background services issues
-            return issue.category == .daemon || issue.category == .backgroundServices
-        }
-
-        return hasKarabinerIssues ? .failed : .completed
+        // Use centralized evaluator (single source of truth)
+        return KarabinerComponentsStatusEvaluator.evaluate(
+            systemState: systemState,
+            issues: issues
+        )
     }
 
     private func getKanataComponentsStatus() -> InstallationStatus {

@@ -1491,49 +1491,10 @@ class KanataManager: ObservableObject {
 
     // MARK: - LaunchDaemon Service Management
 
-    /// Start the Kanata LaunchDaemon service using launchctl with OSA script for better permission handling
+    /// Start the Kanata LaunchDaemon service via privileged operations facade
     private func startLaunchDaemonService() async -> Bool {
-        AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service...")
-
-        // Skip admin operations in test environment
-        if TestEnvironment.shouldSkipAdminOperations {
-            AppLogger.shared.log("🧪 [TestEnvironment] Skipping admin launchctl kickstart - returning mock success")
-            return true // Mock: service started successfully
-        }
-
-        let script = """
-        do shell script "launchctl kickstart -k system/com.keypath.kanata" \
-        with administrator privileges \
-        with prompt "KeyPath needs administrator privileges to manage the keyboard remapping service."
-        """
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", script]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            let success = task.terminationStatus == 0
-            AppLogger.shared.log("🚀 [LaunchDaemon] launchctl kickstart result: \(success ? "SUCCESS" : "FAILED")")
-
-            if !output.isEmpty {
-                AppLogger.shared.log("🚀 [LaunchDaemon] Output: \(output)")
-            }
-
-            return success
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute launchctl kickstart: \(error)")
-            return false
-        }
+        AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service via PrivilegedOperations...")
+        return await PrivilegedOperationsProvider.shared.startKanataService()
     }
 
     /// Check the status of the LaunchDaemon service
@@ -1637,40 +1598,15 @@ class KanataManager: ObservableObject {
         }
     }
 
-    /// Stop the Kanata LaunchDaemon service using launchctl
+    /// Stop the Kanata LaunchDaemon service via privileged operations facade
     private func stopLaunchDaemonService() async -> Bool {
-        AppLogger.shared.log("🛑 [LaunchDaemon] Stopping Kanata service...")
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["launchctl", "kill", "TERM", "system/com.keypath.kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            let success = task.terminationStatus == 0
-            AppLogger.shared.log("🛑 [LaunchDaemon] launchctl kill result: \(success ? "SUCCESS" : "FAILED")")
-
-            if !output.isEmpty {
-                AppLogger.shared.log("🛑 [LaunchDaemon] Output: \(output)")
-            }
-
+        AppLogger.shared.log("🛑 [LaunchDaemon] Stopping Kanata service via PrivilegedOperations...")
+        let ok = await PrivilegedOperationsProvider.shared.stopKanataService()
+        if ok {
             // Wait a moment for graceful shutdown
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-
-            return success
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute launchctl kill: \(error)")
-            return false
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
         }
+        return ok
     }
 
     /// Kill a specific process by PID

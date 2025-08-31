@@ -241,6 +241,7 @@ struct InstallationWizardView: View {
                     )
                 case .karabinerComponents:
                     WizardKarabinerComponentsPage(
+                        systemState: systemState,
                         issues: currentIssues,
                         isFixing: asyncOperationManager.hasRunningOperations,
                         onAutoFix: performAutoFix,

@@ -1,6 +1,27 @@
 import ApplicationServices
 import Foundation
 
+/// Error types for system detection operations
+enum SystemDetectionError: Error {
+    case timeout
+}
+
+/// Helper function for timeout operations in system detection
+private func withTimeout<T: Sendable>(seconds: Double, operation: @Sendable @escaping () async -> T) async throws -> T {
+    return try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask { await operation() }
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            throw SystemDetectionError.timeout
+        }
+        guard let result = try await group.next() else {
+            throw SystemDetectionError.timeout
+        }
+        group.cancelAll()
+        return result
+    }
+}
+
 /// Unified system status checker that handles all wizard detection logic
 ///
 /// FEATURES:
@@ -15,9 +36,10 @@ import Foundation
 class SystemStatusChecker {
     // MARK: - Shared Instance
 
-    private static var sharedInstance: SystemStatusChecker?
+    @MainActor private static var sharedInstance: SystemStatusChecker?
 
     /// Get or create the shared SystemStatusChecker instance
+    @MainActor
     static func shared(kanataManager: KanataManager) -> SystemStatusChecker {
         if let existing = sharedInstance {
             return existing
@@ -54,6 +76,7 @@ class SystemStatusChecker {
     private var lastStateChange: Date = .init()
     private let stateChangeDebounceTime: TimeInterval = 0.5 // 500ms
 
+    @MainActor
     init(kanataManager: KanataManager) {
         self.kanataManager = kanataManager
         vhidDeviceManager = VHIDDeviceManager()
@@ -66,7 +89,7 @@ class SystemStatusChecker {
     // MARK: - Debug Support
 
     /// Debug flag to force Input Monitoring issues for testing purposes
-    static var debugForceInputMonitoringIssues = false
+    @MainActor static var debugForceInputMonitoringIssues = false
 
     // MARK: - Cache Management
 
@@ -123,6 +146,21 @@ class SystemStatusChecker {
             return createDebugInputMonitoringState()
         }
 
+        do {
+            // Add comprehensive timeout protection for the entire detection process
+            let result = try await withTimeout(seconds: 15.0) {
+                await self.performSystemDetection()
+            }
+            return result
+        } catch {
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] System detection timed out or failed: \(error)")
+            AppLogger.shared.log("⚠️ [SystemStatusChecker] Returning fallback state to prevent wizard hanging")
+            return createFallbackSystemState()
+        }
+    }
+    
+    /// Perform the actual system detection (wrapped in timeout protection)
+    private func performSystemDetection() async -> SystemStateResult {
         // 1. Check system compatibility
         let compatibilityResult = checkSystemCompatibility()
 
@@ -158,7 +196,7 @@ class SystemStatusChecker {
         }
 
         // Determine system state
-        let systemState = determineSystemState(
+        let systemState = await determineSystemState(
             compatibility: compatibilityResult,
             permissions: permissionResult,
             components: componentResult,
@@ -192,6 +230,32 @@ class SystemStatusChecker {
         AppLogger.shared.log("🔍 [SystemStatusChecker] Cache updated with fresh state")
 
         return result
+    }
+    
+    /// Create a fallback system state when detection times out
+    private func createFallbackSystemState() -> SystemStateResult {
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Creating fallback system state due to timeout")
+        
+        // Return a safe fallback state that doesn't assume any specific issues
+        // This allows the wizard to proceed without hanging
+        let fallbackIssues: [WizardIssue] = [
+            WizardIssue(
+                identifier: .daemon,
+                severity: .warning,
+                category: .daemon,
+                title: "System Detection Timeout",
+                description: "System detection took too long to complete. Some features may need manual setup.",
+                autoFixAction: nil,
+                userAction: "Please try refreshing the wizard or check system logs for issues."
+            )
+        ]
+        
+        return SystemStateResult(
+            state: .initializing,
+            issues: fallbackIssues,
+            autoFixActions: [],
+            detectionTimestamp: Date()
+        )
     }
 
     // MARK: - System Compatibility
@@ -394,13 +458,13 @@ class SystemStatusChecker {
         }
 
         // Check Karabiner driver components
-        if kanataManager.isKarabinerDriverInstalled() {
+        if await MainActor.run(body: { kanataManager.isKarabinerDriverInstalled() }) {
             installed.append(.karabinerDriver)
         } else {
             missing.append(.karabinerDriver)
         }
 
-        if kanataManager.isKarabinerDaemonRunning() {
+        if await MainActor.run(body: { kanataManager.isKarabinerDaemonRunning() }) {
             installed.append(.karabinerDaemon)
         } else {
             missing.append(.karabinerDaemon)
@@ -600,7 +664,7 @@ class SystemStatusChecker {
         components: ComponentCheckResult,
         conflicts: ConflictDetectionResult,
         health: HealthCheckResult
-    ) -> WizardSystemState {
+    ) async -> WizardSystemState {
         // If system is not compatible
         if !compatibility.isCompatible {
             return .initializing // Use initializing for compatibility issues
@@ -628,7 +692,7 @@ class SystemStatusChecker {
 
         // Check if Kanata is running, regardless of health
         // This ensures consistency between summary and detail pages
-        if kanataManager.isRunning {
+        if await MainActor.run(body: { kanataManager.isRunning }) {
             return .active // Show as active even if unhealthy
         }
 
