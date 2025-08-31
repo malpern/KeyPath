@@ -11,7 +11,7 @@ class WizardAutoFixer: AutoFixCapable {
     private let toastManager: WizardToastManager
     private let autoFixSync = ProcessSynchronizationActor()
 
-    init(
+    @MainActor init(
         kanataManager: KanataManager,
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
@@ -27,10 +27,12 @@ class WizardAutoFixer: AutoFixCapable {
         self.toastManager = toastManager
     }
 
+    
+
     // MARK: - Error Analysis
 
     /// Analyze a kanata startup error and provide guidance
-    func analyzeStartupError(_ error: String) -> (issue: WizardIssue?, canAutoFix: Bool) {
+    @MainActor func analyzeStartupError(_ error: String) -> (issue: WizardIssue?, canAutoFix: Bool) {
         let analysis = PermissionService.analyzeKanataError(error)
 
         if analysis.isPermissionError {
@@ -123,8 +125,9 @@ class WizardAutoFixer: AutoFixCapable {
     }
 
     func performAutoFix(_ action: AutoFixAction) async -> Bool {
-        await autoFixSync.synchronize {
-            await self._performAutoFix(action)
+        await autoFixSync.synchronize { [weak self] in
+            guard let self else { return false }
+            return await self._performAutoFix(action)
         }
     }
 
@@ -176,7 +179,7 @@ class WizardAutoFixer: AutoFixCapable {
     // MARK: - Reset Everything (Nuclear Option)
 
     /// Reset everything - kill all processes, clean up PID files, clear caches
-    func resetEverything() async -> Bool {
+    @MainActor func resetEverything() async -> Bool {
         AppLogger.shared.log("💣 [AutoFixer] RESET EVERYTHING - Nuclear option activated")
 
         // 1. Kill ALL kanata processes (owned or not)
@@ -398,45 +401,38 @@ class WizardAutoFixer: AutoFixCapable {
             activateTask.executableURL = URL(fileURLWithPath: managerPath)
             activateTask.arguments = ["forceActivate"]
 
-            // Use atomic flag to prevent double resumption
-            let lock = NSLock()
+            // Async-safe guard without NSLock
+            let guardQueue = DispatchQueue(label: "vhid-activate-guard")
             var hasResumed = false
 
             // Set up timeout task
             let timeoutTask = Task {
                 try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 second timeout
-
-                lock.lock()
-                if !hasResumed {
-                    hasResumed = true
-                    lock.unlock()
-                    AppLogger.shared.log(
-                        "⚠️ [AutoFixer] VirtualHID Manager activation timed out after 10 seconds")
-                    activateTask.terminate()
-                    continuation.resume(returning: false)
-                } else {
-                    lock.unlock()
+                guardQueue.async {
+                    if !hasResumed {
+                        hasResumed = true
+                        AppLogger.shared.log(
+                            "⚠️ [AutoFixer] VirtualHID Manager activation timed out after 10 seconds")
+                        activateTask.terminate()
+                        continuation.resume(returning: false)
+                    }
                 }
             }
 
             activateTask.terminationHandler = { process in
                 timeoutTask.cancel()
-
-                lock.lock()
-                if !hasResumed {
-                    hasResumed = true
-                    lock.unlock()
-                    let success = process.terminationStatus == 0
-                    if success {
-                        AppLogger.shared.log("✅ [AutoFixer] VirtualHID Manager force activation completed")
-                    } else {
-                        AppLogger.shared.log(
-                            "❌ [AutoFixer] VirtualHID Manager force activation failed with status: \(process.terminationStatus)"
-                        )
+                guardQueue.async {
+                    if !hasResumed {
+                        hasResumed = true
+                        let success = process.terminationStatus == 0
+                        if success {
+                            AppLogger.shared.log("✅ [AutoFixer] VirtualHID Manager force activation completed")
+                        } else {
+                            AppLogger.shared.log(
+                                "❌ [AutoFixer] VirtualHID Manager force activation failed with status: \(process.terminationStatus)")
+                        }
+                        continuation.resume(returning: success)
                     }
-                    continuation.resume(returning: success)
-                } else {
-                    lock.unlock()
                 }
             }
 
@@ -444,15 +440,12 @@ class WizardAutoFixer: AutoFixCapable {
                 try activateTask.run()
             } catch {
                 timeoutTask.cancel()
-
-                lock.lock()
-                if !hasResumed {
-                    hasResumed = true
-                    lock.unlock()
-                    AppLogger.shared.log("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
-                    continuation.resume(returning: false)
-                } else {
-                    lock.unlock()
+                guardQueue.async {
+                    if !hasResumed {
+                        hasResumed = true
+                        AppLogger.shared.log("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
+                        continuation.resume(returning: false)
+                    }
                 }
             }
         }
@@ -822,7 +815,7 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log(
             "🔧 [AutoFixer] *** ENHANCED DEBUGGING *** restartUnhealthyServices() called")
         AppLogger.shared.log("🔧 [AutoFixer] Timestamp: \(Date())")
-        AppLogger.shared.log("🔧 [AutoFixer] Thread: \(Thread.isMainThread ? "Main" : "Background")")
+        AppLogger.shared.log("🔧 [AutoFixer] OnMainActor: true")
         AppLogger.shared.log(
             "🔧 [AutoFixer] This means the new logic is working - will install missing + restart unhealthy"
         )

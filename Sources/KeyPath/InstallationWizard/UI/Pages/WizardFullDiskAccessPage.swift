@@ -37,7 +37,7 @@ struct WizardFullDiskAccessPage: View {
                             .font(.system(size: 115, weight: .light))
                             .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.info)
                             .symbolRenderingMode(.hierarchical)
-                            .symbolEffect(.bounce, options: .nonRepeating)
+                            .modifier(AvailabilitySymbolBounce())
 
                         // Overlay hanging off right side based on FDA status
                         VStack {
@@ -169,7 +169,7 @@ struct WizardFullDiskAccessPage: View {
                 }
             )
         }
-        .onChange(of: hasFullDiskAccess) { newValue in
+        .onChange(of: hasFullDiskAccess) { _, newValue in
             if newValue, !showSuccessAnimation {
                 // Permission was just granted!
                 showSuccessAnimation = true
@@ -293,27 +293,23 @@ struct WizardFullDiskAccessPage: View {
         var detectionCount = 0
         Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { timer in
             detectionCount += 1
-            systemSettingsDetectionAttempts = detectionCount
+            Task { @MainActor in
+                systemSettingsDetectionAttempts = detectionCount
 
-            // Check for FDA
-            if performFDACheck() {
-                // Success! FDA detected
-                timer.invalidate()
-                hasFullDiskAccess = true
-                cachedFDAStatus = true
-                lastFDACheckTime = Date()
-
-                if showingSystemSettingsWait {
-                    // Trigger the onDetected callback
-                    showingSystemSettingsWait = false
-                    showSuccessAnimation = true
-                }
-            } else if detectionCount >= maxDetectionAttempts {
-                // Timeout - show restart option
-                timer.invalidate()
-
-                if showingSystemSettingsWait {
-                    showingSystemSettingsWait = false
+                if performFDACheck() {
+                    timer.invalidate()
+                    hasFullDiskAccess = true
+                    cachedFDAStatus = true
+                    lastFDACheckTime = Date()
+                    if showingSystemSettingsWait {
+                        showingSystemSettingsWait = false
+                        showSuccessAnimation = true
+                    }
+                } else if detectionCount >= maxDetectionAttempts {
+                    timer.invalidate()
+                    if showingSystemSettingsWait {
+                        showingSystemSettingsWait = false
+                    }
                 }
             }
         }

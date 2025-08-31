@@ -241,3 +241,6 @@ class AppLogger {
         }
     }
 }
+
+// AppLogger coordinates its own internal synchronization; mark as unchecked Sendable for Swift 6.
+extension AppLogger: @unchecked Sendable {}

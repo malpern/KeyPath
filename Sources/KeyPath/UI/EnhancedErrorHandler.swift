@@ -284,9 +284,7 @@ enum RecoveryAction: Identifiable, CaseIterable {
 
     private func openPermissionSettings() async -> Bool {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
-            await MainActor.run {
-                NSWorkspace.shared.open(url)
-            }
+            await MainActor.run { NSWorkspace.shared.open(url) }
             return true
         }
         return false

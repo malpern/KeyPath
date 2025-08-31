@@ -7,7 +7,7 @@ import SwiftUI
 // MARK: - Kanata Configuration Model
 
 /// Represents Kanata configuration data and metadata
-public struct KanataConfiguration {
+public struct KanataConfiguration: Sendable {
     public let content: String
     public let keyMappings: [KeyMapping]
     public let lastModified: Date
@@ -75,7 +75,7 @@ public struct KanataConfiguration {
 /// - Validation via UDP and file-based checks
 /// - File watching and change detection
 /// - Key mapping generation and conversion
-public final class ConfigurationService: FileConfigurationProviding {
+@MainActor public final class ConfigurationService: FileConfigurationProviding {
     public typealias Config = KanataConfiguration
 
     // MARK: - Properties
@@ -86,7 +86,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private var currentConfiguration: KanataConfiguration?
     private var fileWatcher: FileWatcher?
-    private var observers: [(Config) async -> Void] = []
+    private var observers: [@Sendable (Config) async -> Void] = []
 
     // MARK: - Initialization
 
@@ -146,7 +146,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
     }
 
-    public func observe(_ onChange: @escaping (Config) async -> Void) -> ConfigurationObservationToken {
+    public func observe(_ onChange: @Sendable @escaping (Config) async -> Void) -> ConfigurationObservationToken {
         observers.append(onChange)
         let index = observers.count - 1
 
@@ -185,7 +185,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
 
         fileWatcher = FileWatcher(path: configurationPath) { [weak self] in
-            Task {
+            Task { @MainActor in
                 await self?.handleFileChange()
             }
         }
@@ -269,11 +269,11 @@ public final class ConfigurationService: FileConfigurationProviding {
 
             // Use proper async timeout with Task cancellation
             let udpResult = try await withThrowingTaskGroup(of: UDPValidationResult.self) { group in
-                group.addTask {
+                group.addTask { @Sendable in
                     await client.validateConfig(config.content)
                 }
 
-                group.addTask {
+                group.addTask { @Sendable in
                     try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
                     return UDPValidationResult.networkError("Validation timeout")
                 }

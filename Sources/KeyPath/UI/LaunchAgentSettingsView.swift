@@ -28,7 +28,7 @@ struct LaunchAgentSettingsView: View {
             .disabled(isCheckingStatus)
             .onChange(
                 of: isLaunchAgentEnabled,
-                perform: { newValue in
+                { _, newValue in
                     toggleLaunchAgent(enable: newValue)
                 }
             )

@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 
+@MainActor
 class BundledKanataManager {
     private let packageManager = PackageManager()
 
@@ -100,7 +101,7 @@ class BundledKanataManager {
         do shell script "cp '\(bundledPath)' '\(systemPath)'" with administrator privileges
         """
 
-        return await withCheckedContinuation { continuation in
+        return await withCheckedContinuation { [weak self] continuation in
             DispatchQueue.main.async {
                 var error: NSDictionary?
                 let appleScript = NSAppleScript(source: script)
@@ -111,8 +112,8 @@ class BundledKanataManager {
                     continuation.resume(returning: false)
                 } else if result != nil {
                     AppLogger.shared.log("✅ [BundledKanataManager] Successfully copied bundled kanata to system path")
-
-                    let verificationSuccess = self.verifyReplacement(at: systemPath)
+                    guard let strongSelf = self else { continuation.resume(returning: false); return }
+                    let verificationSuccess = strongSelf.verifyReplacement(at: systemPath)
                     continuation.resume(returning: verificationSuccess)
                 } else {
                     AppLogger.shared.log("❌ [BundledKanataManager] AppleScript returned nil result")

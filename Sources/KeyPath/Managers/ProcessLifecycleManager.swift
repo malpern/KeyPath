@@ -19,7 +19,7 @@ enum ProcessIntent {
     case shouldBeStopped
 }
 
-final class ProcessLifecycleManager {
+final class ProcessLifecycleManager: @unchecked Sendable {
     // MARK: - State Variables
 
     private var currentIntent: ProcessIntent?

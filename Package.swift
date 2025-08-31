@@ -28,7 +28,7 @@ let package = Package(
             dependencies: ["KeyPath"],
             path: "Sources/KeyPathCLI",
             swiftSettings: [
-                .swiftLanguageMode(.v5)
+                .swiftLanguageMode(.v6)
             ]
         ),
         // The main app library with all SwiftUI code
@@ -43,7 +43,7 @@ let package = Package(
                 .process("Resources")
             ],
             swiftSettings: [
-                .swiftLanguageMode(.v5)
+                .swiftLanguageMode(.v6)
             ]
         ),
         // Tests
@@ -52,7 +52,7 @@ let package = Package(
             dependencies: ["KeyPath"],
             path: "Tests/KeyPathTests",
             swiftSettings: [
-                .swiftLanguageMode(.v5)
+                .swiftLanguageMode(.v6)
             ]
         )
     ]

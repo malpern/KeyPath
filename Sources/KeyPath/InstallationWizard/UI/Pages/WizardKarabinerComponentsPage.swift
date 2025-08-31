@@ -27,7 +27,7 @@ struct WizardKarabinerComponentsPage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Green check overlay hanging off right edge
                             VStack {
@@ -115,7 +115,7 @@ struct WizardKarabinerComponentsPage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.warning)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Warning overlay hanging off right edge
                             VStack {

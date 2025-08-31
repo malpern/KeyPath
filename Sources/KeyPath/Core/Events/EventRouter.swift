@@ -36,6 +36,7 @@ public struct EventRoutingResult {
 }
 
 /// Central event router that manages a chain of event processors
+@MainActor
 public final class EventRouter {
     private var processors: [EventProcessing] = []
     private var processorNames: [String] = []
@@ -202,11 +203,11 @@ public final class EventRouter {
 }
 
 /// Default event router instance for global access
-public let defaultEventRouter = EventRouter()
+@MainActor public let defaultEventRouter = EventRouter()
 
 // MARK: - Convenience Extensions
 
-public extension EventProcessing {
+@MainActor public extension EventProcessing {
     /// Register this processor with the default event router
     func register(as name: String) {
         defaultEventRouter.addProcessor(self, name: name)

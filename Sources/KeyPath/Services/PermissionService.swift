@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 
+@MainActor
 class PermissionService {
     // MARK: - Static Instance
 

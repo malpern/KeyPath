@@ -68,7 +68,7 @@ struct WizardKanataServicePage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Green check overlay in top right
                             VStack {
@@ -147,7 +147,7 @@ struct WizardKanataServicePage: View {
                                 .font(.system(size: 60, weight: .light))
                                 .foregroundColor(serviceStatus.color)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Status overlay in top right
                             VStack {

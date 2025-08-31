@@ -59,21 +59,21 @@ struct InstallationWizardView: View {
             hasKeyboardFocus = true
             setupWizard()
         }
-        .onChange(of: asyncOperationManager.hasRunningOperations) { hasOperations in
+        .onChange(of: asyncOperationManager.hasRunningOperations) { oldValue, newValue in
             // When overlays disappear, reclaim focus for ESC key
-            if !hasOperations {
+            if !newValue {
                 hasKeyboardFocus = true
             }
         }
-        .onChange(of: showingStartConfirmation) { showing in
+        .onChange(of: showingStartConfirmation) { oldValue, newValue in
             // Reclaim focus when start confirmation dialog closes
-            if !showing {
+            if !newValue {
                 hasKeyboardFocus = true
             }
         }
-        .onChange(of: showingCloseConfirmation) { showing in
+        .onChange(of: showingCloseConfirmation) { oldValue, newValue in
             // Reclaim focus when close confirmation dialog closes
-            if !showing {
+            if !newValue {
                 hasKeyboardFocus = true
             }
         }
@@ -761,8 +761,7 @@ struct InstallationWizardView: View {
     /// Performs cancellation and cleanup in the background after UI dismissal
     private func performBackgroundCleanup() {
         // Use Task.detached to avoid any main thread scheduling overhead
-        Task.detached { [weak asyncOperationManager] in
-            // This runs completely in background, no main thread blocking
+        Task { @MainActor [weak asyncOperationManager] in
             asyncOperationManager?.cancelAllOperationsAsync()
         }
     }
@@ -799,7 +798,7 @@ struct InstallationWizardView: View {
 
         // Clean up in background after UI is gone
         AppLogger.shared.log("🔴 [FORCE-CLOSE] Starting background cleanup...")
-        Task.detached { [weak asyncOperationManager] in
+        Task { @MainActor [weak asyncOperationManager] in
             AppLogger.shared.log("🔴 [FORCE-CLOSE] Background cleanup task started")
             asyncOperationManager?.cancelAllOperationsAsync()
             AppLogger.shared.log("🔴 [FORCE-CLOSE] Background cleanup completed")

@@ -52,7 +52,8 @@ public struct ConfigurationObservationToken {
 ///
 /// All methods are async and implementations should ensure thread-safe
 /// access to configuration state.
-protocol ConfigurationProviding {
+@MainActor
+protocol ConfigurationProviding: AnyObject {
     /// The type of configuration provided by this service.
     associatedtype Config
 
@@ -80,7 +81,7 @@ protocol ConfigurationProviding {
     ///
     /// - Parameter onChange: Callback invoked when configuration changes.
     /// - Returns: A token that can be used to cancel the observation.
-    func observe(_ onChange: @escaping (Config) async -> Void) -> ConfigurationObservationToken
+    func observe(_ onChange: @Sendable @escaping (Config) async -> Void) -> ConfigurationObservationToken
 }
 
 /// Extension providing convenience methods and default behaviors.
@@ -91,13 +92,13 @@ extension ConfigurationProviding {
     /// a simple callback-based interface for configuration reloading.
     ///
     /// - Parameter completion: Called with the result of the reload operation.
-    func reloadWithCallback(_ completion: @escaping (Result<Config, Error>) -> Void) {
+    func reloadWithCallback(_ completion: @Sendable @escaping (Result<Config, Error>) -> Void) {
         Task {
             do {
                 let config = try await reload()
-                completion(.success(config))
+                await MainActor.run { completion(.success(config)) }
             } catch {
-                completion(.failure(error))
+                await MainActor.run { completion(.failure(error)) }
             }
         }
     }

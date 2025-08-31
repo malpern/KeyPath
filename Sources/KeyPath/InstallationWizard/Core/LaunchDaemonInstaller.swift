@@ -3,6 +3,7 @@ import Security
 
 /// Manages LaunchDaemon installation and configuration for KeyPath services
 /// Implements the production-ready LaunchDaemon architecture identified in the installer improvement analysis
+@MainActor
 class LaunchDaemonInstaller {
     // MARK: - Dependencies
 
@@ -96,10 +97,10 @@ class LaunchDaemonInstaller {
 
     // MARK: - Warm-up tracking (to distinguish "starting" from "failed")
 
-    private static var lastKickstartTimes: [String: Date] = [:]
+    @MainActor private static var lastKickstartTimes: [String: Date] = [:]
     private static let healthyWarmupWindow: TimeInterval = 2.0
 
-    private func markRestartTime(for serviceIDs: [String]) {
+    @MainActor private func markRestartTime(for serviceIDs: [String]) {
         let now = Date()
         for id in serviceIDs {
             Self.lastKickstartTimes[id] = now
@@ -107,13 +108,13 @@ class LaunchDaemonInstaller {
     }
 
     // Expose read access across instances
-    static func wasRecentlyRestarted(_ serviceID: String, within seconds: TimeInterval? = nil) -> Bool {
+    @MainActor static func wasRecentlyRestarted(_ serviceID: String, within seconds: TimeInterval? = nil) -> Bool {
         guard let last = lastKickstartTimes[serviceID] else { return false }
         let window = seconds ?? healthyWarmupWindow
         return Date().timeIntervalSince(last) < window
     }
 
-    static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow) -> Bool {
+    @MainActor static func hadRecentRestart(within seconds: TimeInterval = healthyWarmupWindow) -> Bool {
         let now = Date()
         return lastKickstartTimes.values.contains { now.timeIntervalSince($0) < seconds }
     }
@@ -296,7 +297,7 @@ class LaunchDaemonInstaller {
     // MARK: - Service Management
 
     /// Loads a specific LaunchDaemon service
-    private func loadService(serviceID: String) async -> Bool {
+    @MainActor private func loadService(serviceID: String) async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Loading service: \(serviceID)")
         if Self.isTestMode {
             return FileManager.default.fileExists(atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
@@ -397,7 +398,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Checks if a LaunchDaemon service is running healthily (not just loaded)
-    func isServiceHealthy(serviceID: String) -> Bool {
+    @MainActor func isServiceHealthy(serviceID: String) -> Bool {
         AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH CHECK (system/print) for: \(serviceID)")
 
         if Self.isTestMode {
@@ -863,19 +864,25 @@ class LaunchDaemonInstaller {
             }
         }
 
-        // Request admin privileges
-        var authItem = AuthorizationItem(
-            name: kAuthorizationRightExecute,
-            valueLength: 0,
-            value: nil,
-            flags: 0
-        )
-
-        var authRights = AuthorizationRights(count: 1, items: &authItem)
-
+        // Request admin privileges (ensure C-string and pointer lifetimes are valid)
         let flags: AuthorizationFlags = [.interactionAllowed, .preAuthorize, .extendRights]
 
-        status = AuthorizationCopyRights(authRef!, &authRights, nil, flags, nil)
+        let executeRight = "system.privilege.admin"
+        let rightsStatus: OSStatus = executeRight.withCString { namePtr in
+            var authItem = AuthorizationItem(
+                name: namePtr,
+                valueLength: 0,
+                value: nil,
+                flags: 0
+            )
+
+            return withUnsafeMutablePointer(to: &authItem) { authItemPtr in
+                var rights = AuthorizationRights(count: 1, items: authItemPtr)
+                return AuthorizationCopyRights(authRef!, &rights, nil, flags, nil)
+            }
+        }
+
+        status = rightsStatus
 
         guard status == errSecSuccess else {
             if status == errSecUserCanceled {
@@ -1055,6 +1062,7 @@ class LaunchDaemonInstaller {
 
     /// Execute consolidated installation with all operations in a single admin prompt
     /// Includes: install plists, create system config directory, create system config file, and load services
+    @MainActor
     private func executeConsolidatedInstallation(
         kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
     ) -> Bool {
@@ -1226,7 +1234,7 @@ class LaunchDaemonInstaller {
     // MARK: - Status Methods
 
     /// Gets comprehensive status of all LaunchDaemon services
-    func getServiceStatus() -> LaunchDaemonStatus {
+    @MainActor func getServiceStatus() -> LaunchDaemonStatus {
         let kanataLoaded = isServiceLoaded(serviceID: Self.kanataServiceID)
         let vhidDaemonLoaded = isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerLoaded = isServiceLoaded(serviceID: Self.vhidManagerServiceID)
@@ -1286,6 +1294,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Restarts services with admin privileges using launchctl kickstart
+    @MainActor
     private func restartServicesWithAdmin(_ serviceIDs: [String]) -> Bool {
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] *** ENHANCED RESTART *** Restarting services: \(serviceIDs)")
@@ -1349,6 +1358,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Restarts unhealthy services and diagnoses/fixes underlying issues
+    @MainActor
     func restartUnhealthyServices() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Starting comprehensive service health fix")
 
@@ -1466,7 +1476,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Diagnose why services are still failing after restart attempt
-    private func diagnoseServiceFailures(_ serviceIDs: [String]) async {
+    @MainActor private func diagnoseServiceFailures(_ serviceIDs: [String]) async {
         AppLogger.shared.log("🔍 [LaunchDaemon] Diagnosing service failure reasons...")
 
         for serviceID in serviceIDs {
@@ -1758,6 +1768,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Regenerates the Kanata service plist with current settings and reloads the service
+    @MainActor
     func regenerateServiceWithCurrentSettings() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Regenerating Kanata service with current TCP settings")
 
@@ -1784,6 +1795,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Reloads a service using bootout/bootstrap pattern for plist changes
+    @MainActor
     func reloadService(serviceID: String, plistPath: String, tempPlistPath: String) -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Reloading service \(serviceID) with bootout/bootstrap pattern")
 

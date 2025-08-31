@@ -8,6 +8,7 @@ import Foundation
 /// - Handles atomic writes by monitoring file creation/deletion/move events
 /// - Provides comprehensive error logging and recovery
 /// - Uses proper file descriptor management with cleanup
+@MainActor
 class ConfigFileWatcher: ObservableObject {
     // MARK: - Properties
 
@@ -38,7 +39,7 @@ class ConfigFileWatcher: ObservableObject {
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher initialized with robust monitoring")
     }
 
-    deinit {
+    @MainActor deinit {
         stopWatching()
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher deinitialized")
     }
@@ -275,10 +276,8 @@ class ConfigFileWatcher: ObservableObject {
 
         // Wait a brief moment for atomic write to complete
         queue.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            Task {
-                await MainActor.run {
-                    self?.setupFileMonitoring()
-                }
+            DispatchQueue.main.async { [weak self] in
+                self?.setupFileMonitoring()
             }
         }
     }
@@ -346,9 +345,7 @@ class ConfigFileWatcher: ObservableObject {
 
         // Set up debounce timer to handle rapid file changes
         debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceDelay, repeats: false) { [weak self] _ in
-            Task {
-                await self?.processFileChange()
-            }
+            Task { await self?.processFileChange() }
         }
     }
 

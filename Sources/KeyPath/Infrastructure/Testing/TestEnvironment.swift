@@ -42,7 +42,7 @@ public enum TestEnvironment {
     }
 
     /// Force test mode (for manual testing)
-    public static var forceTestMode: Bool = false {
+    @MainActor public static var forceTestMode: Bool = false {
         didSet {
             if forceTestMode {
                 AppLogger.shared.log("🧪 [TestEnvironment] Force test mode enabled")
@@ -52,7 +52,7 @@ public enum TestEnvironment {
 
     /// Combined check for any test-related behavior
     public static var isTestMode: Bool {
-        forceTestMode || isRunningTests
+        (try? MainActor.assumeIsolated { forceTestMode }) ?? false || isRunningTests
     }
 
     /// Log test environment status

@@ -15,12 +15,11 @@ enum CommunicationProtocol: String, CaseIterable {
 }
 
 /// Manages KeyPath application preferences and settings
-@MainActor
 @Observable
-final class PreferencesService {
+final class PreferencesService: @unchecked Sendable {
     // MARK: - Shared instance (backward compatible)
 
-    static let shared = PreferencesService()
+    @MainActor static let shared = PreferencesService()
 
     // MARK: - Communication Protocol Configuration
 
@@ -304,17 +303,40 @@ struct CommunicationSnapshot: Sendable {
     }
 
     /// Get cross-platform path for shared UDP auth token file
-    static func udpAuthTokenPath() -> String {
-        UDPAuthTokenManager.shared.sharedTokenPath()
+    nonisolated static func udpAuthTokenPath() -> String {
+        #if os(macOS)
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".config/keypath/udp-auth-token")
+                .path
+        #elseif os(Windows)
+            let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            return supportDir?.appendingPathComponent("keypath/udp-auth-token").path ??
+                NSHomeDirectory() + "/AppData/Roaming/keypath/udp-auth-token"
+        #else
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".config/keypath/udp-auth-token")
+                .path
+        #endif
     }
 
     /// Generate secure 32-character UDP auth token
-    static func generateUDPAuthToken() -> String {
-        UDPAuthTokenManager.shared.generateSecureToken()
+    nonisolated static func generateUDPAuthToken() -> String {
+        var randomBytes = [UInt8](repeating: 0, count: 32)
+        let result = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        if result == errSecSuccess {
+            let data = Data(randomBytes)
+            return data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        } else {
+            let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+            return String((0 ..< 32).map { _ in characters.randomElement()! })
+        }
     }
 
     /// Write shared UDP auth token to cross-platform file location
-    static func writeSharedUDPToken(_ token: String) -> Bool {
+    nonisolated static func writeSharedUDPToken(_ token: String) -> Bool {
         let tokenPath = udpAuthTokenPath()
         let tokenDir = (tokenPath as NSString).deletingLastPathComponent
 
@@ -343,7 +365,7 @@ struct CommunicationSnapshot: Sendable {
     }
 
     /// Read shared UDP auth token from cross-platform file location
-    static func readSharedUDPToken() -> String? {
+    nonisolated static func readSharedUDPToken() -> String? {
         let tokenPath = udpAuthTokenPath()
         do {
             let token = try String(contentsOfFile: tokenPath, encoding: .utf8)
@@ -354,7 +376,7 @@ struct CommunicationSnapshot: Sendable {
     }
 
     /// Ensure shared UDP token exists, generating one if needed
-    static func ensureSharedUDPToken() -> String {
+    nonisolated static func ensureSharedUDPToken() -> String {
         // Try to read existing token
         if let existingToken = readSharedUDPToken(), !existingToken.isEmpty {
             return existingToken
@@ -368,10 +390,12 @@ struct CommunicationSnapshot: Sendable {
             AppLogger.shared.log("🔐 [UDP Auth] Generated new shared token")
 
             // Also store in Keychain for backup/persistence
-            do {
-                try KeychainService.shared.storeUDPToken(newToken)
-            } catch {
-                AppLogger.shared.log("⚠️ [UDP Auth] Failed to backup token in Keychain: \(error)")
+            Task { @MainActor in
+                do {
+                    try KeychainService.shared.storeUDPToken(newToken)
+                } catch {
+                    AppLogger.shared.log("⚠️ [UDP Auth] Failed to backup token in Keychain: \(error)")
+                }
             }
 
             return newToken

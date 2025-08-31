@@ -48,7 +48,7 @@ enum ConfigError: Error, LocalizedError {
 }
 
 /// Represents a simple key mapping from input to output
-public struct KeyMapping: Codable, Equatable, Identifiable {
+public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     public let id = UUID()
     public let input: String
     public let output: String
@@ -134,6 +134,7 @@ struct ValidationAlertAction {
     }
 }
 
+@MainActor
 class KanataManager: ObservableObject {
     @Published var isRunning = false
     @Published var lastError: String?
@@ -291,7 +292,7 @@ class KanataManager: ObservableObject {
 
         // Dispatch heavy initialization work to background thread (skip during unit tests)
         if !TestEnvironment.isRunningTests {
-            Task.detached { [weak self] in
+            Task { [weak self] in
                 // Clean up any orphaned processes first
                 await self?.processLifecycleManager.cleanupOrphanedProcesses()
                 await self?.performInitialization()
@@ -346,7 +347,7 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("📝 [FileWatcher] External config file change detected")
 
         // Play the initial sound to indicate detection
-        Task { await SoundManager.shared.playTinkSound() }
+        Task { @MainActor in SoundManager.shared.playTinkSound() }
 
         // Show initial status message
         await MainActor.run {
@@ -357,7 +358,7 @@ class KanataManager: ObservableObject {
         let configPath = configPath
         guard FileManager.default.fileExists(atPath: configPath) else {
             AppLogger.shared.log("❌ [FileWatcher] Config file no longer exists: \(configPath)")
-            Task { await SoundManager.shared.playErrorSound() }
+            Task { @MainActor in SoundManager.shared.playErrorSound() }
             await MainActor.run {
                 saveStatus = .failed("Config file was deleted")
             }
@@ -374,7 +375,7 @@ class KanataManager: ObservableObject {
                 if let validationResult = await configurationService.validateConfigViaUDP() {
                     if !validationResult.isValid {
                         AppLogger.shared.log("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
-                        Task { await SoundManager.shared.playErrorSound() }
+                        Task { @MainActor in SoundManager.shared.playErrorSound() }
 
                         await MainActor.run {
                             saveStatus = .failed("Invalid config from external edit: \(validationResult.errors.first ?? "Unknown error")")
@@ -394,7 +395,7 @@ class KanataManager: ObservableObject {
 
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [FileWatcher] External config successfully reloaded")
-                Task { await SoundManager.shared.playGlassSound() }
+                Task { @MainActor in SoundManager.shared.playGlassSound() }
 
                 // Update configuration service with the new content
                 await updateInMemoryConfig(configContent)
@@ -407,7 +408,7 @@ class KanataManager: ObservableObject {
             } else {
                 let errorMessage = reloadResult.errorMessage ?? "Unknown error"
                 AppLogger.shared.log("❌ [FileWatcher] External config reload failed: \(errorMessage)")
-                Task { await SoundManager.shared.playErrorSound() }
+                Task { @MainActor in SoundManager.shared.playErrorSound() }
 
                 await MainActor.run {
                     saveStatus = .failed("External config reload failed: \(errorMessage)")
@@ -421,7 +422,7 @@ class KanataManager: ObservableObject {
 
         } catch {
             AppLogger.shared.log("❌ [FileWatcher] Failed to read external config: \(error)")
-            Task { await SoundManager.shared.playErrorSound() }
+            Task { @MainActor in SoundManager.shared.playErrorSound() }
 
             await MainActor.run {
                 saveStatus = .failed("Failed to read external config: \(error.localizedDescription)")
@@ -1765,14 +1766,14 @@ class KanataManager: ObservableObject {
             }
 
             // Play tink sound asynchronously to avoid blocking save pipeline
-            Task { await SoundManager.shared.playTinkSound() }
+            Task { @MainActor in SoundManager.shared.playTinkSound() }
 
             // Trigger hot reload via UDP
             let reloadResult = await triggerUDPReload()
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [KanataManager] UDP reload successful, config is active")
                 // Play glass sound asynchronously to avoid blocking completion
-                Task { await SoundManager.shared.playGlassSound() }
+                Task { @MainActor in SoundManager.shared.playGlassSound() }
                 await MainActor.run {
                     saveStatus = .success
                 }
@@ -1781,7 +1782,7 @@ class KanataManager: ObservableObject {
                 let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
                 AppLogger.shared.log("❌ [KanataManager] UDP reload FAILED: \(errorMessage)")
                 // Play error sound asynchronously
-                Task { await SoundManager.shared.playErrorSound() }
+                Task { @MainActor in SoundManager.shared.playErrorSound() }
                 await MainActor.run {
                     saveStatus = .failed("Config saved but reload failed: \(errorMessage)")
                 }
@@ -1824,14 +1825,14 @@ class KanataManager: ObservableObject {
             keyMappings.append(newMapping)
 
             // Backup current config before making changes
-            try await backupCurrentConfig()
+            await backupCurrentConfig()
 
             // Delegate to ConfigurationService for saving
             try await configurationService.saveConfiguration(keyMappings: keyMappings)
             AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationService")
 
             // Play tink sound asynchronously to avoid blocking save pipeline
-            Task { await SoundManager.shared.playTinkSound() }
+            Task { @MainActor in SoundManager.shared.playTinkSound() }
 
             // Attempt UDP reload and capture any errors
             let reloadResult = await triggerUDPReload()
@@ -1841,7 +1842,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("✅ [Config] UDP reload successful, config is valid")
 
                 // Play glass sound asynchronously to avoid blocking completion
-                Task { await SoundManager.shared.playGlassSound() }
+                Task { @MainActor in SoundManager.shared.playGlassSound() }
 
                 await MainActor.run {
                     saveStatus = .success
@@ -1853,7 +1854,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("❌ [Config] UDP server is required for validation-on-demand - restoring backup")
 
                 // Play error sound asynchronously
-                Task { await SoundManager.shared.playErrorSound() }
+                Task { @MainActor in SoundManager.shared.playErrorSound() }
 
                 // Restore backup since we can't verify the config was applied
                 try await restoreLastGoodConfig()

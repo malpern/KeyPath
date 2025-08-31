@@ -66,7 +66,7 @@ actor KanataUDPClient {
     }
 
     /// Timeout utility that properly cancels operations and cleans up connections
-    private func withTimeout<T>(_ seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+    private func withTimeout<T: Sendable>(_ seconds: TimeInterval, operation: @Sendable @escaping () async throws -> T) async throws -> T {
         try await withThrowingTaskGroup(of: T.self) { group in
             // Add the main operation
             group.addTask {
@@ -390,7 +390,8 @@ actor KanataUDPClient {
         params.allowLocalEndpointReuse = true // Better reuse behavior
 
         guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
-            fatalError("Invalid UDP port: \(port)")
+            AppLogger.shared.log("❌ [UDP] Invalid UDP port: \(port) - defaulting to 2113")
+            return NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: 2113)!, using: params)
         }
 
         let conn = NWConnection(
@@ -404,9 +405,7 @@ actor KanataUDPClient {
             AppLogger.shared.log("📡 [UDP] Connection state: \(state)")
             if case .failed = state {
                 // Drop broken connection so next call recreates it
-                Task { @MainActor in
-                    await self?.clearBrokenConnection()
-                }
+                Task { await self?.clearBrokenConnection() }
             }
         }
         conn.start(queue: queue)
@@ -443,12 +442,14 @@ actor KanataUDPClient {
             return
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let queue = DispatchQueue(label: "kanata-udp-ready-wait")
+            let resumeLock = NSLock()
             var hasResumed = false
 
             // Connection establishment timeout
             _ = queue.asyncAfter(deadline: .now() + timeout) {
+                resumeLock.lock(); defer { resumeLock.unlock() }
                 if !hasResumed {
                     hasResumed = true
                     AppLogger.shared.log("📡 [UDP] ⏰ Connection establishment timeout after \(timeout)s")
@@ -458,6 +459,7 @@ actor KanataUDPClient {
 
             // Check current state or wait for ready
             if connection.state == .ready {
+                resumeLock.lock(); defer { resumeLock.unlock() }
                 if !hasResumed {
                     hasResumed = true
                     continuation.resume()
@@ -469,7 +471,7 @@ actor KanataUDPClient {
             let originalHandler = connection.stateUpdateHandler
             var timeoutTask: Task<Void, Never>?
 
-            let cleanup = {
+            let cleanup: @Sendable () -> Void = {
                 connection.stateUpdateHandler = originalHandler
                 timeoutTask?.cancel()
             }
@@ -477,6 +479,7 @@ actor KanataUDPClient {
             connection.stateUpdateHandler = { [weak connection] state in
                 originalHandler?(state) // Call original handler first
 
+                resumeLock.lock(); defer { resumeLock.unlock() }
                 if !hasResumed {
                     switch state {
                     case .ready:
@@ -500,6 +503,7 @@ actor KanataUDPClient {
             // Timeout cleanup
             timeoutTask = Task.detached {
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                resumeLock.lock(); defer { resumeLock.unlock() }
                 if !hasResumed {
                     cleanup()
                 }
@@ -557,6 +561,7 @@ actor KanataUDPClient {
         do {
             return try await withTimeout(timeout) {
                 try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+                    let completionLock = NSLock()
                     var requestCompleted = false
 
                     // Set up inflight request tracking
@@ -584,6 +589,7 @@ actor KanataUDPClient {
 
                     connection.receiveMessage { responseData, context, _, error in
                         // Only process if this request hasn't completed
+                        completionLock.lock(); defer { completionLock.unlock() }
                         guard !requestCompleted else {
                             AppLogger.shared.log("🚫 [UDP] Ignoring receive for completed request \(requestId)")
                             return
@@ -618,6 +624,7 @@ actor KanataUDPClient {
                     connection.send(content: data, completion: .contentProcessed { error in
                         if let error {
                             AppLogger.shared.log("📡 [UDP] ❌ Send error: \(error) [requestId: \(requestId)]")
+                            completionLock.lock(); defer { completionLock.unlock() }
                             if !requestCompleted {
                                 requestCompleted = true
                                 self.inflightRequest = nil

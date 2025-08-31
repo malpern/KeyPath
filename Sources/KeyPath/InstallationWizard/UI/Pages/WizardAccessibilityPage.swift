@@ -29,7 +29,7 @@ struct WizardAccessibilityPage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Green check overlay positioned at right edge
                             VStack {
@@ -117,7 +117,7 @@ struct WizardAccessibilityPage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.warning)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Warning overlay positioned at right edge
                             VStack {

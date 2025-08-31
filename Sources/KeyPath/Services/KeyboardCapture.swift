@@ -8,6 +8,7 @@ import SwiftUI
     // This is to handle potential circular dependencies during build
 #endif
 
+@MainActor
 public class KeyboardCapture: ObservableObject {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -327,7 +328,7 @@ public class KeyboardCapture: ObservableObject {
             // Reset chord timer
             chordTimer?.invalidate()
             chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { _ in
-                self.completeChord()
+                Task { @MainActor in self.completeChord() }
             }
 
         case .sequence:
@@ -338,7 +339,7 @@ public class KeyboardCapture: ObservableObject {
             // Reset sequence timer
             sequenceTimer?.invalidate()
             sequenceTimer = Timer.scheduledTimer(withTimeInterval: sequenceTimeout, repeats: false) { _ in
-                self.completeSequence()
+                Task { @MainActor in self.completeSequence() }
             }
         }
     }

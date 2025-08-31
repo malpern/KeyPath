@@ -27,7 +27,7 @@ struct WizardKanataComponentsPage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Green check overlay moved to the right
                             VStack {
@@ -117,7 +117,7 @@ struct WizardKanataComponentsPage: View {
                                 .font(.system(size: 60, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.warning)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Warning overlay moved to the right
                             VStack {

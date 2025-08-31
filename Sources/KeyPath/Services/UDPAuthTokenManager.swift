@@ -77,7 +77,7 @@ final class UDPAuthTokenManager {
         lastCacheUpdate = Date()
 
         // Update non-isolated cache for thread-safe access
-        UDPAuthTokenCache.updateCache(token)
+        await UDPAuthTokenCache.shared.updateCache(token)
 
         AppLogger.shared.log("🔐 [TokenManager] Token updated and synchronized")
     }
@@ -102,7 +102,7 @@ final class UDPAuthTokenManager {
         lastCacheUpdate = nil
 
         // Clear non-isolated cache
-        UDPAuthTokenCache.updateCache(nil)
+        await UDPAuthTokenCache.shared.updateCache(nil)
 
         AppLogger.shared.log("🔐 [TokenManager] Token cleared from all locations")
     }
@@ -204,19 +204,13 @@ final class UDPAuthTokenManager {
 // MARK: - Synchronous Access for Non-Isolated Contexts
 
 /// Thread-safe cache for token access from non-MainActor contexts
-enum UDPAuthTokenCache {
-    private static var _cachedValue: String?
-    private static let queue = DispatchQueue(label: "udp-token-cache")
+actor UDPAuthTokenCache {
+    private var cachedValue: String?
 
-    /// Get cached token value (thread-safe, non-blocking)
-    static var value: String? {
-        queue.sync { _cachedValue }
-    }
+    static let shared = UDPAuthTokenCache()
 
-    /// Update cached token value (called by UDPAuthTokenManager)
-    static func updateCache(_ token: String?) {
-        queue.sync { _cachedValue = token }
-    }
+    func value() -> String? { cachedValue }
+    func updateCache(_ token: String?) { cachedValue = token }
 }
 
 // MARK: - Migration Helper

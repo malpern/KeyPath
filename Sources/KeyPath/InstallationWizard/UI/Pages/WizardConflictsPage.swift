@@ -32,7 +32,7 @@ struct WizardConflictsPage: View {
                             .font(.system(size: 115, weight: .light))
                             .foregroundColor(WizardDesign.Colors.success)
                             .symbolRenderingMode(.hierarchical)
-                            .symbolEffect(.bounce, options: .nonRepeating)
+                            .modifier(AvailabilitySymbolBounce())
 
                         // Larger headline (23pt to match Full Disk Access)
                         Text("No Conflicts Detected")
@@ -74,11 +74,11 @@ struct WizardConflictsPage: View {
                                 .foregroundColor(.secondary)
 
                             Button("Reset Everything") {
-                                Task {
+                                Task { @MainActor in
                                     isScanning = true
                                     let toastManager = WizardToastManager() // Temporary instance for reset operation
                                     let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
-                                    await autoFixer.resetEverything()
+                                    _ = await autoFixer.resetEverything()
                                     onRefresh()
                                     isScanning = false
                                 }
@@ -107,7 +107,7 @@ struct WizardConflictsPage: View {
                             .font(.system(size: 60, weight: .light))
                             .foregroundColor(WizardDesign.Colors.error)
                             .symbolRenderingMode(.hierarchical)
-                            .symbolEffect(.bounce, options: .nonRepeating)
+                            .modifier(AvailabilitySymbolBounce())
                             .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
 
                         // Title
@@ -188,11 +188,11 @@ struct WizardConflictsPage: View {
 
                         // Reset button for nuclear option
                         Button("Reset Everything") {
-                            Task {
+                            Task { @MainActor in
                                 isScanning = true
                                 let toastManager = WizardToastManager() // Temporary instance for reset operation
                                 let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
-                                await autoFixer.resetEverything()
+                                _ = await autoFixer.resetEverything()
                                 onRefresh()
                                 isScanning = false
                             }

@@ -1,6 +1,7 @@
 import Foundation
 
 /// Helper for setting up the event processing chain in KeyPath
+@MainActor
 public enum EventProcessingSetup {
     /// Configure the default event router with standard KeyPath processors
     public static func setupDefaultProcessors() {

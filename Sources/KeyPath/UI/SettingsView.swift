@@ -126,18 +126,18 @@ struct SettingsView: View {
         .onDisappear {
             AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
         }
-        .onChange(of: kanataManager.showWizard) { shouldShow in
+        .onChange(of: kanataManager.showWizard) { _, shouldShow in
             AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
             AppLogger.shared.log("🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)")
             showingInstallationWizard = shouldShow
         }
-        .onChange(of: preferences.udpServerEnabled) { _ in
+        .onChange(of: preferences.udpServerEnabled) { _, _ in
             checkTCPServerStatus()
         }
-        .onChange(of: preferences.communicationProtocol) { _ in
+        .onChange(of: preferences.communicationProtocol) { _, _ in
             // Protocol changed, no specific action needed as it will be picked up on next operation
         }
-        .onChange(of: kanataManager.currentState) { _ in
+        .onChange(of: kanataManager.currentState) { _, _ in
             checkTCPServerStatus()
         }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
@@ -364,7 +364,7 @@ struct SettingsView: View {
         SettingsSection(title: "Notifications") {
             @Bindable var bindablePreferences = preferences
             Toggle("Enable Notifications", isOn: $bindablePreferences.notificationsEnabled)
-                .onChange(of: preferences.notificationsEnabled) { enabled in
+                .onChange(of: preferences.notificationsEnabled) { _, enabled in
                     if enabled {
                         Task { @MainActor in
                             UserNotificationService.shared.requestAuthorizationIfNeeded()

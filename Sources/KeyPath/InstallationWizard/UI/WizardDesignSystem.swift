@@ -211,7 +211,7 @@ enum WizardDesign {
 
     // MARK: - Transitions
 
-    enum Transition {
+    @MainActor enum Transition {
         /// Card appearance from top
         static let cardAppear: AnyTransition = .opacity.combined(with: .move(edge: .top))
 
@@ -578,7 +578,7 @@ enum WizardDesign {
                         .font(.system(size: size.mainSize, weight: .light))
                         .foregroundColor(mainColor)
                         .symbolRenderingMode(.hierarchical)
-                        .symbolEffect(.bounce, options: .nonRepeating)
+                        .modifier(AvailabilitySymbolBounce())
 
                     // Overlay icon in top right
                     VStack {
@@ -632,6 +632,28 @@ extension View {
     /// Apply toast card styling
     func wizardToastCard() -> some View {
         modifier(WizardDesign.Component.ToastCard())
+    }
+}
+
+// MARK: - Availability-safe symbol effect helper
+
+struct AvailabilitySymbolBounce: ViewModifier {
+    let repeating: Bool
+
+    init(repeating: Bool = false) {
+        self.repeating = repeating
+    }
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            if repeating {
+                content.symbolEffect(.bounce, options: .repeating)
+            } else {
+                content.symbolEffect(.bounce, options: .nonRepeating)
+            }
+        } else {
+            content
+        }
     }
 }
 
@@ -807,8 +829,8 @@ struct AnimatedStatusIcon: View {
                     Image(systemName: finalStateIcon)
                         .foregroundColor(finalStateColor)
                         .font(.system(size: 16))
-                        .symbolEffect(.bounce, options: .nonRepeating)
-                        .symbolEffect(.bounce, options: isFinalStatus ? .repeating : .nonRepeating)
+                        .modifier(AvailabilitySymbolBounce())
+                        .modifier(AvailabilitySymbolBounce(repeating: isFinalStatus))
                         .transition(.asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.8)),
                             removal: .opacity
@@ -845,15 +867,15 @@ struct AnimatedStatusIcon: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(WizardDesign.Colors.success)
                         .font(.system(size: 16))
-                        .symbolEffect(.bounce, options: .nonRepeating)
-                        .symbolEffect(.bounce, options: isFinalStatus ? .repeating : .nonRepeating)
+                        .modifier(AvailabilitySymbolBounce())
+                        .modifier(AvailabilitySymbolBounce(repeating: isFinalStatus))
 
                 case .failed:
                     // Direct red X
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(WizardDesign.Colors.error)
                         .font(.system(size: 16))
-                        .symbolEffect(.bounce, options: .nonRepeating)
+                        .modifier(AvailabilitySymbolBounce())
                 }
             }
         }

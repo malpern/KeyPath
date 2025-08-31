@@ -29,7 +29,7 @@ struct WizardInputMonitoringPage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.success)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Green check overlay in top right
                             VStack {
@@ -115,7 +115,7 @@ struct WizardInputMonitoringPage: View {
                                 .font(.system(size: 115, weight: .light))
                                 .foregroundColor(WizardDesign.Colors.warning)
                                 .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, options: .nonRepeating)
+                                .modifier(AvailabilitySymbolBounce())
 
                             // Warning overlay in top right
                             VStack {

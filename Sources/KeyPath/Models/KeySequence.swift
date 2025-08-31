@@ -2,7 +2,7 @@ import ApplicationServices
 import Foundation
 
 /// Represents a captured key sequence including modifiers and timing
-public struct KeySequence: Identifiable, Codable, Equatable {
+public struct KeySequence: Identifiable, Codable, Equatable, Sendable {
     public let id = UUID()
     public let keys: [KeyPress]
     public let captureMode: CaptureMode
@@ -39,7 +39,7 @@ public struct KeySequence: Identifiable, Codable, Equatable {
 }
 
 /// Individual key press with modifiers and timing
-public struct KeyPress: Codable, Equatable {
+public struct KeyPress: Codable, Equatable, Sendable {
     public let baseKey: String
     public let modifiers: ModifierSet
     public let timestamp: Date
@@ -86,7 +86,7 @@ public struct KeyPress: Codable, Equatable {
 }
 
 /// Set of modifier keys
-public struct ModifierSet: OptionSet, Codable {
+public struct ModifierSet: OptionSet, Codable, Sendable {
     public let rawValue: UInt8
 
     public init(rawValue: UInt8) {
@@ -117,7 +117,7 @@ public struct ModifierSet: OptionSet, Codable {
 }
 
 /// Capture mode for key sequences
-public enum CaptureMode: String, CaseIterable, Codable {
+public enum CaptureMode: String, CaseIterable, Codable, Sendable {
     case single // Single key press
     case chord // Simultaneous key combination (e.g., Cmd+S)
     case sequence // Sequential key presses (e.g., g,g or Cmd+K Cmd+C)

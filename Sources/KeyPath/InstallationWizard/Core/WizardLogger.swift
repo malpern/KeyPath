@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 class WizardLogger {
     static let shared = WizardLogger()
 

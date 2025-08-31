@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 /// Lightweight floating bubble overlay presented in a borderless NSWindow
+@MainActor
 enum HelpBubbleOverlay {
     private static var window: NSWindow?
     private static var globalMonitor: Any?

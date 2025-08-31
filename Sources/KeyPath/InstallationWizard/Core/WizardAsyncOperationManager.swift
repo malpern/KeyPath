@@ -5,12 +5,13 @@ import SwiftUI
 /// Manages async operations throughout the wizard with consistent patterns and error handling
 /// Operations run in background threads to keep UI responsive
 @Observable
+@MainActor
 class WizardAsyncOperationManager {
     // MARK: - Observable State (MainActor for UI updates)
 
-    @MainActor var runningOperations: Set<String> = []
-    @MainActor var lastError: WizardError?
-    @MainActor var operationProgress: [String: Double] = [:]
+    var runningOperations: Set<String> = []
+    var lastError: WizardError?
+    var operationProgress: [String: Double] = [:]
 
     // MARK: - Cancellation Support
 
@@ -39,9 +40,7 @@ class WizardAsyncOperationManager {
             }
 
             // Store task for cancellation support (store the current detached task)
-            taskLock.lock()
-            // Note: We'll store the task reference outside this closure
-            taskLock.unlock()
+            // No locking here; main-actor code below stores task reference safely
 
             AppLogger.shared.log("🔄 [AsyncOp] Starting background operation: \(operation.name)")
 
@@ -90,9 +89,7 @@ class WizardAsyncOperationManager {
         }
 
         // Store the task reference for cancellation
-        taskLock.lock()
         runningTasks[operationId] = task
-        taskLock.unlock()
     }
 
     /// Check if a specific operation is running
@@ -107,9 +104,7 @@ class WizardAsyncOperationManager {
 
     /// Cancel all running operations (legacy method, may block main thread)
     func cancelAllOperations() {
-        taskLock.lock()
         let tasksToCancel = runningTasks.values
-        taskLock.unlock()
 
         // Cancel all tasks
         for task in tasksToCancel {
@@ -127,11 +122,9 @@ class WizardAsyncOperationManager {
     /// Cancel all running operations asynchronously (guaranteed no main thread blocking)
     func cancelAllOperationsAsync() {
         // Perform all cancellation work in background without any main thread involvement
-        taskLock.lock()
         let tasksToCancel = Array(runningTasks.values)
         let operationIds = Array(runningTasks.keys)
         runningTasks.removeAll()
-        taskLock.unlock()
 
         // Cancel all tasks (this doesn't block)
         for task in tasksToCancel {
@@ -149,9 +142,7 @@ class WizardAsyncOperationManager {
 
     /// Cancel a specific operation
     func cancelOperation(_ operationId: String) {
-        taskLock.lock()
         let task = runningTasks[operationId]
-        taskLock.unlock()
 
         task?.cancel()
 
@@ -164,9 +155,7 @@ class WizardAsyncOperationManager {
         runningOperations.remove(operationId)
         operationProgress.removeValue(forKey: operationId)
 
-        taskLock.lock()
         runningTasks.removeValue(forKey: operationId)
-        taskLock.unlock()
     }
 
     /// Reset stuck operations (useful when operations don't clean up properly)
@@ -291,14 +280,14 @@ enum WizardOperations {
             name: "Start Kanata Service"
         ) { progressCallback in
             progressCallback(0.1)
-            await kanataManager.startKanataWithSafetyTimeout()
+            await MainActor.run { kanataManager.startKanataWithSafetyTimeout() }
             progressCallback(0.8)
 
             // Wait for service to fully start
             try await Task.sleep(nanoseconds: 1_000_000_000)
             progressCallback(1.0)
 
-            return kanataManager.isRunning
+            return await MainActor.run { kanataManager.isRunning }
         }
     }
 
@@ -316,9 +305,9 @@ enum WizardOperations {
             // Open settings
             switch type {
             case .inputMonitoring:
-                kanataManager.openInputMonitoringSettings()
+                await MainActor.run { kanataManager.openInputMonitoringSettings() }
             case .accessibility:
-                kanataManager.openAccessibilitySettings()
+                await MainActor.run { kanataManager.openAccessibilitySettings() }
             }
 
             progressCallback(0.3)

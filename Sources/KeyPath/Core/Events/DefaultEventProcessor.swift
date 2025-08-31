@@ -11,7 +11,7 @@ public final class DefaultEventProcessor: EventProcessing {
     private weak var keyboardCapture: KeyboardCapture?
 
     /// Configuration for event processing behavior
-    public struct Configuration {
+    public struct Configuration: Sendable {
         public let suppressEvents: Bool
         public let logEvents: Bool
         public let enableKeyCodeMapping: Bool

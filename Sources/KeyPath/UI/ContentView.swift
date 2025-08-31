@@ -164,7 +164,7 @@ struct ContentView: View {
 
             // Status monitoring now handled centrally by SimpleKanataManager
         }
-        .onChange(of: kanataManager.showWizard) { shouldShow in
+        .onChange(of: kanataManager.showWizard) { _, shouldShow in
             AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
             AppLogger.shared.log(
                 "🔍 [ContentView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
@@ -176,13 +176,13 @@ struct ContentView: View {
             AppLogger.shared.log(
                 "🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
         }
-        .onChange(of: kanataManager.lastConfigUpdate) { _ in
+        .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
             // Show status message when config is updated externally
             showStatusMessage(message: "Key mappings updated")
             // Refresh validation after config changes
             startupValidator.refreshValidation()
         }
-        .onChange(of: kanataManager.currentState) { _ in
+        .onChange(of: kanataManager.currentState) { _, _ in
             // Refresh validation when lifecycle state changes
             startupValidator.refreshValidation()
         }
@@ -204,7 +204,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
             showingInstallationWizard = true
         }
-        .onChange(of: showingInstallationWizard) { showing in
+        .onChange(of: showingInstallationWizard) { _, showing in
             // When wizard closes, try to start emergency monitoring if we now have permissions
             if !showing {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -301,32 +301,28 @@ struct ContentView: View {
     private func setupRecoveryActionHandlers() {
         // Handle opening installation wizard
         NotificationCenter.default.addObserver(forName: .openInstallationWizard, object: nil, queue: .main) { _ in
-            showingInstallationWizard = true
+            Task { @MainActor in showingInstallationWizard = true }
         }
 
         // Handle resetting to safe config
         NotificationCenter.default.addObserver(forName: .resetToSafeConfig, object: nil, queue: .main) { _ in
-            Task {
-                do {
-                    _ = try await kanataManager.createDefaultUserConfigIfMissing()
-                    await kanataManager.updateStatus()
-                    showStatusMessage(message: "✅ Configuration reset to safe defaults")
-                } catch {
-                    showStatusMessage(message: "❌ Failed to reset configuration: \(error.localizedDescription)")
-                }
+            Task { @MainActor in
+                _ = await kanataManager.createDefaultUserConfigIfMissing()
+                await kanataManager.updateStatus()
+                showStatusMessage(message: "✅ Configuration reset to safe defaults")
             }
         }
 
         // Handle opening diagnostics
         NotificationCenter.default.addObserver(forName: .openDiagnostics, object: nil, queue: .main) { _ in
             // This would open a diagnostics window - implementation depends on app structure
-            showStatusMessage(message: "ℹ️ Opening diagnostics view...")
+            Task { @MainActor in showStatusMessage(message: "ℹ️ Opening diagnostics view...") }
         }
 
         // Handle user feedback from PermissionGrantCoordinator
         NotificationCenter.default.addObserver(forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: .main) { notification in
             if let message = notification.userInfo?["message"] as? String {
-                showStatusMessage(message: message)
+                Task { @MainActor in showStatusMessage(message: message) }
             }
         }
     }
