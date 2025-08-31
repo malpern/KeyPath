@@ -537,13 +537,6 @@ struct InstallationWizardView: View {
                 AppLogger.shared.log("🔍 [NewWizard] *** PERFORMAUTOFIX COMPLETED SUCCESSFULLY ***")
                 Swift.print("*** CRASH-PROOF *** performAutoFix completed successfully")
 
-            } catch {
-                AppLogger.shared.log("❌ [NewWizard] *** EXCEPTION IN PERFORMAUTOFIX *** \(error)")
-                Swift.print("*** CRASH-PROOF *** Exception in performAutoFix: \(error)")
-                try? "*** EXCEPTION *** performAutoFix failed: \(error)\n".write(
-                    to: URL(fileURLWithPath: NSHomeDirectory() + "/fix-button-debug.txt"), atomically: false,
-                    encoding: .utf8
-                )
             }
         }
     }

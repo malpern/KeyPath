@@ -33,7 +33,7 @@ cd "$(dirname "$0")/.."
 
 # 1. Unit Tests
 log_info "Running unit tests..."
-if swift test > /dev/null 2>&1; then
+if ./run-tests-workaround.sh > /dev/null 2>&1; then
     log_success "Unit tests passed"
 else
     log_error "Unit tests failed - build may still work"

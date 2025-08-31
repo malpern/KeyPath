@@ -360,7 +360,8 @@ class KanataConfigManager {
         var warnings: [ValidationWarning] = []
         var suggestions: [String] = []
 
-        let lines = config.components(separatedBy: .newlines)
+        // Lines not used currently; keep ready for future line-referenced diagnostics
+        // let lines = config.components(separatedBy: .newlines)
 
         // Check for required sections
         if !config.contains("(defcfg") {

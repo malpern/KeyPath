@@ -25,7 +25,7 @@ echo ""
 
 # Fallback to manual testing
 echo "Running Swift unit tests..."
-swift test
+./run-tests-workaround.sh
 
 echo ""
 echo "Running integration tests..."

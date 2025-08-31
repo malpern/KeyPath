@@ -155,6 +155,16 @@ The setup wizard will guide you through granting these permissions.
 - Read the [Debugging Guide](docs/DEBUGGING_KANATA.md)
 - Open an [Issue](https://github.com/yourusername/KeyPath/issues)
 
+### Xcode 26 beta test runner crash (Swift 6.2)
+
+If you're using Xcode 26.0 beta (Swift 6.2), `swift test` can crash with SIGABRT after all tests pass due to a beta test runtime cleanup bug. Use the workaround runner:
+
+```bash
+./run-tests-workaround.sh
+```
+
+Our main runners already use this workaround: `./run-tests.sh` and `./Scripts/run-tests.sh`. For CI, call the workaround script directly until a fixed beta is available.
+
 ## 🏗️ Requirements
 
 ### System Requirements

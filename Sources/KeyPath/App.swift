@@ -192,7 +192,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Check for pending service bounce first
         Task { @MainActor in
-            let (shouldBounce, timeSince) = await PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
+            let (shouldBounce, timeSince) = PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
 
             if shouldBounce {
                 if let timeSince {
@@ -201,10 +201,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested - performing bounce")
                 }
 
-                let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
+                let bounceSuccess = PermissionGrantCoordinator.shared.performServiceBounce()
                 if bounceSuccess {
                     AppLogger.shared.log("✅ [AppDelegate] Service bounce completed successfully")
-                    await PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+                    PermissionGrantCoordinator.shared.clearServiceBounceFlag()
                 } else {
                     AppLogger.shared.log("❌ [AppDelegate] Service bounce failed - flag remains for retry")
                 }

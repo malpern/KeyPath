@@ -1000,7 +1000,7 @@ class LaunchDaemonInstaller {
             // CRITICAL FIX: Admin dialogs must run on main thread for macOS security
             var taskSuccess = false
             var taskStatus: Int32 = -1
-            var taskOutput = ""
+            // taskOutput was unused; remove to silence warning
 
             if Thread.isMainThread {
                 AppLogger.shared.log("🔐 [LaunchDaemon] Executing on main thread")

@@ -132,10 +132,6 @@ class VHIDDeviceManager {
             AppLogger.shared.log("  - Health status: \(isHealthy)")
 
             return isHealthy
-        } catch {
-            AppLogger.shared.log("⚠️ [VHIDManager] Error reading log file: \(error)")
-            // If we can't read logs, assume healthy to avoid false positives
-            return true
         }
     }
 

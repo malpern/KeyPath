@@ -149,10 +149,6 @@ public final class EventRouter {
                 }
 
                 currentEvent = result
-
-            } catch {
-                // Continue with next processor on error (no logging in hot path for performance)
-                continue
             }
         }
 

@@ -49,13 +49,30 @@ enum ConfigError: Error, LocalizedError {
 
 /// Represents a simple key mapping from input to output
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
-    public let id = UUID()
+    public let id: UUID
     public let input: String
     public let output: String
 
-    public init(input: String, output: String) {
+    public init(id: UUID = UUID(), input: String, output: String) {
+        self.id = id
         self.input = input
         self.output = output
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, input, output }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
+        self.input = try container.decode(String.self, forKey: .input)
+        self.output = try container.decode(String.self, forKey: .output)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(input, forKey: .input)
+        try container.encode(output, forKey: .output)
     }
 }
 
@@ -460,7 +477,7 @@ class KanataManager: ObservableObject {
         // Check if VirtualHID daemon is running first
         if !isKarabinerDaemonRunning() {
             AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
-            await updatePublishedProperties(
+            updatePublishedProperties(
                 isRunning: isRunning,
                 lastProcessExitCode: lastProcessExitCode,
                 lastError: "Recovery failed: Karabiner daemon not available"
@@ -1068,7 +1085,7 @@ class KanataManager: ObservableObject {
                 canAutoFix: true
             )
             addDiagnostic(diagnostic)
-            await updatePublishedProperties(
+            updatePublishedProperties(
                 isRunning: isRunning,
                 lastProcessExitCode: lastProcessExitCode,
                 lastError: "Configuration Error: \(validation.errors.first ?? "Unknown error")"
@@ -1092,7 +1109,7 @@ class KanataManager: ObservableObject {
                     canAutoFix: false
                 )
                 addDiagnostic(diagnostic)
-                await updatePublishedProperties(
+                updatePublishedProperties(
                     isRunning: isRunning,
                     lastProcessExitCode: lastProcessExitCode,
                     lastError: "Conflict: karabiner_grabber is running"
@@ -1109,7 +1126,7 @@ class KanataManager: ObservableObject {
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: configPath) {
             AppLogger.shared.log("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
-            await updatePublishedProperties(
+            updatePublishedProperties(
                 isRunning: false,
                 lastProcessExitCode: 1,
                 lastError: "Configuration file not found: \(configPath)"
@@ -1119,7 +1136,7 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("✅ [DEBUG] Config file exists at: \(configPath)")
             if !fileManager.isReadableFile(atPath: configPath) {
                 AppLogger.shared.log("⚠️ [DEBUG] Config file is NOT readable")
-                await updatePublishedProperties(
+                updatePublishedProperties(
                     isRunning: false,
                     lastProcessExitCode: 1,
                     lastError: "Configuration file not readable: \(configPath)"
@@ -1159,7 +1176,7 @@ class KanataManager: ObservableObject {
                     await verifyNoProcessConflicts()
 
                     // Update state and clear old diagnostics when successfully starting
-                    await updatePublishedProperties(
+                    updatePublishedProperties(
                         isRunning: true,
                         lastProcessExitCode: nil,
                         lastError: nil,
@@ -1174,7 +1191,7 @@ class KanataManager: ObservableObject {
                     AppLogger.shared.log("⚠️ [Start] LaunchDaemon service started but PID not yet available")
 
                     // Update state to indicate running
-                    await updatePublishedProperties(
+                    updatePublishedProperties(
                         isRunning: true,
                         lastProcessExitCode: nil,
                         lastError: nil,
@@ -1186,7 +1203,7 @@ class KanataManager: ObservableObject {
                 }
             } else {
                 // Failed to start LaunchDaemon service
-                await updatePublishedProperties(
+                updatePublishedProperties(
                     isRunning: false,
                     lastProcessExitCode: 1,
                     lastError: "Failed to start LaunchDaemon service"
@@ -1206,7 +1223,7 @@ class KanataManager: ObservableObject {
                 addDiagnostic(diagnostic)
             }
         } catch {
-            await updatePublishedProperties(
+            updatePublishedProperties(
                 isRunning: false,
                 lastProcessExitCode: 1,
                 lastError: "Exception during LaunchDaemon start: \(error.localizedDescription)"
@@ -1929,7 +1946,7 @@ class KanataManager: ObservableObject {
 
             if serviceRunning {
                 // Service is running - clear any stale errors
-                await updatePublishedProperties(
+                updatePublishedProperties(
                     isRunning: serviceRunning,
                     lastProcessExitCode: nil,
                     lastError: nil,
@@ -1946,7 +1963,7 @@ class KanataManager: ObservableObject {
                 }
             } else {
                 // Service is not running
-                await updatePublishedProperties(
+                updatePublishedProperties(
                     isRunning: serviceRunning,
                     lastProcessExitCode: lastProcessExitCode,
                     lastError: lastError
