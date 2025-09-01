@@ -210,6 +210,9 @@ class KanataManager: ObservableObject {
     // Save progress feedback
     @Published var saveStatus: SaveStatus = .idle
 
+    // Wizard cleanup state
+    private var wizardCloseInFlight = false
+
     enum SaveStatus {
         case idle
         case saving
@@ -1463,6 +1466,15 @@ class KanataManager: ObservableObject {
 
     /// Called when wizard is closed (from SimpleKanataManager)
     func onWizardClosed() async {
+        // Prevent concurrent execution from multiple UI locations
+        if wizardCloseInFlight {
+            AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard close already in progress - ignoring duplicate call")
+            return
+        }
+        
+        wizardCloseInFlight = true
+        defer { wizardCloseInFlight = false }
+        
         AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed - attempting retry")
 
         await MainActor.run {

@@ -110,16 +110,16 @@ struct SettingsView: View {
         .sheet(isPresented: $showingDiagnostics) {
             DiagnosticsView(kanataManager: kanataManager)
         }
-        .sheet(isPresented: $showingInstallationWizard) {
+        .sheet(isPresented: $showingInstallationWizard, onDismiss: {
+            AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
+            // Use detached task with explicit priority to avoid blocking main thread
+            Task.detached(priority: .utility) { [kanataManager] in
+                await kanataManager.onWizardClosed()
+            }
+        }) {
             InstallationWizardView()
                 .onAppear {
                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard sheet is being presented")
-                }
-                .onDisappear {
-                    AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
-                    Task {
-                        await kanataManager.onWizardClosed()
-                    }
                 }
                 .environmentObject(kanataManager)
         }

@@ -81,7 +81,21 @@ struct ContentView: View {
         .padding()
         .frame(width: 500)
         .fixedSize(horizontal: false, vertical: true)
-        .sheet(isPresented: $showingInstallationWizard) {
+        .sheet(isPresented: $showingInstallationWizard, onDismiss: {
+            // When wizard closes, call KanataManager to handle the closure
+            AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
+            AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
+            AppLogger.shared.log("🎭 [ContentView] Calling kanataManager.onWizardClosed()")
+
+            // Use detached task with explicit priority to avoid blocking main thread
+            Task.detached(priority: .utility) { [kanataManager, startupValidator] in
+                await kanataManager.onWizardClosed()
+                // Re-run validation to update the status indicator
+                await MainActor.run {
+                    startupValidator.refreshValidation()
+                }
+            }
+        }) {
             // Determine initial page if we're returning from permission granting
             let initialPage: WizardPage? = {
                 if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
@@ -99,18 +113,6 @@ struct ContentView: View {
                     AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
                     if let page = initialPage {
                         AppLogger.shared.log("🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
-                    }
-                }
-                .onDisappear {
-                    // When wizard closes, call SimpleKanataManager to handle the closure
-                    AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
-                    AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
-                    AppLogger.shared.log("🎭 [ContentView] Calling kanataManager.onWizardClosed()")
-
-                    Task {
-                        await kanataManager.onWizardClosed()
-                        // Re-run validation to update the status indicator
-                        startupValidator.refreshValidation()
                     }
                 }
                 .environmentObject(kanataManager)
