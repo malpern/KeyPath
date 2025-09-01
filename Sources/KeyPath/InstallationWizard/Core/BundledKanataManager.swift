@@ -60,7 +60,11 @@ class BundledKanataManager {
     // MARK: - Private Methods
 
     private func findSystemKanataPath() -> String? {
-        let systemPaths = ["/usr/local/bin/kanata", "/opt/homebrew/bin/kanata"]
+        let systemPaths = [
+            WizardSystemPaths.kanataSystemInstallPath, // System install (highest priority)
+            "/usr/local/bin/kanata", // Intel Homebrew
+            "/opt/homebrew/bin/kanata" // ARM Homebrew
+        ]
 
         for path in systemPaths {
             if FileManager.default.fileExists(atPath: path) {

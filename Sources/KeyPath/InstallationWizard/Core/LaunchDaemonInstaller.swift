@@ -1795,7 +1795,7 @@ class LaunchDaemonInstaller {
                     "💡 [LaunchDaemon] SOLUTION: Grant Input Monitoring permission to kanata binary in System Settings > Privacy & Security > Input Monitoring"
                 )
                 AppLogger.shared.log(
-                    "💡 [LaunchDaemon] TIP: Look for 'kanata' in the list or add '/usr/local/bin/kanata' manually"
+                    "💡 [LaunchDaemon] TIP: Look for 'kanata' in the list or add '/Library/KeyPath/bin/kanata' manually"
                 )
             } else if lastLines.contains("failed to parse file") {
                 AppLogger.shared.log("❌ [LaunchDaemon] DIAGNOSIS: Configuration file has syntax errors")

@@ -335,7 +335,7 @@ class IssueGenerator {
     private func componentDescription(for component: ComponentRequirement) -> String {
         switch component {
         case .kanataBinary:
-            "The kanata binary is not installed or not found in expected locations. Checked paths: /opt/homebrew/bin/kanata, /usr/local/bin/kanata, ~/.cargo/bin/kanata"
+            "The kanata binary is not installed or not found in expected locations. Checked paths: /Library/KeyPath/bin/kanata (system install), bundled kanata, /opt/homebrew/bin/kanata, ~/.cargo/bin/kanata"
         case .kanataBinaryUnsigned:
             "The system kanata executable is not Developer ID signed. Replace it with the signed version bundled with KeyPath to receive Input Monitoring permission."
         case .kanataService:

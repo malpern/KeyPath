@@ -47,9 +47,9 @@ struct PermissionDetailsSheet: View {
 
                             Text("1. Open System Settings → Privacy & Security")
                             Text("2. Navigate to Input Monitoring")
-                            Text("3. Add both KeyPath.app and /usr/local/bin/kanata")
+                            Text("3. Add both KeyPath.app and /Library/KeyPath/bin/kanata")
                             Text("4. Navigate to Accessibility")
-                            Text("5. Add both KeyPath.app and /usr/local/bin/kanata")
+                            Text("5. Add both KeyPath.app and /Library/KeyPath/bin/kanata")
                             Text("6. You may need to restart KeyPath after granting permissions")
                         }
                         .font(.subheadline)
@@ -83,7 +83,7 @@ struct PermissionDetailsSheet: View {
                     "• Accessibility: \(hasAccessibility ? "✅ Granted" : "❌ Not Granted")\n"
                 report += "• TCC Database: \(keyPathHas ? "✅ Found" : "❌ Not Found")\n\n"
 
-                report += "kanata (/usr/local/bin/kanata):\n"
+                report += "kanata (/Library/KeyPath/bin/kanata):\n"
                 report += "• Input Monitoring (TCC): \(kanataHas ? "✅ Granted" : "❌ Not Granted")\n"
                 // Accessibility check removed - now handled by attempt-based detection
                 report += "• Accessibility: Will verify on actual use\n\n"
