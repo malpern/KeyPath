@@ -67,9 +67,11 @@ The PermissionOracle follows a strict hierarchy that was broken in commit 7f6882
    ├─ .granted/.denied → TRUST THIS RESULT (never bypass with TCC)
    └─ .unknown → Proceed to TCC fallback
 
-2. TCC DATABASE → FALLBACK ONLY for .unknown cases
-   ├─ Used to break chicken-and-egg problems  
-   └─ Can be stale/inconsistent (why it's not primary)
+2. TCC DATABASE → NECESSARY FALLBACK for .unknown cases
+   ├─ REQUIRED to break chicken-and-egg problems in wizard scenarios
+   ├─ When service isn't running, can't do functional verification  
+   ├─ When wizard needs permissions before starting service
+   └─ Can be stale/inconsistent (why it's not primary source)
 
 3. FUNCTIONAL VERIFICATION → For accessibility status only
    └─ UDP connectivity test (cannot determine Input Monitoring)
@@ -82,7 +84,8 @@ The PermissionOracle follows a strict hierarchy that was broken in commit 7f6882
 
 **✅ CORRECT BEHAVIOR (restored here):**
 - Trust Apple API `.granted/.denied` results unconditionally  
-- Only query TCC database when Apple API returns `.unknown`
+- DO use TCC database when Apple API returns `.unknown` (necessary for wizard scenarios)
+- TCC fallback is REQUIRED to break chicken-and-egg problems
 - Log source clearly: "gui-check" vs "tcc-fallback"
 
 **Historical Context:**

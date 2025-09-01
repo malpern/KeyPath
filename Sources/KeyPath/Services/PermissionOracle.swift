@@ -235,9 +235,11 @@ actor PermissionOracle {
         //    - GUI context can reliably check permissions for any binary path
         //    - This is the official Apple-approved method
         //
-        // 2. TCC DATABASE FALLBACK - ONLY when Apple API returns .unknown
-        //    - Used to break chicken-and-egg problems in rare edge cases
-        //    - TCC database can be stale/inconsistent (why we don't use it first)
+        // 2. TCC DATABASE FALLBACK - NECESSARY when Apple API returns .unknown
+        //    - REQUIRED to break chicken-and-egg problems in wizard scenarios
+        //    - When service isn't running, we can't do functional verification
+        //    - When wizard needs to know permissions before starting service
+        //    - TCC database can be stale/inconsistent (why it's not primary source)
         //    - Requires Full Disk Access which may not be available
         //
         // 3. FUNCTIONAL VERIFICATION - For accessibility status only
@@ -265,9 +267,9 @@ actor PermissionOracle {
         var sourceParts: [String] = ["gui-check"]
         var confidence: Confidence = .high
 
-        // 3) TCC FALLBACK: Only use when Apple API returned .unknown (chicken-and-egg edge cases)
+        // 3) TCC FALLBACK: NECESSARY when Apple API returns .unknown (chicken-and-egg scenarios)
         if case .unknown = inputMonitoring {
-            AppLogger.shared.log("🔮 [Oracle] Apple API returned unknown, falling back to TCC database")
+            AppLogger.shared.log("🔮 [Oracle] Apple API returned unknown, using NECESSARY TCC database fallback for chicken-and-egg resolution")
             let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
             
             var tccResults: [String] = []
