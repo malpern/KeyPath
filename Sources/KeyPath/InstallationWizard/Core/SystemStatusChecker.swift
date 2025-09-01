@@ -60,7 +60,6 @@ class SystemStatusChecker {
     private let kanataManager: KanataManager
     private let vhidDeviceManager: VHIDDeviceManager
     private let launchDaemonInstaller: LaunchDaemonInstaller
-    private let packageManager: PackageManager
     private let processLifecycleManager: ProcessLifecycleManager
     private let issueGenerator: IssueGenerator
 
@@ -81,7 +80,6 @@ class SystemStatusChecker {
         self.kanataManager = kanataManager
         vhidDeviceManager = VHIDDeviceManager()
         launchDaemonInstaller = LaunchDaemonInstaller()
-        packageManager = PackageManager()
         processLifecycleManager = ProcessLifecycleManager(kanataManager: kanataManager)
         issueGenerator = IssueGenerator()
     }
@@ -335,9 +333,34 @@ class SystemStatusChecker {
             AppLogger.shared.log("🟡 [SystemStatusChecker] Kanata Accessibility: Oracle inconclusive (unknown)")
         }
 
-        // Oracle permission detection is complete and authoritative
-        // SystemStatusChecker trusts Oracle results without overrides
-        AppLogger.shared.log("🔮 [SystemStatusChecker] Oracle completed all permission detection - trusting results")
+        // 🚨🚨🚨 CRITICAL: NEVER ADD ORACLE OVERRIDES HERE 🚨🚨🚨
+        //
+        // ⚠️  REGRESSION PREVENTION (September 1, 2025):
+        //     This exact location previously contained Oracle overrides that broke
+        //     permission detection consistency between main screen and wizard.
+        //
+        // 🚫 DO NOT ADD:
+        //    - "TCC Domain Mismatch" logic
+        //    - "HARD EVIDENCE OVERRIDE" log parsing
+        //    - Any logic that modifies `granted`/`missing` arrays after Oracle results
+        //    - SystemStatusChecker-specific permission detection
+        //
+        // ✅ WHY ORACLE IS AUTHORITATIVE:
+        //    - Oracle uses corrected Apple API priority hierarchy (commit 8445b36)
+        //    - Oracle handles TCC fallback properly for chicken-and-egg scenarios
+        //    - Oracle is the SINGLE SOURCE OF TRUTH for all permission detection
+        //
+        // 🔍 HISTORY:
+        //    - Commit 7f68821: Added overrides (BROKE consistency)
+        //    - Commit 8445b36: Fixed Oracle architecture
+        //    - Commit bbdd053: Removed overrides (RESTORED consistency)
+        //
+        // 🎯 RESULT:
+        //    Main screen (StartupValidator) and wizard (SystemStatusChecker) now show
+        //    identical permission status because both trust Oracle without modification.
+        //
+        // SystemStatusChecker trusts Oracle results without any overrides or modifications
+        AppLogger.shared.log("🔮 [SystemStatusChecker] Oracle permission detection complete - trusting authoritative results")
 
         // Check system extensions (not part of PermissionService - different category)
         let systemRequirements = SystemRequirements()
@@ -375,31 +398,13 @@ class SystemStatusChecker {
         var installed: [ComponentRequirement] = []
         var missing: [ComponentRequirement] = []
 
-        // Check Kanata binary and its signing status
-        let kanataInfo = packageManager.detectKanataInstallation()
-        if kanataInfo.isInstalled {
-            switch kanataInfo.codeSigningStatus {
-            case .developerIDSigned:
-                // Properly signed binary - mark as installed
-                installed.append(.kanataBinary)
-                AppLogger.shared.log("✅ [SystemStatusChecker] Kanata binary is properly signed")
-            case .adhocSigned, .unsigned, .invalid:
-                // Binary exists but is not properly signed - treat as unsigned issue
-                missing.append(.kanataBinaryUnsigned)
-                AppLogger.shared.log("⚠️ [SystemStatusChecker] Kanata binary is not Developer ID signed: \(kanataInfo.codeSigningStatus)")
-            }
-        } else {
-            // No kanata binary found at all
-            missing.append(.kanataBinary)
-            AppLogger.shared.log("❌ [SystemStatusChecker] No kanata binary found")
-        }
-
-        // Check package manager (Homebrew) - use PackageManager's method
-        if packageManager.isInstalled() {
-            installed.append(.packageManager)
-        } else {
-            missing.append(.packageManager)
-        }
+        // Use KanataBinaryDetector for unified kanata binary detection
+        let binaryDetector = KanataBinaryDetector.shared
+        installed.append(contentsOf: binaryDetector.getInstalledComponents())
+        missing.append(contentsOf: binaryDetector.getMissingComponents())
+        
+        let detectionResult = binaryDetector.detectCurrentStatus()
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Unified kanata detection: \(detectionResult.status) at \(detectionResult.path ?? "none")")
 
         // Check VHIDDevice Manager components
         if vhidDeviceManager.detectInstallation() {
@@ -625,12 +630,11 @@ class SystemStatusChecker {
             actions.append(.terminateConflictingProcesses)
         }
 
-        // Check if we can install missing packages via Homebrew
-        let homebrewAvailable = components.installed.contains(.packageManager)
-        let kanataNeeded = components.missing.contains(.kanataBinary)
+        // Check if we need to install bundled kanata binary
+        let kanataNeeded = components.missing.contains(.kanataBinaryMissing)
 
-        if homebrewAvailable, kanataNeeded {
-            actions.append(.installViaBrew)
+        if kanataNeeded {
+            actions.append(.installBundledKanata)
         }
 
         if components.canAutoInstall {

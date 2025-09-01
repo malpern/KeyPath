@@ -14,10 +14,6 @@ import Security
 /// because Kanata cannot connect to the required VirtualHID services.
 @MainActor
 class LaunchDaemonInstaller {
-    // MARK: - Dependencies
-
-    private let packageManager: PackageManager
-
     // MARK: - Constants
 
     private static let launchDaemonsPath: String = LaunchDaemonInstaller.resolveLaunchDaemonsPath()
@@ -53,9 +49,7 @@ class LaunchDaemonInstaller {
 
     // MARK: - Initialization
 
-    init(packageManager: PackageManager = PackageManager()) {
-        self.packageManager = packageManager
-    }
+    init() {}
 
     // MARK: - Diagnostic Methods
 
@@ -2262,6 +2256,128 @@ class LaunchDaemonInstaller {
             }
         } catch {
             AppLogger.shared.log("⚠️ [LaunchDaemon] Error during immediate log rotation: \(error)")
+        }
+    }
+    
+    /// Install only the bundled kanata binary to system location (recommended architecture)
+    /// This replaces the need for Homebrew installation and ensures proper Developer ID signing
+    func installBundledKanataBinaryOnly() -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Installing bundled kanata binary to system location")
+        
+        let bundledPath = WizardSystemPaths.bundledKanataPath
+        let systemPath = WizardSystemPaths.kanataSystemInstallPath
+        let systemDir = "/Library/KeyPath/bin"
+        
+        // Ensure bundled binary exists
+        guard FileManager.default.fileExists(atPath: bundledPath) else {
+            AppLogger.shared.log("❌ [LaunchDaemon] CRITICAL: Bundled kanata binary not found at: \(bundledPath)")
+            AppLogger.shared.log("❌ [LaunchDaemon] This indicates a packaging issue - the app bundle is missing the kanata binary")
+            // TODO: Surface this as a wizard issue with severity .critical
+            return false
+        }
+        
+        // Verify the bundled binary is executable
+        guard FileManager.default.isExecutableFile(atPath: bundledPath) else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Bundled kanata binary exists but is not executable: \(bundledPath)")
+            return false
+        }
+        
+        AppLogger.shared.log("📂 [LaunchDaemon] Copying \(bundledPath) → \(systemPath)")
+        
+        // Check if we should skip admin operations for testing
+        let success: Bool
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] TEST MODE: Skipping actual binary installation")
+            // In test mode, just verify the source exists and return success
+            success = FileManager.default.fileExists(atPath: bundledPath)
+        } else {
+            let command = """
+            mkdir -p '\(systemDir)' && \
+            cp '\(bundledPath)' '\(systemPath)' && \
+            chmod 755 '\(systemPath)' && \
+            chown root:wheel '\(systemPath)' && \
+            xattr -d com.apple.quarantine '\(systemPath)' 2>/dev/null || true
+            """
+            
+            // Use osascript approach like other admin operations
+            let escapedCommand = escapeForAppleScript(command)
+            let osascriptCommand = """
+            do shell script "\(escapedCommand)" with administrator privileges
+            """
+            
+            success = executeOSAScriptOnMainThread(osascriptCommand)
+        }
+        
+        if success {
+            AppLogger.shared.log("✅ [LaunchDaemon] Bundled kanata binary installed successfully to \(systemPath)")
+            
+            // Verify code signing and trust
+            AppLogger.shared.log("🔍 [LaunchDaemon] Verifying code signing and trust...")
+            let verifyCommand = "spctl -a '\(systemPath)' 2>&1"
+            let verifyTask = Process()
+            verifyTask.executableURL = URL(fileURLWithPath: "/bin/bash")
+            verifyTask.arguments = ["-c", verifyCommand]
+            
+            let pipe = Pipe()
+            verifyTask.standardOutput = pipe
+            verifyTask.standardError = pipe
+            
+            do {
+                try verifyTask.run()
+                verifyTask.waitUntilExit()
+                
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(data: data, encoding: .utf8) ?? ""
+                
+                if verifyTask.terminationStatus == 0 {
+                    AppLogger.shared.log("✅ [LaunchDaemon] Binary passed Gatekeeper verification")
+                } else if output.contains("rejected") || output.contains("not accepted") {
+                    AppLogger.shared.log("⚠️ [LaunchDaemon] Binary failed Gatekeeper verification: \(output)")
+                    // Continue anyway - the binary is installed and quarantine removed
+                }
+            } catch {
+                AppLogger.shared.log("⚠️ [LaunchDaemon] Could not verify code signing: \(error)")
+            }
+            
+            // Smoke test: verify the binary can actually execute (skip in test mode)
+            if !TestEnvironment.shouldSkipAdminOperations {
+                AppLogger.shared.log("🔍 [LaunchDaemon] Running smoke test to verify binary execution...")
+                let smokeTest = Process()
+                smokeTest.executableURL = URL(fileURLWithPath: systemPath)
+                smokeTest.arguments = ["--version"]
+                
+                let smokePipe = Pipe()
+                smokeTest.standardOutput = smokePipe
+                smokeTest.standardError = smokePipe
+                
+                do {
+                    try smokeTest.run()
+                    smokeTest.waitUntilExit()
+                    
+                    let smokeData = smokePipe.fileHandleForReading.readDataToEndOfFile()
+                    let smokeOutput = String(data: smokeData, encoding: .utf8) ?? ""
+                    
+                    if smokeTest.terminationStatus == 0 {
+                        AppLogger.shared.log("✅ [LaunchDaemon] Kanata binary executes successfully (--version): \(smokeOutput.trimmingCharacters(in: .whitespacesAndNewlines))")
+                    } else {
+                        AppLogger.shared.log("⚠️ [LaunchDaemon] Kanata exec smoke test failed with exit code \(smokeTest.terminationStatus): \(smokeOutput)")
+                        // Continue anyway - the binary is installed
+                    }
+                } catch {
+                    AppLogger.shared.log("⚠️ [LaunchDaemon] Kanata exec smoke test threw error: \(error)")
+                    // Continue anyway - the binary is installed
+                }
+            }
+            
+            // Verify the installation using detector
+            let detector = KanataBinaryDetector.shared
+            let result = detector.detectCurrentStatus()
+            AppLogger.shared.log("🔍 [LaunchDaemon] Post-installation detection: \(result.status) at \(result.path ?? "unknown")")
+            
+            return result.status == .systemInstalled
+        } else {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to install bundled kanata binary")
+            return false
         }
     }
 }

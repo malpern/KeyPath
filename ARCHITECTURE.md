@@ -652,6 +652,30 @@ swift test --filter WizardNavigationEngineTests
 - UI consistency restored: green checkmarks when service works
 - Architecture protected with rigorous documentation
 
+### ADR-008: UI Permission Detection Consistency (CRITICAL)
+**Decision:** Remove all Oracle overrides from SystemStatusChecker to ensure UI consistency  
+**Status:** ✅ COMPLETED (commit bbdd053 - September 1, 2025)  
+**Problem:** Different UI components showed conflicting permission status  
+**Evidence:**
+- Main screen: Green checkmark (Oracle result)
+- Wizard screens: Red X marks (SystemStatusChecker overrides)
+- User confusion: "Permission screens inconsistent - which is correct?"
+**Root Cause:** Commit 7f68821 added Oracle overrides to SystemStatusChecker that were never removed when Oracle was fixed in commit 8445b36  
+**Solution:**
+- ✅ Removed "TCC Domain Mismatch" logic from SystemStatusChecker
+- ✅ Removed "HARD EVIDENCE OVERRIDE" log parsing logic
+- ✅ SystemStatusChecker now trusts Oracle results unconditionally
+- ✅ Added 25-line anti-regression comment with commit references
+**Architecture Rule:** ALL UI components MUST use Oracle as single source of truth  
+**Components Verified:**
+- StartupValidator (main screen) → Oracle ✅
+- SystemStatusChecker (wizard) → Oracle (without overrides) ✅  
+- ContentView indicators → Oracle ✅
+**Prevention:** Extensive source code warnings at exact regression location (SystemStatusChecker:338-365)  
+**Consequences:**
+- UI consistency restored across all permission indicators
+- Single source of truth architecture maintained
+- Future regression prevented with rigorous documentation
 
 ---
 
@@ -671,4 +695,4 @@ swift test --filter WizardNavigationEngineTests
 ---
 
 *Last Updated: September 1, 2025*  
-*Architecture Version: 2.4 (Oracle Apple API Priority Restored, Critical Documentation Added)*
+*Architecture Version: 2.5 (UI Permission Consistency Restored, Regression Prevention Complete)*

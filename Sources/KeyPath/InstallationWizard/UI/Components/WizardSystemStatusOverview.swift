@@ -288,10 +288,8 @@ struct WizardSystemStatusOverview: View {
         let hasKanataIssues = issues.contains { issue in
             if issue.category == .installation {
                 switch issue.identifier {
-                case .component(.kanataBinary),
-                     .component(.kanataBinaryUnsigned),
+                case .component(.kanataBinaryMissing),
                      .component(.kanataService),
-                     .component(.packageManager),
                      .component(.orphanedKanataProcess):
                     return true
                 default:

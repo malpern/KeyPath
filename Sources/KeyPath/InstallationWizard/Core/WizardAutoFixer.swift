@@ -98,8 +98,8 @@ class WizardAutoFixer: AutoFixCapable {
             vhidDeviceManager.detectInstallation() // Only if manager is installed
         case .installLaunchDaemonServices:
             true // We can attempt to install LaunchDaemon services
-        case .installViaBrew:
-            packageManager.checkHomebrewInstallation() // Only if Homebrew is available
+        case .installBundledKanata:
+            true // We can always install bundled kanata binary
         case .repairVHIDDaemonServices:
             true
         case .synchronizeConfigPaths:
@@ -152,8 +152,8 @@ class WizardAutoFixer: AutoFixCapable {
             return await activateVHIDDeviceManager()
         case .installLaunchDaemonServices:
             return await installLaunchDaemonServices()
-        case .installViaBrew:
-            return await installViaBrew()
+        case .installBundledKanata:
+            return await installBundledKanata()
         case .repairVHIDDaemonServices:
             return await repairVHIDDaemonServices()
         case .synchronizeConfigPaths:
@@ -650,41 +650,52 @@ class WizardAutoFixer: AutoFixCapable {
         return success
     }
 
-    private func installViaBrew() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Installing packages via Homebrew")
+    private func installBundledKanata() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Installing bundled kanata binary to system location")
 
+        let totalSteps = 2
         var stepsCompleted = 0
-        let stepsFailed = 0
-        let totalSteps = 3
 
-        // Step 1: Check if Homebrew is available
-        AppLogger.shared.log("🔧 [AutoFixer] Step 1/\(totalSteps): Checking Homebrew availability...")
-        guard packageManager.checkHomebrewInstallation() else {
-            AppLogger.shared.log(
-                "❌ [AutoFixer] Step 1 FAILED: Homebrew not available for package installation")
+        // Step 1: Check if bundled binary is available and properly signed
+        AppLogger.shared.log("🔧 [AutoFixer] Step 1/\(totalSteps): Verifying bundled kanata binary...")
+        let bundledManager = await BundledKanataManager()
+        let signingStatus = await bundledManager.bundledKanataSigningStatus()
+        
+        guard signingStatus.isDeveloperID else {
+            AppLogger.shared.log("❌ [AutoFixer] Step 1 FAILED: Bundled kanata binary is not properly signed: \(signingStatus)")
             return false
         }
-        AppLogger.shared.log("✅ [AutoFixer] Step 1 SUCCESS: Homebrew is available")
+        AppLogger.shared.log("✅ [AutoFixer] Step 1 SUCCESS: Bundled kanata binary is properly signed")
         stepsCompleted += 1
 
-        // Step 2: Check what packages need to be installed
+        // Step 2: Install bundled binary to system location
+        AppLogger.shared.log("🔧 [AutoFixer] Step 2/\(totalSteps): Installing bundled binary to system location...")
+        let installSuccess = await bundledManager.replaceBinaryWithBundled()
+        
+        if installSuccess {
+            stepsCompleted += 1
+            AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Bundled kanata binary installed successfully")
+            
+            // Clear SystemStatusChecker cache to reflect the new installation state immediately
+            AppLogger.shared.log("🔄 [AutoFixer] Clearing status cache after binary installation")
+            // Clear existing checker's cache first (on MainActor)
+            let manager = kanataManager
+            await MainActor.run {
+                let checker = SystemStatusChecker.shared(kanataManager: manager)
+                checker.clearCache()
+            }
+            // Then reset singleton for future calls
+            await SystemStatusChecker.resetSharedInstance()
+            
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Step 2 FAILED: Failed to install bundled kanata binary")
+            return false
+        }
+
         AppLogger.shared.log(
-            "🔧 [AutoFixer] Step 2/\(totalSteps): Detecting current package installation...")
-        _ = packageManager.detectKanataInstallation()
-        AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Package detection complete")
-        stepsCompleted += 1
-
-        // Step 3: Skip external Kanata installation - use bundled version only
-        AppLogger.shared.log("🔧 [AutoFixer] Step 3/\(totalSteps): Using bundled Kanata (no external installation)...")
-        AppLogger.shared.log("✅ [AutoFixer] Step 3 SUCCESS: Using bundled signed Kanata binary")
-        stepsCompleted += 1
-
-        let success = stepsFailed == 0
-        AppLogger.shared.log(
-            "✅ [AutoFixer] Homebrew installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)"
+            "✅ [AutoFixer] Bundled kanata installation completed successfully (\(stepsCompleted)/\(totalSteps) steps)"
         )
-
-        return success
+        return true
     }
 
     // MARK: - Helper Methods

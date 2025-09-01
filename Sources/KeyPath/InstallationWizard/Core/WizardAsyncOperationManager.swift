@@ -232,7 +232,7 @@ enum WizardOperations {
                 progressCallback(1.0)
                 return success
 
-            case .installMissingComponents, .installViaBrew:
+            case .installMissingComponents, .installBundledKanata:
                 // Longer operations - more detailed progress
                 progressCallback(0.15)
 
@@ -561,8 +561,8 @@ extension AutoFixAction {
             "Adopt Orphaned Process"
         case .replaceOrphanedProcess:
             "Replace Orphaned Process"
-        case .installViaBrew:
-            "Install via Homebrew"
+        case .installBundledKanata:
+            "Install Kanata Binary"
         case .repairVHIDDaemonServices:
             "Repair VHID Daemon Services"
         case .synchronizeConfigPaths:

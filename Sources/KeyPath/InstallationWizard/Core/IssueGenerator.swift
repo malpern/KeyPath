@@ -226,7 +226,7 @@ class IssueGenerator {
 
     func createLogRotationIssue() -> WizardIssue {
         WizardIssue(
-            identifier: .component(.kanataBinary), // Use existing identifier
+            identifier: .component(.logRotation),
             severity: .info,
             category: .installation,
             title: "Log Rotation Recommended",
@@ -311,8 +311,7 @@ class IssueGenerator {
 
     private func componentTitle(for component: ComponentRequirement) -> String {
         switch component {
-        case .kanataBinary: WizardConstants.Titles.kanataBinaryMissing
-        case .kanataBinaryUnsigned: "Kanata Binary Unsigned"
+        case .kanataBinaryMissing: WizardConstants.Titles.kanataBinaryMissing
         case .kanataService: "Kanata Service Missing"
         case .karabinerDriver: WizardConstants.Titles.karabinerDriverMissing
         case .karabinerDaemon: WizardConstants.Titles.daemonNotRunning
@@ -322,22 +321,20 @@ class IssueGenerator {
         case .vhidDaemonMisconfigured: "VirtualHIDDevice Daemon Misconfigured"
         case .launchDaemonServices: "LaunchDaemon Services Not Installed"
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
-        case .packageManager: "Package Manager (Homebrew) Missing"
         case .kanataUDPServer: "UDP Server Not Responding"
         case .orphanedKanataProcess: "Orphaned Kanata Process"
         case .communicationServerConfiguration: "Communication Server Configuration Outdated"
         case .communicationServerNotResponding: "Communication Server Not Responding"
         case .udpServerConfiguration: "UDP Server Configuration Outdated"
         case .udpServerNotResponding: "UDP Server Not Responding"
+        case .logRotation: "Log Rotation Recommended"
         }
     }
 
     private func componentDescription(for component: ComponentRequirement) -> String {
         switch component {
-        case .kanataBinary:
-            "The kanata binary is not installed or not found in expected locations. Checked paths: /Library/KeyPath/bin/kanata (system install), bundled kanata, /opt/homebrew/bin/kanata, ~/.cargo/bin/kanata"
-        case .kanataBinaryUnsigned:
-            "The system kanata executable is not Developer ID signed. Replace it with the signed version bundled with KeyPath to receive Input Monitoring permission."
+        case .kanataBinaryMissing:
+            "The kanata binary needs to be installed to system location from KeyPath's bundled Developer ID signed version. This ensures proper code signing for Input Monitoring permission."
         case .kanataService:
             "Kanata service configuration is missing."
         case .karabinerDriver:
@@ -358,8 +355,6 @@ class IssueGenerator {
             "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
         case .launchDaemonServicesUnhealthy:
             "LaunchDaemon services are loaded but crashing or failing. This usually indicates a configuration problem or permission issue that can be fixed by restarting the services."
-        case .packageManager:
-            "Homebrew package manager is not installed. This is needed to automatically install missing dependencies like Kanata. Install from https://brew.sh"
         case .kanataUDPServer:
             "Kanata UDP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with UDP enabled."
         case .orphanedKanataProcess:
@@ -396,12 +391,14 @@ class IssueGenerator {
 
             This prevents low-latency communication and may affect external integrations. The service may need to be restarted.
             """
+        case .logRotation:
+            "Install log rotation to automatically manage Kanata logs and keep them under 10MB total. This prevents performance issues from large log files."
         }
     }
 
     private func getAutoFixAction(for component: ComponentRequirement) -> AutoFixAction? {
         switch component {
-        case .karabinerDriver, .vhidDeviceManager, .packageManager:
+        case .karabinerDriver, .vhidDeviceManager:
             nil // These require manual installation
         case .vhidDeviceActivation:
             .activateVHIDDeviceManager
@@ -413,10 +410,8 @@ class IssueGenerator {
             .installLaunchDaemonServices
         case .launchDaemonServicesUnhealthy:
             .restartUnhealthyServices
-        case .kanataBinary:
-            .installViaBrew // Can be installed via Homebrew if available
-        case .kanataBinaryUnsigned:
-            .replaceKanataWithBundled // Replace with bundled Developer ID signed binary
+        case .kanataBinaryMissing:
+            .installBundledKanata // Install bundled kanata binary to system location
         case .kanataService:
             .installLaunchDaemonServices // Service configuration files
         case .kanataUDPServer:
@@ -431,6 +426,8 @@ class IssueGenerator {
             .enableUDPServer // Enable UDP server
         case .udpServerNotResponding:
             .enableUDPServer // Enable UDP server functionality
+        case .logRotation:
+            .installLogRotation
         default:
             .installMissingComponents
         }
@@ -442,12 +439,8 @@ class IssueGenerator {
             "Install Karabiner-Elements from website"
         case .vhidDeviceManager:
             "Install Karabiner-VirtualHIDDevice from website"
-        case .packageManager:
-            "Install Homebrew from https://brew.sh"
-        case .kanataBinary:
+        case .kanataBinaryMissing:
             "Use the Installation Wizard to install Kanata automatically"
-        case .kanataBinaryUnsigned:
-            "Click 'Replace with Signed Version' to use KeyPath's bundled Developer ID signed kanata"
         case .communicationServerConfiguration:
             "Click 'Fix' to update the service with current communication settings"
         case .communicationServerNotResponding:
@@ -456,6 +449,8 @@ class IssueGenerator {
             "Click 'Fix' to enable UDP server"
         case .udpServerNotResponding:
             "Click 'Fix' to restart the service with UDP functionality"
+        case .logRotation:
+            "Click 'Fix' to install log rotation service"
         default:
             nil
         }
@@ -465,12 +460,8 @@ class IssueGenerator {
         switch component {
         case .vhidDeviceManager:
             "Install Karabiner-VirtualHIDDevice from website"
-        case .packageManager:
-            "Install Homebrew from https://brew.sh"
-        case .kanataBinary:
+        case .kanataBinaryMissing:
             "Use the Installation Wizard to install Kanata automatically"
-        case .kanataBinaryUnsigned:
-            "Use the Installation Wizard to replace with signed version"
         default:
             nil
         }

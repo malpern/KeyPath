@@ -111,8 +111,7 @@ enum PermissionRequirement: Equatable {
 
 /// Component requirements that need installation
 enum ComponentRequirement: Equatable {
-    case kanataBinary
-    case kanataBinaryUnsigned // Kanata binary exists but lacks proper Developer ID signing
+    case kanataBinaryMissing // Kanata binary needs to be installed to system location
     case kanataService
     case karabinerDriver
     case karabinerDaemon
@@ -121,7 +120,6 @@ enum ComponentRequirement: Equatable {
     case vhidDeviceRunning
     case launchDaemonServices
     case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
-    case packageManager // Homebrew or other package manager
     case vhidDaemonMisconfigured
     case kanataUDPServer // UDP server for Kanata communication and config validation
     case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
@@ -129,6 +127,7 @@ enum ComponentRequirement: Equatable {
     case communicationServerNotResponding // Communication server configured but not responding
     case udpServerConfiguration // UDP enabled but not configured in service
     case udpServerNotResponding // UDP configured but not responding
+    case logRotation // Log rotation service to manage Kanata logs
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -140,7 +139,7 @@ enum AutoFixAction: Equatable {
     case createConfigDirectories
     case activateVHIDDeviceManager
     case installLaunchDaemonServices
-    case installViaBrew // Install missing packages via Homebrew
+    case installBundledKanata // Install bundled kanata binary to system location
     case repairVHIDDaemonServices
     case synchronizeConfigPaths // Fix config path mismatches
     case restartUnhealthyServices // Restart services that are loaded but crashed

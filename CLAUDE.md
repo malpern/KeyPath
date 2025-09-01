@@ -91,7 +91,41 @@ The PermissionOracle follows a strict hierarchy that was broken in commit 7f6882
 **Historical Context:**
 - **commit 71d7d06**: Original correct Oracle design
 - **commit 7f68821**: ❌ Broke Oracle by always using TCC fallback  
-- **This commit**: ✅ Restored Apple-first hierarchy
+- **commit 8445b36**: ✅ Restored Oracle Apple-first hierarchy
+- **commit bbdd053**: ✅ Fixed UI consistency by removing SystemStatusChecker overrides
+
+### 🚨 UI Consistency (CRITICAL LESSON - September 1, 2025)
+
+**Problem:** Different UI components showed conflicting permission status.
+- Main screen: ✅ Green checkmark
+- Wizard screens: ❌ Red X marks
+
+**Root Cause:** SystemStatusChecker contained Oracle overrides that were never removed after fixing the Oracle.
+
+**Architecture Rule:** ALL UI components must use Oracle as single source of truth.
+
+```swift
+// ✅ CORRECT - All components use same Oracle API
+let snapshot = await PermissionOracle.shared.currentSnapshot()
+if snapshot.keyPath.inputMonitoring.isReady { /* show green */ }
+
+// ❌ WRONG - Different components use different permission checks
+// MainScreen: Oracle → Green ✅
+// Wizard: SystemStatusChecker overrides Oracle → Red ❌
+```
+
+**Components That Must Use Oracle Consistently:**
+- `StartupValidator` (main screen status) → Uses Oracle ✅
+- `SystemStatusChecker` (wizard status) → MUST trust Oracle without overrides ✅
+- `ContentView` status indicators → Uses Oracle ✅
+- All permission UI components → Must use Oracle ✅
+
+**Never Add These SystemStatusChecker Overrides Again:**
+- "TCC Domain Mismatch" logic that assumes system/user database differences
+- "HARD EVIDENCE OVERRIDE" that parses kanata logs for permission errors
+- Any logic that modifies Oracle results based on assumptions
+
+**The Fix:** SystemStatusChecker now trusts Oracle unconditionally (commit bbdd053).
 
 ### Installation Wizard Flow
 The wizard follows a state-driven architecture with these key pages:

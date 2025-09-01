@@ -24,7 +24,7 @@ enum WizardSystemPaths {
         "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
     }
 
-    /// Active kanata binary path - returns system install path for LaunchDaemon
+    /// Active kanata binary path - uses simple filesystem checks for performance
     /// Single canonical path eliminates TCC permission fragmentation
     static var kanataActiveBinary: String {
         // Use system install path if it exists (for LaunchDaemon)
@@ -112,7 +112,7 @@ enum WizardSystemPaths {
 
     // MARK: - Helper Methods
 
-    /// Returns the best available kanata binary path
+    /// Returns the best available kanata binary path - simple filesystem check for performance
     static func detectKanataBinaryPath() -> String? {
         // Prefer system-installed path (for LaunchDaemon)
         if FileManager.default.fileExists(atPath: kanataSystemInstallPath) {

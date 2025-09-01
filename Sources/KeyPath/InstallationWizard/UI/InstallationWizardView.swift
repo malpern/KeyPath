@@ -643,8 +643,8 @@ struct InstallationWizardView: View {
             "Connect existing Kanata to KeyPath management"
         case .replaceOrphanedProcess:
             "Replace orphaned process with managed service"
-        case .installViaBrew:
-            "Install packages via Homebrew"
+        case .installBundledKanata:
+            "Install Kanata binary"
         case .repairVHIDDaemonServices:
             "Repair VHID LaunchDaemon services"
         case .synchronizeConfigPaths:
@@ -826,8 +826,8 @@ struct InstallationWizardView: View {
             return "Installing Missing Components"
         } else if operationId.contains("auto_fix_activateVHIDDeviceManager") {
             return "Activating Driver Extensions"
-        } else if operationId.contains("auto_fix_installViaBrew") {
-            return "Installing via Homebrew"
+        } else if operationId.contains("auto_fix_installBundledKanata") {
+            return "Installing Kanata binary"
         } else if operationId.contains("auto_fix_startKarabinerDaemon") {
             return "Starting System Daemon"
         } else if operationId.contains("auto_fix_restartVirtualHIDDaemon") {
@@ -876,8 +876,8 @@ struct InstallationWizardView: View {
             "Failed to install system services. Check that you provided admin password and try again."
         case .activateVHIDDeviceManager:
             "Failed to activate driver extensions. Please manually approve in System Settings > General > Login Items & Extensions."
-        case .installViaBrew:
-            "Failed to install packages via Homebrew. Check your internet connection or install manually."
+        case .installBundledKanata:
+            "Failed to install Kanata binary. Check admin permissions and try again."
         case .startKarabinerDaemon:
             "Failed to start system daemon. Check System Settings > Privacy & Security > System Extensions."
         case .createConfigDirectories:

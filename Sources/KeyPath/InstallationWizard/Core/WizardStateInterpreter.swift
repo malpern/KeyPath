@@ -167,9 +167,8 @@ struct WizardStateInterpreter {
             issues.filter { issue in
                 if issue.category == .installation {
                     switch issue.identifier {
-                    case .component(.kanataBinary),
-                         .component(.kanataService),
-                         .component(.packageManager):
+                    case .component(.kanataBinaryMissing),
+                         .component(.kanataService):
                         return true
                     default:
                         return false

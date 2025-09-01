@@ -231,8 +231,8 @@ struct WizardKanataComponentsPage: View {
             // Bottom buttons
             VStack(spacing: WizardDesign.Spacing.elementGap) {
                 if needsManualInstallation, kanataRelatedIssues.count > 0 || componentStatus(for: "Kanata Binary") != .completed {
-                    Button("Install via Homebrew") {
-                        installViaHomebrew()
+                    Button("Install Kanata") {
+                        installBundledKanata()
                     }
                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                 }
@@ -272,10 +272,8 @@ struct WizardKanataComponentsPage: View {
             // Include installation issues related to Kanata
             if issue.category == .installation {
                 switch issue.identifier {
-                case .component(.kanataBinary),
-                     .component(.kanataBinaryUnsigned),
-                     .component(.kanataService),
-                     .component(.packageManager):
+                case .component(.kanataBinaryMissing),
+                     .component(.kanataService):
                     return true
                 default:
                     return false
@@ -292,7 +290,7 @@ struct WizardKanataComponentsPage: View {
         case "Kanata Binary":
             let hasIssue = issues.contains { issue in
                 if case let .component(component) = issue.identifier {
-                    return component == .kanataBinary || component == .kanataBinaryUnsigned
+                    return component == .kanataBinaryMissing
                 }
                 return false
             }
@@ -309,14 +307,6 @@ struct WizardKanataComponentsPage: View {
             }
             return hasIssue ? .failed : .completed
 
-        case "Package Manager":
-            let hasIssue = issues.contains { issue in
-                if case let .component(component) = issue.identifier {
-                    return component == .packageManager
-                }
-                return false
-            }
-            return hasIssue ? .failed : .completed
 
         default:
             // Fallback for any other potential component
@@ -330,7 +320,7 @@ struct WizardKanataComponentsPage: View {
     private var needsManualInstallation: Bool {
         // Need manual installation if Kanata binary is missing
         issues.contains { issue in
-            issue.identifier == .component(.kanataBinary)
+            issue.identifier == .component(.kanataBinaryMissing)
         }
     }
 
@@ -338,14 +328,10 @@ struct WizardKanataComponentsPage: View {
         // Use identifiers instead of stringly-typed title matching
         if case let .component(component) = issue.identifier {
             switch component {
-            case .kanataBinary:
+            case .kanataBinaryMissing:
                 return "Kanata Binary"
-            case .kanataBinaryUnsigned:
-                return "Kanata Binary (Signing Issue)"
             case .kanataService:
                 return "Kanata Service Configuration"
-            case .packageManager:
-                return "Package Manager"
             default:
                 return issue.title
             }
@@ -357,14 +343,10 @@ struct WizardKanataComponentsPage: View {
         // Use identifiers instead of stringly-typed title matching
         if case let .component(component) = issue.identifier {
             switch component {
-            case .kanataBinary:
-                return "The kanata executable needs to be installed (typically via Homebrew)"
-            case .kanataBinaryUnsigned:
-                return "System kanata is not Developer ID signed and cannot receive Input Monitoring permission. Click 'Fix' to replace with KeyPath's signed version."
+            case .kanataBinaryMissing:
+                return "The kanata binary needs to be installed to system location from KeyPath's bundled Developer ID signed version"
             case .kanataService:
                 return "Service configuration files for running kanata in the background"
-            case .packageManager:
-                return "Homebrew or another package manager is needed to install kanata"
             default:
                 return issue.description
             }
@@ -372,29 +354,17 @@ struct WizardKanataComponentsPage: View {
         return issue.description
     }
 
-    private func installViaHomebrew() {
-        // Try to install via the auto-fix system first
-        if let homebrewIssue = issues.first(where: { $0.autoFixAction == .installViaBrew }) {
-            fixingIssues.insert(homebrewIssue.id)
+    private func installBundledKanata() {
+        AppLogger.shared.log("🔧 [WizardKanataComponentsPage] User requested bundled kanata installation")
+        if let kanataIssue = issues.first(where: { $0.autoFixAction == .installBundledKanata }) {
+            fixingIssues.insert(kanataIssue.id)
 
             Task {
-                _ = await onAutoFix(.installViaBrew)
+                _ = await onAutoFix(.installBundledKanata)
 
-                _ = await MainActor.run {
-                    fixingIssues.remove(homebrewIssue.id)
+                await MainActor.run {
+                    _ = fixingIssues.remove(kanataIssue.id)
                 }
-            }
-        } else {
-            // Fallback to opening Terminal with the command
-            let script = """
-            tell application "Terminal"
-                activate
-                do script "brew install kanata"
-            end tell
-            """
-
-            if let appleScript = NSAppleScript(source: script) {
-                appleScript.executeAndReturnError(nil)
             }
         }
     }
