@@ -67,18 +67,26 @@ final class PreferencesService: @unchecked Sendable {
         }
         set {
             // Write directly to shared file (single source of truth)
-            if newValue.isEmpty {
-                // Clear token - remove file
-                let tokenPath = CommunicationSnapshot.udpAuthTokenPath()
-                try? FileManager.default.removeItem(atPath: tokenPath)
-                AppLogger.shared.log("🔧 [PreferencesService] UDP auth token cleared")
-            } else {
-                // Set token - write to shared file
-                let success = CommunicationSnapshot.writeSharedUDPToken(newValue)
-                if success {
-                    AppLogger.shared.log("🔧 [PreferencesService] UDP auth token updated in shared file")
+            // Use Task.detached to avoid blocking main thread for file I/O
+            let value = newValue
+            Task.detached(priority: .utility) {
+                if value.isEmpty {
+                    // Clear token - remove file
+                    let tokenPath = CommunicationSnapshot.udpAuthTokenPath()
+                    try? FileManager.default.removeItem(atPath: tokenPath)
+                    await MainActor.run {
+                        AppLogger.shared.log("🔧 [PreferencesService] UDP auth token cleared")
+                    }
                 } else {
-                    AppLogger.shared.log("❌ [PreferencesService] Failed to write token to shared file")
+                    // Set token - write to shared file
+                    let success = CommunicationSnapshot.writeSharedUDPToken(value)
+                    await MainActor.run {
+                        if success {
+                            AppLogger.shared.log("🔧 [PreferencesService] UDP auth token updated in shared file")
+                        } else {
+                            AppLogger.shared.log("❌ [PreferencesService] Failed to write token to shared file")
+                        }
+                    }
                 }
             }
             // Remove legacy UserDefaults for security

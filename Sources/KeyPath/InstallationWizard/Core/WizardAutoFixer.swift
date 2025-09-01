@@ -637,7 +637,7 @@ class WizardAutoFixer: AutoFixCapable {
         // - Load all services into launchctl
         AppLogger.shared.log("🔧 [AutoFixer] Calling createConfigureAndLoadAllServices() now...")
         let installer1 = launchDaemonInstaller
-        let success = await MainActor.run { installer1.createConfigureAndLoadAllServices() }
+        let success = await installer1.createConfigureAndLoadAllServices()
         AppLogger.shared.log("🔧 [AutoFixer] createConfigureAndLoadAllServices() returned: \(success)")
 
         if success {
@@ -875,7 +875,7 @@ class WizardAutoFixer: AutoFixCapable {
                 "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services first"
             )
             let installer3 = launchDaemonInstaller
-            let installSuccess = await MainActor.run { installer3.createConfigureAndLoadAllServices() }
+            let installSuccess = await installer3.createConfigureAndLoadAllServices()
             AppLogger.shared.log("🔧 [AutoFixer] Installation result: \(installSuccess)")
             if !installSuccess {
                 AppLogger.shared.log("❌ [AutoFixer] Failed to install missing services")

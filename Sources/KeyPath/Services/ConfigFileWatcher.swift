@@ -11,28 +11,87 @@ import Foundation
 class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     // MARK: - Properties
 
-    private var fileMonitorSource: DispatchSourceFileSystemObject?
-    private var directoryMonitorSource: DispatchSourceFileSystemObject?
-    private var lastModificationDate: Date?
-    private var debounceTimer: Timer?
-    private var watchedFilePath: String?
-    private var watchedDirectoryPath: String?
-    private var isWatching = false
-    private var isWatchingDirectory = false
+    // Thread-safe properties accessed from multiple contexts
+    private let stateQueue = DispatchQueue(label: "com.keypath.configwatcher.state", qos: .utility)
+    private var _fileMonitorSource: DispatchSourceFileSystemObject?
+    private var _directoryMonitorSource: DispatchSourceFileSystemObject?
+    private var _lastModificationDate: Date?
+    private var _debounceTask: Task<Void, Never>?
+    private var _watchedFilePath: String?
+    private var _watchedDirectoryPath: String?
+    private var _isWatching = false
+    private var _isWatchingDirectory = false
+    private var _suppressUntil: Date?
+    private var _inFlightProcessing = false
+    private var _retryCount = 0
+    private var _onFileChanged: (() async -> Void)?
 
     private let debounceDelay: TimeInterval = 0.5 // 500ms debounce
     private let maxRetries = 3
-    private var retryCount = 0
-
-    // Suppression to prevent self-initiated reload loops
-    private var suppressUntil: Date?
-    private var inFlightProcessing = false
 
     // Dedicated queue for file system events (avoid main thread contention)
     private let queue = DispatchQueue(label: "com.keypath.configwatcher", qos: .utility)
 
-    // Callback for when file changes are detected
-    private var onFileChanged: (() async -> Void)?
+    // Thread-safe property accessors
+    private var fileMonitorSource: DispatchSourceFileSystemObject? {
+        get { stateQueue.sync { _fileMonitorSource } }
+        set { stateQueue.sync { _fileMonitorSource = newValue } }
+    }
+    
+    private var directoryMonitorSource: DispatchSourceFileSystemObject? {
+        get { stateQueue.sync { _directoryMonitorSource } }
+        set { stateQueue.sync { _directoryMonitorSource = newValue } }
+    }
+    
+    private var lastModificationDate: Date? {
+        get { stateQueue.sync { _lastModificationDate } }
+        set { stateQueue.sync { _lastModificationDate = newValue } }
+    }
+    
+    private var debounceTask: Task<Void, Never>? {
+        get { stateQueue.sync { _debounceTask } }
+        set { stateQueue.sync { _debounceTask = newValue } }
+    }
+    
+    private var watchedFilePath: String? {
+        get { stateQueue.sync { _watchedFilePath } }
+        set { stateQueue.sync { _watchedFilePath = newValue } }
+    }
+    
+    private var watchedDirectoryPath: String? {
+        get { stateQueue.sync { _watchedDirectoryPath } }
+        set { stateQueue.sync { _watchedDirectoryPath = newValue } }
+    }
+    
+    private var isWatching: Bool {
+        get { stateQueue.sync { _isWatching } }
+        set { stateQueue.sync { _isWatching = newValue } }
+    }
+    
+    private var isWatchingDirectory: Bool {
+        get { stateQueue.sync { _isWatchingDirectory } }
+        set { stateQueue.sync { _isWatchingDirectory = newValue } }
+    }
+    
+    private var suppressUntil: Date? {
+        get { stateQueue.sync { _suppressUntil } }
+        set { stateQueue.sync { _suppressUntil = newValue } }
+    }
+    
+    private var inFlightProcessing: Bool {
+        get { stateQueue.sync { _inFlightProcessing } }
+        set { stateQueue.sync { _inFlightProcessing = newValue } }
+    }
+    
+    private var retryCount: Int {
+        get { stateQueue.sync { _retryCount } }
+        set { stateQueue.sync { _retryCount = newValue } }
+    }
+    
+    private var onFileChanged: (() async -> Void)? {
+        get { stateQueue.sync { _onFileChanged } }
+        set { stateQueue.sync { _onFileChanged = newValue } }
+    }
 
     init() {
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher initialized with robust monitoring")
@@ -196,9 +255,9 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     func stopWatching() {
         AppLogger.shared.log("📁 [FileWatcher] Stopping all monitoring...")
 
-        // Stop debounce timer
-        debounceTimer?.invalidate()
-        debounceTimer = nil
+        // Stop debounce task
+        debounceTask?.cancel()
+        debounceTask = nil
 
         // Stop file monitoring
         if isWatching {
@@ -340,12 +399,14 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             }
         }
 
-        // Cancel any existing debounce timer
-        debounceTimer?.invalidate()
+        // Cancel any existing debounce task
+        debounceTask?.cancel()
 
-        // Set up debounce timer to handle rapid file changes
-        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceDelay, repeats: false) { [weak self] _ in
-            Task { await self?.processFileChange() }
+        // Set up debounce task to handle rapid file changes
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(self?.debounceDelay ?? 0.5) * 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.processFileChange()
         }
     }
 

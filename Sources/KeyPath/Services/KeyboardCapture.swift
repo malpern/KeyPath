@@ -68,7 +68,7 @@ public class KeyboardCapture: ObservableObject {
     private var isMonitoringEmergency = false
     private var pressedKeys: Set<Int64> = []
 
-    func startCapture(callback: @escaping (String) -> Void) {
+    func startCapture(callback: @escaping (String) -> Void) async {
         guard !isCapturing else { return }
 
         captureCallback = callback
@@ -77,7 +77,7 @@ public class KeyboardCapture: ObservableObject {
 
         // Only start capture if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
-        if !checkAccessibilityPermissionsSilently() {
+        if !(await checkAccessibilityPermissionsSilently()) {
             // Notify that we need permissions - this should trigger the wizard
             isCapturing = false
             captureCallback = nil
@@ -104,7 +104,7 @@ public class KeyboardCapture: ObservableObject {
         setupEventTap()
     }
 
-    func startContinuousCapture(callback: @escaping (String) -> Void) {
+    func startContinuousCapture(callback: @escaping (String) -> Void) async {
         guard !isCapturing else { return }
 
         captureCallback = callback
@@ -113,7 +113,7 @@ public class KeyboardCapture: ObservableObject {
 
         // Only start capture if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
-        if !checkAccessibilityPermissionsSilently() {
+        if !(await checkAccessibilityPermissionsSilently()) {
             // Notify that we need permissions - this should trigger the wizard
             isCapturing = false
             isContinuous = false
@@ -142,7 +142,7 @@ public class KeyboardCapture: ObservableObject {
     }
 
     /// Enhanced capture method that supports different capture modes
-    func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) {
+    func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) async {
         guard !isCapturing else { return }
 
         captureMode = mode
@@ -153,7 +153,7 @@ public class KeyboardCapture: ObservableObject {
         isContinuous = (mode == .sequence)
 
         // Check permissions first
-        if !checkAccessibilityPermissionsSilently() {
+        if !(await checkAccessibilityPermissionsSilently()) {
             isCapturing = false
             sequenceCallback = nil
             let errorSequence = KeySequence(keys: [], captureMode: mode)
@@ -393,7 +393,14 @@ public class KeyboardCapture: ObservableObject {
     }
 
     // Check permissions without prompting
-    func checkAccessibilityPermissionsSilently() -> Bool {
+    func checkAccessibilityPermissionsSilently() async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        return snapshot.keyPath.accessibility.isReady
+    }
+    
+    // Legacy synchronous version for compatibility (avoid using from @MainActor contexts)
+    @available(*, deprecated, message: "Use async version to avoid blocking main thread")
+    func checkAccessibilityPermissionsSilentlySync() -> Bool {
         var result = false
         let semaphore = DispatchSemaphore(value: 0)
         Task {
@@ -414,7 +421,7 @@ public class KeyboardCapture: ObservableObject {
 
     // MARK: - Emergency Stop Sequence Detection
 
-    func startEmergencyMonitoring(callback: @escaping () -> Void) {
+    func startEmergencyMonitoring(callback: @escaping () -> Void) async {
         guard !isMonitoringEmergency else { return }
 
         // Safety check: avoid CGEvent tap conflicts when Kanata is running
@@ -429,7 +436,7 @@ public class KeyboardCapture: ObservableObject {
 
         // Only start monitoring if we already have permissions
         // Don't prompt for permissions - let the wizard handle that
-        if !checkAccessibilityPermissionsSilently() {
+        if !(await checkAccessibilityPermissionsSilently()) {
             // Silently fail - we'll start monitoring once permissions are granted
             isMonitoringEmergency = false
             return

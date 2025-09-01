@@ -39,9 +39,9 @@ final class KeyboardCaptureTests: XCTestCase {
 
     // MARK: - Initialization Tests
 
-    func testKeyboardCaptureInitialization() throws {
+    func testKeyboardCaptureInitialization() async throws {
         XCTAssertNotNil(capture)
-        let hasPermissions = capture.checkAccessibilityPermissionsSilently()
+        let hasPermissions = await capture.checkAccessibilityPermissionsSilently()
         XCTAssert(hasPermissions == true || hasPermissions == false, "Should return boolean")
     }
 
@@ -95,9 +95,9 @@ final class KeyboardCaptureTests: XCTestCase {
 
     // MARK: - Permission Tests
 
-    func testAccessibilityPermissionCheck() throws {
+    func testAccessibilityPermissionCheck() async throws {
         // Test that permission check returns a boolean without prompting
-        let hasPermissions = capture.checkAccessibilityPermissionsSilently()
+        let hasPermissions = await capture.checkAccessibilityPermissionsSilently()
         XCTAssertTrue(hasPermissions == true || hasPermissions == false, "Should return boolean value")
     }
 
@@ -111,18 +111,18 @@ final class KeyboardCaptureTests: XCTestCase {
 
     // MARK: - Capture Lifecycle Tests
 
-    func testSingleKeyCaptureLifecycle() throws {
+    func testSingleKeyCaptureLifecycle() async throws {
         var capturedKeys: [String] = []
         let expectation = expectation(description: "Single key capture")
 
         // Test starting capture
-        capture.startCapture { key in
+        await capture.startCapture { key in
             capturedKeys.append(key)
             expectation.fulfill()
         }
 
         // If we don't have permissions, should post notification
-        if !capture.checkAccessibilityPermissionsSilently() {
+        if !(await capture.checkAccessibilityPermissionsSilently()) {
             // Wait for notification
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 expectation.fulfill()

@@ -164,7 +164,9 @@ struct ContentView: View {
 
             // Try to start monitoring for emergency stop sequence
             // This will silently fail if permissions aren't granted yet
-            startEmergencyMonitoringIfPossible()
+            Task {
+                await startEmergencyMonitoringIfPossible()
+            }
 
             // Status monitoring now handled centrally by SimpleKanataManager
         }
@@ -214,8 +216,10 @@ struct ContentView: View {
                 Task.detached(priority: .utility) {
                     // Small delay to let wizard fully close
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                    await MainActor.run {
-                        startEmergencyMonitoringIfPossible()
+                    _ = await MainActor.run {
+                        Task {
+                            await startEmergencyMonitoringIfPossible()
+                        }
                     }
                 }
             }
@@ -248,7 +252,7 @@ struct ContentView: View {
         }
     }
 
-    private func startEmergencyMonitoringIfPossible() {
+    private func startEmergencyMonitoringIfPossible() async {
         // Initialize KeyboardCapture lazily if needed and we have permissions
         if keyboardCapture == nil {
             Task.detached(priority: .utility) {
@@ -267,7 +271,7 @@ struct ContentView: View {
         guard let capture = keyboardCapture else { return }
 
         // We have permissions, start monitoring
-        capture.startEmergencyMonitoring {
+        await capture.startEmergencyMonitoring {
             Task { @MainActor in
                 showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
                 showingEmergencyAlert = true
@@ -648,31 +652,38 @@ struct RecordingSection: View {
         // Use detached task to avoid MainActor inheritance deadlock
         Task.detached(priority: .utility) { [isSequenceMode] in
             let snapshot = await PermissionOracle.shared.currentSnapshot()
-            await MainActor.run {
-                guard snapshot.keyPath.accessibility.isReady else {
+            guard snapshot.keyPath.accessibility.isReady else {
+                await MainActor.run {
                     recordedInput = "⚠️ Accessibility permission required for recording"
                     isRecording = false
-                    return
                 }
+                return
+            }
+            
+            await MainActor.run {
                 if keyboardCapture == nil {
                     keyboardCapture = KeyboardCapture()
                     AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
                 }
-                guard let capture = keyboardCapture else {
+                recordedInput = "Recording input..."
+            }
+            
+            guard let capture = await MainActor.run(body: { keyboardCapture }) else {
+                await MainActor.run {
                     recordedInput = "⚠️ Failed to initialize keyboard capture"
                     isRecording = false
-                    return
                 }
+                return
+            }
 
-                // Use appropriate capture mode based on toggle
-                let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
+            // Use appropriate capture mode based on toggle
+            let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
 
-                capture.startSequenceCapture(mode: captureMode) { keySequence in
-                    Task { @MainActor in
-                        capturedInputSequence = keySequence
-                        recordedInput = keySequence.displayString
-                        isRecording = false
-                    }
+            await capture.startSequenceCapture(mode: captureMode) { keySequence in
+                Task { @MainActor in
+                    capturedInputSequence = keySequence
+                    recordedInput = keySequence.displayString
+                    isRecording = false
                 }
             }
         }
@@ -690,31 +701,38 @@ struct RecordingSection: View {
         // Use detached task to avoid MainActor inheritance deadlock
         Task.detached(priority: .utility) { [isSequenceMode] in
             let snapshot = await PermissionOracle.shared.currentSnapshot()
-            await MainActor.run {
-                guard snapshot.keyPath.accessibility.isReady else {
+            guard snapshot.keyPath.accessibility.isReady else {
+                await MainActor.run {
                     recordedOutput = "⚠️ Accessibility permission required for recording"
                     isRecordingOutput = false
-                    return
                 }
+                return
+            }
+            
+            await MainActor.run {
                 if keyboardCapture == nil {
                     keyboardCapture = KeyboardCapture()
                     AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
                 }
-                guard let capture = keyboardCapture else {
+                recordedOutput = "Recording output..."
+            }
+            
+            guard let capture = await MainActor.run(body: { keyboardCapture }) else {
+                await MainActor.run {
                     recordedOutput = "⚠️ Failed to initialize keyboard capture"
                     isRecordingOutput = false
-                    return
                 }
+                return
+            }
 
-                // Use appropriate capture mode based on toggle
-                let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
+            // Use appropriate capture mode based on toggle
+            let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
 
-                capture.startSequenceCapture(mode: captureMode) { keySequence in
-                    Task { @MainActor in
-                        capturedOutputSequence = keySequence
-                        recordedOutput = keySequence.displayString
-                        isRecordingOutput = false
-                    }
+            await capture.startSequenceCapture(mode: captureMode) { keySequence in
+                Task { @MainActor in
+                    capturedOutputSequence = keySequence
+                    recordedOutput = keySequence.displayString
+                    isRecordingOutput = false
                 }
             }
         }
@@ -761,7 +779,7 @@ struct RecordingSection: View {
         // Create new timer
         saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) { _ in
             AppLogger.shared.log("💾 [Save] Debounce timer fired - executing save")
-            Task {
+            Task { @MainActor in
                 await saveKeyPath()
             }
         }
@@ -851,7 +869,7 @@ struct RecordingSection: View {
                     originalConfig, _, originalErrors, repairErrors, mappings
                 ):
                     // Handle user action required case
-                    Task {
+                    Task { @MainActor in
                         do {
                             // Backup the failed config and apply safe default
                             let backupPath = try await kanataManager.backupFailedConfigAndApplySafe(
@@ -931,7 +949,7 @@ struct ErrorSection: View {
                 Spacer()
 
                 Button("Fix Issues") {
-                    Task {
+                    Task { @MainActor in
                         AppLogger.shared.log(
                             "🔄 [UI] Fix Issues button clicked - attempting to fix configuration and restart")
 
@@ -1013,7 +1031,7 @@ struct DiagnosticSummarySection: View {
                         Spacer()
                         if issue.canAutoFix {
                             Button("Fix") {
-                                Task {
+                                Task { @MainActor in
                                     await kanataManager.autoFixDiagnostic(issue)
                                 }
                             }

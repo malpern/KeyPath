@@ -366,7 +366,7 @@ struct SettingsView: View {
             Toggle("Enable Notifications", isOn: $bindablePreferences.notificationsEnabled)
                 .onChange(of: preferences.notificationsEnabled) { _, enabled in
                     if enabled {
-                        Task { @MainActor in
+                        Task {
                             UserNotificationService.shared.requestAuthorizationIfNeeded()
                         }
                     }
@@ -1081,13 +1081,9 @@ struct SettingsView: View {
                 let client = KanataUDPClient(port: preferences.udpServerPort)
                 let isAvailable = await client.checkServerStatus()
 
-                await MainActor.run {
-                    udpServerStatus = isAvailable ? "Connected" : "Not Connected"
-                }
+                udpServerStatus = isAvailable ? "Connected" : "Not Connected"
             } else {
-                await MainActor.run {
-                    udpServerStatus = "Not Running"
-                }
+                udpServerStatus = "Not Running"
             }
         }
     }

@@ -215,13 +215,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - starting kanata service automatically")
 
             // In headless mode, ensure kanata starts
-            Task {
+            Task.detached(priority: .utility) { [kanataManager] in
                 // Small delay to let system settle
                 try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
                 // Start kanata if not already running
-                if let manager = kanataManager, !manager.isRunning {
-                    await manager.startKanata()
+                if let manager = kanataManager {
+                    let isRunning = await MainActor.run { manager.isRunning }
+                    if !isRunning {
+                        await MainActor.run { 
+                            Task { await manager.startKanata() }
+                            return ()
+                        }
+                    }
                 }
             }
         }

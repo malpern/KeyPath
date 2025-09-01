@@ -97,11 +97,9 @@ struct DiagnosticsView: View {
     private func runDiagnostics() {
         isRunningDiagnostics = true
 
-        Task {
-            await MainActor.run {
-                systemDiagnostics = []
-                isRunningDiagnostics = false
-            }
+        Task { @MainActor in
+            systemDiagnostics = []
+            isRunningDiagnostics = false
         }
     }
 
@@ -351,7 +349,7 @@ struct DiagnosticSection: View {
                         }
                     },
                     onAutoFix: {
-                        Task {
+                        Task { @MainActor in
                             await kanataManager.autoFixDiagnostic(diagnostic)
                         }
                     }
@@ -520,7 +518,7 @@ struct ConfigStatusSection: View {
                     .padding(.leading, 20)
 
                     Button("Reset to Default") {
-                        Task {
+                        Task { @MainActor in
                             try? await kanataManager.resetToDefaultConfig()
                             validateConfig()
                         }
@@ -581,11 +579,9 @@ struct ConfigStatusSection: View {
     }
 
     private func validateConfig() {
-        Task {
+        Task { @MainActor in
             let result = await kanataManager.validateConfigFile()
-            await MainActor.run {
-                configValidation = result
-            }
+            configValidation = result
         }
     }
 }
@@ -739,7 +735,7 @@ struct EnhancedStatusSection: View {
 
                 HStack {
                     Button("Refresh Status") {
-                        Task {
+                        Task { @MainActor in
                             await refreshSystemStatus()
                         }
                     }
@@ -794,7 +790,7 @@ struct EnhancedStatusSection: View {
                 .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
         )
         .onAppear {
-            Task {
+            Task { @MainActor in
                 await refreshSystemStatus()
             }
         }

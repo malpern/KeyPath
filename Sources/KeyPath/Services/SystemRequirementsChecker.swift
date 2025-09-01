@@ -253,22 +253,29 @@ class SystemRequirementsChecker {
         task.standardOutput = pipe
         task.standardError = pipe
 
-        do {
-            try task.run()
-            task.waitUntilExit()
+        return await withCheckedContinuation { continuation in
+            Task.detached(priority: .utility) {
+                do {
+                    try task.run()
+                    task.waitUntilExit()
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    let output = String(data: data, encoding: .utf8) ?? ""
 
-            if task.terminationStatus == 0, output.lowercased().contains("kanata") {
-                let version = output.trimmingCharacters(in: .whitespacesAndNewlines)
-                return (true, version)
+                    if task.terminationStatus == 0, output.lowercased().contains("kanata") {
+                        let version = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                        continuation.resume(returning: (true, version))
+                    } else {
+                        continuation.resume(returning: (false, "Unknown"))
+                    }
+                } catch {
+                    await MainActor.run {
+                        AppLogger.shared.log("❌ [SystemCheck] Error verifying Kanata at \(path): \(error)")
+                    }
+                    continuation.resume(returning: (false, "Unknown"))
+                }
             }
-        } catch {
-            AppLogger.shared.log("❌ [SystemCheck] Error verifying Kanata at \(path): \(error)")
         }
-
-        return (false, "Unknown")
     }
 
     private func checkAccessibilityPermissions() async -> RequirementCheckResult {

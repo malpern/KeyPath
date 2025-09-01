@@ -54,26 +54,17 @@ class LaunchDaemonInstaller {
     // MARK: - Diagnostic Methods
 
     /// Test admin dialog capability - use this to diagnose osascript issues
-    func testAdminDialog() -> Bool {
+    func testAdminDialog() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Testing admin dialog capability...")
-        AppLogger.shared.log("🔧 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Testing admin dialog capability in async context")
 
         let testCommand = "echo 'Admin dialog test successful'"
         let osascriptCode = """
         do shell script "\(testCommand)" with administrator privileges with prompt "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
         """
 
-        var success = false
-
-        if Thread.isMainThread {
-            success = executeOSAScriptOnMainThread(osascriptCode)
-        } else {
-            let semaphore = DispatchSemaphore(value: 0)
-            DispatchQueue.main.async {
-                success = self.executeOSAScriptOnMainThread(osascriptCode)
-                semaphore.signal()
-            }
-            semaphore.wait()
+        let success = await MainActor.run {
+            executeOSAScriptOnMainThread(osascriptCode)
         }
 
         AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test result: \(success)")
@@ -303,7 +294,7 @@ class LaunchDaemonInstaller {
 
     /// Creates, installs, configures, and loads all LaunchDaemon services with a single admin prompt
     /// This method consolidates all admin operations to eliminate multiple password prompts
-    func createConfigureAndLoadAllServices() -> Bool {
+    func createConfigureAndLoadAllServices() async -> Bool {
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] *** ENTRY POINT *** createConfigureAndLoadAllServices() called")
         AppLogger.shared.log(
@@ -331,7 +322,7 @@ class LaunchDaemonInstaller {
 
             // Execute consolidated admin operations with a single prompt
             // Use improved osascript approach with proper entitlements and main thread execution
-            let success = executeConsolidatedInstallationImproved(
+            let success = await executeConsolidatedInstallationImproved(
                 kanataTemp: kanataTempPath,
                 vhidDaemonTemp: vhidDaemonTempPath,
                 vhidManagerTemp: vhidManagerTempPath
@@ -1035,7 +1026,7 @@ class LaunchDaemonInstaller {
     /// This method addresses sandbox restrictions by ensuring proper execution context
     private func executeConsolidatedInstallationImproved(
         kanataTemp: String, vhidDaemonTemp: String, vhidManagerTemp: String
-    ) -> Bool {
+    ) async -> Bool {
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Starting consolidated installation with improved osascript")
         AppLogger.shared.log(
@@ -1181,40 +1172,23 @@ class LaunchDaemonInstaller {
 
             AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript with temp script approach...")
             AppLogger.shared.log("🔐 [LaunchDaemon] Script path: \(tempScriptPath)")
-            AppLogger.shared.log("🔐 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript in async context")
             AppLogger.shared.log("🔐 [LaunchDaemon] osascript command: \(osascriptCode)")
             AppLogger.shared.log("🔐 [LaunchDaemon] About to execute: /usr/bin/osascript -e [command]")
 
             // CRITICAL FIX: Admin dialogs must run on main thread for macOS security
-            var taskSuccess = false
-            var taskStatus: Int32 = -1
-            // taskOutput was unused; remove to silence warning
-
-            if Thread.isMainThread {
+            let (taskSuccess, taskStatus) = await MainActor.run { () -> (Bool, Int32) in
                 AppLogger.shared.log("🔐 [LaunchDaemon] Executing on main thread")
-                try task.run()
-                task.waitUntilExit()
-                taskStatus = task.terminationStatus
-                taskSuccess = true
-            } else {
-                AppLogger.shared.log("🔐 [LaunchDaemon] Dispatching to main thread for admin dialog")
-                let semaphore = DispatchSemaphore(value: 0)
-
-                DispatchQueue.main.async {
-                    do {
-                        try task.run()
-                        task.waitUntilExit()
-                        taskStatus = task.terminationStatus
-                        taskSuccess = true
-                        AppLogger.shared.log("🔐 [LaunchDaemon] Main thread execution completed")
-                    } catch {
-                        AppLogger.shared.log("❌ [LaunchDaemon] Main thread execution failed: \(error)")
-                        taskSuccess = false
-                    }
-                    semaphore.signal()
+                do {
+                    try task.run()
+                    task.waitUntilExit()
+                    let status = task.terminationStatus
+                    AppLogger.shared.log("🔐 [LaunchDaemon] Main thread execution completed")
+                    return (true, status)
+                } catch {
+                    AppLogger.shared.log("❌ [LaunchDaemon] Main thread execution failed: \(error)")
+                    return (false, -1)
                 }
-
-                semaphore.wait()
             }
 
             if !taskSuccess {
@@ -1576,7 +1550,7 @@ class LaunchDaemonInstaller {
         // Step 1: Install missing services first if needed
         if !toInstall.isEmpty {
             AppLogger.shared.log("🔧 [LaunchDaemon] Installing missing services: \(toInstall)")
-            let installSuccess = createConfigureAndLoadAllServices()
+            let installSuccess = await createConfigureAndLoadAllServices()
             if !installSuccess {
                 AppLogger.shared.log("❌ [LaunchDaemon] Failed to install missing services")
                 return false
