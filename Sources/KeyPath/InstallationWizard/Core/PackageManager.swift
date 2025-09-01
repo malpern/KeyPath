@@ -104,7 +104,8 @@ class PackageManager {
     /// Checks if Kanata is installed via any method
     func detectKanataInstallation() -> KanataInstallationInfo {
         let possiblePaths = [
-            WizardSystemPaths.bundledKanataPath, // Bundled kanata (preferred)
+            WizardSystemPaths.kanataSystemInstallPath, // System-installed kanata (highest priority)
+            WizardSystemPaths.bundledKanataPath, // Bundled kanata (preferred for detection)
             "/opt/homebrew/bin/kanata", // ARM Homebrew
             "/usr/local/bin/kanata", // Intel Homebrew
             "\(NSHomeDirectory())/.cargo/bin/kanata" // Rust cargo installation
@@ -137,7 +138,9 @@ class PackageManager {
     }
 
     private func determineInstallationType(path: String) -> KanataInstallationType {
-        if path == WizardSystemPaths.bundledKanataPath {
+        if path == WizardSystemPaths.kanataSystemInstallPath {
+            .bundled // System-installed kanata is treated as bundled (installed by KeyPath)
+        } else if path == WizardSystemPaths.bundledKanataPath {
             .bundled
         } else if path.contains("/opt/homebrew/bin") || path.contains("/usr/local/bin") {
             .homebrew

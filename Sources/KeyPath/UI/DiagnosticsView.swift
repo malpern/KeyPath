@@ -804,12 +804,12 @@ struct EnhancedStatusSection: View {
         isLoading = true
 
         // Get canonical path and inode
-        let bundledPath = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
-        canonicalPath = bundledPath
+        let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
+        canonicalPath = kanataBinaryPath
 
-        if FileManager.default.fileExists(atPath: bundledPath) {
+        if FileManager.default.fileExists(atPath: kanataBinaryPath) {
             do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: bundledPath)
+                let attributes = try FileManager.default.attributesOfItem(atPath: kanataBinaryPath)
                 if let inodeNumber = attributes[.systemFileNumber] as? UInt64 {
                     inode = String(inodeNumber)
                 }

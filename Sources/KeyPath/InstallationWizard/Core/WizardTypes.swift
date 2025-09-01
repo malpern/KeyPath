@@ -184,6 +184,21 @@ enum IssueIdentifier: Equatable {
         if case .daemon = self { return true }
         return false
     }
+    
+    /// Check if this identifier is related to VirtualHIDDevice issues
+    var isVHIDRelated: Bool {
+        switch self {
+        case .component(let component):
+            switch component {
+            case .vhidDeviceManager, .vhidDeviceActivation, .vhidDeviceRunning, .vhidDaemonMisconfigured:
+                return true
+            default:
+                return false
+            }
+        default:
+            return false
+        }
+    }
 }
 
 /// Issue detected by the wizard that requires attention

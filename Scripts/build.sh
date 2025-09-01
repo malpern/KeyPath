@@ -76,8 +76,16 @@ if command -v codesign >/dev/null 2>&1; then
     echo "Signing app bundle with stable Developer ID..."
     # Sign kanata binary first for stable identity
     codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS_DIR/Library/KeyPath/kanata"
-    # Sign main app bundle
-    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+    
+    # Sign main app bundle WITH entitlements
+    ENTITLEMENTS_FILE="KeyPath.entitlements"
+    if [ -f "$ENTITLEMENTS_FILE" ]; then
+        echo "Applying entitlements from $ENTITLEMENTS_FILE..."
+        codesign --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+    else
+        echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+    fi
     echo "✅ Signed with stable identity for TCC persistence"
 else
     echo "❌ ERROR: codesign not found - TCC will reset every build!"

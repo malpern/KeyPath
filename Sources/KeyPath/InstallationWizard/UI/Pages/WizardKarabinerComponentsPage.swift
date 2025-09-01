@@ -165,7 +165,7 @@ struct WizardKarabinerComponentsPage: View {
                                 Spacer()
                                 if componentStatus(for: .driver) != .completed {
                                     Button("Fix") {
-                                        showingInstallationGuide = true
+                                        handleKarabinerDriverFix()
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
@@ -186,7 +186,7 @@ struct WizardKarabinerComponentsPage: View {
                                 Spacer()
                                 if componentStatus(for: .backgroundServices) != .completed {
                                     Button("Fix") {
-                                        openLoginItemsSettings()
+                                        handleBackgroundServicesFix()
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
@@ -336,5 +336,99 @@ struct WizardKarabinerComponentsPage: View {
         if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
             NSWorkspace.shared.open(url)
         }
+    }
+    
+    // MARK: - Smart Fix Handlers
+    
+    /// Smart handler for Karabiner Driver Fix button
+    /// Detects if Karabiner is installed vs needs installation
+    private func handleKarabinerDriverFix() {
+        let isInstalled = kanataManager.isKarabinerDriverInstalled()
+        
+        if isInstalled {
+            // Karabiner is installed but having issues - attempt automatic repair
+            AppLogger.shared.log("🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
+            performAutomaticDriverRepair()
+        } else {
+            // Karabiner not installed - show installation guide
+            AppLogger.shared.log("💡 [Karabiner Fix] Driver not installed - showing installation guide")
+            showingInstallationGuide = true
+        }
+    }
+    
+    /// Smart handler for Background Services Fix button  
+    /// Attempts repair first, falls back to system settings
+    private func handleBackgroundServicesFix() {
+        let isInstalled = kanataManager.isKarabinerDriverInstalled()
+        
+        if isInstalled {
+            // Try automatic repair first
+            AppLogger.shared.log("🔧 [Background Services Fix] Attempting automatic service repair")
+            performAutomaticServiceRepair()
+        } else {
+            // No driver installed - open system settings for manual configuration
+            AppLogger.shared.log("💡 [Background Services Fix] No driver - opening Login Items settings")
+            openLoginItemsSettings()
+        }
+    }
+    
+    /// Attempts automatic repair of Karabiner driver issues
+    private func performAutomaticDriverRepair() {
+        Task { @MainActor in
+            // Use the wizard's auto-fix capability
+            
+            // Check what specific issues we need to fix
+            let vhidIssues = issues.filter { issue in
+                issue.identifier.isVHIDRelated
+            }
+            
+            var success = false
+            
+            if vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) {
+                // Fix misconfigured daemon plist
+                AppLogger.shared.log("🔧 [Driver Repair] Repairing misconfigured VHID daemon services")
+                success = await performAutoFix(.repairVHIDDaemonServices)
+            } else if vhidIssues.contains(where: { $0.identifier == .component(.launchDaemonServices) }) {
+                // Install missing services
+                AppLogger.shared.log("🔧 [Driver Repair] Installing missing LaunchDaemon services")
+                success = await performAutoFix(.installLaunchDaemonServices)
+            } else {
+                // General VHID issues - try restarting daemon
+                AppLogger.shared.log("🔧 [Driver Repair] Restarting VirtualHID daemon")
+                success = await performAutoFix(.restartVirtualHIDDaemon)
+            }
+            
+            if success {
+                AppLogger.shared.log("✅ [Driver Repair] Automatic repair succeeded - refreshing status")
+                // Trigger status refresh
+                onRefresh()
+            } else {
+                AppLogger.shared.log("❌ [Driver Repair] Automatic repair failed - showing installation guide")
+                showingInstallationGuide = true
+            }
+        }
+    }
+    
+    /// Attempts automatic repair of background services
+    private func performAutomaticServiceRepair() {
+        Task { @MainActor in
+            // Use the wizard's auto-fix capability
+            
+            AppLogger.shared.log("🔧 [Service Repair] Installing/repairing LaunchDaemon services")
+            let success = await performAutoFix(.installLaunchDaemonServices)
+            
+            if success {
+                AppLogger.shared.log("✅ [Service Repair] Service repair succeeded - refreshing status")
+                onRefresh()
+            } else {
+                AppLogger.shared.log("❌ [Service Repair] Service repair failed - opening system settings")
+                openLoginItemsSettings()
+            }
+        }
+    }
+    
+    /// Perform auto-fix using the wizard's auto-fix capability
+    private func performAutoFix(_ action: AutoFixAction) async -> Bool {
+        return await onAutoFix(action)
     }
 }

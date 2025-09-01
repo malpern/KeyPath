@@ -3,6 +3,15 @@ import Security
 
 /// Manages LaunchDaemon installation and configuration for KeyPath services
 /// Implements the production-ready LaunchDaemon architecture identified in the installer improvement analysis
+///
+/// IMPORTANT: Service Dependency Order
+/// The services MUST be bootstrapped in this specific order:
+/// 1. VirtualHID Daemon (com.keypath.karabiner-vhiddaemon) - provides base VirtualHID framework
+/// 2. VirtualHID Manager (com.keypath.karabiner-vhidmanager) - manages VirtualHID devices
+/// 3. Kanata (com.keypath.kanata) - depends on VirtualHID services being available
+///
+/// Failure to respect this order results in "Bootstrap failed: 5: Input/output error"
+/// because Kanata cannot connect to the required VirtualHID services.
 @MainActor
 class LaunchDaemonInstaller {
     // MARK: - Dependencies
@@ -13,6 +22,7 @@ class LaunchDaemonInstaller {
 
     private static let launchDaemonsPath: String = LaunchDaemonInstaller.resolveLaunchDaemonsPath()
     static let systemLaunchDaemonsDir = "/Library/LaunchDaemons"
+    static let systemLaunchAgentsDir = "/Library/LaunchAgents"
     static let kanataServiceID = "com.keypath.kanata"
     private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
     private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
@@ -21,9 +31,14 @@ class LaunchDaemonInstaller {
     /// Path to the log rotation script
     private static let logRotationScriptPath = "/usr/local/bin/keypath-logrotate.sh"
 
-    /// Path to the Kanata service plist file
+    /// Path to the Kanata service plist file (system daemon)
     static var kanataPlistPath: String {
         "\(systemLaunchDaemonsDir)/\(kanataServiceID).plist"
+    }
+    
+    /// Path to the Kanata LaunchAgent plist file (per-user)
+    static var kanataLaunchAgentPlistPath: String {
+        "\(systemLaunchAgentsDir)/\(kanataServiceID).plist"
     }
 
     // Use user config path following industry standard ~/.config/ pattern
@@ -143,12 +158,76 @@ class LaunchDaemonInstaller {
 
     // MARK: - Path Detection Methods
 
-    /// Gets the detected Kanata binary path or returns fallback
+    /// Gets the system-installed Kanata binary path
     private func getKanataBinaryPath() -> String {
-        // Unify on a single canonical binary path to align permissions and UI guidance
-        let standardPath = WizardSystemPaths.kanataActiveBinary
-        AppLogger.shared.log("✅ [LaunchDaemon] Using canonical Kanata path: \(standardPath)")
-        return standardPath
+        // Use system location to avoid Gatekeeper issues with app bundle paths
+        let systemPath = "/Library/KeyPath/bin/kanata"
+        AppLogger.shared.log("✅ [LaunchDaemon] Using system Kanata path: \(systemPath)")
+        return systemPath
+    }
+    
+    /// Checks if the bundled kanata is newer than the system-installed version
+    /// Returns true if an upgrade is needed
+    func shouldUpgradeKanata() -> Bool {
+        let systemPath = WizardSystemPaths.kanataSystemInstallPath
+        let bundledPath = WizardSystemPaths.bundledKanataPath
+        
+        // If system version doesn't exist, we need to install it
+        guard FileManager.default.fileExists(atPath: systemPath) else {
+            AppLogger.shared.log("🔄 [LaunchDaemon] System kanata not found - initial installation needed")
+            return true
+        }
+        
+        // If bundled version doesn't exist, no upgrade possible
+        guard FileManager.default.fileExists(atPath: bundledPath) else {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Bundled kanata not found - cannot upgrade")
+            return false
+        }
+        
+        let systemVersion = getKanataVersionAtPath(systemPath)
+        let bundledVersion = getKanataVersionAtPath(bundledPath)
+        
+        AppLogger.shared.log("🔄 [LaunchDaemon] Version check: System=\(systemVersion ?? "unknown"), Bundled=\(bundledVersion ?? "unknown")")
+        
+        // If we can't determine versions, assume upgrade is needed for safety
+        guard let systemVer = systemVersion, let bundledVer = bundledVersion else {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Cannot determine versions - assuming upgrade needed")
+            return true
+        }
+        
+        // Compare versions (simple string comparison works for most version formats)
+        let upgradeNeeded = bundledVer != systemVer
+        if upgradeNeeded {
+            AppLogger.shared.log("🔄 [LaunchDaemon] Upgrade needed: \(systemVer) → \(bundledVer)")
+        } else {
+            AppLogger.shared.log("✅ [LaunchDaemon] Kanata versions match - no upgrade needed")
+        }
+        
+        return upgradeNeeded
+    }
+    
+    /// Gets the version of kanata at a specific path
+    private func getKanataVersionAtPath(_ path: String) -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: path)
+        task.arguments = ["--version"]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            return output
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to get kanata version at \(path): \(error)")
+            return nil
+        }
     }
 
     // MARK: - Installation Methods
@@ -802,19 +881,54 @@ class LaunchDaemonInstaller {
         cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)'
         cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
 
-        # Create user configuration directory and file
-        sudo -u '\(currentUserName)' mkdir -p '/Users/\(currentUserName)/.config/keypath'
-        sudo -u '\(currentUserName)' touch '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
+        # Create user configuration directory and file (as current user)
+        install -d -o '\(currentUserName)' -g staff '/Users/\(currentUserName)/.config/keypath'
+        touch '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
+        chown '\(currentUserName):staff' '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
 
-        # Load services
-        launchctl load '\(kanataFinal)'
-        launchctl load '\(vhidDaemonFinal)'
-        launchctl load '\(vhidManagerFinal)'
+        # Unload existing services first (ignore errors if not loaded)
+        launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true
+        launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
+        launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
+        
+        # Install kanata binary to system location (avoids Gatekeeper issues)
+        echo "Installing kanata binary to system location..."
+        /bin/mkdir -p '/Library/KeyPath/bin'
+        /bin/cp '/Applications/KeyPath.app/Contents/Library/KeyPath/kanata' '/Library/KeyPath/bin/kanata'
+        /usr/sbin/chown root:wheel '/Library/KeyPath/bin/kanata'
+        /bin/chmod 755 '/Library/KeyPath/bin/kanata'
+        
+        # Clear any quarantine attributes on the system copy
+        /usr/bin/xattr -d com.apple.quarantine '/Library/KeyPath/bin/kanata' 2>/dev/null || true
+        
+        # Enable services in case previously disabled
+        echo "Enabling services..."
+        /bin/launchctl enable system/\(Self.kanataServiceID) 2>/dev/null || true
+        /bin/launchctl enable system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
+        /bin/launchctl enable system/\(Self.vhidManagerServiceID) 2>/dev/null || true
+        
+        # Load services using bootstrap (modern approach) - DEPENDENCIES FIRST!
+        launchctl bootstrap system '\(vhidDaemonFinal)'
+        launchctl bootstrap system '\(vhidManagerFinal)'
+        launchctl bootstrap system '\(kanataFinal)' || {
+            echo "Bootstrap failed for kanata. Collecting diagnostics..."
+            echo "Checking if kanata exists at system path:"
+            /bin/ls -la '/Library/KeyPath/bin/kanata' || echo "Kanata not found at system path"
+            echo "Checking spctl acceptance:"
+            /usr/sbin/spctl -a -vvv -t execute '/Library/KeyPath/bin/kanata' || echo "spctl rejected kanata binary"
+            echo "Checking file attributes:"
+            /usr/bin/xattr -l '/Library/KeyPath/bin/kanata' || true
+            echo "Checking launchctl status:"
+            /bin/launchctl print system/\(Self.kanataServiceID) 2>&1 || true
+            echo "Recent launchd logs:"
+            /usr/bin/log show --style syslog --last 2m --predicate 'subsystem == "com.apple.xpc.launchd" || eventMessage CONTAINS "com.keypath.kanata"' 2>&1 || true
+            exit 1
+        }
 
-        # Start services
-        launchctl kickstart -k system/\(Self.kanataServiceID)
+        # Start services - DEPENDENCIES FIRST!
         launchctl kickstart -k system/\(Self.vhidDaemonServiceID)
         launchctl kickstart -k system/\(Self.vhidManagerServiceID)
+        launchctl kickstart -k system/\(Self.kanataServiceID)
 
         echo "Installation completed successfully with Authorization Services"
         """
@@ -932,6 +1046,47 @@ class LaunchDaemonInstaller {
             "🔧 [LaunchDaemon] Starting consolidated installation with improved osascript")
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Using direct osascript execution with proper environment")
+            
+        // First, test if osascript works at all with a simple command
+        AppLogger.shared.log("🔧 [LaunchDaemon] Testing osascript functionality first...")
+        let testCommand = """
+        do shell script "echo 'osascript test successful'" with administrator privileges
+        """
+        
+        let testTask = Process()
+        testTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        testTask.arguments = ["-e", testCommand]
+        
+        // Capture both stdout and stderr
+        let testPipe = Pipe()
+        let testErrorPipe = Pipe()
+        testTask.standardOutput = testPipe
+        testTask.standardError = testErrorPipe
+        
+        do {
+            try testTask.run()
+            testTask.waitUntilExit()
+            
+            let testStatus = testTask.terminationStatus
+            AppLogger.shared.log("🔧 [LaunchDaemon] osascript test result: \(testStatus)")
+            
+            if testStatus != 0 {
+                // Capture stderr for detailed error info
+                let errorData = testErrorPipe.fileHandleForReading.readDataToEndOfFile()
+                if let errorString = String(data: errorData, encoding: .utf8), !errorString.isEmpty {
+                    AppLogger.shared.log("❌ [LaunchDaemon] osascript error output: \(errorString)")
+                }
+                
+                AppLogger.shared.log("❌ [LaunchDaemon] osascript test failed - admin dialogs may be blocked")
+                AppLogger.shared.log("❌ [LaunchDaemon] This usually indicates missing entitlements or sandbox restrictions")
+                return false
+            }
+            AppLogger.shared.log("✅ [LaunchDaemon] osascript test passed - proceeding with installation")
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] osascript test threw error: \(error)")
+            AppLogger.shared.log("❌ [LaunchDaemon] Error details: \(error.localizedDescription)")
+            return false
+        }
 
         // Build installation script (same as before)
         let kanataFinal = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
@@ -940,8 +1095,10 @@ class LaunchDaemonInstaller {
         let currentUserName = NSUserName()
 
         let command = """
-        set -e
-        echo "Starting LaunchDaemon installation..."
+        set -ex
+        exec > /tmp/keypath-install-debug.log 2>&1
+        echo "Starting LaunchDaemon installation at $(date)..."
+        echo "Current user: $(whoami)"
 
         # Create LaunchDaemons directory
         mkdir -p '\(Self.launchDaemonsPath)'
@@ -951,19 +1108,54 @@ class LaunchDaemonInstaller {
         cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)'
         cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
 
-        # Create user configuration directory and file
-        sudo -u '\(currentUserName)' mkdir -p '/Users/\(currentUserName)/.config/keypath'
-        sudo -u '\(currentUserName)' touch '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
+        # Create user configuration directory and file (as current user)
+        install -d -o '\(currentUserName)' -g staff '/Users/\(currentUserName)/.config/keypath'
+        touch '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
+        chown '\(currentUserName):staff' '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
 
-        # Load services
-        launchctl load '\(kanataFinal)'
-        launchctl load '\(vhidDaemonFinal)'
-        launchctl load '\(vhidManagerFinal)'
+        # Unload existing services first (ignore errors if not loaded)
+        launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true
+        launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
+        launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
+        
+        # Install kanata binary to system location (avoids Gatekeeper issues)
+        echo "Installing kanata binary to system location..."
+        /bin/mkdir -p '/Library/KeyPath/bin'
+        /bin/cp '/Applications/KeyPath.app/Contents/Library/KeyPath/kanata' '/Library/KeyPath/bin/kanata'
+        /usr/sbin/chown root:wheel '/Library/KeyPath/bin/kanata'
+        /bin/chmod 755 '/Library/KeyPath/bin/kanata'
+        
+        # Clear any quarantine attributes on the system copy
+        /usr/bin/xattr -d com.apple.quarantine '/Library/KeyPath/bin/kanata' 2>/dev/null || true
+        
+        # Enable services in case previously disabled
+        echo "Enabling services..."
+        /bin/launchctl enable system/\(Self.kanataServiceID) 2>/dev/null || true
+        /bin/launchctl enable system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
+        /bin/launchctl enable system/\(Self.vhidManagerServiceID) 2>/dev/null || true
+        
+        # Load services using bootstrap (modern approach) - DEPENDENCIES FIRST!
+        launchctl bootstrap system '\(vhidDaemonFinal)'
+        launchctl bootstrap system '\(vhidManagerFinal)'
+        launchctl bootstrap system '\(kanataFinal)' || {
+            echo "Bootstrap failed for kanata. Collecting diagnostics..."
+            echo "Checking if kanata exists at system path:"
+            /bin/ls -la '/Library/KeyPath/bin/kanata' || echo "Kanata not found at system path"
+            echo "Checking spctl acceptance:"
+            /usr/sbin/spctl -a -vvv -t execute '/Library/KeyPath/bin/kanata' || echo "spctl rejected kanata binary"
+            echo "Checking file attributes:"
+            /usr/bin/xattr -l '/Library/KeyPath/bin/kanata' || true
+            echo "Checking launchctl status:"
+            /bin/launchctl print system/\(Self.kanataServiceID) 2>&1 || true
+            echo "Recent launchd logs:"
+            /usr/bin/log show --style syslog --last 2m --predicate 'subsystem == "com.apple.xpc.launchd" || eventMessage CONTAINS "com.keypath.kanata"' 2>&1 || true
+            exit 1
+        }
 
-        # Start services
-        launchctl kickstart -k system/\(Self.kanataServiceID)
+        # Start services - DEPENDENCIES FIRST!
         launchctl kickstart -k system/\(Self.vhidDaemonServiceID)
         launchctl kickstart -k system/\(Self.vhidManagerServiceID)
+        launchctl kickstart -k system/\(Self.kanataServiceID)
 
         echo "Installation completed successfully"
         """
@@ -981,7 +1173,7 @@ class LaunchDaemonInstaller {
             // Use osascript to execute the script with admin privileges
             // Custom prompt to clearly identify KeyPath (not osascript)
             let osascriptCode = """
-            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management. This will enable the UDP server on port \(PreferencesService.communicationSnapshot().udpPort)."
+            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install system services for keyboard management."
             """
 
             let task = Process()
@@ -996,6 +1188,8 @@ class LaunchDaemonInstaller {
             AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript with temp script approach...")
             AppLogger.shared.log("🔐 [LaunchDaemon] Script path: \(tempScriptPath)")
             AppLogger.shared.log("🔐 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
+            AppLogger.shared.log("🔐 [LaunchDaemon] osascript command: \(osascriptCode)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] About to execute: /usr/bin/osascript -e [command]")
 
             // CRITICAL FIX: Admin dialogs must run on main thread for macOS security
             var taskSuccess = false
@@ -1125,9 +1319,9 @@ class LaunchDaemonInstaller {
           /usr/bin/printf "%s\\n" ";; Default KeyPath config" "(defcfg process-unmapped-keys no)" "(defsrc)" "(deflayer base)" | /usr/bin/tee '\(userConfigPath)' >/dev/null && \
           /usr/sbin/chown $CONSOLE_UID:$CONSOLE_GID '\(userConfigPath)'; \
         fi && \
-        /bin/launchctl bootstrap system '\(kanataFinal)' 2>/dev/null || /bin/echo Kanata service already loaded && \
         /bin/launchctl bootstrap system '\(vhidDaemonFinal)' 2>/dev/null || /bin/echo VHID daemon already loaded && \
         /bin/launchctl bootstrap system '\(vhidManagerFinal)' 2>/dev/null || /bin/echo VHID manager already loaded && \
+        /bin/launchctl bootstrap system '\(kanataFinal)' 2>/dev/null || /bin/echo Kanata service already loaded && \
         /bin/echo Installation completed successfully
         """
 
@@ -1997,7 +2191,7 @@ class LaunchDaemonInstaller {
             cp '\(plistTempPath)' '\(plistFinal)' && \
             chmod 644 '\(plistFinal)' && \
             chown root:wheel '\(plistFinal)' && \
-            launchctl load '\(plistFinal)'
+            launchctl bootstrap system '\(plistFinal)'
             """
 
             // Use osascript approach like other admin operations

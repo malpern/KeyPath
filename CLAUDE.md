@@ -48,12 +48,47 @@ KeyPath.app (SwiftUI) → KanataManager → launchctl → Kanata daemon
 ### Key Manager Classes
 - `KanataManager`: **Unified manager** - handles daemon lifecycle, configuration, UI state, and user interactions
 - `KeyboardCapture`: Handles CGEvent-based keyboard input recording (isolated service)
+- `PermissionOracle`: **🔮 CRITICAL ARCHITECTURE** - Single source of truth for all permission detection
 - `InstallationWizard/`: Multi-step setup flow with auto-fix capabilities
   - `WizardSystemState`: Single source of truth for system state
   - `SystemStateDetector`: Pure functions for state detection
   - `WizardAutoFixer`: Automated issue resolution
 - `ProcessLifecycleManager`: Manages Kanata process state and recovery
-- `PermissionService`: Handles accessibility and input monitoring permissions
+- `PermissionService`: Legacy TCC database utilities (Oracle handles logic)
+
+### 🔮 PermissionOracle Architecture (CRITICAL - DO NOT BREAK)
+
+**THE FUNDAMENTAL RULE: Apple APIs ALWAYS take precedence over TCC database**
+
+The PermissionOracle follows a strict hierarchy that was broken in commit 7f68821 and restored:
+
+```
+1. APPLE APIs (IOHIDCheckAccess from GUI context) → AUTHORITATIVE
+   ├─ .granted/.denied → TRUST THIS RESULT (never bypass with TCC)
+   └─ .unknown → Proceed to TCC fallback
+
+2. TCC DATABASE → FALLBACK ONLY for .unknown cases
+   ├─ Used to break chicken-and-egg problems  
+   └─ Can be stale/inconsistent (why it's not primary)
+
+3. FUNCTIONAL VERIFICATION → For accessibility status only
+   └─ UDP connectivity test (cannot determine Input Monitoring)
+```
+
+**❌ NEVER DO THIS (what commit 7f68821 broke):**
+- Bypass Apple API results with TCC database queries
+- Use TCC database when Apple API returns definitive answers
+- Assume TCC database is more current than Apple APIs
+
+**✅ CORRECT BEHAVIOR (restored here):**
+- Trust Apple API `.granted/.denied` results unconditionally  
+- Only query TCC database when Apple API returns `.unknown`
+- Log source clearly: "gui-check" vs "tcc-fallback"
+
+**Historical Context:**
+- **commit 71d7d06**: Original correct Oracle design
+- **commit 7f68821**: ❌ Broke Oracle by always using TCC fallback  
+- **This commit**: ✅ Restored Apple-first hierarchy
 
 ### Installation Wizard Flow
 The wizard follows a state-driven architecture with these key pages:

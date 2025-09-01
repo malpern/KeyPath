@@ -15,6 +15,10 @@ NC='\033[0m' # No Color
 # Configuration
 LAUNCH_DAEMON_LABEL="com.keypath.kanata"
 LAUNCH_DAEMON_PLIST="/Library/LaunchDaemons/${LAUNCH_DAEMON_LABEL}.plist"
+VHID_DAEMON_LABEL="com.keypath.karabiner-vhiddaemon"
+VHID_DAEMON_PLIST="/Library/LaunchDaemons/${VHID_DAEMON_LABEL}.plist"
+VHID_MANAGER_LABEL="com.keypath.karabiner-vhidmanager"
+VHID_MANAGER_PLIST="/Library/LaunchDaemons/${VHID_MANAGER_LABEL}.plist"
 KANATA_CONFIG_DIR="/usr/local/etc/kanata"
 KEYPATH_APP_DIR="/Applications/KeyPath.app"
 
@@ -43,27 +47,51 @@ check_root() {
 }
 
 stop_and_unload_daemon() {
-    log_info "Stopping and unloading LaunchDaemon..."
+    log_info "Stopping and unloading LaunchDaemons..."
     
-    # Stop the daemon if it's running
+    # Stop kanata daemon if it's running
     if launchctl list | grep -q "$LAUNCH_DAEMON_LABEL"; then
         launchctl kill TERM "system/$LAUNCH_DAEMON_LABEL" 2>/dev/null || true
         sleep 2
-        launchctl unload "$LAUNCH_DAEMON_PLIST" 2>/dev/null || true
-        log_success "LaunchDaemon stopped and unloaded"
+        launchctl bootout "system/$LAUNCH_DAEMON_LABEL" 2>/dev/null || true
+        log_success "Kanata LaunchDaemon stopped and unloaded"
     else
-        log_info "LaunchDaemon was not running"
+        log_info "Kanata LaunchDaemon was not running"
+    fi
+    
+    # Stop VirtualHID daemon
+    if launchctl list | grep -q "$VHID_DAEMON_LABEL"; then
+        launchctl kill TERM "system/$VHID_DAEMON_LABEL" 2>/dev/null || true
+        launchctl bootout "system/$VHID_DAEMON_LABEL" 2>/dev/null || true
+        log_success "VirtualHID daemon stopped and unloaded"
+    fi
+    
+    # Stop VirtualHID manager
+    if launchctl list | grep -q "$VHID_MANAGER_LABEL"; then
+        launchctl kill TERM "system/$VHID_MANAGER_LABEL" 2>/dev/null || true
+        launchctl bootout "system/$VHID_MANAGER_LABEL" 2>/dev/null || true
+        log_success "VirtualHID manager stopped and unloaded"
     fi
 }
 
 remove_launch_daemon() {
-    log_info "Removing LaunchDaemon plist..."
+    log_info "Removing LaunchDaemon plists..."
     
     if [[ -f "$LAUNCH_DAEMON_PLIST" ]]; then
         rm -f "$LAUNCH_DAEMON_PLIST"
-        log_success "LaunchDaemon plist removed"
+        log_success "Kanata LaunchDaemon plist removed"
     else
-        log_info "LaunchDaemon plist not found"
+        log_info "Kanata LaunchDaemon plist not found"
+    fi
+    
+    if [[ -f "$VHID_DAEMON_PLIST" ]]; then
+        rm -f "$VHID_DAEMON_PLIST"
+        log_success "VirtualHID daemon plist removed"
+    fi
+    
+    if [[ -f "$VHID_MANAGER_PLIST" ]]; then
+        rm -f "$VHID_MANAGER_PLIST"
+        log_success "VirtualHID manager plist removed"
     fi
 }
 
@@ -75,6 +103,20 @@ remove_config_directory() {
         log_success "Config directory removed"
     else
         log_info "Config directory not found"
+    fi
+}
+
+remove_system_kanata() {
+    log_info "Removing system-installed kanata binary..."
+    
+    if [[ -f "/Library/KeyPath/bin/kanata" ]]; then
+        rm -f "/Library/KeyPath/bin/kanata"
+        # Remove directory if empty
+        rmdir "/Library/KeyPath/bin" 2>/dev/null || true
+        rmdir "/Library/KeyPath" 2>/dev/null || true
+        log_success "System kanata binary removed"
+    else
+        log_info "System kanata binary not found"
     fi
 }
 
@@ -128,6 +170,9 @@ main() {
     
     # Remove config directory
     remove_config_directory
+    
+    # Remove system-installed kanata
+    remove_system_kanata
     
     # Remove KeyPath app
     remove_keypath_app

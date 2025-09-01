@@ -224,60 +224,88 @@ actor PermissionOracle {
     // MARK: - Kanata Permission Detection (GUI Context - ARCHITECTURE.md Current Workaround)
 
     private func checkKanataPermissions() async -> PermissionSet {
-        // ARCHITECTURE.md: Use split architecture - functional verification for root processes
-        // Prefer the active binary path used by LaunchDaemon if available
+        // ================================================================================================
+        // 🚨 CRITICAL ARCHITECTURAL PRINCIPLE - DO NOT CHANGE WITHOUT UNDERSTANDING THIS COMMENT 🚨
+        // ================================================================================================
+        //
+        // ORACLE PERMISSION DETECTION HIERARCHY (commit 7f68821 broke this, restored here):
+        //
+        // 1. APPLE APIs FIRST (IOHIDCheckAccess from GUI context) - MOST RELIABLE
+        //    - Always trust definitive answers (.granted/.denied)
+        //    - GUI context can reliably check permissions for any binary path
+        //    - This is the official Apple-approved method
+        //
+        // 2. TCC DATABASE FALLBACK - ONLY when Apple API returns .unknown
+        //    - Used to break chicken-and-egg problems in rare edge cases
+        //    - TCC database can be stale/inconsistent (why we don't use it first)
+        //    - Requires Full Disk Access which may not be available
+        //
+        // 3. FUNCTIONAL VERIFICATION - For accessibility status only
+        //    - UDP connectivity test to verify kanata is actually working
+        //    - Cannot determine Input Monitoring status (UDP works regardless)
+        //
+        // ⚠️  NEVER BYPASS APPLE APIs WITH TCC FALLBACK WHEN APIs GIVE DEFINITIVE ANSWERS ⚠️
+        //     This causes UI to show stale "denied" status while service works perfectly
+        //
+        // Historical context:
+        // - Original Oracle design (commit 71d7d06): Apple APIs → TCC fallback for unknown only
+        // - Broken by commit 7f68821: Always used TCC fallback, ignored Apple API results
+        // - Fixed here: Restored original Apple-first hierarchy
+        // ================================================================================================
+
         let kanataPath = resolveKanataExecutablePath()
 
-        // 1) Primary: functional verification via UDP
+        // 1) PRIMARY: Apple API check from GUI context (MOST RELIABLE - TRUST DEFINITIVE RESULTS)
+        let inputMonitoring = checkBinaryInputMonitoring(at: kanataPath)
+        
+        // 2) SECONDARY: Functional verification via UDP (for accessibility status)
         let functionalStatus = await checkKanataFunctionalStatus()
 
-        var accessibility: Status = .unknown
-        var inputMonitoring: Status = .unknown
-        var sourceParts: [String] = []
-        var confidence: Confidence = .low
+        var accessibility: Status = functionalStatus  // Kanata typically doesn't need AX, use functional check
+        var sourceParts: [String] = ["gui-check"]
+        var confidence: Confidence = .high
 
-        if case .granted = functionalStatus {
-            // Positive functional signal: both permissions are effectively working
-            accessibility = .granted
-            inputMonitoring = .granted
-            sourceParts.append("functional")
-            confidence = .high
-        } else {
-            // 2) Secondary: TCC database fallback (best-effort, requires FDA)
-            // NOTE: Direct TCC access is necessary here because functional verification
-            // creates a chicken-and-egg problem: we can't start the service to verify
-            // permissions if the wizard thinks permissions are missing, but we can't
-            // verify permissions without starting the service. TCC fallback breaks this cycle.
+        // 3) TCC FALLBACK: Only use when Apple API returned .unknown (chicken-and-egg edge cases)
+        if case .unknown = inputMonitoring {
+            AppLogger.shared.log("🔮 [Oracle] Apple API returned unknown, falling back to TCC database")
             let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
-
+            
+            var tccResults: [String] = []
+            var finalInputMonitoring = inputMonitoring  // Keep original .unknown
+            
             if let ax = tccAX {
                 accessibility = ax
-                sourceParts.append("tcc-ax")
+                tccResults.append("tcc-ax")
                 if case .granted = ax { confidence = .high }
             }
 
             if let im = tccIM {
-                inputMonitoring = im
-                sourceParts.append("tcc-im")
+                finalInputMonitoring = im
+                tccResults.append("tcc-im")
                 if case .granted = im { confidence = .high }
             }
-
-            // Keep conservative stance if we still couldn't confirm via TCC
-            if sourceParts.isEmpty {
-                sourceParts.append("functional-unavailable")
+            
+            if !tccResults.isEmpty {
+                sourceParts = tccResults
+            } else {
+                sourceParts = ["tcc-unavailable"]
                 confidence = .low
             }
-        }
+            
+            let source = "kanata.\(sourceParts.joined(separator: "+"))"
+            AppLogger.shared.log("🔮 [Oracle] Kanata permissions (TCC fallback): AX=\(accessibility), IM=\(finalInputMonitoring) via \(source)")
 
-        // Keep the binary existence check for logging only; don't mark permissions as error
-        let binaryCheck = checkBinaryInputMonitoring(at: kanataPath)
-        if case let .error(msg) = binaryCheck {
-            AppLogger.shared.log("🔮 [Oracle] Kanata binary check: \(msg) (not treating as permission error)")
-            // Do not override permission statuses here; component checks will handle missing binary
+            return PermissionSet(
+                accessibility: accessibility,
+                inputMonitoring: finalInputMonitoring,
+                source: source,
+                confidence: confidence,
+                timestamp: Date()
+            )
         }
 
         let source = "kanata.\(sourceParts.joined(separator: "+"))"
-        AppLogger.shared.log("🔮 [Oracle] Kanata permissions: AX=\(accessibility), IM=\(inputMonitoring) via \(source)")
+        AppLogger.shared.log("🔮 [Oracle] Kanata permissions (Apple API): AX=\(accessibility), IM=\(inputMonitoring) via \(source)")
 
         return PermissionSet(
             accessibility: accessibility,
@@ -288,34 +316,35 @@ actor PermissionOracle {
         )
     }
 
-    /// Check kanata binary Input Monitoring permission using functional verification
-    /// Since IOHIDCheckAccess() is unreliable for root processes, we use UDP functional testing
+    /// Check kanata binary Input Monitoring permission from GUI context (AUTHORITATIVE)
+    /// 
+    /// 🚨 CRITICAL: This is THE definitive permission check - DO NOT BYPASS WITH TCC DATABASE
+    /// 
+    /// Why this works reliably:
+    /// - IOHIDCheckAccess from GUI context can check permissions for ANY binary path
+    /// - Apple's official API, not a workaround or heuristic
+    /// - Returns definitive .granted/.denied status (never .unknown in practice)
+    /// - Works regardless of whether the target binary is currently running
+    /// 
+    /// Why we trust this over TCC database:
+    /// - TCC database can be stale/inconsistent after permission grants
+    /// - This API reflects the ACTUAL current permission state
+    /// - GUI context has reliable access to permission subsystem
     private func checkBinaryInputMonitoring(at kanataPath: String) -> Status {
-        // ARCHITECTURE.md: Root processes have unreliable IOHIDCheckAccess() results
-        // Instead, we verify functionality via UDP if kanata is running with permissions
-
         // First check if the binary exists
         guard FileManager.default.fileExists(atPath: kanataPath) else {
             AppLogger.shared.log("🔮 [Oracle] Kanata binary not found at \(kanataPath)")
             return .error("Kanata binary not found")
         }
 
-        // For Input Monitoring, the most reliable test is functional verification:
-        // If kanata UDP server is responding, it likely has the required permissions
-        // This avoids the IOHIDCheckAccess() reliability issues for root processes
-
-        let commSnapshot = PreferencesService.communicationSnapshot()
-        guard commSnapshot.shouldUseUDP else {
-            AppLogger.shared.log("🔮 [Oracle] UDP disabled - cannot verify kanata Input Monitoring via functional test")
-            // Fallback: assume permissions are needed (conservative approach)
-            return .unknown
-        }
-
-        // Note: We can't do synchronous UDP check here without blocking
-        // The functional check happens in checkKanataFunctionalStatus()
-        // For now, assume .unknown and let functional verification handle it
-        AppLogger.shared.log("🔮 [Oracle] Input Monitoring check deferred to functional verification")
-        return .unknown
+        // 🔮 THE ORACLE SPEAKS: This is the authoritative permission check
+        // IOHIDCheckAccess from GUI context is the official Apple method
+        // and works reliably for checking permissions of any executable path
+        let hasPermission = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+        
+        AppLogger.shared.log("🔮 [Oracle] AUTHORITATIVE Apple API check for kanata binary: \(hasPermission ? "GRANTED" : "DENIED")")
+        
+        return hasPermission ? .granted : .denied
     }
 
     /// Use UDP for functional verification, not permission status

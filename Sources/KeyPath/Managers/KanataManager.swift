@@ -1229,18 +1229,12 @@ class KanataManager: ObservableObject {
 
     /// Check if this is a fresh install (no Kanata binary or config)
     private func isFirstTimeInstall() -> Bool {
-        // Check for bundled Kanata binary
-        let bundledKanataPaths = [
-            Bundle.main.path(forResource: "kanata", ofType: nil, inDirectory: "Contents/Library/KeyPath"),
-            Bundle.main.bundlePath + "/Contents/Library/KeyPath/kanata"
-        ]
+        // Check for available Kanata binary (system or bundled)
+        let kanataPaths = WizardSystemPaths.allKnownKanataPaths()
+        let hasKanataBinary = !kanataPaths.isEmpty
 
-        let hasBundledKanata = bundledKanataPaths.compactMap { $0 }.contains { path in
-            FileManager.default.fileExists(atPath: path)
-        }
-
-        if !hasBundledKanata {
-            AppLogger.shared.log("🆕 [FreshInstall] No bundled Kanata binary found - fresh install detected")
+        if !hasKanataBinary {
+            AppLogger.shared.log("🆕 [FreshInstall] No Kanata binary found - fresh install detected")
             return true
         }
 

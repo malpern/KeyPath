@@ -5,6 +5,10 @@ import Foundation
 enum WizardSystemPaths {
     // MARK: - Binary Paths
 
+    /// System-installed kanata binary location (avoids Gatekeeper issues)
+    /// This is where the LaunchDaemon installer copies the bundled binary
+    static let kanataSystemInstallPath = "/Library/KeyPath/bin/kanata"
+
     /// Standard kanata binary location - used for both homebrew and experimental versions
     /// Using a single standard location simplifies permission management
     static let kanataStandardLocation = "/usr/local/bin/kanata"
@@ -20,16 +24,20 @@ enum WizardSystemPaths {
         "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
     }
 
-    /// Active kanata binary path - always use bundled canonical path
+    /// Active kanata binary path - returns system install path for LaunchDaemon
     /// Single canonical path eliminates TCC permission fragmentation
     static var kanataActiveBinary: String {
-        // Always use bundled kanata - single canonical path for consistent permissions
-        bundledKanataPath
+        // Use system install path if it exists (for LaunchDaemon)
+        // Otherwise use bundled path (for UI/detection)
+        if FileManager.default.fileExists(atPath: kanataSystemInstallPath) {
+            return kanataSystemInstallPath
+        }
+        return bundledKanataPath
     }
 
-    /// All known kanata binary paths for detection/filtering - ONLY bundled version
+    /// All known kanata binary paths for detection/filtering
     static func allKnownKanataPaths() -> [String] {
-        [bundledKanataPath].filter {
+        [kanataSystemInstallPath, bundledKanataPath].filter {
             FileManager.default.fileExists(atPath: $0)
         }
     }
@@ -104,9 +112,14 @@ enum WizardSystemPaths {
 
     // MARK: - Helper Methods
 
-    /// Returns the best available kanata binary path - ALWAYS use bundled version only
+    /// Returns the best available kanata binary path
     static func detectKanataBinaryPath() -> String? {
-        // ONLY use bundled kanata - no external binaries
+        // Prefer system-installed path (for LaunchDaemon)
+        if FileManager.default.fileExists(atPath: kanataSystemInstallPath) {
+            return kanataSystemInstallPath
+        }
+        
+        // Fall back to bundled kanata
         if FileManager.default.fileExists(atPath: bundledKanataPath) {
             return bundledKanataPath
         }

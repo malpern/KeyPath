@@ -47,8 +47,15 @@ SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
 # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
 codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS/Library/KeyPath/kanata"
 
-# Sign main app
-codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+# Sign main app WITH entitlements
+ENTITLEMENTS_FILE="KeyPath.entitlements"
+if [ -f "$ENTITLEMENTS_FILE" ]; then
+    echo "Applying entitlements from $ENTITLEMENTS_FILE..."
+    codesign --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+else
+    echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
+    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+fi
 
 echo "✅ Verifying signatures..."
 codesign -dvvv "$APP_BUNDLE"

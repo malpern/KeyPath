@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Required for osascript admin operations -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+    
+    <!-- Required for executing shell scripts with admin privileges -->
+    <key>com.apple.security.temporary-exception.unix-socket</key>
+    <true/>
+    
+    <!-- Disable sandboxing for admin operations -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+    
+    <!-- Allow executing external processes -->
+    <key>com.apple.security.inherit</key>
+    <true/>
+    
+    <!-- Allow network access for inter-process communication -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    
+    <!-- File system access for creating LaunchDaemons -->
+    <key>com.apple.security.files.downloads.read-write</key>
+    <true/>
+</dict>
+</plist>

@@ -8,8 +8,7 @@ import Foundation
 /// - Handles atomic writes by monitoring file creation/deletion/move events
 /// - Provides comprehensive error logging and recovery
 /// - Uses proper file descriptor management with cleanup
-@MainActor
-class ConfigFileWatcher: ObservableObject {
+class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     // MARK: - Properties
 
     private var fileMonitorSource: DispatchSourceFileSystemObject?
@@ -39,7 +38,7 @@ class ConfigFileWatcher: ObservableObject {
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher initialized with robust monitoring")
     }
 
-    @MainActor deinit {
+    deinit {
         stopWatching()
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher deinitialized")
     }
@@ -119,11 +118,11 @@ class ConfigFileWatcher: ObservableObject {
 
         // Set up event handler with atomic write detection
         fileMonitorSource?.setEventHandler { [weak self] in
-            guard let self, let source = fileMonitorSource else { return }
+            guard let self, let source = self.fileMonitorSource else { return }
             let flags = DispatchSource.FileSystemEvent(rawValue: source.data)
             AppLogger.shared.log("📁 [FileWatcher] File system event received - flags: \(flags)")
-            Task {
-                await self.handleFileEvent(flags: flags)
+            Task { [weak self] in
+                await self?.handleFileEvent(flags: flags)
             }
         }
 
@@ -172,9 +171,9 @@ class ConfigFileWatcher: ObservableObject {
         )
 
         // Set up event handler for directory changes
-        directoryMonitorSource?.setEventHandler { [weak self] in
+        directoryMonitorSource?.setEventHandler {
             AppLogger.shared.log("📁 [FileWatcher] Directory event received - checking if target file was created")
-            Task {
+            Task { [weak self] in
                 await self?.handleDirectoryChangeEvent()
             }
         }
@@ -276,9 +275,7 @@ class ConfigFileWatcher: ObservableObject {
 
         // Wait a brief moment for atomic write to complete
         queue.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            DispatchQueue.main.async { [weak self] in
-                self?.setupFileMonitoring()
-            }
+            self?.setupFileMonitoring()
         }
     }
 
@@ -302,7 +299,10 @@ class ConfigFileWatcher: ObservableObject {
 
             // Trigger initial change callback since the file was just created
             AppLogger.shared.log("📁 [FileWatcher] Triggering change callback for newly created file")
-            await onFileChanged?()
+            await MainActor.run {
+                Task { await onFileChanged?() }
+                return ()
+            }
         } else {
             AppLogger.shared.log("📁 [FileWatcher] Directory changed but target file not yet created")
         }
@@ -359,7 +359,7 @@ class ConfigFileWatcher: ObservableObject {
             AppLogger.shared.log("🔄 [FileWatcher] Retrying file monitoring setup (attempt \(retryCount)/\(maxRetries))")
 
             // Retry after a brief delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            queue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.setupFileMonitoring()
             }
         } else {
@@ -376,7 +376,7 @@ class ConfigFileWatcher: ObservableObject {
             AppLogger.shared.log("🔄 [FileWatcher] Retrying directory monitoring setup (attempt \(retryCount)/\(maxRetries))")
 
             // Retry after a brief delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            queue.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.setupDirectoryMonitoring()
             }
         } else {
@@ -486,8 +486,11 @@ class ConfigFileWatcher: ObservableObject {
             AppLogger.shared.log("📁 [FileWatcher] Triggering file change callback (size unknown)")
         }
 
-        // Trigger the callback
-        await onFileChanged?()
+        // Trigger the callback on MainActor
+        await MainActor.run {
+            Task { await onFileChanged?() }
+            return ()
+        }
         AppLogger.shared.log("✅ [FileWatcher] File change callback completed")
     }
 }
