@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 // Note: @main attribute moved to KeyPathCLI/main.swift for proper SPM building
@@ -157,6 +158,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: KanataManager?
     var isHeadlessMode = false
 
+    @MainActor
+    private func ensureMainWindowVisible(timeout: TimeInterval = 1.5) async {
+        guard !isHeadlessMode else { return }
+
+        let start = CACurrentMediaTime()
+        while CACurrentMediaTime() - start < timeout {
+            // Prefer a visible, non-miniaturized window
+            if let window = NSApplication.shared.windows.first(where: { $0.isVisible }) {
+                if window.isMiniaturized { window.deminiaturize(nil) }
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
+                return
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        }
+        // Fallback: activate anyway (SwiftUI may bring the window forward after this)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         print("🔍 [AppDelegate] applicationShouldTerminate called")
         return .terminateNow
@@ -230,8 +250,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 }
             }
+        } else {
+            AppLogger.shared.log("🖥️ [AppDelegate] Normal mode - bringing app to front")
+            Task { @MainActor in
+                await ensureMainWindowVisible()
+            }
         }
         // Note: In normal mode, kanata is already started in KanataManager.init() if requirements are met
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !isHeadlessMode && !flag {
+            Task { @MainActor in
+                await ensureMainWindowVisible()
+            }
+        }
+        return true
     }
 
     func applicationWillResignActive(_: Notification) {
