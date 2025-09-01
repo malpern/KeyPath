@@ -53,14 +53,23 @@ The Oracle is a Swift Actor providing a **single source of truth** with determin
 
 ```swift
 actor PermissionOracle {
-    // HIERARCHY (UPDATED based on macOS TCC limitations):
-    // 1. Apple APIs from GUI (IOHIDCheckAccess - reliable in user session)
-    // 2. Kanata TCP API (functional status, but unreliable for permissions)
-    // 3. TCC Database (fallback only)
-    // 4. Unknown (never guess)
+    // 🚨 CRITICAL HIERARCHY (commit 7f68821 broke this, restored in 8445b36):
     // 
-    // ⚠️ CRITICAL: Kanata TCP reports false negatives for Input Monitoring
-    // due to IOHIDCheckAccess() being unreliable for root processes
+    // 1. APPLE APIs FIRST (IOHIDCheckAccess from GUI context) → AUTHORITATIVE
+    //    ├─ .granted/.denied → TRUST THIS RESULT (never bypass with TCC)
+    //    └─ .unknown → Proceed to TCC fallback
+    //
+    // 2. TCC DATABASE → NECESSARY FALLBACK for .unknown cases only
+    //    ├─ REQUIRED to break chicken-and-egg problems in wizard scenarios
+    //    ├─ When service isn't running, can't do functional verification
+    //    ├─ When wizard needs permissions before starting service
+    //    └─ Can be stale/inconsistent (why it's not primary source)
+    //
+    // 3. FUNCTIONAL VERIFICATION → For accessibility status only
+    //    └─ UDP connectivity test (cannot determine Input Monitoring)
+    //
+    // ⚠️ NEVER BYPASS APPLE APIs WITH TCC DATABASE WHEN APIs GIVE DEFINITIVE ANSWERS
+    //    This causes UI to show stale "denied" status while service works perfectly
 }
 ```
 
@@ -622,6 +631,27 @@ swift test --filter WizardNavigationEngineTests
 **Evidence:** KeyPath GUI creates competing event taps with kanata daemon, causing system instability  
 **Implementation:** TCP-based key recording instead of GUI CGEvent taps, following Karabiner-Elements pattern
 
+### ADR-007: Oracle Apple API Priority Architecture (CRITICAL)
+**Decision:** Apple APIs (IOHIDCheckAccess from GUI context) take absolute precedence over TCC database
+**Status:** ✅ RESTORED (commits 8445b36, 87c36ca - September 1, 2025)
+**Problem:** Commit 7f68821 broke Oracle by bypassing Apple APIs with TCC database even when APIs returned definitive results
+**Evidence:** 
+- Service working perfectly while wizard showed "denied" status
+- Apple API reported `.granted`, TCC database showed stale `auth_value=2` (denied)
+- User confusion: "KeyPath is frozen" when actually permissions were correct
+**Solution:** 
+- ✅ Apple API results `.granted/.denied` are AUTHORITATIVE (never bypass)
+- ✅ TCC database used ONLY when Apple API returns `.unknown` (chicken-and-egg scenarios)
+- ✅ TCC fallback is NECESSARY for wizard scenarios when service not running
+**Implementation:**
+- Extensive source code documentation with 🚨 warnings
+- CLAUDE.md section documenting principles
+- Historical commit references to prevent regression
+**Consequences:** 
+- Wizard now shows correct permission status matching actual system state
+- UI consistency restored: green checkmarks when service works
+- Architecture protected with rigorous documentation
+
 
 ---
 
@@ -640,5 +670,5 @@ swift test --filter WizardNavigationEngineTests
 
 ---
 
-*Last Updated: August 27, 2025*  
-*Architecture Version: 2.3 (Manager Consolidation Complete, UDP Migration Complete)*
+*Last Updated: September 1, 2025*  
+*Architecture Version: 2.4 (Oracle Apple API Priority Restored, Critical Documentation Added)*
