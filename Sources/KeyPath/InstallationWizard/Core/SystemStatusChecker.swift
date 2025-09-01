@@ -335,54 +335,9 @@ class SystemStatusChecker {
             AppLogger.shared.log("🟡 [SystemStatusChecker] Kanata Accessibility: Oracle inconclusive (unknown)")
         }
 
-        // CRITICAL FIX: TCC Domain Mismatch - Oracle checks user TCC DB, but system LaunchDaemon uses system TCC DB
-        let kanataPlistPath = LaunchDaemonInstaller.kanataPlistPath
-        let isSystemDaemon = kanataPlistPath.hasPrefix(LaunchDaemonInstaller.systemLaunchDaemonsDir)
-        
-        if isSystemDaemon {
-            AppLogger.shared.log("🛡️ [SystemStatusChecker] Kanata runs as system LaunchDaemon - checking system TCC domain, not user TCC domain")
-            
-            // Oracle checked user TCC DB but system daemon uses system TCC DB
-            // Override optimistic "granted" status until we can verify system domain permissions
-            if granted.contains(.kanataInputMonitoring) {
-                granted.removeAll { $0 == .kanataInputMonitoring }
-                AppLogger.shared.log("🔄 [SystemStatusChecker] Removed user-domain Kanata Input Monitoring grant (system daemon uses different TCC DB)")
-            }
-            if !missing.contains(.kanataInputMonitoring) {
-                missing.append(.kanataInputMonitoring)
-                AppLogger.shared.log("❌ [SystemStatusChecker] Added Kanata Input Monitoring to missing (needs system TCC DB grant)")
-            }
-            
-            if granted.contains(.kanataAccessibility) {
-                granted.removeAll { $0 == .kanataAccessibility }
-                AppLogger.shared.log("🔄 [SystemStatusChecker] Removed user-domain Kanata Accessibility grant (system daemon uses different TCC DB)")
-            }
-            if !missing.contains(.kanataAccessibility) {
-                missing.append(.kanataAccessibility)
-                AppLogger.shared.log("❌ [SystemStatusChecker] Added Kanata Accessibility to missing (needs system TCC DB grant)")
-            }
-        }
-
-        // HARD EVIDENCE OVERRIDE: If kanata logs show IOHIDDeviceOpen permission errors, override Oracle optimism
-        // This catches cases where Oracle is wrong or TCC domain mismatch slips through
-        let hasIOHIDPermissionFailure = kanataManager.diagnostics.contains {
-            $0.category == .permissions && $0.technicalDetails.contains("IOHIDDeviceOpen error")
-        }
-        
-        if hasIOHIDPermissionFailure {
-            AppLogger.shared.log("❌ [SystemStatusChecker] HARD EVIDENCE: Kanata logs show IOHIDDeviceOpen permission failure - overriding any Oracle optimism")
-            
-            // Force Input Monitoring to missing based on actual runtime evidence
-            granted.removeAll { $0 == .kanataInputMonitoring }
-            if !missing.contains(.kanataInputMonitoring) {
-                missing.append(.kanataInputMonitoring)
-                AppLogger.shared.log("❌ [SystemStatusChecker] Added Kanata Input Monitoring to missing (hard evidence from logs)")
-            }
-        }
-
-        // Always consult TCC (not only as a fallback) so positive grants are honored.
-        // Oracle already handled TCC database checking as fallback - no redundant checks needed
-        AppLogger.shared.log("🔮 [SystemStatusChecker] Oracle completed all permission detection (TCP/APIs/TCC hierarchy)")
+        // Oracle permission detection is complete and authoritative
+        // SystemStatusChecker trusts Oracle results without overrides
+        AppLogger.shared.log("🔮 [SystemStatusChecker] Oracle completed all permission detection - trusting results")
 
         // Check system extensions (not part of PermissionService - different category)
         let systemRequirements = SystemRequirements()
