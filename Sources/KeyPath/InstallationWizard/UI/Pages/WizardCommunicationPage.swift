@@ -7,7 +7,7 @@ struct WizardCommunicationPage: View {
     @State private var showingFixFeedback = false
     @State private var fixResult: FixResult?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
-    @EnvironmentObject var kanataManager: KanataManager
+    @Environment(KanataManager.self) var kanataManager
     @Environment(\.preferencesService) private var preferences: PreferencesService
 
     // Auto-fix integration
@@ -62,6 +62,57 @@ struct WizardCommunicationPage: View {
                             .font(.system(size: 17, weight: .regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
+
+                        // Communication component details card below the subheading - horizontally centered
+                        HStack {
+                            Spacer()
+                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("UDP Server")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Fast communication protocol for configuration changes")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("Secure Authentication")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Token-based authentication for protected operations")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("Live Configuration")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Instant keyboard mapping updates without service restart")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
@@ -110,6 +161,57 @@ struct WizardCommunicationPage: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
+
+                        // Communication component details for setup/error state
+                        HStack {
+                            Spacer()
+                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: udpServerStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(udpServerStatus == .completed ? .green : .red)
+                                    HStack(spacing: 0) {
+                                        Text("UDP Server")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Fast communication protocol")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Image(systemName: authenticationStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(authenticationStatus == .completed ? .green : .red)
+                                    HStack(spacing: 0) {
+                                        Text("Secure Authentication")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Token-based security")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Image(systemName: configurationStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(configurationStatus == .completed ? .green : .red)
+                                    HStack(spacing: 0) {
+                                        Text("Live Configuration")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Instant keyboard mapping updates")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(WizardDesign.Spacing.cardPadding)
+                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
@@ -332,6 +434,49 @@ struct WizardCommunicationPage: View {
             return await WizardCommunicationPage.testConfigReload(client: client)
         } else {
             return false
+        }
+    }
+
+    // MARK: - Status Helpers
+
+    private var udpServerStatus: InstallationStatus {
+        switch commStatus {
+        case .ready:
+            return .completed
+        case .needsSetup, .authRequired:
+            return preferences.udpServerEnabled ? .failed : .notStarted
+        case .checking, .authTesting:
+            return .notStarted
+        case .error:
+            return .failed
+        }
+    }
+
+    private var authenticationStatus: InstallationStatus {
+        switch commStatus {
+        case .ready:
+            return .completed
+        case .needsSetup:
+            return .notStarted
+        case .authRequired:
+            return .failed
+        case .checking, .authTesting:
+            return .notStarted
+        case .error:
+            return .failed
+        }
+    }
+
+    private var configurationStatus: InstallationStatus {
+        switch commStatus {
+        case .ready:
+            return .completed
+        case .needsSetup, .authRequired:
+            return .notStarted
+        case .checking, .authTesting:
+            return .notStarted
+        case .error:
+            return .failed
         }
     }
 }

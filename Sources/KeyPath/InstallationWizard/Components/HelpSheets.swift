@@ -180,9 +180,7 @@ struct InputMonitoringHelpSheet: View {
                         Button("Check Permission Status") {
                             Task {
                                 // Refresh permission status
-                                await MainActor.run {
-                                    kanataManager.objectWillChange.send()
-                                }
+                                // @Observable classes automatically trigger UI updates
                             }
                         }
                         .buttonStyle(.bordered)
@@ -265,9 +263,7 @@ struct AccessibilityHelpSheet: View {
                         Button("Check Permission Status") {
                             Task {
                                 // Refresh permission status
-                                await MainActor.run {
-                                    kanataManager.objectWillChange.send()
-                                }
+                                // @Observable classes automatically trigger UI updates
                             }
                         }
                         .buttonStyle(.bordered)
@@ -413,7 +409,7 @@ struct BackgroundServicesHelpSheet: View {
                                 Task {
                                     // Refresh service status
                                     await MainActor.run {
-                                        kanataManager.objectWillChange.send()
+                                        // @Observable classes automatically trigger UI updates
                                     }
                                 }
                             }
@@ -594,8 +590,7 @@ struct KarabinerInstallationGuideSheet: View {
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             
             await MainActor.run {
-                // Trigger a system state refresh
-                kanataManager.objectWillChange.send()
+                // @Observable classes automatically trigger UI updates
                 isCheckingStatus = false
                 
                 // Close the dialog after rechecking

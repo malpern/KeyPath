@@ -23,7 +23,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
 
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             UserDefaults.standard.set(true, forKey: self.authorizationRequestedKey)
-            Task { @MainActor in
+            Task {
                 self.preferences.notificationsEnabled = granted
             }
         }

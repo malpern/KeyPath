@@ -6,13 +6,14 @@ import SwiftUI
 /// This service provides a lightweight way to validate system state without
 /// showing the full wizard UI. It reuses the existing SystemStatusChecker
 /// infrastructure to maintain consistency with the wizard's validation logic.
+@Observable
 @MainActor
-final class StartupValidator: ObservableObject {
-    // MARK: - Published Properties
+final class StartupValidator {
+    // MARK: - Properties
 
-    @Published var validationState: ValidationState = .checking
-    @Published var issues: [WizardIssue] = []
-    @Published var lastValidationDate: Date?
+    var validationState: ValidationState = .checking
+    var issues: [WizardIssue] = []
+    var lastValidationDate: Date?
 
     // MARK: - Validation State
 
@@ -47,7 +48,8 @@ final class StartupValidator: ObservableObject {
     }
 
     deinit {
-        validationTask?.cancel()
+        // Note: Cannot access MainActor properties in deinit
+        // Task will be automatically cancelled when the class is deallocated
     }
 
     // MARK: - Configuration

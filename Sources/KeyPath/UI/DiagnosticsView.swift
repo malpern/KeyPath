@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
     @State private var systemDiagnostics: [KanataDiagnostic] = []
     @State private var showTechnicalDetails: Set<UUID> = []
     @State private var isRunningDiagnostics = false
@@ -90,14 +90,14 @@ struct DiagnosticsView: View {
         }
         .sheet(isPresented: $showingWizard) {
             InstallationWizardView()
-                .environmentObject(kanataManager)
+                .environment(kanataManager)
         }
     }
 
     private func runDiagnostics() {
         isRunningDiagnostics = true
 
-        Task { @MainActor in
+        Task {
             systemDiagnostics = []
             isRunningDiagnostics = false
         }
@@ -209,7 +209,7 @@ struct DiagnosticsView: View {
 }
 
 struct ProcessStatusSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -262,7 +262,7 @@ struct ProcessStatusSection: View {
 }
 
 struct PermissionStatusSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
     let onShowWizard: () -> Void
     @Environment(\.permissionSnapshotProvider) private var permissionProvider
     @State private var snapshot: PermissionOracle.Snapshot?
@@ -327,7 +327,7 @@ struct DiagnosticSection: View {
     let title: String
     let diagnostics: [KanataDiagnostic]
     @Binding var showTechnicalDetails: Set<UUID>
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -349,7 +349,7 @@ struct DiagnosticSection: View {
                         }
                     },
                     onAutoFix: {
-                        Task { @MainActor in
+                        Task {
                             await kanataManager.autoFixDiagnostic(diagnostic)
                         }
                     }
@@ -465,7 +465,7 @@ struct DiagnosticCard: View {
 }
 
 struct ConfigStatusSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
     @State private var configValidation: (isValid: Bool, errors: [String]) = (true, [])
     @State private var showConfigContent = false
 
@@ -518,7 +518,7 @@ struct ConfigStatusSection: View {
                     .padding(.leading, 20)
 
                     Button("Reset to Default") {
-                        Task { @MainActor in
+                        Task {
                             try? await kanataManager.resetToDefaultConfig()
                             validateConfig()
                         }
@@ -579,7 +579,7 @@ struct ConfigStatusSection: View {
     }
 
     private func validateConfig() {
-        Task { @MainActor in
+        Task {
             let result = await kanataManager.validateConfigFile()
             configValidation = result
         }
@@ -673,7 +673,7 @@ struct LogAccessSection: View {
 }
 
 struct EnhancedStatusSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
     @State private var kanataVersion: String = "Unknown"
     @State private var codeSignature: String = "Unknown"
     @State private var canonicalPath: String = "Unknown"
@@ -735,7 +735,7 @@ struct EnhancedStatusSection: View {
 
                 HStack {
                     Button("Refresh Status") {
-                        Task { @MainActor in
+                        Task {
                             await refreshSystemStatus()
                         }
                     }
@@ -789,13 +789,12 @@ struct EnhancedStatusSection: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
         )
-        .onAppear {
-            Task { @MainActor in
-                await refreshSystemStatus()
-            }
+        .task {
+            await refreshSystemStatus()
         }
     }
 
+    @MainActor
     private func refreshSystemStatus() async {
         isLoading = true
 
@@ -828,11 +827,10 @@ struct EnhancedStatusSection: View {
         // Probe permissions
         await probePermissions()
 
-        await MainActor.run {
-            isLoading = false
-        }
+        isLoading = false
     }
 
+    @MainActor
     private func getKanataVersion() async {
         let process = Process()
         let pipe = Pipe()
@@ -846,17 +844,14 @@ struct EnhancedStatusSection: View {
             try process.run()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                await MainActor.run {
-                    kanataVersion = output.isEmpty ? "Unknown" : output
-                }
+                kanataVersion = output.isEmpty ? "Unknown" : output
             }
         } catch {
-            await MainActor.run {
-                kanataVersion = "Error: \(error.localizedDescription)"
-            }
+            kanataVersion = "Error: \(error.localizedDescription)"
         }
     }
 
+    @MainActor
     private func getCodeSignature() async {
         let process = Process()
         let pipe = Pipe()
@@ -874,22 +869,17 @@ struct EnhancedStatusSection: View {
                 let lines = output.components(separatedBy: .newlines)
                 for line in lines where line.contains("Authority=") {
                     let authority = line.components(separatedBy: "Authority=").last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Unknown"
-                    await MainActor.run {
-                        codeSignature = authority
-                    }
+                    codeSignature = authority
                     return
                 }
-                await MainActor.run {
-                    codeSignature = "Signed but no authority found"
-                }
+                codeSignature = "Signed but no authority found"
             }
         } catch {
-            await MainActor.run {
-                codeSignature = "Error: \(error.localizedDescription)"
-            }
+            codeSignature = "Error: \(error.localizedDescription)"
         }
     }
 
+    @MainActor
     private func getLaunchDaemonState() async {
         let process = Process()
         let pipe = Pipe()
@@ -904,47 +894,34 @@ struct EnhancedStatusSection: View {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             if let output = String(data: data, encoding: .utf8) {
                 if output.contains("state = running") {
-                    await MainActor.run {
-                        launchDaemonState = "loaded/running"
-                    }
+                    launchDaemonState = "loaded/running"
                 } else if output.contains("state = ") {
                     let state = output.components(separatedBy: "state = ").dropFirst().first?.components(separatedBy: "\n").first ?? "unknown"
-                    await MainActor.run {
-                        launchDaemonState = "loaded/\(state)"
-                    }
+                    launchDaemonState = "loaded/\(state)"
                 } else {
-                    await MainActor.run {
-                        launchDaemonState = "not loaded"
-                    }
+                    launchDaemonState = "not loaded"
                 }
 
                 // Extract last exit status
                 if let exitMatch = output.range(of: "last exit code = (\\d+)", options: .regularExpression) {
                     let exitCode = String(output[exitMatch]).components(separatedBy: " = ").last?.replacingOccurrences(of: ")", with: "") ?? "unknown"
-                    await MainActor.run {
-                        lastExitStatus = exitCode
-                    }
+                    lastExitStatus = exitCode
                 } else {
-                    await MainActor.run {
-                        lastExitStatus = "none"
-                    }
+                    lastExitStatus = "none"
                 }
             }
         } catch {
-            await MainActor.run {
-                launchDaemonState = "Error: \(error.localizedDescription)"
-                lastExitStatus = "Error"
-            }
+            launchDaemonState = "Error: \(error.localizedDescription)"
+            lastExitStatus = "Error"
         }
     }
 
+    @MainActor
     private func probePermissions() async {
         let timestamp = Date()
         let snapshot = await PermissionOracle.shared.currentSnapshot()
-        await MainActor.run {
-            axProbeResult = (snapshot.keyPath.accessibility.isReady, timestamp)
-            imProbeResult = (snapshot.keyPath.inputMonitoring.isReady, timestamp)
-        }
+        axProbeResult = (snapshot.keyPath.accessibility.isReady, timestamp)
+        imProbeResult = (snapshot.keyPath.inputMonitoring.isReady, timestamp)
     }
 }
 

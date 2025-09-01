@@ -8,8 +8,9 @@ import SwiftUI
     // This is to handle potential circular dependencies during build
 #endif
 
+@Observable
 @MainActor
-public class KeyboardCapture: ObservableObject {
+public class KeyboardCapture {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var captureCallback: ((String) -> Void)?
@@ -209,35 +210,39 @@ public class KeyboardCapture: ObservableObject {
     }
 
     private func setupEventTap() {
-        // Safety check: avoid CGEvent tap conflicts when Kanata is running
-        // Per ADR-006, we should not create competing event taps
+        // Note: We allow event tap creation even when Kanata is running
+        // Users haven't reported conflicts, and it's useful to record keys while testing
         if let kanataManager, kanataManager.isRunning {
-            AppLogger.shared.log("⚠️ [KeyboardCapture] Skipping CGEvent tap setup - Kanata is running (ADR-006 compliance)")
-            // Fall back to disabling capture to avoid conflicts
-            isCapturing = false
-            isContinuous = false
-            captureCallback = nil
-
-            DispatchQueue.main.async {
-                self.captureCallback?("⚠️ Cannot capture while Kanata is running")
-            }
-            return
+            AppLogger.shared.log("⚠️ [KeyboardCapture] WARNING: Creating CGEvent tap while Kanata is running - potential for conflicts")
         }
 
         let eventMask = (1 << CGEventType.keyDown.rawValue)
 
+        AppLogger.shared.log("🎯 [KeyboardCapture] Creating CGEvent tap with parameters:")
+        AppLogger.shared.log("🎯 [KeyboardCapture] - Location: cgSessionEventTap")
+        AppLogger.shared.log("🎯 [KeyboardCapture] - Place: headInsertEventTap") 
+        AppLogger.shared.log("🎯 [KeyboardCapture] - Options: defaultTap (intercept mode)")
+        AppLogger.shared.log("🎯 [KeyboardCapture] - Event mask: \(eventMask) (keyDown events)")
+        
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap, // Recording mode: intercept and suppress events
             eventsOfInterest: CGEventMask(eventMask),
             callback: { tapProxy, _, event, refcon -> Unmanaged<CGEvent>? in
-                guard let refcon else { return Unmanaged.passRetained(event) }
+                guard let refcon else { 
+                    AppLogger.shared.log("⚠️ [KeyboardCapture] Event tap callback missing refcon - unexpected")
+                    return Unmanaged.passRetained(event) 
+                }
 
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
+                
+                // Log that we're receiving events (this confirms tap is working)
+                AppLogger.shared.log("📥 [KeyboardCapture] Event tap intercepted keyDown event")
 
                 // Process through event router if enabled
                 if capture.useEventRouter, let router = capture.eventRouter {
+                    AppLogger.shared.log("🔄 [KeyboardCapture] Processing event through router")
                     let result = router.route(
                         event: event,
                         location: .cgSessionEventTap,
@@ -250,11 +255,14 @@ public class KeyboardCapture: ObservableObject {
                         capture.handleKeyEvent(processedEvent)
                     }
                     // Recording mode: suppress the event (prevent system beeps/errors)
+                    AppLogger.shared.log("🔇 [KeyboardCapture] Event suppressed (recording mode)")
                     return nil
                 } else {
                     // Legacy behavior - process directly
+                    AppLogger.shared.log("🔄 [KeyboardCapture] Processing event directly (legacy mode)")
                     capture.handleKeyEvent(event)
                     // Recording mode: suppress the event (prevent system beeps/errors)
+                    AppLogger.shared.log("🔇 [KeyboardCapture] Event suppressed (recording mode)")
                     return nil
                 }
             },
@@ -262,13 +270,100 @@ public class KeyboardCapture: ObservableObject {
         )
 
         guard let eventTap else {
-            print("Failed to create event tap")
+            AppLogger.shared.log("❌ [KeyboardCapture] Failed to create event tap")
+            AppLogger.shared.log("❌ [KeyboardCapture] This usually indicates missing Input Monitoring permission")
+            AppLogger.shared.log("❌ [KeyboardCapture] Please grant both Accessibility AND Input Monitoring permissions")
+            isCapturing = false
+            captureCallback?("⚠️ Grant Input Monitoring permission in System Settings")
+            sequenceCallback?(KeySequence(keys: [], captureMode: .single))
             return
         }
+        
+        AppLogger.shared.log("✅ [KeyboardCapture] CGEvent tap object created successfully")
 
+        // Add tap to run loop and enable
+        AppLogger.shared.log("🔗 [KeyboardCapture] Adding event tap to run loop...")
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+        guard let runLoopSource else {
+            AppLogger.shared.log("❌ [KeyboardCapture] Failed to create run loop source for event tap")
+            CFMachPortInvalidate(eventTap)
+            self.eventTap = nil
+            isCapturing = false
+            captureCallback?("⚠️ Failed to setup event monitoring")
+            sequenceCallback?(KeySequence(keys: [], captureMode: .single))
+            return
+        }
+        
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+        AppLogger.shared.log("✅ [KeyboardCapture] Event tap added to run loop")
+        
+        // Enable the tap
         CGEvent.tapEnable(tap: eventTap, enable: true)
+        AppLogger.shared.log("✅ [KeyboardCapture] Event tap enabled")
+        
+        // Validate that the tap is actually working
+        validateEventTap()
+    }
+    
+    /// Validate that the event tap is actually functional
+    private func validateEventTap() {
+        guard let eventTap else {
+            AppLogger.shared.log("❌ [KeyboardCapture] Cannot validate - no event tap exists")
+            return
+        }
+        
+        // Check if the tap is enabled
+        let isEnabled = CGEvent.tapIsEnabled(tap: eventTap)
+        AppLogger.shared.log("🔍 [KeyboardCapture] Event tap enabled status: \(isEnabled)")
+        
+        if !isEnabled {
+            AppLogger.shared.log("⚠️ [KeyboardCapture] Event tap was disabled - may be blocked by macOS security")
+            AppLogger.shared.log("⚠️ [KeyboardCapture] This often indicates missing Input Monitoring permission")
+            
+            // Try to re-enable it
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+            let nowEnabled = CGEvent.tapIsEnabled(tap: eventTap)
+            AppLogger.shared.log("🔄 [KeyboardCapture] Re-enable attempt result: \(nowEnabled)")
+        }
+        
+        // Set up a timeout to check if we receive any events within reasonable time
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            self.checkEventTapActivity()
+        }
+    }
+    
+    /// Check if the event tap has received any events (called after timeout)
+    private func checkEventTapActivity() {
+        // This will be called after 5 seconds - if we haven't received any keyDown events,
+        // we can provide helpful diagnostic information
+        AppLogger.shared.log("🔍 [KeyboardCapture] Event tap activity check (after 5 second timeout)")
+        
+        guard let eventTap else { 
+            AppLogger.shared.log("❌ [KeyboardCapture] No event tap exists during activity check")
+            return 
+        }
+        
+        let isStillEnabled = CGEvent.tapIsEnabled(tap: eventTap)
+        AppLogger.shared.log("🔍 [KeyboardCapture] Event tap still enabled: \(isStillEnabled)")
+        
+        if isStillEnabled {
+            AppLogger.shared.log("ℹ️ [KeyboardCapture] Event tap is enabled but may not be receiving events - check if user is actually pressing keys during recording")
+        }
+        
+        if !isStillEnabled {
+            AppLogger.shared.log("⚠️ [KeyboardCapture] Event tap was disabled during recording - likely permission issue")
+            
+            DispatchQueue.main.async {
+                // Update UI to show the issue
+                if self.captureCallback != nil {
+                    self.captureCallback?("⚠️ Event monitoring was disabled - check permissions")
+                }
+                if self.sequenceCallback != nil {
+                    self.sequenceCallback?(KeySequence(keys: [], captureMode: self.captureMode))
+                }
+                self.stopCapture()
+            }
+        }
     }
 
     private func handleKeyEvent(_ event: CGEvent) {
@@ -276,6 +371,8 @@ public class KeyboardCapture: ObservableObject {
         let keyName = keyCodeToString(keyCode)
         let modifiers = ModifierSet(cgEventFlags: event.flags)
         let now = Date()
+        
+        AppLogger.shared.log("🎹 [KeyboardCapture] Processing key event: \(keyName) (code: \(keyCode))")
 
         // Create KeyPress
         let keyPress = KeyPress(
@@ -286,19 +383,25 @@ public class KeyboardCapture: ObservableObject {
         )
 
         DispatchQueue.main.async {
+            AppLogger.shared.log("🎯 [KeyboardCapture] Dispatching to main thread for processing")
+            
             // Handle legacy callback if set (for backward compatibility)
             if self.sequenceCallback == nil, let legacyCallback = self.captureCallback {
+                AppLogger.shared.log("🔄 [KeyboardCapture] Using legacy callback mode")
                 legacyCallback(keyName)
 
                 if !self.isContinuous {
+                    AppLogger.shared.log("🛑 [KeyboardCapture] Single capture mode - stopping after key")
                     self.stopCapture()
                 } else {
+                    AppLogger.shared.log("🔄 [KeyboardCapture] Continuous mode - resetting pause timer")
                     self.resetPauseTimer()
                 }
                 return
             }
 
             // Handle new sequence capture
+            AppLogger.shared.log("🔄 [KeyboardCapture] Using sequence capture mode")
             self.processKeyPress(keyPress)
         }
     }

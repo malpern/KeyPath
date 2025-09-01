@@ -1,10 +1,9 @@
 import AppKit
-import QuartzCore
 import SwiftUI
 
 // Note: @main attribute moved to KeyPathCLI/main.swift for proper SPM building
 public struct KeyPathApp: App {
-    @StateObject private var kanataManager = KanataManager()
+    @State private var kanataManager = KanataManager()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var showingEmergencyStopDialog = false
 
@@ -18,7 +17,7 @@ public struct KeyPathApp: App {
 
         // Initialize KanataManager
         let manager = KanataManager()
-        _kanataManager = StateObject(wrappedValue: manager)
+        _kanataManager = State(wrappedValue: manager)
 
         // Set activation policy based on mode
         if isHeadlessMode {
@@ -40,7 +39,7 @@ public struct KeyPathApp: App {
     public var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(kanataManager)
+                .environment(kanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
                 .sheet(isPresented: $showingEmergencyStopDialog) {
@@ -92,7 +91,7 @@ public struct KeyPathApp: App {
 
         Settings {
             SettingsView()
-                .environmentObject(kanataManager)
+                .environment(kanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
         }
@@ -158,24 +157,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: KanataManager?
     var isHeadlessMode = false
 
-    @MainActor
-    private func ensureMainWindowVisible(timeout: TimeInterval = 1.5) async {
-        guard !isHeadlessMode else { return }
-
-        let start = CACurrentMediaTime()
-        while CACurrentMediaTime() - start < timeout {
-            // Prefer a visible, non-miniaturized window
-            if let window = NSApplication.shared.windows.first(where: { $0.isVisible }) {
-                if window.isMiniaturized { window.deminiaturize(nil) }
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                window.makeKeyAndOrderFront(nil)
-                return
-            }
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-        }
-        // Fallback: activate anyway (SwiftUI may bring the window forward after this)
-        NSApplication.shared.activate(ignoringOtherApps: true)
-    }
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         print("🔍 [AppDelegate] applicationShouldTerminate called")
@@ -251,19 +232,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         } else {
-            AppLogger.shared.log("🖥️ [AppDelegate] Normal mode - bringing app to front")
-            Task { @MainActor in
-                await ensureMainWindowVisible()
-            }
+            AppLogger.shared.log("🖥️ [AppDelegate] Normal mode - activating application")
+            // Simple immediate activation
+            NSApplication.shared.activate(ignoringOtherApps: true)
         }
         // Note: In normal mode, kanata is already started in KanataManager.init() if requirements are met
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !isHeadlessMode && !flag {
-            Task { @MainActor in
-                await ensureMainWindowVisible()
-            }
+        if !isHeadlessMode {
+            AppLogger.shared.log("🖱️ [AppDelegate] Dock click detected - hasVisibleWindows: \(flag)")
+            NSApplication.shared.activate(ignoringOtherApps: true)
         }
         return true
     }

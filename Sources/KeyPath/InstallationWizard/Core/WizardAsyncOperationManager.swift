@@ -111,7 +111,7 @@ class WizardAsyncOperationManager {
             task.cancel()
         }
 
-        Task { @MainActor in
+        Task {
             self.runningOperations.removeAll()
             self.operationProgress.removeAll()
         }
@@ -134,7 +134,7 @@ class WizardAsyncOperationManager {
         AppLogger.shared.log("🛑 [AsyncOp] All operations cancelled asynchronously (\(tasksToCancel.count) tasks)")
 
         // Schedule UI cleanup for later, but don't wait for it
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             self?.runningOperations.removeAll()
             self?.operationProgress.removeAll()
         }

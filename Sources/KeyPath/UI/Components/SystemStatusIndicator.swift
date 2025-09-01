@@ -9,7 +9,7 @@ import SwiftUI
 /// - Red X when critical issues are detected
 /// - Click handler to open full wizard
 struct SystemStatusIndicator: View {
-    @ObservedObject var validator: StartupValidator
+    var validator: StartupValidator
     @Binding var showingWizard: Bool
     var onClick: (() -> Void)?
 
@@ -168,7 +168,7 @@ struct SystemStatusIndicator: View {
 
 /// A view that integrates the system status indicator into the ContentView header
 struct ContentViewSystemStatus: View {
-    @ObservedObject var validator: StartupValidator
+    var validator: StartupValidator
     @Binding var showingWizard: Bool
 
     var body: some View {

@@ -185,7 +185,7 @@ public struct KanataConfiguration: Sendable {
         }
 
         fileWatcher = FileWatcher(path: configurationPath) { [weak self] in
-            Task { @MainActor in
+            Task {
                 await self?.handleFileChange()
             }
         }

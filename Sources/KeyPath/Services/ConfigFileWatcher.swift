@@ -8,7 +8,8 @@ import Foundation
 /// - Handles atomic writes by monitoring file creation/deletion/move events
 /// - Provides comprehensive error logging and recovery
 /// - Uses proper file descriptor management with cleanup
-class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
+@Observable
+class ConfigFileWatcher: @unchecked Sendable {
     // MARK: - Properties
 
     // Thread-safe properties accessed from multiple contexts

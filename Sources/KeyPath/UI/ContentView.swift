@@ -2,8 +2,8 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
-    @EnvironmentObject var kanataManager: KanataManager
-    @StateObject private var startupValidator = StartupValidator()
+    @Environment(KanataManager.self) var kanataManager
+    @State private var startupValidator = StartupValidator()
     @State private var isRecording = false
     @State private var isRecordingOutput = false
     @State private var recordedInput = ""
@@ -40,7 +40,8 @@ struct ContentView: View {
             // Header
             ContentViewHeader(
                 validator: startupValidator,
-                showingInstallationWizard: $showingInstallationWizard
+                showingInstallationWizard: $showingInstallationWizard,
+                kanataManager: kanataManager
             )
 
             // Recording Section
@@ -115,7 +116,7 @@ struct ContentView: View {
                         AppLogger.shared.log("🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
                     }
                 }
-                .environmentObject(kanataManager)
+                .environment(kanataManager)
         }
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
@@ -216,10 +217,8 @@ struct ContentView: View {
                 Task.detached(priority: .utility) {
                     // Small delay to let wizard fully close
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                    _ = await MainActor.run {
-                        Task {
-                            await startEmergencyMonitoringIfPossible()
-                        }
+                    Task {
+                        await startEmergencyMonitoringIfPossible()
                     }
                 }
             }
@@ -345,48 +344,50 @@ struct ContentView: View {
 }
 
 struct ContentViewHeader: View {
-    @ObservedObject var validator: StartupValidator
+    var validator: StartupValidator
     @Binding var showingInstallationWizard: Bool
-    @EnvironmentObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Button(action: {
-                    AppLogger.shared.log(
-                        "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
-                    showingInstallationWizard = true
-                }, label: {
-                    Image(systemName: "keyboard")
-                        .font(.largeTitle)
-                        .foregroundColor(.blue)
-                })
-                .buttonStyle(PlainButtonStyle())
-                .accessibilityIdentifier("launch-installation-wizard-button")
-                .accessibilityLabel("Launch Installation Wizard")
-                .accessibilityHint("Click to open the KeyPath installation and setup wizard")
-
-                Text("KeyPath")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-
-                Spacer()
-
-                // System Status Indicator in top-right
-                SystemStatusIndicator(
-                    validator: validator,
-                    showingWizard: $showingInstallationWizard,
-                    onClick: {
-                        kanataManager.requestWizardPresentation()
+        HStack(alignment: .top) {
+            // Left-aligned content
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Button(action: {
+                        AppLogger.shared.log(
+                            "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
+                        showingInstallationWizard = true
+                    }) {
+                        Image(systemName: "keyboard")
+                            .font(.largeTitle)
+                            .foregroundColor(.blue)
                     }
-                )
-            }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("launch-installation-wizard-button")
+                    .accessibilityLabel("Launch Installation Wizard")
+                    .accessibilityHint("Click to open the KeyPath installation and setup wizard")
 
-            Text("Record keyboard shortcuts and create custom key mappings")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                    Text("KeyPath")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                }
+                
+                Text("Record keyboard shortcuts and create custom key mappings")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            // System Status Indicator in top-right
+            SystemStatusIndicator(
+                validator: validator,
+                showingWizard: $showingInstallationWizard,
+                onClick: {
+                    kanataManager.requestWizardPresentation()
+                }
+            )
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -395,7 +396,7 @@ struct RecordingSection: View {
     @Binding var recordedOutput: String
     @Binding var isRecording: Bool
     @Binding var isRecordingOutput: Bool
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
     @Binding var keyboardCapture: KeyboardCapture?
     let showStatusMessage: (String) -> Void
     @Binding var showingDiagnostics: Bool
@@ -599,7 +600,7 @@ struct RecordingSection: View {
         } message: {
             Text(repairFailedDetails)
         }
-        .alert(kanataManager.validationAlertTitle, isPresented: $kanataManager.showingValidationAlert) {
+        .alert(kanataManager.validationAlertTitle, isPresented: Bindable(kanataManager).showingValidationAlert) {
             ForEach(kanataManager.validationAlertActions.indices, id: \.self) { index in
                 let action = kanataManager.validationAlertActions[index]
                 switch action.style {
@@ -652,6 +653,8 @@ struct RecordingSection: View {
         // Use detached task to avoid MainActor inheritance deadlock
         Task.detached(priority: .utility) { [isSequenceMode] in
             let snapshot = await PermissionOracle.shared.currentSnapshot()
+            
+            // Check both required permissions using existing Oracle
             guard snapshot.keyPath.accessibility.isReady else {
                 await MainActor.run {
                     recordedInput = "⚠️ Accessibility permission required for recording"
@@ -660,12 +663,22 @@ struct RecordingSection: View {
                 return
             }
             
-            await MainActor.run {
+            guard snapshot.keyPath.inputMonitoring.isReady else {
+                await MainActor.run {
+                    recordedInput = "⚠️ Input Monitoring permission required for recording"
+                    isRecording = false
+                }
+                return
+            }
+            
+            await MainActor.run { [weak kanataManager] in
                 if keyboardCapture == nil {
                     keyboardCapture = KeyboardCapture()
+                    // Configure with KanataManager reference to properly handle running state
+                    keyboardCapture?.setEventRouter(nil, kanataManager: kanataManager)
                     AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
                 }
-                recordedInput = "Recording input..."
+                recordedInput = "Ready - press a key to record..."
             }
             
             guard let capture = await MainActor.run(body: { keyboardCapture }) else {
@@ -701,6 +714,8 @@ struct RecordingSection: View {
         // Use detached task to avoid MainActor inheritance deadlock
         Task.detached(priority: .utility) { [isSequenceMode] in
             let snapshot = await PermissionOracle.shared.currentSnapshot()
+            
+            // Check both required permissions using existing Oracle
             guard snapshot.keyPath.accessibility.isReady else {
                 await MainActor.run {
                     recordedOutput = "⚠️ Accessibility permission required for recording"
@@ -709,12 +724,22 @@ struct RecordingSection: View {
                 return
             }
             
-            await MainActor.run {
+            guard snapshot.keyPath.inputMonitoring.isReady else {
+                await MainActor.run {
+                    recordedOutput = "⚠️ Input Monitoring permission required for recording"
+                    isRecordingOutput = false
+                }
+                return
+            }
+            
+            await MainActor.run { [weak kanataManager] in
                 if keyboardCapture == nil {
                     keyboardCapture = KeyboardCapture()
+                    // Configure with KanataManager reference to properly handle running state
+                    keyboardCapture?.setEventRouter(nil, kanataManager: kanataManager)
                     AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
                 }
-                recordedOutput = "Recording output..."
+                recordedOutput = "Ready - press a key to record..."
             }
             
             guard let capture = await MainActor.run(body: { keyboardCapture }) else {
@@ -793,9 +818,7 @@ struct RecordingSection: View {
                   let outputSequence = capturedOutputSequence
             else {
                 AppLogger.shared.log("❌ [Save] Missing captured sequences")
-                await MainActor.run {
-                    showStatusMessage("❌ Please capture both input and output keys first")
-                }
+                showStatusMessage("❌ Please capture both input and output keys first")
                 return
             }
 
@@ -813,15 +836,13 @@ struct RecordingSection: View {
             AppLogger.shared.log("💾 [Save] Configuration saved successfully")
 
             // Show status message and clear the form
-            await MainActor.run {
-                showStatusMessage("Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
+            showStatusMessage("Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
 
-                // Clear the form
-                recordedInput = ""
-                recordedOutput = ""
-                capturedInputSequence = nil
-                capturedOutputSequence = nil
-            }
+            // Clear the form
+            recordedInput = ""
+            recordedOutput = ""
+            capturedInputSequence = nil
+            capturedOutputSequence = nil
 
             // Update status
             AppLogger.shared.log("💾 [Save] Updating manager status...")
@@ -845,11 +866,9 @@ struct RecordingSection: View {
                     KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration. " +
                     "If repair failed, a safe fallback configuration was applied.
                     """
-                    await MainActor.run {
-                        configRepairSuccessful = false
-                        showingConfigCorruptionAlert = true
-                        showStatusMessage("⚠️ Config repaired automatically")
-                    }
+                    configRepairSuccessful = false
+                    showingConfigCorruptionAlert = true
+                    showStatusMessage("⚠️ Config repaired automatically")
 
                 case let .claudeRepairFailed(reason):
                     configCorruptionDetails = """
@@ -859,11 +878,9 @@ struct RecordingSection: View {
 
                     A safe fallback configuration has been applied. Your system should continue working with basic functionality.
                     """
-                    await MainActor.run {
-                        configRepairSuccessful = false
-                        showingConfigCorruptionAlert = true
-                        showStatusMessage("❌ Config repair failed - using safe fallback")
-                    }
+                    configRepairSuccessful = false
+                    showingConfigCorruptionAlert = true
+                    showStatusMessage("❌ Config repair failed - using safe fallback")
 
                 case let .repairFailedNeedsUserAction(
                     originalConfig, _, originalErrors, repairErrors, mappings
@@ -877,31 +894,27 @@ struct RecordingSection: View {
                                 mappings: mappings
                             )
 
-                            await MainActor.run {
-                                failedConfigBackupPath = backupPath
-                                repairFailedDetails = """
-                                KeyPath was unable to automatically repair your configuration file.
+                            failedConfigBackupPath = backupPath
+                            repairFailedDetails = """
+                            KeyPath was unable to automatically repair your configuration file.
 
-                                Original errors:
-                                \(originalErrors.joined(separator: "\n"))
+                            Original errors:
+                            \(originalErrors.joined(separator: "\n"))
 
-                                Repair attempt errors:
-                                \(repairErrors.joined(separator: "\n"))
+                            Repair attempt errors:
+                            \(repairErrors.joined(separator: "\n"))
 
-                                Actions taken:
-                                • Your failed configuration has been backed up to: \(backupPath)
-                                • A safe default configuration (Caps Lock → Escape) has been applied
-                                • Your system should continue working normally
+                            Actions taken:
+                            • Your failed configuration has been backed up to: \(backupPath)
+                            • A safe default configuration (Caps Lock → Escape) has been applied
+                            • Your system should continue working normally
 
-                                You can examine and manually fix the backed up configuration if needed.
-                                """
-                                showingRepairFailedAlert = true
-                                showStatusMessage("⚠️ Config backed up, safe default applied")
-                            }
+                            You can examine and manually fix the backed up configuration if needed.
+                            """
+                            showingRepairFailedAlert = true
+                            showStatusMessage("⚠️ Config backed up, safe default applied")
                         } catch {
-                            await MainActor.run {
-                                showStatusMessage("❌ Failed to backup config: \(error.localizedDescription)")
-                            }
+                            showStatusMessage("❌ Failed to backup config: \(error.localizedDescription)")
                         }
                     }
 
@@ -911,27 +924,21 @@ struct RecordingSection: View {
                     AppLogger.shared.log("⚠️ [Save] Validation error handled by KanataManager dialogs")
 
                 case .startupValidationFailed(_, _):
-                    await MainActor.run {
-                        showStatusMessage("⚠️ Config validation failed at startup - using default")
-                    }
+                    showStatusMessage("⚠️ Config validation failed at startup - using default")
 
                 default:
-                    await MainActor.run {
-                        showStatusMessage("❌ Config error: \(error.localizedDescription)")
-                    }
+                    showStatusMessage("❌ Config error: \(error.localizedDescription)")
                 }
             } else {
                 // Show generic error message
-                await MainActor.run {
-                    showStatusMessage("❌ Error saving: \(error.localizedDescription)")
-                }
+                showStatusMessage("❌ Error saving: \(error.localizedDescription)")
             }
         }
     }
 }
 
 struct ErrorSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
     @Binding var showingInstallationWizard: Bool
     let error: String
 
@@ -957,9 +964,7 @@ struct ErrorSection: View {
                         let created = await kanataManager.createDefaultUserConfigIfMissing()
 
                         if created {
-                            await MainActor.run {
-                                kanataManager.lastError = nil
-                            }
+                            kanataManager.lastError = nil
                             AppLogger.shared.log(
                                 "✅ [UI] Created default config at ~/Library/Application Support/KeyPath/keypath.kbd"
                             )
@@ -997,7 +1002,7 @@ struct ErrorSection: View {
 
 struct DiagnosticSummarySection: View {
     let criticalIssues: [KanataDiagnostic]
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
     @State private var showingDiagnostics = false
 
     var body: some View {
@@ -1221,5 +1226,5 @@ struct DiagnosticSummaryView: View {
 
 #Preview {
     ContentView()
-        .environmentObject(KanataManager())
+        .environment(KanataManager())
 }

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var kanataManager: KanataManager
+    @Environment(KanataManager.self) var kanataManager
     @Environment(\.preferencesService) private var preferences: PreferencesService
     @State private var showingResetConfirmation = false
     @State private var showingDevResetConfirmation = false
@@ -121,7 +121,7 @@ struct SettingsView: View {
                 .onAppear {
                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard sheet is being presented")
                 }
-                .environmentObject(kanataManager)
+                .environment(kanataManager)
         }
         .onDisappear {
             AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
@@ -490,386 +490,16 @@ struct SettingsView: View {
         }
     }
 
-    /*
-     private var oldFullSettingsContent: some View {
-         VStack(spacing: 0) {
-             // Header
-             HStack {
-                 Text("Settings")
-                     .font(.system(size: 20, weight: .semibold))
-                     .foregroundColor(.primary)
-
-                 Spacer()
-
-                 Button("Done") {
-                     dismiss()
-                 }
-                 .buttonStyle(.borderedProminent)
-                 .controlSize(.regular)
-                 .accessibilityIdentifier("settings-done-button")
-                 .accessibilityLabel("Close Settings")
-                 .accessibilityHint("Close the settings window")
-             }
-             .padding(.horizontal, 24)
-             .padding(.vertical, 20)
-             .background(Color(NSColor.controlBackgroundColor))
-
-             ScrollView {
-                 VStack(alignment: .leading, spacing: 24) {
-                     // Status Section
-                     SettingsSection(title: "Status") {
-                         StatusRow(
-                             label: "Kanata Service",
-                             status: kanataServiceStatus,
-                             isActive: kanataServiceStatus == "Running"
-                         )
-
-                         StatusRow(
-                             label: "Installation",
-                             status: kanataManager.isCompletelyInstalled() ? "Installed" : "Not Installed",
-                             isActive: kanataManager.isCompletelyInstalled()
-                         )
-                     }
-
-                     Divider()
-
-                     // Service Control Section
-                     SettingsSection(title: "Service Control") {
-                         VStack(spacing: 10) {
-                             SettingsButton(
-                                 title: "Restart Service",
-                                 systemImage: "arrow.clockwise.circle",
-                                 accessibilityId: "restart-service-button",
-                                 accessibilityHint: "Stop and restart the Kanata keyboard service",
-                                 action: {
-                                     Task {
-                                         AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
-                                         await kanataManager.manualStop()
-                                         try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
-                                         await kanataManager.manualStart()
-                                     }
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Refresh Status",
-                                 systemImage: "arrow.clockwise",
-                                 accessibilityId: "refresh-status-button",
-                                 accessibilityHint: "Check the current status of the Kanata service",
-                                 action: {
-                                     Task {
-                                         AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
-                                         await kanataManager.forceRefreshStatus()
-                                     }
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Stop Kanata Service",
-                                 systemImage: "stop.circle",
-                                 style: .destructive,
-                                 disabled: kanataManager.currentState == .stopped,
-                                 accessibilityId: "stop-kanata-service-button",
-                                 accessibilityHint: "Completely stop the Kanata service and prevent auto-reloading",
-                                 action: {
-                                     Task {
-                                         AppLogger.shared.log("🛑 [SettingsView] Stop Kanata Service clicked")
-                                         await stopKanataService()
-                                     }
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Run Installation Wizard",
-                                 systemImage: "wrench.and.screwdriver",
-                                 accessibilityId: "run-installation-wizard-button",
-                                 accessibilityHint: "Launch the installation wizard to configure KeyPath",
-                                 action: {
-                                     AppLogger.shared.log("🎭 [SettingsView] Manual wizard trigger")
-                                     showingInstallationWizard = true
-                                 }
-                             )
-                         }
-                     }
-
-                     Divider()
-
-                     // Configuration Section
-                     SettingsSection(title: "Configuration") {
-                         VStack(spacing: 10) {
-                             SettingsButton(
-                                 title: "Edit Configuration",
-                                 systemImage: "doc.text",
-                                 accessibilityId: "edit-configuration-button",
-                                 accessibilityHint: "Open the Kanata configuration file in an editor",
-                                 action: {
-                                     openConfigInZed()
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Reset to Default",
-                                 systemImage: "arrow.counterclockwise",
-                                 style: .destructive,
-                                 accessibilityId: "reset-to-default-button",
-                                 accessibilityHint: "Reset all keyboard mappings to default configuration",
-                                 action: {
-                                     showingResetConfirmation = true
-                                 }
-                             )
-                         }
-                     }
-
-                     Divider()
-
-                     // Diagnostics Section
-                     SettingsSection(title: "Diagnostics") {
-                         VStack(spacing: 10) {
-                             SettingsButton(
-                                 title: "Show Diagnostics",
-                                 systemImage: "stethoscope",
-                                 accessibilityId: "show-diagnostics-button",
-                                 accessibilityHint:
-                                 "View detailed system diagnostics and troubleshooting information",
-                                 action: {
-                                     showingDiagnostics = true
-                                 }
-                             )
-
-                             // Log access buttons
-                             HStack(spacing: 10) {
-                                 SettingsButton(
-                                     title: "KeyPath Logs",
-                                     systemImage: "doc.text",
-                                     accessibilityId: "keypath-logs-button",
-                                     accessibilityHint: "Open KeyPath application log files",
-                                     action: {
-                                         openKeyPathLogs()
-                                     }
-                                 )
-
-                                 SettingsButton(
-                                     title: "Kanata Logs",
-                                     systemImage: "terminal",
-                                     accessibilityId: "kanata-logs-button",
-                                     accessibilityHint: "Open Kanata service log files",
-                                     action: {
-                                         openKanataLogs()
-                                     }
-                                 )
-                             }
-
-                             // Quick diagnostic summary
-                             diagnosticSummaryView
-                         }
-                     }
-
-                     Divider()
-
-                     // TCP Server Configuration
-                     SettingsSection(title: "TCP Server") {
-                         VStack(spacing: 12) {
-                             HStack {
-                                 Toggle(
-                                     "Enable TCP Server",
-                                     isOn: Binding(
-                                         get: { preferences.udpServerEnabled },
-                                         set: { preferences.udpServerEnabled = $0 }
-                                     )
-                                 )
-                                 .help(
-                                     "Enable TCP server for config validation. Required for live config checking.")
-
-                                 Spacer()
-                             }
-
-                             if preferences.udpServerEnabled {
-                                 HStack {
-                                     Text("Port:")
-                                         .font(.system(size: 13))
-                                         .foregroundColor(.secondary)
-
-                                     Button("\(preferences.tcpServerPort)") {
-                                         tempTCPPort = String(preferences.tcpServerPort)
-                                         showingTCPPortAlert = true
-                                     }
-                                     .buttonStyle(.bordered)
-                                     .controlSize(.small)
-                                     .help("Click to change TCP port (1024-65535)")
-
-                                     Spacer()
-
-                                     Text("Status: \(getTCPServerStatus())")
-                                         .font(.system(size: 12))
-                                         .foregroundColor(.secondary)
-                                 }
-                             }
-
-                             Text("TCP server enables real-time config validation without restarting Kanata.")
-                                 .font(.system(size: 11))
-                                 .foregroundColor(.secondary)
-                                 .multilineTextAlignment(.leading)
-                         }
-                     }
-
-                     Divider()
-
-                     // Developer Tools Section
-                     SettingsSection(title: "Developer Tools") {
-                         VStack(spacing: 10) {
-                             SettingsButton(
-                                 title: "Reset (Dev Only)",
-                                 systemImage: "arrow.clockwise.circle.fill",
-                                 style: .bordered,
-                                 accessibilityId: "reset-dev-button",
-                                 accessibilityHint: "Stop daemon, clear logs, restart - does not touch TCC permissions",
-                                 action: {
-                                     showingDevResetConfirmation = true
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Show Enhanced Diagnostics",
-                                 systemImage: "info.circle",
-                                 accessibilityId: "enhanced-diagnostics-button",
-                                 accessibilityHint: "View enhanced diagnostics with system status, signatures, and TCC probes",
-                                 action: {
-                                     showingDiagnostics = true
-                                 }
-                             )
-                         }
-                     }
-
-                     Divider()
-
-                     // Startup Settings (LaunchAgent)
-                     SettingsSection(title: "Startup") {
-                         LaunchAgentSettingsView()
-                     }
-
-                     Divider()
-
-                     // Issues section removed - diagnostics system provides better error reporting
-                 }
-                 .padding(.horizontal, 24)
-                 .padding(.vertical, 20)
-             }
-             .background(Color(NSColor.windowBackgroundColor))
-         }
-         .frame(width: 480, height: 520)
-         .background(Color(NSColor.windowBackgroundColor))
-         .onAppear {
-             AppLogger.shared.log("🔍 [SettingsView] onAppear called")
-
-             AppLogger.shared.log(
-                 "🔍 [SettingsView] Using shared SimpleKanataManager - state: \(kanataManager.currentState.rawValue)"
-             )
-             AppLogger.shared.log(
-                 "🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(kanataManager.showWizard)"
-             )
-
-             // Check if wizard should be shown immediately
-             if kanataManager.showWizard {
-                 AppLogger.shared.log("🎭 [SettingsView] Triggering wizard from Settings - Kanata needs help")
-                 showingInstallationWizard = true
-             }
-
-             // Status monitoring now handled centrally by SimpleKanataManager
-             // Just do an initial status refresh
-             Task {
-                 await kanataManager.forceRefreshStatus()
-             }
-
-             // Check TCP server status
-             checkTCPServerStatus()
-         }
-         .alert("Reset Configuration", isPresented: $showingResetConfirmation) {
-             Button("Cancel", role: .cancel) {}
-             Button("Reset", role: .destructive) {
-                 resetToDefaultConfig()
-             }
-         } message: {
-             Text(
-                 "This will reset your Kanata configuration to default with no custom mappings. All current key mappings will be lost. This action cannot be undone."
-             )
-         }
-         .alert("Change TCP Port", isPresented: $showingTCPPortAlert) {
-             TextField("Port (1024-65535)", text: $tempTCPPort)
-                 .textFieldStyle(.roundedBorder)
-
-             Button("Cancel", role: .cancel) {
-                 tempTCPPort = ""
-             }
-
-             Button("Apply") {
-                 if let port = Int(tempTCPPort), preferences.isValidTCPPort(port) {
-                     preferences.tcpServerPort = port
-                     AppLogger.shared.log("🔧 [SettingsView] TCP port changed to: \(port)")
-
-                     // Suggest service restart if Kanata is running
-                     if kanataManager.currentState == .running {
-                         AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for TCP port change")
-                     }
-
-                     // Refresh TCP status
-                     checkTCPServerStatus()
-                 }
-                 tempTCPPort = ""
-             }
-         } message: {
-             Text(
-                 "Enter a port number between 1024 and 65535. If Kanata is running, you'll need to restart the service for the change to take effect."
-             )
-         }
-         .sheet(isPresented: $showingDiagnostics) {
-             DiagnosticsView(kanataManager: kanataManager)
-         }
-         .sheet(isPresented: $showingInstallationWizard) {
-             InstallationWizardView()
-                 .onAppear {
-                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard sheet is being presented")
-                 }
-                 .onDisappear {
-                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
-                     Task {
-                         await kanataManager.onWizardClosed()
-                     }
-                 }
-                 .environmentObject(kanataManager)
-         }
-         .onDisappear {
-             AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
-             // Status monitoring handled centrally - no cleanup needed
-         }
-         .onChange(of: kanataManager.showWizard) { shouldShow in
-             AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
-             AppLogger.shared.log(
-                 "🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
-             )
-             showingInstallationWizard = shouldShow
-         }
-         .onChange(of: preferences.udpServerEnabled) { _ in
-             // Refresh TCP status when enabled/disabled
-             checkTCPServerStatus()
-         }
-         .onChange(of: kanataManager.currentState) { _ in
-             // Refresh TCP status when Kanata state changes
-             checkTCPServerStatus()
-         }
-     }
-     */
 
     // MARK: - Computed Properties
 
     private var diagnosticSummaryView: some View {
-        Group {
-            if !kanataManager.diagnostics.isEmpty {
-                let errorCount = kanataManager.diagnostics.filter {
-                    $0.severity == .error || $0.severity == .critical
-                }.count
-                let warningCount = kanataManager.diagnostics.filter { $0.severity == .warning }
-                    .count
-
+        let diagnostics = kanataManager.diagnostics
+        let errorCount = diagnostics.filter { $0.severity == .error || $0.severity == .critical }.count
+        let warningCount = diagnostics.filter { $0.severity == .warning }.count
+        
+        return Group {
+            if !diagnostics.isEmpty {
                 HStack(spacing: 12) {
                     if errorCount > 0 {
                         Label("\(errorCount)", systemImage: "exclamationmark.circle.fill")
@@ -883,7 +513,7 @@ struct SettingsView: View {
                             .font(.caption)
                     }
 
-                    if errorCount == 0, warningCount == 0 {
+                    if errorCount == 0 && warningCount == 0 {
                         Label("All good", systemImage: "checkmark.circle.fill")
                             .foregroundColor(.green)
                             .font(.caption)
@@ -1300,5 +930,5 @@ struct SettingsButton: View {
 
 #Preview {
     SettingsView()
-        .environmentObject(KanataManager())
+        .environment(KanataManager())
 }

@@ -151,64 +151,61 @@ struct ValidationAlertAction {
     }
 }
 
+@Observable
 @MainActor
-class KanataManager: ObservableObject {
-    @Published var isRunning = false
-    @Published var lastError: String?
-    @Published var keyMappings: [KeyMapping] = []
-    @Published var diagnostics: [KanataDiagnostic] = []
-    @Published var lastProcessExitCode: Int32?
-    @Published var lastConfigUpdate: Date = .init()
+class KanataManager {
+    var isRunning = false
+    var lastError: String?
+    var keyMappings: [KeyMapping] = []
+    var diagnostics: [KanataDiagnostic] = []
+    var lastProcessExitCode: Int32?
+    var lastConfigUpdate: Date = .init()
 
     // MARK: - UI State Properties (from SimpleKanataManager)
 
     /// Simple lifecycle state for UI display
-    @Published private(set) var currentState: SimpleKanataState = .starting {
+    private(set) var currentState: SimpleKanataState = .starting {
         didSet {
             if oldValue != currentState {
-                Task { @MainActor in
-                    UserNotificationService.shared.notifyStatusChange(currentState)
-                }
+                UserNotificationService.shared.notifyStatusChange(currentState)
             }
         }
     }
 
-    @Published private(set) var errorReason: String?
-    @Published private(set) var showWizard: Bool = false
-    @Published private(set) var launchFailureStatus: LaunchFailureStatus? {
+    private(set) var errorReason: String?
+    private(set) var showWizard: Bool = false
+    private(set) var launchFailureStatus: LaunchFailureStatus? {
         didSet {
             if let status = launchFailureStatus {
-                Task { @MainActor in
-                    UserNotificationService.shared.notifyLaunchFailure(status)
-                }
+                UserNotificationService.shared.notifyLaunchFailure(status)
             }
         }
     }
 
-    @Published private(set) var autoStartAttempts: Int = 0
-    @Published private(set) var lastHealthCheck: Date?
-    @Published private(set) var retryCount: Int = 0
-    @Published private(set) var isRetryingAfterFix: Bool = false
+    private(set) var autoStartAttempts: Int = 0
+    private(set) var lastHealthCheck: Date?
+    private(set) var retryCount: Int = 0
+    private(set) var isRetryingAfterFix: Bool = false
 
     // MARK: - Lifecycle State Properties (from KanataLifecycleManager)
 
-    @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
-    @Published var lifecycleErrorMessage: String?
-    @Published var isBusy: Bool = false
-    @Published var canPerformActions: Bool = true
-    @Published var autoStartAttempted: Bool = false
-    @Published var autoStartSucceeded: Bool = false
-    @Published var autoStartFailureReason: String?
-    @Published var shouldShowWizard: Bool = false
+    var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
+    var lifecycleErrorMessage: String?
+    var isBusy: Bool = false
+    var canPerformActions: Bool = true
+    var autoStartAttempted: Bool = false
+    var autoStartSucceeded: Bool = false
+    var autoStartFailureReason: String?
+    var shouldShowWizard: Bool = false
 
     // Validation-specific UI state
-    @Published var showingValidationAlert = false
-    @Published var validationAlertTitle = ""
-    @Published var validationAlertMessage = ""
-    @Published var validationAlertActions: [ValidationAlertAction] = []
+    var showingValidationAlert = false
+    var validationAlertTitle = ""
+    var validationAlertMessage = ""
+    var validationAlertActions: [ValidationAlertAction] = []
 
     // Save progress feedback
-    @Published var saveStatus: SaveStatus = .idle
+    var saveStatus: SaveStatus = .idle
 
     // Wizard cleanup state
     private var wizardCloseInFlight = false
@@ -367,7 +364,7 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("📝 [FileWatcher] External config file change detected")
 
         // Play the initial sound to indicate detection
-        Task { @MainActor in SoundManager.shared.playTinkSound() }
+        Task { SoundManager.shared.playTinkSound() }
 
         // Show initial status message
         await MainActor.run {
@@ -378,7 +375,7 @@ class KanataManager: ObservableObject {
         let configPath = configPath
         guard FileManager.default.fileExists(atPath: configPath) else {
             AppLogger.shared.log("❌ [FileWatcher] Config file no longer exists: \(configPath)")
-            Task { @MainActor in SoundManager.shared.playErrorSound() }
+            Task { SoundManager.shared.playErrorSound() }
             await MainActor.run {
                 saveStatus = .failed("Config file was deleted")
             }
@@ -395,7 +392,7 @@ class KanataManager: ObservableObject {
                 if let validationResult = await configurationService.validateConfigViaUDP() {
                     if !validationResult.isValid {
                         AppLogger.shared.log("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
-                        Task { @MainActor in SoundManager.shared.playErrorSound() }
+                        Task { SoundManager.shared.playErrorSound() }
 
                         await MainActor.run {
                             saveStatus = .failed("Invalid config from external edit: \(validationResult.errors.first ?? "Unknown error")")
@@ -415,7 +412,7 @@ class KanataManager: ObservableObject {
 
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [FileWatcher] External config successfully reloaded")
-                Task { @MainActor in SoundManager.shared.playGlassSound() }
+                Task { SoundManager.shared.playGlassSound() }
 
                 // Update configuration service with the new content
                 await updateInMemoryConfig(configContent)
@@ -428,7 +425,7 @@ class KanataManager: ObservableObject {
             } else {
                 let errorMessage = reloadResult.errorMessage ?? "Unknown error"
                 AppLogger.shared.log("❌ [FileWatcher] External config reload failed: \(errorMessage)")
-                Task { @MainActor in SoundManager.shared.playErrorSound() }
+                Task { SoundManager.shared.playErrorSound() }
 
                 await MainActor.run {
                     saveStatus = .failed("External config reload failed: \(errorMessage)")
@@ -442,7 +439,7 @@ class KanataManager: ObservableObject {
 
         } catch {
             AppLogger.shared.log("❌ [FileWatcher] Failed to read external config: \(error)")
-            Task { @MainActor in SoundManager.shared.playErrorSound() }
+            Task { SoundManager.shared.playErrorSound() }
 
             await MainActor.run {
                 saveStatus = .failed("Failed to read external config: \(error.localizedDescription)")
@@ -1711,14 +1708,14 @@ class KanataManager: ObservableObject {
             }
 
             // Play tink sound asynchronously to avoid blocking save pipeline
-            Task { @MainActor in SoundManager.shared.playTinkSound() }
+            Task { SoundManager.shared.playTinkSound() }
 
             // Trigger hot reload via UDP
             let reloadResult = await triggerUDPReload()
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [KanataManager] UDP reload successful, config is active")
                 // Play glass sound asynchronously to avoid blocking completion
-                Task { @MainActor in SoundManager.shared.playGlassSound() }
+                Task { SoundManager.shared.playGlassSound() }
                 await MainActor.run {
                     saveStatus = .success
                 }
@@ -1727,7 +1724,7 @@ class KanataManager: ObservableObject {
                 let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
                 AppLogger.shared.log("❌ [KanataManager] UDP reload FAILED: \(errorMessage)")
                 // Play error sound asynchronously
-                Task { @MainActor in SoundManager.shared.playErrorSound() }
+                Task { SoundManager.shared.playErrorSound() }
                 await MainActor.run {
                     saveStatus = .failed("Config saved but reload failed: \(errorMessage)")
                 }
@@ -1777,7 +1774,7 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationService")
 
             // Play tink sound asynchronously to avoid blocking save pipeline
-            Task { @MainActor in SoundManager.shared.playTinkSound() }
+            Task { SoundManager.shared.playTinkSound() }
 
             // Attempt UDP reload and capture any errors
             let reloadResult = await triggerUDPReload()
@@ -1787,7 +1784,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("✅ [Config] UDP reload successful, config is valid")
 
                 // Play glass sound asynchronously to avoid blocking completion
-                Task { @MainActor in SoundManager.shared.playGlassSound() }
+                Task { SoundManager.shared.playGlassSound() }
 
                 await MainActor.run {
                     saveStatus = .success
@@ -1799,7 +1796,7 @@ class KanataManager: ObservableObject {
                 AppLogger.shared.log("❌ [Config] UDP server is required for validation-on-demand - restoring backup")
 
                 // Play error sound asynchronously
-                Task { @MainActor in SoundManager.shared.playErrorSound() }
+                Task { SoundManager.shared.playErrorSound() }
 
                 // Restore backup since we can't verify the config was applied
                 try await restoreLastGoodConfig()
@@ -1828,13 +1825,13 @@ class KanataManager: ObservableObject {
     }
 
     func updateStatus() async {
-        // Synchronize status updates to prevent concurrent access to @Published properties
+        // Synchronize status updates to prevent concurrent access
         await KanataManager.startupActor.synchronize { [self] in
             await performUpdateStatus()
         }
     }
 
-    /// Main actor function to safely update all @Published properties
+    /// Main actor function to safely update all properties
     @MainActor
     private func updatePublishedProperties(
         isRunning: Bool,

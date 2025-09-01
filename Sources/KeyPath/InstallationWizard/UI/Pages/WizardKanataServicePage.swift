@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WizardKanataServicePage: View {
-    @ObservedObject var kanataManager: KanataManager
+    var kanataManager: KanataManager
     let systemState: WizardSystemState
     let issues: [WizardIssue]
 

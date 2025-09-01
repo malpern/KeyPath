@@ -3,7 +3,7 @@ import SwiftUI
 /// Main installation wizard view using clean architecture
 struct InstallationWizardView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var kanataManager: KanataManager
+    @Environment(KanataManager.self) var kanataManager
 
     // Optional initial page to navigate to
     var initialPage: WizardPage?
