@@ -211,8 +211,12 @@ struct ContentView: View {
         .onChange(of: showingInstallationWizard) { _, showing in
             // When wizard closes, try to start emergency monitoring if we now have permissions
             if !showing {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    startEmergencyMonitoringIfPossible()
+                Task.detached(priority: .utility) {
+                    // Small delay to let wizard fully close
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    await MainActor.run {
+                        startEmergencyMonitoringIfPossible()
+                    }
                 }
             }
         }
