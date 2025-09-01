@@ -138,15 +138,17 @@ struct ContentView: View {
             // Start the auto-launch sequence ONLY if we're not returning from permission granting
             // Otherwise the auto-launch will reset showWizard to false
             if !isReturningFromPermissionGrant {
-                Task {
+                Task.detached(priority: .utility) { [kanataManager] in
                     AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
                     await kanataManager.startAutoLaunch(presentWizardOnFailure: false)
                     AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
-                    AppLogger.shared.log(
-                        "✅ [ContentView] Post auto-launch - showWizard: \(kanataManager.showWizard)")
-                    AppLogger.shared.log(
-                        "✅ [ContentView] Post auto-launch - currentState: \(kanataManager.currentState.rawValue)"
-                    )
+                    await MainActor.run {
+                        AppLogger.shared.log(
+                            "✅ [ContentView] Post auto-launch - showWizard: \(kanataManager.showWizard)")
+                        AppLogger.shared.log(
+                            "✅ [ContentView] Post auto-launch - currentState: \(kanataManager.currentState.rawValue)"
+                        )
+                    }
                 }
             } else {
                 AppLogger.shared.log("🔧 [ContentView] Skipping auto-launch - returning from permission granting")
@@ -216,6 +218,7 @@ struct ContentView: View {
         }
     }
 
+    @MainActor
     private func showStatusMessage(message: String) {
         // Check if this is an error message
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
@@ -244,16 +247,15 @@ struct ContentView: View {
     private func startEmergencyMonitoringIfPossible() {
         // Initialize KeyboardCapture lazily if needed and we have permissions
         if keyboardCapture == nil {
-            Task {
+            Task.detached(priority: .utility) {
                 let snapshot = await PermissionOracle.shared.currentSnapshot()
+                guard snapshot.keyPath.accessibility.isReady else {
+                    // Don't have permissions yet - we'll try again later
+                    return
+                }
                 await MainActor.run {
-                    if snapshot.keyPath.accessibility.isReady {
-                        keyboardCapture = KeyboardCapture()
-                        AppLogger.shared.log("🎹 [ContentView] KeyboardCapture initialized for emergency monitoring")
-                    } else {
-                        // Don't have permissions yet - we'll try again later
-                        return
-                    }
+                    keyboardCapture = KeyboardCapture()
+                    AppLogger.shared.log("🎹 [ContentView] KeyboardCapture initialized for emergency monitoring")
                 }
             }
         }
@@ -262,8 +264,10 @@ struct ContentView: View {
 
         // We have permissions, start monitoring
         capture.startEmergencyMonitoring {
-            showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
-            showingEmergencyAlert = true
+            Task { @MainActor in
+                showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
+                showingEmergencyAlert = true
+            }
         }
     }
 
@@ -307,11 +311,13 @@ struct ContentView: View {
         }
 
         // Handle resetting to safe config
-        NotificationCenter.default.addObserver(forName: .resetToSafeConfig, object: nil, queue: .main) { _ in
-            Task { @MainActor in
+        NotificationCenter.default.addObserver(forName: .resetToSafeConfig, object: nil, queue: .main) { [kanataManager] _ in
+            Task.detached(priority: .utility) {
                 _ = await kanataManager.createDefaultUserConfigIfMissing()
                 await kanataManager.updateStatus()
-                showStatusMessage(message: "✅ Configuration reset to safe defaults")
+                await MainActor.run {
+                    showStatusMessage(message: "✅ Configuration reset to safe defaults")
+                }
             }
         }
 
@@ -635,7 +641,8 @@ struct RecordingSection: View {
         isRecording = true
         recordedInput = ""
 
-        Task {
+        // Use detached task to avoid MainActor inheritance deadlock
+        Task.detached(priority: .utility) { [isSequenceMode] in
             let snapshot = await PermissionOracle.shared.currentSnapshot()
             await MainActor.run {
                 guard snapshot.keyPath.accessibility.isReady else {
@@ -657,9 +664,11 @@ struct RecordingSection: View {
                 let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
 
                 capture.startSequenceCapture(mode: captureMode) { keySequence in
-                    capturedInputSequence = keySequence
-                    recordedInput = keySequence.displayString
-                    isRecording = false
+                    Task { @MainActor in
+                        capturedInputSequence = keySequence
+                        recordedInput = keySequence.displayString
+                        isRecording = false
+                    }
                 }
             }
         }
@@ -674,7 +683,8 @@ struct RecordingSection: View {
         isRecordingOutput = true
         recordedOutput = ""
 
-        Task {
+        // Use detached task to avoid MainActor inheritance deadlock
+        Task.detached(priority: .utility) { [isSequenceMode] in
             let snapshot = await PermissionOracle.shared.currentSnapshot()
             await MainActor.run {
                 guard snapshot.keyPath.accessibility.isReady else {
@@ -696,9 +706,11 @@ struct RecordingSection: View {
                 let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
 
                 capture.startSequenceCapture(mode: captureMode) { keySequence in
-                    capturedOutputSequence = keySequence
-                    recordedOutput = keySequence.displayString
-                    isRecordingOutput = false
+                    Task { @MainActor in
+                        capturedOutputSequence = keySequence
+                        recordedOutput = keySequence.displayString
+                        isRecordingOutput = false
+                    }
                 }
             }
         }
