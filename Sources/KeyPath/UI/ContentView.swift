@@ -2,8 +2,8 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
-    @Environment(KanataManager.self) var kanataManager
-    @State private var startupValidator = StartupValidator()
+    @Environment(KanataManager.self) var kanataManager // Modern environment usage
+    @State private var startupValidator = StartupValidator() // Simplified to @State
     @State private var isRecording = false
     @State private var isRecordingOutput = false
     @State private var recordedInput = ""
@@ -24,6 +24,7 @@ struct ContentView: View {
     // Enhanced error handling
     @State private var enhancedErrorInfo: ErrorInfo?
 
+
     // Diagnostics view state
     @State private var showingDiagnostics = false
 
@@ -33,15 +34,12 @@ struct ContentView: View {
     // Track if placeholder text should be shown (persists after toggling modes)
     @State private var showPlaceholderText = false
 
-    // Timer removed - now handled by SimpleKanataManager centrally
-
     var body: some View {
         VStack(spacing: 20) {
-            // Header
+            // Header with enhanced SystemStatusIndicator
             ContentViewHeader(
                 validator: startupValidator,
-                showingInstallationWizard: $showingInstallationWizard,
-                kanataManager: kanataManager
+                showingInstallationWizard: $showingInstallationWizard
             )
 
             // Recording Section
@@ -82,22 +80,8 @@ struct ContentView: View {
         .padding()
         .frame(width: 500)
         .fixedSize(horizontal: false, vertical: true)
-        .sheet(isPresented: $showingInstallationWizard, onDismiss: {
-            // When wizard closes, call KanataManager to handle the closure
-            AppLogger.shared.log("🎭 [ContentView] ========== WIZARD CLOSED ==========")
-            AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
-            AppLogger.shared.log("🎭 [ContentView] Calling kanataManager.onWizardClosed()")
-
-            // Use detached task with explicit priority to avoid blocking main thread
-            Task.detached(priority: .utility) { [kanataManager, startupValidator] in
-                await kanataManager.onWizardClosed()
-                // Re-run validation to update the status indicator
-                await MainActor.run {
-                    startupValidator.refreshValidation()
-                }
-            }
-        }) {
-            // Determine initial page if we're returning from permission granting
+        .sheet(isPresented: $showingInstallationWizard) {
+            // Simplified initial page logic
             let initialPage: WizardPage? = {
                 if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
                     UserDefaults.standard.removeObject(forKey: "wizard_return_to_input_monitoring")
@@ -116,13 +100,21 @@ struct ContentView: View {
                         AppLogger.shared.log("🔍 [ContentView] Starting at \(page.displayName) page after permission grant")
                     }
                 }
+                .onDisappear {
+                    // Simplified wizard closure handling
+                    AppLogger.shared.log("🎭 [ContentView] Installation wizard sheet dismissed by user")
+                    Task {
+                        await kanataManager.onWizardClosed()
+                        // Re-run validation to update the status indicator
+                        await MainActor.run {
+                            startupValidator.refreshValidation()
+                        }
+                    }
+                }
                 .environment(kanataManager)
         }
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
-            AppLogger.shared.log(
-                "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(kanataManager.showWizard)"
-            )
 
             // Configure startup validator with KanataManager
             startupValidator.configure(with: kanataManager)
@@ -130,32 +122,10 @@ struct ContentView: View {
             // Start startup validation
             startupValidator.performStartupValidation()
 
-            // Check if we're returning from permission granting (Input Monitoring settings)
-            let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
-
-            // Set up notification handlers for recovery actions
-            setupRecoveryActionHandlers()
-
-            // Start the auto-launch sequence ONLY if we're not returning from permission granting
-            // Otherwise the auto-launch will reset showWizard to false
-            if !isReturningFromPermissionGrant {
-                Task.detached(priority: .utility) { [kanataManager] in
-                    AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
-                    await kanataManager.startAutoLaunch(presentWizardOnFailure: false)
-                    AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
-                    await MainActor.run {
-                        AppLogger.shared.log(
-                            "✅ [ContentView] Post auto-launch - showWizard: \(kanataManager.showWizard)")
-                        AppLogger.shared.log(
-                            "✅ [ContentView] Post auto-launch - currentState: \(kanataManager.currentState.rawValue)"
-                        )
-                    }
-                }
-            } else {
-                AppLogger.shared.log("🔧 [ContentView] Skipping auto-launch - returning from permission granting")
-
-                // Log to file for debugging
-                WizardLogger.shared.log("SKIPPING auto-launch (would reset wizard flag)")
+            // Simplified auto-launch
+            Task {
+                AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
+                await kanataManager.startAutoLaunch(presentWizardOnFailure: false)
             }
 
             if !hasCheckedRequirements {
@@ -164,40 +134,27 @@ struct ContentView: View {
             }
 
             // Try to start monitoring for emergency stop sequence
-            // This will silently fail if permissions aren't granted yet
             Task {
                 await startEmergencyMonitoringIfPossible()
             }
-
-            // Status monitoring now handled centrally by SimpleKanataManager
         }
-        .onChange(of: kanataManager.showWizard) { _, shouldShow in
+        .onChange(of: kanataManager.showWizard) { shouldShow in
             AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
-            AppLogger.shared.log(
-                "🔍 [ContentView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
-            )
-            AppLogger.shared.log(
-                "🔍 [ContentView] Current errorReason: \(kanataManager.errorReason ?? "nil")")
-            AppLogger.shared.log("🔍 [ContentView] Setting showingInstallationWizard = \(shouldShow)")
             showingInstallationWizard = shouldShow
-            AppLogger.shared.log(
-                "🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
         }
-        .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
+        .onChange(of: kanataManager.lastConfigUpdate) { _ in
             // Show status message when config is updated externally
             showStatusMessage(message: "Key mappings updated")
             // Refresh validation after config changes
             startupValidator.refreshValidation()
         }
-        .onChange(of: kanataManager.currentState) { _, _ in
+        .onChange(of: kanataManager.currentState) { _ in
             // Refresh validation when lifecycle state changes
             startupValidator.refreshValidation()
         }
         .onDisappear {
             // Stop emergency monitoring when view disappears
             keyboardCapture?.stopEmergencyMonitoring()
-
-            // Status monitoring handled centrally - no cleanup needed
         }
         .alert("Emergency Stop Activated", isPresented: $showingEmergencyAlert) {
             Button("OK") {
@@ -208,24 +165,8 @@ struct ContentView: View {
                 "The Kanata emergency stop sequence (Ctrl+Space+Esc) was detected. Kanata has been stopped for safety."
             )
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
-            showingInstallationWizard = true
-        }
-        .onChange(of: showingInstallationWizard) { _, showing in
-            // When wizard closes, try to start emergency monitoring if we now have permissions
-            if !showing {
-                Task.detached(priority: .utility) {
-                    // Small delay to let wizard fully close
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                    Task {
-                        await startEmergencyMonitoringIfPossible()
-                    }
-                }
-            }
-        }
     }
 
-    @MainActor
     private func showStatusMessage(message: String) {
         // Check if this is an error message
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
@@ -251,13 +192,12 @@ struct ContentView: View {
         }
     }
 
-    private func startEmergencyMonitoringIfPossible() async {
+    private func startEmergencyMonitoringIfPossible() {
         // Initialize KeyboardCapture lazily if needed and we have permissions
         if keyboardCapture == nil {
-            Task.detached(priority: .utility) {
+            Task {
                 let snapshot = await PermissionOracle.shared.currentSnapshot()
                 guard snapshot.keyPath.accessibility.isReady else {
-                    // Don't have permissions yet - we'll try again later
                     return
                 }
                 await MainActor.run {
@@ -270,133 +210,66 @@ struct ContentView: View {
         guard let capture = keyboardCapture else { return }
 
         // We have permissions, start monitoring
-        await capture.startEmergencyMonitoring {
-            Task { @MainActor in
-                showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
-                showingEmergencyAlert = true
-            }
-        }
-    }
-
-    // Status monitoring functions removed - now handled centrally by SimpleKanataManager
-
-    /// Check if we're returning from granting permissions using the unified coordinator
-    /// Returns true if we detected a pending permission grant restart, false otherwise
-    @discardableResult
-    private func checkForPendingPermissionGrant() -> Bool {
-        let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
-
-        if result.shouldRestart, let permissionType = result.permissionType {
-            AppLogger.shared.log("🔧 [ContentView] Detected return from \(permissionType.displayName) permission granting")
-
-            // Perform the permission restart using the coordinator
-            PermissionGrantCoordinator.shared.performPermissionRestart(
-                for: permissionType,
-                kanataManager: kanataManager
-            ) { _ in
-                // Show wizard after service restart completes to display results
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    // Reopen wizard to the appropriate permission page
-                    PermissionGrantCoordinator.shared.reopenWizard(
-                        for: permissionType,
-                        kanataManager: kanataManager
-                    )
-                }
-            }
-
-            return true // We detected and are handling the permission grant restart
-        }
-
-        return false // No pending permission grant restart
-    }
-
-    /// Set up notification handlers for recovery actions
-    private func setupRecoveryActionHandlers() {
-        // Handle opening installation wizard
-        NotificationCenter.default.addObserver(forName: .openInstallationWizard, object: nil, queue: .main) { _ in
-            Task { @MainActor in showingInstallationWizard = true }
-        }
-
-        // Handle resetting to safe config
-        NotificationCenter.default.addObserver(forName: .resetToSafeConfig, object: nil, queue: .main) { [kanataManager] _ in
-            Task.detached(priority: .utility) {
-                _ = await kanataManager.createDefaultUserConfigIfMissing()
-                await kanataManager.updateStatus()
-                await MainActor.run {
-                    showStatusMessage(message: "✅ Configuration reset to safe defaults")
-                }
-            }
-        }
-
-        // Handle opening diagnostics
-        NotificationCenter.default.addObserver(forName: .openDiagnostics, object: nil, queue: .main) { _ in
-            // This would open a diagnostics window - implementation depends on app structure
-            Task { @MainActor in showStatusMessage(message: "ℹ️ Opening diagnostics view...") }
-        }
-
-        // Handle user feedback from PermissionGrantCoordinator
-        NotificationCenter.default.addObserver(forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: .main) { notification in
-            if let message = notification.userInfo?["message"] as? String {
-                Task { @MainActor in showStatusMessage(message: message) }
-            }
+        capture.startEmergencyMonitoring {
+            showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
+            showingEmergencyAlert = true
         }
     }
 }
 
 struct ContentViewHeader: View {
-    var validator: StartupValidator
+    @ObservedObject var validator: StartupValidator
     @Binding var showingInstallationWizard: Bool
-    var kanataManager: KanataManager
+    @Environment(KanataManager.self) var kanataManager
 
     var body: some View {
-        HStack(alignment: .top) {
-            // Left-aligned content
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 12) {
-                    Button(action: {
-                        AppLogger.shared.log(
-                            "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
-                        showingInstallationWizard = true
-                    }) {
-                        Image(systemName: "keyboard")
-                            .font(.largeTitle)
-                            .foregroundColor(.blue)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("launch-installation-wizard-button")
-                    .accessibilityLabel("Launch Installation Wizard")
-                    .accessibilityHint("Click to open the KeyPath installation and setup wizard")
-
-                    Text("KeyPath")
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Button(action: {
+                    AppLogger.shared.log(
+                        "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
+                    showingInstallationWizard = true
+                }, label: {
+                    Image(systemName: "keyboard")
                         .font(.largeTitle)
-                        .fontWeight(.bold)
-                }
-                
-                Text("Record keyboard shortcuts and create custom key mappings")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                        .foregroundColor(.blue)
+                })
+                .buttonStyle(PlainButtonStyle())
+                .accessibilityIdentifier("launch-installation-wizard-button")
+                .accessibilityLabel("Launch Installation Wizard")
+                .accessibilityHint("Click to open the KeyPath installation and setup wizard")
+
+                Text("KeyPath")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Spacer()
+
+                // System Status Indicator in top-right
+                SystemStatusIndicator(
+                    validator: validator,
+                    showingWizard: $showingInstallationWizard,
+                    onClick: {
+                        kanataManager.requestWizardPresentation()
+                    }
+                )
             }
-            
-            Spacer()
-            
-            // System Status Indicator in top-right
-            SystemStatusIndicator(
-                validator: validator,
-                showingWizard: $showingInstallationWizard,
-                onClick: {
-                    kanataManager.requestWizardPresentation()
-                }
-            )
+
+            Text("Record keyboard shortcuts and create custom key mappings")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
+// Keep all the other view structs as they were...
 struct RecordingSection: View {
     @Binding var recordedInput: String
     @Binding var recordedOutput: String
     @Binding var isRecording: Bool
     @Binding var isRecordingOutput: Bool
-    var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataManager
     @Binding var keyboardCapture: KeyboardCapture?
     let showStatusMessage: (String) -> Void
     @Binding var showingDiagnostics: Bool
@@ -600,7 +473,7 @@ struct RecordingSection: View {
         } message: {
             Text(repairFailedDetails)
         }
-        .alert(kanataManager.validationAlertTitle, isPresented: Bindable(kanataManager).showingValidationAlert) {
+        .alert(kanataManager.validationAlertTitle, isPresented: $kanataManager.showingValidationAlert) {
             ForEach(kanataManager.validationAlertActions.indices, id: \.self) { index in
                 let action = kanataManager.validationAlertActions[index]
                 switch action.style {
@@ -650,50 +523,28 @@ struct RecordingSection: View {
         isRecording = true
         recordedInput = ""
 
-        // Use detached task to avoid MainActor inheritance deadlock
-        Task.detached(priority: .utility) { [isSequenceMode] in
+        Task {
             let snapshot = await PermissionOracle.shared.currentSnapshot()
-            
-            // Check both required permissions using existing Oracle
-            guard snapshot.keyPath.accessibility.isReady else {
-                await MainActor.run {
+            await MainActor.run {
+                guard snapshot.keyPath.accessibility.isReady else {
                     recordedInput = "⚠️ Accessibility permission required for recording"
                     isRecording = false
+                    return
                 }
-                return
-            }
-            
-            guard snapshot.keyPath.inputMonitoring.isReady else {
-                await MainActor.run {
-                    recordedInput = "⚠️ Input Monitoring permission required for recording"
-                    isRecording = false
-                }
-                return
-            }
-            
-            await MainActor.run { [weak kanataManager] in
                 if keyboardCapture == nil {
                     keyboardCapture = KeyboardCapture()
-                    // Configure with KanataManager reference to properly handle running state
-                    keyboardCapture?.setEventRouter(nil, kanataManager: kanataManager)
                     AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
                 }
-                recordedInput = "Ready - press a key to record..."
-            }
-            
-            guard let capture = await MainActor.run(body: { keyboardCapture }) else {
-                await MainActor.run {
+                guard let capture = keyboardCapture else {
                     recordedInput = "⚠️ Failed to initialize keyboard capture"
                     isRecording = false
+                    return
                 }
-                return
-            }
 
-            // Use appropriate capture mode based on toggle
-            let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
+                // Use appropriate capture mode based on toggle
+                let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
 
-            await capture.startSequenceCapture(mode: captureMode) { keySequence in
-                Task { @MainActor in
+                capture.startSequenceCapture(mode: captureMode) { keySequence in
                     capturedInputSequence = keySequence
                     recordedInput = keySequence.displayString
                     isRecording = false
@@ -711,50 +562,28 @@ struct RecordingSection: View {
         isRecordingOutput = true
         recordedOutput = ""
 
-        // Use detached task to avoid MainActor inheritance deadlock
-        Task.detached(priority: .utility) { [isSequenceMode] in
+        Task {
             let snapshot = await PermissionOracle.shared.currentSnapshot()
-            
-            // Check both required permissions using existing Oracle
-            guard snapshot.keyPath.accessibility.isReady else {
-                await MainActor.run {
+            await MainActor.run {
+                guard snapshot.keyPath.accessibility.isReady else {
                     recordedOutput = "⚠️ Accessibility permission required for recording"
                     isRecordingOutput = false
+                    return
                 }
-                return
-            }
-            
-            guard snapshot.keyPath.inputMonitoring.isReady else {
-                await MainActor.run {
-                    recordedOutput = "⚠️ Input Monitoring permission required for recording"
-                    isRecordingOutput = false
-                }
-                return
-            }
-            
-            await MainActor.run { [weak kanataManager] in
                 if keyboardCapture == nil {
                     keyboardCapture = KeyboardCapture()
-                    // Configure with KanataManager reference to properly handle running state
-                    keyboardCapture?.setEventRouter(nil, kanataManager: kanataManager)
                     AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
                 }
-                recordedOutput = "Ready - press a key to record..."
-            }
-            
-            guard let capture = await MainActor.run(body: { keyboardCapture }) else {
-                await MainActor.run {
+                guard let capture = keyboardCapture else {
                     recordedOutput = "⚠️ Failed to initialize keyboard capture"
                     isRecordingOutput = false
+                    return
                 }
-                return
-            }
 
-            // Use appropriate capture mode based on toggle
-            let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
+                // Use appropriate capture mode based on toggle
+                let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
 
-            await capture.startSequenceCapture(mode: captureMode) { keySequence in
-                Task { @MainActor in
+                capture.startSequenceCapture(mode: captureMode) { keySequence in
                     capturedOutputSequence = keySequence
                     recordedOutput = keySequence.displayString
                     isRecordingOutput = false
@@ -804,7 +633,7 @@ struct RecordingSection: View {
         // Create new timer
         saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) { _ in
             AppLogger.shared.log("💾 [Save] Debounce timer fired - executing save")
-            Task { @MainActor in
+            Task {
                 await saveKeyPath()
             }
         }
@@ -818,7 +647,9 @@ struct RecordingSection: View {
                   let outputSequence = capturedOutputSequence
             else {
                 AppLogger.shared.log("❌ [Save] Missing captured sequences")
-                showStatusMessage("❌ Please capture both input and output keys first")
+                await MainActor.run {
+                    showStatusMessage("❌ Please capture both input and output keys first")
+                }
                 return
             }
 
@@ -836,13 +667,15 @@ struct RecordingSection: View {
             AppLogger.shared.log("💾 [Save] Configuration saved successfully")
 
             // Show status message and clear the form
-            showStatusMessage("Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
+            await MainActor.run {
+                showStatusMessage("Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
 
-            // Clear the form
-            recordedInput = ""
-            recordedOutput = ""
-            capturedInputSequence = nil
-            capturedOutputSequence = nil
+                // Clear the form
+                recordedInput = ""
+                recordedOutput = ""
+                capturedInputSequence = nil
+                capturedOutputSequence = nil
+            }
 
             // Update status
             AppLogger.shared.log("💾 [Save] Updating manager status...")
@@ -866,9 +699,11 @@ struct RecordingSection: View {
                     KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration. " +
                     "If repair failed, a safe fallback configuration was applied.
                     """
-                    configRepairSuccessful = false
-                    showingConfigCorruptionAlert = true
-                    showStatusMessage("⚠️ Config repaired automatically")
+                    await MainActor.run {
+                        configRepairSuccessful = false
+                        showingConfigCorruptionAlert = true
+                        showStatusMessage("⚠️ Config repaired automatically")
+                    }
 
                 case let .claudeRepairFailed(reason):
                     configCorruptionDetails = """
@@ -878,15 +713,17 @@ struct RecordingSection: View {
 
                     A safe fallback configuration has been applied. Your system should continue working with basic functionality.
                     """
-                    configRepairSuccessful = false
-                    showingConfigCorruptionAlert = true
-                    showStatusMessage("❌ Config repair failed - using safe fallback")
+                    await MainActor.run {
+                        configRepairSuccessful = false
+                        showingConfigCorruptionAlert = true
+                        showStatusMessage("❌ Config repair failed - using safe fallback")
+                    }
 
                 case let .repairFailedNeedsUserAction(
                     originalConfig, _, originalErrors, repairErrors, mappings
                 ):
                     // Handle user action required case
-                    Task { @MainActor in
+                    Task {
                         do {
                             // Backup the failed config and apply safe default
                             let backupPath = try await kanataManager.backupFailedConfigAndApplySafe(
@@ -894,51 +731,61 @@ struct RecordingSection: View {
                                 mappings: mappings
                             )
 
-                            failedConfigBackupPath = backupPath
-                            repairFailedDetails = """
-                            KeyPath was unable to automatically repair your configuration file.
+                            await MainActor.run {
+                                failedConfigBackupPath = backupPath
+                                repairFailedDetails = """
+                                KeyPath was unable to automatically repair your configuration file.
 
-                            Original errors:
-                            \(originalErrors.joined(separator: "\n"))
+                                Original errors:
+                                \(originalErrors.joined(separator: "\n"))
 
-                            Repair attempt errors:
-                            \(repairErrors.joined(separator: "\n"))
+                                Repair attempt errors:
+                                \(repairErrors.joined(separator: "\n"))
 
-                            Actions taken:
-                            • Your failed configuration has been backed up to: \(backupPath)
-                            • A safe default configuration (Caps Lock → Escape) has been applied
-                            • Your system should continue working normally
+                                Actions taken:
+                                • Your failed configuration has been backed up to: \(backupPath)
+                                • A safe default configuration (Caps Lock → Escape) has been applied
+                                • Your system should continue working normally
 
-                            You can examine and manually fix the backed up configuration if needed.
-                            """
-                            showingRepairFailedAlert = true
-                            showStatusMessage("⚠️ Config backed up, safe default applied")
+                                You can examine and manually fix the backed up configuration if needed.
+                                """
+                                showingRepairFailedAlert = true
+                                showStatusMessage("⚠️ Config backed up, safe default applied")
+                            }
                         } catch {
-                            showStatusMessage("❌ Failed to backup config: \(error.localizedDescription)")
+                            await MainActor.run {
+                                showStatusMessage("❌ Failed to backup config: \(error.localizedDescription)")
+                            }
                         }
                     }
 
-                case .preSaveValidationFailed(_, _),
-                     .postSaveValidationFailed(_):
+                case let .preSaveValidationFailed(errors, _),
+                     let .postSaveValidationFailed(errors):
                     // These are handled by KanataManager's validation dialogs
                     AppLogger.shared.log("⚠️ [Save] Validation error handled by KanataManager dialogs")
 
-                case .startupValidationFailed(_, _):
-                    showStatusMessage("⚠️ Config validation failed at startup - using default")
+                case let .startupValidationFailed(errors, backupPath):
+                    await MainActor.run {
+                        showStatusMessage("⚠️ Config validation failed at startup - using default")
+                    }
 
                 default:
-                    showStatusMessage("❌ Config error: \(error.localizedDescription)")
+                    await MainActor.run {
+                        showStatusMessage("❌ Config error: \(error.localizedDescription)")
+                    }
                 }
             } else {
                 // Show generic error message
-                showStatusMessage("❌ Error saving: \(error.localizedDescription)")
+                await MainActor.run {
+                    showStatusMessage("❌ Error saving: \(error.localizedDescription)")
+                }
             }
         }
     }
 }
 
 struct ErrorSection: View {
-    var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataManager
     @Binding var showingInstallationWizard: Bool
     let error: String
 
@@ -956,7 +803,7 @@ struct ErrorSection: View {
                 Spacer()
 
                 Button("Fix Issues") {
-                    Task { @MainActor in
+                    Task {
                         AppLogger.shared.log(
                             "🔄 [UI] Fix Issues button clicked - attempting to fix configuration and restart")
 
@@ -964,7 +811,9 @@ struct ErrorSection: View {
                         let created = await kanataManager.createDefaultUserConfigIfMissing()
 
                         if created {
-                            kanataManager.lastError = nil
+                            await MainActor.run {
+                                kanataManager.lastError = nil
+                            }
                             AppLogger.shared.log(
                                 "✅ [UI] Created default config at ~/Library/Application Support/KeyPath/keypath.kbd"
                             )
@@ -997,72 +846,6 @@ struct ErrorSection: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.orange.opacity(0.3), lineWidth: 1)
         )
-    }
-}
-
-struct DiagnosticSummarySection: View {
-    let criticalIssues: [KanataDiagnostic]
-    var kanataManager: KanataManager
-    @State private var showingDiagnostics = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "stethoscope")
-                    .foregroundColor(.red)
-                    .font(.headline)
-
-                Text("System Issues Detected")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                Button("View Details") {
-                    showingDiagnostics = true
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(criticalIssues.prefix(3).indices, id: \.self) { index in
-                    let issue = criticalIssues[index]
-                    HStack {
-                        Text(issue.severity.emoji)
-                        Text(issue.title)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        if issue.canAutoFix {
-                            Button("Fix") {
-                                Task { @MainActor in
-                                    await kanataManager.autoFixDiagnostic(issue)
-                                }
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                        }
-                    }
-                }
-
-                if criticalIssues.count > 3 {
-                    Text("... and \(criticalIssues.count - 3) more issues")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding()
-        .background(Color.red.opacity(0.1))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.red.opacity(0.3), lineWidth: 1)
-        )
-        .sheet(isPresented: $showingDiagnostics) {
-            DiagnosticsView(kanataManager: kanataManager)
-        }
     }
 }
 

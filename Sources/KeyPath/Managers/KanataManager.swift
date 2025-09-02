@@ -48,31 +48,14 @@ enum ConfigError: Error, LocalizedError {
 }
 
 /// Represents a simple key mapping from input to output
-public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
-    public let id: UUID
+public struct KeyMapping: Codable, Equatable, Identifiable {
+    public let id = UUID()
     public let input: String
     public let output: String
 
-    public init(id: UUID = UUID(), input: String, output: String) {
-        self.id = id
+    public init(input: String, output: String) {
         self.input = input
         self.output = output
-    }
-
-    private enum CodingKeys: String, CodingKey { case id, input, output }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
-        self.input = try container.decode(String.self, forKey: .input)
-        self.output = try container.decode(String.self, forKey: .output)
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(input, forKey: .input)
-        try container.encode(output, forKey: .output)
     }
 }
 
@@ -151,64 +134,61 @@ struct ValidationAlertAction {
     }
 }
 
-@Observable
-@MainActor
-class KanataManager {
-    var isRunning = false
-    var lastError: String?
-    var keyMappings: [KeyMapping] = []
-    var diagnostics: [KanataDiagnostic] = []
-    var lastProcessExitCode: Int32?
-    var lastConfigUpdate: Date = .init()
+class KanataManager: ObservableObject {
+    @Published var isRunning = false
+    @Published var lastError: String?
+    @Published var keyMappings: [KeyMapping] = []
+    @Published var diagnostics: [KanataDiagnostic] = []
+    @Published var lastProcessExitCode: Int32?
+    @Published var lastConfigUpdate: Date = .init()
 
     // MARK: - UI State Properties (from SimpleKanataManager)
 
     /// Simple lifecycle state for UI display
-    private(set) var currentState: SimpleKanataState = .starting {
+    @Published private(set) var currentState: SimpleKanataState = .starting {
         didSet {
             if oldValue != currentState {
-                UserNotificationService.shared.notifyStatusChange(currentState)
+                Task { @MainActor in
+                    UserNotificationService.shared.notifyStatusChange(currentState)
+                }
             }
         }
     }
-
-    private(set) var errorReason: String?
-    private(set) var showWizard: Bool = false
-    private(set) var launchFailureStatus: LaunchFailureStatus? {
+    @Published private(set) var errorReason: String?
+    @Published private(set) var showWizard: Bool = false
+    @Published private(set) var launchFailureStatus: LaunchFailureStatus? {
         didSet {
             if let status = launchFailureStatus {
-                UserNotificationService.shared.notifyLaunchFailure(status)
+                Task { @MainActor in
+                    UserNotificationService.shared.notifyLaunchFailure(status)
+                }
             }
         }
     }
-
-    private(set) var autoStartAttempts: Int = 0
-    private(set) var lastHealthCheck: Date?
-    private(set) var retryCount: Int = 0
-    private(set) var isRetryingAfterFix: Bool = false
+    @Published private(set) var autoStartAttempts: Int = 0
+    @Published private(set) var lastHealthCheck: Date?
+    @Published private(set) var retryCount: Int = 0
+    @Published private(set) var isRetryingAfterFix: Bool = false
 
     // MARK: - Lifecycle State Properties (from KanataLifecycleManager)
 
-    var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
-    var lifecycleErrorMessage: String?
-    var isBusy: Bool = false
-    var canPerformActions: Bool = true
-    var autoStartAttempted: Bool = false
-    var autoStartSucceeded: Bool = false
-    var autoStartFailureReason: String?
-    var shouldShowWizard: Bool = false
+    @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
+    @Published var lifecycleErrorMessage: String?
+    @Published var isBusy: Bool = false
+    @Published var canPerformActions: Bool = true
+    @Published var autoStartAttempted: Bool = false
+    @Published var autoStartSucceeded: Bool = false
+    @Published var autoStartFailureReason: String?
+    @Published var shouldShowWizard: Bool = false
 
     // Validation-specific UI state
-    var showingValidationAlert = false
-    var validationAlertTitle = ""
-    var validationAlertMessage = ""
-    var validationAlertActions: [ValidationAlertAction] = []
+    @Published var showingValidationAlert = false
+    @Published var validationAlertTitle = ""
+    @Published var validationAlertMessage = ""
+    @Published var validationAlertActions: [ValidationAlertAction] = []
 
     // Save progress feedback
-    var saveStatus: SaveStatus = .idle
-
-    // Wizard cleanup state
-    private var wizardCloseInFlight = false
+    @Published var saveStatus: SaveStatus = .idle
 
     enum SaveStatus {
         case idle
@@ -309,7 +289,7 @@ class KanataManager {
 
         // Dispatch heavy initialization work to background thread (skip during unit tests)
         if !TestEnvironment.isRunningTests {
-            Task { [weak self] in
+            Task.detached { [weak self] in
                 // Clean up any orphaned processes first
                 await self?.processLifecycleManager.cleanupOrphanedProcesses()
                 await self?.performInitialization()
@@ -345,7 +325,7 @@ class KanataManager {
             return
         }
 
-        let configPath = configPath
+        let configPath = self.configPath
         AppLogger.shared.log("📁 [FileWatcher] Starting to watch config file: \(configPath)")
 
         fileWatcher.startWatching(path: configPath) { [weak self] in
@@ -372,7 +352,7 @@ class KanataManager {
         }
 
         // Read the updated configuration
-        let configPath = configPath
+        let configPath = self.configPath
         guard FileManager.default.fileExists(atPath: configPath) else {
             AppLogger.shared.log("❌ [FileWatcher] Config file no longer exists: \(configPath)")
             Task { SoundManager.shared.playErrorSound() }
@@ -477,7 +457,7 @@ class KanataManager {
         // Check if VirtualHID daemon is running first
         if !isKarabinerDaemonRunning() {
             AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
-            updatePublishedProperties(
+            await updatePublishedProperties(
                 isRunning: isRunning,
                 lastProcessExitCode: lastProcessExitCode,
                 lastError: "Recovery failed: Karabiner daemon not available"
@@ -919,7 +899,7 @@ class KanataManager {
                 // Check if Kanata is still running and stop it
                 guard let self else { return }
 
-                if await MainActor.run(resultType: Bool.self, body: { self.isRunning }) {
+                if await MainActor.run { self.isRunning } {
                     AppLogger.shared.log(
                         "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
                     await self.stopKanata()
@@ -1085,7 +1065,7 @@ class KanataManager {
                 canAutoFix: true
             )
             addDiagnostic(diagnostic)
-            updatePublishedProperties(
+            await updatePublishedProperties(
                 isRunning: isRunning,
                 lastProcessExitCode: lastProcessExitCode,
                 lastError: "Configuration Error: \(validation.errors.first ?? "Unknown error")"
@@ -1109,7 +1089,7 @@ class KanataManager {
                     canAutoFix: false
                 )
                 addDiagnostic(diagnostic)
-                updatePublishedProperties(
+                await updatePublishedProperties(
                     isRunning: isRunning,
                     lastProcessExitCode: lastProcessExitCode,
                     lastError: "Conflict: karabiner_grabber is running"
@@ -1126,7 +1106,7 @@ class KanataManager {
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: configPath) {
             AppLogger.shared.log("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
-            updatePublishedProperties(
+            await updatePublishedProperties(
                 isRunning: false,
                 lastProcessExitCode: 1,
                 lastError: "Configuration file not found: \(configPath)"
@@ -1136,7 +1116,7 @@ class KanataManager {
             AppLogger.shared.log("✅ [DEBUG] Config file exists at: \(configPath)")
             if !fileManager.isReadableFile(atPath: configPath) {
                 AppLogger.shared.log("⚠️ [DEBUG] Config file is NOT readable")
-                updatePublishedProperties(
+                await updatePublishedProperties(
                     isRunning: false,
                     lastProcessExitCode: 1,
                     lastError: "Configuration file not readable: \(configPath)"
@@ -1150,12 +1130,13 @@ class KanataManager {
         AppLogger.shared.log("🔍 [DEBUG] Config path: \(configPath)")
         AppLogger.shared.log("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
 
-        // Start the LaunchDaemon service
-        // Record when we're triggering a service start for grace period tracking
-        lastServiceKickstart = Date()
-        let success = await startLaunchDaemonService()
+        do {
+            // Start the LaunchDaemon service
+            // Record when we're triggering a service start for grace period tracking
+            lastServiceKickstart = Date()
+            let success = await startLaunchDaemonService()
 
-        if success {
+            if success {
                 // Wait a moment for service to initialize
                 try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
 
@@ -1175,7 +1156,7 @@ class KanataManager {
                     await verifyNoProcessConflicts()
 
                     // Update state and clear old diagnostics when successfully starting
-                    updatePublishedProperties(
+                    await updatePublishedProperties(
                         isRunning: true,
                         lastProcessExitCode: nil,
                         lastError: nil,
@@ -1190,7 +1171,7 @@ class KanataManager {
                     AppLogger.shared.log("⚠️ [Start] LaunchDaemon service started but PID not yet available")
 
                     // Update state to indicate running
-                    updatePublishedProperties(
+                    await updatePublishedProperties(
                         isRunning: true,
                         lastProcessExitCode: nil,
                         lastError: nil,
@@ -1202,7 +1183,7 @@ class KanataManager {
                 }
             } else {
                 // Failed to start LaunchDaemon service
-                updatePublishedProperties(
+                await updatePublishedProperties(
                     isRunning: false,
                     lastProcessExitCode: 1,
                     lastError: "Failed to start LaunchDaemon service"
@@ -1221,6 +1202,26 @@ class KanataManager {
                 )
                 addDiagnostic(diagnostic)
             }
+        } catch {
+            await updatePublishedProperties(
+                isRunning: false,
+                lastProcessExitCode: 1,
+                lastError: "Exception during LaunchDaemon start: \(error.localizedDescription)"
+            )
+            AppLogger.shared.log("❌ [Start] Exception during LaunchDaemon start: \(error.localizedDescription)")
+
+            let diagnostic = KanataDiagnostic(
+                timestamp: Date(),
+                severity: .error,
+                category: .process,
+                title: "LaunchDaemon Start Exception",
+                description: "Exception occurred while starting Kanata LaunchDaemon service.",
+                technicalDetails: error.localizedDescription,
+                suggestedAction: "Check system logs and LaunchDaemon configuration",
+                canAutoFix: false
+            )
+            addDiagnostic(diagnostic)
+        }
 
         await updateStatus()
     }
@@ -1229,19 +1230,18 @@ class KanataManager {
 
     /// Check if this is a fresh install (no Kanata binary or config)
     private func isFirstTimeInstall() -> Bool {
-        // Check for system-installed Kanata binary (bundled-only doesn't count as installed)
-        let status = KanataBinaryDetector.shared.detectCurrentStatus().status
-        let hasSystemKanataBinary: Bool = {
-            switch status {
-            case .systemInstalled: 
-                return true
-            default: 
-                return false
-            }
-        }()
+        // Check for bundled Kanata binary
+        let bundledKanataPaths = [
+            Bundle.main.path(forResource: "kanata", ofType: nil, inDirectory: "Contents/Library/KeyPath"),
+            Bundle.main.bundlePath + "/Contents/Library/KeyPath/kanata"
+        ]
 
-        if !hasSystemKanataBinary {
-            AppLogger.shared.log("🆕 [FreshInstall] No system Kanata binary found - fresh install detected")
+        let hasBundledKanata = bundledKanataPaths.compactMap { $0 }.contains { path in
+            FileManager.default.fileExists(atPath: path)
+        }
+
+        if !hasBundledKanata {
+            AppLogger.shared.log("🆕 [FreshInstall] No bundled Kanata binary found - fresh install detected")
             return true
         }
 
@@ -1463,15 +1463,6 @@ class KanataManager {
 
     /// Called when wizard is closed (from SimpleKanataManager)
     func onWizardClosed() async {
-        // Prevent concurrent execution from multiple UI locations
-        if wizardCloseInFlight {
-            AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard close already in progress - ignoring duplicate call")
-            return
-        }
-        
-        wizardCloseInFlight = true
-        defer { wizardCloseInFlight = false }
-        
         AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed - attempting retry")
 
         await MainActor.run {
@@ -1501,10 +1492,49 @@ class KanataManager {
 
     // MARK: - LaunchDaemon Service Management
 
-    /// Start the Kanata LaunchDaemon service via privileged operations facade
+    /// Start the Kanata LaunchDaemon service using launchctl with OSA script for better permission handling
     private func startLaunchDaemonService() async -> Bool {
-        AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service via PrivilegedOperations...")
-        return await PrivilegedOperationsProvider.shared.startKanataService()
+        AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service...")
+
+        // Skip admin operations in test environment
+        if TestEnvironment.shouldSkipAdminOperations {
+            AppLogger.shared.log("🧪 [TestEnvironment] Skipping admin launchctl kickstart - returning mock success")
+            return true // Mock: service started successfully
+        }
+
+        let script = """
+        do shell script "launchctl kickstart -k system/com.keypath.kanata" \
+        with administrator privileges \
+        with prompt "KeyPath needs administrator privileges to manage the keyboard remapping service."
+        """
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            let success = task.terminationStatus == 0
+            AppLogger.shared.log("🚀 [LaunchDaemon] launchctl kickstart result: \(success ? "SUCCESS" : "FAILED")")
+
+            if !output.isEmpty {
+                AppLogger.shared.log("🚀 [LaunchDaemon] Output: \(output)")
+            }
+
+            return success
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute launchctl kickstart: \(error)")
+            return false
+        }
     }
 
     /// Check the status of the LaunchDaemon service
@@ -1608,15 +1638,40 @@ class KanataManager {
         }
     }
 
-    /// Stop the Kanata LaunchDaemon service via privileged operations facade
+    /// Stop the Kanata LaunchDaemon service using launchctl
     private func stopLaunchDaemonService() async -> Bool {
-        AppLogger.shared.log("🛑 [LaunchDaemon] Stopping Kanata service via PrivilegedOperations...")
-        let ok = await PrivilegedOperationsProvider.shared.stopKanataService()
-        if ok {
+        AppLogger.shared.log("🛑 [LaunchDaemon] Stopping Kanata service...")
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = ["launchctl", "kill", "TERM", "system/com.keypath.kanata"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            let success = task.terminationStatus == 0
+            AppLogger.shared.log("🛑 [LaunchDaemon] launchctl kill result: \(success ? "SUCCESS" : "FAILED")")
+
+            if !output.isEmpty {
+                AppLogger.shared.log("🛑 [LaunchDaemon] Output: \(output)")
+            }
+
             // Wait a moment for graceful shutdown
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+
+            return success
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute launchctl kill: \(error)")
+            return false
         }
-        return ok
     }
 
     /// Kill a specific process by PID
@@ -1656,7 +1711,7 @@ class KanataManager {
             // Stop log monitoring when Kanata stops
             stopLogMonitoring()
 
-            updatePublishedProperties(
+            await updatePublishedProperties(
                 isRunning: false,
                 lastProcessExitCode: nil,
                 lastError: nil
@@ -1767,7 +1822,7 @@ class KanataManager {
             keyMappings.append(newMapping)
 
             // Backup current config before making changes
-            await backupCurrentConfig()
+            try await backupCurrentConfig()
 
             // Delegate to ConfigurationService for saving
             try await configurationService.saveConfiguration(keyMappings: keyMappings)
@@ -1825,13 +1880,13 @@ class KanataManager {
     }
 
     func updateStatus() async {
-        // Synchronize status updates to prevent concurrent access
+        // Synchronize status updates to prevent concurrent access to @Published properties
         await KanataManager.startupActor.synchronize { [self] in
             await performUpdateStatus()
         }
     }
 
-    /// Main actor function to safely update all properties
+    /// Main actor function to safely update all @Published properties
     @MainActor
     private func updatePublishedProperties(
         isRunning: Bool,
@@ -1871,7 +1926,7 @@ class KanataManager {
 
             if serviceRunning {
                 // Service is running - clear any stale errors
-                updatePublishedProperties(
+                await updatePublishedProperties(
                     isRunning: serviceRunning,
                     lastProcessExitCode: nil,
                     lastError: nil,
@@ -1888,7 +1943,7 @@ class KanataManager {
                 }
             } else {
                 // Service is not running
-                updatePublishedProperties(
+                await updatePublishedProperties(
                     isRunning: serviceRunning,
                     lastProcessExitCode: lastProcessExitCode,
                     lastError: lastError
@@ -1956,13 +2011,8 @@ class KanataManager {
     // MARK: - Installation and Permissions
 
     func isInstalled() -> Bool {
-        let status = KanataBinaryDetector.shared.detectCurrentStatus().status
-        switch status {
-        case .systemInstalled: 
-            return true
-        default: 
-            return false // bundledAvailable, bundledUnsigned, or missing are not "installed"
-        }
+        let kanataPath = WizardSystemPaths.kanataActiveBinary
+        return FileManager.default.fileExists(atPath: kanataPath)
     }
 
     func isCompletelyInstalled() -> Bool {
@@ -2099,7 +2149,7 @@ class KanataManager {
 
     /// Show floating help bubble near the Finder selection, with fallback positioning
     private func showDragAndDropHelpBubble() {
-        let bubbleText = "👉 Drag 'kanata' into Settings → Input Monitoring"
+        let bubbleText = "👉 Drag ‘kanata’ into Settings → Input Monitoring"
 
         // Try to compute a reasonable screen point below mid of main screen
         let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
@@ -2778,33 +2828,65 @@ class KanataManager {
         // 1. Ensure Kanata binary exists - install if missing
         AppLogger.shared.log(
             "🔧 [Installation] Step 1/\(totalSteps): Checking/installing Kanata binary...")
-        
-        // Use KanataBinaryDetector for consistent detection logic
-        let detector = KanataBinaryDetector.shared
-        let detectionResult = detector.detectCurrentStatus()
-        
-        if detectionResult.status != .systemInstalled {
+        let kanataBinaryPath = WizardSystemPaths.kanataActiveBinary
+        if !FileManager.default.fileExists(atPath: kanataBinaryPath) {
             AppLogger.shared.log(
-                "⚠️ [Installation] Kanata binary needs installation - status: \(detectionResult.status)")
+                "⚠️ [Installation] Kanata binary not found at \(kanataBinaryPath) - attempting auto-install..."
+            )
 
-            // Install bundled kanata binary to system location
-            AppLogger.shared.log("🔧 [Installation] Installing bundled Kanata binary to system location...")
-            
-            let installer = LaunchDaemonInstaller()
-            let installSuccess = installer.installBundledKanataBinaryOnly()
-            
-            if installSuccess {
-                AppLogger.shared.log("✅ [Installation] Successfully installed bundled Kanata binary")
-                AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary installed and verified")
-                stepsCompleted += 1
+            // Try to install kanata via PackageManager
+            let packageManager = PackageManager()
+            if packageManager.checkHomebrewInstallation() {
+                AppLogger.shared.log("🔧 [Installation] Installing Kanata via Homebrew...")
+                let installResult = await packageManager.installKanataViaBrew()
+
+                switch installResult {
+                case .success:
+                    AppLogger.shared.log("✅ [Installation] Successfully installed Kanata via Homebrew")
+                    if FileManager.default.fileExists(atPath: kanataBinaryPath) {
+                        AppLogger.shared.log(
+                            "✅ [Installation] Step 1 SUCCESS: Kanata binary auto-installed and verified")
+                        stepsCompleted += 1
+                    } else {
+                        AppLogger.shared.log(
+                            "❌ [Installation] Step 1 FAILED: Installation reported success but binary not found")
+                        stepsFailed += 1
+                    }
+                case let .failure(reason):
+                    AppLogger.shared.log(
+                        "❌ [Installation] Step 1 FAILED: Kanata auto-install failed - \(reason)")
+                    AppLogger.shared.log(
+                        "💡 [Installation] KeyPath tried to install Kanata automatically but failed. You may need to install manually with: brew install kanata"
+                    )
+                    stepsFailed += 1
+                case .homebrewNotAvailable:
+                    AppLogger.shared.log(
+                        "❌ [Installation] Step 1 FAILED: Cannot auto-install - Homebrew not available")
+                    AppLogger.shared.log(
+                        "💡 [Installation] Install Homebrew from https://brew.sh then run: brew install kanata")
+                    stepsFailed += 1
+                case .packageNotFound:
+                    AppLogger.shared.log(
+                        "❌ [Installation] Step 1 FAILED: Kanata package not found in Homebrew")
+                    AppLogger.shared.log(
+                        "💡 [Installation] Try updating Homebrew: brew update && brew install kanata")
+                    stepsFailed += 1
+                case .userCancelled:
+                    AppLogger.shared.log(
+                        "⚠️ [Installation] Step 1 CANCELLED: User cancelled Kanata installation")
+                    return false
+                }
             } else {
-                AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Failed to install bundled Kanata binary")
-                AppLogger.shared.log("💡 [Installation] Check system permissions and try running KeyPath with administrator privileges")
+                AppLogger.shared.log(
+                    "❌ [Installation] Step 1 FAILED: Cannot auto-install - Homebrew not found")
+                AppLogger.shared.log(
+                    "💡 [Installation] Install Homebrew from https://brew.sh then KeyPath can install Kanata automatically"
+                )
                 stepsFailed += 1
             }
         } else {
             AppLogger.shared.log(
-                "✅ [Installation] Step 1 SUCCESS: Kanata binary already exists at \(detectionResult.path ?? "unknown")")
+                "✅ [Installation] Step 1 SUCCESS: Kanata binary already exists at \(kanataBinaryPath)")
             stepsCompleted += 1
         }
 
@@ -3179,18 +3261,17 @@ class KanataManager {
     }
 
     func getInstallationStatus() -> String {
-        let detection = KanataBinaryDetector.shared.detectCurrentStatus()
+        let binaryInstalled = isInstalled()
         let driverInstalled = isKarabinerDriverInstalled()
 
-        switch detection.status {
-        case .systemInstalled:
-            return driverInstalled ? "✅ Fully installed" : "⚠️ Driver missing"
-        case .bundledAvailable:
-            return "⚠️ Bundled Kanata available (install to system required)"
-        case .bundledUnsigned:
-            return "⚠️ Bundled Kanata unsigned (needs Developer ID signature)"
-        case .missing:
-            return "❌ Kanata not found"
+        if binaryInstalled, driverInstalled {
+            return "✅ Fully installed"
+        } else if !binaryInstalled {
+            return "❌ Kanata not installed"
+        } else if !driverInstalled {
+            return "⚠️ Driver missing"
+        } else {
+            return "⚠️ Installation incomplete"
         }
     }
 
@@ -3199,12 +3280,12 @@ class KanataManager {
     /// Create a backup before opening config for editing
     /// Returns true if backup was created successfully
     func createPreEditBackup() -> Bool {
-        configBackupManager.createPreEditBackup()
+        return configBackupManager.createPreEditBackup()
     }
 
     /// Get list of available configuration backups
     func getAvailableBackups() -> [BackupInfo] {
-        configBackupManager.getAvailableBackups()
+        return configBackupManager.getAvailableBackups()
     }
 
     /// Restore configuration from a specific backup
@@ -3251,11 +3332,11 @@ class KanataManager {
     }
 
     func convertToKanataKey(_ key: String) -> String {
-        KanataKeyConverter.convertToKanataKey(key)
+        return KanataKeyConverter.convertToKanataKey(key)
     }
 
     func convertToKanataSequence(_ sequence: String) -> String {
-        KanataKeyConverter.convertToKanataSequence(sequence)
+        return KanataKeyConverter.convertToKanataSequence(sequence)
     }
 
     // MARK: - Real-Time VirtualHID Connection Monitoring
