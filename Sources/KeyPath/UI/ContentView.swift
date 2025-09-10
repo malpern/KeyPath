@@ -124,14 +124,23 @@ struct ContentView: View {
             // Configure startup validator with KanataManager
             startupValidator.configure(with: kanataManager)
 
-            // Start startup validation
-            startupValidator.performStartupValidation()
+            // Start startup validation asynchronously to avoid blocking UI
+            Task {
+                await Task.yield() // Let UI render first
+                startupValidator.performStartupValidation()
+                
+                // Clear startup mode after initial validation
+                unsetenv("KEYPATH_STARTUP_MODE")
+                AppLogger.shared.log("🔍 [ContentView] Startup mode cleared - full permission checks now enabled")
+            }
 
             // Check if we're returning from permission granting (Input Monitoring settings)
             let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
 
             // Set up notification handlers for recovery actions
             setupRecoveryActionHandlers()
+
+            // ContentView no longer forwards triggers directly; RecordingSection handles triggers via NotificationCenter
 
             // Start the auto-launch sequence ONLY if we're not returning from permission granting
             // Otherwise the auto-launch will reset showWizard to false
@@ -334,15 +343,15 @@ struct ContentViewHeader: View {
     @EnvironmentObject var kanataManager: KanataManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Button(action: {
                     AppLogger.shared.log(
                         "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
                     showingInstallationWizard = true
                 }, label: {
                     Image(systemName: "keyboard")
-                        .font(.largeTitle)
+                        .font(.title2)
                         .foregroundColor(.blue)
                 })
                 .buttonStyle(PlainButtonStyle())
@@ -351,8 +360,7 @@ struct ContentViewHeader: View {
                 .accessibilityHint("Click to open the KeyPath installation and setup wizard")
 
                 Text("KeyPath")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                    .font(.largeTitle.weight(.bold))
 
                 Spacer()
 
@@ -369,6 +377,7 @@ struct ContentViewHeader: View {
             Text("Record keyboard shortcuts and create custom key mappings")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+                .padding(.top, 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -452,6 +461,7 @@ struct RecordingSection: View {
                                 .accessibilityValue(recordedInput.isEmpty ? "No key recorded" : "Key: \(recordedInput)")
 
                             Button(action: {
+                                AppLogger.shared.log("🖱️ [UI] Input record button tapped (isRecording=\(isRecording))")
                                 if isRecording {
                                     stopRecording()
                                 } else {
@@ -556,6 +566,31 @@ struct RecordingSection: View {
                 .accessibilityLabel(kanataManager.saveStatus.message.isEmpty ? "Save key mapping" : kanataManager.saveStatus.message)
                 .accessibilityHint("Save the input and output key mapping to your configuration")
             }
+
+            // Debug tools (placed below existing content, minimal styling)
+            Divider().padding(.top, 4)
+            HStack(spacing: 12) {
+                Button("Debug: Start Input Recording") {
+                    AppLogger.shared.log("🧪 [UI] Debug button: Start Input Recording")
+                    NotificationCenter.default.post(name: Notification.Name("KeyPath.Local.TriggerStartRecording"), object: nil)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Open Logs") {
+                    let logPath = NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log"
+                    NSWorkspace.shared.open(URL(fileURLWithPath: logPath))
+                    AppLogger.shared.log("📁 [UI] Opened debug log file")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+                Text("Debug tools").foregroundColor(.secondary).font(.caption)
+            }
+        }
+        // Debug: allow programmatic start of input recording
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("KeyPath.Local.TriggerStartRecording"))) { _ in
+            AppLogger.shared.log("🧪 [RecordingSection] Received local trigger to start input recording")
+            if !isRecording { startRecording() }
         }
         .alert("Configuration Issue Detected", isPresented: $showingConfigCorruptionAlert) {
             Button("OK") {
@@ -630,6 +665,7 @@ struct RecordingSection: View {
     }
 
     private func startRecording() {
+        AppLogger.shared.log("🚩 [UI] startRecording() entered")
         isRecording = true
         recordedInput = ""
 
@@ -650,11 +686,31 @@ struct RecordingSection: View {
                     isRecording = false
                     return
                 }
+                // Provide KanataManager so capture can choose listen-only vs suppress
+                capture.setEventRouter(nil, kanataManager: kanataManager)
 
                 // Use appropriate capture mode based on toggle
                 let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
 
+                // Add timeout protection to prevent UI from getting stuck
+                let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
+                    DispatchQueue.main.async {
+                        if isRecording {
+                            AppLogger.shared.log("⚠️ [RecordingSection] Recording timeout - resetting state")
+                            recordedInput = "⚠️ Recording timed out - try again"
+                            isRecording = false
+                            Task {
+                                await MainActor.run {
+                                    capture.stopCapture()
+                                }
+                            }
+                        }
+                    }
+                }
+                
                 capture.startSequenceCapture(mode: captureMode) { keySequence in
+                    timeoutTimer.invalidate() // Cancel timeout since we got a result
+                    AppLogger.shared.log("✅ [UI] Input capture callback received: \(keySequence.displayString)")
                     capturedInputSequence = keySequence
                     recordedInput = keySequence.displayString
                     isRecording = false
@@ -689,11 +745,26 @@ struct RecordingSection: View {
                     isRecordingOutput = false
                     return
                 }
+                // Provide KanataManager so capture can choose listen-only vs suppress
+                capture.setEventRouter(nil, kanataManager: kanataManager)
 
                 // Use appropriate capture mode based on toggle
                 let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
 
+                // Add timeout protection to prevent UI from getting stuck
+                let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
+                    DispatchQueue.main.async {
+                        if isRecordingOutput {
+                            AppLogger.shared.log("⚠️ [RecordingSection] Output recording timeout - resetting state")
+                            recordedOutput = "⚠️ Recording timed out - try again"
+                            isRecordingOutput = false
+                            capture.stopCapture()
+                        }
+                    }
+                }
+                
                 capture.startSequenceCapture(mode: captureMode) { keySequence in
+                    timeoutTimer.invalidate() // Cancel timeout since we got a result
                     capturedOutputSequence = keySequence
                     recordedOutput = keySequence.displayString
                     isRecordingOutput = false
@@ -709,25 +780,29 @@ struct RecordingSection: View {
 
     private func getInputDisplayText() -> String {
         if !recordedInput.isEmpty {
-            recordedInput
+            return recordedInput
         } else if isRecording {
-            isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+            let base = isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+            let effective = FeatureFlags.captureListenOnlyEnabled && kanataManager.isRunning
+            return effective ? base + " – Effective (mapped)" : base + " – Raw (direct)"
         } else if showPlaceholderText {
-            isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+            return isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
         } else {
-            ""
+            return ""
         }
     }
 
     private func getOutputDisplayText() -> String {
         if !recordedOutput.isEmpty {
-            recordedOutput
+            return recordedOutput
         } else if isRecordingOutput {
-            isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+            let base = isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+            let effective = FeatureFlags.captureListenOnlyEnabled && kanataManager.isRunning
+            return effective ? base + " – Effective (mapped)" : base + " – Raw (direct)"
         } else if showPlaceholderText {
-            isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+            return isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
         } else {
-            ""
+            return ""
         }
     }
 

@@ -412,6 +412,26 @@ Based on comprehensive analysis by RepoPrompt and alignment with our core goals 
 
 ## FUTURE ENHANCEMENTS (Do Not Implement Now)
 
+### Key Recording Strategy (Effective vs Raw)
+**Goal:** Support recording keystrokes while Kanata is running (effective/mapped) and optionally raw hardware capture.
+
+**Phases:**
+- Phase 1 – Listen-Only Recording (Effective):
+  - When Kanata is running, UI capture uses a session-level `.listenOnly` tap to observe effective output (no event suppression).
+  - When Kanata is not running, continue using intercepting `.defaultTap` for raw/chord/sequence capture.
+  - Add small UX hint: “Recording mode: Effective (mapped)” vs “Raw (direct)”.
+  - Logging: explicit entries on chosen mode and reasons.
+  - Guardrails: 30s timeout, clear error on permission missing.
+
+- Phase 2 – Training Mode (Daemon Stream):
+  - Add authenticated daemon API to stream both raw and effective events to the GUI for N keystrokes.
+  - Keeps single-tap policy (ADR-006) while providing precise metadata (timings, source, mapping provenance).
+  - Requires protocol design (prefer UDP for latency; TCP acceptable initially), consent UI, and tests.
+
+**Decision Gates:**
+- If listen-only exhibits instability or ambiguity (macros, duplicates), advance Phase 2.
+- If user experience is satisfactory, defer Phase 2 and keep listen-only as default.
+
 ### CGEvent Tap Architecture Modernization
 
 **Background:** ARCHITECTURE.md ADR-006 calls for eliminating GUI CGEvent taps to follow the "one event tapper" rule and prevent keyboard freezing. This is a complex architectural change that should be tackled separately after the current refactoring is complete.

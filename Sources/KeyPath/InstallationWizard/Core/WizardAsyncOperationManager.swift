@@ -22,7 +22,7 @@ class WizardAsyncOperationManager {
 
     /// Execute an async operation in the background with consistent error handling and loading state
     /// This method returns immediately and executes the operation in a background task
-    func execute<T>(
+    func execute<T: Sendable>(
         operation: AsyncOperation<T>,
         onSuccess: @escaping @MainActor (T) -> Void = { _ in },
         onFailure: @escaping @MainActor (WizardError) -> Void = { _ in }

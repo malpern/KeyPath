@@ -16,8 +16,11 @@ public class KeyboardCapture: ObservableObject {
     private var sequenceCallback: ((KeySequence) -> Void)?
     private var isCapturing = false
     private var isContinuous = false
+    internal private(set) var suppressEvents = true // default: suppress during raw capture (exposed for tests)
     private var pauseTimer: Timer?
     private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
+    private var noEventTimer: Timer?
+    private var receivedAnyEvent = false
 
     // Enhanced sequence capture properties
     private var captureMode: CaptureMode = .single
@@ -27,6 +30,8 @@ public class KeyboardCapture: ObservableObject {
     private var lastKeyTime: Date?
     private var chordTimer: Timer?
     private var sequenceTimer: Timer?
+    private var localMonitor: Any?
+    private var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
 
     /// Event router for processing captured events through the event processing chain
     private var eventRouter: EventRouter?
@@ -37,6 +42,29 @@ public class KeyboardCapture: ObservableObject {
 
     /// Reference to KanataManager to check if Kanata is running (to avoid tap conflicts)
     private weak var kanataManager: KanataManager?
+
+    // Fast process probe to reduce race with manager.isRunning updates
+    private func fastProbeKanataRunning(timeout: TimeInterval = 0.25) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-x", "kanata"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        do {
+            try task.run()
+        } catch {
+            return kanataManager?.isRunning ?? false
+        }
+        // Kill if it takes too long
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+            if task.isRunning { task.terminate() }
+        }
+        task.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let out = String(data: data, encoding: .utf8) ?? ""
+        return !out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     // MARK: - Event Router Configuration
 
@@ -101,7 +129,19 @@ public class KeyboardCapture: ObservableObject {
             return
         }
 
-        setupEventTap()
+        currentTapLocation = .cgSessionEventTap
+        setupEventTap(at: currentTapLocation)
+
+        // Fallback to HID listen-only if nothing arrives quickly in listen-only mode
+        if !suppressEvents {
+            noEventTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
+                guard let self else { return }
+                if !self.receivedAnyEvent {
+                    AppLogger.shared.log("🎹 [KeyboardCapture] No events at session tap; switching to HID listen-only")
+                    self.reinstallTap(to: .cghidEventTap)
+                }
+            }
+        }
     }
 
     func startContinuousCapture(callback: @escaping (String) -> Void) {
@@ -152,30 +192,47 @@ public class KeyboardCapture: ObservableObject {
         isCapturing = true
         isContinuous = (mode == .sequence)
 
-        // Check permissions first
-        if !checkAccessibilityPermissionsSilently() {
-            isCapturing = false
-            sequenceCallback = nil
-            let errorSequence = KeySequence(keys: [], captureMode: mode)
-            callback(errorSequence)
-
-            if !TestEnvironment.isRunningTests {
-                // Trigger permission wizard
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
-                    object: nil,
-                    userInfo: ["reason": "Accessibility permission required for \(mode.displayName.lowercased()) capture"]
-                )
-
-                AppLogger.shared.log("⚠️ [KeyboardCapture] Accessibility permission missing for \(mode) capture")
-            } else {
-                AppLogger.shared.log(
-                    "🧪 [KeyboardCapture] Skipping wizard trigger (sequence) in test environment")
-            }
-            return
+        // Trust the caller to have validated permissions before calling this method
+        // This avoids redundant checks and prevents UI blocking
+        // Determine capture mode. Prefer listen-only if the service is running to
+        // avoid competing intercepting taps. Re-check process table to reduce race risk.
+        var listenOnly = FeatureFlags.captureListenOnlyEnabled && (kanataManager?.isRunning == true)
+        if FeatureFlags.captureListenOnlyEnabled, listenOnly == false {
+            // Fast secondary probe to reduce race conditions with UI state
+            if fastProbeKanataRunning() { listenOnly = true }
         }
+        suppressEvents = !listenOnly
+        receivedAnyEvent = false
+        noEventTimer?.invalidate(); noEventTimer = nil
+        AppLogger.shared.log(
+            "🎹 [KeyboardCapture] Starting \(mode) capture (tap=\(listenOnly ? "listenOnly" : "defaultTap/suppress"), kanataRunning=\(kanataManager?.isRunning == true))"
+        )
 
-        AppLogger.shared.log("🎹 [KeyboardCapture] Starting \(mode) capture")
+        // Install a local keyDown monitor to (a) prevent the audible beep in this app
+        // and (b) guarantee immediate UI feedback even if the global tap is delayed.
+        // This only affects KeyPath while recording, not other apps.
+        if localMonitor == nil {
+            AppLogger.shared.log("🎹 [KeyboardCapture] Installing local keyDown monitor for recording")
+            localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self else { return event }
+                // Prefer CGEvent path for consistent modifier handling
+                if let cg = event.cgEvent {
+                    AppLogger.shared.log("🎹 [KeyboardCapture] Local monitor fired (CGEvent)")
+                    self.handleKeyEvent(cg)
+                } else {
+                    // Approximate from NSEvent if CGEvent unavailable
+                    let keyCode = Int64(event.keyCode)
+                    let keyName = self.keyCodeToString(keyCode)
+                    let flags = event.modifierFlags
+                    let cgFlags = CGEventFlags(rawValue: UInt64(flags.rawValue))
+                    let press = KeyPress(baseKey: keyName, modifiers: ModifierSet(cgEventFlags: cgFlags), timestamp: Date(), keyCode: keyCode)
+                    AppLogger.shared.log("🎹 [KeyboardCapture] Local monitor fired (NSEvent) key=\(keyName)")
+                    self.processKeyPress(press)
+                }
+                // Swallow the key to avoid system beep while recording
+                return nil
+            }
+        }
         setupEventTap()
     }
 
@@ -184,6 +241,7 @@ public class KeyboardCapture: ObservableObject {
 
         isCapturing = false
         isContinuous = false
+        suppressEvents = true
         captureCallback = nil
         sequenceCallback = nil
         capturedKeys = []
@@ -206,30 +264,27 @@ public class KeyboardCapture: ObservableObject {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
             self.runLoopSource = nil
         }
+
+        // Remove local monitor if present
+        if let monitor = localMonitor {
+            NSEvent.removeMonitor(monitor)
+            localMonitor = nil
+        }
     }
 
-    private func setupEventTap() {
-        // Safety check: avoid CGEvent tap conflicts when Kanata is running
-        // Per ADR-006, we should not create competing event taps
-        if let kanataManager, kanataManager.isRunning {
-            AppLogger.shared.log("⚠️ [KeyboardCapture] Skipping CGEvent tap setup - Kanata is running (ADR-006 compliance)")
-            // Fall back to disabling capture to avoid conflicts
-            isCapturing = false
-            isContinuous = false
-            captureCallback = nil
-
-            DispatchQueue.main.async {
-                self.captureCallback?("⚠️ Cannot capture while Kanata is running")
-            }
+    private func setupEventTap(at location: CGEventTapLocation = .cgSessionEventTap) {
+        // In tests (including CI), avoid creating CGEvent taps to prevent hangs and permission prompts
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [KeyboardCapture] Test environment detected – skipping CGEvent tap setup")
             return
         }
-
         let eventMask = (1 << CGEventType.keyDown.rawValue)
+        let tapOptions: CGEventTapOptions = suppressEvents ? .defaultTap : .listenOnly
 
         eventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+            tap: location,
             place: .headInsertEventTap,
-            options: .defaultTap, // Recording mode: intercept and suppress events
+            options: tapOptions,
             eventsOfInterest: CGEventMask(eventMask),
             callback: { tapProxy, _, event, refcon -> Unmanaged<CGEvent>? in
                 guard let refcon else { return Unmanaged.passRetained(event) }
@@ -249,20 +304,41 @@ public class KeyboardCapture: ObservableObject {
                     if let processedEvent = result.processedEvent {
                         capture.handleKeyEvent(processedEvent)
                     }
-                    // Recording mode: suppress the event (prevent system beeps/errors)
-                    return nil
+                    // Allow event to pass in listen-only mode; suppress otherwise
+                    return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
                 } else {
                     // Legacy behavior - process directly
                     capture.handleKeyEvent(event)
-                    // Recording mode: suppress the event (prevent system beeps/errors)
-                    return nil
+                    // Allow event to pass in listen-only mode; suppress otherwise
+                    return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
                 }
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         )
 
         guard let eventTap else {
-            print("Failed to create event tap")
+            AppLogger.shared.log("❌ [KeyboardCapture] Failed to create event tap (options=\(tapOptions == .listenOnly ? "listenOnly" : "defaultTap"))")
+
+            // Cleanly end capture state so UI doesn't appear stuck
+            isCapturing = false
+            isContinuous = false
+
+            // Cancel timers
+            pauseTimer?.invalidate(); pauseTimer = nil
+            chordTimer?.invalidate(); chordTimer = nil
+            sequenceTimer?.invalidate(); sequenceTimer = nil
+
+            // Send a user-facing message via sequence callback if available
+            if let cb = sequenceCallback {
+                let kp = KeyPress(baseKey: "⚠️ Couldn't start recording", modifiers: [], timestamp: Date(), keyCode: -1)
+                let seq = KeySequence(keys: [kp], captureMode: .single)
+                DispatchQueue.main.async { cb(seq) }
+                // Do not nil-out the callback until after dispatch
+                sequenceCallback = nil
+            } else if let cb = captureCallback {
+                DispatchQueue.main.async { cb("⚠️ Couldn't start recording") }
+                captureCallback = nil
+            }
             return
         }
 
@@ -271,11 +347,20 @@ public class KeyboardCapture: ObservableObject {
         CGEvent.tapEnable(tap: eventTap, enable: true)
     }
 
+    private func reinstallTap(to newLocation: CGEventTapLocation) {
+        if let eventTap { CFMachPortInvalidate(eventTap); self.eventTap = nil }
+        if let runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes); self.runLoopSource = nil }
+        currentTapLocation = newLocation
+        setupEventTap(at: newLocation)
+    }
+
     private func handleKeyEvent(_ event: CGEvent) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let keyName = keyCodeToString(keyCode)
         let modifiers = ModifierSet(cgEventFlags: event.flags)
         let now = Date()
+
+        AppLogger.shared.log("🎹 [KeyboardCapture] keyDown: \(keyName) code=\(keyCode) suppress=\(suppressEvents)")
 
         // Create KeyPress
         let keyPress = KeyPress(
@@ -392,17 +477,10 @@ public class KeyboardCapture: ObservableObject {
         }
     }
 
-    // Check permissions without prompting
+    // Check permissions without prompting - using synchronous method to avoid deadlocks
     func checkAccessibilityPermissionsSilently() -> Bool {
-        var result = false
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            let snapshot = await PermissionOracle.shared.currentSnapshot()
-            result = snapshot.keyPath.accessibility.isReady
-            semaphore.signal()
-        }
-        semaphore.wait()
-        return result
+        // Use direct API call instead of async PermissionOracle to avoid semaphore deadlock
+        return AXIsProcessTrusted()
     }
 
     // Public method to explicitly request permissions (for use in wizard)
@@ -416,6 +494,12 @@ public class KeyboardCapture: ObservableObject {
 
     func startEmergencyMonitoring(callback: @escaping () -> Void) {
         guard !isMonitoringEmergency else { return }
+
+        // Avoid event taps in test/CI to prevent hangs
+        if TestEnvironment.isRunningTests {
+            AppLogger.shared.log("🧪 [KeyboardCapture] Test environment – skipping emergency monitoring tap")
+            return
+        }
 
         // Safety check: avoid CGEvent tap conflicts when Kanata is running
         // Per ADR-006, emergency monitoring should also respect the single tap rule

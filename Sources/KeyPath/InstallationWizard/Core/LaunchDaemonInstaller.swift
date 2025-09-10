@@ -54,30 +54,52 @@ class LaunchDaemonInstaller {
     // MARK: - Diagnostic Methods
 
     /// Test admin dialog capability - use this to diagnose osascript issues
+    /// NOTE: This is a blocking operation that should not be called during startup
     func testAdminDialog() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Testing admin dialog capability...")
         AppLogger.shared.log("🔧 [LaunchDaemon] Current thread: \(Thread.isMainThread ? "main" : "background")")
+
+        // Skip test if called during startup to prevent freezes
+        if ProcessInfo.processInfo.environment["KEYPATH_SKIP_ADMIN_TEST"] == "1" {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Skipping admin dialog test during startup")
+            return true // Assume it works to avoid blocking
+        }
 
         let testCommand = "echo 'Admin dialog test successful'"
         let osascriptCode = """
         do shell script "\(testCommand)" with administrator privileges with prompt "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
         """
 
-        var success = false
-
-        if Thread.isMainThread {
-            success = executeOSAScriptOnMainThread(osascriptCode)
-        } else {
-            let semaphore = DispatchSemaphore(value: 0)
-            DispatchQueue.main.async {
-                success = self.executeOSAScriptOnMainThread(osascriptCode)
-                semaphore.signal()
-            }
-            semaphore.wait()
-        }
-
+        // Execute directly without semaphore to avoid deadlock
+        let success = executeOSAScriptDirectly(osascriptCode)
+        
         AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test result: \(success)")
         return success
+    }
+    
+    /// Execute osascript directly without thread switching
+    private func executeOSAScriptDirectly(_ osascriptCode: String) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", osascriptCode]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            
+            AppLogger.shared.log("🔧 [LaunchDaemon] OSAScript test output: \(output)")
+            return task.terminationStatus == 0
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] OSAScript test error: \(error)")
+            return false
+        }
     }
 
     private func executeOSAScriptOnMainThread(_ osascriptCode: String) -> Bool {
@@ -1185,36 +1207,21 @@ class LaunchDaemonInstaller {
             AppLogger.shared.log("🔐 [LaunchDaemon] osascript command: \(osascriptCode)")
             AppLogger.shared.log("🔐 [LaunchDaemon] About to execute: /usr/bin/osascript -e [command]")
 
-            // CRITICAL FIX: Admin dialogs must run on main thread for macOS security
+            // Execute without thread switching to avoid deadlock
+            // Admin dialogs can run from any thread when using osascript
             var taskSuccess = false
             var taskStatus: Int32 = -1
-            // taskOutput was unused; remove to silence warning
 
-            if Thread.isMainThread {
-                AppLogger.shared.log("🔐 [LaunchDaemon] Executing on main thread")
+            do {
+                AppLogger.shared.log("🔐 [LaunchDaemon] Executing osascript directly")
                 try task.run()
                 task.waitUntilExit()
                 taskStatus = task.terminationStatus
                 taskSuccess = true
-            } else {
-                AppLogger.shared.log("🔐 [LaunchDaemon] Dispatching to main thread for admin dialog")
-                let semaphore = DispatchSemaphore(value: 0)
-
-                DispatchQueue.main.async {
-                    do {
-                        try task.run()
-                        task.waitUntilExit()
-                        taskStatus = task.terminationStatus
-                        taskSuccess = true
-                        AppLogger.shared.log("🔐 [LaunchDaemon] Main thread execution completed")
-                    } catch {
-                        AppLogger.shared.log("❌ [LaunchDaemon] Main thread execution failed: \(error)")
-                        taskSuccess = false
-                    }
-                    semaphore.signal()
-                }
-
-                semaphore.wait()
+                AppLogger.shared.log("🔐 [LaunchDaemon] Execution completed with status: \(taskStatus)")
+            } catch {
+                AppLogger.shared.log("❌ [LaunchDaemon] Execution failed: \(error)")
+                taskSuccess = false
             }
 
             if !taskSuccess {

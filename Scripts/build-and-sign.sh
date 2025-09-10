@@ -41,6 +41,29 @@ cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
 # Create PkgInfo file (required for app bundles)
 echo "APPL????" > "$CONTENTS/PkgInfo"
 
+# Create BuildInfo.plist for About dialog
+echo "🧾 Writing BuildInfo.plist..."
+GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_DATE=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+CFVER=$(defaults read "$CONTENTS/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0.0")
+CFBUILD=$(defaults read "$CONTENTS/Info" CFBundleVersion 2>/dev/null || echo "0")
+cat > "$RESOURCES/BuildInfo.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleShortVersionString</key>
+  <string>${CFVER}</string>
+  <key>CFBundleVersion</key>
+  <string>${CFBUILD}</string>
+  <key>GitCommit</key>
+  <string>${GIT_HASH}</string>
+  <key>BuildDate</key>
+  <string>${BUILD_DATE}</string>
+</dict>
+</plist>
+EOF
+
 echo "✍️  Signing executables..."
 SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
 

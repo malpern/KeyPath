@@ -204,19 +204,37 @@ actor PermissionOracle {
         let accessibility: Status = axGranted ? .granted : .denied
 
         // Input Monitoring check via official Apple API (no prompt, no CGEvent tap)
-        // This is much safer than the previous CGEvent tap approach
-        let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
-        let imGranted = accessType == kIOHIDAccessTypeGranted
-        let inputMonitoring: Status = imGranted ? .granted : .denied
+        // Skip during startup if this is the first call to avoid UI freezing
+        var inputMonitoring: Status = .unknown
+        
+        if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+            // During startup, skip the potentially blocking IOHIDCheckAccess call
+            AppLogger.shared.log("🔮 [Oracle] Startup mode - skipping IOHIDCheckAccess to prevent UI freeze")
+            inputMonitoring = .unknown
+        } else {
+            // Normal operation - safe to call IOHIDCheckAccess
+            let accessCheckStart = Date()
+            let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
+            let accessCheckDuration = Date().timeIntervalSince(accessCheckStart)
+            
+            if accessCheckDuration > 2.0 {
+                AppLogger.shared.log("⚠️ [Oracle] IOHIDCheckAccess took \(String(format: "%.3f", accessCheckDuration))s - unusually slow")
+            }
+            
+            let imGranted = accessType == kIOHIDAccessTypeGranted
+            inputMonitoring = imGranted ? .granted : .denied
+        }
 
         let duration = Date().timeIntervalSince(start)
         AppLogger.shared.log("🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), IM: \(inputMonitoring)")
 
+        let isStartupMode = if case .unknown = inputMonitoring { true } else { false }
+        
         return PermissionSet(
             accessibility: accessibility,
             inputMonitoring: inputMonitoring,
-            source: "keypath.official-apis",
-            confidence: .high,
+            source: isStartupMode ? "keypath.startup-mode" : "keypath.official-apis",
+            confidence: isStartupMode ? .low : .high,
             timestamp: Date()
         )
     }

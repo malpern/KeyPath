@@ -36,22 +36,18 @@ jobs:
         swift build
         echo "✅ Build completed successfully"
     
-    - name: Run All Tests
+    - name: Run All Tests (Safe Runner)
       run: |
-        echo "🧪 Running KeyPath Full Test Suite..."
-        
-        # Set CI environment variables
+        echo "🧪 Running KeyPath tests via safe runner"
         export CI_ENVIRONMENT=true
-        export KEYPATH_TESTING=true
-        
-        # Run full test suite to catch all issues
-        if swift test --parallel; then
-          echo "TEST_STATUS=passed" >> $GITHUB_ENV
-          echo "✅ All tests passed"
-        else
+        export SWIFT_TEST=1
+        export SKIP_EVENT_TAP_TESTS=1
+        bash Scripts/run-tests-safe.sh || true
+        if grep -q "❌ Failures detected" test_output.safe.txt; then
           echo "TEST_STATUS=failed" >> $GITHUB_ENV
-          echo "❌ Some tests failed"
-          # Continue CI for build verification but mark as failed
+          exit 1
+        else
+          echo "TEST_STATUS=passed" >> $GITHUB_ENV
         fi
     
     - name: Upload Test Results

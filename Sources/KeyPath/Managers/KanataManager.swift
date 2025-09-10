@@ -6,7 +6,7 @@ import SwiftUI
 
 /// Actor for process synchronization to prevent multiple concurrent Kanata starts
 actor ProcessSynchronizationActor {
-    func synchronize<T>(_ operation: @Sendable () async throws -> T) async rethrows -> T {
+    func synchronize<T: Sendable>(_ operation: @Sendable () async throws -> T) async rethrows -> T {
         try await operation()
     }
 }
@@ -308,8 +308,9 @@ class KanataManager: ObservableObject {
         configBackupManager = ConfigBackupManager(configPath: "\(NSHomeDirectory())/.config/keypath/keypath.kbd")
 
         // Dispatch heavy initialization work to background thread (skip during unit tests)
+        // Use Task.detached to ensure this runs off the main thread even with @MainActor
         if !TestEnvironment.isRunningTests {
-            Task { [weak self] in
+            Task.detached { [weak self] in
                 // Clean up any orphaned processes first
                 await self?.processLifecycleManager.cleanupOrphanedProcesses()
                 await self?.performInitialization()
@@ -2658,6 +2659,12 @@ class KanataManager: ObservableObject {
     }
 
     func isKarabinerDaemonRunning() -> Bool {
+        // Skip daemon check during startup to prevent blocking
+        if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+            AppLogger.shared.log("🔍 [Daemon] Startup mode - skipping VirtualHIDDevice-Daemon check to prevent UI freeze")
+            return false // Assume not running during startup
+        }
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         task.arguments = ["-f", "VirtualHIDDevice-Daemon"]
@@ -2667,14 +2674,31 @@ class KanataManager: ObservableObject {
         task.standardError = pipe
 
         do {
+            let startTime = CFAbsoluteTimeGetCurrent()
             try task.run()
-            task.waitUntilExit()
+            
+            // Use DispatchGroup to implement timeout for process execution
+            let group = DispatchGroup()
+            group.enter()
+            
+            DispatchQueue.global().async {
+                task.waitUntilExit()
+                group.leave()
+            }
+            
+            let timeoutResult = group.wait(timeout: .now() + 2.0) // 2 second timeout
+            if timeoutResult == .timedOut {
+                task.terminate()
+                AppLogger.shared.log("⚠️ [Daemon] VirtualHIDDevice-Daemon check timed out after 2s - assuming not running")
+                return false
+            }
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
             let isRunning = !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-            AppLogger.shared.log("🔍 [Daemon] Karabiner VirtualHIDDevice-Daemon running: \(isRunning)")
+            
+            let duration = CFAbsoluteTimeGetCurrent() - startTime
+            AppLogger.shared.log("🔍 [Daemon] Karabiner VirtualHIDDevice-Daemon running: \(isRunning) (took \(String(format: "%.3f", duration))s)")
             return isRunning
         } catch {
             AppLogger.shared.log("❌ [Daemon] Error checking VirtualHIDDevice-Daemon: \(error)")

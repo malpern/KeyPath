@@ -37,6 +37,12 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Checks if VirtualHIDDevice processes are currently running
     func detectRunning() -> Bool {
+        // Skip daemon check during startup to prevent blocking
+        if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+            AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze")
+            return false // Assume not running during startup
+        }
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         task.arguments = ["-f", Self.vhidDeviceRunningCheck]
@@ -46,8 +52,24 @@ final class VHIDDeviceManager: @unchecked Sendable {
         task.standardError = pipe
 
         do {
+            let startTime = CFAbsoluteTimeGetCurrent()
             try task.run()
-            task.waitUntilExit()
+            
+            // Use DispatchGroup to implement timeout for process execution
+            let group = DispatchGroup()
+            group.enter()
+            
+            DispatchQueue.global().async {
+                task.waitUntilExit()
+                group.leave()
+            }
+            
+            let timeoutResult = group.wait(timeout: .now() + 2.0) // 2 second timeout
+            if timeoutResult == .timedOut {
+                task.terminate()
+                AppLogger.shared.log("⚠️ [VHIDManager] VHIDDevice process check timed out after 2s - assuming not running")
+                return false
+            }
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
@@ -55,7 +77,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 task.terminationStatus == 0
                     && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
-            AppLogger.shared.log("🔍 [VHIDManager] VHIDDevice processes running: \(isRunning)")
+            let duration = CFAbsoluteTimeGetCurrent() - startTime
+            AppLogger.shared.log("🔍 [VHIDManager] VHIDDevice processes running: \(isRunning) (took \(String(format: "%.3f", duration))s)")
             return isRunning
         } catch {
             AppLogger.shared.log("❌ [VHIDManager] Error checking VHIDDevice processes: \(error)")

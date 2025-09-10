@@ -5,6 +5,9 @@ set -euo pipefail
 # Bug: XCTest runs successfully but process crashes with signal 6 after completion
 
 echo "Running tests (attempting XCTest only)..."
+# Ensure code paths detect test/CI and avoid CGEvent taps
+export SWIFT_TEST=1
+export SKIP_EVENT_TAP_TESTS=1
 
 # Try to run with Swift Testing disabled
 # Note: Even with this flag, Swift 6.2 beta still crashes after XCTest completes
