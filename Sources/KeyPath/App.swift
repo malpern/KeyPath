@@ -193,6 +193,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // One-shot first activation: unconditionally show window on first activation
         if !initialMainWindowShown {
+            // Log diagnostic state at first activation for future debugging
+            let appActive = NSApp.isActive
+            let appHidden = NSApp.isHidden
+            let windowOcclusion = mainWindowController?.window?.occlusionState ?? []
+            AppLogger.shared.log("🔍 [AppDelegate] First activation diagnostics: isActive=\(appActive), isHidden=\(appHidden), windowOcclusion=\(windowOcclusion.rawValue)")
+            
             // Check if app was hidden and unhide if needed
             if NSApp.isHidden {
                 NSApp.unhide(nil)
@@ -302,21 +308,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))")
         
-        // Check if main window is key/visible on screen (not just "visible" in memory)
-        let isMainWindowKey = mainWindowController?.window?.isKeyWindow ?? false
-        let isMainWindowOnScreen = mainWindowController?.window?.occlusionState.contains(.visible) ?? false
-        
-        AppLogger.shared.log("🪟 [AppDelegate] Main window state: key=\(isMainWindowKey), onScreen=\(isMainWindowOnScreen)")
-        
-        // If main window is not key or not on screen, bring it forward
-        if !isMainWindowKey || !isMainWindowOnScreen {
-            mainWindowController?.show(focus: true)
-            AppLogger.shared.log("🪟 [AppDelegate] Fronting main window on reopen")
-        } else {
-            // Main window is already key and visible, just ensure app is active
-            NSApp.activate(ignoringOtherApps: true)
-            AppLogger.shared.log("🪟 [AppDelegate] Main window already key and visible, activating app")
-        }
+        // User-initiated reopen: unconditionally show main window
+        // Re-ordering an already-visible window is harmless and expected
+        mainWindowController?.show(focus: true)
+        AppLogger.shared.log("🪟 [AppDelegate] User-initiated reopen - showing main window")
         
         return true
     }

@@ -556,7 +556,7 @@ public class KeyboardCapture: ObservableObject {
         )
 
         guard let eventTap = emergencyEventTap else {
-            print("Failed to create emergency event tap")
+            AppLogger.shared.log("❌ [KeyboardCapture] Failed to create emergency event tap")
             return
         }
 
