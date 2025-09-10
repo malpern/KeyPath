@@ -12,10 +12,9 @@ struct RootView: View {
             }
         }
         .task {
-            // Ensure the app is brought to front when the spinner appears
-            AppLogger.shared.log("⏳ [RootView] Spinner shown; activating app")
-            NSApp.activate(ignoringOtherApps: true)
-            // Give SwiftUI a brief moment to present a window, then swap in the main UI
+            // Let AppDelegate handle all activation orchestration
+            AppLogger.shared.log("⏳ [RootView] Loading UI")
+            // Give SwiftUI a brief moment to initialize, then swap in the main UI
             try? await Task.sleep(nanoseconds: 250_000_000) // 0.25s
             withAnimation(.easeInOut(duration: 0.2)) { isReady = true }
         }

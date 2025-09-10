@@ -84,7 +84,8 @@ final class MainWindowController: NSWindowController {
     
     var isWindowVisible: Bool {
         guard let window = window else { return false }
-        return window.isVisible || window.isMiniaturized
+        // Stronger predicate: check if window is actually key or visible on screen
+        return window.isKeyWindow || window.occlusionState.contains(.visible)
     }
 }
 

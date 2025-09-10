@@ -172,6 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: KanataManager?
     var isHeadlessMode = false
     private var mainWindowController: MainWindowController?
+    private var initialMainWindowShown = false
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
@@ -188,13 +189,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_: Notification) {
-        AppLogger.shared.log("🔍 [AppDelegate] applicationDidBecomeActive called")
-        // Only show main window if no window is currently visible
-        if mainWindowController?.isWindowVisible != true {
+        AppLogger.shared.log("🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))")
+        
+        // One-shot first activation: unconditionally show window on first activation
+        if !initialMainWindowShown {
+            // Check if app was hidden and unhide if needed
+            if NSApp.isHidden {
+                NSApp.unhide(nil)
+                AppLogger.shared.log("🪟 [AppDelegate] App was hidden, unhiding")
+            }
+            
+            // Unconditionally show and focus the main window on first activation
             mainWindowController?.show(focus: true)
-            AppLogger.shared.log("🪟 [AppDelegate] Showing window - none was visible")
+            initialMainWindowShown = true
+            AppLogger.shared.log("🪟 [AppDelegate] First activation - main window shown and focused")
         } else {
-            AppLogger.shared.log("🪟 [AppDelegate] Window already visible, no action needed")
+            // Subsequent activations: only show if window not visible
+            if mainWindowController?.isWindowVisible != true {
+                mainWindowController?.show(focus: true)
+                AppLogger.shared.log("🪟 [AppDelegate] Subsequent activation - showing hidden window")
+            } else {
+                AppLogger.shared.log("🪟 [AppDelegate] Subsequent activation - window already visible")
+            }
         }
     }
 
@@ -253,7 +269,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Note: In normal mode, kanata is already started in KanataManager.init() if requirements are met
 
-        // Create and show main window using AppKit controller
+        // Create main window controller but defer showing until app activation
         if !isHeadlessMode {
             AppLogger.shared.log("🪟 [AppDelegate] Setting up main window controller")
             
@@ -263,12 +279,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             
             mainWindowController = MainWindowController(kanataManager: manager)
-            
-            // Show window on next run loop without artificial delay
-            DispatchQueue.main.async {
-                self.mainWindowController?.show(focus: true)
-                AppLogger.shared.log("🪟 [AppDelegate] Main window created and shown")
-            }
+            AppLogger.shared.log("🪟 [AppDelegate] Main window controller created (not shown yet - waiting for activation)")
         } else {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - skipping window management")
         }
@@ -289,17 +300,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        let mainWindowVisible = mainWindowController?.isWindowVisible ?? false
-        AppLogger.shared.log("🔍 [AppDelegate] applicationShouldHandleReopen (anyVisible=\(flag), mainVisible=\(mainWindowVisible))")
+        AppLogger.shared.log("🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))")
         
-        if mainWindowVisible {
-            // Main window is visible, just activate the app
-            NSApp.activate(ignoringOtherApps: true)
-            AppLogger.shared.log("🪟 [AppDelegate] Main window visible, activating app only")
-        } else {
-            // Main window not visible (even if Settings is), show main window with focus
+        // Check if main window is key/visible on screen (not just "visible" in memory)
+        let isMainWindowKey = mainWindowController?.window?.isKeyWindow ?? false
+        let isMainWindowOnScreen = mainWindowController?.window?.occlusionState.contains(.visible) ?? false
+        
+        AppLogger.shared.log("🪟 [AppDelegate] Main window state: key=\(isMainWindowKey), onScreen=\(isMainWindowOnScreen)")
+        
+        // If main window is not key or not on screen, bring it forward
+        if !isMainWindowKey || !isMainWindowOnScreen {
             mainWindowController?.show(focus: true)
-            AppLogger.shared.log("🪟 [AppDelegate] Main window not visible, showing main window")
+            AppLogger.shared.log("🪟 [AppDelegate] Fronting main window on reopen")
+        } else {
+            // Main window is already key and visible, just ensure app is active
+            NSApp.activate(ignoringOtherApps: true)
+            AppLogger.shared.log("🪟 [AppDelegate] Main window already key and visible, activating app")
         }
         
         return true
