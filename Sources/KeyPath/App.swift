@@ -5,7 +5,6 @@ import SwiftUI
 public struct KeyPathApp: App {
     @StateObject private var kanataManager = KanataManager()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @State private var showingEmergencyStopDialog = false
 
     private let isHeadlessMode: Bool
 
@@ -14,6 +13,17 @@ public struct KeyPathApp: App {
         let args = ProcessInfo.processInfo.arguments
         isHeadlessMode =
             args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
+        
+        AppLogger.shared.log("🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), args: \(args)")
+        
+        // Debug: enable auto-trigger recording when launched with --autotrigger
+        if args.contains("--autotrigger") {
+            setenv("KEYPATH_AUTOTRIGGER", "1", 1)
+            AppLogger.shared.log("🧪 [App] Auto-trigger flag detected (--autotrigger)")
+        }
+        
+        // Set startup mode to prevent blocking operations during app launch
+        setenv("KEYPATH_STARTUP_MODE", "1", 1)
 
         // Initialize KanataManager
         let manager = KanataManager()
@@ -27,6 +37,7 @@ public struct KeyPathApp: App {
         } else {
             // Show in dock for normal mode
             NSApplication.shared.setActivationPolicy(.regular)
+            AppLogger.shared.log("🪟 [App] Running in normal mode (with UI)")
         }
 
         appDelegate.kanataManager = manager
@@ -37,30 +48,29 @@ public struct KeyPathApp: App {
     }
 
     public var body: some Scene {
-        WindowGroup {
-            ContentView()
+        // Note: Main window now managed by AppKit MainWindowController
+        // Settings scene for preferences window
+        Settings {
+            SettingsView()
                 .environmentObject(kanataManager)
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
-                .sheet(isPresented: $showingEmergencyStopDialog) {
-                    EmergencyStopDialog()
-                        .interactiveDismissDisabled(false)
-                }
         }
-        .windowResizability(.contentSize)
         .commands {
             // Replace default "AppName" menu with "KeyPath" menu
             CommandGroup(replacing: .appInfo) {
                 Button("About KeyPath") {
+                    let info = BuildInfo.current()
+                    let details = "Build \(info.build) • \(info.git) • \(info.date)"
                     NSApplication.shared.orderFrontStandardAboutPanel(
                         options: [
                             NSApplication.AboutPanelOptionKey.credits: NSAttributedString(
-                                string: "A powerful keyboard remapping tool for macOS",
+                                string: details,
                                 attributes: [NSAttributedString.Key.font: NSFont.systemFont(ofSize: 11)]
                             ),
                             NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
-                            NSApplication.AboutPanelOptionKey.applicationVersion: "1.1",
-                            NSApplication.AboutPanelOptionKey.version: "Build 2"
+                            NSApplication.AboutPanelOptionKey.applicationVersion: info.version,
+                            NSApplication.AboutPanelOptionKey.version: "Build \(info.build)"
                         ]
                     )
                 }
@@ -83,17 +93,21 @@ public struct KeyPathApp: App {
                 Divider()
 
                 Button("How to Emergency Stop") {
-                    showingEmergencyStopDialog = true
+                    // Emergency stop dialog will be handled by main window controller
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowEmergencyStop"), object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             }
-        }
 
-        Settings {
-            SettingsView()
-                .environmentObject(kanataManager)
-                .environment(\.preferencesService, PreferencesService.shared)
-                .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
+            // Debug menu
+            CommandMenu("Debug") {
+                Button("Start Input Recording (Debug)") {
+                    AppLogger.shared.log("🧪 [Menu] Start Input Recording (Debug) selected")
+                    NotificationCenter.default.post(name: Notification.Name("KeyPath.Local.TriggerStartRecording"), object: nil)
+                    DistributedNotificationCenter.default().post(name: Notification.Name("KeyPath.TriggerStartRecording"), object: nil)
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+            }
         }
     }
 }
@@ -153,31 +167,43 @@ func openConfigInEditor(kanataManager: KanataManager) {
     }
 }
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: KanataManager?
     var isHeadlessMode = false
+    private var mainWindowController: MainWindowController?
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
-        print("🔍 [AppDelegate] applicationShouldTerminate called")
+        AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
         return .terminateNow
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
-        print("🔍 [AppDelegate] applicationShouldTerminateAfterLastWindowClosed called")
+        AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminateAfterLastWindowClosed called")
         return true
     }
 
     func applicationWillHide(_: Notification) {
-        print("🔍 [AppDelegate] applicationWillHide called")
+        AppLogger.shared.log("🔍 [AppDelegate] applicationWillHide called")
     }
 
     func applicationDidBecomeActive(_: Notification) {
-        print("🔍 [AppDelegate] applicationDidBecomeActive called")
+        AppLogger.shared.log("🔍 [AppDelegate] applicationDidBecomeActive called")
+        // Only show main window if no window is currently visible
+        if mainWindowController?.isWindowVisible != true {
+            mainWindowController?.show(focus: true)
+            AppLogger.shared.log("🪟 [AppDelegate] Showing window - none was visible")
+        } else {
+            AppLogger.shared.log("🪟 [AppDelegate] Window already visible, no action needed")
+        }
     }
 
     func applicationDidFinishLaunching(_: Notification) {
-        print("🔍 [AppDelegate] applicationDidFinishLaunching called")
         AppLogger.shared.log("🔍 [AppDelegate] applicationDidFinishLaunching called")
+
+        // Log build information for traceability
+        let info = BuildInfo.current()
+        AppLogger.shared.log("🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)")
 
         // Phase 2/3: Ensure shared UDP token exists for cross-platform compatibility
         Task { @MainActor in
@@ -226,10 +252,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         // Note: In normal mode, kanata is already started in KanataManager.init() if requirements are met
+
+        // Create and show main window using AppKit controller
+        if !isHeadlessMode {
+            AppLogger.shared.log("🪟 [AppDelegate] Setting up main window controller")
+            
+            guard let manager = kanataManager else {
+                AppLogger.shared.log("❌ [AppDelegate] KanataManager is nil, cannot create window")
+                return
+            }
+            
+            mainWindowController = MainWindowController(kanataManager: manager)
+            
+            // Show window on next run loop without artificial delay
+            DispatchQueue.main.async {
+                self.mainWindowController?.show(focus: true)
+                AppLogger.shared.log("🪟 [AppDelegate] Main window created and shown")
+            }
+        } else {
+            AppLogger.shared.log("🤖 [AppDelegate] Headless mode - skipping window management")
+        }
     }
 
     func applicationWillResignActive(_: Notification) {
-        print("🔍 [AppDelegate] applicationWillResignActive called")
+        AppLogger.shared.log("🔍 [AppDelegate] applicationWillResignActive called")
     }
 
     func applicationWillTerminate(_: Notification) {
@@ -240,5 +286,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         kanataManager?.cleanupSync()
 
         AppLogger.shared.log("✅ [AppDelegate] Cleanup complete, app terminating")
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        let mainWindowVisible = mainWindowController?.isWindowVisible ?? false
+        AppLogger.shared.log("🔍 [AppDelegate] applicationShouldHandleReopen (anyVisible=\(flag), mainVisible=\(mainWindowVisible))")
+        
+        if mainWindowVisible {
+            // Main window is visible, just activate the app
+            NSApp.activate(ignoringOtherApps: true)
+            AppLogger.shared.log("🪟 [AppDelegate] Main window visible, activating app only")
+        } else {
+            // Main window not visible (even if Settings is), show main window with focus
+            mainWindowController?.show(focus: true)
+            AppLogger.shared.log("🪟 [AppDelegate] Main window not visible, showing main window")
+        }
+        
+        return true
     }
 }
