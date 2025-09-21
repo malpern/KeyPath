@@ -1,0 +1,431 @@
+import Foundation
+import SwiftUI
+import AppKit
+
+@MainActor
+protocol RecordingCapture: AnyObject {
+    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?)
+    func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void)
+    func stopCapture()
+}
+
+@MainActor
+final class KeyboardCaptureAdapter: RecordingCapture {
+    private let capture: KeyboardCapture
+
+    init() {
+        self.capture = KeyboardCapture()
+    }
+
+    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?) {
+        capture.setEventRouter(router, kanataManager: kanataManager)
+    }
+
+    func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) {
+        capture.startSequenceCapture(mode: mode, callback: callback)
+    }
+
+    func stopCapture() {
+        capture.stopCapture()
+    }
+}
+
+@MainActor
+final class RecordingCoordinator: ObservableObject {
+    struct ChannelState {
+        var fieldText: String = ""
+        var isRecording: Bool = false
+        var capturedSequence: KeySequence?
+        var buttonIcon: String = "play.circle.fill"
+    }
+
+    @Published private(set) var input = ChannelState()
+    @Published private(set) var output = ChannelState()
+    @Published var isSequenceMode: Bool = false {
+        didSet {
+            inputPlaceholderRequested = true
+            outputPlaceholderRequested = true
+            refreshDisplayTexts()
+        }
+    }
+
+    private var kanataManager: KanataManager?
+    private var showStatusMessage: ((String) -> Void)?
+    private var permissionProvider: PermissionSnapshotProviding?
+    private var keyboardCapture: RecordingCapture?
+    private var captureFactory: () -> RecordingCapture = { KeyboardCaptureAdapter() }
+
+    private var inputTimeoutTimer: Timer?
+    private var outputTimeoutTimer: Timer?
+    private var inputPlaceholderRequested = false
+    private var outputPlaceholderRequested = false
+
+    func configure(
+        kanataManager: KanataManager,
+        statusHandler: @escaping (String) -> Void,
+        permissionProvider: PermissionSnapshotProviding,
+        keyboardCaptureFactory: @escaping () -> RecordingCapture = { KeyboardCaptureAdapter() }
+    ) {
+        self.kanataManager = kanataManager
+        self.showStatusMessage = statusHandler
+        self.permissionProvider = permissionProvider
+        self.captureFactory = keyboardCaptureFactory
+        refreshDisplayTexts()
+    }
+
+    // MARK: - Public API
+
+    func toggleSequenceMode() {
+        isSequenceMode.toggle()
+    }
+
+    func requestPlaceholders() {
+        inputPlaceholderRequested = true
+        outputPlaceholderRequested = true
+        refreshDisplayTexts()
+    }
+
+    func toggleInputRecording() {
+        if input.isRecording {
+            stopInputRecording()
+        } else {
+            startInputRecording()
+        }
+    }
+
+    func toggleOutputRecording() {
+        if output.isRecording {
+            stopOutputRecording()
+        } else {
+            startOutputRecording()
+        }
+    }
+
+    func capturedInputSequence() -> KeySequence? { input.capturedSequence }
+    func capturedOutputSequence() -> KeySequence? { output.capturedSequence }
+
+    func clearCapturedSequences() {
+        input.capturedSequence = nil
+        output.capturedSequence = nil
+        inputPlaceholderRequested = true
+        outputPlaceholderRequested = true
+        refreshDisplayTexts()
+    }
+
+    func inputDisplayText() -> String { input.fieldText }
+    func outputDisplayText() -> String { output.fieldText }
+    func inputButtonIcon() -> String { input.buttonIcon }
+    func outputButtonIcon() -> String { output.buttonIcon }
+    func isInputRecording() -> Bool { input.isRecording }
+    func isOutputRecording() -> Bool { output.isRecording }
+
+    func stopAllRecording() {
+        stopInputRecording()
+        stopOutputRecording()
+        keyboardCapture?.stopCapture()
+        keyboardCapture = nil
+    }
+
+    func saveMapping(
+        kanataManager: KanataManager,
+        onSuccess: @escaping (String) -> Void,
+        onError: @escaping (Error) -> Void
+    ) async {
+        guard let inputSequence = capturedInputSequence(),
+              let outputSequence = capturedOutputSequence()
+        else {
+            AppLogger.shared.log("❌ [Coordinator] Save requested without both sequences")
+            await MainActor.run {
+                onError(CoordinatorError.missingSequences)
+            }
+            return
+        }
+
+        let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
+
+        do {
+            let generatedConfig = try await configGenerator.generateMapping(input: inputSequence, output: outputSequence)
+            try await kanataManager.saveGeneratedConfiguration(generatedConfig)
+            await kanataManager.updateStatus()
+
+            await MainActor.run {
+                onSuccess("Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
+                clearCapturedSequences()
+            }
+        } catch {
+            AppLogger.shared.log("❌ [Coordinator] Error saving mapping: \(error)")
+            onError(error)
+        }
+    }
+
+    // MARK: - Internal Helpers
+
+    private func startInputRecording() {
+        guard !input.isRecording else { return }
+        AppLogger.shared.log("🚩 [Coordinator] startInputRecording()")
+        inputTimeoutTimer?.invalidate()
+        input.isRecording = true
+        input.capturedSequence = nil
+        refreshDisplayTexts()
+
+        guard let permissionProvider else {
+            failInputRecording(with: .permissionFailure)
+            return
+        }
+
+        Task {
+            let snapshot = await permissionProvider.currentSnapshot()
+
+            guard snapshot.keyPath.accessibility.isReady else {
+                await MainActor.run {
+                    self.failInputRecording(with: .permissionFailure)
+                }
+                return
+            }
+
+            await MainActor.run {
+                self.prepareKeyboardCaptureIfNeeded()
+                guard let capture = self.keyboardCapture else {
+                    self.failInputRecording(with: .captureInitializationFailure)
+                    return
+                }
+
+                self.logFocusState(prefix: "[Coordinator:Input]")
+                capture.setEventRouter(nil, kanataManager: self.kanataManager)
+                let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
+
+                self.inputTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        if self.input.isRecording {
+                            self.failInputRecording(with: .timeout)
+                            self.keyboardCapture?.stopCapture()
+                        }
+                    }
+                }
+
+                capture.startSequenceCapture(mode: mode) { keySequence in
+                    Task { @MainActor in
+                        self.inputTimeoutTimer?.invalidate()
+                        self.input.capturedSequence = keySequence
+                        self.input.isRecording = false
+                        self.refreshDisplayTexts()
+                    }
+                }
+            }
+        }
+    }
+
+    private func failInputRecording(with reason: RecordingFailureReason) {
+        inputTimeoutTimer?.invalidate()
+        input.isRecording = false
+        input.capturedSequence = nil
+        input.fieldText = reason.displayMessage
+        updateButtonIcon(&input)
+        if reason.shouldShowBanner {
+            showStatusMessage?(reason.bannerMessage)
+        }
+    }
+
+    private func stopInputRecording() {
+        guard input.isRecording else { return }
+        inputTimeoutTimer?.invalidate()
+        input.isRecording = false
+        refreshDisplayTexts()
+        keyboardCapture?.stopCapture()
+    }
+
+    private func startOutputRecording() {
+        guard !output.isRecording else { return }
+        AppLogger.shared.log("🚩 [Coordinator] startOutputRecording()")
+        outputTimeoutTimer?.invalidate()
+        output.isRecording = true
+        output.capturedSequence = nil
+        refreshDisplayTexts()
+
+        guard let permissionProvider else {
+            failOutputRecording(with: .permissionFailure)
+            return
+        }
+
+        Task {
+            let snapshot = await permissionProvider.currentSnapshot()
+
+            guard snapshot.keyPath.accessibility.isReady else {
+                await MainActor.run {
+                    self.failOutputRecording(with: .permissionFailure)
+                }
+                return
+            }
+
+            await MainActor.run {
+                self.prepareKeyboardCaptureIfNeeded()
+                guard let capture = self.keyboardCapture else {
+                    self.failOutputRecording(with: .captureInitializationFailure)
+                    return
+                }
+
+                self.logFocusState(prefix: "[Coordinator:Output]")
+                capture.setEventRouter(nil, kanataManager: self.kanataManager)
+                let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
+
+                self.outputTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        if self.output.isRecording {
+                            self.failOutputRecording(with: .timeout)
+                            self.keyboardCapture?.stopCapture()
+                        }
+                    }
+                }
+
+                capture.startSequenceCapture(mode: mode) { keySequence in
+                    Task { @MainActor in
+                        self.outputTimeoutTimer?.invalidate()
+                        self.output.capturedSequence = keySequence
+                        self.output.isRecording = false
+                        self.refreshDisplayTexts()
+                    }
+                }
+            }
+        }
+    }
+
+    private func failOutputRecording(with reason: RecordingFailureReason) {
+        outputTimeoutTimer?.invalidate()
+        output.isRecording = false
+        output.capturedSequence = nil
+        output.fieldText = reason.displayMessage
+        updateButtonIcon(&output)
+        if reason.shouldShowBanner {
+            showStatusMessage?(reason.bannerMessage)
+        }
+    }
+
+    private func stopOutputRecording() {
+        guard output.isRecording else { return }
+        outputTimeoutTimer?.invalidate()
+        output.isRecording = false
+        refreshDisplayTexts()
+        keyboardCapture?.stopCapture()
+    }
+
+    private func prepareKeyboardCaptureIfNeeded() {
+        if keyboardCapture == nil {
+            keyboardCapture = captureFactory()
+        }
+    }
+
+    private func refreshDisplayTexts() {
+        refreshInputDisplayText()
+        refreshOutputDisplayText()
+    }
+
+    private func refreshInputDisplayText() {
+        if let sequence = input.capturedSequence {
+            input.fieldText = sequence.displayString
+        } else if input.isRecording {
+            input.fieldText = recordingPromptText()
+        } else if inputPlaceholderRequested {
+            input.fieldText = idlePlaceholderText()
+        } else {
+            input.fieldText = ""
+        }
+        updateButtonIcon(&input)
+    }
+
+    private func refreshOutputDisplayText() {
+        if let sequence = output.capturedSequence {
+            output.fieldText = sequence.displayString
+        } else if output.isRecording {
+            output.fieldText = recordingPromptText()
+        } else if outputPlaceholderRequested {
+            output.fieldText = idlePlaceholderText()
+        } else {
+            output.fieldText = ""
+        }
+        updateButtonIcon(&output)
+    }
+
+    private func idlePlaceholderText() -> String {
+        isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+    }
+
+    private func recordingPromptText() -> String {
+        let base = idlePlaceholderText()
+        let effective = FeatureFlags.captureListenOnlyEnabled && (kanataManager?.isRunning == true)
+        return effective ? base + " – Effective (mapped)" : base + " – Raw (direct)"
+    }
+
+    private func updateButtonIcon(_ channel: inout ChannelState) {
+        if channel.isRecording {
+            channel.buttonIcon = "xmark.circle.fill"
+        } else if channel.capturedSequence == nil || channel.fieldText.isEmpty {
+            channel.buttonIcon = "play.circle.fill"
+        } else {
+            channel.buttonIcon = "arrow.clockwise.circle.fill"
+        }
+    }
+
+    private func logFocusState(prefix: String) {
+        guard let app = NSApp else {
+            AppLogger.shared.log("🔍 \(prefix) Focus: NSApp unavailable (likely running in tests)")
+            return
+        }
+
+        let isActive = app.isActive
+        let keyWindow = app.keyWindow != nil
+        let occlusion = app.keyWindow?.occlusionState.rawValue ?? 0
+        AppLogger.shared.log("🔍 \(prefix) Focus: appActive=\(isActive), keyWindow=\(keyWindow), occlusion=\(occlusion)")
+    }
+}
+
+extension RecordingCoordinator {
+    enum CoordinatorError: Error, LocalizedError {
+        case missingSequences
+
+        var errorDescription: String? {
+            switch self {
+            case .missingSequences:
+                return "No input/output key captured"
+            }
+        }
+    }
+
+    enum RecordingFailureReason {
+        case permissionFailure
+        case captureInitializationFailure
+        case timeout
+
+        var displayMessage: String {
+            switch self {
+            case .permissionFailure:
+                return "⚠️ Accessibility permission required for recording"
+            case .captureInitializationFailure:
+                return "⚠️ Failed to initialize keyboard capture"
+            case .timeout:
+                return "⚠️ Recording timed out - try again"
+            }
+        }
+
+        var bannerMessage: String {
+            switch self {
+            case .permissionFailure:
+                return "❌ Recording requires Accessibility permission. Open the Installation Wizard to grant access."
+            case .captureInitializationFailure:
+                return "❌ Failed to start keyboard capture. Check KeyPath diagnostics."
+            case .timeout:
+                return "⚠️ Recording timed out — try again."
+            }
+        }
+
+        var shouldShowBanner: Bool {
+            switch self {
+            case .timeout:
+                return true
+            case .permissionFailure, .captureInitializationFailure:
+                return true
+            }
+        }
+    }
+}
