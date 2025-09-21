@@ -82,6 +82,18 @@ final class MainWindowController: NSWindowController {
         AppLogger.shared.log("🪟 [MainWindowController] Window closed")
     }
     
+    /// Ensure the window is visible even if the app has not yet
+    /// been made active by the system (e.g., Finder launch).
+    /// This should be called once at startup; subsequent focus
+    /// is handled by applicationDidBecomeActive.
+    func primeForActivation() {
+        guard let window = window else { return }
+        if !window.isVisible {
+            window.orderFrontRegardless()
+            AppLogger.shared.log("🪟 [MainWindowController] Primed window for activation (orderFrontRegardless)")
+        }
+    }
+
     var isWindowVisible: Bool {
         guard let window = window else { return false }
         // Stronger predicate: check if window is actually key or visible on screen

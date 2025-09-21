@@ -677,6 +677,46 @@ swift test --filter WizardNavigationEngineTests
 - Single source of truth architecture maintained
 - Future regression prevented with rigorous documentation
 
+### ADR-009: Deterministic UI Activation — Split UI App from Background Agent
+**Decision:** Keep the main app purely UI (activationPolicy .regular, no headless mode). Move background/headless responsibilities to a separate helper (user-level agent), and consider a minimal privileged helper for admin tasks.  
+**Status:** Proposed (September 2025) — pending implementation  
+**Problem:** Some users observed that launching KeyPath from Finder showed no main window until clicking the Dock icon. Root causes:
+- Finder’s “open” event can target an existing headless/accessory instance of the same binary (started by a LaunchAgent), which is not front‑eligible.
+- Early show/activate attempts before the app is truly active can be ignored; password prompts (admin flows) can also preempt first‑window fronting.
+
+**Context & Evidence:**
+- We migrated to AppKit window management and added activation gating/priming. This stabilized most scenarios, but Finder→headless collisions can still suppress first‑window appearance.
+- Logs show clean first‑activation fronting when the UI binary runs in .regular mode; problems correlate with accessory/headless runs and admin prompts racing activation.
+
+**Chosen Direction:**
+- Main UI (KeyPath.app): UI‑only. Never runs with `--headless` or `.accessory`. Finder/Dock always starts this process; first activation fronts the window deterministically.
+- Background helper (KeyPathAgent, user-level LaunchAgent): owns non‑UI background tasks (config watching, light health checks, notifications/orchestration). No windows; no activation.
+- Privileged helper (optional, SMJobBless): very small, async, and bounded surface for admin operations (install/update LaunchDaemons, privileged file writes, kickstarts). Replaces AppleScript prompts and reduces focus‑stealing during first launch.
+
+**Consequences:**
+- Deterministic Finder/Dock behavior; main window appears reliably without extra clicks.
+- Clear separation of concerns; fewer activation races and no reliance on `orderFrontRegardless` beyond rare edge cases.
+- Slightly more build/runtime components (UI app + agent + optional helper) but each is simpler and more reliable.
+- Kanata LaunchDaemon architecture remains unchanged; remapping continues at boot independent of UI.
+
+**Alternatives Considered:**
+- Keep single binary with headless flag and continue layering activation fallbacks. Rejected: fragile and repeatedly regresses on OS changes and Spaces/Stage Manager nuances.
+- Return to SwiftUI WindowGroup. Rejected: prior unpredictability under Finder activation and reopen paths.
+
+**Migration Plan (Phased):**
+1) Short term: Disable the LaunchAgent that runs the UI binary headless. If automatic UI at login is desired, add a Login Item (SMAppService) for the UI app. Keep LaunchDaemon for kanata.
+2) Medium term: Introduce a small KeyPathAgent (user-level) for background conveniences; communicate via DistributedNotifications/XPC/file signals.
+3) Long term (optional): Add a minimal SMJobBless privileged helper for admin flows; keep the API surface tiny and asynchronous to avoid the XPC pitfalls called out earlier in this document.
+
+**Risks & Mitigations:**
+- XPC/SMJobBless complexity: mitigate by keeping the helper’s API minimal, time‑bounded, and non‑blocking; use Authorization Services interim if needed.
+- Extra targets to maintain: offset by simpler responsibilities and reduced UI fragility.
+
+**Success Criteria:**
+- Finder launch consistently shows the main window (no Dock click required).
+- No background/headless state prevents UI activation.
+- Admin prompts never race the first window; admin work can run post‑activation or in a helper.
+
 ---
 
 ## ⚠️ Final Warning

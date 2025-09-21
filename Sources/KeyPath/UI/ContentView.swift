@@ -1,14 +1,13 @@
 import SwiftUI
 import AppKit
+import Combine
 
 struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
     @EnvironmentObject var kanataManager: KanataManager
+    @Environment(\.permissionSnapshotProvider) private var permissionSnapshotProvider
     @StateObject private var startupValidator = StartupValidator()
-    @State private var isRecording = false
-    @State private var isRecordingOutput = false
-    @State private var recordedInput = ""
-    @State private var recordedOutput = ""
+    @StateObject private var recordingCoordinator = RecordingCoordinator()
     @State private var showingInstallationWizard = false {
         didSet {
             AppLogger.shared.log(
@@ -27,14 +26,19 @@ struct ContentView: View {
 
     // Diagnostics view state
     @State private var showingDiagnostics = false
+    @State private var showingConfigCorruptionAlert = false
+    @State private var configCorruptionDetails = ""
+    @State private var configRepairSuccessful = false
+    @State private var showingRepairFailedAlert = false
+    @State private var repairFailedDetails = ""
+    @State private var failedConfigBackupPath = ""
+    @State private var showingInstallAlert = false
 
-    // Capture mode toggle - default to combo (false = combo, true = sequence)
-    @State private var isSequenceMode = false
+    @State private var saveDebounceTimer: Timer?
+    private let saveDebounceDelay: TimeInterval = 0.5
 
-    // Track if placeholder text should be shown (persists after toggling modes)
-    @State private var showPlaceholderText = false
-
-    // Timer removed - now handled by SimpleKanataManager centrally
+    @State private var lastInputDisabledReason: String = ""
+    @State private var lastOutputDisabledReason: String = ""
 
     var body: some View {
         VStack(spacing: 20) {
@@ -46,12 +50,51 @@ struct ContentView: View {
 
             // Recording Section
             RecordingSection(
-                recordedInput: $recordedInput, recordedOutput: $recordedOutput,
-                isRecording: $isRecording, isRecordingOutput: $isRecordingOutput,
-                kanataManager: kanataManager, keyboardCapture: $keyboardCapture,
-                showStatusMessage: showStatusMessage, showingDiagnostics: $showingDiagnostics,
-                isSequenceMode: $isSequenceMode, showPlaceholderText: $showPlaceholderText
+                coordinator: recordingCoordinator,
+                onInputRecord: { handleInputRecordTap() },
+                onOutputRecord: { handleOutputRecordTap() }
             )
+
+            HStack {
+                Spacer()
+                Button(action: { debouncedSave() }) {
+                    HStack {
+                        if kanataManager.saveStatus.isActive {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .frame(width: 16, height: 16)
+                        }
+                        Text(kanataManager.saveStatus.message.isEmpty ? "Save" : kanataManager.saveStatus.message)
+                    }
+                    .frame(minWidth: 100)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(recordingCoordinator.capturedInputSequence() == nil ||
+                          recordingCoordinator.capturedOutputSequence() == nil ||
+                          kanataManager.saveStatus.isActive)
+                .accessibilityIdentifier("save-mapping-button")
+                .accessibilityLabel(kanataManager.saveStatus.message.isEmpty ? "Save key mapping" : kanataManager.saveStatus.message)
+                .accessibilityHint("Save the input and output key mapping to your configuration")
+            }
+
+            Divider().padding(.top, 4)
+            HStack(spacing: 12) {
+                Button("Debug: Start Input Recording") {
+                    AppLogger.shared.log("🧪 [UI] Debug button: Start Input Recording")
+                    NotificationCenter.default.post(name: Notification.Name("KeyPath.Local.TriggerStartRecording"), object: nil)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Open Logs") {
+                    let logPath = NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log"
+                    NSWorkspace.shared.open(URL(fileURLWithPath: logPath))
+                    AppLogger.shared.log("📁 [UI] Opened debug log file")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+                Text("Debug tools").foregroundColor(.secondary).font(.caption)
+            }
 
             // Enhanced Error Display - persistent and actionable
             EnhancedErrorHandler(errorInfo: $enhancedErrorInfo)
@@ -122,8 +165,13 @@ struct ContentView: View {
                 "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(kanataManager.showWizard)"
             )
 
-            // Configure startup validator with KanataManager
+            // Configure startup validator and recording coordinator with KanataManager
             startupValidator.configure(with: kanataManager)
+            recordingCoordinator.configure(
+                kanataManager: kanataManager,
+                statusHandler: { message in showStatusMessage(message: message) },
+                permissionProvider: permissionSnapshotProvider
+            )
 
             // Start startup validation asynchronously to avoid blocking UI
             Task {
@@ -170,6 +218,25 @@ struct ContentView: View {
             startEmergencyMonitoringIfPossible()
 
             // Status monitoring now handled centrally by SimpleKanataManager
+            logInputDisabledReason()
+            logOutputDisabledReason()
+        }
+        .onReceive(recordingCoordinator.$input.map(\.isRecording).removeDuplicates()) { isRecording in
+            AppLogger.shared.log("🔁 [UI] isRecording changed -> \(isRecording)")
+            logInputDisabledReason()
+        }
+        .onReceive(recordingCoordinator.$output.map(\.isRecording).removeDuplicates()) { isRecordingOutput in
+            AppLogger.shared.log("🔁 [UI] isRecordingOutput changed -> \(isRecordingOutput)")
+            logOutputDisabledReason()
+        }
+        .onReceive(recordingCoordinator.$isSequenceMode.removeDuplicates()) { mode in
+            AppLogger.shared.log("🔁 [UI] isSequenceMode changed -> \(mode ? "sequence" : "chord")")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("KeyPath.Local.TriggerStartRecording"))) { _ in
+            AppLogger.shared.log("🧪 [RecordingSection] Received local trigger to start input recording")
+            if !recordingCoordinator.isInputRecording() {
+                recordingCoordinator.toggleInputRecording()
+            }
         }
         .onChange(of: kanataManager.showWizard) { _, shouldShow in
             AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
@@ -218,6 +285,36 @@ struct ContentView: View {
                     startEmergencyMonitoringIfPossible()
                 }
             }
+        }
+        .alert("Kanata Installation Required", isPresented: $showingInstallAlert) {
+            Button("Open Wizard") {
+                showingInstallationWizard = true
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Install the Kanata binary into /Library/KeyPath/bin using the Installation Wizard before recording shortcuts.")
+        }
+        .alert("Configuration Issue Detected", isPresented: $showingConfigCorruptionAlert) {
+            Button("OK") { showingConfigCorruptionAlert = false }
+            Button("View Diagnostics") {
+                showingConfigCorruptionAlert = false
+                showingDiagnostics = true
+            }
+        } message: {
+            Text(configCorruptionDetails)
+        }
+        .alert("Configuration Repair Failed", isPresented: $showingRepairFailedAlert) {
+            Button("OK") { showingRepairFailedAlert = false }
+            Button("Open Failed Config in Zed") {
+                showingRepairFailedAlert = false
+                kanataManager.openFileInZed(failedConfigBackupPath)
+            }
+            Button("View Diagnostics") {
+                showingRepairFailedAlert = false
+                showingDiagnostics = true
+            }
+        } message: {
+            Text(repairFailedDetails)
         }
     }
 
@@ -333,6 +430,217 @@ struct ContentView: View {
             }
         }
     }
+
+    private func debouncedSave() {
+        saveDebounceTimer?.invalidate()
+        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) { _ in
+            Task { await performSave() }
+        }
+    }
+
+    private func performSave() async {
+        saveDebounceTimer?.invalidate()
+        saveDebounceTimer = nil
+        await recordingCoordinator.saveMapping(
+            kanataManager: kanataManager,
+            onSuccess: { message in handleSaveSuccess(message) },
+            onError: { error in handleSaveError(error) }
+        )
+    }
+
+    private func handleSaveSuccess(_ message: String) {
+        showStatusMessage(message: message)
+    }
+
+    private func handleSaveError(_ error: Error) {
+        if let coordinatorError = error as? RecordingCoordinator.CoordinatorError {
+            switch coordinatorError {
+            case .missingSequences:
+                showStatusMessage(message: "❌ Please capture both input and output keys first")
+            }
+            return
+        }
+
+        guard let configError = error as? ConfigError else {
+            showStatusMessage(message: "❌ Error saving: \(error.localizedDescription)")
+            return
+        }
+
+        switch configError {
+        case let .corruptedConfigDetected(errors):
+            configCorruptionDetails = """
+            Configuration corruption detected:
+
+            \(errors.joined(separator: "\n"))
+
+            KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration. If repair failed, a safe fallback configuration was applied.
+            """
+            configRepairSuccessful = false
+            showingConfigCorruptionAlert = true
+            showStatusMessage(message: "⚠️ Config repaired automatically")
+
+        case let .claudeRepairFailed(reason):
+            configCorruptionDetails = """
+            Configuration repair failed:
+
+            \(reason)
+
+            A safe fallback configuration has been applied. Your system should continue working with basic functionality.
+            """
+            configRepairSuccessful = false
+            showingConfigCorruptionAlert = true
+            showStatusMessage(message: "❌ Config repair failed - using safe fallback")
+
+        case let .repairFailedNeedsUserAction(originalConfig, _, originalErrors, repairErrors, mappings):
+            Task {
+                do {
+                    let backupPath = try await kanataManager.backupFailedConfigAndApplySafe(
+                        failedConfig: originalConfig,
+                        mappings: mappings
+                    )
+
+                    await MainActor.run {
+                        failedConfigBackupPath = backupPath
+                        repairFailedDetails = """
+                        KeyPath was unable to automatically repair your configuration file.
+
+                        Original errors:
+                        \(originalErrors.joined(separator: "\n"))
+
+                        Repair attempt errors:
+                        \(repairErrors.joined(separator: "\n"))
+
+                        Actions taken:
+                        • Your failed configuration has been backed up to: \(backupPath)
+                        • A safe default configuration (Caps Lock → Escape) has been applied
+                        • Your system should continue working normally
+
+                        You can examine and manually fix the backed up configuration if needed.
+                        """
+                        showingRepairFailedAlert = true
+                        showStatusMessage(message: "⚠️ Config backed up, safe default applied")
+                    }
+                } catch {
+                    await MainActor.run {
+                        showStatusMessage(message: "❌ Failed to backup config: \(error.localizedDescription)")
+                    }
+                }
+            }
+
+        case let .startupValidationFailed(errors, backupPath):
+            configCorruptionDetails = """
+            Configuration validation failed at startup:
+
+            \(errors.joined(separator: "\n"))
+
+            Last known good configuration backed up to: \(backupPath)
+            """
+            showingConfigCorruptionAlert = true
+            showStatusMessage(message: "⚠️ Config validation failed at startup - using default")
+
+        case let .preSaveValidationFailed(errors, config):
+            configCorruptionDetails = """
+            Pre-save validation failed:
+
+            \(errors.joined(separator: "\n"))
+
+            Problematic configuration:
+            \(config)
+            """
+            showingConfigCorruptionAlert = true
+            showStatusMessage(message: "❌ Config error: validation failed before save")
+
+        case let .postSaveValidationFailed(errors):
+            configCorruptionDetails = """
+            Post-save validation failed:
+
+            \(errors.joined(separator: "\n"))
+            """
+            showingConfigCorruptionAlert = true
+            showStatusMessage(message: "❌ Config error: validation failed after save")
+
+        case let .validationFailed(errors):
+            configCorruptionDetails = """
+            Configuration validation failed:
+
+            \(errors.joined(separator: "\n"))
+            """
+            showingConfigCorruptionAlert = true
+            showStatusMessage(message: "❌ Configuration validation failed")
+        }
+    }
+
+    private func handleInputRecordTap() {
+        if recordingCoordinator.isInputRecording() {
+            recordingCoordinator.toggleInputRecording()
+            return
+        }
+
+        guard kanataManager.isCompletelyInstalled() else {
+            showingInstallAlert = true
+            return
+        }
+
+        recordingCoordinator.toggleInputRecording()
+    }
+
+    private func handleOutputRecordTap() {
+        if recordingCoordinator.isOutputRecording() {
+            recordingCoordinator.toggleOutputRecording()
+            return
+        }
+
+        guard kanataManager.isCompletelyInstalled() else {
+            showingInstallAlert = true
+            return
+        }
+
+        recordingCoordinator.toggleOutputRecording()
+    }
+
+    private func inputDisabledReason() -> String {
+        var reasons: [String] = []
+        if !kanataManager.isCompletelyInstalled() && !recordingCoordinator.isInputRecording() {
+            reasons.append("notInstalled")
+        }
+        if NSApp?.isActive == false {
+            reasons.append("appNotActive")
+        }
+        if NSApp?.keyWindow == nil {
+            reasons.append("noKeyWindow")
+        }
+        return reasons.isEmpty ? "enabled" : reasons.joined(separator: "+")
+    }
+
+    private func outputDisabledReason() -> String {
+        var reasons: [String] = []
+        if !kanataManager.isCompletelyInstalled() && !recordingCoordinator.isOutputRecording() {
+            reasons.append("notInstalled")
+        }
+        if NSApp?.isActive == false {
+            reasons.append("appNotActive")
+        }
+        if NSApp?.keyWindow == nil {
+            reasons.append("noKeyWindow")
+        }
+        return reasons.isEmpty ? "enabled" : reasons.joined(separator: "+")
+    }
+
+    private func logInputDisabledReason() {
+        let reason = inputDisabledReason()
+        if reason != lastInputDisabledReason {
+            lastInputDisabledReason = reason
+            AppLogger.shared.log("🧭 [UI] Input record button state: \(reason)")
+        }
+    }
+
+    private func logOutputDisabledReason() {
+        let reason = outputDisabledReason()
+        if reason != lastOutputDisabledReason {
+            lastOutputDisabledReason = reason
+            AppLogger.shared.log("🧭 [UI] Output record button state: \(reason)")
+        }
+    }
 }
 
 struct ContentViewHeader: View {
@@ -382,659 +690,150 @@ struct ContentViewHeader: View {
 }
 
 struct RecordingSection: View {
-    @Binding var recordedInput: String
-    @Binding var recordedOutput: String
-    @Binding var isRecording: Bool
-    @Binding var isRecordingOutput: Bool
-    @ObservedObject var kanataManager: KanataManager
-    @Binding var keyboardCapture: KeyboardCapture?
-    let showStatusMessage: (String) -> Void
-    @Binding var showingDiagnostics: Bool
-    @Binding var isSequenceMode: Bool
-    @Binding var showPlaceholderText: Bool
-    @State private var capturedInputSequence: KeySequence?
-    @State private var capturedOutputSequence: KeySequence?
-    @State private var showingConfigCorruptionAlert = false
-    @State private var configCorruptionDetails = ""
-    @State private var configRepairSuccessful = false
-    @State private var showingRepairFailedAlert = false
-    @State private var repairFailedDetails = ""
-    @State private var failedConfigBackupPath = ""
-
-    // Diagnostics: track last-known disabled state and reasons to avoid log spam
-    @State private var lastInputDisabledReason: String = ""
-    @State private var lastOutputDisabledReason: String = ""
-    @State private var lastIsRecordingLogged: Bool = false
-
-    // MARK: - Phase 1: Save Operation Debouncing
-
-    @State private var saveDebounceTimer: Timer?
-    private let saveDebounceDelay: TimeInterval = 0.5
+    @ObservedObject var coordinator: RecordingCoordinator
+    let onInputRecord: () -> Void
+    let onOutputRecord: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
-            // Input + Output Containers with centered trailing overlay toggle
-            ZStack(alignment: .trailing) {
-                VStack(spacing: 16) {
-                    // Input Recording Container
-                    VStack(alignment: .leading, spacing: 8) {
-                        // Input Key label with sequence toggle button
-                        HStack {
-                            Text("Input Key")
-                                .font(.headline)
-                                .accessibilityIdentifier("input-key-label")
+            inputSection
+            outputSection
+        }
+        .onAppear { coordinator.requestPlaceholders() }
+    }
 
-                            Spacer()
-
-                            Button(action: {
-                                isSequenceMode.toggle()
-                                showPlaceholderText = true
-                            }, label: {
-                                Image(systemName: "list.number")
-                                    .font(.title2)
-                                    .foregroundColor(isSequenceMode ? .white : .blue)
-                            })
-                            .buttonStyle(.plain)
-                            .frame(width: 32, height: 32)
-                            .background(isSequenceMode ? Color.blue : Color.clear)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.blue, lineWidth: 1)
-                            )
-                            .cornerRadius(6)
-                            .help(isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
-                            .accessibilityIdentifier("sequence-mode-toggle")
-                            .accessibilityLabel(isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
-                            .accessibilityHint("Toggle between combo capture and sequence capture modes")
-                            .padding(.trailing, 5)
-                        }
-
-                        HStack {
-                            Text(getInputDisplayText())
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(isRecording ? Color.blue : Color.clear, lineWidth: 2)
-                                )
-                                .accessibilityIdentifier("input-key-display")
-                                .accessibilityLabel("Input key")
-                                .accessibilityValue(recordedInput.isEmpty ? "No key recorded" : "Key: \(recordedInput)")
-
-                            Button(action: {
-                                AppLogger.shared.log("🖱️ [UI] Input record button tapped (isRecording=\(isRecording))")
-                                if isRecording {
-                                    stopRecording()
-                                } else {
-                                    startRecording()
-                                }
-                            }, label: {
-                                Image(systemName: getInputButtonIcon())
-                                    .font(.title2)
-                            })
-                            .buttonStyle(.plain)
-                            .frame(height: 44)
-                            .frame(minWidth: 44)
-                            .background(Color.accentColor)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                            .disabled(!kanataManager.isCompletelyInstalled() && !isRecording)
-                            .accessibilityIdentifier("input-key-record-button")
-                            .accessibilityLabel(isRecording ? "Stop recording input key" : "Record input key")
-                            .accessibilityHint(
-                                isRecording ? "Stop recording the input key" : "Start recording a key to remap")
-                        }
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(12)
-                    .accessibilityIdentifier("input-recording-section")
-                    .accessibilityLabel("Input key recording section")
-
-                    // Output Recording Container
-                    VStack(alignment: .leading, spacing: 8) {
-                        // Accessibility container for output recording section
-                        Text("Output Key")
-                            .font(.headline)
-                            .accessibilityIdentifier("output-key-label")
-
-                        HStack {
-                            Text(getOutputDisplayText())
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(isRecordingOutput ? Color.blue : Color.clear, lineWidth: 2)
-                                )
-                                .accessibilityIdentifier("output-key-display")
-                                .accessibilityLabel("Output key")
-                                .accessibilityValue(
-                                    recordedOutput.isEmpty ? "No key recorded" : "Key: \(recordedOutput)")
-
-                            Button(action: {
-                                if isRecordingOutput {
-                                    stopOutputRecording()
-                                } else {
-                                    startOutputRecording()
-                                }
-                            }, label: {
-                                Image(systemName: getOutputButtonIcon())
-                                    .font(.title2)
-                            })
-                            .buttonStyle(.plain)
-                            .frame(height: 44)
-                            .frame(minWidth: 44)
-                            .background(Color.accentColor)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                            .disabled(!kanataManager.isCompletelyInstalled() && !isRecordingOutput)
-                            .accessibilityIdentifier("output-key-record-button")
-                            .accessibilityLabel(isRecordingOutput ? "Stop recording output key" : "Record output key")
-                            .accessibilityHint(
-                                isRecordingOutput
-                                    ? "Stop recording the output key" : "Start recording the replacement key")
-                        }
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(12)
-                    .accessibilityIdentifier("output-recording-section")
-                    .accessibilityLabel("Output key recording section")
-                }
-            }
-
-            // Save Button - Outside containers
+    private var inputSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
+                Text("Input Key")
+                    .font(.headline)
+                    .accessibilityIdentifier("input-key-label")
+
                 Spacer()
+
                 Button(action: {
-                    debouncedSave()
+                    coordinator.toggleSequenceMode()
+                    coordinator.requestPlaceholders()
                 }, label: {
-                    HStack {
-                        if kanataManager.saveStatus.isActive {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .frame(width: 16, height: 16)
-                        }
-                        Text(kanataManager.saveStatus.message.isEmpty ? "Save" : kanataManager.saveStatus.message)
-                    }
-                    .frame(minWidth: 100)
+                    Image(systemName: "list.number")
+                        .font(.title2)
+                        .foregroundColor(coordinator.isSequenceMode ? .white : .blue)
                 })
-                .buttonStyle(.borderedProminent)
-                .disabled(capturedInputSequence == nil || capturedOutputSequence == nil || kanataManager.saveStatus.isActive)
-                .accessibilityIdentifier("save-mapping-button")
-                .accessibilityLabel(kanataManager.saveStatus.message.isEmpty ? "Save key mapping" : kanataManager.saveStatus.message)
-                .accessibilityHint("Save the input and output key mapping to your configuration")
+                .buttonStyle(.plain)
+                .frame(width: 32, height: 32)
+                .background(coordinator.isSequenceMode ? Color.blue : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.blue, lineWidth: 1)
+                )
+                .cornerRadius(6)
+                .help(coordinator.isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
+                .accessibilityIdentifier("sequence-mode-toggle")
+                .accessibilityLabel(coordinator.isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
+                .accessibilityHint("Toggle between combo capture and sequence capture modes")
+                .padding(.trailing, 5)
             }
 
-            // Debug tools (placed below existing content, minimal styling)
-            Divider().padding(.top, 4)
-            HStack(spacing: 12) {
-                Button("Debug: Start Input Recording") {
-                    AppLogger.shared.log("🧪 [UI] Debug button: Start Input Recording")
-                    NotificationCenter.default.post(name: Notification.Name("KeyPath.Local.TriggerStartRecording"), object: nil)
-                }
-                .buttonStyle(.bordered)
+            HStack {
+                Text(coordinator.inputDisplayText())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(coordinator.isInputRecording() ? Color.blue : Color.clear, lineWidth: 2)
+                    )
+                    .accessibilityIdentifier("input-key-display")
+                    .accessibilityLabel("Input key")
+                    .accessibilityValue(
+                        coordinator.inputDisplayText().isEmpty
+                            ? "No key recorded"
+                            : "Key: \(coordinator.inputDisplayText())"
+                    )
+                    .id("\(coordinator.isInputRecording())-\(coordinator.inputDisplayText())")
 
-                Button("Open Logs") {
-                    let logPath = NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log"
-                    NSWorkspace.shared.open(URL(fileURLWithPath: logPath))
-                    AppLogger.shared.log("📁 [UI] Opened debug log file")
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-                Text("Debug tools").foregroundColor(.secondary).font(.caption)
+                Button(action: {
+                    AppLogger.shared.log("🖱️ [UI] Input record button tapped (isRecording=\(coordinator.isInputRecording()))")
+                    onInputRecord()
+                }, label: {
+                    Image(systemName: coordinator.inputButtonIcon())
+                        .font(.title2)
+                })
+                .buttonStyle(.plain)
+                .frame(height: 44)
+                .frame(minWidth: 44)
+                .background(Color.accentColor)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+                .accessibilityIdentifier("input-key-record-button")
+                .accessibilityLabel(coordinator.isInputRecording() ? "Stop recording input key" : "Record input key")
+                .id(coordinator.isInputRecording())
+                .accessibilityHint(
+                    coordinator.isInputRecording()
+                        ? "Stop recording the input key"
+                        : "Start recording a key to remap"
+                )
             }
         }
-        // Render-time diagnostics: log disabled reasons on appear and when relevant state changes
-        .onAppear {
-            logInputDisabledReason()
-            logOutputDisabledReason()
-        }
-        .onChange(of: isRecording) { _ in
-            AppLogger.shared.log("🔁 [UI] isRecording changed -> \(isRecording)")
-            logInputDisabledReason()
-        }
-        .onChange(of: isRecordingOutput) { _ in
-            AppLogger.shared.log("🔁 [UI] isRecordingOutput changed -> \(isRecordingOutput)")
-            logOutputDisabledReason()
-        }
-        .onChange(of: kanataManager.isRunning) { _ in
-            logInputDisabledReason(); logOutputDisabledReason()
-        }
-        .onChange(of: isSequenceMode) { _ in
-            AppLogger.shared.log("🔁 [UI] isSequenceMode changed -> \(isSequenceMode ? "sequence" : "chord")")
-        }
-        // Debug: allow programmatic start of input recording
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("KeyPath.Local.TriggerStartRecording"))) { _ in
-            AppLogger.shared.log("🧪 [RecordingSection] Received local trigger to start input recording")
-            if !isRecording { startRecording() }
-        }
-        .alert("Configuration Issue Detected", isPresented: $showingConfigCorruptionAlert) {
-            Button("OK") {
-                showingConfigCorruptionAlert = false
-            }
-            Button("View Diagnostics") {
-                showingConfigCorruptionAlert = false
-                showingDiagnostics = true
-            }
-        } message: {
-            Text(configCorruptionDetails)
-        }
-        .alert("Configuration Repair Failed", isPresented: $showingRepairFailedAlert) {
-            Button("OK") {
-                showingRepairFailedAlert = false
-            }
-            Button("Open Failed Config in Zed") {
-                showingRepairFailedAlert = false
-                kanataManager.openFileInZed(failedConfigBackupPath)
-            }
-            Button("View Diagnostics") {
-                showingRepairFailedAlert = false
-                showingDiagnostics = true
-            }
-        } message: {
-            Text(repairFailedDetails)
-        }
-        .alert(kanataManager.validationAlertTitle, isPresented: $kanataManager.showingValidationAlert) {
-            ForEach(kanataManager.validationAlertActions.indices, id: \.self) { index in
-                let action = kanataManager.validationAlertActions[index]
-                switch action.style {
-                case .default:
-                    Button(action.title) {
-                        action.action()
-                    }
-                case .cancel:
-                    Button(action.title, role: .cancel) {
-                        action.action()
-                    }
-                case .destructive:
-                    Button(action.title, role: .destructive) {
-                        action.action()
-                    }
-                }
-            }
-        } message: {
-            Text(kanataManager.validationAlertMessage)
-        }
-        .sheet(isPresented: $showingDiagnostics) {
-            DiagnosticsView(kanataManager: kanataManager)
-        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
+        .accessibilityIdentifier("input-recording-section")
+        .accessibilityLabel("Input key recording section")
     }
 
-    private func getInputButtonIcon() -> String {
-        if isRecording {
-            "xmark.circle.fill"
-        } else if recordedInput.isEmpty {
-            "play.circle.fill"
-        } else {
-            "arrow.clockwise.circle.fill"
-        }
-    }
+    private var outputSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Output Key")
+                .font(.headline)
+                .accessibilityIdentifier("output-key-label")
 
-    private func getOutputButtonIcon() -> String {
-        if isRecordingOutput {
-            "xmark.circle.fill"
-        } else if recordedOutput.isEmpty {
-            "play.circle.fill"
-        } else {
-            "arrow.clockwise.circle.fill"
-        }
-    }
+            HStack {
+                Text(coordinator.outputDisplayText())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(coordinator.isOutputRecording() ? Color.blue : Color.clear, lineWidth: 2)
+                    )
+                    .accessibilityIdentifier("output-key-display")
+                    .accessibilityLabel("Output key")
+                    .accessibilityValue(
+                        coordinator.outputDisplayText().isEmpty
+                            ? "No key recorded"
+                            : "Key: \(coordinator.outputDisplayText())"
+                    )
 
-    private func logFocusState(prefix: String = "[UI]") {
-        let isActive = NSApp.isActive
-        let keyWindow = NSApp.keyWindow != nil
-        let occlusion = NSApp.keyWindow?.occlusionState.rawValue ?? 0
-        AppLogger.shared.log("🔍 \(prefix) Focus: appActive=\(isActive), keyWindow=\(keyWindow), occlusion=\(occlusion)")
-    }
-
-    private func inputDisabledReason() -> String {
-        var reasons: [String] = []
-        if !kanataManager.isCompletelyInstalled() && !isRecording { reasons.append("notInstalled") }
-        if NSApp.isActive == false { reasons.append("appNotActive") }
-        if NSApp.keyWindow == nil { reasons.append("noKeyWindow") }
-        return reasons.isEmpty ? "enabled" : reasons.joined(separator: "+")
-    }
-
-    private func outputDisabledReason() -> String {
-        var reasons: [String] = []
-        if !kanataManager.isCompletelyInstalled() && !isRecordingOutput { reasons.append("notInstalled") }
-        if NSApp.isActive == false { reasons.append("appNotActive") }
-        if NSApp.keyWindow == nil { reasons.append("noKeyWindow") }
-        return reasons.isEmpty ? "enabled" : reasons.joined(separator: "+")
-    }
-
-    private func logInputDisabledReason() {
-        let reason = inputDisabledReason()
-        if reason != lastInputDisabledReason {
-            lastInputDisabledReason = reason
-            AppLogger.shared.log("🧭 [UI] Input record button state: \(reason)")
-        }
-    }
-
-    private func logOutputDisabledReason() {
-        let reason = outputDisabledReason()
-        if reason != lastOutputDisabledReason {
-            lastOutputDisabledReason = reason
-            AppLogger.shared.log("🧭 [UI] Output record button state: \(reason)")
-        }
-    }
-
-    private func startRecording() {
-        AppLogger.shared.log("🚩 [UI] startRecording() entered")
-        isRecording = true
-        recordedInput = ""
-
-        Task {
-            let snapshot = await PermissionOracle.shared.currentSnapshot()
-            await MainActor.run {
-                guard snapshot.keyPath.accessibility.isReady else {
-                    recordedInput = "⚠️ Accessibility permission required for recording"
-                    isRecording = false
-                    return
-                }
-                if keyboardCapture == nil {
-                    keyboardCapture = KeyboardCapture()
-                    AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized lazily for recording")
-                }
-                guard let capture = keyboardCapture else {
-                    recordedInput = "⚠️ Failed to initialize keyboard capture"
-                    isRecording = false
-                    return
-                }
-                // Diagnostics: capture context
-                let ff = FeatureFlags.captureListenOnlyEnabled
-                AppLogger.shared.log("🔧 [UI] Capture context: sequenceMode=\(isSequenceMode ? "sequence" : "chord"), listenOnlyFlag=\(ff), kanataRunning=\(kanataManager.isRunning)")
-                logFocusState()
-                // Provide KanataManager so capture can choose listen-only vs suppress
-                capture.setEventRouter(nil, kanataManager: kanataManager)
-
-                // Use appropriate capture mode based on toggle
-                let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
-
-                // Add timeout protection to prevent UI from getting stuck
-                let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
-                    DispatchQueue.main.async {
-                        if isRecording {
-                            AppLogger.shared.log("⚠️ [RecordingSection] Recording timeout - resetting state")
-                            recordedInput = "⚠️ Recording timed out - try again"
-                            isRecording = false
-                            Task {
-                                await MainActor.run {
-                                    capture.stopCapture()
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                capture.startSequenceCapture(mode: captureMode) { keySequence in
-                    timeoutTimer.invalidate() // Cancel timeout since we got a result
-                    AppLogger.shared.log("✅ [UI] Input capture callback received: \(keySequence.displayString)")
-                    capturedInputSequence = keySequence
-                    recordedInput = keySequence.displayString
-                    isRecording = false
-                }
+                Button(action: {
+                    AppLogger.shared.log("🖱️ [UI] Output record button tapped (isRecording=\(coordinator.isOutputRecording()))")
+                    onOutputRecord()
+                }, label: {
+                    Image(systemName: coordinator.outputButtonIcon())
+                        .font(.title2)
+                })
+                .buttonStyle(.plain)
+                .frame(height: 44)
+                .frame(minWidth: 44)
+                .background(Color.accentColor)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+                .accessibilityIdentifier("output-key-record-button")
+                .accessibilityLabel(coordinator.isOutputRecording() ? "Stop recording output key" : "Record output key")
+                .accessibilityHint(
+                    coordinator.isOutputRecording()
+                        ? "Stop recording the output key"
+                        : "Start recording the replacement key"
+                )
             }
         }
-    }
-
-    private func stopRecording() {
-        isRecording = false
-        keyboardCapture?.stopCapture()
-    }
-
-    private func startOutputRecording() {
-        isRecordingOutput = true
-        recordedOutput = ""
-
-        Task {
-            let snapshot = await PermissionOracle.shared.currentSnapshot()
-            await MainActor.run {
-                guard snapshot.keyPath.accessibility.isReady else {
-                    recordedOutput = "⚠️ Accessibility permission required for recording"
-                    isRecordingOutput = false
-                    return
-                }
-                if keyboardCapture == nil {
-                    keyboardCapture = KeyboardCapture()
-                    AppLogger.shared.log("🎹 [RecordingSection] KeyboardCapture initialized for output recording")
-                }
-                guard let capture = keyboardCapture else {
-                    recordedOutput = "⚠️ Failed to initialize keyboard capture"
-                    isRecordingOutput = false
-                    return
-                }
-                // Diagnostics: capture context
-                let ff = FeatureFlags.captureListenOnlyEnabled
-                AppLogger.shared.log("🔧 [UI] Output capture context: sequenceMode=\(isSequenceMode ? "sequence" : "chord"), listenOnlyFlag=\(ff), kanataRunning=\(kanataManager.isRunning)")
-                logFocusState(prefix: "[UI:Output]")
-                // Provide KanataManager so capture can choose listen-only vs suppress
-                capture.setEventRouter(nil, kanataManager: kanataManager)
-
-                // Use appropriate capture mode based on toggle
-                let captureMode: CaptureMode = isSequenceMode ? .sequence : .chord
-
-                // Add timeout protection to prevent UI from getting stuck
-                let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
-                    DispatchQueue.main.async {
-                        if isRecordingOutput {
-                            AppLogger.shared.log("⚠️ [RecordingSection] Output recording timeout - resetting state")
-                            recordedOutput = "⚠️ Recording timed out - try again"
-                            isRecordingOutput = false
-                            capture.stopCapture()
-                        }
-                    }
-                }
-                
-                capture.startSequenceCapture(mode: captureMode) { keySequence in
-                    timeoutTimer.invalidate() // Cancel timeout since we got a result
-                    capturedOutputSequence = keySequence
-                    recordedOutput = keySequence.displayString
-                    isRecordingOutput = false
-                }
-            }
-        }
-    }
-
-    private func stopOutputRecording() {
-        isRecordingOutput = false
-        keyboardCapture?.stopCapture()
-    }
-
-    private func getInputDisplayText() -> String {
-        if !recordedInput.isEmpty {
-            return recordedInput
-        } else if isRecording {
-            let base = isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
-            let effective = FeatureFlags.captureListenOnlyEnabled && kanataManager.isRunning
-            return effective ? base + " – Effective (mapped)" : base + " – Raw (direct)"
-        } else if showPlaceholderText {
-            return isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
-        } else {
-            return ""
-        }
-    }
-
-    private func getOutputDisplayText() -> String {
-        if !recordedOutput.isEmpty {
-            return recordedOutput
-        } else if isRecordingOutput {
-            let base = isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
-            let effective = FeatureFlags.captureListenOnlyEnabled && kanataManager.isRunning
-            return effective ? base + " – Effective (mapped)" : base + " – Raw (direct)"
-        } else if showPlaceholderText {
-            return isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
-        } else {
-            return ""
-        }
-    }
-
-    // MARK: - Phase 1: Debounced Save Implementation
-
-    private func debouncedSave() {
-        // Cancel any existing timer
-        saveDebounceTimer?.invalidate()
-
-        // Show saving state immediately for user feedback via KanataManager.saveStatus
-        AppLogger.shared.log("💾 [Save] Debounced save initiated - starting timer")
-
-        // Create new timer
-        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) { _ in
-            AppLogger.shared.log("💾 [Save] Debounce timer fired - executing save")
-            Task {
-                await saveKeyPath()
-            }
-        }
-    }
-
-    private func saveKeyPath() async {
-        AppLogger.shared.log("💾 [Save] ========== SAVE OPERATION START ==========")
-
-        do {
-            guard let inputSequence = capturedInputSequence,
-                  let outputSequence = capturedOutputSequence
-            else {
-                AppLogger.shared.log("❌ [Save] Missing captured sequences")
-                await MainActor.run {
-                    showStatusMessage("❌ Please capture both input and output keys first")
-                }
-                return
-            }
-
-            AppLogger.shared.log("💾 [Save] Saving mapping: \(inputSequence.displayString) → \(outputSequence.displayString)")
-
-            // Use KanataConfigGenerator to create proper configuration
-            let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
-            let generatedConfig = try await configGenerator.generateMapping(input: inputSequence, output: outputSequence)
-
-            AppLogger.shared.log("💾 [Save] Generated config via Claude API")
-
-            // Save the generated configuration
-            try await kanataManager.saveGeneratedConfiguration(generatedConfig)
-
-            AppLogger.shared.log("💾 [Save] Configuration saved successfully")
-
-            // Show status message and clear the form
-            await MainActor.run {
-                showStatusMessage("Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
-
-                // Clear the form
-                recordedInput = ""
-                recordedOutput = ""
-                capturedInputSequence = nil
-                capturedOutputSequence = nil
-            }
-
-            // Update status
-            AppLogger.shared.log("💾 [Save] Updating manager status...")
-            await kanataManager.updateStatus()
-
-            AppLogger.shared.log("💾 [Save] ========== SAVE OPERATION COMPLETE ==========")
-        } catch {
-            AppLogger.shared.log("❌ [Save] Error during save operation: \(error)")
-
-            // Error handling will be managed by KanataManager's saveStatus
-
-            // Handle specific config errors
-            if let configError = error as? ConfigError {
-                switch configError {
-                case let .corruptedConfigDetected(errors):
-                    configCorruptionDetails = """
-                    Configuration corruption detected:
-
-                    \(errors.joined(separator: "\n"))
-
-                    KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration. " +
-                    "If repair failed, a safe fallback configuration was applied.
-                    """
-                    await MainActor.run {
-                        configRepairSuccessful = false
-                        showingConfigCorruptionAlert = true
-                        showStatusMessage("⚠️ Config repaired automatically")
-                    }
-
-                case let .claudeRepairFailed(reason):
-                    configCorruptionDetails = """
-                    Configuration repair failed:
-
-                    \(reason)
-
-                    A safe fallback configuration has been applied. Your system should continue working with basic functionality.
-                    """
-                    await MainActor.run {
-                        configRepairSuccessful = false
-                        showingConfigCorruptionAlert = true
-                        showStatusMessage("❌ Config repair failed - using safe fallback")
-                    }
-
-                case let .repairFailedNeedsUserAction(
-                    originalConfig, _, originalErrors, repairErrors, mappings
-                ):
-                    // Handle user action required case
-                    Task {
-                        do {
-                            // Backup the failed config and apply safe default
-                            let backupPath = try await kanataManager.backupFailedConfigAndApplySafe(
-                                failedConfig: originalConfig,
-                                mappings: mappings
-                            )
-
-                            await MainActor.run {
-                                failedConfigBackupPath = backupPath
-                                repairFailedDetails = """
-                                KeyPath was unable to automatically repair your configuration file.
-
-                                Original errors:
-                                \(originalErrors.joined(separator: "\n"))
-
-                                Repair attempt errors:
-                                \(repairErrors.joined(separator: "\n"))
-
-                                Actions taken:
-                                • Your failed configuration has been backed up to: \(backupPath)
-                                • A safe default configuration (Caps Lock → Escape) has been applied
-                                • Your system should continue working normally
-
-                                You can examine and manually fix the backed up configuration if needed.
-                                """
-                                showingRepairFailedAlert = true
-                                showStatusMessage("⚠️ Config backed up, safe default applied")
-                            }
-                        } catch {
-                            await MainActor.run {
-                                showStatusMessage("❌ Failed to backup config: \(error.localizedDescription)")
-                            }
-                        }
-                    }
-
-                case .preSaveValidationFailed(_, _),
-                     .postSaveValidationFailed(_):
-                    // These are handled by KanataManager's validation dialogs
-                    AppLogger.shared.log("⚠️ [Save] Validation error handled by KanataManager dialogs")
-
-                case .startupValidationFailed(_, _):
-                    await MainActor.run {
-                        showStatusMessage("⚠️ Config validation failed at startup - using default")
-                    }
-
-                default:
-                    await MainActor.run {
-                        showStatusMessage("❌ Config error: \(error.localizedDescription)")
-                    }
-                }
-            } else {
-                // Show generic error message
-                await MainActor.run {
-                    showStatusMessage("❌ Error saving: \(error.localizedDescription)")
-                }
-            }
-        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
+        .accessibilityIdentifier("output-recording-section")
+        .accessibilityLabel("Output key recording section")
     }
 }
 

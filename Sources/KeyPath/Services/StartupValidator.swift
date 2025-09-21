@@ -138,6 +138,12 @@ final class StartupValidator: ObservableObject {
         if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
             unsetenv("KEYPATH_STARTUP_MODE")
             AppLogger.shared.log("🔍 [StartupValidator] Startup mode cleared - full permission checks now enabled")
+
+            // Re-run validation with full permission checks now enabled
+            AppLogger.shared.log("🔍 [StartupValidator] Re-running validation with full permission checks")
+            Task {
+                await runSystemValidation(runID: UUID())
+            }
         }
     }
 

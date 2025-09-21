@@ -21,6 +21,8 @@ public class KeyboardCapture: ObservableObject {
     private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
     private var noEventTimer: Timer?
     private var receivedAnyEvent = false
+    private var noKeyBreadcrumbTimer: Timer?
+    private var anyEventSeen = false
 
     // Enhanced sequence capture properties
     private var captureMode: CaptureMode = .single
@@ -203,6 +205,7 @@ public class KeyboardCapture: ObservableObject {
         }
         suppressEvents = !listenOnly
         receivedAnyEvent = false
+        anyEventSeen = false
         noEventTimer?.invalidate(); noEventTimer = nil
         AppLogger.shared.log(
             "🎹 [KeyboardCapture] Starting \(mode) capture (tap=\(listenOnly ? "listenOnly" : "defaultTap/suppress"), kanataRunning=\(kanataManager?.isRunning == true))"
@@ -233,6 +236,14 @@ public class KeyboardCapture: ObservableObject {
                 return nil
             }
         }
+        // Breadcrumb if no events arrive within 1s
+        noKeyBreadcrumbTimer?.invalidate();
+        noKeyBreadcrumbTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            if self.isCapturing && !self.anyEventSeen {
+                AppLogger.shared.log("⏱️ [KeyboardCapture] No key events received after 1.0s (mode=\(self.captureMode), tap=\(self.suppressEvents ? "defaultTap" : "listenOnly"), location=\(self.currentTapLocation))")
+            }
+        }
         setupEventTap()
     }
 
@@ -254,6 +265,7 @@ public class KeyboardCapture: ObservableObject {
         chordTimer = nil
         sequenceTimer?.invalidate()
         sequenceTimer = nil
+        noKeyBreadcrumbTimer?.invalidate(); noKeyBreadcrumbTimer = nil
 
         if let eventTap {
             CFMachPortInvalidate(eventTap)
@@ -345,6 +357,8 @@ public class KeyboardCapture: ObservableObject {
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
+        let tapDesc = suppressEvents ? "defaultTap/suppress" : "listenOnly"
+        AppLogger.shared.log("✅ [KeyboardCapture] Event tap created (location=\(location), options=\(tapDesc))")
     }
 
     private func reinstallTap(to newLocation: CGEventTapLocation) {
@@ -361,6 +375,8 @@ public class KeyboardCapture: ObservableObject {
         let now = Date()
 
         AppLogger.shared.log("🎹 [KeyboardCapture] keyDown: \(keyName) code=\(keyCode) suppress=\(suppressEvents)")
+        anyEventSeen = true
+        noKeyBreadcrumbTimer?.invalidate(); noKeyBreadcrumbTimer = nil
 
         // Create KeyPress
         let keyPress = KeyPress(

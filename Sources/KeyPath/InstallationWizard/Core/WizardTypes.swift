@@ -46,6 +46,22 @@ enum WizardPage: String, CaseIterable {
     }
 }
 
+// Explicit, user-facing ordering for wizard navigation and bullets.
+// This matches the Summary order shown in WizardSystemStatusOverview.
+extension WizardPage {
+    static let orderedPages: [WizardPage] = [
+        .summary,
+        .fullDiskAccess,
+        .conflicts,
+        .inputMonitoring,
+        .accessibility,
+        .karabinerComponents,
+        .kanataComponents,
+        .service,
+        .communication
+    ]
+}
+
 /// Status of individual installation or check components
 enum InstallationStatus {
     case notStarted

@@ -271,7 +271,7 @@ struct PageDotsIndicator: View {
 
     var body: some View {
         HStack(spacing: WizardDesign.Spacing.labelGap) {
-            ForEach(WizardPage.allCases, id: \.self) { page in
+            ForEach(WizardPage.orderedPages, id: \.self) { page in
                 Circle()
                     .fill(
                         currentPage == page
@@ -287,7 +287,7 @@ struct PageDotsIndicator: View {
                     .accessibilityLabel("Navigate to \(page.displayName)")
                     .accessibilityValue(
                         currentPage == page
-                            ? "Current page" : "Page \(pageIndex(page) + 1) of \(WizardPage.allCases.count)"
+                            ? "Current page" : "Page \(pageIndex(page) + 1) of \(WizardPage.orderedPages.count)"
                     )
                     .accessibilityAddTraits(currentPage == page ? [.isSelected, .isButton] : .isButton)
                     .accessibilityHint("Double-tap to go to \(page.displayName) setup step")
@@ -298,11 +298,11 @@ struct PageDotsIndicator: View {
         .padding(.vertical, WizardDesign.Spacing.labelGap)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
-            "Setup navigation: currently on \(currentPage.displayName), page \(pageIndex(currentPage) + 1) of \(WizardPage.allCases.count)"
+            "Setup navigation: currently on \(currentPage.displayName), page \(pageIndex(currentPage) + 1) of \(WizardPage.orderedPages.count)"
         )
     }
 
     private func pageIndex(_ page: WizardPage) -> Int {
-        WizardPage.allCases.firstIndex(of: page) ?? 0
+        WizardPage.orderedPages.firstIndex(of: page) ?? 0
     }
 }

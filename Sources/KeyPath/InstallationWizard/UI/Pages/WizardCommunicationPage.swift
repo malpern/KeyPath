@@ -178,32 +178,52 @@ struct WizardCommunicationPage: View {
         commStatus = .checking
         lastCheckTime = Date()
 
-        // Use shared SystemStatusChecker for comprehensive communication testing
-        await checkUDPStatusFromSharedChecker()
+        // Prefer a lightweight, non-blocking check that runs off the main actor.
+        // The previous approach used SystemStatusChecker (MainActor) which spawned
+        // synchronous launchctl calls and could momentarily block the UI.
+        await checkUDPStatusDirect()
     }
 
-    private func checkUDPStatusFromSharedChecker() async {
-        let systemChecker = SystemStatusChecker.shared(kanataManager: kanataManager)
-        let testResult = await systemChecker.checkComprehensiveCommunicationStatus()
+    private func checkUDPStatusDirect() async {
+        // Snapshot prefs safely off-main
+        let snapshot = PreferencesService.communicationSnapshot()
+        if !snapshot.shouldUseUDP {
+            await MainActor.run { commStatus = .needsSetup("UDP server is not enabled") }
+            return
+        }
 
-        AppLogger.shared.log("🧪 [WizardComm] Shared SystemStatusChecker communication result: \(testResult)")
+        let port = snapshot.udpPort
+        let client = KanataUDPClient(port: port)
+        AppLogger.shared.log("🧪 [WizardComm] Direct UDP check on port \(port)")
 
-        // Convert SystemStatusChecker result to WizardCommunicationPage status
-        switch testResult {
-        case .notEnabled:
-            commStatus = .needsSetup("UDP server is not enabled")
-        case .serviceUnhealthy:
-            commStatus = .needsSetup("Keyboard Service isn't healthy. Start or fix the service before enabling UDP.")
-        case .configurationOutdated:
-            commStatus = .needsSetup("UDP server configuration is outdated and needs to be regenerated")
-        case .notResponding:
-            commStatus = .needsSetup("UDP server is not responding on port \(preferences.udpServerPort)")
-        case .authenticationRequired:
-            commStatus = .authRequired("Secure connection required for configuration changes")
-        case .reloadFailed:
-            commStatus = .authRequired("Authentication works but config reload failed - may need fresh token")
-        case .fullyFunctional:
-            commStatus = .ready("Ready for instant configuration changes and external integrations")
+        // 1) Is the server answering?
+        let responding = await client.checkServerStatus()
+        guard responding else {
+            await MainActor.run { commStatus = .needsSetup("UDP server is not responding on port \(port)") }
+            return
+        }
+
+        // 2) Do we have a token? If not, auth is required.
+        guard !snapshot.udpAuthToken.isEmpty else {
+            await MainActor.run { commStatus = .authRequired("Secure connection required for configuration changes") }
+            return
+        }
+
+        // 3) Try to authenticate and perform a quick reload probe
+        let authed = await client.authenticate(token: snapshot.udpAuthToken)
+        guard authed else {
+            await MainActor.run { commStatus = .authRequired("Authentication failed. Generate a new token and retry.") }
+            return
+        }
+
+        let reload = await client.reloadConfig()
+        if reload.isSuccess {
+            await MainActor.run { commStatus = .ready("Ready for instant configuration changes and external integrations") }
+        } else if case .authenticationRequired = reload {
+            await MainActor.run { commStatus = .authRequired("Session expired; re-authentication required") }
+        } else {
+            let msg = reload.errorMessage ?? "UDP server responded but reload failed"
+            await MainActor.run { commStatus = .authRequired(msg) }
         }
     }
 
