@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
@@ -128,10 +129,7 @@ struct ContentView: View {
             Task {
                 await Task.yield() // Let UI render first
                 startupValidator.performStartupValidation()
-                
-                // Clear startup mode after initial validation
-                unsetenv("KEYPATH_STARTUP_MODE")
-                AppLogger.shared.log("🔍 [ContentView] Startup mode cleared - full permission checks now enabled")
+                // Note: KEYPATH_STARTUP_MODE is cleared by StartupValidator after validation completes
             }
 
             // Check if we're returning from permission granting (Input Monitoring settings)
@@ -403,6 +401,11 @@ struct RecordingSection: View {
     @State private var repairFailedDetails = ""
     @State private var failedConfigBackupPath = ""
 
+    // Diagnostics: track last-known disabled state and reasons to avoid log spam
+    @State private var lastInputDisabledReason: String = ""
+    @State private var lastOutputDisabledReason: String = ""
+    @State private var lastIsRecordingLogged: Bool = false
+
     // MARK: - Phase 1: Save Operation Debouncing
 
     @State private var saveDebounceTimer: Timer?
@@ -587,6 +590,25 @@ struct RecordingSection: View {
                 Text("Debug tools").foregroundColor(.secondary).font(.caption)
             }
         }
+        // Render-time diagnostics: log disabled reasons on appear and when relevant state changes
+        .onAppear {
+            logInputDisabledReason()
+            logOutputDisabledReason()
+        }
+        .onChange(of: isRecording) { _ in
+            AppLogger.shared.log("🔁 [UI] isRecording changed -> \(isRecording)")
+            logInputDisabledReason()
+        }
+        .onChange(of: isRecordingOutput) { _ in
+            AppLogger.shared.log("🔁 [UI] isRecordingOutput changed -> \(isRecordingOutput)")
+            logOutputDisabledReason()
+        }
+        .onChange(of: kanataManager.isRunning) { _ in
+            logInputDisabledReason(); logOutputDisabledReason()
+        }
+        .onChange(of: isSequenceMode) { _ in
+            AppLogger.shared.log("🔁 [UI] isSequenceMode changed -> \(isSequenceMode ? "sequence" : "chord")")
+        }
         // Debug: allow programmatic start of input recording
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("KeyPath.Local.TriggerStartRecording"))) { _ in
             AppLogger.shared.log("🧪 [RecordingSection] Received local trigger to start input recording")
@@ -664,6 +686,45 @@ struct RecordingSection: View {
         }
     }
 
+    private func logFocusState(prefix: String = "[UI]") {
+        let isActive = NSApp.isActive
+        let keyWindow = NSApp.keyWindow != nil
+        let occlusion = NSApp.keyWindow?.occlusionState.rawValue ?? 0
+        AppLogger.shared.log("🔍 \(prefix) Focus: appActive=\(isActive), keyWindow=\(keyWindow), occlusion=\(occlusion)")
+    }
+
+    private func inputDisabledReason() -> String {
+        var reasons: [String] = []
+        if !kanataManager.isCompletelyInstalled() && !isRecording { reasons.append("notInstalled") }
+        if NSApp.isActive == false { reasons.append("appNotActive") }
+        if NSApp.keyWindow == nil { reasons.append("noKeyWindow") }
+        return reasons.isEmpty ? "enabled" : reasons.joined(separator: "+")
+    }
+
+    private func outputDisabledReason() -> String {
+        var reasons: [String] = []
+        if !kanataManager.isCompletelyInstalled() && !isRecordingOutput { reasons.append("notInstalled") }
+        if NSApp.isActive == false { reasons.append("appNotActive") }
+        if NSApp.keyWindow == nil { reasons.append("noKeyWindow") }
+        return reasons.isEmpty ? "enabled" : reasons.joined(separator: "+")
+    }
+
+    private func logInputDisabledReason() {
+        let reason = inputDisabledReason()
+        if reason != lastInputDisabledReason {
+            lastInputDisabledReason = reason
+            AppLogger.shared.log("🧭 [UI] Input record button state: \(reason)")
+        }
+    }
+
+    private func logOutputDisabledReason() {
+        let reason = outputDisabledReason()
+        if reason != lastOutputDisabledReason {
+            lastOutputDisabledReason = reason
+            AppLogger.shared.log("🧭 [UI] Output record button state: \(reason)")
+        }
+    }
+
     private func startRecording() {
         AppLogger.shared.log("🚩 [UI] startRecording() entered")
         isRecording = true
@@ -686,6 +747,10 @@ struct RecordingSection: View {
                     isRecording = false
                     return
                 }
+                // Diagnostics: capture context
+                let ff = FeatureFlags.captureListenOnlyEnabled
+                AppLogger.shared.log("🔧 [UI] Capture context: sequenceMode=\(isSequenceMode ? "sequence" : "chord"), listenOnlyFlag=\(ff), kanataRunning=\(kanataManager.isRunning)")
+                logFocusState()
                 // Provide KanataManager so capture can choose listen-only vs suppress
                 capture.setEventRouter(nil, kanataManager: kanataManager)
 
@@ -745,6 +810,10 @@ struct RecordingSection: View {
                     isRecordingOutput = false
                     return
                 }
+                // Diagnostics: capture context
+                let ff = FeatureFlags.captureListenOnlyEnabled
+                AppLogger.shared.log("🔧 [UI] Output capture context: sequenceMode=\(isSequenceMode ? "sequence" : "chord"), listenOnlyFlag=\(ff), kanataRunning=\(kanataManager.isRunning)")
+                logFocusState(prefix: "[UI:Output]")
                 // Provide KanataManager so capture can choose listen-only vs suppress
                 capture.setEventRouter(nil, kanataManager: kanataManager)
 

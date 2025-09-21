@@ -24,6 +24,16 @@ public struct KeyPathApp: App {
         
         // Set startup mode to prevent blocking operations during app launch
         setenv("KEYPATH_STARTUP_MODE", "1", 1)
+        AppLogger.shared.log("🔍 [App] Startup mode set - IOHIDCheckAccess calls will be skipped")
+
+        // Schedule a fallback clear of startup mode after 5 seconds
+        // This ensures the flag doesn't stay set indefinitely if validation fails
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+                unsetenv("KEYPATH_STARTUP_MODE")
+                AppLogger.shared.log("🔍 [App] Startup mode cleared via fallback timer (5s)")
+            }
+        }
 
         // Initialize KanataManager
         let manager = KanataManager()
@@ -275,7 +285,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Note: In normal mode, kanata is already started in KanataManager.init() if requirements are met
 
-        // Create main window controller but defer showing until app activation
+        // Create main window controller (defer fronting until first activation)
         if !isHeadlessMode {
             AppLogger.shared.log("🪟 [AppDelegate] Setting up main window controller")
             
@@ -285,7 +295,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             
             mainWindowController = MainWindowController(kanataManager: manager)
-            AppLogger.shared.log("🪟 [AppDelegate] Main window controller created (not shown yet - waiting for activation)")
+            AppLogger.shared.log("🪟 [AppDelegate] Main window controller created (deferring show until activation)")
+
+            // Prime the window so Finder launches always surface a window object
+            // Focus/fronting occurs on the first applicationDidBecomeActive
+            DispatchQueue.main.async { [weak self] in
+                self?.mainWindowController?.primeForActivation()
+                AppLogger.shared.log("🪟 [AppDelegate] Main window primed for activation (Finder support)")
+            }
+
+            // Post-launch activation fallback: if the app hasn't become active soon
+            // and the window isn't visible, attempt a one-time activation + front.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self = self else { return }
+                guard !self.isHeadlessMode else { return }
+                
+                if !self.initialMainWindowShown {
+                    let isActive = NSApp.isActive
+                    let isVisible = self.mainWindowController?.isWindowVisible ?? false
+                    AppLogger.shared.log("🔍 [AppDelegate] Post-launch check: isActive=\(isActive), isVisible=\(isVisible)")
+                    
+                    if !isActive || !isVisible {
+                        AppLogger.shared.log("🪟 [AppDelegate] Post-launch fallback: activating and fronting main window")
+                        NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps, .activateAllWindows])
+                        self.mainWindowController?.show(focus: true)
+                    } else {
+                        AppLogger.shared.log("🪟 [AppDelegate] Post-launch fallback skipped (already active & visible)")
+                    }
+                }
+            }
         } else {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - skipping window management")
         }
@@ -307,12 +345,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))")
-        
+
+        // If UI hasn’t been set up yet (e.g., app was started in headless mode by LaunchAgent),
+        // escalate to a regular app and create the main window on demand.
+        if mainWindowController == nil {
+            if NSApplication.shared.activationPolicy() != .regular {
+                NSApplication.shared.setActivationPolicy(.regular)
+                AppLogger.shared.log("🪟 [AppDelegate] Escalated activation policy to .regular for UI reopen")
+            }
+
+            if let manager = kanataManager {
+                mainWindowController = MainWindowController(kanataManager: manager)
+                AppLogger.shared.log("🪟 [AppDelegate] Created main window controller on reopen")
+            } else {
+                AppLogger.shared.log("❌ [AppDelegate] Cannot create window on reopen: KanataManager is nil")
+            }
+        }
+
         // User-initiated reopen: unconditionally show main window
-        // Re-ordering an already-visible window is harmless and expected
         mainWindowController?.show(focus: true)
         AppLogger.shared.log("🪟 [AppDelegate] User-initiated reopen - showing main window")
-        
+
         return true
     }
 }

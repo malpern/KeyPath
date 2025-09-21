@@ -132,6 +132,13 @@ final class StartupValidator: ObservableObject {
             totalCount: result.issues.count
         )
         lastRunAt = Date()
+
+        // Clear startup mode flag now that initial validation is complete
+        // This re-enables full permission checks including IOHIDCheckAccess
+        if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+            unsetenv("KEYPATH_STARTUP_MODE")
+            AppLogger.shared.log("🔍 [StartupValidator] Startup mode cleared - full permission checks now enabled")
+        }
     }
 
     @MainActor

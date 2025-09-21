@@ -433,30 +433,43 @@ actor PermissionOracle {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/netstat")
         task.arguments = ["-an", "-p", "udp"]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
-            // Look for lines containing "*.port" or "127.0.0.1.port" indicating a listening server
-            let listeningPattern = "\\*\\.\(port)\\s"
-            let localhostPattern = "127\\.0\\.0\\.1\\.\(port)\\s"
-            
-            let listeningRegex = try NSRegularExpression(pattern: listeningPattern)
-            let localhostRegex = try NSRegularExpression(pattern: localhostPattern)
-            
-            let range = NSRange(output.startIndex..<output.endIndex, in: output)
-            let hasWildcardListener = listeningRegex.firstMatch(in: output, range: range) != nil
-            let hasLocalhostListener = localhostRegex.firstMatch(in: output, range: range) != nil
-            
-            let isListening = hasWildcardListener || hasLocalhostListener
+
+            // Look for lines where the LOCAL address (first column) is listening on this port
+            // Format is typically: "udp4  0  0  *.37001  *.*" or "udp4  0  0  127.0.0.1.37001  *.*"
+            // We need to check the LOCAL address column, not the remote address column
+            let lines = output.components(separatedBy: .newlines)
+            var isListening = false
+
+            for line in lines {
+                // Skip empty lines
+                if line.trimmingCharacters(in: .whitespaces).isEmpty { continue }
+
+                // Parse netstat output - columns are whitespace separated
+                let components = line.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+
+                // UDP lines have format: proto recv-q send-q local foreign [state]
+                if components.count >= 5 && components[0].hasPrefix("udp") {
+                    let localAddr = components[3]
+
+                    // Check if this is a listening socket on our port
+                    if localAddr == "*.\(port)" || localAddr == "127.0.0.1.\(port)" {
+                        isListening = true
+                        break
+                    }
+                }
+            }
+
             AppLogger.shared.log("🔍 [Oracle] Port \(port) listening check: \(isListening)")
             return isListening
             
