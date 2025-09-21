@@ -361,6 +361,7 @@ struct WizardKanataComponentsPage: View {
 
             Task {
                 _ = await onAutoFix(.installBundledKanata)
+                await kanataManager.updateStatus()
 
                 await MainActor.run {
                     _ = fixingIssues.remove(kanataIssue.id)

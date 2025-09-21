@@ -155,6 +155,7 @@ struct ContentView: View {
                         await kanataManager.onWizardClosed()
                         // Re-run validation to update the status indicator
                         startupValidator.refreshValidation()
+                        await kanataManager.updateStatus()
                     }
                 }
                 .environmentObject(kanataManager)
