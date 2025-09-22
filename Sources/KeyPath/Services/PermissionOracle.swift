@@ -1,5 +1,5 @@
 import ApplicationServices
-import Combine
+@preconcurrency import Combine
 import Foundation
 import IOKit.hid
 

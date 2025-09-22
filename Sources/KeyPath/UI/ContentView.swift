@@ -140,7 +140,7 @@ struct ContentView: View {
                     Task {
                         await kanataManager.onWizardClosed()
                         // Re-run validation to update the status indicator
-                        startupValidator.refreshValidation()
+                        startupValidator.refreshValidation(force: true)
                         await kanataManager.updateStatus()
                     }
                 }
@@ -248,6 +248,13 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
             showingInstallationWizard = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
+            // Wizard closed from anywhere (e.g., Settings) → force refresh validator and status
+            Task {
+                startupValidator.refreshValidation(force: true)
+                await kanataManager.updateStatus()
+            }
         }
         .onChange(of: showingInstallationWizard) { _, showing in
             // When wizard closes, try to start emergency monitoring if we now have permissions

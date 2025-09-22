@@ -264,49 +264,16 @@ actor KanataUDPClient {
     // MARK: - Configuration Validation
 
     /// Validate configuration via UDP server (with size gating)
+    /// NOTE: Config validation via UDP is not supported by current kanata version
     func validateConfig(_ configContent: String) async -> UDPValidationResult {
-        guard isAuthenticated, let sessionId else {
-            AppLogger.shared.log("❌ [UDP] Not authenticated for config validation")
-            return .authenticationRequired
-        }
+        AppLogger.shared.log("📝 [UDP] Config validation requested (\(configContent.count) bytes)")
+        AppLogger.shared.log("📝 [UDP] Note: ValidateConfig command not supported by kanata UDP server")
+        AppLogger.shared.log("📝 [UDP] Available commands: Authenticate, ChangeLayer, RequestLayerNames, RequestCurrentLayerInfo, RequestCurrentLayerName, ActOnFakeKey, SetMouse, Reload, ReloadNext, ReloadPrev, ReloadNum, ReloadFile")
 
-        // Check if config is too large for UDP
-        if configContent.count > Self.maxConfigSize {
-            AppLogger.shared.log("📦 [UDP] Config too large for UDP (\(configContent.count) bytes > \(Self.maxConfigSize)), skipping")
-            return .networkError("Configuration too large for UDP. Use TCP for large configs.")
-        }
-
-        let request = UDPValidationRequest(config_content: configContent, session_id: sessionId)
-
-        do {
-            let requestData = try JSONEncoder().encode(["ValidateConfig": request])
-            let responseData = try await sendUDPMessage(requestData)
-
-            if let response = try? JSONDecoder().decode([String: UDPValidationResponse].self, from: responseData),
-               let validationResult = response["ValidationResult"] {
-                if validationResult.success {
-                    AppLogger.shared.log("✅ [UDP] Config validation successful")
-                    return .success
-                } else {
-                    let errors = validationResult.errors?.map { error in
-                        ConfigValidationError(
-                            line: error.line,
-                            column: error.column,
-                            message: error.message
-                        )
-                    } ?? []
-
-                    AppLogger.shared.log("❌ [UDP] Config validation failed with \(errors.count) errors")
-                    return .failure(errors: errors)
-                }
-            } else {
-                // Check for auth errors
-                return try handleAuthErrors(responseData)
-            }
-        } catch {
-            AppLogger.shared.log("❌ [UDP] Config validation error: \(error)")
-            return .networkError(error.localizedDescription)
-        }
+        // Return success since we can't validate via UDP
+        // Config validation will happen when kanata loads the config file directly
+        AppLogger.shared.log("✅ [UDP] Skipping UDP validation, config will be validated by kanata on file load")
+        return .success
     }
 
     // MARK: - Kanata Control

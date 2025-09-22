@@ -285,7 +285,7 @@ class SystemStatusChecker {
 
         // 🔮 Use Oracle for authoritative permission detection
         let snapshot = await PermissionOracle.shared.currentSnapshot()
-        AppLogger.shared.log("🔍 [SystemStatusChecker] Using Oracle snapshot from \(snapshot.timestamp) (detectionID: \(detectionID))")
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Using Oracle snapshot from \(snapshot.timestamp)")
 
         // KeyPath permissions (from Apple APIs)
         if snapshot.keyPath.inputMonitoring.isReady {

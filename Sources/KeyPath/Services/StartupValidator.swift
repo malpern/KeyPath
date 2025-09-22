@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+@preconcurrency import Combine
 import SwiftUI
 
 /// Service that runs system validation checks silently at app startup
@@ -102,12 +102,13 @@ final class StartupValidator: ObservableObject {
 
     /// Perform startup validation asynchronously
     /// This is the main entry point that should be called during app launch
-    func performStartupValidation() {
+    /// - Parameter force: When true, bypasses the throttle and runs validation immediately
+    func performStartupValidation(force: Bool = false) {
         // Cancel any existing validation
         validationTask?.cancel()
 
-        // Throttle: if a recent run finished very recently, skip
-        if let last = lastRunAt, Date().timeIntervalSince(last) < minRevalidationInterval {
+        // Throttle: if a recent run finished very recently, skip (unless forced)
+        if !force, let last = lastRunAt, Date().timeIntervalSince(last) < minRevalidationInterval {
             AppLogger.shared.log("⏱️ [StartupValidator] Skipping validation (throttled)")
             return
         }
@@ -130,8 +131,9 @@ final class StartupValidator: ObservableObject {
     }
 
     /// Force refresh validation (can be called manually)
-    func refreshValidation() {
-        performStartupValidation()
+    /// - Parameter force: When true, bypasses throttle and runs now
+    func refreshValidation(force: Bool = false) {
+        performStartupValidation(force: force)
     }
 
     // MARK: - Private Implementation
@@ -162,19 +164,33 @@ final class StartupValidator: ObservableObject {
         AppLogger.shared.log("🔍 [StartupValidator] System detection completed (runID: \(runID))")
         AppLogger.shared.log("🔍 [StartupValidator] Found \(result.issues.count) total issues")
 
+
         // Analyze results
         let criticalIssues = result.issues.filter { $0.severity == .critical }
         let errorIssues = result.issues.filter { $0.severity == .error }
-        let blockingIssues = criticalIssues + errorIssues
+
+        // Filter blocking issues to align with wizard UX design
+        // Conflicts are resolvable and shouldn't block basic functionality
+        let actuallyBlockingIssues = criticalIssues + errorIssues.filter { issue in
+            switch issue.category {
+            case .conflicts:
+                return false // Conflicts are resolvable, not blocking
+            case .permissions, .installation, .systemRequirements, .backgroundServices, .daemon:
+                return true // These are truly blocking
+            }
+        }
+        let blockingIssues = actuallyBlockingIssues
 
         AppLogger.shared.log("🔍 [StartupValidator] Critical issues: \(criticalIssues.count)")
         AppLogger.shared.log("🔍 [StartupValidator] Error issues: \(errorIssues.count)")
-        AppLogger.shared.log("🔍 [StartupValidator] Blocking issues: \(blockingIssues.count)")
+        let filteredConflictCount = (criticalIssues.count + errorIssues.count) - blockingIssues.count
+        AppLogger.shared.log("🔍 [StartupValidator] Blocking issues: \(blockingIssues.count) (filtered \(filteredConflictCount) conflicts as non-blocking)")
 
         // Update state based on results
         updateValidationResults(
             issues: result.issues,
-            blockingCount: blockingIssues.count,
+            blockingIssues: blockingIssues,
+            conflictIssues: errorIssues.filter { $0.category == .conflicts },
             totalCount: result.issues.count
         )
         lastRunAt = Date()
@@ -198,7 +214,7 @@ final class StartupValidator: ObservableObject {
     }
 
     @MainActor
-    private func updateValidationResults(issues: [WizardIssue], blockingCount: Int, totalCount: Int) {
+    private func updateValidationResults(issues: [WizardIssue], blockingIssues: [WizardIssue], conflictIssues: [WizardIssue], totalCount: Int) {
         self.issues = issues
         lastValidationDate = Date()
 
@@ -212,7 +228,14 @@ final class StartupValidator: ObservableObject {
             }
         }
 
-        if blockingCount == 0 {
+        let blockingCount = blockingIssues.count
+
+        // Apply wizard-consistent logic: if Kanata is running, system is active even with conflicts
+        let kanataIsRunning = kanataManager?.isRunning ?? false
+        if kanataIsRunning {
+            validationState = .success
+            AppLogger.shared.log("✅ [StartupValidator] Validation successful - Kanata is running (consistent with wizard logic)")
+        } else if blockingCount == 0 {
             validationState = .success
             AppLogger.shared.log("✅ [StartupValidator] Validation successful - no blocking issues")
         } else if withinWarmup && isStarting && onlyTransient {
@@ -227,12 +250,16 @@ final class StartupValidator: ObservableObject {
             AppLogger.shared.log("❌ [StartupValidator] Validation failed - \(blockingCount) blocking issues out of \(totalCount) total")
         }
 
-        // Log blocking issues for debugging
+        // Log blocking issues for debugging (using same filtering logic)
         if blockingCount > 0 {
-            let blockingIssuesList = issues.filter { $0.severity == .critical || $0.severity == .error }
-            for issue in blockingIssuesList.prefix(3) { // Log first 3 for brevity
-                AppLogger.shared.log("❌ [StartupValidator] Blocking issue: \(issue.title)")
+            for issue in blockingIssues.prefix(3) { // Log first 3 for brevity
+                AppLogger.shared.log("❌ [StartupValidator] Blocking issue: \(issue.title) (category: \(issue.category), severity: \(issue.severity))")
             }
+        }
+
+        // Log filtered out conflict issues for debugging
+        for conflict in conflictIssues.prefix(2) {
+            AppLogger.shared.log("🔧 [StartupValidator] Filtered conflict (non-blocking): \(conflict.title)")
         }
     }
 

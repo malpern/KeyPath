@@ -510,4 +510,5 @@ extension Notification.Name {
     static let openInstallationWizard = Notification.Name("openInstallationWizard")
     static let resetToSafeConfig = Notification.Name("resetToSafeConfig")
     static let openDiagnostics = Notification.Name("openDiagnostics")
+    static let wizardClosed = Notification.Name("wizardClosed")
 }

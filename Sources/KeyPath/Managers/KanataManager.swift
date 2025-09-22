@@ -1473,6 +1473,9 @@ class KanataManager: ObservableObject {
         // Try to refresh status and start if needed
         await refreshStatus()
 
+        // Notify any UI components (e.g., main page validator) that the wizard closed
+        NotificationCenter.default.post(name: .wizardClosed, object: nil)
+
         // If Kanata is now running successfully, mark wizard as completed
         if isRunning {
             AppLogger.shared.log("✅ [KanataManager] Wizard completed successfully - Kanata is running")
