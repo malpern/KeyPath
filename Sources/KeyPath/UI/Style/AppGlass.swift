@@ -48,7 +48,7 @@ struct AppGlassBackground: View {
 
     private var borderOverlay: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .strokeBorder(Color.white.opacity(0.12), lineWidth: style == .headerStrong ? 0.5 : 0.8)
+            .strokeBorder(Color.white.opacity(0.14), lineWidth: style == .headerStrong ? 0.5 : 0.8)
             .allowsHitTesting(false)
     }
 }
@@ -94,5 +94,12 @@ struct AppGlassCard: ViewModifier {
 extension View {
     func appGlassHeader() -> some View { modifier(AppGlassHeader()) }
     func appGlassCard() -> some View { modifier(AppGlassCard()) }
+    func appGlassPopover(cornerRadius: CGFloat = 10) -> some View {
+        background(AppGlassBackground(style: .popoverBold, cornerRadius: cornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+    func appGlassSheet(cornerRadius: CGFloat = 12) -> some View {
+        background(AppGlassBackground(style: .sheetBold, cornerRadius: cornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
 }
-

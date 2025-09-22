@@ -243,12 +243,12 @@ enum WizardDesign {
         struct ToastCard: ViewModifier {
             func body(content: Content) -> some View {
                 content
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius))
+                    .appGlassPopover(cornerRadius: WizardDesign.Layout.cornerRadius)
                     .overlay(
                         RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
-                            .stroke(WizardDesign.Colors.border.opacity(0.3), lineWidth: 1)
+                            .stroke(WizardDesign.Colors.border.opacity(0.28), lineWidth: 1)
                     )
-                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                     .frame(maxWidth: WizardDesign.Toast.maxWidth)
             }
         }

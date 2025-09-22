@@ -22,6 +22,9 @@ struct WizardSystemStatusOverview: View {
                     isFinalStatus: isFinalKeyPathStatus(item: item),
                     showInitialClock: shouldShowInitialClock(for: item)
                 )
+                .padding(.horizontal, WizardDesign.Spacing.cardPadding)
+                .padding(.vertical, WizardDesign.Spacing.labelGap)
+                .background(AppGlassBackground(style: .cardBold, cornerRadius: 10))
 
                 // Show expanded details for failed items
                 if item.status == .failed, !item.subItems.isEmpty {
@@ -40,6 +43,9 @@ struct WizardSystemStatusOverview: View {
                                     isNavigable: subItem.isNavigable,
                                     action: subItem.isNavigable ? { onNavigateToPage?(subItem.targetPage) } : nil
                                 )
+                                .padding(.horizontal, WizardDesign.Spacing.cardPadding)
+                                .padding(.vertical, WizardDesign.Spacing.labelGap)
+                                .background(AppGlassBackground(style: .cardBold, cornerRadius: 8))
                             }
                         }
                     }

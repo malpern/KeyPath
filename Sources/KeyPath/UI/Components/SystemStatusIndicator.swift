@@ -24,19 +24,12 @@ struct SystemStatusIndicator: View {
     var body: some View {
         Button(action: handleClick) {
             ZStack {
-                // Background circle with subtle shadow
-                Circle()
-                    .fill(backgroundColor.opacity(0.8))
+                // Glass chip background (bold)
+                AppGlassBackground(style: .chipBold, cornerRadius: backgroundSize / 2)
                     .frame(width: backgroundSize, height: backgroundSize)
-                    .shadow(
-                        color: shadowColor,
-                        radius: isHovered ? 3 : 1,
-                        x: 0,
-                        y: 1
-                    )
+                    .shadow(color: shadowColor, radius: isHovered ? 3 : 1, x: 0, y: 1)
                     .overlay(
-                        Circle()
-                            .stroke(borderColor, lineWidth: 1)
+                        Circle().stroke(borderColor, lineWidth: 1)
                     )
 
                 // Status icon
