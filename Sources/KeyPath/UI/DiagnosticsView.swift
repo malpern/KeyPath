@@ -34,7 +34,7 @@ struct DiagnosticsView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Color(NSColor.controlBackgroundColor))
+            .appGlassHeader()
 
             Divider()
 
@@ -254,12 +254,7 @@ struct ProcessStatusSection: View {
             }
         }
         .padding(16)
-        .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-        )
+        .appGlassCard()
     }
 }
 
@@ -569,12 +564,7 @@ struct ConfigStatusSection: View {
             }
         }
         .padding(16)
-        .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-        )
+        .appGlassCard()
         .onAppear {
             validateConfig()
         }
@@ -624,12 +614,7 @@ struct LogAccessSection: View {
                             .foregroundColor(.secondary)
                     }
                     .padding(12)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-                    )
+                    .appGlassCard()
                 }
                 .buttonStyle(.plain)
 
@@ -656,23 +641,13 @@ struct LogAccessSection: View {
                             .foregroundColor(.secondary)
                     }
                     .padding(12)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-                    )
+                    .appGlassCard()
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(16)
-        .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-        )
+        .appGlassCard()
     }
 }
 
