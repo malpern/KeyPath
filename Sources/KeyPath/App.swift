@@ -15,8 +15,8 @@ public struct KeyPathApp: App {
             args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
         
         AppLogger.shared.log("🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), args: \(args)")
-        
-        // Debug: enable auto-trigger recording when launched with --autotrigger
+
+        // Enable auto-trigger recording when launched with --autotrigger
         if args.contains("--autotrigger") {
             setenv("KEYPATH_AUTOTRIGGER", "1", 1)
             AppLogger.shared.log("🧪 [App] Auto-trigger flag detected (--autotrigger)")
@@ -107,16 +107,6 @@ public struct KeyPathApp: App {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowEmergencyStop"), object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
-            }
-
-            // Debug menu
-            CommandMenu("Debug") {
-                Button("Start Input Recording (Debug)") {
-                    AppLogger.shared.log("🧪 [Menu] Start Input Recording (Debug) selected")
-                    NotificationCenter.default.post(name: Notification.Name("KeyPath.Local.TriggerStartRecording"), object: nil)
-                    DistributedNotificationCenter.default().post(name: Notification.Name("KeyPath.TriggerStartRecording"), object: nil)
-                }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
             }
         }
     }

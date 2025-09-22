@@ -204,12 +204,6 @@ struct ContentView: View {
         .onReceive(recordingCoordinator.$isSequenceMode.removeDuplicates()) { mode in
             AppLogger.shared.log("🔁 [UI] isSequenceMode changed -> \(mode ? "sequence" : "chord")")
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("KeyPath.Local.TriggerStartRecording"))) { _ in
-            AppLogger.shared.log("🧪 [RecordingSection] Received local trigger to start input recording")
-            if !recordingCoordinator.isInputRecording() {
-                recordingCoordinator.toggleInputRecording()
-            }
-        }
         .onChange(of: kanataManager.showWizard) { _, shouldShow in
             AppLogger.shared.log("🔍 [ContentView] showWizard changed to: \(shouldShow)")
             AppLogger.shared.log(
