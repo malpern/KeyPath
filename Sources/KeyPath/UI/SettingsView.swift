@@ -189,7 +189,7 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 20)
-        .background(Color(NSColor.controlBackgroundColor))
+        .appGlassHeader()
     }
 
     private var mainContentView: some View {
@@ -1222,7 +1222,10 @@ struct SettingsSection<Content: View>: View {
 
             content
         }
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .appGlassCard()
+        .padding(.vertical, 4)
     }
 }
 

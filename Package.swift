@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "KeyPath",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v15)
     ],
     products: [
         // The main executable that users will run

@@ -182,7 +182,7 @@ struct InstallationWizardView: View {
         }
         .fixedSize(horizontal: false, vertical: true) // Keep header at fixed height
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(AppGlassBackground(style: .headerStrong))
     }
 
     @ViewBuilder

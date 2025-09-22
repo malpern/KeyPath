@@ -709,6 +709,9 @@ struct ContentViewHeader: View {
                 .padding(.top, 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .appGlassHeader()
     }
 }
 
