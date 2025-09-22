@@ -710,39 +710,10 @@ struct RecordingSection: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            mappingToggleSection
             inputSection
             outputSection
         }
         .onAppear { coordinator.requestPlaceholders() }
-    }
-
-    private var mappingToggleSection: some View {
-        HStack {
-            Toggle(isOn: Binding(
-                get: { PreferencesService.shared.applyMappingsDuringRecording },
-                set: { PreferencesService.shared.applyMappingsDuringRecording = $0 }
-            )) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Apply current mappings while recording")
-                        .font(.headline)
-                    Text(PreferencesService.shared.applyMappingsDuringRecording
-                        ? "Shows effective (mapped) keys"
-                        : "Shows raw (physical) keys")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .toggleStyle(.switch)
-            .accessibilityIdentifier("apply-mappings-toggle")
-            .accessibilityLabel("Apply current mappings while recording")
-            .accessibilityHint(PreferencesService.shared.applyMappingsDuringRecording
-                ? "Recording will show the effective keys after mapping"
-                : "Recording will show the raw physical keys without mapping")
-        }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
     }
 
     private var inputSection: some View {
@@ -753,6 +724,31 @@ struct RecordingSection: View {
                     .accessibilityIdentifier("input-key-label")
 
                 Spacer()
+
+                Button(action: {
+                    PreferencesService.shared.applyMappingsDuringRecording.toggle()
+                    coordinator.requestPlaceholders()
+                }, label: {
+                    Image(systemName: "app.background.dotted")
+                        .font(.title2)
+                        .foregroundColor(PreferencesService.shared.applyMappingsDuringRecording ? .white : .blue)
+                })
+                .buttonStyle(.plain)
+                .frame(width: 32, height: 32)
+                .background(PreferencesService.shared.applyMappingsDuringRecording ? Color.blue : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.blue, lineWidth: 1)
+                )
+                .cornerRadius(6)
+                .help(PreferencesService.shared.applyMappingsDuringRecording
+                    ? "Mappings ON: Recording shows effective (mapped) keys. Click to show raw keys."
+                    : "Mappings OFF: Recording shows raw (physical) keys. Click to show mapped keys.")
+                .accessibilityIdentifier("apply-mappings-toggle")
+                .accessibilityLabel(PreferencesService.shared.applyMappingsDuringRecording
+                    ? "Disable mappings during recording"
+                    : "Enable mappings during recording")
+                .padding(.trailing, 5)
 
                 Button(action: {
                     coordinator.toggleSequenceMode()
