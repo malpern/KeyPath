@@ -183,6 +183,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isHeadlessMode = false
     private var mainWindowController: MainWindowController?
     private var initialMainWindowShown = false
+    private var pendingReopenShow = false
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
@@ -219,6 +220,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             mainWindowController?.show(focus: true)
             initialMainWindowShown = true
             AppLogger.shared.log("🪟 [AppDelegate] First activation - main window shown and focused")
+            if pendingReopenShow {
+                AppLogger.shared.log("🪟 [AppDelegate] Applying pending reopen show after first activation")
+                pendingReopenShow = false
+                mainWindowController?.show(focus: true)
+            }
         } else {
             // Subsequent activations: only show if window not visible
             if mainWindowController?.isWindowVisible != true {
@@ -297,33 +303,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             mainWindowController = MainWindowController(kanataManager: manager)
             AppLogger.shared.log("🪟 [AppDelegate] Main window controller created (deferring show until activation)")
 
-            // Prime the window so Finder launches always surface a window object
-            // Focus/fronting occurs on the first applicationDidBecomeActive
-            DispatchQueue.main.async { [weak self] in
-                self?.mainWindowController?.primeForActivation()
-                AppLogger.shared.log("🪟 [AppDelegate] Main window primed for activation (Finder support)")
-            }
+            // Defer all window fronting until the first applicationDidBecomeActive event
+            // to avoid AppKit display-cycle reentrancy during initial layout.
 
-            // Post-launch activation fallback: if the app hasn't become active soon
-            // and the window isn't visible, attempt a one-time activation + front.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                guard let self = self else { return }
-                guard !self.isHeadlessMode else { return }
-                
-                if !self.initialMainWindowShown {
-                    let isActive = NSApp.isActive
-                    let isVisible = self.mainWindowController?.isWindowVisible ?? false
-                    AppLogger.shared.log("🔍 [AppDelegate] Post-launch check: isActive=\(isActive), isVisible=\(isVisible)")
-                    
-                    if !isActive || !isVisible {
-                        AppLogger.shared.log("🪟 [AppDelegate] Post-launch fallback: activating and fronting main window")
-                        NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps, .activateAllWindows])
-                        self.mainWindowController?.show(focus: true)
-                    } else {
-                        AppLogger.shared.log("🪟 [AppDelegate] Post-launch fallback skipped (already active & visible)")
-                    }
-                }
-            }
+            // Kick off boring, phased startup once the window is created.
+            StartupCoordinator.shared.start()
         } else {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - skipping window management")
         }
@@ -362,9 +346,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // User-initiated reopen: unconditionally show main window
-        mainWindowController?.show(focus: true)
-        AppLogger.shared.log("🪟 [AppDelegate] User-initiated reopen - showing main window")
+        // During early startup, defer showing until first activation completed to avoid layout reentrancy
+        if !initialMainWindowShown {
+            pendingReopenShow = true
+            AppLogger.shared.log("🪟 [AppDelegate] Reopen received before first activation; deferring show")
+        } else {
+            mainWindowController?.show(focus: true)
+            AppLogger.shared.log("🪟 [AppDelegate] User-initiated reopen - showing main window")
+        }
 
         return true
     }

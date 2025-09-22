@@ -64,16 +64,12 @@ final class MainWindowController: NSWindowController {
             AppLogger.shared.log("🪟 [MainWindowController] Window deminiaturized")
         }
         
-        // Make visible if hidden
+        // Make visible if hidden; avoid explicit app activation during early startup
         if !window.isVisible {
             window.makeKeyAndOrderFront(nil)
             AppLogger.shared.log("🪟 [MainWindowController] Window made visible")
-        }
-        
-        // Activate app if focus requested
-        if focus {
-            NSApp.activate(ignoringOtherApps: true)
-            AppLogger.shared.log("🪟 [MainWindowController] App activated with focus")
+        } else {
+            window.makeKeyAndOrderFront(nil)
         }
     }
     

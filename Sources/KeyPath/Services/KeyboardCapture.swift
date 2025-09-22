@@ -33,6 +33,9 @@ public class KeyboardCapture: ObservableObject {
     private var chordTimer: Timer?
     private var sequenceTimer: Timer?
     private var localMonitor: Any?
+    private var lastCapturedKey: KeyPress?
+    private var lastCaptureAt: Date?
+    private let dedupWindow: TimeInterval = 0.04 // 40ms
     private var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
 
     /// Event router for processing captured events through the event processing chain
@@ -215,24 +218,10 @@ public class KeyboardCapture: ObservableObject {
         // and (b) guarantee immediate UI feedback even if the global tap is delayed.
         // This only affects KeyPath while recording, not other apps.
         if localMonitor == nil {
-            AppLogger.shared.log("🎹 [KeyboardCapture] Installing local keyDown monitor for recording")
-            localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self else { return event }
-                // Prefer CGEvent path for consistent modifier handling
-                if let cg = event.cgEvent {
-                    AppLogger.shared.log("🎹 [KeyboardCapture] Local monitor fired (CGEvent)")
-                    self.handleKeyEvent(cg)
-                } else {
-                    // Approximate from NSEvent if CGEvent unavailable
-                    let keyCode = Int64(event.keyCode)
-                    let keyName = self.keyCodeToString(keyCode)
-                    let flags = event.modifierFlags
-                    let cgFlags = CGEventFlags(rawValue: UInt64(flags.rawValue))
-                    let press = KeyPress(baseKey: keyName, modifiers: ModifierSet(cgEventFlags: cgFlags), timestamp: Date(), keyCode: keyCode)
-                    AppLogger.shared.log("🎹 [KeyboardCapture] Local monitor fired (NSEvent) key=\(keyName)")
-                    self.processKeyPress(press)
-                }
-                // Swallow the key to avoid system beep while recording
+            AppLogger.shared.log("🎹 [KeyboardCapture] Installing local keyDown monitor for recording (swallow only)")
+            localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { _ in
+                // Swallow the key to avoid system beep while recording, but do NOT
+                // feed it into the capture pipeline to prevent duplicate events.
                 return nil
             }
         }
@@ -369,6 +358,11 @@ public class KeyboardCapture: ObservableObject {
     }
 
     private func handleKeyEvent(_ event: CGEvent) {
+        // Ignore autorepeat frames
+        if event.getIntegerValueField(.keyboardEventAutorepeat) == 1 {
+            return
+        }
+
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let keyName = keyCodeToString(keyCode)
         let modifiers = ModifierSet(cgEventFlags: event.flags)
@@ -385,6 +379,18 @@ public class KeyboardCapture: ObservableObject {
             timestamp: now,
             keyCode: keyCode
         )
+
+        // De-dup identical events arriving within a small window
+        if let last = lastCapturedKey, let lastAt = lastCaptureAt {
+            if last.baseKey == keyPress.baseKey,
+               last.modifiers == keyPress.modifiers,
+               now.timeIntervalSince(lastAt) <= dedupWindow {
+                AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
+                return
+            }
+        }
+        lastCapturedKey = keyPress
+        lastCaptureAt = now
 
         DispatchQueue.main.async {
             // Handle legacy callback if set (for backward compatibility)

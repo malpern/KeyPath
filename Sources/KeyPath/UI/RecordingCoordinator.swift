@@ -57,6 +57,8 @@ final class RecordingCoordinator: ObservableObject {
 
     private var inputTimeoutTimer: Timer?
     private var outputTimeoutTimer: Timer?
+    private var inputFinalizeTimer: Timer?
+    private var outputFinalizeTimer: Timer?
     private var inputPlaceholderRequested = false
     private var outputPlaceholderRequested = false
 
@@ -131,8 +133,8 @@ final class RecordingCoordinator: ObservableObject {
         onSuccess: @escaping (String) -> Void,
         onError: @escaping (Error) -> Void
     ) async {
-        guard let inputSequence = capturedInputSequence(),
-              let outputSequence = capturedOutputSequence()
+        guard let rawInput = capturedInputSequence(),
+              let rawOutput = capturedOutputSequence()
         else {
             AppLogger.shared.log("❌ [Coordinator] Save requested without both sequences")
             await MainActor.run {
@@ -141,8 +143,33 @@ final class RecordingCoordinator: ObservableObject {
             return
         }
 
-        let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
+        // Normalize to remove accidental duplicates (e.g., from multiple listeners)
+        let inputSequence = normalize(rawInput)
+        let outputSequence = normalize(rawOutput)
 
+        // Simple path: single key → single key (no modifiers) => literal mapping via ConfigurationService
+        if inputSequence.keys.count == 1,
+           outputSequence.keys.count == 1,
+           inputSequence.keys[0].modifiers.isEmpty,
+           outputSequence.keys[0].modifiers.isEmpty {
+            let inKey = inputSequence.keys[0].baseKey
+            let outKey = outputSequence.keys[0].baseKey
+            do {
+                try await kanataManager.saveConfiguration(input: inKey, output: outKey)
+                await kanataManager.updateStatus()
+                await MainActor.run {
+                    onSuccess("Key mapping saved: \(inKey) → \(outKey)")
+                    clearCapturedSequences()
+                }
+            } catch {
+                AppLogger.shared.log("❌ [Coordinator] Error saving simple mapping: \(error)")
+                onError(error)
+            }
+            return
+        }
+
+        // Otherwise, generate a full config (macros/sequences/chords)
+        let configGenerator = KanataConfigGenerator(kanataManager: kanataManager)
         do {
             let generatedConfig = try await configGenerator.generateMapping(input: inputSequence, output: outputSequence)
             try await kanataManager.saveGeneratedConfiguration(generatedConfig)
@@ -206,10 +233,23 @@ final class RecordingCoordinator: ObservableObject {
 
                 capture.startSequenceCapture(mode: mode) { keySequence in
                     Task { @MainActor in
+                        // Provisional streaming update
                         self.inputTimeoutTimer?.invalidate()
                         self.input.capturedSequence = keySequence
-                        self.input.isRecording = false
                         self.refreshDisplayTexts()
+
+                        // Schedule finalize timer based on mode
+                        self.inputFinalizeTimer?.invalidate()
+                        let finalizeDelay: TimeInterval = (mode == .sequence) ? 2.1 : 0.08
+                        self.inputFinalizeTimer = Timer.scheduledTimer(withTimeInterval: finalizeDelay, repeats: false) { [weak self] _ in
+                            Task { @MainActor in
+                                guard let self else { return }
+                                if self.input.isRecording {
+                                    self.input.isRecording = false
+                                    self.refreshDisplayTexts()
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -281,10 +321,23 @@ final class RecordingCoordinator: ObservableObject {
 
                 capture.startSequenceCapture(mode: mode) { keySequence in
                     Task { @MainActor in
+                        // Provisional streaming update
                         self.outputTimeoutTimer?.invalidate()
                         self.output.capturedSequence = keySequence
-                        self.output.isRecording = false
                         self.refreshDisplayTexts()
+
+                        // Schedule finalize timer based on mode
+                        self.outputFinalizeTimer?.invalidate()
+                        let finalizeDelay: TimeInterval = (mode == .sequence) ? 2.1 : 0.08
+                        self.outputFinalizeTimer = Timer.scheduledTimer(withTimeInterval: finalizeDelay, repeats: false) { [weak self] _ in
+                            Task { @MainActor in
+                                guard let self else { return }
+                                if self.output.isRecording {
+                                    self.output.isRecording = false
+                                    self.refreshDisplayTexts()
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -377,6 +430,26 @@ final class RecordingCoordinator: ObservableObject {
         let keyWindow = app.keyWindow != nil
         let occlusion = app.keyWindow?.occlusionState.rawValue ?? 0
         AppLogger.shared.log("🔍 \(prefix) Focus: appActive=\(isActive), keyWindow=\(keyWindow), occlusion=\(occlusion)")
+    }
+}
+
+// MARK: - Normalization Helpers
+private extension RecordingCoordinator {
+    func normalize(_ sequence: KeySequence) -> KeySequence {
+        guard !sequence.keys.isEmpty else { return sequence }
+        let window: TimeInterval = 0.06
+        var result: [KeyPress] = []
+        for kp in sequence.keys.sorted(by: { $0.timestamp < $1.timestamp }) {
+            if let last = result.last,
+               last.baseKey == kp.baseKey,
+               last.modifiers == kp.modifiers,
+               kp.timestamp.timeIntervalSince(last.timestamp) <= window {
+                continue
+            }
+            result.append(kp)
+        }
+        let mode: CaptureMode = (result.count <= 1) ? .single : sequence.captureMode
+        return KeySequence(keys: result, captureMode: mode, timestamp: sequence.timestamp)
     }
 }
 

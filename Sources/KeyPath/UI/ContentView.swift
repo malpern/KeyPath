@@ -15,6 +15,9 @@ struct ContentView: View {
             )
         }
     }
+    // Gate modal presentation until after early startup phases
+    @State private var canPresentModals = false
+    @State private var pendingShowWizardRequest = false
 
     @State private var hasCheckedRequirements = false
     @State private var showStatusMessage = false
@@ -174,12 +177,8 @@ struct ContentView: View {
                 permissionProvider: permissionSnapshotProvider
             )
 
-            // Start startup validation asynchronously to avoid blocking UI
-            Task {
-                await Task.yield() // Let UI render first
-                startupValidator.performStartupValidation()
-                // Note: KEYPATH_STARTUP_MODE is cleared by StartupValidator after validation completes
-            }
+            // Observe phased startup notifications
+            setupStartupObservers()
 
             // Check if we're returning from permission granting (Input Monitoring settings)
             let isReturningFromPermissionGrant = checkForPendingPermissionGrant()
@@ -189,23 +188,10 @@ struct ContentView: View {
 
             // ContentView no longer forwards triggers directly; RecordingSection handles triggers via NotificationCenter
 
-            // Start the auto-launch sequence ONLY if we're not returning from permission granting
-            // Otherwise the auto-launch will reset showWizard to false
-            if !isReturningFromPermissionGrant {
-                Task {
-                    AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence")
-                    await kanataManager.startAutoLaunch(presentWizardOnFailure: false)
-                    AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
-                    AppLogger.shared.log(
-                        "✅ [ContentView] Post auto-launch - showWizard: \(kanataManager.showWizard)")
-                    AppLogger.shared.log(
-                        "✅ [ContentView] Post auto-launch - currentState: \(kanataManager.currentState.rawValue)"
-                    )
-                }
-            } else {
+            // StartupCoordinator will publish auto-launch; if user returned from Settings,
+            // we’ll skip inside the observer.
+            if isReturningFromPermissionGrant {
                 AppLogger.shared.log("🔧 [ContentView] Skipping auto-launch - returning from permission granting")
-
-                // Log to file for debugging
                 WizardLogger.shared.log("SKIPPING auto-launch (would reset wizard flag)")
             }
 
@@ -214,13 +200,15 @@ struct ContentView: View {
                 hasCheckedRequirements = true
             }
 
-            // Try to start monitoring for emergency stop sequence
-            // This will silently fail if permissions aren't granted yet
-            startEmergencyMonitoringIfPossible()
+            // The StartupCoordinator will trigger emergency monitoring when safe.
 
             // Status monitoring now handled centrally by SimpleKanataManager
-            logInputDisabledReason()
-            logOutputDisabledReason()
+            // Defer these UI state reads to the next runloop to avoid doing work
+            // during the initial display cycle (prevents AppKit layout reentrancy).
+            DispatchQueue.main.async {
+                logInputDisabledReason()
+                logOutputDisabledReason()
+            }
         }
         .onReceive(recordingCoordinator.$input.map(\.isRecording).removeDuplicates()) { isRecording in
             AppLogger.shared.log("🔁 [UI] isRecording changed -> \(isRecording)")
@@ -246,10 +234,15 @@ struct ContentView: View {
             )
             AppLogger.shared.log(
                 "🔍 [ContentView] Current errorReason: \(kanataManager.errorReason ?? "nil")")
-            AppLogger.shared.log("🔍 [ContentView] Setting showingInstallationWizard = \(shouldShow)")
+
+            if shouldShow && !canPresentModals {
+                pendingShowWizardRequest = true
+                AppLogger.shared.log("🔍 [ContentView] Deferring wizard presentation until modals are allowed")
+                return
+            }
+
             showingInstallationWizard = shouldShow
-            AppLogger.shared.log(
-                "🔍 [ContentView] showingInstallationWizard is now: \(showingInstallationWizard)")
+            AppLogger.shared.log("🔍 [ContentView] showingInstallationWizard set to: \(showingInstallationWizard)")
         }
         .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
             // Show status message when config is updated externally
@@ -367,6 +360,44 @@ struct ContentView: View {
         capture.startEmergencyMonitoring {
             showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
             showingEmergencyAlert = true
+        }
+    }
+
+    // MARK: - Startup Observers
+
+    private func setupStartupObservers() {
+        NotificationCenter.default.addObserver(forName: .kp_startupWarm, object: nil, queue: .main) { _ in
+            AppLogger.shared.log("🚦 [Startup] Warm phase")
+            // Lightweight warm-ups (noop for now)
+        }
+
+        NotificationCenter.default.addObserver(forName: .kp_startupValidate, object: nil, queue: .main) { _ in
+            AppLogger.shared.log("🚦 [Startup] Validate phase → StartupValidator.performStartupValidation()")
+            startupValidator.performStartupValidation()
+            // Allow modals from this point onward
+            canPresentModals = true
+            if pendingShowWizardRequest {
+                AppLogger.shared.log("🎭 [Startup] Presenting deferred wizard after validation phase")
+                pendingShowWizardRequest = false
+                showingInstallationWizard = true
+            }
+        }
+
+        NotificationCenter.default.addObserver(forName: .kp_startupAutoLaunch, object: nil, queue: .main) { _ in
+            AppLogger.shared.log("🚦 [Startup] AutoLaunch phase")
+            // Respect permission-grant return to avoid resetting wizard state
+            if !checkForPendingPermissionGrant() {
+                Task {
+                    AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence (coordinated)")
+                    await kanataManager.startAutoLaunch(presentWizardOnFailure: false)
+                    AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
+                }
+            }
+        }
+
+        NotificationCenter.default.addObserver(forName: .kp_startupEmergencyMonitor, object: nil, queue: .main) { _ in
+            AppLogger.shared.log("🚦 [Startup] Emergency monitor phase")
+            startEmergencyMonitoringIfPossible()
         }
     }
 

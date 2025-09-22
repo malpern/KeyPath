@@ -93,7 +93,7 @@ public class KanataConfigGenerator {
         ;; Input: \(input.displayString) → Output: \(output.displayString)
 
         (defcfg
-          process-unmapped-keys no
+          process-unmapped-keys yes
         )
 
         (defsrc

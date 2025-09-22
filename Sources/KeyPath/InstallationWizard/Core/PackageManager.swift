@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 /// Manages package installation via Homebrew and other package managers
 /// Implements the package management integration identified in the installer improvement analysis
@@ -158,42 +159,54 @@ class PackageManager {
     }
 
     private func detectCodeSigningStatus(at path: String) -> CodeSigningStatus {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
-        task.arguments = ["-dv", "--verbose=4", path]
+        let url = URL(fileURLWithPath: path) as CFURL
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe // codesign outputs to stderr
+        var staticCode: SecStaticCode?
+        let createStatus = SecStaticCodeCreateWithPath(url, SecCSFlags(), &staticCode)
+        guard createStatus == errSecSuccess, let staticCode else {
+            let message = SecCopyErrorMessageString(createStatus, nil) as String? ?? "OSStatus=\(createStatus)"
+            AppLogger.shared.log("❌ [PackageManager] SecStaticCodeCreateWithPath failed for \(path): \(message)")
+            return .invalid(reason: message)
+        }
 
-        do {
-            try task.run()
-            task.waitUntilExit()
+        // Validate the code signature (no explicit requirement; default validation)
+        var cfError: Unmanaged<CFError>?
+        let validity = SecStaticCodeCheckValidityWithErrors(staticCode, SecCSFlags(), nil, &cfError)
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
+        // Extract signing information regardless of validity result when possible
+        var infoDict: CFDictionary?
+        let infoStatus = SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &infoDict)
+        let info = infoDict as? [String: Any]
 
-            AppLogger.shared.log("🔍 [PackageManager] Code signing output for \(path): \(output)")
-
-            // Parse codesign output
-            if output.contains("Authority=Developer ID Application") {
-                // Extract authority line
-                let lines = output.components(separatedBy: .newlines)
-                if let authorityLine = lines.first(where: { $0.contains("Authority=Developer ID Application") }) {
-                    let authority = authorityLine.replacingOccurrences(of: "Authority=", with: "").trimmingCharacters(in: .whitespaces)
-                    return .developerIDSigned(authority: authority)
-                }
-                return .developerIDSigned(authority: "Developer ID Application")
-            } else if output.contains("adhoc") || output.contains("Ad Hoc") || (output.contains("CodeDirectory") && !output.contains("Authority=")) {
-                return .adhocSigned
-            } else if task.terminationStatus != 0, output.contains("code object is not signed at all") {
-                return .unsigned
+        if validity == errSecSuccess {
+            // Determine if Developer ID (presence of a certificate chain implies not ad hoc)
+            if let certs = info?[kSecCodeInfoCertificates as String] as? [SecCertificate], let first = certs.first {
+                var commonName: CFString?
+                SecCertificateCopyCommonName(first, &commonName)
+                let authority = (commonName as String?) ?? "Developer ID Application"
+                return .developerIDSigned(authority: authority)
             } else {
-                return .invalid(reason: output.prefix(100) + (output.count > 100 ? "..." : ""))
+                // Valid but no certificates → ad hoc
+                return .adhocSigned
             }
-        } catch {
-            AppLogger.shared.log("❌ [PackageManager] Failed to check code signing for \(path): \(error)")
-            return .invalid(reason: error.localizedDescription)
+        } else {
+            // Determine if completely unsigned vs invalid
+            let reason: String = {
+                if let err = cfError?.takeRetainedValue() {
+                    return CFErrorCopyDescription(err) as String
+                } else {
+                    return "OSStatus=\(validity)"
+                }
+            }()
+
+            // If there is no signing information at all, treat as unsigned
+            if infoStatus != errSecSuccess || info?[kSecCodeInfoCertificates as String] == nil {
+                // Heuristic: missing certificates likely means unsigned
+                if reason.lowercased().contains("not signed") || reason.lowercased().contains("code object is not signed") {
+                    return .unsigned
+                }
+            }
+            return .invalid(reason: reason)
         }
     }
 

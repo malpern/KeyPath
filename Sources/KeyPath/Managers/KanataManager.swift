@@ -1948,13 +1948,9 @@ class KanataManager: ObservableObject {
     // MARK: - Installation and Permissions
 
     func isInstalled() -> Bool {
-        let status = KanataBinaryDetector.shared.detectCurrentStatus().status
-        switch status {
-        case .systemInstalled: 
-            return true
-        default: 
-            return false // bundledAvailable, bundledUnsigned, or missing are not "installed"
-        }
+        // Fast, non-blocking check for UI gating during startup.
+        // Avoids kicking off binary signature detection on the main thread.
+        return FileManager.default.fileExists(atPath: WizardSystemPaths.kanataSystemInstallPath)
     }
 
     func isCompletelyInstalled() -> Bool {

@@ -34,10 +34,10 @@ public struct KanataConfiguration: Sendable {
         ;; \(mappings.count) key mapping(s) configured
         ;;
         ;; SAFETY FEATURES:
-        ;; - process-unmapped-keys no: Only process explicitly mapped keys
+        ;; - process-unmapped-keys yes: Unmapped keys pass through (safer defaults)
 
         (defcfg
-          process-unmapped-keys no
+          process-unmapped-keys yes
         )
 
         (defsrc
@@ -55,10 +55,10 @@ public struct KanataConfiguration: Sendable {
     ;; No key mappings configured
     ;;
     ;; SAFETY FEATURES:
-    ;; - process-unmapped-keys no: Only process explicitly mapped keys
+    ;; - process-unmapped-keys yes: Unmapped keys pass through (safer defaults)
 
     (defcfg
-      process-unmapped-keys no
+      process-unmapped-keys yes
     )
 
     (defsrc)
