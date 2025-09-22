@@ -2,7 +2,13 @@ import SwiftUI
 
 struct RootView: View {
     var body: some View {
-        // Keep the first scene simple to avoid view tree swaps during initial window layout
-        ContentView()
+        ZStack {
+            // Full-window glass background; we can dial this back per-surface
+            AppGlassBackground(style: .sheetBold)
+                .ignoresSafeArea()
+
+            // Foreground content places solid surfaces where needed for text
+            ContentView()
+        }
     }
 }

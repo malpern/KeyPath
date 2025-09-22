@@ -22,10 +22,18 @@ final class MainWindowController: NSWindowController {
         )
         
         // Configure window properties
-        window.title = "KeyPath"
+        window.title = ""
         window.center()
-        window.isOpaque = true
-        window.backgroundColor = NSColor.windowBackgroundColor
+        // Enable glass-friendly window appearance
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.styleMask.insert(.fullSizeContentView)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.isMovableByWindowBackground = true
+
+        // Remove any default toolbar; rely on full-size content view and transparent titlebar
+        window.toolbar = nil
         
         // State restoration and window behavior
         window.setFrameAutosaveName("MainWindow")
@@ -34,9 +42,12 @@ final class MainWindowController: NSWindowController {
         window.collectionBehavior = [.moveToActiveSpace]
         
         super.init(window: window)
-        
-        // Set hosting controller as content view controller
-        self.contentViewController = hostingController
+
+        AppLogger.shared.log("🪟 [MainWindowController] titleVisibility=\(window.titleVisibility.rawValue) transparent=\(window.titlebarAppearsTransparent) fullSize=\(window.styleMask.contains(.fullSizeContentView)) toolbar=\(window.toolbar != nil) opaque=\(window.isOpaque) bgClear=\(window.backgroundColor == .clear)")
+
+        // Wrap hosting view in a visual effect container so the entire window is glass-backed
+        let container = GlassContainerViewController(hosting: hostingController)
+        self.contentViewController = container
         
         // Configure window delegate for proper lifecycle
         window.delegate = self
@@ -94,6 +105,49 @@ final class MainWindowController: NSWindowController {
         guard let window = window else { return false }
         // Stronger predicate: check if window is actually key or visible on screen
         return window.isKeyWindow || window.occlusionState.contains(.visible)
+    }
+}
+
+// MARK: - Glass Container View Controller
+@MainActor
+final class GlassContainerViewController<Content: View>: NSViewController {
+    private let hosting: NSHostingController<Content>
+    private let effectView = NSVisualEffectView()
+
+    init(hosting: NSHostingController<Content>) {
+        self.hosting = hosting
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func loadView() {
+        effectView.material = .menu
+        effectView.blendingMode = .behindWindow
+        effectView.state = .active
+        effectView.isEmphasized = true
+        effectView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Use the effect view as our main view
+        self.view = effectView
+
+        // Add hosting controller's view
+        addChild(hosting)
+        let hosted = hosting.view
+        hosted.translatesAutoresizingMaskIntoConstraints = false
+        hosted.wantsLayer = true
+        hosted.layer?.backgroundColor = NSColor.clear.cgColor
+        hosted.layer?.isOpaque = false
+        hosted.appearance = NSAppearance(named: .aqua)
+        effectView.addSubview(hosted)
+
+        NSLayoutConstraint.activate([
+            hosted.leadingAnchor.constraint(equalTo: effectView.leadingAnchor),
+            hosted.trailingAnchor.constraint(equalTo: effectView.trailingAnchor),
+            hosted.topAnchor.constraint(equalTo: effectView.topAnchor),
+            hosted.bottomAnchor.constraint(equalTo: effectView.bottomAnchor)
+        ])
     }
 }
 

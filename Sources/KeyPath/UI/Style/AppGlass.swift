@@ -29,10 +29,14 @@ struct AppGlassBackground: View {
 
     private var material: NSVisualEffectView.Material {
         switch style {
-        case .headerStrong, .sheetBold:
-            return .contentBackground
-        case .cardBold, .popoverBold, .chipBold:
-            return .underWindowBackground
+        case .headerStrong:
+            return .menu
+        case .cardBold, .chipBold:
+            return .menu
+        case .popoverBold:
+            return .popover
+        case .sheetBold:
+            return .hudWindow
         }
     }
 
