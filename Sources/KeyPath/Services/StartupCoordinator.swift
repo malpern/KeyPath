@@ -32,22 +32,28 @@ final class StartupCoordinator: ObservableObject {
             NotificationCenter.default.post(name: .kp_startupWarm, object: nil)
         }
 
-        schedule(after: 0.75) { [weak self] in
+        // Start auto-launch earlier so validation runs after service kick-off
+        schedule(after: 0.50) { [weak self] in
             guard let self else { return }
-            self.transition(to: .validated)
-            NotificationCenter.default.post(name: .kp_startupValidate, object: nil)
+            self.transition(to: .launched)
+            NotificationCenter.default.post(name: .kp_startupAutoLaunch, object: nil)
         }
 
         schedule(after: 1.00) { [weak self] in
             guard let self else { return }
-            self.transition(to: .launched)
-            NotificationCenter.default.post(name: .kp_startupAutoLaunch, object: nil)
+            self.transition(to: .validated)
+            NotificationCenter.default.post(name: .kp_startupValidate, object: nil)
         }
 
         schedule(after: 1.25) { [weak self] in
             guard let self else { return }
             self.transition(to: .monitoring)
             NotificationCenter.default.post(name: .kp_startupEmergencyMonitor, object: nil)
+        }
+
+        // Add a follow-up revalidation to flip the header automatically
+        schedule(after: 1.50) {
+            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
         }
     }
 
@@ -69,4 +75,3 @@ final class StartupCoordinator: ObservableObject {
         AppLogger.shared.log("🚦 [Startup] Phase -> \(newPhase.rawValue)")
     }
 }
-

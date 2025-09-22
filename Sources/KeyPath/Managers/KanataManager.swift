@@ -3250,6 +3250,10 @@ class KanataManager: ObservableObject {
             if reloadResult.isSuccess {
                 let response = reloadResult.response ?? "Success"
                 AppLogger.shared.log("✅ [Reset] Default config applied successfully via UDP: \(response)")
+                // Play happy chime on successful reset
+                await MainActor.run {
+                    SoundManager.shared.playGlassSound()
+                }
             } else {
                 let error = reloadResult.errorMessage ?? "Unknown error"
                 let response = reloadResult.response ?? "No response"
@@ -3259,6 +3263,44 @@ class KanataManager: ObservableObject {
                 await restartKanata()
             }
         }
+    }
+
+    // MARK: - Pause/Resume Mappings for Recording
+
+    /// Temporarily pause mappings (for raw key capture during recording)
+    func pauseMappings() async -> Bool {
+        AppLogger.shared.log("⏸️ [Mappings] Attempting to pause mappings for recording...")
+
+        // First, try UDP pause command (if Kanata supports it in the future)
+        // For now, we'll stop the service as a fallback
+
+        if isRunning {
+            AppLogger.shared.log("🛑 [Mappings] Stopping Kanata service to pause mappings...")
+            await stopKanata()
+            // Small delay to ensure service is fully stopped
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            return true
+        }
+
+        AppLogger.shared.log("ℹ️ [Mappings] Service already stopped, no need to pause")
+        return false
+    }
+
+    /// Resume mappings after recording
+    func resumeMappings() async -> Bool {
+        AppLogger.shared.log("▶️ [Mappings] Attempting to resume mappings after recording...")
+
+        // Start the service if it was paused
+        if !isRunning {
+            AppLogger.shared.log("🚀 [Mappings] Starting Kanata service to resume mappings...")
+            await startKanata()
+            // Small delay to ensure service is fully started
+            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+            return true
+        }
+
+        AppLogger.shared.log("ℹ️ [Mappings] Service already running, mappings active")
+        return false
     }
 
     func convertToKanataKey(_ key: String) -> String {

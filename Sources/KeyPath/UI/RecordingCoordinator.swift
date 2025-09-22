@@ -61,6 +61,7 @@ final class RecordingCoordinator: ObservableObject {
     private var outputFinalizeTimer: Timer?
     private var inputPlaceholderRequested = false
     private var outputPlaceholderRequested = false
+    private var mappingsWereSuspended = false
 
     func configure(
         kanataManager: KanataManager,
@@ -126,6 +127,11 @@ final class RecordingCoordinator: ObservableObject {
         stopOutputRecording()
         keyboardCapture?.stopCapture()
         keyboardCapture = nil
+        if mappingsWereSuspended, let km = kanataManager {
+            Task { _ = await km.resumeMappings() }
+            mappingsWereSuspended = false
+            AppLogger.shared.log("🎛️ [Coordinator] Resumed mappings after stopAllRecording()")
+        }
     }
 
     func saveMapping(
@@ -217,6 +223,20 @@ final class RecordingCoordinator: ObservableObject {
                     return
                 }
 
+                // Check if we should suspend mappings for raw key capture
+                if !PreferencesService.shared.applyMappingsDuringRecording,
+                   let km = self.kanataManager {
+                    Task {
+                        let wasPaused = await km.pauseMappings()
+                        await MainActor.run {
+                            self.mappingsWereSuspended = wasPaused
+                            if wasPaused {
+                                AppLogger.shared.log("🎛️ [Coordinator] Paused mappings for raw key capture (input)")
+                            }
+                        }
+                    }
+                }
+
                 self.logFocusState(prefix: "[Coordinator:Input]")
                 capture.setEventRouter(nil, kanataManager: self.kanataManager)
                 let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
@@ -265,6 +285,17 @@ final class RecordingCoordinator: ObservableObject {
         if reason.shouldShowBanner {
             showStatusMessage?(reason.bannerMessage)
         }
+
+        // Resume mappings if we suspended them
+        if mappingsWereSuspended, let km = kanataManager {
+            Task {
+                _ = await km.resumeMappings()
+                await MainActor.run {
+                    self.mappingsWereSuspended = false
+                    AppLogger.shared.log("🎛️ [Coordinator] Resumed mappings after input recording failure")
+                }
+            }
+        }
     }
 
     private func stopInputRecording() {
@@ -273,6 +304,17 @@ final class RecordingCoordinator: ObservableObject {
         input.isRecording = false
         refreshDisplayTexts()
         keyboardCapture?.stopCapture()
+
+        // Resume mappings if we suspended them
+        if mappingsWereSuspended, let km = kanataManager {
+            Task {
+                _ = await km.resumeMappings()
+                await MainActor.run {
+                    self.mappingsWereSuspended = false
+                    AppLogger.shared.log("🎛️ [Coordinator] Resumed mappings after input recording")
+                }
+            }
+        }
     }
 
     private func startOutputRecording() {
@@ -303,6 +345,20 @@ final class RecordingCoordinator: ObservableObject {
                 guard let capture = self.keyboardCapture else {
                     self.failOutputRecording(with: .captureInitializationFailure)
                     return
+                }
+
+                // Check if we should suspend mappings for raw key capture
+                if !PreferencesService.shared.applyMappingsDuringRecording,
+                   let km = self.kanataManager {
+                    Task {
+                        let wasPaused = await km.pauseMappings()
+                        await MainActor.run {
+                            self.mappingsWereSuspended = wasPaused
+                            if wasPaused {
+                                AppLogger.shared.log("🎛️ [Coordinator] Paused mappings for raw key capture (output)")
+                            }
+                        }
+                    }
                 }
 
                 self.logFocusState(prefix: "[Coordinator:Output]")
@@ -353,6 +409,17 @@ final class RecordingCoordinator: ObservableObject {
         if reason.shouldShowBanner {
             showStatusMessage?(reason.bannerMessage)
         }
+
+        // Resume mappings if we suspended them
+        if mappingsWereSuspended, let km = kanataManager {
+            Task {
+                _ = await km.resumeMappings()
+                await MainActor.run {
+                    self.mappingsWereSuspended = false
+                    AppLogger.shared.log("🎛️ [Coordinator] Resumed mappings after output recording failure")
+                }
+            }
+        }
     }
 
     private func stopOutputRecording() {
@@ -361,6 +428,17 @@ final class RecordingCoordinator: ObservableObject {
         output.isRecording = false
         refreshDisplayTexts()
         keyboardCapture?.stopCapture()
+
+        // Resume mappings if we suspended them
+        if mappingsWereSuspended, let km = kanataManager {
+            Task {
+                _ = await km.resumeMappings()
+                await MainActor.run {
+                    self.mappingsWereSuspended = false
+                    AppLogger.shared.log("🎛️ [Coordinator] Resumed mappings after output recording")
+                }
+            }
+        }
     }
 
     private func prepareKeyboardCaptureIfNeeded() {

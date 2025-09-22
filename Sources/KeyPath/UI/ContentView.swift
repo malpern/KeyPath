@@ -80,24 +80,7 @@ struct ContentView: View {
                 .accessibilityHint("Save the input and output key mapping to your configuration")
             }
 
-            Divider().padding(.top, 4)
-            HStack(spacing: 12) {
-                Button("Debug: Start Input Recording") {
-                    AppLogger.shared.log("🧪 [UI] Debug button: Start Input Recording")
-                    NotificationCenter.default.post(name: Notification.Name("KeyPath.Local.TriggerStartRecording"), object: nil)
-                }
-                .buttonStyle(.bordered)
-
-                Button("Open Logs") {
-                    let logPath = NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log"
-                    NSWorkspace.shared.open(URL(fileURLWithPath: logPath))
-                    AppLogger.shared.log("📁 [UI] Opened debug log file")
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-                Text("Debug tools").foregroundColor(.secondary).font(.caption)
-            }
+            // Debug row removed in production UI
 
             // Enhanced Error Display - persistent and actionable
             EnhancedErrorHandler(errorInfo: $enhancedErrorInfo)
@@ -398,6 +381,11 @@ struct ContentView: View {
         NotificationCenter.default.addObserver(forName: .kp_startupEmergencyMonitor, object: nil, queue: .main) { _ in
             AppLogger.shared.log("🚦 [Startup] Emergency monitor phase")
             startEmergencyMonitoringIfPossible()
+        }
+
+        NotificationCenter.default.addObserver(forName: .kp_startupRevalidate, object: nil, queue: .main) { _ in
+            AppLogger.shared.log("🚦 [Startup] Follow-up revalidate phase")
+            startupValidator.performStartupValidation()
         }
     }
 
@@ -728,10 +716,39 @@ struct RecordingSection: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            mappingToggleSection
             inputSection
             outputSection
         }
         .onAppear { coordinator.requestPlaceholders() }
+    }
+
+    private var mappingToggleSection: some View {
+        HStack {
+            Toggle(isOn: Binding(
+                get: { PreferencesService.shared.applyMappingsDuringRecording },
+                set: { PreferencesService.shared.applyMappingsDuringRecording = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Apply current mappings while recording")
+                        .font(.headline)
+                    Text(PreferencesService.shared.applyMappingsDuringRecording
+                        ? "Shows effective (mapped) keys"
+                        : "Shows raw (physical) keys")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .toggleStyle(.switch)
+            .accessibilityIdentifier("apply-mappings-toggle")
+            .accessibilityLabel("Apply current mappings while recording")
+            .accessibilityHint(PreferencesService.shared.applyMappingsDuringRecording
+                ? "Recording will show the effective keys after mapping"
+                : "Recording will show the raw physical keys without mapping")
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
     }
 
     private var inputSection: some View {

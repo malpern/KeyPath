@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SwiftUI
 
 /// Service that runs system validation checks silently at app startup
@@ -39,6 +40,11 @@ final class StartupValidator: ObservableObject {
     private var currentRunID: UUID?
     private let minRevalidationInterval: TimeInterval = 2.0
     private var lastRunAt: Date?
+    private var cancellables: Set<AnyCancellable> = []
+
+    // Warmup window during which transient startup states remain as .checking
+    private var warmupStart: Date = .init()
+    private let warmupGraceWindow: TimeInterval = 3.0
 
     // MARK: - Initialization
 
@@ -56,6 +62,30 @@ final class StartupValidator: ObservableObject {
     func configure(with kanataManager: KanataManager) {
         self.kanataManager = kanataManager
         AppLogger.shared.log("🔧 [StartupValidator] Configured with KanataManager")
+
+        // Start warmup timer now
+        warmupStart = Date()
+
+        // Revalidate automatically when Kanata process transitions to running or config changes
+        kanataManager.$isRunning
+            .removeDuplicates()
+            .sink { [weak self] running in
+                guard let self else { return }
+                if running {
+                    AppLogger.shared.log("🔁 [StartupValidator] Kanata isRunning=true → revalidate")
+                    // Small debounce to allow service to settle
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.performStartupValidation() }
+                }
+            }
+            .store(in: &cancellables)
+
+        kanataManager.$lastConfigUpdate
+            .sink { [weak self] _ in
+                guard let self else { return }
+                AppLogger.shared.log("🔁 [StartupValidator] lastConfigUpdate changed → revalidate")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.performStartupValidation() }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Validation Methods
@@ -152,9 +182,26 @@ final class StartupValidator: ObservableObject {
         self.issues = issues
         lastValidationDate = Date()
 
+        // Warmup grace: keep spinner during startup/transient states
+        let withinWarmup = Date().timeIntervalSince(warmupStart) < warmupGraceWindow
+        let isStarting = kanataManager?.currentState == .starting || (kanataManager?.isRunning == false)
+        let onlyTransient = issues.allSatisfy { issue in
+            switch issue.category {
+            case .backgroundServices, .daemon, .systemRequirements: true
+            case .permissions, .installation, .conflicts: false
+            }
+        }
+
         if blockingCount == 0 {
             validationState = .success
             AppLogger.shared.log("✅ [StartupValidator] Validation successful - no blocking issues")
+        } else if withinWarmup && isStarting && onlyTransient {
+            validationState = .checking
+            AppLogger.shared.log("⏳ [StartupValidator] Warmup grace → keeping spinner during startup transients")
+            // Schedule a follow-up validation to flip to green automatically
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.performStartupValidation()
+            }
         } else {
             validationState = .failed(blockingCount: blockingCount, totalCount: totalCount)
             AppLogger.shared.log("❌ [StartupValidator] Validation failed - \(blockingCount) blocking issues out of \(totalCount) total")

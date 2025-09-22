@@ -108,6 +108,15 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// When true, leave mappings active while recording (effective preview).
+    /// When false, temporarily suspend mappings so the recorder captures raw keys.
+    var applyMappingsDuringRecording: Bool {
+        didSet {
+            UserDefaults.standard.set(applyMappingsDuringRecording, forKey: Keys.applyMappingsDuringRecording)
+            AppLogger.shared.log("🎛️ [Preferences] applyMappingsDuringRecording = \(applyMappingsDuringRecording)")
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -117,6 +126,7 @@ final class PreferencesService: @unchecked Sendable {
         static let udpAuthToken = "KeyPath.UDP.AuthToken"
         static let udpSessionTimeout = "KeyPath.UDP.SessionTimeout"
         static let notificationsEnabled = "KeyPath.Notifications.Enabled"
+        static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
     }
 
     // MARK: - Defaults
@@ -128,6 +138,7 @@ final class PreferencesService: @unchecked Sendable {
         static let udpAuthToken = "" // Auto-generate token
         static let udpSessionTimeout = 1800 // 30 minutes (same as Kanata default)
         static let notificationsEnabled = true
+        static let applyMappingsDuringRecording = true
     }
 
     // MARK: - Initialization
@@ -149,6 +160,11 @@ final class PreferencesService: @unchecked Sendable {
         notificationsEnabled =
             UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool
                 ?? Defaults.notificationsEnabled
+
+        // Recording preference
+        applyMappingsDuringRecording =
+            UserDefaults.standard.object(forKey: Keys.applyMappingsDuringRecording) as? Bool
+                ?? Defaults.applyMappingsDuringRecording
 
         AppLogger.shared.log(
             "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), UDP enabled: \(udpServerEnabled)"
@@ -281,6 +297,7 @@ extension PreferencesService {
         return [:]
     }
 }
+
 
 // MARK: - Thread-Safe Snapshot API
 
