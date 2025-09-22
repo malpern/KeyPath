@@ -511,4 +511,7 @@ extension Notification.Name {
     static let resetToSafeConfig = Notification.Name("resetToSafeConfig")
     static let openDiagnostics = Notification.Name("openDiagnostics")
     static let wizardClosed = Notification.Name("wizardClosed")
+    static let retryStartService = Notification.Name("retryStartService")
+    static let openInputMonitoringSettings = Notification.Name("openInputMonitoringSettings")
+    static let openAccessibilitySettings = Notification.Name("openAccessibilitySettings")
 }

@@ -343,6 +343,8 @@ struct ContentView: View {
         // We have permissions, start monitoring
         capture.startEmergencyMonitoring {
             showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
+            // Surface a system notification if app is not frontmost
+            UserNotificationService.shared.notifyLaunchFailure(.serviceFailure("Emergency stop activated"))
             showingEmergencyAlert = true
         }
     }

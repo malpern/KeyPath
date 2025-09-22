@@ -235,6 +235,8 @@ final class StartupValidator: ObservableObject {
         if kanataIsRunning {
             validationState = .success
             AppLogger.shared.log("✅ [StartupValidator] Validation successful - Kanata is running (consistent with wizard logic)")
+            // Notify recovery if app not frontmost
+            UserNotificationService.shared.notifyRecoverySucceeded("Kanata is running")
         } else if blockingCount == 0 {
             validationState = .success
             AppLogger.shared.log("✅ [StartupValidator] Validation successful - no blocking issues")
@@ -248,6 +250,14 @@ final class StartupValidator: ObservableObject {
         } else {
             validationState = .failed(blockingCount: blockingCount, totalCount: totalCount)
             AppLogger.shared.log("❌ [StartupValidator] Validation failed - \(blockingCount) blocking issues out of \(totalCount) total")
+            // If there are blocking permission issues, surface as system notifications when backgrounded
+            let missingPerms: [PermissionRequirement] = issues.compactMap { issue in
+                if case let .permission(req) = issue.identifier { return req }
+                return nil
+            }
+            if !missingPerms.isEmpty {
+                UserNotificationService.shared.notifyPermissionRequired(missingPerms)
+            }
         }
 
         // Log blocking issues for debugging (using same filtering logic)

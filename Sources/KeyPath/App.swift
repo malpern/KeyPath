@@ -301,6 +301,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - skipping window management")
         }
+
+        // Observe notification action events
+        NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: .main) { [weak self] _ in
+            guard let manager = self?.kanataManager else { return }
+            Task { @MainActor in
+                await manager.manualStart()
+                await manager.updateStatus()
+            }
+        }
+
+        NotificationCenter.default.addObserver(forName: .openInputMonitoringSettings, object: nil, queue: .main) { [weak self] _ in
+            self?.kanataManager?.openInputMonitoringSettings()
+        }
+
+        NotificationCenter.default.addObserver(forName: .openAccessibilitySettings, object: nil, queue: .main) { [weak self] _ in
+            self?.kanataManager?.openAccessibilitySettings()
+        }
     }
 
     func applicationWillResignActive(_: Notification) {
