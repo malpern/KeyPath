@@ -127,6 +127,10 @@ class SystemStatusChecker {
     // MARK: - Main Detection Method
 
     func detectCurrentState() async -> SystemStateResult {
+        // Invalidate Oracle cache when wizard detection starts to ensure fresh status
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Invalidating Oracle cache for fresh wizard detection")
+        await PermissionOracle.shared.invalidateCache()
+
         // Check cache first
         if let cached = cachedStateResult,
            let timestamp = cacheTimestamp,
@@ -135,7 +139,8 @@ class SystemStatusChecker {
             return cached
         }
 
-        AppLogger.shared.log("🔍 [SystemStatusChecker] Starting comprehensive system state detection")
+        let detectionID = UUID()
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Starting comprehensive system state detection (detectionID: \(detectionID))")
 
         // Debug override for testing Input Monitoring page
         if SystemStatusChecker.debugForceInputMonitoringIssues {
@@ -280,6 +285,7 @@ class SystemStatusChecker {
 
         // 🔮 Use Oracle for authoritative permission detection
         let snapshot = await PermissionOracle.shared.currentSnapshot()
+        AppLogger.shared.log("🔍 [SystemStatusChecker] Using Oracle snapshot from \(snapshot.timestamp) (detectionID: \(detectionID))")
 
         // KeyPath permissions (from Apple APIs)
         if snapshot.keyPath.inputMonitoring.isReady {

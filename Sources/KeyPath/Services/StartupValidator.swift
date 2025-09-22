@@ -86,6 +86,16 @@ final class StartupValidator: ObservableObject {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.performStartupValidation() }
             }
             .store(in: &cancellables)
+
+        // Listen for Oracle permission updates
+        PermissionOracle.shared.statusUpdatePublisher
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .sink { [weak self] updateTime in
+                guard let self else { return }
+                AppLogger.shared.log("🔁 [StartupValidator] Oracle permission update at \(updateTime) → revalidate")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.performStartupValidation() }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Validation Methods
@@ -108,7 +118,8 @@ final class StartupValidator: ObservableObject {
 
         let runID = UUID()
         currentRunID = runID
-        AppLogger.shared.log("🔍 [StartupValidator] Starting system validation (runID: \(runID))")
+        let startupMode = ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1"
+        AppLogger.shared.log("🔍 [StartupValidator] Starting system validation (runID: \(runID), startupMode: \(startupMode))")
 
         validationTask = Task { [weak self] in
             guard let self else { return }
@@ -135,6 +146,11 @@ final class StartupValidator: ObservableObject {
         // SystemStatusChecker is @MainActor, so it must run on main actor
         AppLogger.shared.log("🔍 [StartupValidator] Running comprehensive system detection (runID: \(runID))")
         let systemChecker = SystemStatusChecker.shared(kanataManager: kanataManager)
+
+        // Get Oracle snapshot to log timing relationship
+        let oracleSnapshot = await PermissionOracle.shared.currentSnapshot()
+        AppLogger.shared.log("🔍 [StartupValidator] Oracle snapshot timestamp: \(oracleSnapshot.timestamp) (runID: \(runID))")
+
         let result = await systemChecker.detectCurrentState()
 
         // Check if this run is still valid
@@ -168,6 +184,10 @@ final class StartupValidator: ObservableObject {
         if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
             unsetenv("KEYPATH_STARTUP_MODE")
             AppLogger.shared.log("🔍 [StartupValidator] Startup mode cleared - full permission checks now enabled")
+
+            // Invalidate Oracle cache to ensure fresh permission checks
+            AppLogger.shared.log("🔍 [StartupValidator] Invalidating Oracle cache before second validation")
+            await PermissionOracle.shared.invalidateCache()
 
             // Re-run validation with full permission checks now enabled
             AppLogger.shared.log("🔍 [StartupValidator] Re-running validation with full permission checks")

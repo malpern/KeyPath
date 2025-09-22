@@ -1,4 +1,5 @@
 import ApplicationServices
+import Combine
 import Foundation
 import IOKit.hid
 
@@ -21,6 +22,11 @@ enum OracleError: Error {
 /// due to IOHIDCheckAccess() being unreliable for root processes
 actor PermissionOracle {
     static let shared = PermissionOracle()
+
+    // MARK: - Published Properties (for real-time sync)
+
+    /// Notifies observers when permission state changes
+    nonisolated let statusUpdatePublisher = PassthroughSubject<Date, Never>()
 
     // MARK: - Core Types
 
@@ -182,6 +188,9 @@ actor PermissionOracle {
         // Cache the result
         lastSnapshot = snapshot
         lastSnapshotTime = snapshot.timestamp
+
+        // Notify observers of status update
+        statusUpdatePublisher.send(snapshot.timestamp)
 
         return snapshot
     }
