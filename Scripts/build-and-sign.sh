@@ -37,6 +37,13 @@ cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
 
+# Copy app icon
+if [ -f "Sources/KeyPath/Resources/AppIcon.icns" ]; then
+    cp "Sources/KeyPath/Resources/AppIcon.icns" "$RESOURCES/"
+    echo "✅ Copied app icon"
+else
+    echo "⚠️ WARNING: AppIcon.icns not found"
+fi
 
 # Create PkgInfo file (required for app bundles)
 echo "APPL????" > "$CONTENTS/PkgInfo"
