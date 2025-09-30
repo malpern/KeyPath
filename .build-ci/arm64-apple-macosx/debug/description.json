@@ -7,7 +7,7 @@
     }
   ],
   "copyCommands" : {
-    "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath_KeyPath.bundle/AppIcon.icns" : {
+    "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath_KeyPathApp.bundle/AppIcon.icns" : {
       "inputs" : [
         {
           "kind" : "file",
@@ -17,7 +17,7 @@
       "outputs" : [
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath_KeyPath.bundle/AppIcon.icns"
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath_KeyPathApp.bundle/AppIcon.icns"
         }
       ]
     }
@@ -39,10 +39,6 @@
       "fileList" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/sources",
       "importPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "inputs" : [
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/App.swift"
-        },
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Core/Contracts/ConfigurationProviding.swift"
@@ -110,18 +106,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Testing/TestEnvironment.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/PermissionCard.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/StatusIndicators.swift"
         },
         {
           "kind" : "file",
@@ -206,82 +190,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardTypes.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/HelpBubbleOverlay.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardActionSection.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardErrorDisplay.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardProgressIndicator.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/InstallationWizardView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardCommunicationPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataServicePage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift"
         },
         {
           "kind" : "file",
@@ -417,70 +325,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/DraggableAreaView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/SystemStatusIndicator.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/TitlebarHeaderAccessory.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/WindowControlsView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/DiagnosticsView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EmergencyStopDialog.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EnhancedErrorHandler.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/InstallerView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/LaunchAgentSettingsView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/MainWindowController.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/RecordingCoordinator.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/RootView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/SettingsView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Style/AppGlass.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ViewModels/KanataViewModel.swift"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/AppRestarter.swift"
         },
         {
@@ -513,15 +357,7 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DerivedSources/resource_bundle_accessor.swift"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
-        },
-        {
-          "kind" : "virtual",
-          "name" : "<KeyPath-arm64-apple-macosx15.0-debug.module-resources>"
         },
         {
           "kind" : "file",
@@ -532,7 +368,6 @@
       "moduleName" : "KeyPath",
       "moduleOutputPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules/KeyPath.swiftmodule",
       "objects" : [
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/App.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationProviding.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventProcessing.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventTapping.swift.o",
@@ -550,9 +385,6 @@
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsProvider.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MockPrivilegedOperations.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpSheets.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionCard.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StatusIndicators.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/BundledKanataManager.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/IssueGenerator.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataBinaryDetector.swift.o",
@@ -574,25 +406,6 @@
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateMachine.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FDADetectionModals.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpBubbleOverlay.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StartConfirmationDialog.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardActionSection.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardErrorDisplay.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardProgressIndicator.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemStatusOverview.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/InstallationWizardView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAccessibilityPage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardCommunicationPage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardConflictsPage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardFullDiskAccessPage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardInputMonitoringPage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKanataComponentsPage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKanataServicePage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKarabinerComponentsPage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSummaryPage.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardDesignSystem.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardToastManager.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataConfigManager.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Configuration.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Engine.swift.o",
@@ -626,22 +439,6 @@
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemValidator.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/UDPAuthTokenManager.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/UserNotificationService.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DraggableAreaView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemStatusIndicator.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TitlebarHeaderAccessory.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WindowControlsView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ContentView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EmergencyStopDialog.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EnhancedErrorHandler.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/InstallerView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentSettingsView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MainWindowController.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RecordingCoordinator.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RootView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SettingsView.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppGlass.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataViewModel.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppRestarter.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/BuildInfo.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DependencyInjection.swift.o",
@@ -649,18 +446,18 @@
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logger.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Notifications.swift.o",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SoundManager.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SoundPlayer.swift.o",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/resource_bundle_accessor.swift.o"
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SoundPlayer.swift.o"
       ],
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx15.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
         "-Onone",
         "-enable-testing",
-        "-j1",
+        "-j14",
         "-DSWIFT_PACKAGE",
         "-DDEBUG",
         "-module-cache-path",
@@ -685,7 +482,6 @@
         "-L",
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
         "-g",
-        "-diagnostic-style=swift",
         "-Xcc",
         "-isysroot",
         "-Xcc",
@@ -703,10 +499,6 @@
       ],
       "outputFileMapPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/output-file-map.json",
       "outputs" : [
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/App.swift.o"
-        },
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationProviding.swift.o"
@@ -774,18 +566,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpSheets.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionCard.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StatusIndicators.swift.o"
         },
         {
           "kind" : "file",
@@ -870,82 +650,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FDADetectionModals.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpBubbleOverlay.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StartConfirmationDialog.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardActionSection.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardErrorDisplay.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardProgressIndicator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemStatusOverview.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/InstallationWizardView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAccessibilityPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardCommunicationPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardConflictsPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardFullDiskAccessPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardInputMonitoringPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKanataComponentsPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKanataServicePage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKarabinerComponentsPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSummaryPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardDesignSystem.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardToastManager.swift.o"
         },
         {
           "kind" : "file",
@@ -1081,70 +785,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DraggableAreaView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemStatusIndicator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TitlebarHeaderAccessory.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WindowControlsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ContentView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EmergencyStopDialog.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EnhancedErrorHandler.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/InstallerView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentSettingsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MainWindowController.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RecordingCoordinator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RootView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SettingsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppGlass.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataViewModel.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppRestarter.swift.o"
         },
         {
@@ -1177,16 +817,11 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/resource_bundle_accessor.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules/KeyPath.swiftmodule"
         }
       ],
       "prepareForIndexing" : false,
       "sources" : [
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/App.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Core/Contracts/ConfigurationProviding.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Core/Contracts/EventProcessing.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Core/Contracts/EventTapping.swift",
@@ -1204,9 +839,6 @@
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Privileged/PrivilegedOperationsProvider.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Testing/MockPrivilegedOperations.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Testing/TestEnvironment.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/PermissionCard.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/StatusIndicators.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/BundledKanataManager.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/IssueGenerator.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/KanataBinaryDetector.swift",
@@ -1228,25 +860,6 @@
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardStateMachine.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardSystemPaths.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardTypes.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/HelpBubbleOverlay.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardActionSection.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardErrorDisplay.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardProgressIndicator.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/InstallationWizardView.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardCommunicationPage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataServicePage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataConfigManager.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager+Configuration.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager+Engine.swift",
@@ -1280,6 +893,482 @@
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/SystemValidator.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/UDPAuthTokenManager.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/UserNotificationService.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/AppRestarter.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/BuildInfo.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/DependencyInjection.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/FeatureFlags.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Logger.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Notifications.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundManager.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundPlayer.swift"
+      ],
+      "tempsPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.KeyPathApp-arm64-apple-macosx15.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/sources",
+      "importPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/App.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/PermissionCard.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/StatusIndicators.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/HelpBubbleOverlay.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardActionSection.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardErrorDisplay.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardProgressIndicator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/InstallationWizardView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardCommunicationPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataServicePage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/DraggableAreaView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/SystemStatusIndicator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/TitlebarHeaderAccessory.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/WindowControlsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/DiagnosticsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EmergencyStopDialog.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EnhancedErrorHandler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/InstallerView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/LaunchAgentSettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/MainWindowController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/RecordingCoordinator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/RootView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/SettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Style/AppGlass.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ViewModels/KanataViewModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<KeyPathApp-arm64-apple-macosx15.0-debug.module-resources>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules/KeyPath.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "KeyPathApp",
+      "moduleOutputPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules/KeyPathApp.swiftmodule",
+      "objects" : [
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/App.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/HelpSheets.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/PermissionCard.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/StatusIndicators.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/FDADetectionModals.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/HelpBubbleOverlay.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/StartConfirmationDialog.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardActionSection.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardErrorDisplay.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardProgressIndicator.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardSystemStatusOverview.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/InstallationWizardView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardAccessibilityPage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardCommunicationPage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardConflictsPage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardFullDiskAccessPage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardInputMonitoringPage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKanataComponentsPage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKanataServicePage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKarabinerComponentsPage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardSummaryPage.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardDesignSystem.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardToastManager.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DraggableAreaView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/SystemStatusIndicator.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/TitlebarHeaderAccessory.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WindowControlsView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/ContentView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DiagnosticsView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/EmergencyStopDialog.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/EnhancedErrorHandler.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/InstallerView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/LaunchAgentSettingsView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/MainWindowController.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/RecordingCoordinator.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/RootView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/SettingsView.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/AppGlass.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/KanataViewModel.swift.o",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/resource_bundle_accessor.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx15.0",
+        "-v",
+        "-enable-batch-mode",
+        "-index-store-path",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-module-cache-path",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/KeyPathApp-Swift.h",
+        "-swift-version",
+        "6",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "keypath"
+      ],
+      "outputFileMapPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/App.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/HelpSheets.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/PermissionCard.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/StatusIndicators.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/FDADetectionModals.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/HelpBubbleOverlay.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/StartConfirmationDialog.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardActionSection.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardErrorDisplay.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardProgressIndicator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardSystemStatusOverview.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/InstallationWizardView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardAccessibilityPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardCommunicationPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardConflictsPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardFullDiskAccessPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardInputMonitoringPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKanataComponentsPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKanataServicePage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKarabinerComponentsPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardSummaryPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardDesignSystem.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardToastManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DraggableAreaView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/SystemStatusIndicator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/TitlebarHeaderAccessory.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WindowControlsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DiagnosticsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/EmergencyStopDialog.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/EnhancedErrorHandler.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/InstallerView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/LaunchAgentSettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/MainWindowController.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/RecordingCoordinator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/RootView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/SettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/AppGlass.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/KanataViewModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules/KeyPathApp.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/App.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/PermissionCard.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/StatusIndicators.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/HelpBubbleOverlay.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardActionSection.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardErrorDisplay.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardProgressIndicator.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/InstallationWizardView.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardCommunicationPage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataServicePage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/DraggableAreaView.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/SystemStatusIndicator.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/TitlebarHeaderAccessory.swift",
@@ -1296,17 +1385,9 @@
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/SettingsView.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Style/AppGlass.swift",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ViewModels/KanataViewModel.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/AppRestarter.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/BuildInfo.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/DependencyInjection.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/FeatureFlags.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Logger.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Notifications.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundManager.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundPlayer.swift",
-        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DerivedSources/resource_bundle_accessor.swift"
+        "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DerivedSources/resource_bundle_accessor.swift"
       ],
-      "tempsPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build",
+      "tempsPath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build",
       "wholeModuleOptimization" : false
     },
     "C.KeyPathCLI-arm64-apple-macosx15.0-debug.module" : {
@@ -1328,7 +1409,7 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules/KeyPath.swiftmodule"
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules/KeyPathApp.swiftmodule"
         },
         {
           "kind" : "file",
@@ -1345,12 +1426,13 @@
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx15.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
         "-Onone",
         "-enable-testing",
-        "-j1",
+        "-j14",
         "-DSWIFT_PACKAGE",
         "-DDEBUG",
         "-module-cache-path",
@@ -1371,7 +1453,6 @@
         "-L",
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
         "-g",
-        "-diagnostic-style=swift",
         "-Xcc",
         "-isysroot",
         "-Xcc",
@@ -1441,12 +1522,13 @@
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx15.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
         "-Onone",
         "-enable-testing",
-        "-j1",
+        "-j14",
         "-DSWIFT_PACKAGE",
         "-DDEBUG",
         "-module-cache-path",
@@ -1465,7 +1547,6 @@
         "-L",
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
         "-g",
-        "-diagnostic-style=swift",
         "-Xcc",
         "-isysroot",
         "-Xcc",
@@ -1695,12 +1776,13 @@
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx15.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
         "-Onone",
         "-enable-testing",
-        "-j1",
+        "-j14",
         "-DSWIFT_PACKAGE",
         "-DDEBUG",
         "-module-cache-path",
@@ -1722,7 +1804,6 @@
         "-L",
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
         "-g",
-        "-diagnostic-style=swift",
         "-Xcc",
         "-isysroot",
         "-Xcc",
@@ -1934,7 +2015,6 @@
       "keypath",
       "-incremental",
       "-c",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/App.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Core/Contracts/ConfigurationProviding.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Core/Contracts/EventProcessing.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Core/Contracts/EventTapping.swift",
@@ -1952,9 +2032,6 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Privileged/PrivilegedOperationsProvider.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Testing/MockPrivilegedOperations.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Testing/TestEnvironment.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/PermissionCard.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/StatusIndicators.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/BundledKanataManager.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/IssueGenerator.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/KanataBinaryDetector.swift",
@@ -1976,25 +2053,6 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardStateMachine.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardSystemPaths.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardTypes.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/HelpBubbleOverlay.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardActionSection.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardErrorDisplay.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardProgressIndicator.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/InstallationWizardView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardCommunicationPage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataServicePage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataConfigManager.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager+Configuration.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager+Engine.swift",
@@ -2028,22 +2086,6 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/SystemValidator.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/UDPAuthTokenManager.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/UserNotificationService.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/DraggableAreaView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/SystemStatusIndicator.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/TitlebarHeaderAccessory.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/WindowControlsView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/DiagnosticsView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EmergencyStopDialog.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EnhancedErrorHandler.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/InstallerView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/LaunchAgentSettingsView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/MainWindowController.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/RecordingCoordinator.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/RootView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/SettingsView.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Style/AppGlass.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ViewModels/KanataViewModel.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/AppRestarter.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/BuildInfo.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/DependencyInjection.swift",
@@ -2052,17 +2094,17 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Notifications.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundManager.swift",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundPlayer.swift",
-      "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DerivedSources/resource_bundle_accessor.swift",
       "-I",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx15.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
       "-Onone",
       "-enable-testing",
-      "-j1",
+      "-j14",
       "-DSWIFT_PACKAGE",
       "-DDEBUG",
       "-module-cache-path",
@@ -2087,7 +2129,102 @@
       "-L",
       "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
       "-g",
-      "-diagnostic-style=swift",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "keypath",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "KeyPathApp" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "KeyPathApp",
+      "-package-name",
+      "keypath",
+      "-incremental",
+      "-c",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/App.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/PermissionCard.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/StatusIndicators.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/HelpBubbleOverlay.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardActionSection.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardErrorDisplay.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardProgressIndicator.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/InstallationWizardView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardCommunicationPage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataServicePage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/DraggableAreaView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/SystemStatusIndicator.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/TitlebarHeaderAccessory.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/WindowControlsView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ContentView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/DiagnosticsView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EmergencyStopDialog.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/EnhancedErrorHandler.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/InstallerView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/LaunchAgentSettingsView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/MainWindowController.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/RecordingCoordinator.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/RootView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/SettingsView.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Style/AppGlass.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/ViewModels/KanataViewModel.swift",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DerivedSources/resource_bundle_accessor.swift",
+      "-I",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx15.0",
+      "-v",
+      "-enable-batch-mode",
+      "-index-store-path",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-module-cache-path",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/KeyPathApp-Swift.h",
+      "-swift-version",
+      "6",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
       "-Xcc",
       "-isysroot",
       "-Xcc",
@@ -2119,12 +2256,13 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx15.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
       "-Onone",
       "-enable-testing",
-      "-j1",
+      "-j14",
       "-DSWIFT_PACKAGE",
       "-DDEBUG",
       "-module-cache-path",
@@ -2145,7 +2283,6 @@
       "-L",
       "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
       "-g",
-      "-diagnostic-style=swift",
       "-Xcc",
       "-isysroot",
       "-Xcc",
@@ -2176,12 +2313,13 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx15.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
       "-Onone",
       "-enable-testing",
-      "-j1",
+      "-j14",
       "-DSWIFT_PACKAGE",
       "-DDEBUG",
       "-module-cache-path",
@@ -2200,7 +2338,6 @@
       "-L",
       "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
       "-g",
-      "-diagnostic-style=swift",
       "-Xcc",
       "-isysroot",
       "-Xcc",
@@ -2264,12 +2401,13 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx15.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
       "-Onone",
       "-enable-testing",
-      "-j1",
+      "-j14",
       "-DSWIFT_PACKAGE",
       "-DDEBUG",
       "-module-cache-path",
@@ -2291,7 +2429,6 @@
       "-L",
       "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
       "-g",
-      "-diagnostic-style=swift",
       "-Xcc",
       "-isysroot",
       "-Xcc",
@@ -2314,7 +2451,11 @@
     "KeyPath" : [
 
     ],
+    "KeyPathApp" : [
+      "KeyPath"
+    ],
     "KeyPathCLI" : [
+      "KeyPathApp",
       "KeyPath"
     ],
     "KeyPathPackageTests" : [
@@ -2362,10 +2503,6 @@
         {
           "kind" : "virtual",
           "name" : "<sources-file-list>"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/App.swift"
         },
         {
           "kind" : "file",
@@ -2434,18 +2571,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Testing/TestEnvironment.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/PermissionCard.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/StatusIndicators.swift"
         },
         {
           "kind" : "file",
@@ -2530,82 +2655,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardTypes.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/HelpBubbleOverlay.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardActionSection.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardErrorDisplay.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardProgressIndicator.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/InstallationWizardView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardCommunicationPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataServicePage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift"
         },
         {
           "kind" : "file",
@@ -2741,6 +2790,634 @@
         },
         {
           "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/AppRestarter.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/BuildInfo.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/DependencyInjection.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/FeatureFlags.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Logger.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Notifications.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundPlayer.swift"
+        }
+      ],
+      "outputFilePath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/sources"
+    },
+    "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppRestarter.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/BuildInfo.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/BundledKanataManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigBackupManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigFileWatcher.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationProviding.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DefaultEventProcessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DependencyInjection.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventProcessing.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventProcessingSetup.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventRouter.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventTapping.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FeatureFlags.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/IssueGenerator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataBinaryDetector.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataConfigGenerator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataConfigManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Configuration.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Engine.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+EventTaps.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Lifecycle.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Output.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataUDPClient.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerComponentsStatusEvaluator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerConflictService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyPathError.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeySequence.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyboardCapture.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeychainService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonInstaller.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonPIDCache.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LegacyPrivilegedOperations.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleControlling.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logger.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logging.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MainAppStateController.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MockPrivilegedOperations.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Notifications.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/OutputSynthesizing.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PIDFileManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PackageManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionChecking.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionGrantCoordinator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionOracle.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PreferencesService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperations.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsProvider.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceHealthMonitor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceStatusEvaluator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SharedUDPClientService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SoundManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SoundPlayer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StartupCoordinator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemRequirements.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemRequirementsChecker.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshot.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshotAdapter.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemStatusChecker.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemValidator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/UDPAuthTokenManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/UserNotificationService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/VHIDDeviceManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAsyncOperationManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAutoFixer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardLogger.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardNavigationCoordinator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardNavigationEngine.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateInterpreter.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateMachine.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/App.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/AppGlass.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DiagnosticsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DraggableAreaView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/EmergencyStopDialog.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/EnhancedErrorHandler.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/FDADetectionModals.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/HelpBubbleOverlay.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/HelpSheets.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/InstallationWizardView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/InstallerView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/KanataViewModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/LaunchAgentSettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/MainWindowController.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/PermissionCard.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/RecordingCoordinator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/RootView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/SettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/StartConfirmationDialog.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/StatusIndicators.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/SystemStatusIndicator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/TitlebarHeaderAccessory.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WindowControlsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardAccessibilityPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardActionSection.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardCommunicationPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardConflictsPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardDesignSystem.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardErrorDisplay.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardFullDiskAccessPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardInputMonitoringPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKanataComponentsPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKanataServicePage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardKarabinerComponentsPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardProgressIndicator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardSummaryPage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardSystemStatusOverview.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/WizardToastManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathCLI.build/TestUIAutomation.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathCLI.build/main.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.product/Objects.LinkFileList"
+    },
+    "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/App.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/PermissionCard.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/StatusIndicators.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/HelpBubbleOverlay.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/StartConfirmationDialog.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardActionSection.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardErrorDisplay.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardProgressIndicator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/WizardSystemStatusOverview.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/InstallationWizardView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardAccessibilityPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardCommunicationPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardConflictsPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardFullDiskAccessPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardInputMonitoringPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataComponentsPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKanataServicePage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardKarabinerComponentsPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/UI/Components/DraggableAreaView.swift"
         },
         {
@@ -2805,536 +3482,10 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/AppRestarter.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/BuildInfo.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/DependencyInjection.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/FeatureFlags.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Logger.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Notifications.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundManager.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/SoundPlayer.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DerivedSources/resource_bundle_accessor.swift"
+          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/DerivedSources/resource_bundle_accessor.swift"
         }
       ],
-      "outputFilePath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/sources"
-    },
-    "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.product/Objects.LinkFileList" : {
-      "alwaysOutOfDate" : false,
-      "inputs" : [
-        {
-          "kind" : "virtual",
-          "name" : "<link-file-list>"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/App.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppGlass.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppRestarter.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/BuildInfo.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/BundledKanataManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigBackupManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigFileWatcher.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationProviding.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ContentView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DefaultEventProcessor.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DependencyInjection.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DraggableAreaView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EmergencyStopDialog.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EnhancedErrorHandler.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventProcessing.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventProcessingSetup.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventRouter.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EventTapping.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FDADetectionModals.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FeatureFlags.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpBubbleOverlay.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpSheets.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/InstallationWizardView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/InstallerView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/IssueGenerator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataBinaryDetector.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataConfigGenerator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataConfigManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Configuration.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Engine.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+EventTaps.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Lifecycle.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager+Output.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataUDPClient.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataViewModel.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerComponentsStatusEvaluator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerConflictService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyPathError.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeySequence.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyboardCapture.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeychainService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentSettingsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonInstaller.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonPIDCache.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LegacyPrivilegedOperations.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleControlling.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logger.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logging.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MainAppStateController.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MainWindowController.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MockPrivilegedOperations.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Notifications.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/OutputSynthesizing.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PIDFileManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PackageManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionCard.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionChecking.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionGrantCoordinator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionOracle.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PreferencesService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperations.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsProvider.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RecordingCoordinator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RootView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceHealthMonitor.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceStatusEvaluator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SettingsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SharedUDPClientService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SoundManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SoundPlayer.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StartConfirmationDialog.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StartupCoordinator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StatusIndicators.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemRequirements.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemRequirementsChecker.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshot.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshotAdapter.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemStatusChecker.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemStatusIndicator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemValidator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TitlebarHeaderAccessory.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/UDPAuthTokenManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/UserNotificationService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/VHIDDeviceManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WindowControlsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAccessibilityPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardActionSection.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAsyncOperationManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAutoFixer.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardCommunicationPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardConflictsPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardDesignSystem.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardErrorDisplay.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardFullDiskAccessPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardInputMonitoringPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKanataComponentsPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKanataServicePage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKarabinerComponentsPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardLogger.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardNavigationCoordinator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardNavigationEngine.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardProgressIndicator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateInterpreter.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateMachine.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSummaryPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemStatusOverview.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardToastManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/resource_bundle_accessor.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathCLI.build/TestUIAutomation.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathCLI.build/main.swift.o"
-        }
-      ],
-      "outputFilePath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.product/Objects.LinkFileList"
+      "outputFilePath" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/sources"
     },
     "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathCLI.build/sources" : {
       "alwaysOutOfDate" : false,
@@ -3377,14 +3528,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/App.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppGlass.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppRestarter.swift.o"
         },
         {
@@ -3413,10 +3556,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ContentView.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DefaultEventProcessor.swift.o"
         },
         {
@@ -3426,22 +3565,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DraggableAreaView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EmergencyStopDialog.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/EnhancedErrorHandler.swift.o"
         },
         {
           "kind" : "file",
@@ -3461,27 +3584,7 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FDADetectionModals.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FeatureFlags.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpBubbleOverlay.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpSheets.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/InstallationWizardView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/InstallerView.swift.o"
         },
         {
           "kind" : "file",
@@ -3529,10 +3632,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataViewModel.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerComponentsStatusEvaluator.swift.o"
         },
         {
@@ -3558,10 +3657,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentSettingsView.swift.o"
         },
         {
           "kind" : "file",
@@ -3597,10 +3692,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MainWindowController.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MockPrivilegedOperations.swift.o"
         },
         {
@@ -3618,10 +3709,6 @@
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PackageManager.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionCard.swift.o"
         },
         {
           "kind" : "file",
@@ -3657,23 +3744,11 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RecordingCoordinator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RootView.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceHealthMonitor.swift.o"
         },
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceStatusEvaluator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SettingsView.swift.o"
         },
         {
           "kind" : "file",
@@ -3689,15 +3764,7 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StartConfirmationDialog.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StartupCoordinator.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StatusIndicators.swift.o"
         },
         {
           "kind" : "file",
@@ -3721,19 +3788,11 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemStatusIndicator.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemValidator.swift.o"
         },
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TitlebarHeaderAccessory.swift.o"
         },
         {
           "kind" : "file",
@@ -3749,59 +3808,11 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WindowControlsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAccessibilityPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardActionSection.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAsyncOperationManager.swift.o"
         },
         {
           "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardAutoFixer.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardCommunicationPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardConflictsPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardDesignSystem.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardErrorDisplay.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardFullDiskAccessPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardInputMonitoringPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKanataComponentsPage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKanataServicePage.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardKarabinerComponentsPage.swift.o"
         },
         {
           "kind" : "file",
@@ -3817,10 +3828,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardProgressIndicator.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateInterpreter.swift.o"
         },
         {
@@ -3829,27 +3836,11 @@
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSummaryPage.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemStatusOverview.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardToastManager.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/resource_bundle_accessor.swift.o"
         },
         {
           "kind" : "file",

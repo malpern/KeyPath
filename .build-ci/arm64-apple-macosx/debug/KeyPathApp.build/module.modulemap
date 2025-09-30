@@ -1,0 +1,4 @@
+module KeyPathApp {
+    header "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathApp.build/KeyPathApp-Swift.h"
+    requires objc
+}

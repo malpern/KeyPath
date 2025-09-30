@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Note: @main attribute moved to KeyPathCLI/main.swift for proper SPM building
+@main
 public struct KeyPathApp: App {
     // Phase 4: MVVM - Use ViewModel instead of Manager directly
     @StateObject private var viewModel: KanataViewModel
