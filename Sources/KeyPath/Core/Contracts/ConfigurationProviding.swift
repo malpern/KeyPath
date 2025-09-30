@@ -137,16 +137,16 @@ protocol FileConfigurationProviding: ConfigurationProviding {
 extension FileConfigurationProviding {
     func reload() async throws -> Config {
         guard FileManager.default.fileExists(atPath: configurationPath) else {
-            throw ConfigurationError.fileNotFound(configurationPath)
+            throw KeyPathError.configuration(.fileNotFound(path: configurationPath))
         }
 
         do {
             let content = try String(contentsOfFile: configurationPath, encoding: .utf8)
             return try validate(content: content)
-        } catch let error as ConfigurationError {
+        } catch let error as KeyPathError {
             throw error
         } catch {
-            throw ConfigurationError.loadFailed(error.localizedDescription)
+            throw KeyPathError.configuration(.loadFailed(reason: error.localizedDescription))
         }
     }
 }

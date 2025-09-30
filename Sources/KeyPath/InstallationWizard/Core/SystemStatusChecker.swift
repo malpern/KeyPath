@@ -23,10 +23,10 @@ private func withTimeout<T: Sendable>(seconds: Double, operation: @Sendable @esc
         group.addTask { await operation() }
         group.addTask {
             try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-            throw SystemDetectionError.timeout
+            throw KeyPathError.system(.eventProcessingFailed(reason: "System detection timed out"))
         }
         guard let result = try await group.next() else {
-            throw SystemDetectionError.timeout
+            throw KeyPathError.system(.eventProcessingFailed(reason: "System detection timed out"))
         }
         group.cancelAll()
         return result

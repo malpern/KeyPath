@@ -108,11 +108,11 @@ public struct LegacyPrivilegedOperations: PrivilegedOperations {
             
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                throw PrivilegedOperationError.timeout
+                throw KeyPathError.permission(.privilegedOperationFailed(operation: "privileged operation", reason: "Operation timed out"))
             }
-            
+
             guard let result = try await group.next() else {
-                throw PrivilegedOperationError.timeout
+                throw KeyPathError.permission(.privilegedOperationFailed(operation: "privileged operation", reason: "Operation timed out"))
             }
             
             group.cancelAll()

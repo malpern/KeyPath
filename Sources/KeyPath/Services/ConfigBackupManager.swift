@@ -109,7 +109,7 @@ public final class ConfigBackupManager {
     /// Restore config from a specific backup
     public func restoreFromBackup(_ backup: BackupInfo) throws {
         guard FileManager.default.fileExists(atPath: backup.fullPath) else {
-            throw ConfigBackupError.backupNotFound(backup.fullPath)
+            throw KeyPathError.configuration(.backupNotFound(path: backup.fullPath))
         }
 
         // Read backup content
@@ -117,7 +117,7 @@ public final class ConfigBackupManager {
 
         // Validate backup content
         guard isValidConfig(content: content) else {
-            throw ConfigBackupError.invalidBackup(backup.filename)
+            throw KeyPathError.configuration(.corruptedFormat(details: "Invalid backup: \(backup.filename)"))
         }
 
         // Create a backup of current config (if it exists) before restoring

@@ -193,7 +193,7 @@ class KanataConfigManager {
         AppLogger.shared.log("⚙️ [ConfigManager] Loading configuration from \(configPath)")
 
         guard FileManager.default.fileExists(atPath: configPath) else {
-            throw ConfigManagerError.configNotFound
+            throw KeyPathError.configuration(.fileNotFound(path: configPath))
         }
 
         let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
@@ -225,7 +225,8 @@ class KanataConfigManager {
 
         // Validate before saving
         if configSet.validationResult.hasBlockingErrors {
-            throw ConfigManagerError.invalidConfiguration(configSet.validationResult.errors)
+            let errorMessages = configSet.validationResult.errors.map { $0.message }
+            throw KeyPathError.configuration(.validationFailed(errors: errorMessages))
         }
 
         // Create backup if existing config exists
@@ -244,7 +245,7 @@ class KanataConfigManager {
         // Verify write
         let verification = validateConfiguration(configSet.generatedConfig)
         if verification.hasBlockingErrors {
-            throw ConfigManagerError.saveVerificationFailed
+            throw KeyPathError.configuration(.saveFailed(reason: "Save verification failed"))
         }
 
         AppLogger.shared.log("✅ [ConfigManager] Configuration saved successfully")

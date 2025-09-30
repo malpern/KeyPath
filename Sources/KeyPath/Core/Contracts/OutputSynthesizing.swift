@@ -126,7 +126,7 @@ extension OutputSynthesizing {
     private func textToKeyEvents(_: String) throws -> [KeyEvent] {
         // This would contain the actual text-to-keycode conversion logic
         // For now, this is a placeholder that would need platform-specific implementation
-        throw OutputError.unsupportedOperation("Text typing not yet implemented")
+        throw KeyPathError.system(.outputSynthesisFailed(reason: "Text typing not yet implemented"))
     }
 }
 

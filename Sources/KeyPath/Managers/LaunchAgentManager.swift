@@ -119,7 +119,7 @@ final class LaunchAgentManager {
         task.waitUntilExit()
 
         if task.terminationStatus != 0 {
-            throw LaunchAgentError.loadFailed
+            throw KeyPathError.process(.startFailed(reason: "Failed to load LaunchAgent"))
         }
 
         AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent loaded")
@@ -137,7 +137,7 @@ final class LaunchAgentManager {
         task.waitUntilExit()
 
         if task.terminationStatus != 0 {
-            throw LaunchAgentError.unloadFailed
+            throw KeyPathError.process(.stopFailed(underlyingError: "Failed to unload LaunchAgent"))
         }
 
         AppLogger.shared.log("✅ [LaunchAgent] LaunchAgent unloaded")

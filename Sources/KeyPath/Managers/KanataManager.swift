@@ -561,7 +561,7 @@ class KanataManager {
     /// Restore last known good config in case of validation failure
     private func restoreLastGoodConfig() async throws {
         guard let backup = lastGoodConfig else {
-            throw ConfigError.noBackupAvailable
+            throw KeyPathError.configuration(.backupNotFound(path: "last good config"))
         }
 
         try backup.write(toFile: configPath, atomically: true, encoding: .utf8)
@@ -1452,7 +1452,7 @@ class KanataManager {
                 await MainActor.run {
                     saveStatus = .failed("Config saved but reload failed: \(errorMessage)")
                 }
-                throw ConfigError.reloadFailed("Hot reload failed: \(errorMessage)")
+                throw KeyPathError.configuration(.reloadFailed(reason: "Hot reload failed: \(errorMessage)"))
             }
 
             // Reset to idle after a delay
@@ -1529,7 +1529,7 @@ class KanataManager {
                 await MainActor.run {
                     saveStatus = .failed("UDP server required for hot reload failed: \(errorMessage)")
                 }
-                throw ConfigError.reloadFailed("UDP server required for validation-on-demand failed: \(errorMessage)")
+                throw KeyPathError.configuration(.reloadFailed(reason: "UDP server required for validation-on-demand failed: \(errorMessage)"))
             }
 
             // Reset to idle after a delay
@@ -3244,7 +3244,7 @@ class KanataManager {
                     AppLogger.shared.log(
                         "⚠️ [SaveConfig] UDP validation failed in test environment - proceeding with save")
                 } else {
-                    throw ConfigError.validationFailed(errors.map(\.description))
+                    throw KeyPathError.configuration(.validationFailed(errors: errors.map(\.description)))
                 }
             case let .networkError(message):
                 AppLogger.shared.log(
@@ -3325,7 +3325,7 @@ class KanataManager {
                 AppLogger.shared.log("🎭 [Validation-PostSave] Showing error dialog to user...")
                 await showValidationErrorDialog(title: "Save Verification Failed", errors: postSaveValidation.errors)
                 AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
-                throw ConfigError.postSaveValidationFailed(errors: postSaveValidation.errors)
+                throw KeyPathError.configuration(.validationFailed(errors: postSaveValidation.errors))
             }
         } catch {
             AppLogger.shared.log("❌ [Validation-PostSave] Failed to read saved config: \(error)")

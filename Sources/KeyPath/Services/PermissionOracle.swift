@@ -437,11 +437,11 @@ actor PermissionOracle {
             
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                throw OracleError.timeout
+                throw KeyPathError.permission(.privilegedOperationFailed(operation: "permission check", reason: "Operation timed out"))
             }
-            
+
             guard let result = try await group.next() else {
-                throw OracleError.timeout
+                throw KeyPathError.permission(.privilegedOperationFailed(operation: "permission check", reason: "Operation timed out"))
             }
             
             group.cancelAll()

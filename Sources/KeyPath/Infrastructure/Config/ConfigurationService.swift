@@ -125,7 +125,7 @@ public struct KanataConfiguration: Sendable {
 
     public func reload() async throws -> KanataConfiguration {
         guard FileManager.default.fileExists(atPath: configurationPath) else {
-            throw ConfigurationError.fileNotFound(configurationPath)
+            throw KeyPathError.configuration(.fileNotFound(path: configurationPath))
         }
 
         do {
@@ -139,10 +139,10 @@ public struct KanataConfiguration: Sendable {
             }
 
             return config
-        } catch let error as ConfigurationError {
+        } catch let error as KeyPathError {
             throw error
         } catch {
-            throw ConfigurationError.loadFailed(error.localizedDescription)
+            throw KeyPathError.configuration(.loadFailed(reason: error.localizedDescription))
         }
     }
 
@@ -160,7 +160,7 @@ public struct KanataConfiguration: Sendable {
     public func validate(content: String) throws -> KanataConfiguration {
         // Basic validation - ensure content is not empty
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ConfigurationError.invalidFormat("Configuration content is empty")
+            throw KeyPathError.configuration(.invalidFormat(details: "Configuration content is empty"))
         }
 
         // Get file modification date
