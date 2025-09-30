@@ -257,7 +257,7 @@ private let connectionMaxAge: TimeInterval = 30.0
 2. **Simplify UDP Client** - 800 → ~150 lines
 3. **Consolidate Configuration** - One clear API
 4. **Beginner-friendly docs** - 10-minute contributor guide
-5. **Complete error migration** - Remove old error types (16 remaining)
+5. ~~**Complete error migration**~~ - ✅ **DONE** (all types migrated)
 6. **Architecture diagram** - Visual guide to components
 
 ### 🔴 What's Blocking (Must Fix)
@@ -306,10 +306,10 @@ CONTRIBUTING.md
 - Clear public interface
 - Internal complexity hidden
 
-**6. Complete Error Migration** (~2 days)
-- Migrate remaining 16 error types to KeyPathError
-- Remove deprecated types
-- Update all throw sites
+~~**6. Complete Error Migration**~~ ✅ **COMPLETED**
+- ✅ Migrated all 25 error throw sites to KeyPathError
+- ✅ Removed all deprecated types
+- ✅ Updated ContentView error handling
 
 **7. Simplify Wizard (Optional)** (~2 days)
 - Reduce edge case handling
@@ -402,16 +402,16 @@ The rest is polish. The architecture is fundamentally sound, you just need to ma
 - ✅ Created KeyPathError hierarchy
 - ✅ Added 56 comprehensive tests
 - ✅ Updated CI for dual test frameworks
+- ✅ **Completed error migration** (all 25 throw sites migrated, all deprecated types removed)
 
 **Remaining:**
 - ❌ Break up KanataManager (3,495 → ~800 lines)
-- ❌ Simplify UDP Client (800 → ~150 lines)
+- ❌ Simplify UDP Client (800 → ~150 lines) - **IN PROGRESS**
 - ❌ Consolidate Configuration system
 - ❌ Write CONTRIBUTING.md
 - ❌ Add architecture diagram
-- ❌ Complete error migration (16 types remaining)
 
-**Estimated Time to OSS-Ready:** 3-4 weeks (with critical path items)
+**Estimated Time to OSS-Ready:** 2-3 weeks (error migration complete, UDP simplification in progress)
 
 ---
 
