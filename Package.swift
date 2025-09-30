@@ -43,7 +43,9 @@ let package = Package(
                 .process("Resources")
             ],
             swiftSettings: [
-                .swiftLanguageMode(.v6)
+                .swiftLanguageMode(.v6),
+                // Surface concurrency issues clearly in Debug builds
+                .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         ),
         // Tests
@@ -52,7 +54,8 @@ let package = Package(
             dependencies: ["KeyPath"],
             path: "Tests/KeyPathTests",
             swiftSettings: [
-                .swiftLanguageMode(.v6)
+                .swiftLanguageMode(.v6),
+                .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         )
     ]

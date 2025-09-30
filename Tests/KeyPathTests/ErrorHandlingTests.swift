@@ -311,9 +311,10 @@ final class ErrorHandlingTests: XCTestCase {
         // Test config path scenarios
         let configPath = manager.configPath
 
-        // Verify path is reasonable
-        XCTAssertTrue(configPath.contains("Library"), "Config path should be in Library directory")
-        XCTAssertTrue(configPath.contains("KeyPath"), "Config path should contain KeyPath")
+        // Verify path is reasonable (support both legacy ~/.config and ~/Library variants)
+        let inLibrary = configPath.contains("Library") && configPath.contains("KeyPath")
+        let inDotConfig = configPath.contains(".config/keypath")
+        XCTAssertTrue(inLibrary || inDotConfig, "Config path should be in Library/KeyPath or ~/.config/keypath")
         XCTAssertTrue(configPath.hasSuffix(".kbd"), "Config path should have .kbd extension")
 
         // Test that path handling doesn't crash with edge cases

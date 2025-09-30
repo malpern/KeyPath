@@ -5,7 +5,7 @@ import AppKit
 
 /// Service for detecting and resolving conflicts with Karabiner-Elements
 @MainActor
-protocol KarabinerConflictManaging: AnyObject {
+internal protocol KarabinerConflictManaging: AnyObject {
     // Detection
     func isKarabinerDriverInstalled() -> Bool
     func isKarabinerDriverExtensionEnabled() -> Bool
@@ -26,7 +26,7 @@ protocol KarabinerConflictManaging: AnyObject {
 
 /// Manages detection and resolution of conflicts with Karabiner-Elements
 @MainActor
-final class KarabinerConflictService: KarabinerConflictManaging {
+internal final class KarabinerConflictService: KarabinerConflictManaging {
     // MARK: - Constants
 
     private let driverPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"

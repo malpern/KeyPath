@@ -747,7 +747,9 @@ public enum KanataKeyConverter {
             "left option": "lalt",
             "lalt": "lalt",
             "right option": "ralt",
-            "ralt": "ralt"
+            "ralt": "ralt",
+            "(": "lpar",
+            ")": "rpar"
         ]
 
         let lowercased = input.lowercased()
@@ -762,22 +764,32 @@ public enum KanataKeyConverter {
             return lowercased
         }
 
+        // For tokens that would break Kanata syntax, replace parens explicitly
+        if lowercased.contains("(") { return "lpar" }
+        if lowercased.contains(")") { return "rpar" }
+
         // For function keys and others, return as-is but lowercased
         return lowercased
     }
 
     /// Convert KeyPath output sequence to Kanata output format
     public static func convertToKanataSequence(_ output: String) -> String {
-        // Handle multi-character sequences
-        if output.contains(" ") {
-            // Multi-key sequence
-            let keys = output.components(separatedBy: " ")
-            let kanataKeys = keys.map { convertToKanataKey($0) }
+        // Split on any whitespace
+        let tokens = output.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        if tokens.count > 1 {
+            let kanataKeys = tokens.map { convertToKanataKey($0) }
             return "(\(kanataKeys.joined(separator: " ")))"
-        } else {
-            // Single key
-            return convertToKanataKey(output)
         }
+
+        // Single token: if it contains non-alphanumerics or is long, wrap as a sequence
+        let token = output
+        let isAlnumOnly = token.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) }
+        if !isAlnumOnly || token.count > 4 {
+            let safe = convertToKanataKey(token)
+            return "(\(safe))"
+        }
+
+        return convertToKanataKey(token)
     }
 }
 

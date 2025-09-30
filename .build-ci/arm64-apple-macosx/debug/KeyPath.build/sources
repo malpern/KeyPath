@@ -77,6 +77,7 @@
 /Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/DiagnosticsService.swift
 /Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KanataConfigGenerator.swift
 /Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KanataUDPClient.swift
+/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KarabinerConflictService.swift
 /Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift
 /Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeychainService.swift
 /Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/MainAppStateController.swift

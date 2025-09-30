@@ -19,11 +19,16 @@ export NSUnbufferedIO=YES
 echo "⏱️  Timeout: ${TIMEOUT_SECONDS}s"
 echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
 
+# 0) Isolated build/test dirs and HOME to avoid parallel-agent collisions
+SCRATCH_PATH=${SCRATCH_PATH:-.build-ci}
+export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
+echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
+
 # 2) Build tests
 echo "🔨 Building tests..."
-swift build --build-tests
+swift build --build-tests --scratch-path "$SCRATCH_PATH"
 
-BIN_DIR=$(swift build --build-tests --show-bin-path)
+BIN_DIR=$(swift build --build-tests --scratch-path "$SCRATCH_PATH" --show-bin-path)
 
 # 3) Locate test bundle
 BUNDLE=""
@@ -97,4 +102,3 @@ else
   echo "❌ Test run failed (exit $EXIT_CODE)"
   exit $EXIT_CODE
 fi
-

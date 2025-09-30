@@ -476,6 +476,12 @@
     "swiftmodule": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataUDPClient~partial.swiftmodule",
     "swift-dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataUDPClient.swiftdeps"
   },
+  "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KarabinerConflictService.swift": {
+    "dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerConflictService.d",
+    "object": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerConflictService.swift.o",
+    "swiftmodule": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerConflictService~partial.swiftmodule",
+    "swift-dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KarabinerConflictService.swiftdeps"
+  },
   "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPath/Services/KeyboardCapture.swift": {
     "dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyboardCapture.d",
     "object": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyboardCapture.swift.o",

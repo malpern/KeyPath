@@ -1,0 +1,17 @@
+{
+  "": {
+    "swift-dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/master.swiftdeps"
+  },
+  "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPathCLI/TestUIAutomation.swift": {
+    "dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/TestUIAutomation.d",
+    "object": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/TestUIAutomation.swift.o",
+    "swiftmodule": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/TestUIAutomation~partial.swiftmodule",
+    "swift-dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/TestUIAutomation.swiftdeps"
+  },
+  "/Volumes/FlashGordon/Dropbox/code/KeyPath/Sources/KeyPathCLI/main.swift": {
+    "dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/main.d",
+    "object": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/main.swift.o",
+    "swiftmodule": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-karabiner/arm64-apple-macosx/debug/KeyPathCLI.build/main.swiftdeps"
+  }
+}

@@ -408,21 +408,22 @@ The rest is polish. The architecture is fundamentally sound, you just need to ma
 - ✅ **Completed error migration** (all 25 throw sites migrated, all deprecated types removed)
 - ✅ **Simplified UDP Client** (773 → 369 lines, 52% reduction)
 
-**In Progress:**
-- 🚧 **KarabinerConflictService extraction** (599 lines extracted, reduces KanataManager 3,465 → 2,828 lines)
-  - ⚠️ Build issue: Swift PM emit-module error (under investigation)
-  - Service created with protocol-based design
+**Recently Completed:**
+- ✅ **KarabinerConflictService extraction** (599 lines extracted, reduces KanataManager 3,465 → 2,828 lines, -18%)
+  - Protocol-based design with `internal` visibility
   - All Karabiner methods delegated to service
-  - Code committed (commit 9d41a1b) but not yet functional
+  - Detection: driver, extension, services, daemon status
+  - Resolution: kill grabber, disable permanently, start daemon
+- ✅ **CONTRIBUTING.md** - Beginner-friendly guide with 10-minute quick start, task index, patterns, and test examples
 
 **Remaining:**
-- ❌ Fix KarabinerConflictService build issue
+- ❌ Verify KarabinerConflictService build (visibility fixed, needs confirmation)
 - ❌ Continue KanataManager reduction (2,828 → ~800 lines, ~2,000 lines to go)
 - ❌ Consolidate Configuration system
-- ❌ Write CONTRIBUTING.md (TOP PRIORITY per roadmap)
 - ❌ Add architecture diagram
+- ❌ Optional: Simplify wizard edge cases
 
-**Estimated Time to OSS-Ready:** 1-2 weeks (if Karabiner extraction build issue resolved)
+**Estimated Time to OSS-Ready:** 1 week (major blockers complete)
 
 ---
 
