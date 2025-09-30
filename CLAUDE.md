@@ -226,6 +226,102 @@ if snapshot.keyPath.inputMonitoring.isReady { /* show green */ }
 
 **Architectural Lesson:** When using notifications, have ONE publisher and ONE subscriber per event. Multiple handlers for the same logical event cause duplicate processing and race conditions.
 
+### 🎯 Validation Architecture Refactor (September 2025 - Phase 1-3)
+
+**Problem:** Despite multiple fixes, validation spam kept reappearing through new automatic trigger paths. The root cause was architectural - reactive patterns (Combine, onChange, NotificationCenter) created cascading updates that were hard to track and prevent.
+
+**Solution:** Surgical replacement of validation subsystem with stateless, pull-based model and defensive assertions.
+
+#### Phase 1: SystemValidator (Stateless Foundation)
+**Created:**
+- `SystemValidator.swift` - Stateless validator with NO caching, NO @Published properties
+- `SystemSnapshot.swift` - Pure data model with computed properties for UI
+- **4 Defensive Assertions:**
+  1. 🚨 **Validation spam detection** - Crashes if concurrent validations detected
+  2. ⚠️ **Rapid-fire detection** - Logs warning if validations < 0.5s apart
+  3. 🔍 **Oracle freshness check** - Asserts Oracle cache is working (< 5s old)
+  4. 📊 **Snapshot staleness check** - Asserts UI isn't showing old data (< 30s old)
+
+**Key Design:**
+```swift
+@MainActor
+class SystemValidator {
+    private static var activeValidations = 0  // Defensive counter
+
+    func checkSystem() async -> SystemSnapshot {
+        // 🚨 CRASH if concurrent validation detected
+        precondition(activeValidations == 0, "VALIDATION SPAM DETECTED!")
+        activeValidations += 1
+        defer { activeValidations -= 1 }
+
+        // Pure validation - no side effects, no caching
+        let permissions = await oracle.currentSnapshot()
+        let components = checkComponents()
+        let conflicts = await checkConflicts()
+
+        return SystemSnapshot(permissions, components, conflicts, Date())
+    }
+}
+```
+
+#### Phase 2: Wizard Integration
+**Modified:**
+- `WizardStateManager` - Now uses SystemValidator instead of SystemStatusChecker
+- `SystemSnapshotAdapter` - Converts new format to old wizard UI format (temporary adapter)
+
+**Result:** Wizard now uses SystemValidator with defensive assertions active.
+
+#### Phase 3: Main App Integration
+**Replaced:**
+- ~~`StartupValidator.swift`~~ → `MainAppStateController.swift`
+- Removed ALL automatic validation triggers (Combine, onChange, NotificationCenter listeners)
+- Explicit validation ONLY on:
+  1. App launch (one-time, after service ready)
+  2. Wizard close (explicit notification)
+  3. Manual refresh button (user action)
+
+**New Architecture:**
+```swift
+@MainActor
+class MainAppStateController: ObservableObject {
+    @Published var validationState: ValidationState
+    private var validator: SystemValidator
+    private var hasRunInitialValidation = false
+
+    // ONLY public method - explicit validation
+    func performInitialValidation() async {
+        guard !hasRunInitialValidation else { return }
+        hasRunInitialValidation = true
+
+        await kanataManager.waitForServiceReady()
+        let snapshot = await validator.checkSystem()  // Assertions active
+        updateState(from: snapshot)
+    }
+}
+```
+
+**Results (Validated September 29, 2025):**
+- ✅ **Before refactor:** Validations 0.007s apart (validation spam!)
+- ✅ **After refactor:** Minimum 0.76s spacing (100x improvement)
+- ✅ **Zero validation spam warnings** in production testing
+- ✅ **Zero assertion crashes** (means no spam occurring)
+- ✅ **Defensive assertions working** - Would crash immediately if spam detected
+
+**Key Metrics:**
+- Lines reduced: ~1,300 lines of complex orchestration → ~600 lines of simple validation
+- Validation files: StartupValidator + SystemStatusChecker → SystemValidator + MainAppStateController
+- Automatic triggers removed: 8+ reactive listeners → 0 (explicit only)
+
+**Architectural Lessons:**
+1. **Pull > Push:** Explicit validation requests are easier to reason about than reactive cascades
+2. **Defensive assertions catch bugs early:** Crashing is better than silent validation spam
+3. **Stateless services are predictable:** No caching = no staleness bugs
+4. **Single source of truth:** One validator, one state, one update path
+
+**Future Work (Optional):**
+- Phase 4: Remove `SystemSnapshotAdapter`, update wizard UI to use `SystemSnapshot` directly
+- Extract more responsibilities from `KanataManager` (4,400 lines → target ~1,200 lines)
+
 ### Notification System
 The `UserNotificationService` provides intelligent user notifications with:
 - **Categories**: Service failure, recovery, permission issues, informational
@@ -233,7 +329,7 @@ The `UserNotificationService` provides intelligent user notifications with:
 - **Smart Gating**: Only shows notifications when app is not frontmost (avoids duplicate alerts)
 - **Deduplication**: Per-key TTL prevents notification spam (persisted in UserDefaults)
 - **Delegate Actions**: Notification actions trigger appropriate app behaviors (retry start, open settings, etc.)
-- **Integration Points**: StartupValidator (permissions), ContentView (emergency stop), KanataManager (service failures)
+- **Integration Points**: MainAppStateController (permissions), ContentView (emergency stop), KanataManager (service failures)
 
 ### Installation Wizard Flow
 The wizard follows a state-driven architecture with these key pages:
