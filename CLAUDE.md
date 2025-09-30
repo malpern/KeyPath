@@ -319,8 +319,153 @@ class MainAppStateController: ObservableObject {
 4. **Single source of truth:** One validator, one state, one update path
 
 **Future Work (Optional):**
-- Phase 4: Remove `SystemSnapshotAdapter`, update wizard UI to use `SystemSnapshot` directly
+- Phase 5: Remove `SystemSnapshotAdapter`, update wizard UI to use `SystemSnapshot` directly
 - Extract more responsibilities from `KanataManager` (4,400 lines → target ~1,200 lines)
+
+## 🚫 Critical Anti-Patterns to Avoid
+
+### 1. Permission Detection Anti-Patterns
+
+```swift
+// ❌ NEVER DO THIS - Creates inconsistent state
+func checkPermissionsDirectly() -> Bool {
+    let axGranted = AXIsProcessTrusted()
+    let imGranted = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+    return axGranted && imGranted  // Bypasses Oracle!
+}
+
+// ❌ NEVER DO THIS - Multiple sources of truth
+if PermissionService.hasAccessibility() && Oracle.snapshot().accessibility.isReady {
+    // Which one is correct? Creates impossible debugging
+}
+
+// ❌ NEVER DO THIS - Side effects during checking
+func checkInputMonitoring() -> Bool {
+    // IOHIDCheckAccess can prompt user or auto-add to System Settings!
+    return IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+}
+```
+
+### 2. Validation Anti-Patterns
+
+```swift
+// ❌ NEVER DO THIS - Automatic validation triggers
+.onChange(of: kanataManager.isRunning) { _ in
+    Task { await validator.refreshValidation() }  // Creates validation spam!
+}
+
+// ❌ NEVER DO THIS - Multiple notification handlers for same event
+NotificationCenter.default.addObserver(forName: .wizardClosed) { _ in validate() }
+NotificationCenter.default.addObserver(forName: .kp_startupRevalidate) { _ in validate() }
+// Both fire for wizard close → duplicate validations
+
+// ❌ NEVER DO THIS - Manual status override
+func forcePermissionStatus() {
+    isPermissionGranted = true  // Oracle will contradict this
+}
+```
+
+### 3. Service Management Anti-Patterns
+
+```swift
+// ❌ NEVER DO THIS - Service management without health checks
+func startKanataService() {
+    launchctl("load", plistPath)
+    // Service might fail to start, create zombies, or conflict
+}
+
+// ❌ NEVER DO THIS - Restart loops without cooldown
+func ensureServiceRunning() {
+    if !isRunning {
+        restart()
+        ensureServiceRunning()  // Infinite loop!
+    }
+}
+```
+
+### 4. Root Process Permission Anti-Patterns
+
+```swift
+// ❌ NEVER DO THIS - Trust kanata's self-reported permission status
+let tcpStatus = await kanataClient.checkMacOSPermissions()
+if tcpStatus.input_monitoring == "granted" {
+    // This can be false negative on macOS!
+}
+
+// ❌ NEVER DO THIS - Check permissions from root process context
+func checkInputMonitoringFromDaemon() -> Bool {
+    return IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+    // Unreliable for root processes
+}
+
+// ✅ CORRECT - Check from GUI, verify functionality via daemon
+let guiCheck = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+let functionalCheck = await kanataClient.testKeyCapture()
+let shouldStart = guiCheck && functionalCheck.canAccess
+```
+
+## 📜 Architecture Decision Records
+
+### ADR-001: Oracle Pattern for Permission Detection
+**Decision:** Single source of truth actor with deterministic hierarchy
+**Status:** Accepted ✅
+**Consequences:** Eliminated inconsistent permission detection, 100% reliability
+
+### ADR-002: State-Driven Wizard Architecture
+**Decision:** Pure functions for state detection, deterministic navigation
+**Status:** Accepted ✅
+**Consequences:** Handles 50+ edge cases automatically, predictable behavior
+
+### ADR-003: Separate LaunchDaemon Services
+**Decision:** Individual services for Kanata, VirtualHID Manager, VirtualHID Daemon
+**Status:** Accepted ✅
+**Consequences:** Granular lifecycle management, targeted failure recovery
+
+### ADR-004: Manager Consolidation
+**Decision:** Consolidate SimpleKanataManager functionality into KanataManager
+**Status:** Completed ✅ (August 2025)
+**Rationale:** SimpleKanataManager was a thin UI wrapper - functionality better integrated directly
+**Consequences:** Single manager class, simpler architecture, but file now too large (4,400 lines)
+
+### ADR-005: Root Process Permission Detection Limitations
+**Decision:** Move permission checking from Kanata daemon to GUI context
+**Status:** Completed ✅ (August 2025)
+**Rationale:** IOHIDCheckAccess() unreliable for root processes on macOS - returns false negatives even when permission granted and functional
+**Evidence:** Kanata captures keystrokes successfully while reporting "input_monitoring": "denied" via UDP API
+**Consequences:** Reliable permission detection, matches industry best practices (Karabiner-Elements pattern)
+
+### ADR-006: Oracle Apple API Priority Architecture
+**Decision:** Apple APIs (IOHIDCheckAccess from GUI context) take absolute precedence over TCC database
+**Status:** ✅ RESTORED (commits 8445b36, 87c36ca - September 1, 2025)
+**Problem:** Commit 7f68821 broke Oracle by bypassing Apple APIs with TCC database even when APIs returned definitive results
+**Solution:** Apple API results `.granted/.denied` are AUTHORITATIVE; TCC database used ONLY when Apple API returns `.unknown`
+
+### ADR-007: UI Permission Detection Consistency
+**Decision:** Remove all Oracle overrides from SystemStatusChecker to ensure UI consistency
+**Status:** ✅ COMPLETED (commit bbdd053 - September 1, 2025)
+**Problem:** Different UI components showed conflicting permission status
+**Solution:** SystemStatusChecker now trusts Oracle results unconditionally; all UI uses single source
+
+### ADR-008: Validation Architecture Refactor
+**Decision:** Replace reactive validation (Combine/onChange/NotificationCenter) with stateless pull-based model
+**Status:** ✅ COMPLETED (September 29, 2025 - Phases 1-4)
+**Problem:** Validation spam from cascading reactive updates (validations 0.007s apart)
+**Solution:** Stateless SystemValidator with defensive assertions, explicit-only validation triggers
+**Results:** 100x improvement (0.007s → 0.76s spacing), zero validation spam, 54% code reduction
+**Replaced:** StartupValidator → MainAppStateController
+
+## ⚠️ Critical Reminders
+
+**This architecture represents months of debugging complex macOS integration issues. Every design decision solves specific edge cases discovered through real-world usage.**
+
+**Before making architectural changes:**
+1. Review git history for the specific component
+2. Check for related ADRs above
+3. Verify Oracle consistency is maintained
+4. Test validation behavior (no spam, proper spacing)
+5. Confirm all UI shows consistent permission status
+
+**The system works reliably because of this architecture, not despite it.**
 
 ### Notification System
 The `UserNotificationService` provides intelligent user notifications with:
