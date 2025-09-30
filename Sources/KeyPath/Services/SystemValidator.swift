@@ -17,6 +17,9 @@ class SystemValidator {
     /// Track active validations to detect spam (concurrent validations)
     private static var activeValidations = 0
 
+    /// Shared validation task - if validation is already running, concurrent calls wait for it
+    private static var inProgressValidation: Task<SystemSnapshot, Never>?
+
     /// Track validation timing to detect rapid-fire calls (indicates automatic triggers)
     private static var lastValidationStart: Date?
     private static var validationCount = 0
@@ -46,24 +49,38 @@ class SystemValidator {
 
     /// Check complete system state
     /// This is the ONLY public method - returns fresh state every time
+    ///
+    /// If validation is already in progress, this will wait for it to complete
+    /// rather than starting a concurrent validation. This prevents validation spam
+    /// when multiple UI components request validation simultaneously.
     func checkSystem() async -> SystemSnapshot {
-        // 🚨 DEFENSIVE ASSERTION 1: Detect validation spam (concurrent validations)
-        let currentActive = Self.activeValidations
-        precondition(currentActive == 0,
-            """
-            🚨 VALIDATION SPAM DETECTED!
-            Concurrent validation detected: \(currentActive) validation(s) already running.
-            This indicates automatic reactivity triggers that should have been removed.
-            Check for: Combine publishers, SwiftUI onChange, NotificationCenter auto-triggers.
-            """)
+        // If validation is already in progress, wait for it
+        if let inProgress = Self.inProgressValidation {
+            AppLogger.shared.log("🔍 [SystemValidator] Validation already in progress - waiting for result")
+            return await inProgress.value
+        }
 
+        // Start new validation
+        let validationTask = Task<SystemSnapshot, Never> { @MainActor in
+            await self.performValidation()
+        }
+
+        Self.inProgressValidation = validationTask
+        defer { Self.inProgressValidation = nil }
+
+        return await validationTask.value
+    }
+
+    /// Perform the actual validation work
+    /// This is called by checkSystem() and should not be called directly
+    private func performValidation() async -> SystemSnapshot {
         Self.activeValidations += 1
         defer { Self.activeValidations -= 1 }
 
         Self.validationCount += 1
         let myID = Self.validationCount
 
-        // 🚨 DEFENSIVE ASSERTION 2: Detect rapid-fire validations (indicates automatic triggers)
+        // 🚨 DEFENSIVE WARNING: Detect rapid-fire validations (indicates automatic triggers)
         if let lastStart = Self.lastValidationStart {
             let interval = Date().timeIntervalSince(lastStart)
             if interval < 0.5 {
@@ -96,7 +113,7 @@ class SystemValidator {
         AppLogger.shared.log("🔍 [SystemValidator] Validation #\(myID) complete in \(String(format: "%.3f", duration))s")
         AppLogger.shared.log("🔍 [SystemValidator] Result: ready=\(snapshot.isReady), blocking=\(snapshot.blockingIssues.count), total=\(snapshot.allIssues.count)")
 
-        // 🚨 DEFENSIVE ASSERTION 3: Verify snapshot is fresh
+        // 🚨 DEFENSIVE ASSERTION: Verify snapshot is fresh
         snapshot.validate()
 
         return snapshot
@@ -201,6 +218,7 @@ class SystemValidator {
         activeValidations = 0
         validationCount = 0
         lastValidationStart = nil
+        inProgressValidation = nil
         AppLogger.shared.log("🔍 [SystemValidator] Counters reset")
     }
 }

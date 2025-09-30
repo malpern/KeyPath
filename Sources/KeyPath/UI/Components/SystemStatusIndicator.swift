@@ -52,26 +52,30 @@ struct SystemStatusIndicator: View {
         }
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Click to open system setup wizard")
+        .opacity(validator.validationState == nil ? 0 : 1)  // Invisible but reserves space
+        .animation(.easeIn(duration: 0.2), value: validator.validationState == nil)  // Smooth fade-in
     }
 
     // MARK: - Icon View
 
     @ViewBuilder
     private func iconView() -> some View {
-        switch validator.validationState {
-        case .checking:
-            Image(systemName: "gear")
-                .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
-                .onAppear { isAnimating = true }
-                .onDisappear { isAnimating = false }
-        case .success:
-            Image(systemName: "checkmark")
-        case let .failed(blockingCount, _):
-            if blockingCount > 0 {
-                Image(systemName: "exclamationmark.triangle")
-            } else {
-                Image(systemName: "exclamationmark")
+        if let state = validator.validationState {
+            switch state {
+            case .checking:
+                Image(systemName: "gear")
+                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
+                    .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
+                    .onAppear { isAnimating = true }
+                    .onDisappear { isAnimating = false }
+            case .success:
+                Image(systemName: "checkmark")
+            case let .failed(blockingCount, _):
+                if blockingCount > 0 {
+                    Image(systemName: "exclamationmark.triangle")
+                } else {
+                    Image(systemName: "exclamationmark")
+                }
             }
         }
     }
@@ -79,18 +83,20 @@ struct SystemStatusIndicator: View {
     // MARK: - Computed Properties
 
     private var backgroundColor: Color {
-        switch validator.validationState {
+        guard let state = validator.validationState else { return Color.clear }
+        switch state {
         case .checking:
-            Color.blue.opacity(0.1)
+            return Color.blue.opacity(0.1)
         case .success:
-            Color.green.opacity(0.1)
+            return Color.green.opacity(0.1)
         case let .failed(blockingCount, _):
-            blockingCount > 0 ? Color.red.opacity(0.1) : Color.orange.opacity(0.1)
+            return blockingCount > 0 ? Color.red.opacity(0.1) : Color.orange.opacity(0.1)
         }
     }
 
     private var usesSolidChip: Bool {
-        switch validator.validationState {
+        guard let state = validator.validationState else { return false }
+        switch state {
         case .success: return true
         case let .failed(blocking, _): return blocking > 0
         case .checking: return false
@@ -98,46 +104,50 @@ struct SystemStatusIndicator: View {
     }
 
     private var borderColor: Color {
-        switch validator.validationState {
+        guard let state = validator.validationState else { return Color.clear }
+        switch state {
         case .checking:
-            Color.blue.opacity(0.3)
+            return Color.blue.opacity(0.3)
         case .success:
-            Color.green.opacity(0.3)
+            return Color.green.opacity(0.3)
         case let .failed(blockingCount, _):
-            blockingCount > 0 ? Color.red.opacity(0.3) : Color.orange.opacity(0.3)
+            return blockingCount > 0 ? Color.red.opacity(0.3) : Color.orange.opacity(0.3)
         }
     }
 
     private var iconColor: Color {
-        switch validator.validationState {
+        guard let state = validator.validationState else { return Color.gray }
+        switch state {
         case .checking:
-            .blue
+            return Color.blue
         case .success:
-            .green
+            return Color.green
         case let .failed(blockingCount, _):
-            blockingCount > 0 ? .red : .orange
+            return blockingCount > 0 ? Color.red : Color.orange
         }
     }
 
     private var shadowColor: Color {
-        switch validator.validationState {
+        guard let state = validator.validationState else { return Color.clear }
+        switch state {
         case .checking:
-            Color.blue.opacity(0.2)
+            return Color.blue.opacity(0.2)
         case .success:
-            Color.green.opacity(0.2)
+            return Color.green.opacity(0.2)
         case let .failed(blockingCount, _):
-            blockingCount > 0 ? Color.red.opacity(0.2) : Color.orange.opacity(0.2)
+            return blockingCount > 0 ? Color.red.opacity(0.2) : Color.orange.opacity(0.2)
         }
     }
 
     private var accessibilityLabel: String {
-        switch validator.validationState {
+        guard let state = validator.validationState else { return "System status unknown" }
+        switch state {
         case .checking:
-            "System status checking"
+            return "System status checking"
         case .success:
-            "System status good"
+            return "System status good"
         case let .failed(blockingCount, _):
-            blockingCount > 0 ? "System has critical issues" : "System has warnings"
+            return blockingCount > 0 ? "System has critical issues" : "System has warnings"
         }
     }
 
@@ -159,13 +169,17 @@ struct SystemStatusIndicator: View {
         onClick?()
 
         // Log the current state for debugging
-        switch validator.validationState {
-        case .checking:
-            AppLogger.shared.log("🔍 [SystemStatusIndicator] Opening wizard while validation in progress")
-        case .success:
-            AppLogger.shared.log("✅ [SystemStatusIndicator] Opening wizard despite healthy system")
-        case let .failed(blockingCount, totalCount):
-            AppLogger.shared.log("❌ [SystemStatusIndicator] Opening wizard due to \(blockingCount) blocking issues out of \(totalCount) total")
+        if let state = validator.validationState {
+            switch state {
+            case .checking:
+                AppLogger.shared.log("🔍 [SystemStatusIndicator] Opening wizard while validation in progress")
+            case .success:
+                AppLogger.shared.log("✅ [SystemStatusIndicator] Opening wizard despite healthy system")
+            case let .failed(blockingCount, totalCount):
+                AppLogger.shared.log("❌ [SystemStatusIndicator] Opening wizard due to \(blockingCount) blocking issues out of \(totalCount) total")
+            }
+        } else {
+            AppLogger.shared.log("❓ [SystemStatusIndicator] Opening wizard with no validation result yet")
         }
     }
 }

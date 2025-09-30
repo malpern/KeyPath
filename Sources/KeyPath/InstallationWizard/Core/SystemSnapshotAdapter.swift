@@ -25,81 +25,142 @@ struct SystemSnapshotAdapter {
     }
 
     private static func adaptSystemState(_ snapshot: SystemSnapshot) -> WizardSystemState {
-        // If conflicts exist, that's highest priority
+        // Priority order matches wizard logic (SystemStatusChecker.determineSystemState)
+        // This ensures main screen shows same status as wizard
+
+        AppLogger.shared.log("📊 [SystemSnapshotAdapter] === ADAPTER STATE DETERMINATION ===")
+
+        // 1. If conflicts exist, that's highest priority
         if snapshot.conflicts.hasConflicts {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter] Decision: CONFLICTS DETECTED (\(snapshot.conflicts.conflicts.count) conflicts)")
             return .conflictsDetected(conflicts: snapshot.conflicts.conflicts)
         }
 
-        // Check permissions
+        // 2. ⭐ Check if Kanata is running FIRST (matches wizard line 674)
+        // If kanata is running successfully, show active regardless of sub-component health
+        // This is the key fix: daemon/vhid are implementation details
+        if snapshot.health.kanataRunning {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter] Decision: ACTIVE (kanata running, ignoring sub-component health)")
+            return .active // Show as active even if daemon/vhid unhealthy
+        }
+
+        AppLogger.shared.log("📊 [SystemSnapshotAdapter] Kanata NOT running, checking prerequisites...")
+
+        // 3. Only check permissions if kanata is NOT running
         let missingPerms = getMissingPermissions(snapshot)
         if !missingPerms.isEmpty {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter] Decision: MISSING PERMISSIONS (\(missingPerms.count) missing)")
+            for perm in missingPerms {
+                AppLogger.shared.log("📊 [SystemSnapshotAdapter]   - Missing: \(perm)")
+            }
             return .missingPermissions(missing: missingPerms)
         }
 
-        // Check components
+        // 4. Check components
         let missingComponents = getMissingComponents(snapshot)
         if !missingComponents.isEmpty {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter] Decision: MISSING COMPONENTS (\(missingComponents.count) missing)")
+            for comp in missingComponents {
+                AppLogger.shared.log("📊 [SystemSnapshotAdapter]   - Missing: \(comp)")
+            }
             return .missingComponents(missing: missingComponents)
         }
 
-        // Check health
+        // 5. Check daemon health
         if !snapshot.health.karabinerDaemonRunning {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter] Decision: DAEMON NOT RUNNING")
             return .daemonNotRunning
         }
 
-        if !snapshot.health.kanataRunning {
-            return .serviceNotRunning
-        }
-
-        // System is ready
-        if snapshot.health.kanataRunning {
-            return .active
-        }
-
-        return .ready
+        // 6. All components ready but kanata not running
+        AppLogger.shared.log("📊 [SystemSnapshotAdapter] Decision: SERVICE NOT RUNNING (everything ready but kanata not started)")
+        return .serviceNotRunning
     }
 
     private static func getMissingPermissions(_ snapshot: SystemSnapshot) -> [PermissionRequirement] {
         var missing: [PermissionRequirement] = []
 
-        // KeyPath permissions
-        if !snapshot.permissions.keyPath.inputMonitoring.isReady {
+        AppLogger.shared.log("📊 [SystemSnapshotAdapter] Checking permissions (using isBlocking, not isReady):")
+
+        // Match wizard logic (SystemStatusChecker lines 282-305):
+        // Only mark as missing if DEFINITIVELY BLOCKED, not just "not ready"
+        // This prevents false errors when status is unknown/inconclusive
+
+        // KeyPath permissions (use isBlocking instead of !isReady)
+        if snapshot.permissions.keyPath.inputMonitoring.isBlocking {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   KeyPath IM: BLOCKING")
             missing.append(.keyPathInputMonitoring)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   KeyPath IM: OK (isReady=\(snapshot.permissions.keyPath.inputMonitoring.isReady), isBlocking=false)")
         }
-        if !snapshot.permissions.keyPath.accessibility.isReady {
+
+        if snapshot.permissions.keyPath.accessibility.isBlocking {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   KeyPath AX: BLOCKING")
             missing.append(.keyPathAccessibility)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   KeyPath AX: OK (isReady=\(snapshot.permissions.keyPath.accessibility.isReady), isBlocking=false)")
         }
 
-        // Kanata permissions
-        if !snapshot.permissions.kanata.inputMonitoring.isReady {
+        // Kanata permissions (use isBlocking instead of !isReady)
+        if snapshot.permissions.kanata.inputMonitoring.isBlocking {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Kanata IM: BLOCKING")
             missing.append(.kanataInputMonitoring)
-        }
-        if !snapshot.permissions.kanata.accessibility.isReady {
-            missing.append(.kanataAccessibility)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Kanata IM: OK (isReady=\(snapshot.permissions.kanata.inputMonitoring.isReady), isBlocking=false)")
         }
 
+        if snapshot.permissions.kanata.accessibility.isBlocking {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Kanata AX: BLOCKING")
+            missing.append(.kanataAccessibility)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Kanata AX: OK (isReady=\(snapshot.permissions.kanata.accessibility.isReady), isBlocking=false)")
+        }
+
+        AppLogger.shared.log("📊 [SystemSnapshotAdapter] Total missing permissions: \(missing.count)")
         return missing
     }
 
     private static func getMissingComponents(_ snapshot: SystemSnapshot) -> [ComponentRequirement] {
         var missing: [ComponentRequirement] = []
 
+        AppLogger.shared.log("📊 [SystemSnapshotAdapter] Checking components:")
+
         if !snapshot.components.kanataBinaryInstalled {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Kanata binary: MISSING")
             missing.append(.kanataBinaryMissing)
-        }
-        if !snapshot.components.karabinerDriverInstalled {
-            missing.append(.karabinerDriver)
-        }
-        if !snapshot.components.karabinerDaemonRunning {
-            missing.append(.karabinerDaemon)
-        }
-        if !snapshot.components.vhidDeviceHealthy {
-            missing.append(.vhidDeviceRunning)
-        }
-        if !snapshot.components.launchDaemonServicesHealthy {
-            missing.append(.launchDaemonServices)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Kanata binary: OK")
         }
 
+        if !snapshot.components.karabinerDriverInstalled {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Karabiner driver: MISSING")
+            missing.append(.karabinerDriver)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Karabiner driver: OK")
+        }
+
+        if !snapshot.components.karabinerDaemonRunning {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Karabiner daemon: NOT RUNNING")
+            missing.append(.karabinerDaemon)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Karabiner daemon: OK")
+        }
+
+        if !snapshot.components.vhidDeviceHealthy {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   VHID device: UNHEALTHY")
+            missing.append(.vhidDeviceRunning)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   VHID device: OK")
+        }
+
+        if !snapshot.components.launchDaemonServicesHealthy {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   LaunchDaemon services: UNHEALTHY")
+            missing.append(.launchDaemonServices)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   LaunchDaemon services: OK")
+        }
+
+        AppLogger.shared.log("📊 [SystemSnapshotAdapter] Total missing components: \(missing.count)")
         return missing
     }
 

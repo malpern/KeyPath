@@ -13,7 +13,7 @@ import SwiftUI
 class MainAppStateController: ObservableObject {
     // MARK: - Published State (Compatible with existing UI)
 
-    @Published var validationState: ValidationState = .checking
+    @Published var validationState: ValidationState? = nil  // nil = not yet validated, show nothing
     @Published var issues: [WizardIssue] = []
     @Published var lastValidationDate: Date?
 
@@ -64,35 +64,36 @@ class MainAppStateController: ObservableObject {
     // MARK: - Validation Methods
 
     /// Perform initial validation on app launch
-    /// This is the ONLY automatic validation - runs once on launch
+    /// Can be called multiple times - first time waits for service, subsequent times validate immediately
     func performInitialValidation() async {
-        guard !hasRunInitialValidation else {
-            AppLogger.shared.log("⚠️ [MainAppStateController] Initial validation already run")
-            return
-        }
-        hasRunInitialValidation = true
-
         guard let kanataManager else {
             AppLogger.shared.log("⚠️ [MainAppStateController] Cannot validate - not configured")
             return
         }
 
-        AppLogger.shared.log("🎯 [MainAppStateController] Performing INITIAL validation (Phase 3)")
+        let isFirstRun = !hasRunInitialValidation
 
-        // Set checking state
-        validationState = .checking
+        if isFirstRun {
+            hasRunInitialValidation = true
+            AppLogger.shared.log("🎯 [MainAppStateController] Performing INITIAL validation (Phase 3)")
 
-        // Wait for services to be ready (same as StartupValidator)
-        AppLogger.shared.log("⏳ [MainAppStateController] Waiting for kanata service to be ready...")
-        let isReady = await kanataManager.waitForServiceReady(timeout: 10.0)
+            // Set checking state
+            validationState = .checking
 
-        if !isReady {
-            AppLogger.shared.log("⏱️ [MainAppStateController] Service did not become ready within timeout")
+            // Wait for services to be ready (first time only)
+            AppLogger.shared.log("⏳ [MainAppStateController] Waiting for kanata service to be ready...")
+            let isReady = await kanataManager.waitForServiceReady(timeout: 10.0)
+
+            if !isReady {
+                AppLogger.shared.log("⏱️ [MainAppStateController] Service did not become ready within timeout")
+            } else {
+                AppLogger.shared.log("✅ [MainAppStateController] Service is ready, proceeding with validation")
+            }
         } else {
-            AppLogger.shared.log("✅ [MainAppStateController] Service is ready, proceeding with validation")
+            AppLogger.shared.log("🔄 [MainAppStateController] Revalidation (skipping service wait)")
         }
 
-        // Run validation
+        // Run validation (always)
         await performValidation()
     }
 
@@ -117,8 +118,33 @@ class MainAppStateController: ObservableObject {
         // Get fresh state from validator (defensive assertions active)
         let snapshot = await validator.checkSystem()
 
+        // 📊 LOG RAW SNAPSHOT DATA
+        AppLogger.shared.log("📊 [MainAppStateController] === RAW SNAPSHOT DATA ===")
+        AppLogger.shared.log("📊 [MainAppStateController] Timestamp: \(snapshot.timestamp)")
+        AppLogger.shared.log("📊 [MainAppStateController] isReady: \(snapshot.isReady)")
+        AppLogger.shared.log("📊 [MainAppStateController] Conflicts: \(snapshot.conflicts.hasConflicts)")
+        AppLogger.shared.log("📊 [MainAppStateController] Health.kanataRunning: \(snapshot.health.kanataRunning)")
+        AppLogger.shared.log("📊 [MainAppStateController] Health.daemonRunning: \(snapshot.health.karabinerDaemonRunning)")
+        AppLogger.shared.log("📊 [MainAppStateController] Health.vhidHealthy: \(snapshot.health.vhidHealthy)")
+        AppLogger.shared.log("📊 [MainAppStateController] Permissions.keyPath.IM.isReady: \(snapshot.permissions.keyPath.inputMonitoring.isReady)")
+        AppLogger.shared.log("📊 [MainAppStateController] Permissions.keyPath.IM.isBlocking: \(snapshot.permissions.keyPath.inputMonitoring.isBlocking)")
+        AppLogger.shared.log("📊 [MainAppStateController] Permissions.kanata.IM.isReady: \(snapshot.permissions.kanata.inputMonitoring.isReady)")
+        AppLogger.shared.log("📊 [MainAppStateController] Permissions.kanata.IM.isBlocking: \(snapshot.permissions.kanata.inputMonitoring.isBlocking)")
+        AppLogger.shared.log("📊 [MainAppStateController] Components.kanataBinary: \(snapshot.components.kanataBinaryInstalled)")
+        AppLogger.shared.log("📊 [MainAppStateController] Components.vhidHealthy: \(snapshot.components.vhidDeviceHealthy)")
+        AppLogger.shared.log("📊 [MainAppStateController] Components.daemonServicesHealthy: \(snapshot.components.launchDaemonServicesHealthy)")
+        AppLogger.shared.log("📊 [MainAppStateController] Blocking issues: \(snapshot.blockingIssues.count)")
+
         // Convert to old format for UI compatibility
         let result = SystemSnapshotAdapter.adapt(snapshot)
+
+        // 📊 LOG ADAPTER OUTPUT
+        AppLogger.shared.log("📊 [MainAppStateController] === ADAPTER OUTPUT ===")
+        AppLogger.shared.log("📊 [MainAppStateController] Adapter state: \(result.state)")
+        AppLogger.shared.log("📊 [MainAppStateController] Adapter issues count: \(result.issues.count)")
+        for (index, issue) in result.issues.enumerated() {
+            AppLogger.shared.log("📊 [MainAppStateController]   Issue \(index + 1): [\(issue.severity)] \(issue.title) - \(issue.description)")
+        }
 
         // Update published state
         issues = result.issues
@@ -134,17 +160,48 @@ class MainAppStateController: ObservableObject {
             }
         }
 
-        let kanataIsRunning = kanataManager?.isRunning ?? false
+        AppLogger.shared.log("📊 [MainAppStateController] === VALIDATION DECISION ===")
+        AppLogger.shared.log("📊 [MainAppStateController] Blocking issues after filter: \(blockingIssues.count)")
+        for (index, issue) in blockingIssues.enumerated() {
+            AppLogger.shared.log("📊 [MainAppStateController]   Blocking \(index + 1): [\(issue.category)] \(issue.title)")
+        }
 
-        if kanataIsRunning && blockingIssues.isEmpty {
+        let kanataIsRunning = kanataManager?.isRunning ?? false
+        AppLogger.shared.log("📊 [MainAppStateController] kanataManager.isRunning: \(kanataIsRunning)")
+
+        // ⭐ Trust the adapter's state decision (it already considered everything)
+        // The adapter follows wizard logic: if kanata is running, show .active regardless of sub-issues
+        switch result.state {
+        case .active:
+            // Kanata is running - show success even if there are warnings/sub-component issues
             validationState = .success
-            AppLogger.shared.log("✅ [MainAppStateController] Validation successful - Kanata running, no blocking issues")
-        } else if blockingIssues.isEmpty {
+            AppLogger.shared.log("✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running)")
+            if !blockingIssues.isEmpty {
+                AppLogger.shared.log("   Note: \(blockingIssues.count) sub-component issues exist but not blocking since kanata is running")
+            }
+
+        case .ready:
+            // Everything ready but not running
             validationState = .success
-            AppLogger.shared.log("✅ [MainAppStateController] Validation successful - no blocking issues")
-        } else {
+            AppLogger.shared.log("✅ [MainAppStateController] Validation SUCCESS - adapter state is .ready")
+
+        case .initializing, .serviceNotRunning, .daemonNotRunning:
+            // Service not running but could be starting
+            if blockingIssues.isEmpty {
+                validationState = .success
+                AppLogger.shared.log("✅ [MainAppStateController] Validation SUCCESS - no blocking issues")
+            } else {
+                validationState = .failed(blockingCount: blockingIssues.count, totalCount: result.issues.count)
+                AppLogger.shared.log("❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues")
+            }
+
+        case .conflictsDetected, .missingPermissions, .missingComponents:
+            // Definite problems that need fixing
             validationState = .failed(blockingCount: blockingIssues.count, totalCount: result.issues.count)
-            AppLogger.shared.log("❌ [MainAppStateController] Validation failed - \(blockingIssues.count) blocking issues")
+            AppLogger.shared.log("❌ [MainAppStateController] Validation FAILED - adapter state: \(result.state)")
+            for issue in blockingIssues {
+                AppLogger.shared.log("❌ [MainAppStateController]   - \(issue.title): \(issue.description)")
+            }
         }
     }
 
@@ -152,37 +209,43 @@ class MainAppStateController: ObservableObject {
 
     /// Get tooltip text for status indicator
     var statusTooltip: String {
-        switch validationState {
+        guard let state = validationState else {
+            return "System status not yet checked"
+        }
+        switch state {
         case .checking:
-            "Checking system status..."
+            return "Checking system status..."
         case .success:
-            "System is ready - all checks passed"
+            return "System is ready - all checks passed"
         case let .failed(blockingCount, totalCount):
             if blockingCount == 1 {
-                "1 blocking issue found (click to fix)"
+                return "1 blocking issue found (click to fix)"
             } else if blockingCount > 1 {
-                "\(blockingCount) blocking issues found (click to fix)"
+                return "\(blockingCount) blocking issues found (click to fix)"
             } else {
-                "\(totalCount) minor issues found (click to review)"
+                return "\(totalCount) minor issues found (click to review)"
             }
         }
     }
 
     /// Get status message for display
     var statusMessage: String {
-        switch validationState {
+        guard let state = validationState else {
+            return ""
+        }
+        switch state {
         case .checking:
-            "Checking..."
+            return "Checking..."
         case .success:
-            "Ready"
+            return "Ready"
         case let .failed(blockingCount, _):
-            blockingCount > 0 ? "Issues Found" : "Warnings"
+            return blockingCount > 0 ? "Issues Found" : "Warnings"
         }
     }
 
     /// Check if the system has blocking issues
     var hasBlockingIssues: Bool {
-        validationState.hasCriticalIssues
+        validationState?.hasCriticalIssues ?? false
     }
 
     /// Get critical issues summary

@@ -44,7 +44,7 @@ struct ContentView: View {
     @State private var lastOutputDisabledReason: String = ""
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 20) {
             // Header
             ContentViewHeader(
                 validator: stateController, // 🎯 Phase 3: New controller
@@ -94,6 +94,9 @@ struct ContentView: View {
                     error: error
                 )
             }
+
+            // Push status message and diagnostics to bottom - keeps top content stable
+            Spacer(minLength: 0)
 
             // Status Message - Only show for success messages, errors use enhanced handler
             StatusMessageView(message: statusMessage, isVisible: showStatusMessage && !statusMessage.contains("❌"))
@@ -163,10 +166,8 @@ struct ContentView: View {
                 permissionProvider: permissionSnapshotProvider
             )
 
-            // 🎯 Phase 3: Perform INITIAL validation (explicit, one-time)
-            Task { @MainActor in
-                await stateController.performInitialValidation()
-            }
+            // 🎯 Phase 3: Validation runs ONLY via notification at T+1000ms (after service starts at T+500ms)
+            // Do NOT validate here - service isn't running yet, would show false errors
 
             // Observe phased startup notifications
             setupStartupObservers()
@@ -372,11 +373,12 @@ struct ContentView: View {
             // Emergency monitoring setup is now handled elsewhere
         }
 
-        // 🎯 Phase 3: Single notification handler for wizard close (explicit validation)
+        // 🎯 Phase 3: Single notification handler for validation (startup + wizard close)
         NotificationCenter.default.addObserver(forName: .kp_startupRevalidate, object: nil, queue: .main) { [stateController] _ in
-            AppLogger.shared.log("🎯 [Phase 3] Manual revalidation requested (wizard closed)")
+            AppLogger.shared.log("🎯 [Phase 3] Validation requested via notification")
             Task { @MainActor in
-                await stateController.refreshValidation(force: true)
+                // Use performInitialValidation - handles both first run (waits for service) and subsequent runs
+                await stateController.performInitialValidation()
             }
         }
     }
