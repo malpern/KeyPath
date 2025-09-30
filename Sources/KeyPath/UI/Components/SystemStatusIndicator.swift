@@ -9,7 +9,7 @@ import SwiftUI
 /// - Red X when critical issues are detected
 /// - Click handler to open full wizard
 struct SystemStatusIndicator: View {
-    @ObservedObject var validator: StartupValidator
+    @ObservedObject var validator: MainAppStateController // 🎯 Phase 3: New controller
     @Binding var showingWizard: Bool
     var onClick: (() -> Void)?
 
@@ -174,7 +174,7 @@ struct SystemStatusIndicator: View {
 
 /// A view that integrates the system status indicator into the ContentView header
 struct ContentViewSystemStatus: View {
-    @ObservedObject var validator: StartupValidator
+    @ObservedObject var validator: MainAppStateController // 🎯 Phase 3: New controller
     @Binding var showingWizard: Bool
 
     var body: some View {
@@ -190,16 +190,17 @@ struct ContentViewSystemStatus: View {
 
 struct SystemStatusIndicator_Previews: PreviewProvider {
     static var previews: some View {
-        let validatorChecking = StartupValidator()
+        // 🎯 Phase 3: Updated previews for MainAppStateController
+        let validatorChecking = MainAppStateController()
         validatorChecking.validationState = .checking
 
-        let validatorSuccess = StartupValidator()
+        let validatorSuccess = MainAppStateController()
         validatorSuccess.validationState = .success
 
-        let validatorFailed = StartupValidator()
+        let validatorFailed = MainAppStateController()
         validatorFailed.validationState = .failed(blockingCount: 2, totalCount: 4)
 
-        let validatorWarnings = StartupValidator()
+        let validatorWarnings = MainAppStateController()
         validatorWarnings.validationState = .failed(blockingCount: 0, totalCount: 2)
 
         return VStack(spacing: 20) {

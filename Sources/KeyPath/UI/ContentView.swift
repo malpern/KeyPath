@@ -6,7 +6,7 @@ struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
     @EnvironmentObject var kanataManager: KanataManager
     @Environment(\.permissionSnapshotProvider) private var permissionSnapshotProvider
-    @StateObject private var startupValidator = StartupValidator()
+    @StateObject private var stateController = MainAppStateController() // 🎯 Phase 3: New controller
     @StateObject private var recordingCoordinator = RecordingCoordinator()
     @State private var showingInstallationWizard = false {
         didSet {
@@ -47,7 +47,7 @@ struct ContentView: View {
         VStack(spacing: 20) {
             // Header
             ContentViewHeader(
-                validator: startupValidator,
+                validator: stateController, // 🎯 Phase 3: New controller
                 showingInstallationWizard: $showingInstallationWizard
             )
 
@@ -154,13 +154,18 @@ struct ContentView: View {
                 "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(kanataManager.showWizard)"
             )
 
-            // Configure startup validator and recording coordinator with KanataManager
-            startupValidator.configure(with: kanataManager)
+            // 🎯 Phase 3: Configure state controller and recording coordinator with KanataManager
+            stateController.configure(with: kanataManager)
             recordingCoordinator.configure(
                 kanataManager: kanataManager,
                 statusHandler: { message in showStatusMessage(message: message) },
                 permissionProvider: permissionSnapshotProvider
             )
+
+            // 🎯 Phase 3: Perform INITIAL validation (explicit, one-time)
+            Task { @MainActor in
+                await stateController.performInitialValidation()
+            }
 
             // Observe phased startup notifications
             setupStartupObservers()
@@ -366,10 +371,11 @@ struct ContentView: View {
             // Emergency monitoring setup is now handled elsewhere
         }
 
-        NotificationCenter.default.addObserver(forName: .kp_startupRevalidate, object: nil, queue: .main) { [startupValidator] _ in
-            AppLogger.shared.log("🚦 [Startup] Follow-up revalidate phase (forced)")
+        // 🎯 Phase 3: Single notification handler for wizard close (explicit validation)
+        NotificationCenter.default.addObserver(forName: .kp_startupRevalidate, object: nil, queue: .main) { [stateController] _ in
+            AppLogger.shared.log("🎯 [Phase 3] Manual revalidation requested (wizard closed)")
             Task { @MainActor in
-                startupValidator.performStartupValidation(force: true)
+                await stateController.refreshValidation(force: true)
             }
         }
     }
@@ -649,7 +655,7 @@ struct ContentView: View {
 }
 
 struct ContentViewHeader: View {
-    @ObservedObject var validator: StartupValidator
+    @ObservedObject var validator: MainAppStateController // 🎯 Phase 3: New controller
     @Binding var showingInstallationWizard: Bool
     @EnvironmentObject var kanataManager: KanataManager
 
