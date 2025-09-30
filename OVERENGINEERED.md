@@ -228,7 +228,8 @@ private let connectionMaxAge: TimeInterval = 30.0
 
 | Component | Lines | Complexity | New Contributor Friendly? | Priority to Fix |
 |-----------|-------|------------|---------------------------|-----------------|
-| **KanataManager** | 3,495 | 🔴 Very High | ❌ No | 🔥 Critical |
+| **KanataManager** | 2,828 (⚠️ build issue) | 🔴 Very High | ❌ No | 🔥 Critical |
+| **KarabinerConflictService** | 599 (extracted) | 🟢 Low | ✅ Yes | ⚠️ Build fix needed |
 | **UDP Client** | 369 | 🟢 Low | ✅ Yes | ✅ Good (simplified!) |
 | **Installation Wizard** | ~600 | 🟡 Medium-High | ⚠️ Difficult | 🟢 Low (works well) |
 | **Configuration** | ~300 | 🟡 Medium | ⚠️ Fragmented | 🟡 Medium |
@@ -407,13 +408,21 @@ The rest is polish. The architecture is fundamentally sound, you just need to ma
 - ✅ **Completed error migration** (all 25 throw sites migrated, all deprecated types removed)
 - ✅ **Simplified UDP Client** (773 → 369 lines, 52% reduction)
 
+**In Progress:**
+- 🚧 **KarabinerConflictService extraction** (599 lines extracted, reduces KanataManager 3,465 → 2,828 lines)
+  - ⚠️ Build issue: Swift PM emit-module error (under investigation)
+  - Service created with protocol-based design
+  - All Karabiner methods delegated to service
+  - Code committed (commit 9d41a1b) but not yet functional
+
 **Remaining:**
-- ❌ Break up KanataManager (3,495 → ~800 lines)
+- ❌ Fix KarabinerConflictService build issue
+- ❌ Continue KanataManager reduction (2,828 → ~800 lines, ~2,000 lines to go)
 - ❌ Consolidate Configuration system
-- ❌ Write CONTRIBUTING.md
+- ❌ Write CONTRIBUTING.md (TOP PRIORITY per roadmap)
 - ❌ Add architecture diagram
 
-**Estimated Time to OSS-Ready:** 2 weeks (error migration + UDP client complete)
+**Estimated Time to OSS-Ready:** 1-2 weeks (if Karabiner extraction build issue resolved)
 
 ---
 
