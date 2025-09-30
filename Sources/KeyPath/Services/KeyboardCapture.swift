@@ -140,10 +140,12 @@ public class KeyboardCapture: ObservableObject {
         // Fallback to HID listen-only if nothing arrives quickly in listen-only mode
         if !suppressEvents {
             noEventTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
-                guard let self else { return }
-                if !self.receivedAnyEvent {
-                    AppLogger.shared.log("🎹 [KeyboardCapture] No events at session tap; switching to HID listen-only")
-                    self.reinstallTap(to: .cghidEventTap)
+                Task { @MainActor in
+                    guard let self else { return }
+                    if !self.receivedAnyEvent {
+                        AppLogger.shared.log("🎹 [KeyboardCapture] No events at session tap; switching to HID listen-only")
+                        self.reinstallTap(to: .cghidEventTap)
+                    }
                 }
             }
         }
@@ -228,9 +230,11 @@ public class KeyboardCapture: ObservableObject {
         // Breadcrumb if no events arrive within 1s
         noKeyBreadcrumbTimer?.invalidate();
         noKeyBreadcrumbTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
-            guard let self else { return }
-            if self.isCapturing && !self.anyEventSeen {
-                AppLogger.shared.log("⏱️ [KeyboardCapture] No key events received after 1.0s (mode=\(self.captureMode), tap=\(self.suppressEvents ? "defaultTap" : "listenOnly"), location=\(self.currentTapLocation))")
+            Task { @MainActor in
+                guard let self else { return }
+                if self.isCapturing && !self.anyEventSeen {
+                    AppLogger.shared.log("⏱️ [KeyboardCapture] No key events received after 1.0s (mode=\(self.captureMode), tap=\(self.suppressEvents ? "defaultTap" : "listenOnly"), location=\(self.currentTapLocation))")
+                }
             }
         }
         setupEventTap()
@@ -473,7 +477,7 @@ public class KeyboardCapture: ObservableObject {
 
         // Start new timer for auto-stop after pause
         pauseTimer = Timer.scheduledTimer(withTimeInterval: pauseDuration, repeats: false) { [weak self] _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self?.stopCapture()
             }
         }

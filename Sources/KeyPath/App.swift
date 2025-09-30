@@ -15,6 +15,9 @@ public struct KeyPathApp: App {
             args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
         
         AppLogger.shared.log("🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), args: \(args)")
+        let info = BuildInfo.current()
+        AppLogger.shared.log("🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)")
+        AppLogger.shared.log("📦 [Bundle] Path: \(Bundle.main.bundlePath)")
 
         // Enable auto-trigger recording when launched with --autotrigger
         if args.contains("--autotrigger") {
@@ -304,19 +307,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Observe notification action events
         NotificationCenter.default.addObserver(forName: .retryStartService, object: nil, queue: .main) { [weak self] _ in
-            guard let manager = self?.kanataManager else { return }
             Task { @MainActor in
+                guard let manager = self?.kanataManager else { return }
                 await manager.manualStart()
                 await manager.updateStatus()
             }
         }
 
         NotificationCenter.default.addObserver(forName: .openInputMonitoringSettings, object: nil, queue: .main) { [weak self] _ in
-            self?.kanataManager?.openInputMonitoringSettings()
+            Task { @MainActor in
+                self?.kanataManager?.openInputMonitoringSettings()
+            }
         }
 
         NotificationCenter.default.addObserver(forName: .openAccessibilitySettings, object: nil, queue: .main) { [weak self] _ in
-            self?.kanataManager?.openAccessibilitySettings()
+            Task { @MainActor in
+                self?.kanataManager?.openAccessibilitySettings()
+            }
         }
     }
 

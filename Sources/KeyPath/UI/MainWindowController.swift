@@ -15,8 +15,8 @@ final class MainWindowController: NSWindowController {
         
         // Create window with proper styling
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 420),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -24,15 +24,15 @@ final class MainWindowController: NSWindowController {
         // Configure window properties
         window.title = ""
         window.center()
-        // Enable glass-friendly window appearance
+        // Titled window with transparent titlebar & full-size content (Apple-recommended)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.styleMask.insert(.fullSizeContentView)
         window.isOpaque = false
         window.backgroundColor = .clear
         window.isMovableByWindowBackground = true
+        window.hasShadow = true
 
-        // Remove any default toolbar; rely on full-size content view and transparent titlebar
+        // Transparent titlebar works without a toolbar; keep nil unless needed
         window.toolbar = nil
         
         // State restoration and window behavior
@@ -48,6 +48,10 @@ final class MainWindowController: NSWindowController {
         // Wrap hosting view in a visual effect container so the entire window is glass-backed
         let container = GlassContainerViewController(hosting: hostingController)
         self.contentViewController = container
+
+        // Add a native titlebar accessory for drag + instrumentation (small build stamp)
+        let accessory = TitlebarHeaderAccessory()
+        window.addTitlebarAccessoryViewController(accessory)
         
         // Configure window delegate for proper lifecycle
         window.delegate = self

@@ -1826,6 +1826,47 @@ class KanataManager: ObservableObject {
         }
     }
 
+    /// Wait for the kanata service to be ready and fully started
+    /// Returns true if service becomes ready within timeout, false otherwise
+    func waitForServiceReady(timeout: TimeInterval = 10.0) async -> Bool {
+        let startTime = Date()
+
+        AppLogger.shared.log("⏳ [KanataManager] Waiting for service to be ready (timeout: \(timeout)s)")
+
+        // Fast path - already running
+        await updateStatus()
+        if await MainActor.run(body: { currentState == .running }) {
+            AppLogger.shared.log("✅ [KanataManager] Service already ready")
+            return true
+        }
+
+        // Poll until ready or timeout
+        while Date().timeIntervalSince(startTime) < timeout {
+            // Wait a bit before checking again
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+
+            await updateStatus()
+
+            let state = await MainActor.run { currentState }
+
+            if state == .running {
+                let elapsed = Date().timeIntervalSince(startTime)
+                AppLogger.shared.log("✅ [KanataManager] Service became ready after \(String(format: "%.1f", elapsed))s")
+                return true
+            }
+
+            if state == .needsHelp || state == .stopped {
+                AppLogger.shared.log("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
+                return false
+            }
+
+            // Still starting, keep waiting
+        }
+
+        AppLogger.shared.log("⏱️ [KanataManager] Service ready timeout after \(timeout)s")
+        return false
+    }
+
     /// Main actor function to safely update all @Published properties
     @MainActor
     private func updatePublishedProperties(

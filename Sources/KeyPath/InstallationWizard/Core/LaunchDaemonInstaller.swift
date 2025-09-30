@@ -174,12 +174,13 @@ class LaunchDaemonInstaller {
 
     // MARK: - Path Detection Methods
 
-    /// Gets the system-installed Kanata binary path
+    /// Gets the Kanata binary path for LaunchDaemon
     private func getKanataBinaryPath() -> String {
-        // Use system location to avoid Gatekeeper issues with app bundle paths
-        let systemPath = "/Library/KeyPath/bin/kanata"
-        AppLogger.shared.log("✅ [LaunchDaemon] Using system Kanata path: \(systemPath)")
-        return systemPath
+        // CRITICAL: Use bundled path to preserve TCC permissions
+        // Copying to /Library/KeyPath/bin breaks TCC identity and Input Monitoring permission
+        let bundledPath = WizardSystemPaths.bundledKanataPath
+        AppLogger.shared.log("✅ [LaunchDaemon] Using bundled Kanata path for TCC stability: \(bundledPath)")
+        return bundledPath
     }
     
     /// Checks if the bundled kanata is newer than the system-installed version
@@ -906,17 +907,20 @@ class LaunchDaemonInstaller {
         launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true
         launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
         launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
-        
-        # Install kanata binary to system location (avoids Gatekeeper issues)
-        echo "Installing kanata binary to system location..."
-        /bin/mkdir -p '/Library/KeyPath/bin'
-        /bin/cp '/Applications/KeyPath.app/Contents/Library/KeyPath/kanata' '/Library/KeyPath/bin/kanata'
-        /usr/sbin/chown root:wheel '/Library/KeyPath/bin/kanata'
-        /bin/chmod 755 '/Library/KeyPath/bin/kanata'
-        
-        # Clear any quarantine attributes on the system copy
-        /usr/bin/xattr -d com.apple.quarantine '/Library/KeyPath/bin/kanata' 2>/dev/null || true
-        
+
+        # CRITICAL: Use bundled kanata directly - DO NOT copy to /Library/KeyPath/bin
+        # Copying breaks TCC identity and Input Monitoring permissions
+        echo "Using bundled kanata binary at: \(WizardSystemPaths.bundledKanataPath)"
+
+        # Verify bundled kanata exists and is executable
+        if [ ! -f '\(WizardSystemPaths.bundledKanataPath)' ]; then
+            echo "ERROR: Bundled kanata not found at \(WizardSystemPaths.bundledKanataPath)"
+            exit 1
+        fi
+
+        # Clear any quarantine attributes on the bundled binary
+        /usr/bin/xattr -d com.apple.quarantine '\(WizardSystemPaths.bundledKanataPath)' 2>/dev/null || true
+
         # Enable services in case previously disabled
         echo "Enabling services..."
         /bin/launchctl enable system/\(Self.kanataServiceID) 2>/dev/null || true
@@ -928,10 +932,10 @@ class LaunchDaemonInstaller {
         launchctl bootstrap system '\(vhidManagerFinal)'
         launchctl bootstrap system '\(kanataFinal)' || {
             echo "Bootstrap failed for kanata. Collecting diagnostics..."
-            echo "Checking if kanata exists at system path:"
-            /bin/ls -la '/Library/KeyPath/bin/kanata' || echo "Kanata not found at system path"
+            echo "Checking if kanata exists at bundled path:"
+            /bin/ls -la '\(WizardSystemPaths.bundledKanataPath)' || echo "Kanata not found at bundled path"
             echo "Checking spctl acceptance:"
-            /usr/sbin/spctl -a -vvv -t execute '/Library/KeyPath/bin/kanata' || echo "spctl rejected kanata binary"
+            /usr/sbin/spctl -a -vvv -t execute '\(WizardSystemPaths.bundledKanataPath)' || echo "spctl rejected kanata binary"
             echo "Checking file attributes:"
             /usr/bin/xattr -l '/Library/KeyPath/bin/kanata' || true
             echo "Checking launchctl status:"
@@ -1133,17 +1137,20 @@ class LaunchDaemonInstaller {
         launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true
         launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
         launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
-        
-        # Install kanata binary to system location (avoids Gatekeeper issues)
-        echo "Installing kanata binary to system location..."
-        /bin/mkdir -p '/Library/KeyPath/bin'
-        /bin/cp '/Applications/KeyPath.app/Contents/Library/KeyPath/kanata' '/Library/KeyPath/bin/kanata'
-        /usr/sbin/chown root:wheel '/Library/KeyPath/bin/kanata'
-        /bin/chmod 755 '/Library/KeyPath/bin/kanata'
-        
-        # Clear any quarantine attributes on the system copy
-        /usr/bin/xattr -d com.apple.quarantine '/Library/KeyPath/bin/kanata' 2>/dev/null || true
-        
+
+        # CRITICAL: Use bundled kanata directly - DO NOT copy to /Library/KeyPath/bin
+        # Copying breaks TCC identity and Input Monitoring permissions
+        echo "Using bundled kanata binary at: \(WizardSystemPaths.bundledKanataPath)"
+
+        # Verify bundled kanata exists and is executable
+        if [ ! -f '\(WizardSystemPaths.bundledKanataPath)' ]; then
+            echo "ERROR: Bundled kanata not found at \(WizardSystemPaths.bundledKanataPath)"
+            exit 1
+        fi
+
+        # Clear any quarantine attributes on the bundled binary
+        /usr/bin/xattr -d com.apple.quarantine '\(WizardSystemPaths.bundledKanataPath)' 2>/dev/null || true
+
         # Enable services in case previously disabled
         echo "Enabling services..."
         /bin/launchctl enable system/\(Self.kanataServiceID) 2>/dev/null || true
@@ -1155,10 +1162,10 @@ class LaunchDaemonInstaller {
         launchctl bootstrap system '\(vhidManagerFinal)'
         launchctl bootstrap system '\(kanataFinal)' || {
             echo "Bootstrap failed for kanata. Collecting diagnostics..."
-            echo "Checking if kanata exists at system path:"
-            /bin/ls -la '/Library/KeyPath/bin/kanata' || echo "Kanata not found at system path"
+            echo "Checking if kanata exists at bundled path:"
+            /bin/ls -la '\(WizardSystemPaths.bundledKanataPath)' || echo "Kanata not found at bundled path"
             echo "Checking spctl acceptance:"
-            /usr/sbin/spctl -a -vvv -t execute '/Library/KeyPath/bin/kanata' || echo "spctl rejected kanata binary"
+            /usr/sbin/spctl -a -vvv -t execute '\(WizardSystemPaths.bundledKanataPath)' || echo "spctl rejected kanata binary"
             echo "Checking file attributes:"
             /usr/bin/xattr -l '/Library/KeyPath/bin/kanata' || true
             echo "Checking launchctl status:"

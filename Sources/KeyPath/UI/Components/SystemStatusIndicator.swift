@@ -24,14 +24,19 @@ struct SystemStatusIndicator: View {
     var body: some View {
         Button(action: handleClick) {
             ZStack {
-                // Glass chip background (bold)
-                AppGlassBackground(style: .chipBold, cornerRadius: backgroundSize / 2)
-                    .frame(width: backgroundSize, height: backgroundSize)
-                    .shadow(color: shadowColor, radius: isHovered ? 3 : 1, x: 0, y: 1)
-                    .overlay(
-                        Circle().stroke(borderColor, lineWidth: 1)
-                    )
-
+                // Background: solid chip for success/error; glass for transient states
+                if usesSolidChip {
+                    Circle()
+                        .fill(Color(NSColor.textBackgroundColor).opacity(0.95))
+                        .frame(width: backgroundSize, height: backgroundSize)
+                        .shadow(color: shadowColor, radius: isHovered ? 3 : 1, x: 0, y: 1)
+                        .overlay(Circle().stroke(borderColor, lineWidth: 1))
+                } else {
+                    AppGlassBackground(style: .chipBold, cornerRadius: backgroundSize / 2)
+                        .frame(width: backgroundSize, height: backgroundSize)
+                        .shadow(color: shadowColor, radius: isHovered ? 3 : 1, x: 0, y: 1)
+                        .overlay(Circle().stroke(borderColor, lineWidth: 1))
+                }
                 // Status icon
                 iconView()
                     .font(.system(size: 12, weight: .medium))
@@ -81,6 +86,14 @@ struct SystemStatusIndicator: View {
             Color.green.opacity(0.1)
         case let .failed(blockingCount, _):
             blockingCount > 0 ? Color.red.opacity(0.1) : Color.orange.opacity(0.1)
+        }
+    }
+
+    private var usesSolidChip: Bool {
+        switch validator.validationState {
+        case .success: return true
+        case let .failed(blocking, _): return blocking > 0
+        case .checking: return false
         }
     }
 

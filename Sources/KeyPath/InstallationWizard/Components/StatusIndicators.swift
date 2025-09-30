@@ -270,29 +270,16 @@ struct PageDotsIndicator: View {
     let onPageSelected: (WizardPage) -> Void
 
     var body: some View {
+        let pages = WizardPage.orderedPages
         HStack(spacing: WizardDesign.Spacing.labelGap) {
-            ForEach(WizardPage.orderedPages, id: \.self) { page in
-                Circle()
-                    .fill(
-                        currentPage == page
-                            ? WizardDesign.Colors.primaryAction : WizardDesign.Colors.secondaryText.opacity(0.4)
-                    )
-                    .frame(width: 8, height: 8)
-                    .scaleEffect(currentPage == page ? 1.2 : 1.0)
-                    .animation(WizardDesign.Animation.buttonFeedback, value: currentPage)
-                    .onTapGesture {
-                        onPageSelected(page)
-                    }
-                    // Enhanced accessibility labels for better automation support
-                    .accessibilityLabel("Navigate to \(page.displayName)")
-                    .accessibilityValue(
-                        currentPage == page
-                            ? "Current page" : "Page \(pageIndex(page) + 1) of \(WizardPage.orderedPages.count)"
-                    )
-                    .accessibilityAddTraits(currentPage == page ? [.isSelected, .isButton] : .isButton)
-                    .accessibilityHint("Double-tap to go to \(page.displayName) setup step")
-                    .accessibilityIdentifier(
-                        "wizard-step-\(pageIndex(page) + 1)-\(page.accessibilityIdentifier)")
+            ForEach(Array(pages.enumerated()), id: \.1) { (index, page) in
+                PageDot(
+                    isCurrent: currentPage == page,
+                    page: page,
+                    index: index,
+                    total: pages.count,
+                    onTap: { onPageSelected(page) }
+                )
             }
         }
         .padding(.vertical, WizardDesign.Spacing.labelGap)
@@ -304,5 +291,27 @@ struct PageDotsIndicator: View {
 
     private func pageIndex(_ page: WizardPage) -> Int {
         WizardPage.orderedPages.firstIndex(of: page) ?? 0
+    }
+}
+
+private struct PageDot: View {
+    let isCurrent: Bool
+    let page: WizardPage
+    let index: Int
+    let total: Int
+    let onTap: () -> Void
+
+    var body: some View {
+        Circle()
+            .fill(isCurrent ? WizardDesign.Colors.primaryAction : WizardDesign.Colors.secondaryText.opacity(0.4))
+            .frame(width: 8, height: 8)
+            .scaleEffect(isCurrent ? 1.2 : 1.0)
+            .animation(WizardDesign.Animation.buttonFeedback, value: isCurrent)
+            .onTapGesture { onTap() }
+            .accessibilityLabel("Navigate to \(page.displayName)")
+            .accessibilityValue(isCurrent ? "Current page" : "Page \(index + 1) of \(total)")
+            .accessibilityAddTraits(isCurrent ? [.isSelected, .isButton] : .isButton)
+            .accessibilityHint("Double-tap to go to \(page.displayName) setup step")
+            .accessibilityIdentifier("wizard-step-\(index + 1)-\(page.accessibilityIdentifier)")
     }
 }
