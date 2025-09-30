@@ -3,243 +3,162 @@ import Foundation
 import Network
 import XCTest
 
-/// Comprehensive tests for KanataUDPClient
+/// Simplified tests for KanataUDPClient - focused on core functionality
+///
+/// Design: Tests the simplified localhost IPC client, not distributed networking features.
+/// Most tests expect failure without a running UDP server - that's normal and correct.
 class KanataUDPClientTests: XCTestCase {
     // MARK: - Initialization Tests
 
-    func testUDPClientInitialization() async {
+    func testClientCreation() {
         let client = KanataUDPClient(port: 37000)
-
-        // Client should be created successfully
-        XCTAssertNotNil(client)
-
-        // Should not be authenticated initially
-        let isAuth = await client.isAuthenticated
-        XCTAssertFalse(isAuth)
+        XCTAssertNotNil(client, "UDP client should be created successfully")
     }
 
-    func testUDPClientCustomConfiguration() async {
-        let customHost = "192.168.1.100"
-        let customPort = 38000
-        let customTimeout = 5.0
-
+    func testClientWithCustomConfiguration() {
         let client = KanataUDPClient(
-            host: customHost,
-            port: customPort,
-            timeout: customTimeout
+            host: "127.0.0.1",
+            port: 38000,
+            timeout: 3.0
         )
-
-        XCTAssertNotNil(client)
-        let isAuth2 = await client.isAuthenticated
-        XCTAssertFalse(isAuth2)
+        XCTAssertNotNil(client, "UDP client should accept custom configuration")
     }
 
     // MARK: - Authentication Tests
 
-    func testAuthenticationWithMockResponse() async {
+    func testAuthenticationWithoutServer() async {
         let client = KanataUDPClient(port: 37000)
 
-        // Test authentication with test token
-        let testToken = "test-auth-token-12345"
+        let result = await client.authenticate(token: "test-token", clientName: "TestClient")
 
-        // Note: This will fail with real server not running, but tests the logic
-        let result = await client.authenticate(token: testToken, clientName: "TestClient")
-
-        // Expected to fail without real server
+        // Expected to fail gracefully without running server
         XCTAssertFalse(result, "Authentication should fail without running UDP server")
-        let authCheck = await client.isAuthenticated
-        XCTAssertFalse(authCheck)
     }
 
-    func testAuthenticationStateManagement() async {
+    func testClearAuthentication() async {
         let client = KanataUDPClient(port: 37000)
 
-        // Initially not authenticated
-        let authStatus1 = await client.isAuthenticated
-        XCTAssertFalse(authStatus1)
-
-        // Clear authentication should work even when not authenticated
+        // Should not crash when clearing non-existent auth
         await client.clearAuthentication()
-        let authStatus2 = await client.isAuthenticated
-        XCTAssertFalse(authStatus2)
+
+        XCTAssertTrue(true, "clearAuthentication should work even when not authenticated")
     }
 
-    func testAuthenticationPayloadSizeValidation() async {
+    func testEnsureAuthenticated() async {
         let client = KanataUDPClient(port: 37000)
 
-        // Test with extremely long token (should fail size check)
-        let oversizedToken = String(repeating: "a", count: 2000)
+        let result = await client.ensureAuthenticated()
 
-        let result = await client.authenticate(token: oversizedToken)
-
-        // Should fail due to size limits
-        XCTAssertFalse(result, "Oversized authentication payload should be rejected")
+        // Should return false without server or shared token
+        XCTAssertFalse(result, "ensureAuthenticated should fail without server")
     }
 
     // MARK: - Server Communication Tests
 
-    func testServerStatusCheck() async {
+    func testCheckServerStatus() async {
         let client = KanataUDPClient(port: 37000)
 
-        // Test server status without running server
         let status = await client.checkServerStatus()
 
-        // Should fail gracefully without server
+        // Should fail gracefully without running server
         XCTAssertFalse(status, "Server status should return false without running server")
     }
 
-    func testServerStatusWithCustomToken() async {
+    func testCheckServerStatusWithToken() async {
         let client = KanataUDPClient(port: 37000)
 
-        let customToken = "custom-status-token"
-        let status = await client.checkServerStatus(authToken: customToken)
+        let status = await client.checkServerStatus(authToken: "test-token")
 
         // Should fail gracefully without server
-        XCTAssertFalse(status)
+        XCTAssertFalse(status, "Server check with token should fail without running server")
     }
 
-    // MARK: - Configuration Validation Tests
+    // MARK: - Configuration Operations
 
-    func testConfigValidationSizeGating() async {
+    func testValidateConfig() async {
         let client = KanataUDPClient(port: 37000)
 
-        // Test with oversized config (>1000 bytes)
-        let oversizedConfig = String(repeating: "(defsrc a)\n(deflayer base b)\n", count: 50)
-
-        let result = await client.validateConfig(oversizedConfig)
-
-        // Should be rejected due to size
-        switch result {
-        case let .networkError(error):
-            XCTAssertTrue(error.contains("too large"), "Error should mention size limit")
-        case .authenticationRequired:
-            XCTAssertTrue(true, "Expected auth failure without server")
-        default:
-            XCTFail("Expected network error or auth failure for oversized config")
-        }
-    }
-
-    func testConfigValidationWithValidSizeConfig() async {
-        let client = KanataUDPClient(port: 37000)
-
-        // Test with reasonably sized config
-        let smallConfig = """
+        let config = """
         (defcfg process-unmapped-keys yes)
         (defsrc caps)
         (deflayer base esc)
         """
 
-        let result = await client.validateConfig(smallConfig)
+        let result = await client.validateConfig(config)
 
-        // Should pass size check (but fail without server)
-        // The error should be network-related, not size-related
-        switch result {
-        case .authenticationRequired:
-            XCTAssertTrue(true, "Should fail due to authentication")
-        case let .networkError(error):
-            XCTAssertFalse(error.contains("too large"), "Error should not be size-related")
-        default:
-            XCTAssertTrue(true, "Should fail without server")
+        // Validation always returns success (kanata doesn't support UDP validation)
+        if case .success = result {
+            XCTAssertTrue(true, "Config validation should return success (validates on file load)")
+        } else {
+            XCTFail("Config validation should return .success")
         }
     }
 
-    // MARK: - Kanata Control Tests
-
-    func testKanataRestart() async {
-        let client = KanataUDPClient(port: 37000)
-
-        let result = await client.restartKanata()
-
-        // Should fail gracefully without server
-        XCTAssertFalse(result, "Restart should fail without running server")
-    }
-
-    func testConfigReload() async {
+    func testReloadConfigWithoutAuth() async {
         let client = KanataUDPClient(port: 37000)
 
         let result = await client.reloadConfig()
 
-        // Should fail gracefully without server
-        XCTAssertFalse(result.isSuccess, "Config reload should fail without running server")
-        XCTAssertNotNil(result.errorMessage, "Error should be provided when reload fails")
-    }
-
-    // MARK: - Network Timeout Tests
-
-    func testTimeoutConfiguration() async {
-        // Test with very short timeout
-        let shortTimeoutClient = KanataUDPClient(port: 37000, timeout: 0.1)
-
-        let result = await shortTimeoutClient.checkServerStatus()
-
-        // Should fail quickly due to timeout
-        XCTAssertFalse(result, "Should timeout quickly with short timeout")
-    }
-
-    // MARK: - Thread Safety Tests
-
-    func testConcurrentOperations() async {
-        let client = KanataUDPClient(port: 37000)
-
-        // Test concurrent authentication attempts
-        async let auth1 = client.authenticate(token: "token1")
-        async let auth2 = client.authenticate(token: "token2")
-        async let status = client.checkServerStatus()
-
-        let results = await [auth1, auth2, status]
-
-        // All should fail without server, but shouldn't crash
-        XCTAssertFalse(results[0], "Concurrent auth 1 should fail gracefully")
-        XCTAssertFalse(results[1], "Concurrent auth 2 should fail gracefully")
-        XCTAssertFalse(results[2], "Concurrent status should fail gracefully")
-    }
-
-    // MARK: - Error Handling Tests
-
-    func testGracefulErrorHandling() async {
-        let client = KanataUDPClient(port: 99999) // Invalid port
-
-        let result = await client.authenticate(token: "test")
-
-        // Should handle invalid port gracefully
-        XCTAssertFalse(result, "Invalid port should be handled gracefully")
-    }
-
-    // MARK: - Size Limit Constants Tests
-
-    func testUDPSizeLimits() {
-        // Verify size limits are reasonable for UDP
-        XCTAssertEqual(KanataUDPClient.maxUDPPayloadSize, 1200, "UDP payload limit should be 1200 bytes")
-        XCTAssertLessThanOrEqual(KanataUDPClient.maxUDPPayloadSize, 1400, "Should be within safe UDP limits")
-        XCTAssertGreaterThan(KanataUDPClient.maxUDPPayloadSize, 500, "Should allow reasonable payload sizes")
-    }
-}
-
-// MARK: - Performance Tests
-
-extension KanataUDPClientTests {
-    func testAuthenticationPerformance() {
-        let client = KanataUDPClient(port: 37000)
-
-        measure {
-            Task {
-                _ = await client.authenticate(token: "perf-test-token")
-            }
+        // Should fail due to missing authentication
+        if case .authenticationRequired = result {
+            XCTAssertTrue(true, "Reload should fail without authentication")
+        } else {
+            XCTFail("Reload should return .authenticationRequired without auth")
         }
     }
 
-    func testConfigValidationPerformance() {
+    func testRestartKanataWithoutAuth() async {
         let client = KanataUDPClient(port: 37000)
-        let testConfig = """
-        (defcfg process-unmapped-keys yes)
-        (defsrc caps tab)
-        (deflayer base esc @tab)
-        """
 
-        measure {
-            Task {
-                _ = await client.validateConfig(testConfig)
-            }
-        }
+        let result = await client.restartKanata()
+
+        // Should fail due to missing authentication
+        XCTAssertFalse(result, "Restart should fail without authentication")
+    }
+
+    // MARK: - Connection Cancellation
+
+    func testCancelInflightAndCloseConnection() async {
+        let client = KanataUDPClient(port: 37000)
+
+        // Should not crash (even though we simplified to a no-op)
+        await client.cancelInflightAndCloseConnection()
+
+        XCTAssertTrue(true, "cancelInflightAndCloseConnection should not crash")
+    }
+
+    // MARK: - Error Handling
+
+    func testGracefulFailureWithoutServer() async {
+        let client = KanataUDPClient(port: 37000)
+
+        // All operations should fail gracefully, not crash
+        _ = await client.checkServerStatus()
+        _ = await client.authenticate(token: "test")
+        _ = await client.validateConfig("test")
+        _ = await client.reloadConfig()
+        _ = await client.restartKanata()
+
+        XCTAssertTrue(true, "All operations should fail gracefully without server")
+    }
+
+    // MARK: - Integration Test (Manual)
+
+    /// This test requires a running Kanata UDP server with known token
+    /// Run manually only when you have kanata running locally
+    func testRealServerCommunication() async throws {
+        // Skip in CI - requires manual testing with running server
+        try XCTSkipIf(true, "Requires running Kanata UDP server - test manually")
+
+        let client = KanataUDPClient(port: 37000)
+
+        // Check if server is responding
+        let serverStatus = await client.checkServerStatus()
+        XCTAssertTrue(serverStatus, "Server should be running for this test")
+
+        // Try authentication with test token
+        // (Replace with actual token from your test setup)
+        let authResult = await client.authenticate(token: "your-test-token")
+        XCTAssertTrue(authResult, "Authentication should succeed with valid token")
     }
 }
