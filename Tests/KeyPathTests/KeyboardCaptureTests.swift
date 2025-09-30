@@ -5,14 +5,11 @@ import XCTest
 
 @MainActor
 final class KeyboardCaptureTests: XCTestCase {
-    var capture: KeyboardCapture!
+    lazy var capture: KeyboardCapture = KeyboardCapture()
     var receivedNotifications: [Notification] = []
 
-    @MainActor
-    override func setUp() async throws {
-        try await super.setUp()
-        capture = KeyboardCapture()
-        receivedNotifications.removeAll()
+    override func setUp() {
+        super.setUp()
 
         // Set up notification observer
         NotificationCenter.default.addObserver(
@@ -23,14 +20,9 @@ final class KeyboardCaptureTests: XCTestCase {
         )
     }
 
-    @MainActor
-    override func tearDown() async throws {
-        capture.stopCapture()
-        capture.stopEmergencyMonitoring()
-        capture = nil
-
+    override func tearDown() {
         NotificationCenter.default.removeObserver(self)
-        try await super.tearDown()
+        super.tearDown()
     }
 
     @objc private func notificationReceived(_ notification: Notification) {
@@ -112,6 +104,7 @@ final class KeyboardCaptureTests: XCTestCase {
     // MARK: - Capture Lifecycle Tests
 
     func testSingleKeyCaptureLifecycle() throws {
+        receivedNotifications.removeAll()
         var capturedKeys: [String] = []
         let expectation = expectation(description: "Single key capture")
 
@@ -150,6 +143,7 @@ final class KeyboardCaptureTests: XCTestCase {
     }
 
     func testContinuousCaptureLifecycle() throws {
+        receivedNotifications.removeAll()
         var capturedKeys: [String] = []
         let expectation = expectation(description: "Continuous capture")
 
@@ -268,6 +262,7 @@ final class KeyboardCaptureTests: XCTestCase {
     // MARK: - Notification Tests
 
     func testPermissionNotificationContent() throws {
+        receivedNotifications.removeAll()
         let expectation = expectation(description: "Permission notification")
 
         // Start capture without permissions to trigger notification
@@ -297,6 +292,7 @@ final class KeyboardCaptureTests: XCTestCase {
     }
 
     func testContinuousCapturePermissionNotification() throws {
+        receivedNotifications.removeAll()
         let expectation = expectation(description: "Continuous permission notification")
 
         capture.startContinuousCapture { key in

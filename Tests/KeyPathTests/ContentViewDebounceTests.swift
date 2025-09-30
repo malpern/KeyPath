@@ -7,23 +7,13 @@ import XCTest
 /// Tests the save operation debouncing added in Phase 1.3 to prevent rapid successive saves
 @MainActor
 class ContentViewDebounceTests: XCTestCase {
-    var testManager: KanataManager!
-
-    override func setUp() {
-        super.setUp()
-        testManager = KanataManager()
-    }
-
-    override func tearDown() {
-        testManager = nil
-        super.tearDown()
-    }
+    lazy var testManager: KanataManager = KanataManager()
 
     // MARK: - Debounce Logic Tests (Non-UI)
 
     func testConfigurationSaveDebouncing() async throws {
         // Test actual debounce behavior by making rapid saves and verifying only the final result persists
-        let manager = KanataManager()
+        _ = KanataManager()
 
         // Create test directory
         let testConfigDir = "/tmp/keypath-debounce-test-\(UUID().uuidString)"
@@ -44,7 +34,7 @@ class ContentViewDebounceTests: XCTestCase {
         AppLogger.shared.log("✅ [Test] Configuration debouncing behavior verified")
     }
 
-    func testErrorHandlingPreservesUIState() {
+    func testErrorHandlingPreservesUIState() async {
         // Test that errors during save operations properly reset the UI state
         let manager = KanataManager()
 
@@ -63,7 +53,7 @@ class ContentViewDebounceTests: XCTestCase {
 
     func testConfigurationSaveFlow() async throws {
         // Test the complete save flow without UI dependencies
-        let manager = KanataManager()
+        _ = KanataManager()
 
         // Create a test directory for configuration
         let testConfigDir = "/tmp/keypath-test-\(UUID().uuidString)"
@@ -76,24 +66,20 @@ class ContentViewDebounceTests: XCTestCase {
         }
 
         // Test saving a simple configuration
-        do {
-            // This would normally call manager.saveConfiguration(input:output:)
-            // For now, we test the configuration generation
-            let mapping = KeyMapping(input: "caps", output: "esc")
-            let config = KanataConfiguration.generateFromMappings([mapping])
+        // This would normally call manager.saveConfiguration(input:output:)
+        // For now, we test the configuration generation
+        let mapping = KeyMapping(input: "caps", output: "esc")
+        let config = KanataConfiguration.generateFromMappings([mapping])
 
-            XCTAssertTrue(config.contains("caps"))
-            XCTAssertTrue(config.contains("esc"))
+        XCTAssertTrue(config.contains("caps"))
+        XCTAssertTrue(config.contains("esc"))
 
-            AppLogger.shared.log("✅ [Test] Configuration save flow structure verified")
-        } catch {
-            XCTFail("Configuration save should not fail: \(error)")
-        }
+        AppLogger.shared.log("✅ [Test] Configuration save flow structure verified")
     }
 
     func testMultipleConcurrentSaves() async throws {
         // Test that multiple concurrent save attempts are handled gracefully
-        let manager = KanataManager()
+        _ = KanataManager()
 
         // Create multiple concurrent save tasks
         let saveTasks = (1 ... 3).map { taskId in
@@ -135,9 +121,9 @@ class ContentViewDebounceTests: XCTestCase {
 
 @MainActor
 class Phase1LoggingTests: XCTestCase {
-    func testLoggingCapturesActualOperations() {
+    func testLoggingCapturesActualOperations() async {
         // Test that logging captures important operational information
-        let manager = KanataManager()
+        _ = await KanataManager()
 
         // Test that we can generate a config and logging reflects the operation
         let mapping = KeyMapping(input: "f1", output: "f13")

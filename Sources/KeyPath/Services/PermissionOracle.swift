@@ -30,7 +30,7 @@ actor PermissionOracle {
 
     // MARK: - Core Types
 
-    enum Status {
+    enum Status: Equatable {
         case granted
         case denied
         case error(String)
@@ -107,7 +107,7 @@ actor PermissionOracle {
         }
     }
 
-    enum Confidence {
+    enum Confidence: Equatable {
         case high // UDP API, Official Apple APIs
         case low // Unknown/unavailable states (TCC fallback removed)
     }

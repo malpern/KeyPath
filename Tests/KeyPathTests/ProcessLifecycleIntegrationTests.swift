@@ -4,18 +4,17 @@ import XCTest
 
 /// Integration tests for ProcessLifecycleManager - tests the actual system
 /// Updated to work with the simplified ProcessLifecycleManager that uses PID files
-@MainActor
 final class ProcessLifecycleIntegrationTests: XCTestCase {
     var processManager: ProcessLifecycleManager!
 
-    override func setUp() async throws {
-        try await super.setUp()
+    override func setUp() {
+        super.setUp()
         processManager = ProcessLifecycleManager()
     }
 
-    override func tearDown() async throws {
+    override func tearDown() {
         processManager = nil
-        try await super.tearDown()
+        super.tearDown()
     }
 
     // MARK: - Basic Operations Tests
@@ -123,16 +122,17 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
 
     func testConcurrentProcessManagement() async throws {
         // Test concurrent access to ProcessLifecycleManager (real implementation)
+        let manager = processManager!
 
         let concurrentTasks = (1 ... 10).map { taskId in
             Task {
                 // Test concurrent operations on real ProcessLifecycleManager
-                processManager.setIntent(.shouldBeRunning(source: "concurrent_\(taskId)"))
+                manager.setIntent(.shouldBeRunning(source: "concurrent_\(taskId)"))
 
                 // Test basic operations on ProcessLifecycleManager
-                await processManager.registerStartedProcess(pid: pid_t(20000 + taskId), command: "test command")
+                await manager.registerStartedProcess(pid: pid_t(20000 + taskId), command: "test command")
 
-                await processManager.unregisterProcess()
+                await manager.unregisterProcess()
             }
         }
 

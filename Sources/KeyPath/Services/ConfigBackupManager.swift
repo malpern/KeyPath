@@ -238,6 +238,10 @@ public struct BackupInfo {
     }
 }
 
+/// Configuration backup errors
+///
+/// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
 public enum ConfigBackupError: Error, LocalizedError {
     case backupNotFound(String)
     case invalidBackup(String)
@@ -251,6 +255,18 @@ public enum ConfigBackupError: Error, LocalizedError {
             "Backup file is invalid: \(filename)"
         case let .restoreFailed(reason):
             "Failed to restore backup: \(reason)"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    public var asKeyPathError: KeyPathError {
+        switch self {
+        case let .backupNotFound(path):
+            return .configuration(.backupFailed(reason: "Backup not found: \(path)"))
+        case let .invalidBackup(filename):
+            return .configuration(.backupFailed(reason: "Invalid backup: \(filename)"))
+        case let .restoreFailed(reason):
+            return .configuration(.backupRestoreFailed(reason: reason))
         }
     }
 }

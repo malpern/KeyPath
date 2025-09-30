@@ -91,7 +91,7 @@ actor KanataUDPClient {
             // Add the timeout task
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                throw UDPError.timeout
+                throw KeyPathError.communication(.timeout)
             }
 
             // Wait for first completion
@@ -252,8 +252,8 @@ actor KanataUDPClient {
                 default:
                     AppLogger.shared.log("❌ [UDP] Server status check failed: NWError \(nwError)")
                 }
-            } else if error is UDPError {
-                AppLogger.shared.log("❌ [UDP] Server status check failed: UDP timeout or no response")
+            } else if case .communication = error as? KeyPathError {
+                AppLogger.shared.log("❌ [UDP] Server status check failed: Communication error (timeout or no response)")
             } else {
                 AppLogger.shared.log("❌ [UDP] Server status check failed: \(error)")
             }
@@ -438,13 +438,13 @@ actor KanataUDPClient {
             case let .failed(error):
                 throw error
             case .cancelled:
-                throw UDPError.noResponse
+                throw KeyPathError.communication(.noResponse)
             default:
                 break
             }
             try await Task.sleep(nanoseconds: 50_000_000) // 50ms
         }
-        throw UDPError.timeout
+        throw KeyPathError.communication(.timeout)
     }
 
     // MARK: - Low-level UDP Communication
@@ -456,16 +456,16 @@ actor KanataUDPClient {
         // Validate port early to avoid fatal errors when constructing NWEndpoint.Port
         if !(1 ... 65535).contains(port) {
             AppLogger.shared.log("📡 [UDP] ❌ Invalid port: \(port) [requestId: \(requestId)]")
-            throw UDPError.invalidPort
+            throw KeyPathError.communication(.invalidPort)
         }
 
         if requiresAuth, !isAuthenticated {
-            throw UDPError.notAuthenticated
+            throw KeyPathError.communication(.notAuthenticated)
         }
 
         // Size check for UDP reliability
         guard data.count <= Self.maxUDPPayloadSize else {
-            throw UDPError.payloadTooLarge(data.count)
+            throw KeyPathError.communication(.payloadTooLarge(size: data.count))
         }
 
         // CRITICAL: Cancel any existing inflight request to prevent stale receive handlers
@@ -549,7 +549,7 @@ actor KanataUDPClient {
                                 AppLogger.shared.log("📡 [UDP] ❌ No response data received [requestId: \(requestId)]")
                                 if await completionState.markCompleted() {
                                     await self.clearInflight()
-                                    continuation.resume(throwing: UDPError.noResponse)
+                                    continuation.resume(throwing: KeyPathError.communication(.noResponse))
                                 }
                             }
                         }
@@ -605,7 +605,7 @@ actor KanataUDPClient {
                 return .authenticationRequired
             }
         }
-        throw UDPError.invalidResponse
+        throw KeyPathError.communication(.invalidResponse)
     }
 
     private func extractErrorFromResponse(_ response: String) -> String {
@@ -767,6 +767,10 @@ enum UDPReloadResult {
 }
 
 /// UDP-specific errors
+/// UDP communication errors
+///
+/// - Deprecated: Use `KeyPathError.communication(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.communication(...) instead")
 enum UDPError: Error, LocalizedError {
     case timeout
     case noResponse
@@ -789,6 +793,24 @@ enum UDPError: Error, LocalizedError {
             "Not authenticated with UDP server"
         case let .payloadTooLarge(size):
             "Payload too large for UDP (\(size) bytes). Maximum: \(KanataUDPClient.maxUDPPayloadSize) bytes"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .timeout:
+            return .communication(.timeout)
+        case .noResponse:
+            return .communication(.noResponse)
+        case .invalidPort:
+            return .communication(.invalidPort)
+        case .invalidResponse:
+            return .communication(.invalidResponse)
+        case .notAuthenticated:
+            return .communication(.notAuthenticated)
+        case let .payloadTooLarge(size):
+            return .communication(.payloadTooLarge(size: size))
         }
     }
 }

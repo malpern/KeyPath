@@ -4,17 +4,7 @@ import XCTest
 
 @MainActor
 final class KanataManagerTests: XCTestCase {
-    var manager: KanataManager!
-
-    override func setUp() async throws {
-        try await super.setUp()
-        manager = KanataManager()
-    }
-
-    override func tearDown() async throws {
-        manager = nil
-        try await super.tearDown()
-    }
+    lazy var manager: KanataManager = KanataManager()
 
     func testInitialState() async {
         // Test initial published properties

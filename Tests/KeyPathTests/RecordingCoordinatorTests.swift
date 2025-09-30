@@ -3,39 +3,27 @@ import XCTest
 
 @MainActor
 final class RecordingCoordinatorTests: XCTestCase {
-    private var coordinator: RecordingCoordinator!
-    private var permissionProvider: StubPermissionProvider!
-    private var captureStub: StubRecordingCapture!
-    private var kanataManager: KanataManager!
     private var statusMessages: [String] = []
-
-    override func setUp() async throws {
-        try await super.setUp()
-        coordinator = RecordingCoordinator()
-        permissionProvider = StubPermissionProvider(snapshot: RecordingCoordinatorTests.snapshot(accessibility: .unknown))
-        captureStub = StubRecordingCapture()
-        kanataManager = KanataManager()
-        statusMessages = []
-
-        coordinator.configure(
+    private lazy var permissionProvider = StubPermissionProvider(
+        snapshot: RecordingCoordinatorTests.snapshot(accessibility: .unknown)
+    )
+    private lazy var captureStub = StubRecordingCapture()
+    private lazy var kanataManager = KanataManager()
+    private lazy var coordinator: RecordingCoordinator = {
+        let c = RecordingCoordinator()
+        c.configure(
             kanataManager: kanataManager,
             statusHandler: { [weak self] message in self?.statusMessages.append(message) },
             permissionProvider: permissionProvider,
             keyboardCaptureFactory: { [unowned self] in self.captureStub }
         )
-    }
-
-    override func tearDown() async throws {
-        coordinator.stopAllRecording()
-        coordinator = nil
-        captureStub = nil
-        permissionProvider = nil
-        kanataManager = nil
-        statusMessages = []
-        try await super.tearDown()
-    }
+        return c
+    }()
 
     func testInputRecordingFailsWhenAccessibilityDenied() async throws {
+        statusMessages.removeAll()
+        coordinator.stopAllRecording()
+        coordinator.clearCapturedSequences()
         permissionProvider.snapshot = Self.snapshot(accessibility: .denied)
 
         coordinator.toggleInputRecording()
@@ -47,6 +35,9 @@ final class RecordingCoordinatorTests: XCTestCase {
     }
 
     func testInputRecordingCompletesWhenCaptureCallbackFires() async throws {
+        statusMessages.removeAll()
+        coordinator.stopAllRecording()
+        coordinator.clearCapturedSequences()
         permissionProvider.snapshot = Self.snapshot(accessibility: .granted)
         captureStub.autoFire = false
 
@@ -68,6 +59,9 @@ final class RecordingCoordinatorTests: XCTestCase {
     }
 
     func testOutputRecordingFailsWhenAccessibilityDenied() async throws {
+        statusMessages.removeAll()
+        coordinator.stopAllRecording()
+        coordinator.clearCapturedSequences()
         permissionProvider.snapshot = Self.snapshot(accessibility: .denied)
 
         coordinator.toggleOutputRecording()

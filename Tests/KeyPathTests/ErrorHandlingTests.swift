@@ -4,20 +4,8 @@ import XCTest
 
 @MainActor
 final class ErrorHandlingTests: XCTestCase {
-    var manager: KanataManager!
-    var capture: KeyboardCapture!
-
-    override func setUpWithError() throws {
-        manager = KanataManager()
-        capture = KeyboardCapture()
-    }
-
-    override func tearDownWithError() throws {
-        capture.stopCapture()
-        capture.stopEmergencyMonitoring()
-        manager = nil
-        capture = nil
-    }
+    lazy var manager: KanataManager = KanataManager()
+    lazy var capture: KeyboardCapture = KeyboardCapture()
 
     // MARK: - Key Mapping Error Handling Tests
 

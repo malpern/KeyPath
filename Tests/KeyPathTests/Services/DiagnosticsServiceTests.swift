@@ -2,21 +2,20 @@ import XCTest
 
 @testable import KeyPath
 
-@MainActor
 final class DiagnosticsServiceTests: XCTestCase {
     var service: DiagnosticsService!
     var processManager: ProcessLifecycleManager!
 
-    override func setUp() async throws {
-        try await super.setUp()
+    override func setUp() {
+        super.setUp()
         processManager = ProcessLifecycleManager(kanataManager: nil)
         service = DiagnosticsService(processLifecycleManager: processManager)
     }
 
-    override func tearDown() async throws {
+    override func tearDown() {
         service = nil
         processManager = nil
-        try await super.tearDown()
+        super.tearDown()
     }
 
     // MARK: - Failure Diagnosis Tests

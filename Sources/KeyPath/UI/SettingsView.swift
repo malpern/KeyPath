@@ -56,10 +56,13 @@ struct SettingsView: View {
         }
         .alert("Enter UDP Port", isPresented: $showingUDPPortAlert) {
             TextField("Port (1024-65535)", text: $tempUDPPort)
+                .accessibilityLabel("UDP Port Number")
+                .accessibilityHint("Enter a port number between 1024 and 65535")
 
             Button("Cancel") {
                 tempUDPPort = ""
             }
+            .accessibilityLabel("Cancel port change")
 
             Button("Apply") {
                 if let port = Int(tempUDPPort), preferences.isValidPort(port) {
@@ -72,30 +75,40 @@ struct SettingsView: View {
                 }
                 tempUDPPort = ""
             }
+            .accessibilityLabel("Apply port change")
+            .accessibilityHint("Saves the new UDP port number")
         } message: {
             Text("Enter a UDP port number between 1024 and 65535. If Kanata is running, you'll need to restart the service for the change to take effect.")
         }
         .alert("Enter UDP Auth Token", isPresented: $showingUDPTokenAlert) {
             TextField("Authentication Token (leave empty for auto-generated)", text: $tempUDPToken)
+                .accessibilityLabel("UDP Authentication Token")
+                .accessibilityHint("Enter a custom token or leave empty for auto-generation")
 
             Button("Cancel") {
                 tempUDPToken = ""
             }
+            .accessibilityLabel("Cancel token change")
 
             Button("Apply") {
                 preferences.udpAuthToken = tempUDPToken
                 AppLogger.shared.log("🔧 [SettingsView] UDP auth token updated")
                 tempUDPToken = ""
             }
+            .accessibilityLabel("Apply token change")
+            .accessibilityHint("Saves the authentication token")
         } message: {
             Text("Enter a custom authentication token for the UDP server. Leave empty to let Kanata auto-generate a secure token.")
         }
         .alert("Enter UDP Session Timeout", isPresented: $showingUDPTimeoutAlert) {
             TextField("Timeout in seconds (300-86400)", text: $tempUDPTimeout)
+                .accessibilityLabel("UDP Session Timeout")
+                .accessibilityHint("Enter timeout in seconds, between 300 and 86400")
 
             Button("Cancel") {
                 tempUDPTimeout = ""
             }
+            .accessibilityLabel("Cancel timeout change")
 
             Button("Apply") {
                 if let timeout = Int(tempUDPTimeout), timeout >= 300, timeout <= 86400 {
@@ -104,6 +117,8 @@ struct SettingsView: View {
                 }
                 tempUDPTimeout = ""
             }
+            .accessibilityLabel("Apply timeout change")
+            .accessibilityHint("Saves the new session timeout")
         } message: {
             Text("Enter session timeout in seconds (5 minutes to 24 hours). This controls how long authentication sessions remain valid.")
         }
@@ -364,6 +379,8 @@ struct SettingsView: View {
         SettingsSection(title: "Notifications") {
             @Bindable var bindablePreferences = preferences
             Toggle("Enable Notifications", isOn: $bindablePreferences.notificationsEnabled)
+                .accessibilityLabel("Enable Notifications")
+                .accessibilityHint("Allow KeyPath to send system notifications for service status and errors")
                 .onChange(of: preferences.notificationsEnabled) { _, enabled in
                     if enabled {
                         Task { @MainActor in
@@ -399,6 +416,8 @@ struct SettingsView: View {
                     )
                 )
                 .help("Enable UDP server for low-latency config operations and validation")
+                .accessibilityLabel("Enable UDP Server")
+                .accessibilityHint("Enable high-performance UDP communication for real-time keyboard configuration")
 
                 Spacer()
             }
@@ -417,6 +436,9 @@ struct SettingsView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .help("Click to change UDP port (1024-65535)")
+                    .accessibilityLabel("Change UDP Port")
+                    .accessibilityValue("Current port: \(preferences.udpServerPort)")
+                    .accessibilityHint("Opens dialog to change the UDP server port")
 
                     Spacer()
                 }
@@ -434,6 +456,9 @@ struct SettingsView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .help("Click to set custom authentication token")
+                    .accessibilityLabel("Change Authentication Token")
+                    .accessibilityValue(preferences.udpAuthToken.isEmpty ? "Auto-generated" : "Custom token set")
+                    .accessibilityHint("Opens dialog to set a custom authentication token")
 
                     Spacer()
                 }
@@ -451,6 +476,9 @@ struct SettingsView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .help("Click to change session timeout (300-86400 seconds)")
+                    .accessibilityLabel("Change Session Timeout")
+                    .accessibilityValue("Current timeout: \(preferences.udpSessionTimeout) seconds")
+                    .accessibilityHint("Opens dialog to change how long authentication sessions remain valid")
 
                     Spacer()
                 }
@@ -875,18 +903,24 @@ struct SettingsView: View {
                         Label("\(errorCount)", systemImage: "exclamationmark.circle.fill")
                             .foregroundColor(.red)
                             .font(.caption)
+                            .accessibilityLabel("\(errorCount) error\(errorCount == 1 ? "" : "s")")
+                            .accessibilityHint("Number of critical errors or errors in diagnostics")
                     }
 
                     if warningCount > 0 {
                         Label("\(warningCount)", systemImage: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)
                             .font(.caption)
+                            .accessibilityLabel("\(warningCount) warning\(warningCount == 1 ? "" : "s")")
+                            .accessibilityHint("Number of warnings in diagnostics")
                     }
 
                     if errorCount == 0, warningCount == 0 {
                         Label("All good", systemImage: "checkmark.circle.fill")
                             .foregroundColor(.green)
                             .font(.caption)
+                            .accessibilityLabel("All diagnostics passed")
+                            .accessibilityHint("No errors or warnings found in system diagnostics")
                     }
 
                     Spacer()
@@ -1246,6 +1280,7 @@ struct StatusRow: View {
                 Circle()
                     .fill(isActive ? Color.green : Color.orange)
                     .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
 
                 Text(status)
                     .font(.system(size: 13))
@@ -1253,6 +1288,9 @@ struct StatusRow: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(status)")
+        .accessibilityValue(isActive ? "Active" : "Inactive")
     }
 }
 

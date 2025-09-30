@@ -5,26 +5,13 @@ import XCTest
 
 @MainActor
 class ConfigurationServiceTests: XCTestCase {
-    var tempDirectory: URL!
-    var configService: ConfigurationService!
-
-    override func setUp() async throws {
-        try await super.setUp()
-
-        // Create temporary directory for test configs
-        tempDirectory = FileManager.default.temporaryDirectory
+    lazy var tempDirectory: URL = {
+        let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("KeyPathConfigTests_\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
-
-        // Initialize ConfigurationService with temp directory
-        configService = ConfigurationService(configDirectory: tempDirectory.path)
-    }
-
-    override func tearDown() async throws {
-        // Clean up temp directory
-        try? FileManager.default.removeItem(at: tempDirectory)
-        try await super.tearDown()
-    }
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }()
+    lazy var configService: ConfigurationService = ConfigurationService(configDirectory: tempDirectory.path)
 
     // MARK: - Configuration Generation Tests
 
