@@ -40,6 +40,9 @@ public enum KeyPathError: Error, LocalizedError {
         case backupRestoreFailed(reason: String)
         case backupListFailed(reason: String)
         case parseError(line: Int?, message: String)
+        case backupNotFound
+        case corruptedFormat(details: String)
+        case repairFailed(reason: String)
     }
 
     // MARK: - Process/Lifecycle Errors
@@ -256,6 +259,12 @@ public enum KeyPathError: Error, LocalizedError {
             } else {
                 "Parse error: \(message)"
             }
+        case .backupNotFound:
+            "No backup configuration found"
+        case let .corruptedFormat(details):
+            "Configuration file is corrupted: \(details)"
+        case let .repairFailed(reason):
+            "Failed to repair configuration: \(reason)"
         }
     }
 

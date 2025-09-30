@@ -10,26 +10,6 @@ import Foundation
 /// - Deprecated: Use `KeyPathError.process(...)` instead for consistent error handling
 @available(*, deprecated, message: "Use KeyPathError.process(...) instead")
 @MainActor
-enum ProcessLifecycleError: Error {
-    case noKanataManager
-    case processStartFailed
-    case processStopFailed(underlyingError: Error)
-    case processTerminateFailed(underlyingError: Error)
-
-    /// Convert to KeyPathError for consistent error handling
-    var asKeyPathError: KeyPathError {
-        switch self {
-        case .noKanataManager:
-            return .process(.noManager)
-        case .processStartFailed:
-            return .process(.startFailed(reason: "Process start failed"))
-        case let .processStopFailed(underlyingError):
-            return .process(.stopFailed(underlyingError: underlyingError.localizedDescription))
-        case let .processTerminateFailed(underlyingError):
-            return .process(.terminateFailed(underlyingError: underlyingError.localizedDescription))
-        }
-    }
-}
 
 enum ProcessIntent {
     case shouldBeRunning(source: String)

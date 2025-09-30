@@ -16,61 +16,6 @@ actor ProcessSynchronizationActor {
 ///
 /// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
 @available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
-enum ConfigError: Error, LocalizedError {
-    case corruptedConfigDetected(errors: [String])
-    case claudeRepairFailed(reason: String)
-    case validationFailed(errors: [String])
-    case startupValidationFailed(errors: [String], backupPath: String)
-    case preSaveValidationFailed(errors: [String], config: String)
-    case postSaveValidationFailed(errors: [String])
-    case repairFailedNeedsUserAction(
-        originalConfig: String,
-        repairedConfig: String?,
-        originalErrors: [String],
-        repairErrors: [String],
-        mappings: [KeyMapping]
-    )
-
-    var errorDescription: String? {
-        switch self {
-        case let .corruptedConfigDetected(errors):
-            "Configuration file is corrupted: \(errors.joined(separator: ", "))"
-        case let .claudeRepairFailed(reason):
-            "Failed to repair configuration with Claude: \(reason)"
-        case let .validationFailed(errors):
-            "Configuration validation failed: \(errors.joined(separator: ", "))"
-        case let .startupValidationFailed(errors, _):
-            "Startup configuration validation failed: \(errors.joined(separator: ", "))"
-        case let .preSaveValidationFailed(errors, _):
-            "Pre-save configuration validation failed: \(errors.joined(separator: ", "))"
-        case let .postSaveValidationFailed(errors):
-            "Post-save configuration validation failed: \(errors.joined(separator: ", "))"
-        case .repairFailedNeedsUserAction:
-            "Configuration repair failed - user intervention required"
-        }
-    }
-
-    /// Convert to KeyPathError for consistent error handling
-    var asKeyPathError: KeyPathError {
-        switch self {
-        case let .corruptedConfigDetected(errors):
-            return .configuration(.corruptedFormat(details: errors.joined(separator: "; ")))
-        case let .claudeRepairFailed(reason):
-            return .configuration(.saveFailed(reason: "Repair failed: \(reason)"))
-        case let .validationFailed(errors):
-            return .configuration(.validationFailed(errors: errors))
-        case let .startupValidationFailed(errors, backupPath):
-            return .configuration(.validationFailed(errors: errors + ["Backup at: \(backupPath)"]))
-        case let .preSaveValidationFailed(errors, _):
-            return .configuration(.validationFailed(errors: errors))
-        case let .postSaveValidationFailed(errors):
-            return .configuration(.validationFailed(errors: errors))
-        case let .repairFailedNeedsUserAction(_, _, originalErrors, repairErrors, _):
-            let allErrors = originalErrors + repairErrors
-            return .configuration(.validationFailed(errors: allErrors))
-        }
-    }
-}
 
 /// Represents a simple key mapping from input to output
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {

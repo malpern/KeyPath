@@ -467,33 +467,41 @@ struct ContentView: View {
     }
 
     private func handleSaveError(_ error: Error) {
-        if let coordinatorError = error as? RecordingCoordinator.CoordinatorError {
-            switch coordinatorError {
-            case .missingSequences:
-                showStatusMessage(message: "❌ Please capture both input and output keys first")
-            }
+        // Handle coordination errors
+        if case KeyPathError.coordination(.invalidState) = error {
+            showStatusMessage(message: "❌ Please capture both input and output keys first")
             return
         }
 
-        guard let configError = error as? ConfigError else {
-            showStatusMessage(message: "❌ Error saving: \(error.localizedDescription)")
+        // Handle configuration validation errors with detailed feedback
+        if case let KeyPathError.configuration(.validationFailed(errors)) = error {
+            configCorruptionDetails = """
+            Configuration validation failed:
+
+            \(errors.joined(separator: "\n"))
+            """
+            showingConfigCorruptionAlert = true
+            showStatusMessage(message: "❌ Configuration validation failed")
             return
         }
 
-        switch configError {
-        case let .corruptedConfigDetected(errors):
+        // Handle configuration corruption with repair details
+        if case let KeyPathError.configuration(.corruptedFormat(details)) = error {
             configCorruptionDetails = """
             Configuration corruption detected:
 
-            \(errors.joined(separator: "\n"))
+            \(details)
 
-            KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration. If repair failed, a safe fallback configuration was applied.
+            KeyPath attempted automatic repair. If the repair was successful, your mapping has been saved with a corrected configuration.
             """
             configRepairSuccessful = false
             showingConfigCorruptionAlert = true
             showStatusMessage(message: "⚠️ Config repaired automatically")
+            return
+        }
 
-        case let .claudeRepairFailed(reason):
+        // Handle repair failures
+        if case let KeyPathError.configuration(.repairFailed(reason)) = error {
             configCorruptionDetails = """
             Configuration repair failed:
 
@@ -504,84 +512,11 @@ struct ContentView: View {
             configRepairSuccessful = false
             showingConfigCorruptionAlert = true
             showStatusMessage(message: "❌ Config repair failed - using safe fallback")
-
-        case let .repairFailedNeedsUserAction(originalConfig, _, originalErrors, repairErrors, mappings):
-            Task {
-                do {
-                    let backupPath = try await kanataManager.backupFailedConfigAndApplySafe(
-                        failedConfig: originalConfig,
-                        mappings: mappings
-                    )
-
-                    await MainActor.run {
-                        failedConfigBackupPath = backupPath
-                        repairFailedDetails = """
-                        KeyPath was unable to automatically repair your configuration file.
-
-                        Original errors:
-                        \(originalErrors.joined(separator: "\n"))
-
-                        Repair attempt errors:
-                        \(repairErrors.joined(separator: "\n"))
-
-                        Actions taken:
-                        • Your failed configuration has been backed up to: \(backupPath)
-                        • A safe default configuration (Caps Lock → Escape) has been applied
-                        • Your system should continue working normally
-
-                        You can examine and manually fix the backed up configuration if needed.
-                        """
-                        showingRepairFailedAlert = true
-                        showStatusMessage(message: "⚠️ Config backed up, safe default applied")
-                    }
-                } catch {
-                    await MainActor.run {
-                        showStatusMessage(message: "❌ Failed to backup config: \(error.localizedDescription)")
-                    }
-                }
-            }
-
-        case let .startupValidationFailed(errors, backupPath):
-            configCorruptionDetails = """
-            Configuration validation failed at startup:
-
-            \(errors.joined(separator: "\n"))
-
-            Last known good configuration backed up to: \(backupPath)
-            """
-            showingConfigCorruptionAlert = true
-            showStatusMessage(message: "⚠️ Config validation failed at startup - using default")
-
-        case let .preSaveValidationFailed(errors, config):
-            configCorruptionDetails = """
-            Pre-save validation failed:
-
-            \(errors.joined(separator: "\n"))
-
-            Problematic configuration:
-            \(config)
-            """
-            showingConfigCorruptionAlert = true
-            showStatusMessage(message: "❌ Config error: validation failed before save")
-
-        case let .postSaveValidationFailed(errors):
-            configCorruptionDetails = """
-            Post-save validation failed:
-
-            \(errors.joined(separator: "\n"))
-            """
-            showingConfigCorruptionAlert = true
-            showStatusMessage(message: "❌ Config error: validation failed after save")
-
-        case let .validationFailed(errors):
-            configCorruptionDetails = """
-            Configuration validation failed:
-
-            \(errors.joined(separator: "\n"))
-            """
-            showingConfigCorruptionAlert = true
-            showStatusMessage(message: "❌ Configuration validation failed")
+            return
         }
+
+        // Generic error handling for all other cases
+        showStatusMessage(message: "❌ Error saving: \(error.localizedDescription)")
     }
 
     private func handleInputRecordTap() {
