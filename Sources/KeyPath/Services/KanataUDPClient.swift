@@ -1,6 +1,20 @@
 import Foundation
 import Network
 
+/// Simple completion flag for thread-safe continuation handling
+private final class CompletionFlag: @unchecked Sendable {
+    private var completed = false
+    private let lock = NSLock()
+
+    func markCompleted() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !completed else { return false }
+        completed = true
+        return true
+    }
+}
+
 /// Simplified UDP client for communicating with Kanata's local UDP server
 ///
 /// Design principles:
@@ -228,7 +242,7 @@ actor KanataUDPClient {
                 using: .udp
             )
 
-            var didComplete = false
+            let completionFlag = CompletionFlag()
 
             connection.stateUpdateHandler = { state in
                 switch state {
@@ -236,8 +250,7 @@ actor KanataUDPClient {
                     // Send data
                     connection.send(content: data, completion: .contentProcessed { error in
                         if let error {
-                            if !didComplete {
-                                didComplete = true
+                            if completionFlag.markCompleted() {
                                 continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
                             }
                             connection.cancel()
@@ -248,9 +261,7 @@ actor KanataUDPClient {
                         connection.receiveMessage { content, _, isComplete, error in
                             defer { connection.cancel() }
 
-                            if !didComplete {
-                                didComplete = true
-
+                            if completionFlag.markCompleted() {
                                 if let error {
                                     continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
                                 } else if let content {
@@ -263,16 +274,14 @@ actor KanataUDPClient {
                     })
 
                 case .failed(let error):
-                    if !didComplete {
-                        didComplete = true
-                        continuation.resume(throwing: KeyPathError.communication(.connectionFailed(error.localizedDescription)))
+                    if completionFlag.markCompleted() {
+                        continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
                     }
                     connection.cancel()
 
                 case .cancelled:
-                    if !didComplete {
-                        didComplete = true
-                        continuation.resume(throwing: KeyPathError.communication(.connectionFailed("Cancelled")))
+                    if completionFlag.markCompleted() {
+                        continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Cancelled")))
                     }
 
                 default:
