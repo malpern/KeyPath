@@ -160,7 +160,7 @@ public struct KanataConfiguration: Sendable {
     public func validate(content: String) throws -> KanataConfiguration {
         // Basic validation - ensure content is not empty
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw KeyPathError.configuration(.invalidFormat(details: "Configuration content is empty"))
+            throw KeyPathError.configuration(.invalidFormat(reason: "Configuration content is empty"))
         }
 
         // Get file modification date

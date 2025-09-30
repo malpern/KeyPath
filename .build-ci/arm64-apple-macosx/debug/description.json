@@ -650,6 +650,7 @@
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx15.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
@@ -1330,6 +1331,7 @@
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx15.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
@@ -1425,6 +1427,7 @@
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx15.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
@@ -1678,6 +1681,7 @@
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx15.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
@@ -2034,6 +2038,7 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx15.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
@@ -2091,6 +2096,7 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx15.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
@@ -2147,6 +2153,7 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx15.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",
@@ -2234,6 +2241,7 @@
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx15.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/index/store",

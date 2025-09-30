@@ -144,7 +144,7 @@ final class RecordingCoordinator: ObservableObject {
         else {
             AppLogger.shared.log("❌ [Coordinator] Save requested without both sequences")
             await MainActor.run {
-                onError(CoordinatorError.missingSequences)
+                onError(KeyPathError.coordination(.recordingFailed(reason: "Missing input/output sequences")))
             }
             return
         }

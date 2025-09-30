@@ -109,7 +109,7 @@ public final class ConfigBackupManager {
     /// Restore config from a specific backup
     public func restoreFromBackup(_ backup: BackupInfo) throws {
         guard FileManager.default.fileExists(atPath: backup.fullPath) else {
-            throw KeyPathError.configuration(.backupNotFound(path: backup.fullPath))
+            throw KeyPathError.configuration(.backupNotFound)
         }
 
         // Read backup content

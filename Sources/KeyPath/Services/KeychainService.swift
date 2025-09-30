@@ -32,7 +32,7 @@ final class KeychainService {
         // Add new item
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else {
-            throw KeyPathError.system(.fileOperationFailed(operation: "Keychain store", path: "Keychain", reason: "OSStatus: \(status)"))
+            throw KeyPathError.permission(.keychainSaveFailed(status: Int(status)))
         }
 
         AppLogger.shared.log("🔐 [Keychain] UDP token stored securely")
@@ -59,7 +59,7 @@ final class KeychainService {
               let data = result as? Data,
               let token = String(data: data, encoding: .utf8)
         else {
-            throw KeyPathError.system(.fileOperationFailed(operation: "Keychain retrieve", path: "Keychain", reason: "OSStatus: \(status)"))
+            throw KeyPathError.permission(.keychainLoadFailed(status: Int(status)))
         }
 
         AppLogger.shared.log("🔐 [Keychain] UDP token retrieved")
@@ -76,7 +76,7 @@ final class KeychainService {
 
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeyPathError.system(.fileOperationFailed(operation: "Keychain delete", path: "Keychain", reason: "OSStatus: \(status)"))
+            throw KeyPathError.permission(.keychainDeleteFailed(status: Int(status)))
         }
 
         AppLogger.shared.log("🔐 [Keychain] UDP token deleted")

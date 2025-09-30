@@ -506,7 +506,7 @@ class KanataManager {
     /// Restore last known good config in case of validation failure
     private func restoreLastGoodConfig() async throws {
         guard let backup = lastGoodConfig else {
-            throw KeyPathError.configuration(.backupNotFound(path: "last good config"))
+            throw KeyPathError.configuration(.backupNotFound)
         }
 
         try backup.write(toFile: configPath, atomically: true, encoding: .utf8)
@@ -1397,7 +1397,7 @@ class KanataManager {
                 await MainActor.run {
                     saveStatus = .failed("Config saved but reload failed: \(errorMessage)")
                 }
-                throw KeyPathError.configuration(.reloadFailed(reason: "Hot reload failed: \(errorMessage)"))
+                throw KeyPathError.configuration(.loadFailed(reason: "Hot reload failed: \(errorMessage)"))
             }
 
             // Reset to idle after a delay
@@ -1474,7 +1474,7 @@ class KanataManager {
                 await MainActor.run {
                     saveStatus = .failed("UDP server required for hot reload failed: \(errorMessage)")
                 }
-                throw KeyPathError.configuration(.reloadFailed(reason: "UDP server required for validation-on-demand failed: \(errorMessage)"))
+                throw KeyPathError.configuration(.loadFailed(reason: "UDP server required for validation-on-demand failed: \(errorMessage)"))
             }
 
             // Reset to idle after a delay

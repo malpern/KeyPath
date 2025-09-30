@@ -238,7 +238,7 @@ actor KanataUDPClient {
                         if let error {
                             if !didComplete {
                                 didComplete = true
-                                continuation.resume(throwing: KeyPathError.communication(.noResponse(details: error.localizedDescription)))
+                                continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
                             }
                             connection.cancel()
                             return
@@ -252,11 +252,11 @@ actor KanataUDPClient {
                                 didComplete = true
 
                                 if let error {
-                                    continuation.resume(throwing: KeyPathError.communication(.noResponse(details: error.localizedDescription)))
+                                    continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
                                 } else if let content {
                                     continuation.resume(returning: content)
                                 } else {
-                                    continuation.resume(throwing: KeyPathError.communication(.noResponse(details: "Empty response")))
+                                    continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Empty response")))
                                 }
                             }
                         }
