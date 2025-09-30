@@ -438,26 +438,11 @@ struct InstallationWizardView: View {
                     )
                 }
             }
-        case .inputMonitoring, .accessibility:
-            // Quick permission check only
-            if let statusChecker = stateManager.statusChecker {
-                _ = await statusChecker.checkPermissionsOnly()
-                await MainActor.run {
-                    // Update only permission-related issues
-                    currentIssues = currentIssues.filter { $0.category != .permissions }
-                    // Add fresh permission issues (simplified)
-                }
-            }
-        case .conflicts:
-            // Quick conflict check only
-            if let statusChecker = stateManager.statusChecker {
-                _ = await statusChecker.checkConflictsOnly()
-                await MainActor.run {
-                    // Update only conflict-related issues
-                    currentIssues = currentIssues.filter { $0.category != .conflicts }
-                    // Add fresh conflict issues (simplified)
-                }
-            }
+        case .inputMonitoring, .accessibility, .conflicts:
+            // 🎯 Phase 2: Quick checks removed - SystemValidator does full check
+            // The full check is fast enough (<1s) and prevents partial state issues
+            // If needed later, can add specific quick methods to SystemValidator
+            break
         default:
             // No background polling for other pages
             break
@@ -949,15 +934,21 @@ struct InstallationWizardView: View {
 
 @MainActor
 class WizardStateManager: ObservableObject {
-    var statusChecker: SystemStatusChecker?
+    // 🎯 NEW: Use SystemValidator instead of SystemStatusChecker
+    private var validator: SystemValidator?
 
     func configure(kanataManager: KanataManager) {
-        statusChecker = SystemStatusChecker.shared(kanataManager: kanataManager)
-        AppLogger.shared.log("🔍 [WizardStateManager] Configured with shared SystemStatusChecker")
+        // Create validator with process manager
+        let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
+        validator = SystemValidator(
+            processLifecycleManager: processManager,
+            kanataManager: kanataManager
+        )
+        AppLogger.shared.log("🎯 [WizardStateManager] Configured with NEW SystemValidator (Phase 2)")
     }
 
     func detectCurrentState() async -> SystemStateResult {
-        guard let statusChecker else {
+        guard let validator else {
             return SystemStateResult(
                 state: .initializing,
                 issues: [],
@@ -965,7 +956,11 @@ class WizardStateManager: ObservableObject {
                 detectionTimestamp: Date()
             )
         }
-        return await statusChecker.detectCurrentState()
+
+        // 🎯 NEW: Use SystemValidator and adapt to old format
+        AppLogger.shared.log("🎯 [WizardStateManager] Using SystemValidator (Phase 2)")
+        let snapshot = await validator.checkSystem()
+        return SystemSnapshotAdapter.adapt(snapshot)
     }
 }
 
