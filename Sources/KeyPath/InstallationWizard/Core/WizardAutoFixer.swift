@@ -677,14 +677,8 @@ class WizardAutoFixer: AutoFixCapable {
             AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Bundled kanata binary installed successfully")
             
             // Clear SystemStatusChecker cache to reflect the new installation state immediately
-            AppLogger.shared.log("🔄 [AutoFixer] Clearing status cache after binary installation")
-            // Clear existing checker's cache first (on MainActor)
-            let manager = kanataManager
-            await MainActor.run {
-                let checker = SystemStatusChecker.shared(kanataManager: manager)
-                checker.clearCache()
-            }
-            // Then reset singleton for future calls
+            AppLogger.shared.log("🔄 [AutoFixer] Resetting status checker after binary installation")
+            // Reset singleton for fresh detection on next call
             await SystemStatusChecker.resetSharedInstance()
             
         } else {

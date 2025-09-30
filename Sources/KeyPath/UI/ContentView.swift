@@ -51,12 +51,14 @@ struct ContentView: View {
                 showingInstallationWizard: $showingInstallationWizard
             )
 
-            // Recording Section
+            // Recording Section (no solid wrapper; let glass show through)
             RecordingSection(
                 coordinator: recordingCoordinator,
                 onInputRecord: { handleInputRecordTap() },
                 onOutputRecord: { handleOutputRecordTap() }
             )
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
 
             HStack {
                 Spacer()
@@ -139,8 +141,8 @@ struct ContentView: View {
 
                     Task {
                         await kanataManager.onWizardClosed()
-                        // Re-run validation to update the status indicator
-                        startupValidator.refreshValidation(force: true)
+                        // Note: validation triggered via .kp_startupRevalidate notification
+                        // Do NOT trigger here to avoid duplicate validations
                         await kanataManager.updateStatus()
                     }
                 }
@@ -224,12 +226,8 @@ struct ContentView: View {
         .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
             // Show status message when config is updated externally
             showStatusMessage(message: "Key mappings updated")
-            // Refresh validation after config changes
-            startupValidator.refreshValidation()
-        }
-        .onChange(of: kanataManager.currentState) { _, _ in
-            // Refresh validation when lifecycle state changes
-            startupValidator.refreshValidation()
+            // NOTE: Do NOT trigger validation here - causes validation spam during startup
+            // Validation happens on: app launch, wizard close, manual refresh only
         }
         .onDisappear {
             // Stop emergency monitoring when view disappears
@@ -248,13 +246,6 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
             showingInstallationWizard = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
-            // Wizard closed from anywhere (e.g., Settings) → force refresh validator and status
-            Task {
-                startupValidator.refreshValidation(force: true)
-                await kanataManager.updateStatus()
-            }
         }
         .onChange(of: showingInstallationWizard) { _, showing in
             // When wizard closes, try to start emergency monitoring if we now have permissions
@@ -357,23 +348,12 @@ struct ContentView: View {
             // Lightweight warm-ups (noop for now)
         }
 
-        NotificationCenter.default.addObserver(forName: .kp_startupValidate, object: nil, queue: .main) { _ in
-            AppLogger.shared.log("🚦 [Startup] Validate phase → StartupValidator.performStartupValidation()")
-            startupValidator.performStartupValidation()
-            // Allow modals from this point onward
-            canPresentModals = true
-            if pendingShowWizardRequest {
-                AppLogger.shared.log("🎭 [Startup] Presenting deferred wizard after validation phase")
-                pendingShowWizardRequest = false
-                showingInstallationWizard = true
-            }
-        }
-
-        NotificationCenter.default.addObserver(forName: .kp_startupAutoLaunch, object: nil, queue: .main) { _ in
+        NotificationCenter.default.addObserver(forName: .kp_startupAutoLaunch, object: nil, queue: .main) { [kanataManager] _ in
             AppLogger.shared.log("🚦 [Startup] AutoLaunch phase")
-            // Respect permission-grant return to avoid resetting wizard state
-            if !checkForPendingPermissionGrant() {
-                Task {
+            Task { @MainActor in
+                // Respect permission-grant return to avoid resetting wizard state
+                let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
+                if !result.shouldRestart {
                     AppLogger.shared.log("🚀 [ContentView] Starting auto-launch sequence (coordinated)")
                     await kanataManager.startAutoLaunch(presentWizardOnFailure: false)
                     AppLogger.shared.log("✅ [ContentView] Auto-launch sequence completed")
@@ -383,12 +363,14 @@ struct ContentView: View {
 
         NotificationCenter.default.addObserver(forName: .kp_startupEmergencyMonitor, object: nil, queue: .main) { _ in
             AppLogger.shared.log("🚦 [Startup] Emergency monitor phase")
-            startEmergencyMonitoringIfPossible()
+            // Emergency monitoring setup is now handled elsewhere
         }
 
-        NotificationCenter.default.addObserver(forName: .kp_startupRevalidate, object: nil, queue: .main) { _ in
-            AppLogger.shared.log("🚦 [Startup] Follow-up revalidate phase")
-            startupValidator.performStartupValidation()
+        NotificationCenter.default.addObserver(forName: .kp_startupRevalidate, object: nil, queue: .main) { [startupValidator] _ in
+            AppLogger.shared.log("🚦 [Startup] Follow-up revalidate phase (forced)")
+            Task { @MainActor in
+                startupValidator.performStartupValidation(force: true)
+            }
         }
     }
 
@@ -673,16 +655,16 @@ struct ContentViewHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Button(action: {
-                    AppLogger.shared.log(
-                        "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
-                    showingInstallationWizard = true
-                }, label: {
-                    Image(systemName: "keyboard")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                })
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Button(action: {
+                        AppLogger.shared.log(
+                            "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
+                        showingInstallationWizard = true
+                    }, label: {
+                        Image(systemName: "keyboard")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    })
                 .buttonStyle(PlainButtonStyle())
                 .accessibilityIdentifier("launch-installation-wizard-button")
                 .accessibilityLabel("Launch Installation Wizard")
@@ -703,15 +685,15 @@ struct ContentViewHeader: View {
                 )
             }
 
-            Text("Record keyboard shortcuts and create custom key mappings")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .padding(.top, 0)
+                Text("Record keyboard shortcuts and create custom key mappings")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .appGlassHeader()
+        // Transparent background - no glass header
     }
 }
 
@@ -743,15 +725,11 @@ struct RecordingSection: View {
                 }, label: {
                     Image(systemName: "app.background.dotted")
                         .font(.title2)
-                        .foregroundColor(PreferencesService.shared.applyMappingsDuringRecording ? .white : .blue)
+                        .foregroundColor(.white)
                 })
                 .buttonStyle(.plain)
                 .frame(width: 32, height: 32)
-                .background(PreferencesService.shared.applyMappingsDuringRecording ? Color.blue : Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.blue, lineWidth: 1)
-                )
+                .appSolidGlassButton(tint: .blue, radius: 6)
                 .cornerRadius(6)
                 .help(PreferencesService.shared.applyMappingsDuringRecording
                     ? "Mappings ON: Recording shows effective (mapped) keys. Click to show raw keys."
@@ -768,15 +746,11 @@ struct RecordingSection: View {
                 }, label: {
                     Image(systemName: "list.number")
                         .font(.title2)
-                        .foregroundColor(coordinator.isSequenceMode ? .white : .blue)
+                        .foregroundColor(.white)
                 })
                 .buttonStyle(.plain)
                 .frame(width: 32, height: 32)
-                .background(coordinator.isSequenceMode ? Color.blue : Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.blue, lineWidth: 1)
-                )
+                .appSolidGlassButton(tint: .blue, radius: 6)
                 .cornerRadius(6)
                 .help(coordinator.isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
                 .accessibilityIdentifier("sequence-mode-toggle")
@@ -789,8 +763,7 @@ struct RecordingSection: View {
                 Text(coordinator.inputDisplayText())
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                    .appFieldGlass(radius: 8, opacity: coordinator.isInputRecording() ? 0.16 : 0.06)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(coordinator.isInputRecording() ? Color.blue : Color.clear, lineWidth: 2)
@@ -814,7 +787,7 @@ struct RecordingSection: View {
                 .buttonStyle(.plain)
                 .frame(height: 44)
                 .frame(minWidth: 44)
-                .background(Color.accentColor)
+                .appSolidGlassButton(tint: .accentColor, radius: 8)
                 .foregroundColor(.white)
                 .cornerRadius(8)
                 .accessibilityIdentifier("input-key-record-button")
@@ -828,8 +801,7 @@ struct RecordingSection: View {
             }
         }
         .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
+        // Transparent background for input section
         .accessibilityIdentifier("input-recording-section")
         .accessibilityLabel("Input key recording section")
     }
@@ -844,8 +816,7 @@ struct RecordingSection: View {
                 Text(coordinator.outputDisplayText())
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                    .appFieldGlass(radius: 8, opacity: coordinator.isOutputRecording() ? 0.16 : 0.06)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(coordinator.isOutputRecording() ? Color.blue : Color.clear, lineWidth: 2)
@@ -868,7 +839,7 @@ struct RecordingSection: View {
                 .buttonStyle(.plain)
                 .frame(height: 44)
                 .frame(minWidth: 44)
-                .background(Color.accentColor)
+                .appSolidGlassButton(tint: .accentColor, radius: 8)
                 .foregroundColor(.white)
                 .cornerRadius(8)
                 .accessibilityIdentifier("output-key-record-button")
@@ -881,8 +852,7 @@ struct RecordingSection: View {
             }
         }
         .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
+        // Transparent background for output section
         .accessibilityIdentifier("output-recording-section")
         .accessibilityLabel("Output key recording section")
     }
@@ -944,11 +914,13 @@ struct ErrorSection: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding()
-        .background(Color.orange.opacity(0.1))
-        .cornerRadius(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(NSColor.textBackgroundColor).opacity(0.95))
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                .stroke(Color.orange.opacity(0.35), lineWidth: 1)
         )
     }
 }

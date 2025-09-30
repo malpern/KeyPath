@@ -197,7 +197,7 @@ struct InstallationWizardView: View {
                         stateInterpreter: stateInterpreter,
                         kanataManager: kanataManager,
                         onStartService: startKanataService,
-                        onDismiss: { dismiss() },
+                        onDismiss: { dismissAndRefreshMainScreen() },
                         onNavigateToPage: { page in
                             navigationCoordinator.navigateToPage(page)
                         },
@@ -222,7 +222,7 @@ struct InstallationWizardView: View {
                             navigationCoordinator.navigateToPage(page)
                         },
                         onDismiss: {
-                            dismiss()
+                            dismissAndRefreshMainScreen()
                         },
                         kanataManager: kanataManager
                     )
@@ -235,7 +235,7 @@ struct InstallationWizardView: View {
                             navigationCoordinator.navigateToPage(page)
                         },
                         onDismiss: {
-                            dismiss()
+                            dismissAndRefreshMainScreen()
                         },
                         kanataManager: kanataManager
                     )
@@ -528,11 +528,7 @@ struct InstallationWizardView: View {
                     }
                 }
 
-                // Clear cache and refresh state after auto-fix attempts
-                // Oracle handles caching automatically
-                if let statusChecker = stateManager.statusChecker {
-                    statusChecker.clearCache()
-                }
+                // Refresh state after auto-fix attempts
                 refreshState()
 
                 AppLogger.shared.log("🔍 [NewWizard] *** PERFORMAUTOFIX COMPLETED SUCCESSFULLY ***")
@@ -590,6 +586,11 @@ struct InstallationWizardView: View {
                                 // Shorter delay - we have warm-up window to handle startup
                                 try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
                                 refreshState()
+
+                                // Notify StartupValidator to refresh main screen status
+                                NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
+                                AppLogger.shared.log("🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix")
+
                                 continuation.resume(returning: success)
                             }
                         } else {
@@ -708,7 +709,7 @@ struct InstallationWizardView: View {
                     asyncOperationManager.execute(operation: operation) { (success: Bool) in
                         if success {
                             AppLogger.shared.log("✅ [NewWizard] Kanata service started successfully")
-                            dismiss()
+                            dismissAndRefreshMainScreen()
                         } else {
                             AppLogger.shared.log("❌ [NewWizard] Failed to start Kanata service")
                         }
@@ -718,7 +719,7 @@ struct InstallationWizardView: View {
                     }
                 } else {
                     // Service already running, dismiss wizard
-                    dismiss()
+                    dismissAndRefreshMainScreen()
                 }
             }
         }
@@ -746,8 +747,18 @@ struct InstallationWizardView: View {
 
     /// Force immediate wizard dismissal bypassing any potential SwiftUI blocking
     private func forceInstantClose() {
+        dismissAndRefreshMainScreen()
+    }
+
+    /// Dismiss wizard and trigger main screen validation refresh
+    private func dismissAndRefreshMainScreen() {
         // Use DispatchQueue to ensure immediate execution
         DispatchQueue.main.async {
+            // Trigger StartupValidator refresh before dismissing
+            // This ensures main screen status updates after wizard changes
+            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
+            AppLogger.shared.log("🔄 [Wizard] Triggered StartupValidator refresh before dismiss")
+
             dismiss()
         }
     }

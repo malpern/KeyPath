@@ -42,18 +42,14 @@ final class StartupCoordinator: ObservableObject {
         schedule(after: 1.00) { [weak self] in
             guard let self else { return }
             self.transition(to: .validated)
-            NotificationCenter.default.post(name: .kp_startupValidate, object: nil)
+            // Trigger validation via .kp_startupRevalidate notification
+            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
         }
 
         schedule(after: 1.25) { [weak self] in
             guard let self else { return }
             self.transition(to: .monitoring)
             NotificationCenter.default.post(name: .kp_startupEmergencyMonitor, object: nil)
-        }
-
-        // Add a follow-up revalidation to flip the header automatically
-        schedule(after: 1.50) {
-            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
         }
     }
 

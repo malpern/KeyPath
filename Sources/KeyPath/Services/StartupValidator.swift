@@ -66,36 +66,21 @@ final class StartupValidator: ObservableObject {
         // Start warmup timer now
         warmupStart = Date()
 
-        // Revalidate automatically when Kanata process transitions to running or config changes
-        kanataManager.$isRunning
-            .removeDuplicates()
-            .sink { [weak self] running in
-                guard let self else { return }
-                if running {
-                    AppLogger.shared.log("🔁 [StartupValidator] Kanata isRunning=true → revalidate")
-                    // Small debounce to allow service to settle
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.performStartupValidation() }
-                }
-            }
-            .store(in: &cancellables)
-
-        kanataManager.$lastConfigUpdate
-            .sink { [weak self] _ in
-                guard let self else { return }
-                AppLogger.shared.log("🔁 [StartupValidator] lastConfigUpdate changed → revalidate")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { self.performStartupValidation() }
-            }
-            .store(in: &cancellables)
-
-        // Listen for Oracle permission updates
-        PermissionOracle.shared.statusUpdatePublisher
-            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
-            .sink { [weak self] updateTime in
-                guard let self else { return }
-                AppLogger.shared.log("🔁 [StartupValidator] Oracle permission update at \(updateTime) → revalidate")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.performStartupValidation() }
-            }
-            .store(in: &cancellables)
+        // REMOVED: Automatic revalidation listeners
+        // Previously listened to:
+        // - kanataManager.$isRunning → caused validation spam during startup
+        // - kanataManager.$lastConfigUpdate → caused validation spam on config changes
+        // - Oracle permission updates → caused validation spam on permission checks
+        //
+        // These were causing race conditions where multiple validations would fire rapidly
+        // and cancel each other, leaving stale .checking states in the UI.
+        //
+        // Validation now only runs on:
+        // 1. App launch (after service ready)
+        // 2. Wizard close
+        // 3. Manual refresh
+        //
+        // Oracle cache invalidation happens internally during those validations.
     }
 
     // MARK: - Validation Methods
@@ -143,6 +128,18 @@ final class StartupValidator: ObservableObject {
             AppLogger.shared.log("❌ [StartupValidator] No KanataManager configured; keeping state at .checking")
             // Do not mark as failed because dependency is not ready yet
             return
+        }
+
+        // CRITICAL: Wait for kanata service to be fully ready before validation
+        // This prevents race conditions where UDP checks timeout during service warmup
+        AppLogger.shared.log("⏳ [StartupValidator] Waiting for kanata service to be ready before validation...")
+        let isReady = await kanataManager.waitForServiceReady(timeout: 10.0)
+
+        if !isReady {
+            AppLogger.shared.log("⏱️ [StartupValidator] Service did not become ready within timeout")
+            // Continue with validation anyway to detect what's wrong
+        } else {
+            AppLogger.shared.log("✅ [StartupValidator] Service is ready, proceeding with validation")
         }
 
         // SystemStatusChecker is @MainActor, so it must run on main actor
@@ -230,11 +227,11 @@ final class StartupValidator: ObservableObject {
 
         let blockingCount = blockingIssues.count
 
-        // Apply wizard-consistent logic: if Kanata is running, system is active even with conflicts
+        // Apply wizard-consistent logic: system is healthy if Kanata is running AND no blocking issues
         let kanataIsRunning = kanataManager?.isRunning ?? false
-        if kanataIsRunning {
+        if kanataIsRunning && blockingCount == 0 {
             validationState = .success
-            AppLogger.shared.log("✅ [StartupValidator] Validation successful - Kanata is running (consistent with wizard logic)")
+            AppLogger.shared.log("✅ [StartupValidator] Validation successful - Kanata is running with no blocking issues")
             // Notify recovery if app not frontmost
             UserNotificationService.shared.notifyRecoverySucceeded("Kanata is running")
         } else if blockingCount == 0 {

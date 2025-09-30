@@ -26,11 +26,10 @@ private func withTimeout<T: Sendable>(seconds: Double, operation: @Sendable @esc
 ///
 /// FEATURES:
 /// - Comprehensive permission detection with TCC database integration
-/// - Functional verification through service log analysis and TCP connectivity
+/// - Functional verification through service log analysis and UDP connectivity
 /// - Component installation and health checking
 /// - Conflict detection and resolution
 /// - Automatic issue generation with actionable fixes
-/// - Performance optimized with intelligent caching
 /// - Shared instance pattern for consistent status across all components
 @MainActor
 class SystemStatusChecker {
@@ -63,12 +62,6 @@ class SystemStatusChecker {
     private let processLifecycleManager: ProcessLifecycleManager
     private let issueGenerator: IssueGenerator
 
-    // MARK: - Cache Properties
-
-    private var cachedStateResult: SystemStateResult?
-    private var cacheTimestamp: Date?
-    private let cacheValidDuration: TimeInterval = 2.0 // 2-second cache
-
     // MARK: - Debouncing State (from SystemStateDetector)
 
     private var lastConflictState: Bool = false
@@ -88,15 +81,6 @@ class SystemStatusChecker {
 
     /// Debug flag to force Input Monitoring issues for testing purposes
     @MainActor static var debugForceInputMonitoringIssues = false
-
-    // MARK: - Cache Management
-
-    /// Clear the cached state to force a fresh detection
-    func clearCache() {
-        cachedStateResult = nil
-        cacheTimestamp = nil
-        AppLogger.shared.log("🔍 [SystemStatusChecker] Cache cleared")
-    }
 
     // MARK: - Component-Specific Refresh Methods
 
@@ -127,18 +111,6 @@ class SystemStatusChecker {
     // MARK: - Main Detection Method
 
     func detectCurrentState() async -> SystemStateResult {
-        // Invalidate Oracle cache when wizard detection starts to ensure fresh status
-        AppLogger.shared.log("🔍 [SystemStatusChecker] Invalidating Oracle cache for fresh wizard detection")
-        await PermissionOracle.shared.invalidateCache()
-
-        // Check cache first
-        if let cached = cachedStateResult,
-           let timestamp = cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < cacheValidDuration {
-            AppLogger.shared.log("🔍 [SystemStatusChecker] Returning cached state (age: \(String(format: "%.1f", Date().timeIntervalSince(timestamp)))s)")
-            return cached
-        }
-
         let detectionID = UUID()
         AppLogger.shared.log("🔍 [SystemStatusChecker] Starting comprehensive system state detection (detectionID: \(detectionID))")
 
@@ -220,19 +192,12 @@ class SystemStatusChecker {
             "🔍 [SystemStatusChecker] Detection complete: \(systemState), \(allIssues.count) issues, \(autoFixableActions.count) auto-fixes"
         )
 
-        let result = SystemStateResult(
+        return SystemStateResult(
             state: systemState,
             issues: allIssues,
             autoFixActions: autoFixableActions,
             detectionTimestamp: Date()
         )
-
-        // Update cache
-        cachedStateResult = result
-        cacheTimestamp = Date()
-        AppLogger.shared.log("🔍 [SystemStatusChecker] Cache updated with fresh state")
-
-        return result
     }
     
     /// Create a fallback system state when detection times out

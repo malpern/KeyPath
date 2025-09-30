@@ -2,27 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## ⚠️ CURRENT SESSION STATUS (August 2024)
+## ⚠️ CURRENT SESSION STATUS
 
-**COMPLETED:** Successfully transitioned to UDP-only architecture and resolved authentication issues.
+**LATEST WORK:** Liquid Glass UI implementation and borderless window exploration (September 2025)
 
-**Key Fixes Applied:**
-1. **UDP-Only Architecture:** Complete transition from TCP to UDP communication (commit d81d809)
-2. **Secure Authentication:** Three-phase UDP authentication with session management
-3. **Race Condition Fix:** Fixed UDP receive/send race conditions in client authentication
-4. **Manager Consolidation:** All functionality now unified in KanataManager
-5. **TCC-Safe Deployment:** Stable deployment process preserves Input Monitoring permissions
+**Recent Commits:**
+- Phase 3 (partial): Glass in Diagnostics (header + cards)
+- Phase 2: Wizard status items, toasts, and status chip with glass effects
+- Phase 1: Bold headers + cards with macOS 15+ glass effects
+- Notification system with actionable buttons and gating logic
 
-**Latest Commits:**
-- Fix CI: Add missing isInitializing argument to WizardSummaryPage (80ae28f)
-- Complete UDP race condition fix and architecture transition (e7a5679)
-- Fix UDP authentication bug by switching to receiveMessage API (d43ac7a)
-
-**Critical Architecture Notes:**
-- **UDP Communication:** Primary communication protocol between KeyPath and Kanata
-- **Secure Sessions:** Token-based authentication with session management via Keychain
-- **CGEvent Integration:** KeyboardCapture service handles input recording safely
-- **Bundled Kanata:** Only uses bundled kanata binary for TCC stability
+**Core Architecture (Stable):**
+- **UDP Communication:** Primary protocol between KeyPath and Kanata with secure token auth
+- **PermissionOracle:** Single source of truth for all permission detection (DO NOT BREAK)
+- **TCC-Safe Deployment:** Stable Developer ID signing preserves Input Monitoring permissions
+- **Bundled Kanata:** Uses bundled binary for TCC stability and consistent experience
 
 ## Project Overview
 
@@ -40,21 +34,32 @@ KeyPath.app (SwiftUI) → KanataManager → launchctl → Kanata daemon
 ```
 
 ### Core Components
-- **KeyPath.app**: SwiftUI application for recording keypaths and managing configuration
+- **KeyPath.app**: SwiftUI application with Liquid Glass UI (macOS 15+) for recording keypaths and managing configuration
 - **LaunchDaemon**: System service (`com.keypath.kanata`) that runs Kanata
 - **Configuration**: User config at `~/Library/Application Support/KeyPath/keypath.kbd`
 - **System Integration**: Uses CGEvent taps for key capture and launchctl for service management
+- **Notifications**: UserNotificationService with actionable buttons, frontmost gating, and TTL-based deduplication
 
 ### Key Manager Classes
 - `KanataManager`: **Unified manager** - handles daemon lifecycle, configuration, UI state, and user interactions
 - `KeyboardCapture`: Handles CGEvent-based keyboard input recording (isolated service)
 - `PermissionOracle`: **🔮 CRITICAL ARCHITECTURE** - Single source of truth for all permission detection
+- `UserNotificationService`: macOS Notification Center integration with categories, actions, and intelligent gating
 - `InstallationWizard/`: Multi-step setup flow with auto-fix capabilities
-  - `WizardSystemState`: Single source of truth for system state
-  - `SystemStateDetector`: Pure functions for state detection
+  - `SystemStatusChecker`: System state detection (MUST trust Oracle without overrides)
+  - `WizardNavigationEngine`: State-driven wizard navigation logic
   - `WizardAutoFixer`: Automated issue resolution
 - `ProcessLifecycleManager`: Manages Kanata process state and recovery
 - `PermissionService`: Legacy TCC database utilities (Oracle handles logic)
+
+### UI Architecture
+- **AppGlass**: Abstraction for Liquid Glass visual effects (macOS 15+)
+  - `headerStrong`: Bold glass effect for major headers
+  - `cardBold`: Glass effect for card containers
+  - Falls back to NSVisualEffectView materials on older macOS versions
+  - Honors system "Reduce Transparency" accessibility setting
+- **Design System**: Centralized color tokens and spacing in `WizardDesignSystem`
+- **Window Management**: Custom titlebar accessories and draggable area views (experimental)
 
 ### 🔮 PermissionOracle Architecture (CRITICAL - DO NOT BREAK)
 
@@ -126,6 +131,109 @@ if snapshot.keyPath.inputMonitoring.isReady { /* show green */ }
 - Any logic that modifies Oracle results based on assumptions
 
 **The Fix:** SystemStatusChecker now trusts Oracle unconditionally (commit bbdd053).
+
+### 🎯 SystemStatusChecker Simplification (September 1, 2025)
+
+**Problem:** Cache staleness was causing UI inconsistency even after waiting for service ready.
+- StartupValidator properly waits for kanata service to be ready
+- But SystemStatusChecker returns cached results from BEFORE service was ready
+- Wizard invalidates cache and sees fresh (correct) results
+- Main screen shows stale errors, wizard shows green
+
+**Root Cause:** SystemStatusChecker had a 2-second cache that was designed to prevent validation spam.
+- Cache was originally added to handle rapid repeated validation calls
+- But we already solved that by removing the Oracle update listener
+- Validation now only runs on: app launch, wizard close, config updates, manual refresh
+- These are infrequent enough that caching causes more problems than it solves
+
+**The Solution:** Removed cache entirely from SystemStatusChecker.
+- No more cache properties, timestamps, or TTL logic
+- Every `detectCurrentState()` call runs fresh detection
+- Eliminates entire class of timing bugs and staleness issues
+- Keeps solution simple and maintainable
+- Minimal performance impact since validation is infrequent
+
+**Architectural Principle:** When you fix the root cause (validation spam), remove the workaround (cache).
+
+### 🎯 Validation Spam Fix (September 1, 2025 - Final)
+
+**Problem:** Even after removing cache, validation spam continued due to automatic listeners.
+- StartupValidator listened to `kanataManager.$isRunning` publisher
+- StartupValidator listened to `kanataManager.$lastConfigUpdate` publisher
+- These fired during app launch, triggering multiple validations that cancelled each other
+- First validation would start → second validation cancels it → third validation completes
+- User saw brief error/spinner state from cancelled validations
+
+**Root Cause:** Automatic revalidation on system state changes.
+- Originally added to keep UI fresh when system changes
+- But caused same validation spam problem as Oracle listener
+- Multiple validations firing within milliseconds cancelled each other
+- Each new validation reset `validationState = .checking` before running
+- Cancelled validations left UI in `.checking` state
+
+**The Solution:** Removed ALL automatic revalidation listeners.
+- Removed `kanataManager.$isRunning` listener
+- Removed `kanataManager.$lastConfigUpdate` listener
+- Removed `PermissionOracle` update listener (already done earlier)
+- Validation now ONLY runs when explicitly triggered:
+  1. App launch (after service ready)
+  2. Wizard close (with force: true to bypass throttle)
+  3. Manual refresh
+
+**Result:** Single validation runs on app launch, completes cleanly, shows correct status immediately.
+
+**Final Issue:** Oracle cache invalidation in SystemStatusChecker caused interference.
+- SystemStatusChecker.detectCurrentState() always invalidated Oracle cache (line 116)
+- When wizard auto-opened at app launch, it invalidated cache during StartupValidator's check
+- This caused CancellationError in shared UDP client
+- StartupValidator saw "UDP Server Not Responding" and showed error
+
+**Final Fix:** Removed Oracle cache invalidation from SystemStatusChecker.
+- Oracle already has its own 5-second cache management
+- Concurrent validations (StartupValidator + SystemStatusChecker) no longer interfere
+- Each validation gets consistent Oracle data without cancellation
+
+**Key Architectural Lesson:** Shared resources (Oracle, UDP client) must not be invalidated by one caller while another is using them. Let each resource manage its own lifecycle.
+
+**Persistent Issue:** ContentView still had onChange listeners triggering validation.
+- Even after removing Combine listeners in StartupValidator
+- ContentView had SwiftUI `.onChange(of: kanataManager.lastConfigUpdate)` and `.onChange(of: kanataManager.currentState)`
+- These fired during app launch when KanataManager updated state
+- Triggered refreshValidation() which cancelled StartupValidator's initial validation
+- Multiple validations ran and cancelled each other
+
+**Final Fix:** Removed onChange validation triggers from ContentView.
+- Kept status message for config updates
+- Removed `startupValidator.refreshValidation()` calls
+- Validation now ONLY triggered by: app launch, wizard close, manual refresh button
+- No more automatic revalidation on state changes anywhere in the codebase
+
+**Still Persistent (Restart Issue):** Multiple notification handlers causing duplicate validations.
+- ContentView had 4 different handlers that could trigger validation:
+  1. Wizard sheet `onDismiss` → removed
+  2. NotificationCenter `.wizardClosed` → removed
+  3. NotificationCenter `.kp_startupValidate` → removed (consolidated)
+  4. NotificationCenter `.kp_startupRevalidate` → kept as single source
+- StartupCoordinator posted BOTH `.kp_startupValidate` AND `.kp_startupRevalidate` → fixed to post only `.kp_startupRevalidate`
+- When wizard closed, 3 handlers fired simultaneously causing 3 concurrent validations
+- Logs showed 3 validations starting within 2 seconds, all cancelling each other
+
+**Ultimate Fix:** Consolidated to single validation trigger.
+- All validation now triggered via `.kp_startupRevalidate` notification only
+- StartupCoordinator: posts `.kp_startupRevalidate` at T+1.0s (removed duplicate at T+1.5s)
+- Wizard close: posts `.kp_startupRevalidate` (removed sheet onDismiss and `.wizardClosed` handlers)
+- Result: ONE validation runs per trigger event, no more cancellations
+
+**Architectural Lesson:** When using notifications, have ONE publisher and ONE subscriber per event. Multiple handlers for the same logical event cause duplicate processing and race conditions.
+
+### Notification System
+The `UserNotificationService` provides intelligent user notifications with:
+- **Categories**: Service failure, recovery, permission issues, informational
+- **Actionable Buttons**: Open Wizard, Start Service, Open Input Monitoring/Accessibility settings, Open App
+- **Smart Gating**: Only shows notifications when app is not frontmost (avoids duplicate alerts)
+- **Deduplication**: Per-key TTL prevents notification spam (persisted in UserDefaults)
+- **Delegate Actions**: Notification actions trigger appropriate app behaviors (retry start, open settings, etc.)
+- **Integration Points**: StartupValidator (permissions), ContentView (emergency stop), KanataManager (service failures)
 
 ### Installation Wizard Flow
 The wizard follows a state-driven architecture with these key pages:
