@@ -111,36 +111,4 @@ final class KeychainService {
 }
 
 // MARK: - Error Types
-
-/// Keychain operation errors
-///
-/// - Deprecated: Use `KeyPathError.system(...)` instead for consistent error handling
-@available(*, deprecated, message: "Use KeyPathError.system(...) instead")
-enum KeychainError: Error, LocalizedError {
-    case storeFailed(OSStatus)
-    case retrieveFailed(OSStatus)
-    case deleteFailed(OSStatus)
-
-    var errorDescription: String? {
-        switch self {
-        case let .storeFailed(status):
-            "Failed to store item in Keychain (status: \(status))"
-        case let .retrieveFailed(status):
-            "Failed to retrieve item from Keychain (status: \(status))"
-        case let .deleteFailed(status):
-            "Failed to delete item from Keychain (status: \(status))"
-        }
-    }
-
-    /// Convert to KeyPathError for consistent error handling
-    var asKeyPathError: KeyPathError {
-        switch self {
-        case let .storeFailed(status):
-            return .system(.fileOperationFailed(operation: "Keychain store", path: "Keychain", reason: "OSStatus: \(status)"))
-        case let .retrieveFailed(status):
-            return .system(.fileOperationFailed(operation: "Keychain retrieve", path: "Keychain", reason: "OSStatus: \(status)"))
-        case let .deleteFailed(status):
-            return .system(.fileOperationFailed(operation: "Keychain delete", path: "Keychain", reason: "OSStatus: \(status)"))
-        }
-    }
-}
+// (Removed deprecated KeychainError - now using KeyPathError directly)

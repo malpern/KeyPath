@@ -151,46 +151,4 @@ extension FileConfigurationProviding {
     }
 }
 
-/// Errors related to configuration operations.
-/// Configuration-related errors
-///
-/// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
-@available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
-enum ConfigurationError: Error, LocalizedError {
-    case fileNotFound(String)
-    case loadFailed(String)
-    case validationFailed([String])
-    case watchingFailed(String)
-    case invalidFormat(String)
-
-    var errorDescription: String? {
-        switch self {
-        case let .fileNotFound(path):
-            "Configuration file not found: \(path)"
-        case let .loadFailed(reason):
-            "Failed to load configuration: \(reason)"
-        case let .validationFailed(errors):
-            "Configuration validation failed: \(errors.joined(separator: ", "))"
-        case let .watchingFailed(reason):
-            "Failed to monitor configuration file: \(reason)"
-        case let .invalidFormat(reason):
-            "Invalid configuration format: \(reason)"
-        }
-    }
-
-    /// Convert to KeyPathError for consistent error handling
-    var asKeyPathError: KeyPathError {
-        switch self {
-        case let .fileNotFound(path):
-            return .configuration(.fileNotFound(path: path))
-        case let .loadFailed(reason):
-            return .configuration(.loadFailed(reason: reason))
-        case let .validationFailed(errors):
-            return .configuration(.validationFailed(errors: errors))
-        case let .watchingFailed(reason):
-            return .configuration(.watchingFailed(reason: reason))
-        case let .invalidFormat(reason):
-            return .configuration(.invalidFormat(reason: reason))
-        }
-    }
-}
+// (Removed deprecated ConfigurationError - now using KeyPathError directly)
