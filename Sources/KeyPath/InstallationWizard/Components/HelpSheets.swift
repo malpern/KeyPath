@@ -179,10 +179,8 @@ struct InputMonitoringHelpSheet: View {
                     VStack(spacing: 12) {
                         Button("Check Permission Status") {
                             Task {
-                                // Refresh permission status
-                                await MainActor.run {
-                                    kanataManager.objectWillChange.send()
-                                }
+                                // Refresh permission status - ViewModel will update automatically
+                                await kanataManager.updateStatus()
                             }
                         }
                         .buttonStyle(.bordered)
@@ -264,10 +262,8 @@ struct AccessibilityHelpSheet: View {
                     VStack(spacing: 12) {
                         Button("Check Permission Status") {
                             Task {
-                                // Refresh permission status
-                                await MainActor.run {
-                                    kanataManager.objectWillChange.send()
-                                }
+                                // Refresh permission status - ViewModel will update automatically
+                                await kanataManager.updateStatus()
                             }
                         }
                         .buttonStyle(.bordered)
@@ -411,10 +407,8 @@ struct BackgroundServicesHelpSheet: View {
 
                             Button("Check Service Status") {
                                 Task {
-                                    // Refresh service status
-                                    await MainActor.run {
-                                        kanataManager.objectWillChange.send()
-                                    }
+                                    // Refresh service status - ViewModel will update automatically
+                                    await kanataManager.updateStatus()
                                 }
                             }
                             .buttonStyle(.bordered)
@@ -593,11 +587,12 @@ struct KarabinerInstallationGuideSheet: View {
             // Give a brief delay for user to see the loading state
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             
+            // Trigger a system state refresh - ViewModel will update automatically
+            await kanataManager.updateStatus()
+
             await MainActor.run {
-                // Trigger a system state refresh
-                kanataManager.objectWillChange.send()
                 isCheckingStatus = false
-                
+
                 // Close the dialog after rechecking
                 dismiss()
             }

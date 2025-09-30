@@ -5,11 +5,16 @@ struct WizardSummaryPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
     let stateInterpreter: WizardStateInterpreter
-    @ObservedObject var kanataManager: KanataManager
+    @EnvironmentObject var kanataViewModel: KanataViewModel
     let onStartService: () -> Void
     let onDismiss: () -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
     let isInitializing: Bool
+
+    // Access underlying KanataManager for business logic
+    private var kanataManager: KanataManager {
+        kanataViewModel.underlyingManager
+    }
 
     var body: some View {
         GeometryReader { geometry in

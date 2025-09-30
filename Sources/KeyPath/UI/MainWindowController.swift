@@ -3,11 +3,14 @@ import SwiftUI
 
 @MainActor
 final class MainWindowController: NSWindowController {
-    
+
     init(kanataManager: KanataManager) {
+        // Phase 4: MVVM - Create ViewModel wrapper for KanataManager
+        let viewModel = KanataViewModel(manager: kanataManager)
+
         // Create SwiftUI hosting controller with full environment
         let rootView = RootView()
-            .environmentObject(kanataManager)
+            .environmentObject(viewModel)  // Phase 4: Inject ViewModel
             .environment(\.preferencesService, PreferencesService.shared)
             .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
         

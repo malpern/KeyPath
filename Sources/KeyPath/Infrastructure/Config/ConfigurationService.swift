@@ -344,6 +344,232 @@ public struct KanataConfiguration: Sendable {
         }
     }
 
+    /// Validate configuration content with combined UDP + CLI validation
+    /// Tries UDP first (fast, live server), falls back to CLI validation if UDP unavailable
+    public func validateConfiguration(_ config: String) async -> (isValid: Bool, errors: [String]) {
+        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
+        AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
+
+        // First try UDP validation if server is available
+        let commConfig = PreferencesService.communicationSnapshot()
+        if commConfig.shouldUseUDP {
+            let udpPort = commConfig.udpPort
+            AppLogger.shared.log("📡 [Validation] UDP port configured: \(udpPort)")
+            let udpClient = KanataUDPClient(port: udpPort)
+
+            // Check if UDP server is available
+            AppLogger.shared.log("📡 [Validation] Checking UDP server availability on port \(udpPort)...")
+            if await udpClient.checkServerStatus() {
+                AppLogger.shared.log("📡 [Validation] UDP server is AVAILABLE, using UDP validation")
+                let udpStart = Date()
+                let result = await udpClient.validateConfig(config)
+                let udpDuration = Date().timeIntervalSince(udpStart)
+                AppLogger.shared.log(
+                    "⏱️ [Validation] UDP validation completed in \(String(format: "%.3f", udpDuration)) seconds"
+                )
+
+                switch result {
+                case .success:
+                    AppLogger.shared.log("✅ [Validation] UDP validation PASSED")
+                    AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+                    return (true, [])
+                case let .failure(udpErrors):
+                    AppLogger.shared.log("❌ [Validation] UDP validation FAILED with \(udpErrors.count) errors:")
+                    let errorStrings = udpErrors.map(\.description)
+                    for (index, error) in errorStrings.enumerated() {
+                        AppLogger.shared.log("   Error \(index + 1): \(error)")
+                    }
+                    AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+                    return (false, errorStrings)
+                case let .networkError(error):
+                    AppLogger.shared.log("⚠️ [Validation] UDP validation network error: \(error)")
+                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
+                // Fall through to CLI validation
+                case .authenticationRequired:
+                    AppLogger.shared.log("⚠️ [Validation] UDP authentication required")
+                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
+                    // Fall through to CLI validation
+                }
+            } else {
+                AppLogger.shared.log("⚠️ [Validation] UDP server NOT available on port \(udpPort)")
+                AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
+            }
+        } else {
+            AppLogger.shared.log("ℹ️ [Validation] No UDP port configured or UDP disabled")
+            AppLogger.shared.log("ℹ️ [Validation] Using CLI validation as primary method")
+        }
+
+        // Fallback to CLI validation
+        AppLogger.shared.log("🖥️ [Validation] Starting CLI validation...")
+        let cliResult = await validateConfigWithCLI(config)
+        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+        return cliResult
+    }
+
+    /// Validate configuration via CLI (kanata --check)
+    private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
+        AppLogger.shared.log("🖥️ [Validation-CLI] Starting CLI validation process...")
+
+        // Write config to a temporary file for validation
+        let tempConfigPath = "\(configDirectory)/temp_validation.kbd"
+        AppLogger.shared.log("📝 [Validation-CLI] Creating temp config file: \(tempConfigPath)")
+
+        do {
+            let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
+            let configDir = URL(fileURLWithPath: configDirectory)
+            try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+            try config.write(to: tempConfigURL, atomically: true, encoding: .utf8)
+            AppLogger.shared.log("📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)")
+
+            // Use kanata --check to validate
+            let kanataBinary = WizardSystemPaths.kanataActiveBinary
+            AppLogger.shared.log("🔧 [Validation-CLI] Using kanata binary: \(kanataBinary)")
+
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: kanataBinary)
+            let arguments = ["--cfg", tempConfigPath, "--check"]
+            task.arguments = arguments
+            AppLogger.shared.log("🔧 [Validation-CLI] Command: \(kanataBinary) \(arguments.joined(separator: " "))")
+
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+
+            let cliStart = Date()
+            try task.run()
+            task.waitUntilExit()
+            let cliDuration = Date().timeIntervalSince(cliStart)
+            AppLogger.shared.log(
+                "⏱️ [Validation-CLI] CLI validation completed in \(String(format: "%.3f", cliDuration)) seconds"
+            )
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            AppLogger.shared.log("📋 [Validation-CLI] Exit code: \(task.terminationStatus)")
+            if !output.isEmpty {
+                AppLogger.shared.log("📋 [Validation-CLI] Output: \(output.prefix(500))...")
+            }
+
+            // Clean up temp file
+            try? FileManager.default.removeItem(at: tempConfigURL)
+            AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
+
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
+                return (true, [])
+            } else {
+                let errors = parseKanataErrors(output)
+                AppLogger.shared.log("❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
+                for (index, error) in errors.enumerated() {
+                    AppLogger.shared.log("   Error \(index + 1): \(error)")
+                }
+                return (false, errors)
+            }
+        } catch {
+            // Clean up temp file on error
+            try? FileManager.default.removeItem(atPath: tempConfigPath)
+            AppLogger.shared.log("❌ [Validation-CLI] Validation process failed: \(error)")
+            AppLogger.shared.log("❌ [Validation-CLI] Error type: \(type(of: error))")
+            return (false, ["Validation failed: \(error.localizedDescription)"])
+        }
+    }
+
+    // MARK: - Backup and Recovery
+
+    /// Backs up a failed config and applies safe default, returning backup path
+    public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
+        -> String
+    {
+        AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
+
+        // Create backup directory if it doesn't exist
+        let backupDir = "\(configDirectory)/backups"
+        let backupDirURL = URL(fileURLWithPath: backupDir)
+        try FileManager.default.createDirectory(at: backupDirURL, withIntermediateDirectories: true)
+
+        // Create timestamped backup filename
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = formatter.string(from: Date())
+
+        let backupPath = "\(backupDir)/failed_config_\(timestamp).kbd"
+        let backupURL = URL(fileURLWithPath: backupPath)
+
+        // Write the failed config to backup
+        let backupContent = """
+        ;; FAILED CONFIG - AUTOMATICALLY BACKED UP
+        ;; Timestamp: \(timestamp)
+        ;; Errors: \(mappings.count) mapping(s) could not be applied
+
+        \(failedConfig)
+        """
+        try backupContent.write(to: backupURL, atomically: true, encoding: .utf8)
+
+        AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
+
+        // Apply safe default config
+        let defaultMapping = KeyMapping(input: "caps", output: "escape")
+        let safeConfig = KanataConfiguration.generateFromMappings([defaultMapping])
+
+        let configURL = URL(fileURLWithPath: configurationPath)
+        try safeConfig.write(to: configURL, atomically: true, encoding: .utf8)
+
+        AppLogger.shared.log("✅ [Config] Safe default config applied")
+
+        // Update current configuration
+        currentConfiguration = KanataConfiguration(
+            content: safeConfig,
+            keyMappings: [defaultMapping],
+            lastModified: Date(),
+            path: configurationPath
+        )
+
+        return backupPath
+    }
+
+    /// Repair configuration using rule-based strategies
+    public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping]) async throws
+        -> String
+    {
+        AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
+
+        // Common repair strategies
+        var repairedConfig = config
+
+        for error in errors {
+            let lowerError = error.lowercased()
+
+            // Fix common syntax errors
+            if lowerError.contains("missing"), lowerError.contains("defcfg") {
+                // Add missing defcfg
+                if !repairedConfig.contains("(defcfg") {
+                    let defcfgSection = """
+                    (defcfg
+                      process-unmapped-keys yes
+                    )
+
+                    """
+                    repairedConfig = defcfgSection + repairedConfig
+                }
+            }
+
+            // Fix empty parentheses issues
+            if lowerError.contains("()") || lowerError.contains("empty") {
+                repairedConfig = repairedConfig.replacingOccurrences(of: "()", with: "_")
+                repairedConfig = repairedConfig.replacingOccurrences(of: "( )", with: "_")
+            }
+
+            // Fix mismatched defsrc/deflayer lengths
+            if lowerError.contains("mismatch") || lowerError.contains("length") {
+                // Regenerate from scratch using our proven template
+                return KanataConfiguration.generateFromMappings(mappings)
+            }
+        }
+
+        return repairedConfig
+    }
+
     // MARK: - Private Methods
 
     private func handleFileChange() async {
@@ -361,11 +587,62 @@ public struct KanataConfiguration: Sendable {
         AppLogger.shared.log("🛑 [ConfigService] File monitoring stopped")
     }
 
-    private func extractKeyMappingsFromContent(_: String) -> [KeyMapping] {
-        // Simplified key mapping extraction
-        // This would need to be enhanced to fully parse Kanata config format
-        // For now, return empty array as this is primarily used for round-trip scenarios
-        []
+    /// Extract key mappings from Kanata configuration content
+    private func extractKeyMappingsFromContent(_ configContent: String) -> [KeyMapping] {
+        var mappings: [KeyMapping] = []
+        let lines = configContent.components(separatedBy: .newlines)
+
+        var inDefsrc = false
+        var inDeflayer = false
+        var srcKeys: [String] = []
+        var layerKeys: [String] = []
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if trimmed.hasPrefix("(defsrc") {
+                inDefsrc = true
+                inDeflayer = false
+                continue
+            } else if trimmed.hasPrefix("(deflayer") {
+                inDefsrc = false
+                inDeflayer = true
+                continue
+            } else if trimmed == ")" {
+                inDefsrc = false
+                inDeflayer = false
+                continue
+            }
+
+            if inDefsrc, !trimmed.isEmpty, !trimmed.hasPrefix(";") {
+                srcKeys.append(
+                    contentsOf: trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty })
+            } else if inDeflayer, !trimmed.isEmpty, !trimmed.hasPrefix(";") {
+                layerKeys.append(
+                    contentsOf: trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty })
+            }
+        }
+
+        // Match up src and layer keys, filtering out invalid keys
+        var tempMappings: [KeyMapping] = []
+        for (index, srcKey) in srcKeys.enumerated() where index < layerKeys.count {
+            // Skip obviously invalid keys
+            if srcKey != "invalid", !srcKey.isEmpty {
+                tempMappings.append(KeyMapping(input: srcKey, output: layerKeys[index]))
+            }
+        }
+
+        // Deduplicate mappings - keep only the last mapping for each input key
+        var seenInputs: Set<String> = []
+        for mapping in tempMappings.reversed() where !seenInputs.contains(mapping.input) {
+            mappings.insert(mapping, at: 0)
+            seenInputs.insert(mapping.input)
+        }
+
+        AppLogger.shared.log(
+            "🔍 [Parse] Found \(srcKeys.count) src keys, \(layerKeys.count) layer keys, deduplicated to \(mappings.count) unique mappings"
+        )
+        return mappings
     }
 
     private func buildKanataArguments(checkOnly: Bool = false) -> [String] {

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var kanataManager: KanataManager
+    @EnvironmentObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @Environment(\.preferencesService) private var preferences: PreferencesService
     @State private var showingResetConfirmation = false
     @State private var showingDevResetConfirmation = false
@@ -1306,6 +1306,8 @@ struct SettingsButton: View {
 }
 
 #Preview {
+    let manager = KanataManager()
+    let viewModel = KanataViewModel(manager: manager)
     SettingsView()
-        .environmentObject(KanataManager())
+        .environmentObject(viewModel)
 }

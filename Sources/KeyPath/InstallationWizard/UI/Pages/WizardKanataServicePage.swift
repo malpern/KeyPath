@@ -1,9 +1,14 @@
 import SwiftUI
 
 struct WizardKanataServicePage: View {
-    @ObservedObject var kanataManager: KanataManager
+    @EnvironmentObject var kanataViewModel: KanataViewModel
     let systemState: WizardSystemState
     let issues: [WizardIssue]
+
+    // Access underlying KanataManager for business logic
+    private var kanataManager: KanataManager {
+        kanataViewModel.underlyingManager
+    }
 
     @State private var isPerformingAction = false
     @State private var lastError: String?
@@ -537,10 +542,13 @@ struct DetailRow: View {
 
 struct WizardKanataServicePage_Previews: PreviewProvider {
     static var previews: some View {
+        let manager = KanataManager()
+        let viewModel = KanataViewModel(manager: manager)
+
         WizardKanataServicePage(
-            kanataManager: KanataManager(),
             systemState: .ready,
             issues: []
         )
+        .environmentObject(viewModel)
     }
 }

@@ -7,8 +7,13 @@ struct WizardCommunicationPage: View {
     @State private var showingFixFeedback = false
     @State private var fixResult: FixResult?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
-    @EnvironmentObject var kanataManager: KanataManager
+    @EnvironmentObject var kanataViewModel: KanataViewModel
     @Environment(\.preferencesService) private var preferences: PreferencesService
+
+    // Access underlying KanataManager for business logic
+    private var kanataManager: KanataManager {
+        kanataViewModel.underlyingManager
+    }
 
     // Auto-fix integration
     let onAutoFix: ((AutoFixAction) async -> Bool)?

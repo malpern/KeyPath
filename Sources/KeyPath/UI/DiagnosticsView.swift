@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @State private var systemDiagnostics: [KanataDiagnostic] = []
     @State private var showTechnicalDetails: Set<UUID> = []
     @State private var isRunningDiagnostics = false
@@ -211,7 +211,7 @@ struct DiagnosticsView: View {
 }
 
 struct ProcessStatusSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -259,7 +259,7 @@ struct ProcessStatusSection: View {
 }
 
 struct PermissionStatusSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
     let onShowWizard: () -> Void
     @Environment(\.permissionSnapshotProvider) private var permissionProvider
     @State private var snapshot: PermissionOracle.Snapshot?
@@ -324,7 +324,7 @@ struct DiagnosticSection: View {
     let title: String
     let diagnostics: [KanataDiagnostic]
     @Binding var showTechnicalDetails: Set<UUID>
-    @ObservedObject var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -462,7 +462,7 @@ struct DiagnosticCard: View {
 }
 
 struct ConfigStatusSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @State private var configValidation: (isValid: Bool, errors: [String]) = (true, [])
     @State private var showConfigContent = false
 
@@ -652,7 +652,7 @@ struct LogAccessSection: View {
 }
 
 struct EnhancedStatusSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @State private var kanataVersion: String = "Unknown"
     @State private var codeSignature: String = "Unknown"
     @State private var canonicalPath: String = "Unknown"
@@ -992,6 +992,8 @@ struct ProbeStatusRow: View {
 }
 
 #Preview {
-    DiagnosticsView(kanataManager: KanataManager())
+    let manager = KanataManager()
+    let viewModel = KanataViewModel(manager: manager)
+    DiagnosticsView(kanataManager: viewModel)
         .frame(width: 600, height: 800)
 }

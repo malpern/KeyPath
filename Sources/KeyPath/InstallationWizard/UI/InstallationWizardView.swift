@@ -3,7 +3,12 @@ import SwiftUI
 /// Main installation wizard view using clean architecture
 struct InstallationWizardView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var kanataManager: KanataManager
+    @EnvironmentObject var kanataViewModel: KanataViewModel
+
+    // Access underlying KanataManager for business logic
+    private var kanataManager: KanataManager {
+        kanataViewModel.underlyingManager
+    }
 
     // Optional initial page to navigate to
     var initialPage: WizardPage?
@@ -195,7 +200,6 @@ struct InstallationWizardView: View {
                         systemState: systemState,
                         issues: currentIssues,
                         stateInterpreter: stateInterpreter,
-                        kanataManager: kanataManager,
                         onStartService: startKanataService,
                         onDismiss: { dismissAndRefreshMainScreen() },
                         onNavigateToPage: { page in
@@ -262,7 +266,6 @@ struct InstallationWizardView: View {
                     )
                 case .service:
                     WizardKanataServicePage(
-                        kanataManager: kanataManager,
                         systemState: systemState,
                         issues: currentIssues
                     )

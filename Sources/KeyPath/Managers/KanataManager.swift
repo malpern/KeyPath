@@ -102,41 +102,6 @@ enum SimpleKanataState: String, CaseIterable {
 }
 
 /// Manages the Kanata process lifecycle and configuration directly.
-// Detailed diagnostic information for Kanata issues
-struct KanataDiagnostic {
-    let timestamp: Date
-    let severity: DiagnosticSeverity
-    let category: DiagnosticCategory
-    let title: String
-    let description: String
-    let technicalDetails: String
-    let suggestedAction: String
-    let canAutoFix: Bool
-}
-
-enum DiagnosticSeverity: String, CaseIterable {
-    case info
-    case warning
-    case error
-    case critical
-
-    var emoji: String {
-        switch self {
-        case .info: "ℹ️"
-        case .warning: "⚠️"
-        case .error: "❌"
-        case .critical: "🚨"
-        }
-    }
-}
-
-enum DiagnosticCategory: String, CaseIterable {
-    case configuration = "Configuration"
-    case permissions = "Permissions"
-    case process = "Process"
-    case system = "System"
-    case conflict = "Conflict"
-}
 
 /// Actions available in validation error dialogs
 struct ValidationAlertAction {
@@ -151,19 +116,48 @@ struct ValidationAlertAction {
     }
 }
 
+/// Save operation status for UI feedback
+enum SaveStatus {
+    case idle
+    case saving
+    case validating
+    case success
+    case failed(String)
+
+    var message: String {
+        switch self {
+        case .idle: ""
+        case .saving: "Saving..."
+        case .validating: "Validating..."
+        case .success: "✅ Done"
+        case let .failed(error): "❌ Config Invalid: \(error)"
+        }
+    }
+
+    var isActive: Bool {
+        switch self {
+        case .idle: false
+        default: true
+        }
+    }
+}
+
 @MainActor
-class KanataManager: ObservableObject {
-    @Published var isRunning = false
-    @Published var lastError: String?
-    @Published var keyMappings: [KeyMapping] = []
-    @Published var diagnostics: [KanataDiagnostic] = []
-    @Published var lastProcessExitCode: Int32?
-    @Published var lastConfigUpdate: Date = .init()
+class KanataManager {
+    // MARK: - Internal State Properties
+    // Note: These are internal (not private) to allow extensions to access them
+    // ViewModel reads these via getCurrentUIState() snapshot method
 
-    // MARK: - UI State Properties (from SimpleKanataManager)
+    // Core status tracking
+    var isRunning = false
+    var lastError: String?
+    var keyMappings: [KeyMapping] = []
+    var diagnostics: [KanataDiagnostic] = []
+    var lastProcessExitCode: Int32?
+    var lastConfigUpdate: Date = .init()
 
-    /// Simple lifecycle state for UI display
-    @Published private(set) var currentState: SimpleKanataState = .starting {
+    // UI state properties (from SimpleKanataManager)
+    var currentState: SimpleKanataState = .starting {
         didSet {
             if oldValue != currentState {
                 Task { @MainActor in
@@ -173,9 +167,9 @@ class KanataManager: ObservableObject {
         }
     }
 
-    @Published private(set) var errorReason: String?
-    @Published private(set) var showWizard: Bool = false
-    @Published private(set) var launchFailureStatus: LaunchFailureStatus? {
+    var errorReason: String?
+    var showWizard: Bool = false
+    var launchFailureStatus: LaunchFailureStatus? {
         didSet {
             if let status = launchFailureStatus {
                 Task { @MainActor in
@@ -185,54 +179,64 @@ class KanataManager: ObservableObject {
         }
     }
 
-    @Published private(set) var autoStartAttempts: Int = 0
-    @Published private(set) var lastHealthCheck: Date?
-    @Published private(set) var retryCount: Int = 0
-    @Published private(set) var isRetryingAfterFix: Bool = false
+    var autoStartAttempts: Int = 0
+    var lastHealthCheck: Date?
+    var retryCount: Int = 0
+    var isRetryingAfterFix: Bool = false
 
-    // MARK: - Lifecycle State Properties (from KanataLifecycleManager)
-
-    @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
-    @Published var lifecycleErrorMessage: String?
-    @Published var isBusy: Bool = false
-    @Published var canPerformActions: Bool = true
-    @Published var autoStartAttempted: Bool = false
-    @Published var autoStartSucceeded: Bool = false
-    @Published var autoStartFailureReason: String?
-    @Published var shouldShowWizard: Bool = false
+    // Lifecycle state properties (from KanataLifecycleManager)
+    var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
+    var lifecycleErrorMessage: String?
+    var isBusy: Bool = false
+    var canPerformActions: Bool = true
+    var autoStartAttempted: Bool = false
+    var autoStartSucceeded: Bool = false
+    var autoStartFailureReason: String?
+    var shouldShowWizard: Bool = false
 
     // Validation-specific UI state
-    @Published var showingValidationAlert = false
-    @Published var validationAlertTitle = ""
-    @Published var validationAlertMessage = ""
-    @Published var validationAlertActions: [ValidationAlertAction] = []
+    var showingValidationAlert = false
+    var validationAlertTitle = ""
+    var validationAlertMessage = ""
+    var validationAlertActions: [ValidationAlertAction] = []
 
     // Save progress feedback
-    @Published var saveStatus: SaveStatus = .idle
+    var saveStatus: SaveStatus = .idle
 
-    enum SaveStatus {
-        case idle
-        case saving
-        case validating
-        case success
-        case failed(String)
+    // MARK: - UI State Snapshot (Phase 4: MVVM)
 
-        var message: String {
-            switch self {
-            case .idle: ""
-            case .saving: "Saving..."
-            case .validating: "Validating..."
-            case .success: "✅ Done"
-            case let .failed(error): "❌ Config Invalid: \(error)"
-            }
-        }
-
-        var isActive: Bool {
-            switch self {
-            case .idle: false
-            default: true
-            }
-        }
+    /// Returns a snapshot of current UI state for ViewModel synchronization
+    /// This method allows KanataViewModel to read UI state without @Published properties
+    func getCurrentUIState() -> KanataUIState {
+        KanataUIState(
+            isRunning: isRunning,
+            lastError: lastError,
+            keyMappings: keyMappings,
+            diagnostics: diagnostics,
+            lastProcessExitCode: lastProcessExitCode,
+            lastConfigUpdate: lastConfigUpdate,
+            currentState: currentState,
+            errorReason: errorReason,
+            showWizard: showWizard,
+            launchFailureStatus: launchFailureStatus,
+            autoStartAttempts: autoStartAttempts,
+            lastHealthCheck: lastHealthCheck,
+            retryCount: retryCount,
+            isRetryingAfterFix: isRetryingAfterFix,
+            lifecycleState: lifecycleState,
+            lifecycleErrorMessage: lifecycleErrorMessage,
+            isBusy: isBusy,
+            canPerformActions: canPerformActions,
+            autoStartAttempted: autoStartAttempted,
+            autoStartSucceeded: autoStartSucceeded,
+            autoStartFailureReason: autoStartFailureReason,
+            shouldShowWizard: shouldShowWizard,
+            showingValidationAlert: showingValidationAlert,
+            validationAlertTitle: validationAlertTitle,
+            validationAlertMessage: validationAlertMessage,
+            validationAlertActions: validationAlertActions,
+            saveStatus: saveStatus
+        )
     }
 
     // Removed kanataProcess: Process? - now using LaunchDaemon service exclusively
@@ -242,6 +246,8 @@ class KanataManager: ObservableObject {
     // MARK: - Service Dependencies (Milestone 4)
 
     let configurationService: ConfigurationService
+    private let healthMonitor: ServiceHealthMonitorProtocol
+    private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     private var isStartingKanata = false
     private let processLifecycleManager: ProcessLifecycleManager
     var isInitializing = false
@@ -263,17 +269,11 @@ class KanataManager: ObservableObject {
     // MARK: - Process Synchronization (Phase 1)
 
     private static let startupActor = ProcessSynchronizationActor()
-    private var lastStartAttempt: Date?
-    private let minStartInterval: TimeInterval = 2.0
-
-    // UDP server startup grace period
-    private var lastServiceKickstart: Date?
-    private let udpServerGracePeriod: TimeInterval = 10.0 // 10 seconds grace period
+    private var lastStartAttempt: Date? // Still used for backward compatibility
+    private var lastServiceKickstart: Date? // Still used for grace period tracking
 
     // Real-time log monitoring for VirtualHID connection failures
     private var logMonitorTask: Task<Void, Never>?
-    private var connectionFailureCount = 0
-    private let maxConnectionFailures = 10 // Trigger recovery after 10 consecutive failures
 
     // Configuration file watching for hot reload
     private var configFileWatcher: ConfigFileWatcher?
@@ -300,6 +300,12 @@ class KanataManager: ObservableObject {
 
         // Initialize process lifecycle manager
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
+
+        // Initialize diagnostics service
+        diagnosticsService = DiagnosticsService(processLifecycleManager: processLifecycleManager)
+
+        // Initialize health monitor
+        healthMonitor = ServiceHealthMonitor(processLifecycle: processLifecycleManager)
 
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
@@ -478,7 +484,7 @@ class KanataManager: ObservableObject {
         // Check if VirtualHID daemon is running first
         if !isKarabinerDaemonRunning() {
             AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
-            updatePublishedProperties(
+            updateInternalState(
                 isRunning: isRunning,
                 lastProcessExitCode: lastProcessExitCode,
                 lastError: "Recovery failed: Karabiner daemon not available"
@@ -538,141 +544,17 @@ class KanataManager: ObservableObject {
     }
 
     func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
-        var diagnostics: [KanataDiagnostic] = []
+        let diagnostics = diagnosticsService.diagnoseKanataFailure(exitCode: exitCode, output: output)
 
-        // Analyze exit code
-        switch exitCode {
-        case 1:
-            if output.contains("IOHIDDeviceOpen error") {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .permissions,
-                        title: "Permission Denied",
-                        description: "Kanata cannot access keyboard devices due to missing permissions.",
-                        technicalDetails: "IOHIDDeviceOpen error: exclusive access denied",
-                        suggestedAction: "Use the Installation Wizard to grant required permissions",
-                        canAutoFix: false
-                    ))
-            } else if output.contains("Error in configuration") {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .configuration,
-                        title: "Invalid Configuration",
-                        description: "The Kanata configuration file contains syntax errors.",
-                        technicalDetails: output,
-                        suggestedAction: "Review and fix the configuration file, or reset to default",
-                        canAutoFix: true
-                    ))
-            } else if output.contains("device already open") {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .conflict,
-                        title: "Device Conflict",
-                        description: "Another process is already using the keyboard device.",
-                        technicalDetails: output,
-                        suggestedAction:
-                        "Check for conflicting keyboard software (Karabiner-Elements grabber, other keyboard tools)",
-                        canAutoFix: false
-                    ))
-            }
-        case -9:
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .warning,
-                    category: .process,
-                    title: "Process Terminated",
-                    description: "Kanata was forcefully terminated (SIGKILL).",
-                    technicalDetails: "Exit code: -9",
-                    suggestedAction: "This usually happens during shutdown or restart. Try starting again.",
-                    canAutoFix: true
-                ))
-        case -15:
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .info,
-                    category: .process,
-                    title: "Process Stopped",
-                    description: "Kanata was gracefully terminated (SIGTERM).",
-                    technicalDetails: "Exit code: -15",
-                    suggestedAction: "This is normal shutdown behavior.",
-                    canAutoFix: false
-                ))
-        case 6:
-            // Exit code 6 has different causes - check for VirtualHID connection issues
-            if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2") {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .conflict,
-                        title: "VirtualHID Connection Failed",
-                        description:
-                        "Kanata captured keyboard input but failed to connect to VirtualHID driver, causing unresponsive keyboard.",
-                        technicalDetails: "Exit code: 6 (VirtualHID connection failure)\nOutput: \(output)",
-                        suggestedAction:
-                        "Restart Karabiner-VirtualHIDDevice daemon or try starting KeyPath again",
-                        canAutoFix: true
-                    ))
-
-                // This is the "zombie keyboard capture" bug - automatically attempt recovery
-                Task {
-                    AppLogger.shared.log(
-                        "🚨 [Recovery] Detected zombie keyboard capture - attempting automatic recovery")
-                    await self.attemptKeyboardRecovery()
-                }
-            } else {
-                // Generic exit code 6 - permission issues
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .permissions,
-                        title: "Access Denied",
-                        description: "Kanata cannot access system resources (exit code 6).",
-                        technicalDetails: "Exit code: 6\nOutput: \(output)",
-                        suggestedAction: "Use the Installation Wizard to check and grant required permissions",
-                        canAutoFix: false
-                    ))
-            }
-        default:
-            // For unknown exit codes, check if it might be permission-related
-            let isPermissionRelated =
-                output.contains("permission") || output.contains("access") || output.contains("denied")
-                    || output.contains("IOHIDDeviceOpen") || output.contains("privilege")
-
-            if isPermissionRelated {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .permissions,
-                        title: "Possible Permission Issue",
-                        description: "Kanata exited with code \(exitCode), possibly due to permission issues.",
-                        technicalDetails: "Exit code: \(exitCode)\nOutput: \(output)",
-                        suggestedAction: "Use the Installation Wizard to check and grant required permissions",
-                        canAutoFix: false
-                    ))
-            } else {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .process,
-                        title: "Unexpected Exit",
-                        description: "Kanata exited unexpectedly with code \(exitCode).",
-                        technicalDetails: "Exit code: \(exitCode)\nOutput: \(output)",
-                        suggestedAction: "Check the logs for more details or try restarting Kanata",
-                        canAutoFix: false
-                    ))
+        // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
+        if exitCode == 6,
+           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2")
+        {
+            // This is the "zombie keyboard capture" bug - automatically attempt recovery
+            Task {
+                AppLogger.shared.log(
+                    "🚨 [Recovery] Detected zombie keyboard capture - attempting automatic recovery")
+                await self.attemptKeyboardRecovery()
             }
         }
 
@@ -715,160 +597,7 @@ class KanataManager: ObservableObject {
     }
 
     func getSystemDiagnostics() async -> [KanataDiagnostic] {
-        var diagnostics: [KanataDiagnostic] = []
-
-        // Check Kanata installation
-        if !isInstalled() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .critical,
-                    category: .system,
-                    title: "Kanata Not Installed",
-                    description: "Kanata binary not found at \(WizardSystemPaths.kanataActiveBinary)",
-                    technicalDetails: "Expected path: \(WizardSystemPaths.kanataActiveBinary)",
-                    suggestedAction: "Use KeyPath's Installation Wizard to install Kanata automatically",
-                    canAutoFix: false
-                ))
-        }
-
-        // NOTE: Permission checks are handled by the Installation Wizard
-        // We don't duplicate permission diagnostics here to avoid confusion
-
-        // Check for conflicts
-        if isKarabinerElementsRunning() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .warning,
-                    category: .conflict,
-                    title: "Karabiner-Elements Conflict",
-                    description: "Karabiner-Elements grabber is running and may conflict with Kanata",
-                    technicalDetails: "karabiner_grabber process detected",
-                    suggestedAction: "Stop Karabiner-Elements or configure it to not interfere",
-                    canAutoFix: false
-                ))
-        }
-
-        // Check driver status
-        if !isKarabinerDriverInstalled() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .system,
-                    title: "Missing Virtual HID Driver",
-                    description: "Karabiner VirtualHID driver is required for Kanata to function",
-                    technicalDetails: "Driver not found at expected location",
-                    suggestedAction: "Install Karabiner-Elements to get the VirtualHID driver",
-                    canAutoFix: false
-                ))
-        } else if !isKarabinerDaemonRunning() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .warning,
-                    category: .system,
-                    title: "VirtualHID Daemon Not Running",
-                    description: "Karabiner VirtualHID daemon is installed but not running",
-                    technicalDetails: "VirtualHIDDevice-Daemon process not found",
-                    suggestedAction: "The app will try to start the daemon automatically",
-                    canAutoFix: true
-                ))
-        }
-
-        // Check for karabiner_grabber conflict
-        if isKarabinerElementsRunning() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .conflict,
-                    title: "Karabiner Grabber Conflict",
-                    description: "karabiner_grabber is running and will prevent Kanata from starting",
-                    technicalDetails: "This causes 'exclusive access and device already open' errors",
-                    suggestedAction: "Quit Karabiner-Elements or disable its key remapping",
-                    canAutoFix: true // We can kill it
-                ))
-        }
-
-        // Check for Kanata process conflicts
-        await checkKanataProcessConflicts(diagnostics: &diagnostics)
-
-        // Check driver extension status
-        if isKarabinerDriverInstalled(), !isKarabinerDriverExtensionEnabled() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .system,
-                    title: "Driver Extension Not Enabled",
-                    description: "Karabiner driver is installed but not enabled in System Settings",
-                    technicalDetails: "Driver extension shows as not [activated enabled]",
-                    suggestedAction: "Enable in System Settings > Privacy & Security > Driver Extensions",
-                    canAutoFix: false
-                ))
-        }
-
-        // Check background services
-        if !areKarabinerBackgroundServicesEnabled() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .warning,
-                    category: .system,
-                    title: "Background Services Not Enabled",
-                    description: "Karabiner background services may not be enabled",
-                    technicalDetails: "Services not detected in launchctl",
-                    suggestedAction: "Enable in System Settings > General > Login Items & Extensions",
-                    canAutoFix: false
-                ))
-        }
-
-        return diagnostics
-    }
-
-    /// Check for Kanata process conflicts and managed processes
-    private func checkKanataProcessConflicts(diagnostics: inout [KanataDiagnostic]) async {
-        let conflicts = await processLifecycleManager.detectConflicts()
-
-        // Show managed processes (informational)
-        if !conflicts.managedProcesses.isEmpty {
-            let processDetails = conflicts.managedProcesses.map { process in
-                "PID \(process.pid): \(process.command)"
-            }.joined(separator: "\n")
-
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .info,
-                    category: .system,
-                    title: "KeyPath Managed Processes (\(conflicts.managedProcesses.count))",
-                    description: "Kanata processes currently managed by KeyPath",
-                    technicalDetails: processDetails,
-                    suggestedAction: "",
-                    canAutoFix: false
-                ))
-        }
-
-        // Show external conflicts (errors that need attention)
-        if !conflicts.externalProcesses.isEmpty {
-            let conflictDetails = conflicts.externalProcesses.map { process in
-                "PID \(process.pid): \(process.command)"
-            }.joined(separator: "\n")
-
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .conflict,
-                    title: "External Kanata Conflicts (\(conflicts.externalProcesses.count))",
-                    description: "External Kanata processes that conflict with KeyPath",
-                    technicalDetails: conflictDetails,
-                    suggestedAction: "Terminate conflicting processes or let KeyPath auto-fix them",
-                    canAutoFix: true
-                ))
-        }
+        await diagnosticsService.getSystemDiagnostics()
     }
 
     // Check if permission issues should trigger the wizard
@@ -954,12 +683,15 @@ class KanataManager: ObservableObject {
         AppLogger.shared.log("🚀 [Start] Time: \(startTime)")
         AppLogger.shared.log("🚀 [Start] Starting Kanata with synchronization lock...")
 
-        // Prevent rapid successive starts
-        if let lastAttempt = lastStartAttempt,
-           Date().timeIntervalSince(lastAttempt) < minStartInterval {
-            AppLogger.shared.log("⚠️ [Start] Ignoring rapid start attempt within \(minStartInterval)s")
+        // Check restart cooldown
+        let cooldownState = await healthMonitor.canRestartService()
+        if !cooldownState.canRestart {
+            AppLogger.shared.log("⚠️ [Start] Restart cooldown active: \(String(format: "%.1f", cooldownState.remainingCooldown))s remaining")
             return
         }
+
+        // Record this start attempt
+        await healthMonitor.recordStartAttempt(timestamp: Date())
         lastStartAttempt = Date()
 
         // Hard requirement: UDP authentication token must exist (fail closed)
@@ -985,60 +717,29 @@ class KanataManager: ObservableObject {
         if isRunning {
             AppLogger.shared.log("🔍 [Start] Kanata is already running - checking health before restart")
 
-            // First check: Verify process is actually running
-            let processStatus = await checkLaunchDaemonStatus()
-            if !processStatus.isRunning {
-                AppLogger.shared.log("🔍 [Start] LaunchDaemon reports service not running - restart needed")
-            } else {
-                AppLogger.shared.log("🔍 [Start] LaunchDaemon confirms service is running (PID: \(processStatus.pid?.description ?? "unknown"))")
+            // Check health via health monitor
+            let launchDaemonStatus = await checkLaunchDaemonStatus()
+            let processStatus = ProcessHealthStatus(
+                isRunning: launchDaemonStatus.isRunning,
+                pid: launchDaemonStatus.pid
+            )
+            let udpClient = await createUDPClient(timeout: 1.0)
+            let healthStatus = await healthMonitor.checkServiceHealth(
+                processStatus: processStatus,
+                udpClient: udpClient
+            )
 
-                // Check if we should skip UDP health check due to recent service start
-                if let lastKickstart = lastServiceKickstart {
-                    let timeSinceKickstart = Date().timeIntervalSince(lastKickstart)
-                    if timeSinceKickstart < udpServerGracePeriod {
-                        AppLogger.shared.log("⏳ [Start] Process is running and within UDP grace period (\(String(format: "%.1f", timeSinceKickstart))s < \(udpServerGracePeriod)s) - skipping UDP health check")
-                        return
-                    }
-                }
-
-                // Second check: Try UDP health check with retries (faster timeout)
-                if let udpClient = await createUDPClient(timeout: 1.0) {
-                    var isHealthy = false
-                    let maxRetries = 3
-
-                    for attempt in 1 ... maxRetries {
-                        AppLogger.shared.log("🔍 [Start] UDP health check attempt \(attempt)/\(maxRetries)")
-                        isHealthy = await udpClient.checkServerStatus()
-                        if isHealthy {
-                            break
-                        }
-                        // Brief pause between retries
-                        if attempt < maxRetries {
-                            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                        }
-                    }
-
-                    if isHealthy {
-                        AppLogger.shared.log("✅ [Start] Kanata is healthy - no restart needed")
-                        return
-                    } else {
-                        AppLogger.shared.log("⚠️ [Start] UDP health check failed after \(maxRetries) attempts")
-
-                        // Check if we're within UDP server startup grace period
-                        if let lastKickstart = lastServiceKickstart {
-                            let timeSinceKickstart = Date().timeIntervalSince(lastKickstart)
-                            if timeSinceKickstart < udpServerGracePeriod {
-                                AppLogger.shared.log("⏳ [Start] Within UDP grace period (\(String(format: "%.1f", timeSinceKickstart))s < \(udpServerGracePeriod)s) - skipping restart to allow server to start")
-                                return
-                            } else {
-                                AppLogger.shared.log("🕒 [Start] Grace period expired (\(String(format: "%.1f", timeSinceKickstart))s >= \(udpServerGracePeriod)s) - proceeding with restart")
-                            }
-                        }
-                    }
-                } else {
-                    AppLogger.shared.log("⚠️ [Start] Could not create UDP client - service may need restart")
-                }
+            if healthStatus.isHealthy && !healthStatus.shouldRestart {
+                AppLogger.shared.log("✅ [Start] Kanata is healthy - no restart needed")
+                return
             }
+
+            if !healthStatus.shouldRestart {
+                AppLogger.shared.log("⏳ [Start] Service not ready but should wait - skipping restart")
+                return
+            }
+
+            AppLogger.shared.log("🔄 [Start] Service unhealthy: \(healthStatus.reason ?? "unknown") - proceeding with restart")
 
             AppLogger.shared.log("🔄 [Start] Performing necessary restart via kickstart")
             isStartingKanata = true
@@ -1051,6 +752,7 @@ class KanataManager: ObservableObject {
 
             if success {
                 AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via kickstart")
+                await healthMonitor.recordStartSuccess()
                 // Update service status after restart
                 let serviceStatus = await checkLaunchDaemonStatus()
                 if let pid = serviceStatus.pid {
@@ -1086,7 +788,7 @@ class KanataManager: ObservableObject {
                 canAutoFix: true
             )
             addDiagnostic(diagnostic)
-            updatePublishedProperties(
+            updateInternalState(
                 isRunning: isRunning,
                 lastProcessExitCode: lastProcessExitCode,
                 lastError: "Configuration Error: \(validation.errors.first ?? "Unknown error")"
@@ -1110,7 +812,7 @@ class KanataManager: ObservableObject {
                     canAutoFix: false
                 )
                 addDiagnostic(diagnostic)
-                updatePublishedProperties(
+                updateInternalState(
                     isRunning: isRunning,
                     lastProcessExitCode: lastProcessExitCode,
                     lastError: "Conflict: karabiner_grabber is running"
@@ -1127,7 +829,7 @@ class KanataManager: ObservableObject {
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: configPath) {
             AppLogger.shared.log("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
-            updatePublishedProperties(
+            updateInternalState(
                 isRunning: false,
                 lastProcessExitCode: 1,
                 lastError: "Configuration file not found: \(configPath)"
@@ -1137,7 +839,7 @@ class KanataManager: ObservableObject {
             AppLogger.shared.log("✅ [DEBUG] Config file exists at: \(configPath)")
             if !fileManager.isReadableFile(atPath: configPath) {
                 AppLogger.shared.log("⚠️ [DEBUG] Config file is NOT readable")
-                updatePublishedProperties(
+                updateInternalState(
                     isRunning: false,
                     lastProcessExitCode: 1,
                     lastError: "Configuration file not readable: \(configPath)"
@@ -1176,7 +878,7 @@ class KanataManager: ObservableObject {
                     await verifyNoProcessConflicts()
 
                     // Update state and clear old diagnostics when successfully starting
-                    updatePublishedProperties(
+                    updateInternalState(
                         isRunning: true,
                         lastProcessExitCode: nil,
                         lastError: nil,
@@ -1185,13 +887,14 @@ class KanataManager: ObservableObject {
 
                     AppLogger.shared.log("✅ [Start] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
                     AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
+                    await healthMonitor.recordStartSuccess()
 
                 } else {
                     // Service started but no PID found - may still be initializing
                     AppLogger.shared.log("⚠️ [Start] LaunchDaemon service started but PID not yet available")
 
                     // Update state to indicate running
-                    updatePublishedProperties(
+                    updateInternalState(
                         isRunning: true,
                         lastProcessExitCode: nil,
                         lastError: nil,
@@ -1200,10 +903,11 @@ class KanataManager: ObservableObject {
 
                     AppLogger.shared.log("✅ [Start] LaunchDaemon service started successfully")
                     AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
+                    await healthMonitor.recordStartSuccess()
                 }
             } else {
                 // Failed to start LaunchDaemon service
-                updatePublishedProperties(
+                updateInternalState(
                     isRunning: false,
                     lastProcessExitCode: 1,
                     lastError: "Failed to start LaunchDaemon service"
@@ -1651,7 +1355,7 @@ class KanataManager: ObservableObject {
             // Stop log monitoring when Kanata stops
             stopLogMonitoring()
 
-            updatePublishedProperties(
+            updateInternalState(
                 isRunning: false,
                 lastProcessExitCode: nil,
                 lastError: nil
@@ -1820,7 +1524,7 @@ class KanataManager: ObservableObject {
     }
 
     func updateStatus() async {
-        // Synchronize status updates to prevent concurrent access to @Published properties
+        // Synchronize status updates to prevent concurrent access to internal state
         await KanataManager.startupActor.synchronize { [self] in
             await performUpdateStatus()
         }
@@ -1867,9 +1571,9 @@ class KanataManager: ObservableObject {
         return false
     }
 
-    /// Main actor function to safely update all @Published properties
+    /// Main actor function to safely update internal state properties
     @MainActor
-    private func updatePublishedProperties(
+    private func updateInternalState(
         isRunning: Bool,
         lastProcessExitCode: Int32?,
         lastError: String?,
@@ -1907,7 +1611,7 @@ class KanataManager: ObservableObject {
 
             if serviceRunning {
                 // Service is running - clear any stale errors
-                updatePublishedProperties(
+                updateInternalState(
                     isRunning: serviceRunning,
                     lastProcessExitCode: nil,
                     lastError: nil,
@@ -1924,7 +1628,7 @@ class KanataManager: ObservableObject {
                 }
             } else {
                 // Service is not running
-                updatePublishedProperties(
+                updateInternalState(
                     isRunning: serviceRunning,
                     lastProcessExitCode: lastProcessExitCode,
                     lastError: lastError
@@ -3163,61 +2867,18 @@ class KanataManager: ObservableObject {
     }
 
     private func parseKanataConfig(_ configContent: String) -> [KeyMapping] {
-        var mappings: [KeyMapping] = []
-        let lines = configContent.components(separatedBy: .newlines)
-
-        var inDefsrc = false
-        var inDeflayer = false
-        var srcKeys: [String] = []
-        var layerKeys: [String] = []
-
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if trimmed.hasPrefix("(defsrc") {
-                inDefsrc = true
-                inDeflayer = false
-                continue
-            } else if trimmed.hasPrefix("(deflayer") {
-                inDefsrc = false
-                inDeflayer = true
-                continue
-            } else if trimmed == ")" {
-                inDefsrc = false
-                inDeflayer = false
-                continue
-            }
-
-            if inDefsrc, !trimmed.isEmpty, !trimmed.hasPrefix(";") {
-                srcKeys.append(
-                    contentsOf: trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty })
-            } else if inDeflayer, !trimmed.isEmpty, !trimmed.hasPrefix(";") {
-                layerKeys.append(
-                    contentsOf: trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty })
-            }
+        // Delegate to ConfigurationService for parsing
+        do {
+            let config = try configurationService.parseConfigurationFromString(configContent)
+            return config.keyMappings
+        } catch {
+            AppLogger.shared.log("⚠️ [Parse] Failed to parse config: \(error)")
+            return []
         }
-
-        // Match up src and layer keys, filtering out invalid keys
-        var tempMappings: [KeyMapping] = []
-        for (index, srcKey) in srcKeys.enumerated() where index < layerKeys.count {
-            // Skip obviously invalid keys
-            if srcKey != "invalid", !srcKey.isEmpty {
-                tempMappings.append(KeyMapping(input: srcKey, output: layerKeys[index]))
-            }
-        }
-
-        // Deduplicate mappings - keep only the last mapping for each input key
-        var seenInputs: Set<String> = []
-        for mapping in tempMappings.reversed() where !seenInputs.contains(mapping.input) {
-            mappings.insert(mapping, at: 0)
-            seenInputs.insert(mapping.input)
-        }
-
-        AppLogger.shared.log("🔍 [Parse] Found \(srcKeys.count) src keys, \(layerKeys.count) layer keys, deduplicated to \(mappings.count) unique mappings")
-        return mappings
     }
 
     private func generateKanataConfigWithMappings(_ mappings: [KeyMapping]) -> String {
+        // Delegate to KanataConfiguration utility
         guard !mappings.isEmpty else {
             // Return default config with caps->esc if no mappings
             let defaultMapping = KeyMapping(input: "caps", output: "escape")
@@ -3408,7 +3069,7 @@ class KanataManager: ObservableObject {
     private func stopLogMonitoring() {
         logMonitorTask?.cancel()
         logMonitorTask = nil
-        connectionFailureCount = 0
+        Task { await healthMonitor.recordConnectionSuccess() } // Reset on stop
     }
 
     /// Analyze new log content for VirtualHID connection issues
@@ -3418,24 +3079,16 @@ class KanataManager: ObservableObject {
         for line in lines {
             if line.contains("connect_failed asio.system:2")
                 || line.contains("connect_failed asio.system:61") {
-                connectionFailureCount += 1
-                AppLogger.shared.log(
-                    "⚠️ [LogMonitor] VirtualHID connection failure detected (\(connectionFailureCount)/\(maxConnectionFailures))"
-                )
+                let shouldTriggerRecovery = await healthMonitor.recordConnectionFailure()
 
-                if connectionFailureCount >= maxConnectionFailures {
+                if shouldTriggerRecovery {
                     AppLogger.shared.log(
                         "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery")
                     await triggerVirtualHIDRecovery()
-                    connectionFailureCount = 0 // Reset counter after recovery attempt
                 }
             } else if line.contains("driver_connected 1") {
                 // Reset failure count on successful connection
-                if connectionFailureCount > 0 {
-                    AppLogger.shared.log(
-                        "✅ [LogMonitor] VirtualHID connection restored - resetting failure count")
-                    connectionFailureCount = 0
-                }
+                await healthMonitor.recordConnectionSuccess()
             }
         }
     }
@@ -3453,7 +3106,7 @@ class KanataManager: ObservableObject {
             description:
             "Real-time monitoring detected repeated VirtualHID connection failures. Keyboard remapping is not functioning.",
             technicalDetails:
-            "Detected \(connectionFailureCount) consecutive asio.system connection failures",
+            "Detected multiple consecutive asio.system connection failures",
             suggestedAction:
             "KeyPath will attempt automatic recovery. If issues persist, restart the application.",
             canAutoFix: true
@@ -3471,59 +3124,8 @@ class KanataManager: ObservableObject {
 
     /// Validates a generated config string using Kanata's --check command
     private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
-        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
-        AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
-
-        // First try UDP validation if server is available
-        if let udpPort = await getUDPPort() {
-            AppLogger.shared.log("📡 [Validation] UDP port configured: \(udpPort)")
-            let udpClient = KanataUDPClient(port: udpPort)
-
-            // Check if UDP server is available
-            AppLogger.shared.log("📡 [Validation] Checking UDP server availability on port \(udpPort)...")
-            if await udpClient.checkServerStatus() {
-                AppLogger.shared.log("📡 [Validation] UDP server is AVAILABLE, using UDP validation")
-                let udpStart = Date()
-                let result = await udpClient.validateConfig(config)
-                let udpDuration = Date().timeIntervalSince(udpStart)
-                AppLogger.shared.log("⏱️ [Validation] UDP validation completed in \(String(format: "%.3f", udpDuration)) seconds")
-
-                switch result {
-                case .success:
-                    AppLogger.shared.log("✅ [Validation] UDP validation PASSED")
-                    AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-                    return (true, [])
-                case let .failure(udpErrors):
-                    AppLogger.shared.log("❌ [Validation] UDP validation FAILED with \(udpErrors.count) errors:")
-                    let errorStrings = udpErrors.map(\.description)
-                    for (index, error) in errorStrings.enumerated() {
-                        AppLogger.shared.log("   Error \(index + 1): \(error)")
-                    }
-                    AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-                    return (false, errorStrings)
-                case let .networkError(error):
-                    AppLogger.shared.log("⚠️ [Validation] UDP validation network error: \(error)")
-                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
-                // Fall through to CLI validation
-                case .authenticationRequired:
-                    AppLogger.shared.log("⚠️ [Validation] UDP authentication required")
-                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
-                    // Fall through to CLI validation
-                }
-            } else {
-                AppLogger.shared.log("⚠️ [Validation] UDP server NOT available on port \(udpPort)")
-                AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
-            }
-        } else {
-            AppLogger.shared.log("ℹ️ [Validation] No UDP port configured or UDP disabled")
-            AppLogger.shared.log("ℹ️ [Validation] Using CLI validation as primary method")
-        }
-
-        // Fallback to CLI validation
-        AppLogger.shared.log("🖥️ [Validation] Starting CLI validation...")
-        let cliResult = await validateConfigWithCLI(config)
-        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-        return cliResult
+        // Delegate to ConfigurationService for combined UDP+CLI validation
+        return await configurationService.validateConfiguration(config)
     }
 
     /// Get UDP port for validation if UDP server is enabled
@@ -3543,71 +3145,6 @@ class KanataManager: ObservableObject {
         return KanataUDPClient(port: udpPort, timeout: timeout)
     }
 
-    private func validateConfigWithCLI(_ config: String) async -> (isValid: Bool, errors: [String]) {
-        AppLogger.shared.log("🖥️ [Validation-CLI] Starting CLI validation process...")
-
-        // Write config to a temporary file for validation
-        let tempConfigPath = "\(configDirectory)/temp_validation.kbd"
-        AppLogger.shared.log("📝 [Validation-CLI] Creating temp config file: \(tempConfigPath)")
-
-        do {
-            let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
-            let configDir = URL(fileURLWithPath: configDirectory)
-            try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-            try config.write(to: tempConfigURL, atomically: true, encoding: .utf8)
-            AppLogger.shared.log("📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)")
-
-            // Use kanata --check to validate
-            let kanataBinary = WizardSystemPaths.kanataActiveBinary
-            AppLogger.shared.log("🔧 [Validation-CLI] Using kanata binary: \(kanataBinary)")
-
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: kanataBinary)
-            let arguments = buildKanataArguments(configPath: tempConfigPath, checkOnly: true)
-            task.arguments = arguments
-            AppLogger.shared.log("🔧 [Validation-CLI] Command: \(kanataBinary) \(arguments.joined(separator: " "))")
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            let cliStart = Date()
-            try task.run()
-            task.waitUntilExit()
-            let cliDuration = Date().timeIntervalSince(cliStart)
-            AppLogger.shared.log("⏱️ [Validation-CLI] CLI validation completed in \(String(format: "%.3f", cliDuration)) seconds")
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            AppLogger.shared.log("📋 [Validation-CLI] Exit code: \(task.terminationStatus)")
-            if !output.isEmpty {
-                AppLogger.shared.log("📋 [Validation-CLI] Output: \(output.prefix(500))...")
-            }
-
-            // Clean up temp file
-            try? FileManager.default.removeItem(at: tempConfigURL)
-            AppLogger.shared.log("🗑️ [Validation-CLI] Temp file cleaned up")
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [Validation-CLI] CLI validation PASSED")
-                return (true, [])
-            } else {
-                let errors = configurationService.parseKanataErrors(output)
-                AppLogger.shared.log("❌ [Validation-CLI] CLI validation FAILED with \(errors.count) errors:")
-                for (index, error) in errors.enumerated() {
-                    AppLogger.shared.log("   Error \(index + 1): \(error)")
-                }
-                return (false, errors)
-            }
-        } catch {
-            // Clean up temp file on error
-            try? FileManager.default.removeItem(atPath: tempConfigPath)
-            AppLogger.shared.log("❌ [Validation-CLI] Validation process failed: \(error)")
-            AppLogger.shared.log("❌ [Validation-CLI] Error type: \(type(of: error))")
-            return (false, ["Validation failed: \(error.localizedDescription)"])
-        }
-    }
 
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
@@ -3648,43 +3185,10 @@ class KanataManager: ObservableObject {
 
     /// Fallback rule-based repair when Claude is not available
     private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
-        AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
-
-        // Common repair strategies
-        var repairedConfig = config
-
-        for error in errors {
-            let lowerError = error.lowercased()
-
-            // Fix common syntax errors
-            if lowerError.contains("missing") && lowerError.contains("defcfg") {
-                // Add missing defcfg
-                if !repairedConfig.contains("(defcfg") {
-                    let defcfgSection = """
-                    (defcfg
-                      process-unmapped-keys no
-                    )
-
-                    """
-                    repairedConfig = defcfgSection + repairedConfig
-                }
-            }
-
-            // Fix empty parentheses issues
-            if lowerError.contains("()") || lowerError.contains("empty") {
-                repairedConfig = repairedConfig.replacingOccurrences(of: "()", with: "_")
-                repairedConfig = repairedConfig.replacingOccurrences(of: "( )", with: "_")
-            }
-
-            // Fix mismatched defsrc/deflayer lengths
-            if lowerError.contains("mismatch") || lowerError.contains("length") {
-                // Regenerate from scratch using our proven template
-                return generateKanataConfigWithMappings(mappings)
-            }
-        }
-
-        return repairedConfig
+        async throws -> String
+    {
+        // Delegate to ConfigurationService for rule-based repair
+        return try await configurationService.repairConfiguration(config: config, errors: errors, mappings: mappings)
     }
 
     /// Saves a validated config to disk
@@ -3817,43 +3321,13 @@ class KanataManager: ObservableObject {
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
-        AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
-
-        // Create backup directory if it doesn't exist
-        let backupDir = "\(configDirectory)/backups"
-        let backupDirURL = URL(fileURLWithPath: backupDir)
-        try FileManager.default.createDirectory(at: backupDirURL, withIntermediateDirectories: true)
-
-        // Create timestamped backup filename
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let timestamp = formatter.string(from: Date())
-
-        let backupPath = "\(backupDir)/failed_config_\(timestamp).kbd"
-        let backupURL = URL(fileURLWithPath: backupPath)
-
-        // Write the failed config to backup
-        let backupContent = """
-        ;; FAILED CONFIG - AUTOMATICALLY BACKED UP
-        ;; Timestamp: \(timestamp)
-        ;; Original mappings: \(mappings.map { "\($0.input) -> \($0.output)" }.joined(separator: ", "))
-        ;;
-        ;; This configuration failed validation and was automatically backed up.
-        ;; You can examine and manually repair this configuration if needed.
-        ;;
-        ;; Original config follows:
-
-        \(failedConfig)
-        """
-
-        try backupContent.write(to: backupURL, atomically: true, encoding: .utf8)
-        AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
-
-        // Create and apply safe config
-        let defaultMapping = KeyMapping(input: "caps", output: "escape")
-        let safeConfig = KanataConfiguration.generateFromMappings([defaultMapping])
-        try await saveValidatedConfig(safeConfig)
+        -> String
+    {
+        // Delegate to ConfigurationService for backup and safe config application
+        let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
+            failedConfig: failedConfig,
+            mappings: mappings
+        )
 
         // Update in-memory mappings to reflect the safe state
         keyMappings = [KeyMapping(input: "caps", output: "escape")]

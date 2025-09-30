@@ -4,7 +4,7 @@ import Combine
 
 struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
-    @EnvironmentObject var kanataManager: KanataManager
+    @EnvironmentObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @Environment(\.permissionSnapshotProvider) private var permissionSnapshotProvider
     @StateObject private var stateController = MainAppStateController() // 🎯 Phase 3: New controller
     @StateObject private var recordingCoordinator = RecordingCoordinator()
@@ -154,10 +154,11 @@ struct ContentView: View {
                 "🏗️ [ContentView] Using shared SimpleKanataManager, initial showWizard: \(kanataManager.showWizard)"
             )
 
-            // 🎯 Phase 3: Configure state controller and recording coordinator with KanataManager
-            stateController.configure(with: kanataManager)
+            // 🎯 Phase 3/4: Configure state controller and recording coordinator with underlying KanataManager
+            // Business logic components need the actual manager, not the ViewModel
+            stateController.configure(with: kanataManager.underlyingManager)
             recordingCoordinator.configure(
-                kanataManager: kanataManager,
+                kanataManager: kanataManager.underlyingManager,
                 statusHandler: { message in showStatusMessage(message: message) },
                 permissionProvider: permissionSnapshotProvider
             )
@@ -394,14 +395,14 @@ struct ContentView: View {
             // Perform the permission restart using the coordinator
             PermissionGrantCoordinator.shared.performPermissionRestart(
                 for: permissionType,
-                kanataManager: kanataManager
+                kanataManager: kanataManager.underlyingManager  // Phase 4: Business logic needs underlying manager
             ) { _ in
                 // Show wizard after service restart completes to display results
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     // Reopen wizard to the appropriate permission page
                     PermissionGrantCoordinator.shared.reopenWizard(
                         for: permissionType,
-                        kanataManager: kanataManager
+                        kanataManager: kanataManager.underlyingManager  // Phase 4: Business logic needs underlying manager
                     )
                 }
             }
@@ -453,7 +454,7 @@ struct ContentView: View {
         saveDebounceTimer?.invalidate()
         saveDebounceTimer = nil
         await recordingCoordinator.saveMapping(
-            kanataManager: kanataManager,
+            kanataManager: kanataManager.underlyingManager,  // Phase 4: Business logic needs underlying manager
             onSuccess: { message in handleSaveSuccess(message) },
             onError: { error in handleSaveError(error) }
         )
@@ -657,7 +658,7 @@ struct ContentView: View {
 struct ContentViewHeader: View {
     @ObservedObject var validator: MainAppStateController // 🎯 Phase 3: New controller
     @Binding var showingInstallationWizard: Bool
-    @EnvironmentObject var kanataManager: KanataManager
+    @EnvironmentObject var kanataManager: KanataViewModel // Phase 4: MVVM
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -865,7 +866,7 @@ struct RecordingSection: View {
 }
 
 struct ErrorSection: View {
-    @ObservedObject var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @Binding var showingInstallationWizard: Bool
     let error: String
 
@@ -933,7 +934,7 @@ struct ErrorSection: View {
 
 struct DiagnosticSummarySection: View {
     let criticalIssues: [KanataDiagnostic]
-    @ObservedObject var kanataManager: KanataManager
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @State private var showingDiagnostics = false
 
     var body: some View {
@@ -1156,6 +1157,8 @@ struct DiagnosticSummaryView: View {
 }
 
 #Preview {
+    let manager = KanataManager()
+    let viewModel = KanataViewModel(manager: manager)
     ContentView()
-        .environmentObject(KanataManager())
+        .environmentObject(viewModel)
 }

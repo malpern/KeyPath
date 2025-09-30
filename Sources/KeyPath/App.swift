@@ -3,7 +3,9 @@ import SwiftUI
 
 // Note: @main attribute moved to KeyPathCLI/main.swift for proper SPM building
 public struct KeyPathApp: App {
-    @StateObject private var kanataManager = KanataManager()
+    // Phase 4: MVVM - Use ViewModel instead of Manager directly
+    @StateObject private var viewModel: KanataViewModel
+    private let kanataManager: KanataManager
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     private let isHeadlessMode: Bool
@@ -13,7 +15,7 @@ public struct KeyPathApp: App {
         let args = ProcessInfo.processInfo.arguments
         isHeadlessMode =
             args.contains("--headless") || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
-        
+
         AppLogger.shared.log("🔍 [App] Initializing KeyPath - headless: \(isHeadlessMode), args: \(args)")
         let info = BuildInfo.current()
         AppLogger.shared.log("🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)")
@@ -24,7 +26,7 @@ public struct KeyPathApp: App {
             setenv("KEYPATH_AUTOTRIGGER", "1", 1)
             AppLogger.shared.log("🧪 [App] Auto-trigger flag detected (--autotrigger)")
         }
-        
+
         // Set startup mode to prevent blocking operations during app launch
         setenv("KEYPATH_STARTUP_MODE", "1", 1)
         AppLogger.shared.log("🔍 [App] Startup mode set - IOHIDCheckAccess calls will be skipped")
@@ -38,9 +40,11 @@ public struct KeyPathApp: App {
             }
         }
 
-        // Initialize KanataManager
+        // Phase 4: MVVM - Initialize KanataManager and ViewModel
         let manager = KanataManager()
-        _kanataManager = StateObject(wrappedValue: manager)
+        self.kanataManager = manager
+        _viewModel = StateObject(wrappedValue: KanataViewModel(manager: manager))
+        AppLogger.shared.log("🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping KanataManager")
 
         // Set activation policy based on mode
         if isHeadlessMode {
@@ -65,7 +69,7 @@ public struct KeyPathApp: App {
         // Settings scene for preferences window
         Settings {
             SettingsView()
-                .environmentObject(kanataManager)
+                .environmentObject(viewModel)  // Phase 4: Inject ViewModel
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
         }
@@ -92,7 +96,7 @@ public struct KeyPathApp: App {
             // Add File menu with Open Config
             CommandGroup(replacing: .newItem) {
                 Button("Open Config") {
-                    openConfigInEditor(kanataManager: kanataManager)
+                    openConfigInEditor(viewModel: viewModel)
                 }
                 .keyboardShortcut("o", modifiers: .command)
 
@@ -118,8 +122,8 @@ public struct KeyPathApp: App {
 // MARK: - Helper Functions
 
 @MainActor
-func openConfigInEditor(kanataManager: KanataManager) {
-    let configPath = kanataManager.configPath
+func openConfigInEditor(viewModel: KanataViewModel) {
+    let configPath = viewModel.configPath
 
     // Try to open with Zed first
     let zedProcess = Process()

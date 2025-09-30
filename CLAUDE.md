@@ -41,7 +41,11 @@ KeyPath.app (SwiftUI) → KanataManager → launchctl → Kanata daemon
 - **Notifications**: UserNotificationService with actionable buttons, frontmost gating, and TTL-based deduplication
 
 ### Key Manager Classes
-- `KanataManager`: **Unified manager** - handles daemon lifecycle, configuration, UI state, and user interactions
+- `KanataManager`: **Coordinator** - orchestrates services, handles daemon lifecycle and user interactions (NOT ObservableObject)
+- `KanataViewModel`: **UI Layer (MVVM)** - ObservableObject with @Published properties for SwiftUI reactivity
+- `ConfigurationService`: Configuration file management (reading, writing, parsing, validation, backup)
+- `ServiceHealthMonitor`: Health checking, restart cooldown, recovery strategies
+- `DiagnosticsService`: System diagnostics, log analysis, failure diagnosis
 - `KeyboardCapture`: Handles CGEvent-based keyboard input recording (isolated service)
 - `PermissionOracle`: **🔮 CRITICAL ARCHITECTURE** - Single source of truth for all permission detection
 - `UserNotificationService`: macOS Notification Center integration with categories, actions, and intelligent gating
@@ -365,6 +369,62 @@ func forcePermissionStatus() {
 }
 ```
 
+### 5. MVVM Anti-Patterns
+
+```swift
+// ❌ NEVER DO THIS - Business logic in ViewModel
+class KanataViewModel: ObservableObject {
+    func startKanata() async {
+        // Direct process management - belongs in Manager!
+        let process = Process()
+        process.launchPath = "/usr/local/bin/kanata"
+        process.launch()
+    }
+}
+
+// ❌ NEVER DO THIS - Views accessing Manager directly (skip ViewModel)
+struct ContentView: View {
+    @EnvironmentObject var kanataManager: KanataManager  // Should be KanataViewModel!
+}
+
+// ❌ NEVER DO THIS - Manager with @Published properties
+@MainActor
+class KanataManager: ObservableObject {  // Should NOT be ObservableObject
+    @Published var isRunning = false  // UI state belongs in ViewModel
+}
+
+// ✅ CORRECT - Proper MVVM separation
+@MainActor
+class KanataManager {  // Pure coordinator, not ObservableObject
+    internal var isRunning = false  // Internal state for services
+
+    func getCurrentUIState() -> KanataUIState {
+        KanataUIState(isRunning: isRunning, ...)
+    }
+}
+
+@MainActor
+class KanataViewModel: ObservableObject {  // UI layer
+    @Published var isRunning = false  // UI-reactive state
+    private let manager: KanataManager
+
+    var underlyingManager: KanataManager { manager }  // For business logic components
+
+    func startKanata() async {
+        await manager.startKanata()  // Delegate to manager
+        await syncFromManager()      // Update UI state
+    }
+}
+
+struct ContentView: View {
+    @EnvironmentObject var kanataViewModel: KanataViewModel  // ViewModel for UI
+
+    private var kanataManager: KanataManager {  // Manager for business logic
+        kanataViewModel.underlyingManager
+    }
+}
+```
+
 ### 3. Service Management Anti-Patterns
 
 ```swift
@@ -453,6 +513,27 @@ let shouldStart = guiCheck && functionalCheck.canAccess
 **Solution:** Stateless SystemValidator with defensive assertions, explicit-only validation triggers
 **Results:** 100x improvement (0.007s → 0.76s spacing), zero validation spam, 54% code reduction
 **Replaced:** StartupValidator → MainAppStateController
+
+### ADR-009: KanataManager Service Extraction & MVVM
+**Decision:** Break up 4,021-line god object into focused services and implement MVVM architecture
+**Status:** ✅ COMPLETED (September 29-30, 2025 - Phases 1-6)
+**Problem:** KanataManager violated Single Responsibility Principle with 10+ concerns in one class
+**Solution:** Surgical extraction of services alongside existing code, MVVM separation for UI state
+**Architecture:**
+```
+KanataManager (coordinator, 3,495 lines)
+  ├─ ConfigurationService (818 lines) - Config file management
+  ├─ ServiceHealthMonitor (347 lines) - Health checks & restart logic
+  ├─ DiagnosticsService (537 lines) - System diagnostics & analysis
+  └─ KanataViewModel (256 lines) - UI state (@Published properties)
+```
+**Results:**
+- Services extracted with protocol-based interfaces (testable)
+- MVVM separation: Manager = business logic, ViewModel = UI state
+- Manager no longer ObservableObject (no @Published properties)
+- Comprehensive test coverage for all services
+- Zero regressions, all functionality preserved
+**Key Pattern:** Coexistence strategy (build alongside, test incrementally, switch safely)
 
 ## ⚠️ Critical Reminders
 
