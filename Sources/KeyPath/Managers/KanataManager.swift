@@ -12,6 +12,10 @@ actor ProcessSynchronizationActor {
 }
 
 /// Errors related to configuration management
+/// Configuration validation and repair errors
+///
+/// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
 enum ConfigError: Error, LocalizedError {
     case corruptedConfigDetected(errors: [String])
     case claudeRepairFailed(reason: String)
@@ -43,6 +47,27 @@ enum ConfigError: Error, LocalizedError {
             "Post-save configuration validation failed: \(errors.joined(separator: ", "))"
         case .repairFailedNeedsUserAction:
             "Configuration repair failed - user intervention required"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case let .corruptedConfigDetected(errors):
+            return .configuration(.corruptedFormat(details: errors.joined(separator: "; ")))
+        case let .claudeRepairFailed(reason):
+            return .configuration(.saveFailed(reason: "Repair failed: \(reason)"))
+        case let .validationFailed(errors):
+            return .configuration(.validationFailed(errors: errors))
+        case let .startupValidationFailed(errors, backupPath):
+            return .configuration(.validationFailed(errors: errors + ["Backup at: \(backupPath)"]))
+        case let .preSaveValidationFailed(errors, _):
+            return .configuration(.validationFailed(errors: errors))
+        case let .postSaveValidationFailed(errors):
+            return .configuration(.validationFailed(errors: errors))
+        case let .repairFailedNeedsUserAction(_, _, originalErrors, repairErrors, _):
+            let allErrors = originalErrors + repairErrors
+            return .configuration(.validationFailed(errors: allErrors))
         }
     }
 }

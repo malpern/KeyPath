@@ -532,6 +532,10 @@ private extension RecordingCoordinator {
 }
 
 extension RecordingCoordinator {
+    /// Recording coordinator errors
+    ///
+    /// - Deprecated: Use `KeyPathError.coordination(...)` instead for consistent error handling
+    @available(*, deprecated, message: "Use KeyPathError.coordination(...) instead")
     enum CoordinatorError: Error, LocalizedError {
         case missingSequences
 
@@ -539,6 +543,14 @@ extension RecordingCoordinator {
             switch self {
             case .missingSequences:
                 return "No input/output key captured"
+            }
+        }
+
+        /// Convert to KeyPathError for consistent error handling
+        var asKeyPathError: KeyPathError {
+            switch self {
+            case .missingSequences:
+                return .coordination(.recordingFailed(reason: "No input/output key captured"))
             }
         }
     }

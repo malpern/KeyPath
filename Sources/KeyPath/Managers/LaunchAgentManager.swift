@@ -241,6 +241,10 @@ final class LaunchAgentManager {
 
 // MARK: - Error Types
 
+/// LaunchAgent operation errors
+///
+/// - Deprecated: Use `KeyPathError.process(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.process(...) instead")
 enum LaunchAgentError: LocalizedError {
     case loadFailed
     case unloadFailed
@@ -257,6 +261,20 @@ enum LaunchAgentError: LocalizedError {
             "LaunchAgent is not installed"
         case .alreadyLoaded:
             "LaunchAgent is already loaded"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .loadFailed:
+            return .process(.startFailed(reason: "Failed to load LaunchAgent"))
+        case .unloadFailed:
+            return .process(.stopFailed(underlyingError: "Failed to unload LaunchAgent"))
+        case .notInstalled:
+            return .process(.notRunning)
+        case .alreadyLoaded:
+            return .process(.alreadyRunning)
         }
     }
 }

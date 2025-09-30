@@ -244,6 +244,10 @@ extension ComponentLogging {
 }
 
 /// Errors related to logging operations.
+/// Logging operation errors
+///
+/// - Deprecated: Use `KeyPathError.logging(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.logging(...) instead")
 enum LoggingError: Error, LocalizedError {
     case configurationFailed(String)
     case writeFailed(String)
@@ -260,6 +264,20 @@ enum LoggingError: Error, LocalizedError {
             "Log flush failed: \(reason)"
         case let .destinationUnavailable(destination):
             "Log destination unavailable: \(destination.identifier)"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case let .configurationFailed(reason):
+            return .logging(.writeFailed(reason: "Configuration failed: \(reason)"))
+        case let .writeFailed(reason):
+            return .logging(.writeFailed(reason: reason))
+        case let .flushFailed(reason):
+            return .logging(.writeFailed(reason: "Flush failed: \(reason)"))
+        case let .destinationUnavailable(destination):
+            return .logging(.fileCreationFailed(path: destination.identifier))
         }
     }
 }

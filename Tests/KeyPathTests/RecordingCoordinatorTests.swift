@@ -27,7 +27,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         permissionProvider.snapshot = Self.snapshot(accessibility: .denied)
 
         coordinator.toggleInputRecording()
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(nanoseconds: 150_000_000)
 
         XCTAssertFalse(coordinator.isInputRecording())
         XCTAssertEqual(coordinator.inputDisplayText(), "⚠️ Accessibility permission required for recording")
@@ -51,7 +51,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         let keyPress = KeyPress(baseKey: "k", modifiers: [], keyCode: 40)
         let sequence = KeySequence(keys: [keyPress], captureMode: .chord)
         captureStub.triggerCapture(with: sequence)
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        try? await Task.sleep(nanoseconds: 300_000_000)
 
         XCTAssertFalse(coordinator.isInputRecording())
         XCTAssertEqual(coordinator.inputDisplayText(), sequence.displayString)

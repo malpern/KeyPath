@@ -4,8 +4,20 @@ import Foundation
 import IOKit.hid
 
 /// Errors that can occur during Oracle operations
+/// Permission Oracle errors
+///
+/// - Deprecated: Use `KeyPathError.permission(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.permission(...) instead")
 enum OracleError: Error {
     case timeout
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .timeout:
+            return .permission(.privilegedOperationFailed(operation: "permission check", reason: "Operation timed out"))
+        }
+    }
 }
 
 /// 🔮 THE ORACLE - Single source of truth for all permission detection in KeyPath

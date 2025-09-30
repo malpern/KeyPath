@@ -513,6 +513,10 @@ class KanataConfigManager {
 
 // MARK: - Error Types
 
+/// Configuration manager errors
+///
+/// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
 enum ConfigManagerError: Error, LocalizedError {
     case configNotFound
     case invalidConfiguration([KanataConfigManager.ValidationError])
@@ -529,6 +533,21 @@ enum ConfigManagerError: Error, LocalizedError {
             "Configuration save verification failed"
         case let .backupFailed(error):
             "Backup creation failed: \(error.localizedDescription)"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .configNotFound:
+            return .configuration(.fileNotFound(path: "configuration file"))
+        case let .invalidConfiguration(errors):
+            let errorMessages = errors.map { $0.message }
+            return .configuration(.validationFailed(errors: errorMessages))
+        case .saveVerificationFailed:
+            return .configuration(.saveFailed(reason: "Save verification failed"))
+        case let .backupFailed(error):
+            return .configuration(.backupFailed(reason: error.localizedDescription))
         }
     }
 }

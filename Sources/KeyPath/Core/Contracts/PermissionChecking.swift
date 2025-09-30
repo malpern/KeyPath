@@ -273,6 +273,10 @@ struct SystemPermissionSnapshot: Sendable {
 }
 
 /// Errors related to permission checking operations.
+/// Permission checking errors
+///
+/// - Deprecated: Use `KeyPathError.permission(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.permission(...) instead")
 enum PermissionError: Error, LocalizedError {
     case checkFailed(String)
     case unsupportedPermissionType(SystemPermissionType)
@@ -289,6 +293,20 @@ enum PermissionError: Error, LocalizedError {
             "Invalid permission subject: \(subject.displayName)"
         case let .systemError(message):
             "System permission error: \(message)"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case let .checkFailed(reason):
+            return .permission(.privilegedOperationFailed(operation: "permission check", reason: reason))
+        case let .unsupportedPermissionType(type):
+            return .permission(.privilegedOperationFailed(operation: "check permission", reason: "Unsupported type: \(type.displayName)"))
+        case let .invalidSubject(subject):
+            return .permission(.privilegedOperationFailed(operation: "check permission", reason: "Invalid subject: \(subject.displayName)"))
+        case let .systemError(message):
+            return .permission(.privilegedOperationFailed(operation: "permission check", reason: message))
         }
     }
 }

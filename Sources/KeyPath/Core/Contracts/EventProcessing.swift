@@ -138,6 +138,10 @@ extension KeyboardEventProcessing {
 }
 
 /// Errors related to event processing operations.
+/// Event processing errors
+///
+/// - Deprecated: Use `KeyPathError.system(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.system(...) instead")
 enum EventProcessingError: Error, LocalizedError {
     case invalidEvent
     case processingFailed(String)
@@ -151,6 +155,18 @@ enum EventProcessingError: Error, LocalizedError {
             "Event processing failed: \(reason)"
         case let .unsupportedEventType(type):
             "Unsupported event type: \(type.rawValue)"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .invalidEvent:
+            return .system(.eventProcessingFailed(reason: "Invalid or malformed CGEvent"))
+        case let .processingFailed(reason):
+            return .system(.eventProcessingFailed(reason: reason))
+        case let .unsupportedEventType(type):
+            return .system(.eventProcessingFailed(reason: "Unsupported event type: \(type.rawValue)"))
         }
     }
 }

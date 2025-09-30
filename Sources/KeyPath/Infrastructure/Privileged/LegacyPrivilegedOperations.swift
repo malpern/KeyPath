@@ -1,9 +1,23 @@
 import Foundation
 
 /// Errors that can occur during privileged operations
+///
+/// - Deprecated: Use `KeyPathError.permission(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.permission(...) instead")
 enum PrivilegedOperationError: Error {
     case timeout
     case executionFailed(String?)
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .timeout:
+            return .permission(.privilegedOperationFailed(operation: "privileged operation", reason: "Operation timed out"))
+        case let .executionFailed(message):
+            let reason = message ?? "Execution failed"
+            return .permission(.privilegedOperationFailed(operation: "privileged operation", reason: reason))
+        }
+    }
 }
 
 /// Legacy implementation that performs privileged operations by invoking AppleScript

@@ -2,8 +2,19 @@ import ApplicationServices
 import Foundation
 
 /// Error types for system detection operations
+///
+/// - Deprecated: Use `KeyPathError.system(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.system(...) instead")
 enum SystemDetectionError: Error {
     case timeout
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .timeout:
+            return .system(.eventProcessingFailed(reason: "System detection timed out"))
+        }
+    }
 }
 
 /// Helper function for timeout operations in system detection

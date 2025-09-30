@@ -105,6 +105,10 @@ extension EventTapping {
 }
 
 /// Errors related to event tap operations.
+/// Event tap errors
+///
+/// - Deprecated: Use `KeyPathError.system(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.system(...) instead")
 enum TapError: Error, LocalizedError {
     case alreadyInstalled
     case notInstalled
@@ -127,6 +131,24 @@ enum TapError: Error, LocalizedError {
             "Failed to configure run loop for event tap"
         case .invalidConfiguration:
             "Invalid event tap configuration"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .alreadyInstalled:
+            return .system(.eventTapCreationFailed)
+        case .notInstalled:
+            return .system(.eventTapCreationFailed)
+        case .permissionDenied:
+            return .permission(.accessibilityNotGranted)
+        case let .creationFailed(reason):
+            return .system(.eventTapCreationFailed)
+        case .runLoopError:
+            return .system(.eventTapEnableFailed)
+        case .invalidConfiguration:
+            return .system(.eventTapCreationFailed)
         }
     }
 }

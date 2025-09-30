@@ -82,6 +82,10 @@ extension LifecycleControlling {
 }
 
 /// Errors related to lifecycle operations.
+/// Lifecycle management errors
+///
+/// - Deprecated: Use `KeyPathError.process(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.process(...) instead")
 enum LifecycleError: Error, LocalizedError {
     case alreadyRunning
     case alreadyStopped
@@ -101,6 +105,22 @@ enum LifecycleError: Error, LocalizedError {
             "Service shutdown timed out"
         case let .invalidState(message):
             "Invalid service state: \(message)"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .alreadyRunning:
+            return .process(.alreadyRunning)
+        case .alreadyStopped:
+            return .process(.notRunning)
+        case .startupTimeout:
+            return .process(.startFailed(reason: "Service startup timed out"))
+        case .shutdownTimeout:
+            return .process(.stopFailed(underlyingError: "Service shutdown timed out"))
+        case let .invalidState(message):
+            return .process(.stateTransitionFailed(from: "unknown", to: message))
         }
     }
 }

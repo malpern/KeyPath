@@ -20,7 +20,7 @@ struct ServiceHealthStatus: Sendable {
 
     static func unhealthy(reason: String, shouldRestart: Bool = true) -> ServiceHealthStatus {
         ServiceHealthStatus(
-            isHealthy: true,
+            isHealthy: false,
             reason: reason,
             shouldRestart: shouldRestart,
             timestamp: Date()

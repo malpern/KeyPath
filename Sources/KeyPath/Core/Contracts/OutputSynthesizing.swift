@@ -218,6 +218,10 @@ enum MouseEventType: Sendable {
 }
 
 /// Errors related to output synthesis operations.
+/// Output synthesis errors
+///
+/// - Deprecated: Use `KeyPathError.system(...)` instead for consistent error handling
+@available(*, deprecated, message: "Use KeyPathError.system(...) instead")
 enum OutputError: Error, LocalizedError {
     case creationFailed
     case postingFailed(String)
@@ -240,6 +244,24 @@ enum OutputError: Error, LocalizedError {
             "Unsupported output operation: \(operation)"
         case let .sequenceError(reason):
             "Event sequence error: \(reason)"
+        }
+    }
+
+    /// Convert to KeyPathError for consistent error handling
+    var asKeyPathError: KeyPathError {
+        switch self {
+        case .creationFailed:
+            return .system(.outputSynthesisFailed(reason: "Failed to create output event"))
+        case let .postingFailed(reason):
+            return .system(.outputSynthesisFailed(reason: reason))
+        case .permissionDenied:
+            return .permission(.accessibilityNotGranted)
+        case .invalidEvent:
+            return .system(.outputSynthesisFailed(reason: "Invalid event parameters"))
+        case let .unsupportedOperation(operation):
+            return .system(.outputSynthesisFailed(reason: "Unsupported operation: \(operation)"))
+        case let .sequenceError(reason):
+            return .system(.outputSynthesisFailed(reason: "Sequence error: \(reason)"))
         }
     }
 }
