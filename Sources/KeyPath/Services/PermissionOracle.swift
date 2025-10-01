@@ -17,58 +17,58 @@ import IOKit.hid
 ///
 /// ⚠️ CRITICAL: Kanata UDP reports false negatives for Input Monitoring
 /// due to IOHIDCheckAccess() being unreliable for root processes
-public actor PermissionOracle {
-    public static let shared = PermissionOracle()
+actor PermissionOracle {
+    static let shared = PermissionOracle()
 
     // MARK: - Published Properties (for real-time sync)
 
     /// Notifies observers when permission state changes
-    public nonisolated let statusUpdatePublisher = PassthroughSubject<Date, Never>()
+    nonisolated let statusUpdatePublisher = PassthroughSubject<Date, Never>()
 
     // MARK: - Core Types
 
-    public enum Status: Equatable, Sendable {
+    enum Status: Equatable {
         case granted
         case denied
         case error(String)
         case unknown
 
-        public var isReady: Bool {
+        var isReady: Bool {
             if case .granted = self { return true }
             return false
         }
 
-        public var isBlocking: Bool {
+        var isBlocking: Bool {
             if case .denied = self { return true }
             if case .error = self { return true }
             return false
         }
     }
 
-    public struct PermissionSet: Sendable {
-        public let accessibility: Status
-        public let inputMonitoring: Status
-        public let source: String
-        public let confidence: Confidence
-        public let timestamp: Date
+    struct PermissionSet {
+        let accessibility: Status
+        let inputMonitoring: Status
+        let source: String
+        let confidence: Confidence
+        let timestamp: Date
 
-        public var hasAllPermissions: Bool {
+        var hasAllPermissions: Bool {
             accessibility.isReady && inputMonitoring.isReady
         }
     }
 
-    public struct Snapshot: Sendable {
-        public let keyPath: PermissionSet
-        public let kanata: PermissionSet
-        public let timestamp: Date
+    struct Snapshot {
+        let keyPath: PermissionSet
+        let kanata: PermissionSet
+        let timestamp: Date
 
         /// System is ready when both apps have all required permissions
-        public var isSystemReady: Bool {
+        var isSystemReady: Bool {
             keyPath.hasAllPermissions && kanata.hasAllPermissions
         }
 
         /// Get the first blocking permission issue (user-facing error message)
-        public var blockingIssue: String? {
+        var blockingIssue: String? {
             // Check KeyPath permissions first (needed for UI functionality)
             if keyPath.accessibility.isBlocking {
                 return "KeyPath needs Accessibility permission - enable in System Settings > Privacy & Security > Accessibility"
@@ -87,7 +87,7 @@ public actor PermissionOracle {
         }
 
         /// Diagnostic information for troubleshooting
-        public var diagnosticSummary: String {
+        var diagnosticSummary: String {
             """
             🔮 Permission Oracle Snapshot (\(String(format: "%.3f", Date().timeIntervalSince(timestamp)))s ago)
 
@@ -104,7 +104,7 @@ public actor PermissionOracle {
         }
     }
 
-    public enum Confidence: Equatable, Sendable {
+    enum Confidence: Equatable {
         case high // UDP API, Official Apple APIs
         case low // Unknown/unavailable states (TCC fallback removed)
     }
@@ -124,7 +124,7 @@ public actor PermissionOracle {
     // MARK: - 🎯 THE ONLY PUBLIC API
 
     /// Force cache invalidation - useful after UDP configuration changes
-    public func invalidateCache() {
+    func invalidateCache() {
         AppLogger.shared.log("🔮 [Oracle] Cache invalidated - next check will be fresh")
         lastSnapshot = nil
         lastSnapshotTime = nil
@@ -134,7 +134,7 @@ public actor PermissionOracle {
     ///
     /// This is the ONLY method other components should call.
     /// No more direct PermissionService calls, no more guessing from logs.
-    public func currentSnapshot() async -> Snapshot {
+    func currentSnapshot() async -> Snapshot {
         // Fast-path for unit tests: avoid heavy OS calls and network timeouts
         if TestEnvironment.isRunningTests {
             let now = Date()
@@ -193,7 +193,7 @@ public actor PermissionOracle {
     }
 
     /// Force refresh (bypass cache) - use after permission changes
-    public func forceRefresh() async -> Snapshot {
+    func forceRefresh() async -> Snapshot {
         AppLogger.shared.log("🔮 [Oracle] Forcing permission refresh (cache invalidated)")
         lastSnapshot = nil
         lastSnapshotTime = nil
@@ -252,79 +252,90 @@ public actor PermissionOracle {
         // 🚨 CRITICAL ARCHITECTURAL PRINCIPLE - DO NOT CHANGE WITHOUT UNDERSTANDING THIS COMMENT 🚨
         // ================================================================================================
         //
-        // ORACLE PERMISSION DETECTION HIERARCHY:
+        // ORACLE PERMISSION DETECTION HIERARCHY (commit 7f68821 broke this, restored here):
         //
-        // 1. APPLE APIs for Input Monitoring (IOHIDCheckAccess from GUI context) - MOST RELIABLE
+        // 1. APPLE APIs FIRST (IOHIDCheckAccess from GUI context) - MOST RELIABLE
         //    - Always trust definitive answers (.granted/.denied)
         //    - GUI context can reliably check permissions for any binary path
         //    - This is the official Apple-approved method
         //
-        // 2. TCC DATABASE for Accessibility - REQUIRED (no Apple API alternative)
-        //    - CRITICAL: No Apple API exists to check another binary's Accessibility permission
-        //    - AXIsProcessTrusted() only works for current process
-        //    - TCC database is the ONLY option for checking kanata's Accessibility
-        //    - Also used as fallback for Input Monitoring when Apple API returns .unknown
+        // 2. TCC DATABASE FALLBACK - NECESSARY when Apple API returns .unknown
+        //    - REQUIRED to break chicken-and-egg problems in wizard scenarios
+        //    - When service isn't running, we can't do functional verification
+        //    - When wizard needs to know permissions before starting service
+        //    - TCC database can be stale/inconsistent (why it's not primary source)
+        //    - Requires Full Disk Access which may not be available
         //
-        // 3. FUNCTIONAL VERIFICATION - Separate from permission checking
+        // 3. FUNCTIONAL VERIFICATION - For accessibility status only
         //    - UDP connectivity test to verify kanata is actually working
-        //    - Used for health checks, NOT permission detection
+        //    - Cannot determine Input Monitoring status (UDP works regardless)
         //
-        // ⚠️  KEY INSIGHT: Input Monitoring and Accessibility have DIFFERENT detection methods ⚠️
-        //     - Input Monitoring: Apple API available (IOHIDCheckAccess) ✅
-        //     - Accessibility: No Apple API for other binaries ❌ → Must use TCC
+        // ⚠️  NEVER BYPASS APPLE APIs WITH TCC FALLBACK WHEN APIs GIVE DEFINITIVE ANSWERS ⚠️
+        //     This causes UI to show stale "denied" status while service works perfectly
         //
         // Historical context:
-        // - Original bug (line 290): Used UDP functional check for Accessibility permission status
-        // - Problem: UDP connectivity ≠ Accessibility permission (conflated two concepts)
-        // - Fix: Always use TCC database for kanata Accessibility (only reliable method)
+        // - Original Oracle design (commit 71d7d06): Apple APIs → TCC fallback for unknown only
+        // - Broken by commit 7f68821: Always used TCC fallback, ignored Apple API results
+        // - Fixed here: Restored original Apple-first hierarchy
         // ================================================================================================
 
         let kanataPath = resolveKanataExecutablePath()
 
-        // 1) Check Input Monitoring via Apple API (MOST RELIABLE for IM)
-        let inputMonitoringAPI = checkBinaryInputMonitoring(at: kanataPath)
+        // 1) PRIMARY: Apple API check from GUI context (MOST RELIABLE - TRUST DEFINITIVE RESULTS)
+        let inputMonitoring = checkBinaryInputMonitoring(at: kanataPath)
+        
+        // 2) SECONDARY: Functional verification via UDP (for accessibility status)
+        let functionalStatus = await checkKanataFunctionalStatus()
 
-        // 2) ALWAYS check TCC database for Accessibility (no Apple API alternative)
-        //    Also get TCC Input Monitoring for fallback if Apple API returns .unknown
-        AppLogger.shared.log("🔮 [Oracle] Checking TCC database for kanata permissions (required for Accessibility)")
-        let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
+        var accessibility: Status = functionalStatus  // Kanata typically doesn't need AX, use functional check
+        var sourceParts: [String] = ["gui-check"]
+        var confidence: Confidence = .high
 
-        // 3) Determine final permission status using hierarchy
+        // 3) TCC FALLBACK: NECESSARY when Apple API returns .unknown (chicken-and-egg scenarios)
+        if case .unknown = inputMonitoring {
+            AppLogger.shared.log("🔮 [Oracle] Apple API returned unknown, using NECESSARY TCC database fallback for chicken-and-egg resolution")
+            let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
+            
+            var tccResults: [String] = []
+            var finalInputMonitoring = inputMonitoring  // Keep original .unknown
+            
+            if let ax = tccAX {
+                accessibility = ax
+                tccResults.append("tcc-ax")
+                if case .granted = ax { confidence = .high }
+            }
 
-        // Accessibility: Always use TCC (no other option)
-        let accessibility: Status = tccAX ?? .unknown
+            if let im = tccIM {
+                finalInputMonitoring = im
+                tccResults.append("tcc-im")
+                if case .granted = im { confidence = .high }
+            }
+            
+            if !tccResults.isEmpty {
+                sourceParts = tccResults
+            } else {
+                sourceParts = ["tcc-unavailable"]
+                confidence = .low
+            }
+            
+            let source = "kanata.\(sourceParts.joined(separator: "+"))"
+            AppLogger.shared.log("🔮 [Oracle] Kanata permissions (TCC fallback): AX=\(accessibility), IM=\(finalInputMonitoring) via \(source)")
 
-        // Input Monitoring: Prefer Apple API, use TCC only if API returns .unknown
-        var finalInputMonitoring = inputMonitoringAPI
-        if case .unknown = inputMonitoringAPI, let im = tccIM {
-            finalInputMonitoring = im
+            return PermissionSet(
+                accessibility: accessibility,
+                inputMonitoring: finalInputMonitoring,
+                source: source,
+                confidence: confidence,
+                timestamp: Date()
+            )
         }
 
-        // 4) Determine source and confidence for logging
-        var sourceParts: [String] = []
-
-        // Track Accessibility source (always TCC)
-        if tccAX != nil {
-            sourceParts.append("tcc-ax")
-        }
-
-        // Track Input Monitoring source (API or TCC fallback)
-        if case .unknown = inputMonitoringAPI, tccIM != nil {
-            sourceParts.append("tcc-im")
-        } else if inputMonitoringAPI != .unknown {
-            sourceParts.append("api-im")
-        }
-
-        let source = "kanata.\(sourceParts.isEmpty ? "unavailable" : sourceParts.joined(separator: "+"))"
-
-        // Confidence is high if both permissions are granted
-        let confidence: Confidence = (accessibility.isReady && finalInputMonitoring.isReady) ? .high : .low
-
-        AppLogger.shared.log("🔮 [Oracle] Kanata permissions: AX=\(accessibility) (TCC), IM=\(finalInputMonitoring) (API) via \(source)")
+        let source = "kanata.\(sourceParts.joined(separator: "+"))"
+        AppLogger.shared.log("🔮 [Oracle] Kanata permissions (Apple API): AX=\(accessibility), IM=\(inputMonitoring) via \(source)")
 
         return PermissionSet(
             accessibility: accessibility,
-            inputMonitoring: finalInputMonitoring,
+            inputMonitoring: inputMonitoring,
             source: source,
             confidence: confidence,
             timestamp: Date()
@@ -477,67 +488,13 @@ public actor PermissionOracle {
 
     // MARK: - Utilities
 
-    // Prefer the actually running kanata path; else bundled; else system-install
-    // For TCC queries, we normalize to the canonical installed path
+    // Add this helper to prefer the active daemon path, falling back to bundled path
     private func resolveKanataExecutablePath() -> String {
-        if let running = detectRunningKanataPath() {
-            // Normalize development builds to installed path for TCC queries
-            // TCC database stores permissions for /Applications/KeyPath.app, not build/KeyPath.app
-            let normalized = normalizePathForTCC(running)
-            AppLogger.shared.log("🔮 [Oracle] Resolved kanata path: \(running) → normalized for TCC: \(normalized)")
-            return normalized
+        let active = WizardSystemPaths.kanataActiveBinary
+        if FileManager.default.fileExists(atPath: active) {
+            return active
         }
-        // Prefer bundled binary for TCC stability
-        let bundled = WizardSystemPaths.bundledKanataPath
-        if FileManager.default.fileExists(atPath: bundled) { return bundled }
-        // Fallback to system install
-        return WizardSystemPaths.kanataSystemInstallPath
-    }
-
-    // Normalize paths for TCC queries - convert development builds to installed paths
-    // TCC database uses canonical installed paths, not temporary build locations
-    private func normalizePathForTCC(_ path: String) -> String {
-        // If this is a build directory, convert to /Applications/ path
-        if path.contains("/build/KeyPath.app/") || path.contains("/.build") {
-            // Extract the relative path within the app bundle
-            if path.contains("/KeyPath.app/") {
-                if let range = path.range(of: "/KeyPath.app/") {
-                    let relativePath = String(path[range.upperBound...])
-                    let canonicalPath = "/Applications/KeyPath.app/\(relativePath)"
-                    AppLogger.shared.log("🔍 [Oracle] TCC path normalization: \(path) → \(canonicalPath)")
-                    return canonicalPath
-                }
-            }
-        }
-        // Already a canonical path or unknown format - return as-is
-        return path
-    }
-
-    private func detectRunningKanataPath() -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        task.arguments = ["-ax", "kanata"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-        do {
-            try task.run()
-            task.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard var line = String(data: data, encoding: .utf8)?.split(separator: "\n").first else { return nil }
-            // Line format: "PID /path/to/kanata [args]" → extract the path substring after first space
-            if let firstSpace = line.firstIndex(of: " ") {
-                line = line[line.index(after: firstSpace)...]
-                // Path is up to next space
-                let parts = line.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
-                if let path = parts.first, FileManager.default.fileExists(atPath: String(path)) {
-                    return String(path)
-                }
-            }
-        } catch {
-            AppLogger.shared.log("❌ [Oracle] detectRunningKanataPath failed: \(error)")
-        }
-        return nil
+        return WizardSystemPaths.bundledKanataPath
     }
 
     // MARK: - TCC Database Fallback (Necessary to break chicken-and-egg problem)
@@ -564,27 +521,20 @@ public actor PermissionOracle {
     // This is similar to how other system utilities (e.g., tccutil, privacy management tools) work.
     private func tccStatus(forExecutable execPath: String, service: TCCServiceName) async -> Status? {
         let dbPaths = tccDatabaseCandidates()
-        AppLogger.shared.log("🔍 [Oracle] TCC query for \(service.rawValue) at '\(execPath)' - checking \(dbPaths.count) databases")
         for db in dbPaths where FileManager.default.fileExists(atPath: db) {
-            AppLogger.shared.log("🔍 [Oracle] Querying TCC database: \(db)")
             if let val = await queryTCCDatabase(dbPath: db, service: service.rawValue, executablePath: execPath) {
                 // Interpret result:
                 // - Newer macOS: auth_value (2=Allow, 0=Deny or Prompt depending on auth_reason)
                 // - Older macOS: allowed (1=Allow, 0=Not allowed)
                 if val >= 2 || val == 1 {
-                    AppLogger.shared.log("🔍 [Oracle] TCC '\(service.rawValue)' for \(execPath) via \(db): \(val) → GRANTED")
                     return .granted
                 } else if val == 0 {
                     // Only report denied if we positively read a 0 from TCC
-                    AppLogger.shared.log("🔍 [Oracle] TCC '\(service.rawValue)' for \(execPath) via \(db): \(val) → DENIED")
                     return .denied
                 }
-            } else {
-                AppLogger.shared.log("🔍 [Oracle] TCC '\(service.rawValue)' query returned nil for \(db)")
             }
         }
         // Inconclusive (no readable DB, no rows found, or unexpected schema) => nil
-        AppLogger.shared.log("🔍 [Oracle] TCC '\(service.rawValue)' for \(execPath): No results from any database → UNKNOWN")
         return nil
     }
 
@@ -690,7 +640,7 @@ public actor PermissionOracle {
 // MARK: - Status Display Helpers
 
 extension PermissionOracle.Status: CustomStringConvertible {
-    public var description: String {
+    var description: String {
         switch self {
         case .granted: "granted"
         case .denied: "denied"
@@ -701,7 +651,7 @@ extension PermissionOracle.Status: CustomStringConvertible {
 }
 
 extension PermissionOracle.Confidence: CustomStringConvertible {
-    public var description: String {
+    var description: String {
         switch self {
         case .high: "high"
         case .low: "low"
