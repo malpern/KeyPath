@@ -9,7 +9,7 @@ class WizardAutoFixer: AutoFixCapable {
     private let launchDaemonInstaller: LaunchDaemonInstaller
     private let packageManager: PackageManager
     private let bundledKanataManager: BundledKanataManager
-    private let toastManager: WizardToastManager
+    private let toastManager: ToastPresenting
     private let autoFixSync = ProcessSynchronizationActor()
 
     @MainActor init(
@@ -18,7 +18,7 @@ class WizardAutoFixer: AutoFixCapable {
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         packageManager: PackageManager = PackageManager(),
         bundledKanataManager: BundledKanataManager = BundledKanataManager(),
-        toastManager: WizardToastManager
+        toastManager: ToastPresenting
     ) {
         self.kanataManager = kanataManager
         self.vhidDeviceManager = vhidDeviceManager

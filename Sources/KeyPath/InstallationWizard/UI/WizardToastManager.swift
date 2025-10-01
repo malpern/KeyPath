@@ -5,7 +5,7 @@ import SwiftUI
 /// Provides temporary feedback for user actions like auto-fix operations
 @Observable
 @MainActor
-class WizardToastManager {
+class WizardToastManager: ToastPresenting {
     var currentToast: WizardToast?
 
     private var toastTask: Task<Void, Never>?

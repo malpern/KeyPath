@@ -1809,17 +1809,9 @@ class KanataManager {
 
     /// Show floating help bubble near the Finder selection, with fallback positioning
     private func showDragAndDropHelpBubble() {
-        let bubbleText = "👉 Drag 'kanata' into Settings → Input Monitoring"
-
-        // Try to compute a reasonable screen point below mid of main screen
-        let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let defaultX = screenFrame.midX
-        let defaultY = screenFrame.midY - 120
-        let position = NSPoint(x: defaultX, y: defaultY)
-
-        HelpBubbleOverlay.show(message: bubbleText, at: position, duration: 18) {
-            AppLogger.shared.log("ℹ️ [Bubble] Help bubble dismissed.")
-        }
+        // TODO: Post notification for UI layer to show help bubble
+        // Core library cannot directly call UI components
+        AppLogger.shared.log("ℹ️ [Bubble] Help bubble would be shown here (needs notification-based implementation)")
     }
 
     func isKarabinerDriverInstalled() -> Bool {
