@@ -43,7 +43,7 @@ let package = Package(
             ]
         ),
         // App/UI target (SwiftUI + Installer) depending on the core
-        .target(
+        .executableTarget(
             name: "KeyPathApp",
             dependencies: ["KeyPath"],
             path: "Sources/KeyPath",
