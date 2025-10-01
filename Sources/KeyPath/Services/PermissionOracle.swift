@@ -283,59 +283,43 @@ actor PermissionOracle {
 
         // 1) PRIMARY: Apple API check from GUI context (MOST RELIABLE - TRUST DEFINITIVE RESULTS)
         let inputMonitoring = checkBinaryInputMonitoring(at: kanataPath)
-        
-        // 2) SECONDARY: Functional verification via UDP (for accessibility status)
-        let functionalStatus = await checkKanataFunctionalStatus()
 
-        var accessibility: Status = functionalStatus  // Kanata typically doesn't need AX, use functional check
-        var sourceParts: [String] = ["gui-check"]
+        // 2) ALWAYS check TCC database for Accessibility (no Apple API alternative exists)
+        AppLogger.shared.log("🔮 [Oracle] Checking TCC database for kanata permissions (required for Accessibility)")
+        let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
+
+        // Accessibility: Always use TCC (no other option)
+        let accessibility: Status = tccAX ?? .unknown
+
+        // Input Monitoring: Prefer Apple API, use TCC only if API returns .unknown
+        var finalInputMonitoring = inputMonitoring
+        var sourceParts: [String] = []
         var confidence: Confidence = .high
 
-        // 3) TCC FALLBACK: NECESSARY when Apple API returns .unknown (chicken-and-egg scenarios)
-        if case .unknown = inputMonitoring {
-            AppLogger.shared.log("🔮 [Oracle] Apple API returned unknown, using NECESSARY TCC database fallback for chicken-and-egg resolution")
-            let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
-            
-            var tccResults: [String] = []
-            var finalInputMonitoring = inputMonitoring  // Keep original .unknown
-            
-            if let ax = tccAX {
-                accessibility = ax
-                tccResults.append("tcc-ax")
-                if case .granted = ax { confidence = .high }
-            }
+        // 3) Use TCC for Input Monitoring if Apple API returned .unknown
+        if case .unknown = inputMonitoring, let im = tccIM {
+            finalInputMonitoring = im
+            sourceParts.append("tcc-im")
+        } else if case .granted = inputMonitoring {
+            sourceParts.append("api-im")
+        }
 
-            if let im = tccIM {
-                finalInputMonitoring = im
-                tccResults.append("tcc-im")
-                if case .granted = im { confidence = .high }
-            }
-            
-            if !tccResults.isEmpty {
-                sourceParts = tccResults
-            } else {
-                sourceParts = ["tcc-unavailable"]
-                confidence = .low
-            }
-            
-            let source = "kanata.\(sourceParts.joined(separator: "+"))"
-            AppLogger.shared.log("🔮 [Oracle] Kanata permissions (TCC fallback): AX=\(accessibility), IM=\(finalInputMonitoring) via \(source)")
+        // Accessibility always from TCC
+        if case .granted = accessibility {
+            sourceParts.append("tcc-ax")
+        }
 
-            return PermissionSet(
-                accessibility: accessibility,
-                inputMonitoring: finalInputMonitoring,
-                source: source,
-                confidence: confidence,
-                timestamp: Date()
-            )
+        if sourceParts.isEmpty {
+            sourceParts = ["unknown"]
+            confidence = .low
         }
 
         let source = "kanata.\(sourceParts.joined(separator: "+"))"
-        AppLogger.shared.log("🔮 [Oracle] Kanata permissions (Apple API): AX=\(accessibility), IM=\(inputMonitoring) via \(source)")
+        AppLogger.shared.log("🔮 [Oracle] Kanata permissions: AX=\(accessibility), IM=\(finalInputMonitoring) via \(source)")
 
         return PermissionSet(
             accessibility: accessibility,
-            inputMonitoring: inputMonitoring,
+            inputMonitoring: finalInputMonitoring,
             source: source,
             confidence: confidence,
             timestamp: Date()
@@ -511,9 +495,28 @@ actor PermissionOracle {
     // necessary here to resolve the chicken-and-egg problem between permission verification
     // and service startup. This is a legitimate fallback when functional verification fails.
     private func checkTCCForKanata(executablePath: String) async -> (ax: Status?, im: Status?) {
-        let ax = await tccStatus(forExecutable: executablePath, service: .accessibility)
-        let im = await tccStatus(forExecutable: executablePath, service: .inputMonitoring)
+        // Normalize path for TCC queries - convert development builds to installed paths
+        let normalizedPath = normalizePathForTCC(executablePath)
+        let ax = await tccStatus(forExecutable: normalizedPath, service: .accessibility)
+        let im = await tccStatus(forExecutable: normalizedPath, service: .inputMonitoring)
         return (ax, im)
+    }
+
+    /// Normalize paths for TCC queries - convert development builds to installed paths
+    /// Development builds use paths like /Volumes/.../build/KeyPath.app/...
+    /// But TCC database has the installed path /Applications/KeyPath.app/...
+    private func normalizePathForTCC(_ path: String) -> String {
+        // If this is a development build path, convert to installed path
+        if path.contains("/build/KeyPath.app/") || path.contains("/.build") {
+            // Extract the relative path after KeyPath.app/
+            if let range = path.range(of: "/KeyPath.app/") {
+                let relativePath = String(path[range.upperBound...])
+                let canonicalPath = "/Applications/KeyPath.app/\(relativePath)"
+                AppLogger.shared.log("🔮 [Oracle] Normalized TCC path: \(path) → \(canonicalPath)")
+                return canonicalPath
+            }
+        }
+        return path
     }
 
     // Query TCC DB for a specific executable path and service
