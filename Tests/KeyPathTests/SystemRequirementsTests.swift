@@ -222,34 +222,9 @@ final class SystemRequirementsTests: XCTestCase {
 
     // MARK: - Integration Tests
 
-    @MainActor
-    func testSystemRequirements_IntegrationWithSystemStatusChecker() {
-        let kanataManager = KanataManager()
-        let detector = SystemStatusChecker(kanataManager: kanataManager)
-
-        // Verify detector can be created with SystemRequirements
-        XCTAssertNotNil(detector)
-
-        // Test system state detection (async operation)
-        let expectation = expectation(description: "State detection completes")
-
-        Task {
-            let result = await detector.detectCurrentState()
-
-            // Verify result contains system requirement issues
-            let hasSystemRequirementIssues = result.issues.contains { issue in
-                issue.category == .systemRequirements
-            }
-
-            // Note: We always expect at least one system requirement issue (the driver type info)
-            XCTAssertTrue(
-                hasSystemRequirementIssues, "Should always include system requirement information"
-            )
-            expectation.fulfill()
-        }
-
-        waitForExpectations(timeout: 10.0)
-    }
+    // NOTE: Integration test with SystemStatusChecker removed - that class was replaced by SystemValidator
+    // SystemValidator focuses on critical system state (permissions, components, conflicts, health)
+    // System requirements checking is done separately and is informational, not blocking
 }
 
 // MARK: - Mock Classes for Testing
