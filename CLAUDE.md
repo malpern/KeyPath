@@ -4,9 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Module split revert and test performance optimization (October 2025)
+**LATEST WORK:** Karabiner driver version compatibility detection and wizard fixes (October 23, 2025)
 
 **Recent Commits:**
+- feat: detect and fix Karabiner driver version mismatch (commit 7834e90) - **INCOMPLETE**
+- fix: detect VirtualHID driver activation errors in wizard (commit 8a47f72)
+- fix: improve wizard status detection accuracy (commit b80f02e)
+
+**⚠️ INCOMPLETE WORK (requires follow-up):**
+- ADR-012: Karabiner driver version detection implemented but NOT wired to Fix button
+- TODO: Connect VHIDDeviceManager.downloadAndInstallCorrectVersion() to WizardAutoFixer
+- TODO: Show version mismatch dialog when user clicks Fix button
+- TODO: When kanata v1.10 is released, update requiredDriverVersionMajor to 6
+
+**Previous Work:**
 - ci: reduce test timeout and enforce strict quality gates (commit 69838b3)
 - perf: optimize test execution time by removing unnecessary sleeps (commit d6a9b2f)
 - refactor: revert module split to single executable (ADR-010, commit b8aa567)
@@ -623,6 +634,41 @@ await monitor.recordStartAttempt(timestamp: Date().addingTimeInterval(-3.0))
 try? await Task.sleep(nanoseconds: 2_500_000_000)
 ```
 **Documentation:** TEST_PERFORMANCE_ANALYSIS.md, TEST_PERFORMANCE_RESULTS.md
+
+### ADR-012: Karabiner Driver Version Compatibility
+**Decision:** Detect and auto-fix Karabiner-DriverKit-VirtualHIDDevice version mismatch
+**Status:** ⚠️ PARTIALLY COMPLETED (October 23, 2025 - commit 7834e90)
+**Problem:** Kanata v1.9.0 requires Karabiner-DriverKit-VirtualHIDDevice v5.0.0, but users may have v6.0.0 installed, causing "driver is not activated" errors even though systemextensionsctl shows driver as [activated enabled]
+**Root Cause:** Version incompatibility between kanata v1.9.0 and Karabiner driver v6.0.0
+**Evidence:**
+- Web research confirms kanata v1.8.0+ uses driver v5, not v6
+- Users report v6 doesn't work with kanata v1.9.0
+- Kanata v1.10 (currently pre-release) will support v6.0.0+
+**Solution Implemented:**
+- VHIDDeviceManager.getInstalledVersion() - reads daemon version from Info.plist
+- VHIDDeviceManager.hasVersionMismatch() - detects v6 != required v5
+- VHIDDeviceManager.getVersionMismatchMessage() - user-friendly explanation
+- VHIDDeviceManager.downloadAndInstallCorrectVersion() - downloads v5.0.0 from GitHub
+- SystemValidator checks vhidVersionMismatch in component validation
+- ComponentStatus.vhidVersionMismatch field added
+**⚠️ INCOMPLETE - Still TODO:**
+1. Wire downloadAndInstallCorrectVersion() to WizardAutoFixer Fix button
+2. Show dialog with getVersionMismatchMessage() explaining the downgrade
+3. Test complete download → install → activate flow
+4. Handle edge cases (download failures, installation errors, etc.)
+**Future Update (when kanata v1.10 is released):**
+Update these constants in VHIDDeviceManager.swift:
+```swift
+private static let requiredDriverVersionMajor = 6  // Change from 5 to 6
+private static let requiredDriverVersionString = "6.0.0"  // Change from "5.0.0"
+```
+**User-Facing Note:**
+"Kanata v1.10 (currently in pre-release) will support v6.0.0+. Once v1.10 is released and stable, we'll update KeyPath to use the newer driver version."
+**Key Code Locations:**
+- VHIDDeviceManager.swift: Version detection and download/install logic
+- SystemValidator.swift: Adds vhidVersionMismatch to component checks
+- SystemSnapshot.swift: ComponentStatus includes vhidVersionMismatch field
+- WizardAutoFixer.swift: TODO - needs to call downloadAndInstallCorrectVersion()
 
 ## ⚠️ Critical Reminders
 
