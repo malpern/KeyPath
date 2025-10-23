@@ -186,7 +186,7 @@ class SystemValidator {
 
         // Check for Karabiner-Elements conflicts
         if let manager = kanataManager {
-            let karabinerRunning = manager.karabinerConflictService.isKarabinerElementsRunning()
+            let karabinerRunning = manager.isKarabinerElementsRunning()
             if karabinerRunning {
                 AppLogger.shared.log("⚠️ [SystemValidator] Karabiner-Elements grabber is running - conflicts with Kanata")
                 // Get PID for karabiner_grabber

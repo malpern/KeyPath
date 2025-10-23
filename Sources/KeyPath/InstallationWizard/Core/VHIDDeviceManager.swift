@@ -77,6 +77,16 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 task.terminationStatus == 0
                     && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
+            // Check for duplicate processes
+            if isRunning {
+                let pids = output.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: .newlines)
+                let processCount = pids.filter { !$0.isEmpty }.count
+                if processCount > 1 {
+                    AppLogger.shared.log("⚠️ [VHIDManager] WARNING: Multiple VHIDDevice daemon processes detected (\(processCount)) - should only be 1")
+                    AppLogger.shared.log("⚠️ [VHIDManager] PIDs: \(pids.joined(separator: ", "))")
+                }
+            }
+
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             AppLogger.shared.log("🔍 [VHIDManager] VHIDDevice processes running: \(isRunning) (took \(String(format: "%.3f", duration))s)")
             return isRunning
@@ -139,8 +149,18 @@ final class VHIDDeviceManager: @unchecked Sendable {
                     || line.contains("connect_failed asio.system:61")
             }
 
+            let driverNotActivatedErrors = recentLines.filter { line in
+                line.contains("driver is not activated")
+            }
+
             let successfulConnections = recentLines.filter { line in
                 line.contains("driver_connected 1")
+            }
+
+            // Fatal error: driver not activated means VirtualHID is not accessible at all
+            if !driverNotActivatedErrors.isEmpty {
+                AppLogger.shared.log("❌ [VHIDManager] FATAL: VirtualHID driver not activated (\(driverNotActivatedErrors.count) errors)")
+                return false
             }
 
             // If we see recent connection failures without recent successes, consider unhealthy
@@ -152,6 +172,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
             AppLogger.shared.log("🔍 [VHIDManager] Connection health check:")
             AppLogger.shared.log("  - Recent failures: \(connectionFailures.count)")
             AppLogger.shared.log("  - Recent successes: \(successfulConnections.count)")
+            AppLogger.shared.log("  - Driver activation errors: \(driverNotActivatedErrors.count)")
             AppLogger.shared.log("  - Health status: \(isHealthy)")
 
             return isHealthy
