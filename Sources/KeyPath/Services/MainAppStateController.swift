@@ -169,15 +169,20 @@ class MainAppStateController: ObservableObject {
         let kanataIsRunning = kanataManager?.isRunning ?? false
         AppLogger.shared.log("📊 [MainAppStateController] kanataManager.isRunning: \(kanataIsRunning)")
 
-        // ⭐ Trust the adapter's state decision (it already considered everything)
-        // The adapter follows wizard logic: if kanata is running, show .active regardless of sub-issues
+        // ⭐ Check blocking issues EVEN when adapter says .active
+        // This ensures main screen status matches wizard component status
         switch result.state {
         case .active:
-            // Kanata is running - show success even if there are warnings/sub-component issues
-            validationState = .success
-            AppLogger.shared.log("✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running)")
-            if !blockingIssues.isEmpty {
-                AppLogger.shared.log("   Note: \(blockingIssues.count) sub-component issues exist but not blocking since kanata is running")
+            // Kanata is running - but check if there are blocking issues that prevent proper operation
+            if blockingIssues.isEmpty {
+                validationState = .success
+                AppLogger.shared.log("✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues")
+            } else {
+                validationState = .failed(blockingCount: blockingIssues.count, totalCount: result.issues.count)
+                AppLogger.shared.log("❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues even though kanata running")
+                for (index, issue) in blockingIssues.enumerated() {
+                    AppLogger.shared.log("   Blocking \(index + 1): \(issue.title)")
+                }
             }
 
         case .ready:
