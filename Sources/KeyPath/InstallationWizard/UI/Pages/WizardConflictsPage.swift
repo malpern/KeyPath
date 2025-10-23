@@ -77,7 +77,7 @@ struct WizardConflictsPage: View {
                                 Task { @MainActor in
                                     isScanning = true
                                     let toastManager = WizardToastManager() // Temporary instance for reset operation
-                                    let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
+                                    let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
                                     _ = await autoFixer.resetEverything()
                                     onRefresh()
                                     isScanning = false
@@ -191,7 +191,7 @@ struct WizardConflictsPage: View {
                             Task { @MainActor in
                                 isScanning = true
                                 let toastManager = WizardToastManager() // Temporary instance for reset operation
-                                let autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
+                                let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
                                 _ = await autoFixer.resetEverything()
                                 onRefresh()
                                 isScanning = false

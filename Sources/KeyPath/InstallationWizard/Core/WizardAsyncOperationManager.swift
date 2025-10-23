@@ -195,6 +195,10 @@ struct AsyncOperation<T> {
 // MARK: - Operation Factory
 
 enum WizardOperations {
+    // COMMENTED OUT: WizardStateManager is in UI target, cannot be referenced from Core target
+    // This factory method should be moved to UI layer since it's only used there
+    // TODO: Move this to InstallationWizardView.swift or create a UI-layer WizardOperations extension
+    /*
     /// State detection operation
     static func stateDetection(stateManager: WizardStateManager) -> AsyncOperation<SystemStateResult> {
         AsyncOperation<SystemStateResult>(
@@ -207,6 +211,7 @@ enum WizardOperations {
             return result
         }
     }
+    */
 
     /// Auto-fix operation with detailed progress tracking
     static func autoFix(

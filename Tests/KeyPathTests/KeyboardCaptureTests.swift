@@ -190,8 +190,7 @@ final class KeyboardCaptureTests: XCTestCase {
             captureCount += 1
         }
 
-        // Give time for any async operations
-        Thread.sleep(forTimeInterval: 0.1)
+        // No sleep needed - testing that multiple start calls don't crash (synchronous check)
 
         // If no permissions, should have received permission warning once
         // If has permissions, no immediate captures expected
@@ -246,7 +245,7 @@ final class KeyboardCaptureTests: XCTestCase {
             callbackCount += 1
         }
 
-        Thread.sleep(forTimeInterval: 0.1)
+        // No sleep needed - testing that multiple start calls don't crash (synchronous check)
 
         capture.stopEmergencyMonitoring()
         XCTAssertTrue(true, "Multiple emergency monitoring starts should be handled gracefully")
@@ -353,8 +352,7 @@ final class KeyboardCaptureTests: XCTestCase {
             localCapture.stopEmergencyMonitoring()
         }
 
-        // Give time for cleanup
-        Thread.sleep(forTimeInterval: 0.1)
+        // No sleep needed - ARC cleanup is deterministic after scope exit
 
         // Object should be deallocated after going out of scope
         // Note: This may not always pass due to ARC optimizations in tests

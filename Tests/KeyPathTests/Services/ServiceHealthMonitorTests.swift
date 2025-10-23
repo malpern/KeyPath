@@ -95,12 +95,12 @@ class ServiceHealthMonitorTests: XCTestCase {
     // MARK: - Start Attempt Tracking Tests
 
     func testRecordStartAttempt_IncrementCounter() async {
-        await monitor.recordStartAttempt(timestamp: Date())
+        // Record first attempt 3 seconds ago (beyond cooldown)
+        await monitor.recordStartAttempt(timestamp: Date().addingTimeInterval(-3.0))
         var cooldownState = await monitor.canRestartService()
         XCTAssertEqual(cooldownState.attemptsSinceLastSuccess, 1, "Should track first attempt")
 
-        // Wait for cooldown then try again
-        try? await Task.sleep(nanoseconds: 2_500_000_000) // 2.5 seconds
+        // Record second attempt now (cooldown expired)
         await monitor.recordStartAttempt(timestamp: Date())
         cooldownState = await monitor.canRestartService()
         XCTAssertEqual(cooldownState.attemptsSinceLastSuccess, 2, "Should track second attempt")

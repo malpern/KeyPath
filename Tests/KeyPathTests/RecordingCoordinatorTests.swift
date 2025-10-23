@@ -27,6 +27,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         permissionProvider.snapshot = Self.snapshot(accessibility: .denied)
 
         coordinator.toggleInputRecording()
+        // Wait for async permission check and state update
         try? await Task.sleep(nanoseconds: 150_000_000)
 
         XCTAssertFalse(coordinator.isInputRecording())
@@ -42,6 +43,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         captureStub.autoFire = false
 
         coordinator.toggleInputRecording()
+        // Wait for recording to start
         try? await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertTrue(coordinator.isInputRecording())
@@ -51,6 +53,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         let keyPress = KeyPress(baseKey: "k", modifiers: [], keyCode: 40)
         let sequence = KeySequence(keys: [keyPress], captureMode: .chord)
         captureStub.triggerCapture(with: sequence)
+        // Wait for callback to process and stop recording
         try? await Task.sleep(nanoseconds: 300_000_000)
 
         XCTAssertFalse(coordinator.isInputRecording())
@@ -65,6 +68,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         permissionProvider.snapshot = Self.snapshot(accessibility: .denied)
 
         coordinator.toggleOutputRecording()
+        // Wait for async permission check and state update
         try? await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertFalse(coordinator.isOutputRecording())

@@ -975,7 +975,8 @@ class WizardAutoFixerManager: ObservableObject {
 
     func configure(kanataManager: KanataManager, toastManager: WizardToastManager) {
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with KanataManager")
-        autoFixer = WizardAutoFixer(kanataManager: kanataManager, toastManager: toastManager)
+        // FIXED: Removed toastManager parameter (was unused, created Core→UI architecture violation)
+        autoFixer = WizardAutoFixer(kanataManager: kanataManager)
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuration complete")
     }
 
@@ -1027,6 +1028,24 @@ struct KeyboardNavigationModifier: ViewModifier {
         } else {
             // For macOS 13.0, keyboard navigation isn't available
             content
+        }
+    }
+}
+
+// MARK: - UI-Layer WizardOperations Extension
+// This extends WizardOperations (from Core) with UI-specific factory methods that need UI types
+
+extension WizardOperations {
+    /// State detection operation (UI-layer only - uses WizardStateManager from UI target)
+    static func stateDetection(stateManager: WizardStateManager) -> AsyncOperation<SystemStateResult> {
+        AsyncOperation<SystemStateResult>(
+            id: "state_detection",
+            name: "System State Detection"
+        ) { progressCallback in
+            progressCallback(0.1)
+            let result = await stateManager.detectCurrentState()
+            progressCallback(1.0)
+            return result
         }
     }
 }

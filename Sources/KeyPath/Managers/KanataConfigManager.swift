@@ -518,3 +518,7 @@ class KanataConfigManager {
 ///
 /// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
 @available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
+enum KanataConfigManagerError: Error {
+    // This enum is deprecated - use KeyPathError instead
+    case deprecated
+}
