@@ -171,6 +171,7 @@ struct WizardKarabinerComponentsPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(driverIssues.asTooltipText())
 
                             HStack(spacing: 12) {
                                 Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -192,6 +193,7 @@ struct WizardKarabinerComponentsPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(backgroundServicesIssues.asTooltipText())
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -272,6 +274,20 @@ struct WizardKarabinerComponentsPage: View {
     private var karabinerRelatedIssues: [WizardIssue] {
         // Use centralized evaluator (single source of truth)
         return KarabinerComponentsStatusEvaluator.getKarabinerRelatedIssues(from: issues)
+    }
+
+    private var driverIssues: [WizardIssue] {
+        // Filter for driver-related issues (VHID, driver extension, etc.)
+        return issues.filter { issue in
+            issue.category == .installation && issue.identifier.isVHIDRelated
+        }
+    }
+
+    private var backgroundServicesIssues: [WizardIssue] {
+        // Filter for background services issues
+        return issues.filter { issue in
+            issue.category == .backgroundServices
+        }
     }
 
     private func componentStatus(for component: KarabinerComponent) -> InstallationStatus {

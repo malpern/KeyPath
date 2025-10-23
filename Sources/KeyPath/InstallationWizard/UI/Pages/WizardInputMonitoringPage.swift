@@ -167,6 +167,7 @@ struct WizardInputMonitoringPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(keyPathInputMonitoringIssues.asTooltipText())
 
                             HStack(spacing: 12) {
                                 Image(systemName: kanataInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -188,6 +189,7 @@ struct WizardInputMonitoringPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(kanataInputMonitoringIssues.asTooltipText())
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -291,6 +293,25 @@ struct WizardInputMonitoringPage: View {
             return false
         }
         return hasKanataIssue ? .notStarted : .completed
+    }
+
+    // Issue filtering for tooltips
+    private var keyPathInputMonitoringIssues: [WizardIssue] {
+        return issues.filter { issue in
+            if case let .permission(permissionType) = issue.identifier {
+                return permissionType == .keyPathInputMonitoring
+            }
+            return false
+        }
+    }
+
+    private var kanataInputMonitoringIssues: [WizardIssue] {
+        return issues.filter { issue in
+            if case let .permission(permissionType) = issue.identifier {
+                return permissionType == .kanataInputMonitoring
+            }
+            return false
+        }
     }
 
     // MARK: - Actions

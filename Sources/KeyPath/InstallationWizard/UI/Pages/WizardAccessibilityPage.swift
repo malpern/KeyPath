@@ -190,6 +190,7 @@ struct WizardAccessibilityPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(keyPathAccessibilityIssues.asTooltipText())
 
                             HStack(spacing: 12) {
                                 Image(systemName: kanataAccessibilityStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -214,6 +215,7 @@ struct WizardAccessibilityPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(kanataAccessibilityIssues.asTooltipText())
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -292,6 +294,25 @@ struct WizardAccessibilityPage: View {
         let status = stateInterpreter.getPermissionStatus(.kanataAccessibility, in: issues)
         AppLogger.shared.log("🔍 [WizardAccessibilityPage] kanataAccessibilityStatus: \(status)")
         return status
+    }
+
+    // Issue filtering for tooltips
+    private var keyPathAccessibilityIssues: [WizardIssue] {
+        return issues.filter { issue in
+            if case let .permission(permissionType) = issue.identifier {
+                return permissionType == .keyPathAccessibility
+            }
+            return false
+        }
+    }
+
+    private var kanataAccessibilityIssues: [WizardIssue] {
+        return issues.filter { issue in
+            if case let .permission(permissionType) = issue.identifier {
+                return permissionType == .kanataAccessibility
+            }
+            return false
+        }
     }
 
     // MARK: - Actions
