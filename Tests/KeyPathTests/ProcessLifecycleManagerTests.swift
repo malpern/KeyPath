@@ -63,13 +63,11 @@ final class ProcessLifecycleManagerTests: XCTestCase {
     }
 
     func testProcessLifecycleErrors() async {
-        // Test that error enum cases can be created
-        let noManagerError = ProcessLifecycleError.noKanataManager
-        let startFailedError = ProcessLifecycleError.processStartFailed
-        let stopFailedError = ProcessLifecycleError.processStopFailed(
-            underlyingError: NSError(domain: "test", code: 1))
-        let terminateFailedError = ProcessLifecycleError.processTerminateFailed(
-            underlyingError: NSError(domain: "test", code: 2))
+        // Test that error enum cases can be created (migrated to KeyPathError)
+        let noManagerError = KeyPathError.process(.noManager)
+        let startFailedError = KeyPathError.process(.startFailed(reason: "test"))
+        let stopFailedError = KeyPathError.process(.stopFailed(underlyingError: "test error 1"))
+        let terminateFailedError = KeyPathError.process(.terminateFailed(underlyingError: "test error 2"))
 
         XCTAssertNotNil(noManagerError)
         XCTAssertNotNil(startFailedError)

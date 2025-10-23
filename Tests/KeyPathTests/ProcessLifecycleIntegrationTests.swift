@@ -102,19 +102,24 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
     // MARK: - Error Handling Tests
 
     func testProcessErrorTypes() async {
-        // Test that error types exist and work correctly
+        // Test that error types exist and work correctly (migrated to KeyPathError)
 
-        let error = ProcessLifecycleError.noKanataManager
+        let error = KeyPathError.process(.noManager)
 
-        switch error {
-        case .noKanataManager:
-            XCTAssertTrue(true, "NoKanataManager error exists")
-        case .processStartFailed:
-            XCTAssertTrue(true, "ProcessStartFailed error exists")
-        case .processStopFailed:
-            XCTAssertTrue(true, "ProcessStopFailed error exists")
-        case .processTerminateFailed:
-            XCTAssertTrue(true, "ProcessTerminateFailed error exists")
+        // Test that we can pattern match on the new error type
+        if case .process(let processError) = error {
+            switch processError {
+            case .noManager:
+                XCTAssertTrue(true, "NoManager error exists")
+            case .startFailed:
+                XCTAssertTrue(true, "StartFailed error exists")
+            case .stopFailed:
+                XCTAssertTrue(true, "StopFailed error exists")
+            case .terminateFailed:
+                XCTAssertTrue(true, "TerminateFailed error exists")
+            default:
+                break
+            }
         }
     }
 

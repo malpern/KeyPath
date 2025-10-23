@@ -7,14 +7,8 @@ let package = Package(
         .macOS(.v15)
     ],
     products: [
-        // The main executable (SwiftUI app)
         .executable(
             name: "KeyPath",
-            targets: ["KeyPathApp"]
-        ),
-        // Library exposing the core (non‑UI) APIs
-        .library(
-            name: "KeyPathLib",
             targets: ["KeyPath"]
         )
     ],
@@ -22,46 +16,21 @@ let package = Package(
         // Add any dependencies here
     ],
     targets: [
-        // Core library (non-UI) with managers, services, models, utilities
-        .target(
+        // Single executable target with all code
+        .executableTarget(
             name: "KeyPath",
             dependencies: [],
             path: "Sources/KeyPath",
             exclude: [
-                "Info.plist",
-                "UI",
-                "InstallationWizard/UI",
-                "InstallationWizard/Components",
-                "App.swift",
-                "Resources"
-            ],
-            resources: [],
-            swiftSettings: [
-                .swiftLanguageMode(.v6),
-                // Surface concurrency issues clearly in Debug builds
-                .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
-            ]
-        ),
-        // App/UI target (SwiftUI + Installer) depending on the core
-        .executableTarget(
-            name: "KeyPathApp",
-            dependencies: ["KeyPath"],
-            path: "Sources/KeyPath",
-            exclude: [
-                "Info.plist",
-                "Core",
-                "Managers",
-                "Services",
-                "Infrastructure",
-                "Utilities",
-                "Models",
-                "InstallationWizard/Core"
+                "Info.plist"
             ],
             resources: [
                 .process("Resources")
             ],
             swiftSettings: [
-                .swiftLanguageMode(.v6)
+                .swiftLanguageMode(.v6),
+                // Surface concurrency issues clearly in Debug builds
+                .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         ),
         // Tests
