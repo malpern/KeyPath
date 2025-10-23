@@ -10,7 +10,16 @@ final class VHIDDeviceManager: @unchecked Sendable {
     private static let vhidManagerBundleID = "org.pqrs.Karabiner-VirtualHIDDevice-Manager"
     private static let vhidDeviceDaemonPath =
         "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+    private static let vhidDeviceDaemonInfoPlistPath =
+        "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/Info.plist"
     private static let vhidDeviceRunningCheck = "Karabiner-VirtualHIDDevice-Daemon"
+
+    // Version compatibility for kanata
+    // NOTE: Kanata v1.9.0 requires Karabiner-DriverKit-VirtualHIDDevice v5.0.0
+    // Kanata v1.10 will support v6.0.0+ but is currently in pre-release (as of Oct 2025)
+    private static let requiredDriverVersionMajor = 5
+    private static let requiredDriverVersionString = "5.0.0"
+    private static let futureCompatibleVersion = "1.10" // Kanata version that will support v6
 
     // MARK: - Detection Methods
 
@@ -179,6 +188,84 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
     }
 
+    // MARK: - Version Detection
+
+    /// Gets the installed VirtualHIDDevice daemon version
+    func getInstalledVersion() -> String? {
+        guard FileManager.default.fileExists(atPath: Self.vhidDeviceDaemonInfoPlistPath) else {
+            AppLogger.shared.log("🔍 [VHIDManager] Info.plist not found at \(Self.vhidDeviceDaemonInfoPlistPath)")
+            return nil
+        }
+
+        guard let plistData = FileManager.default.contents(atPath: Self.vhidDeviceDaemonInfoPlistPath) else {
+            AppLogger.shared.log("❌ [VHIDManager] Failed to read Info.plist")
+            return nil
+        }
+
+        do {
+            let plist = try PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any]
+            let version = plist?["CFBundleShortVersionString"] as? String
+            AppLogger.shared.log("🔍 [VHIDManager] Installed daemon version: \(version ?? "unknown")")
+            return version
+        } catch {
+            AppLogger.shared.log("❌ [VHIDManager] Failed to parse Info.plist: \(error)")
+            return nil
+        }
+    }
+
+    /// Checks if the installed driver version is compatible with current kanata
+    func hasVersionMismatch() -> Bool {
+        guard let installedVersion = getInstalledVersion() else {
+            AppLogger.shared.log("⚠️ [VHIDManager] Cannot determine version - assuming no mismatch")
+            return false
+        }
+
+        // Parse major version
+        let versionComponents = installedVersion.split(separator: ".").compactMap { Int($0) }
+        guard let majorVersion = versionComponents.first else {
+            AppLogger.shared.log("⚠️ [VHIDManager] Cannot parse version \(installedVersion)")
+            return false
+        }
+
+        let hasMismatch = majorVersion != Self.requiredDriverVersionMajor
+        if hasMismatch {
+            AppLogger.shared.log("❌ [VHIDManager] Version mismatch detected:")
+            AppLogger.shared.log("  - Installed: v\(installedVersion) (major: \(majorVersion))")
+            AppLogger.shared.log("  - Required: v\(Self.requiredDriverVersionString) (major: \(Self.requiredDriverVersionMajor))")
+            AppLogger.shared.log("  - Note: Kanata \(Self.futureCompatibleVersion)+ will support v6.0.0+")
+        } else {
+            AppLogger.shared.log("✅ [VHIDManager] Version compatible: v\(installedVersion)")
+        }
+
+        return hasMismatch
+    }
+
+    /// Gets a user-friendly message about version compatibility
+    func getVersionMismatchMessage() -> String? {
+        guard let installedVersion = getInstalledVersion() else {
+            return nil
+        }
+
+        let versionComponents = installedVersion.split(separator: ".").compactMap { Int($0) }
+        guard let majorVersion = versionComponents.first else {
+            return nil
+        }
+
+        if majorVersion != Self.requiredDriverVersionMajor {
+            return """
+            Version Compatibility Issue
+
+            You have Karabiner-DriverKit-VirtualHIDDevice v\(installedVersion) installed, but the current version of Kanata (v1.9.0) requires v\(Self.requiredDriverVersionString).
+
+            KeyPath will automatically download and install v\(Self.requiredDriverVersionString) for you.
+
+            📝 Note: Kanata v\(Self.futureCompatibleVersion) (currently in pre-release) will support v6.0.0+. Once v\(Self.futureCompatibleVersion) is released and stable, we'll update KeyPath to use the newer driver version.
+            """
+        }
+
+        return nil
+    }
+
     // MARK: - Activation Methods
 
     /// Activates the VirtualHIDDevice Manager
@@ -245,6 +332,69 @@ final class VHIDDeviceManager: @unchecked Sendable {
                     continuation.resume(returning: false)
                 }
             }
+        }
+    }
+
+    /// Downloads and installs the correct version of Karabiner-DriverKit-VirtualHIDDevice
+    func downloadAndInstallCorrectVersion() async -> Bool {
+        AppLogger.shared.log("🔧 [VHIDManager] Downloading and installing v\(Self.requiredDriverVersionString)")
+
+        // Download URL for v5.0.0
+        let downloadURL = "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v\(Self.requiredDriverVersionString)/Karabiner-DriverKit-VirtualHIDDevice-\(Self.requiredDriverVersionString).pkg"
+        let tmpDir = FileManager.default.temporaryDirectory
+        let pkgPath = tmpDir.appendingPathComponent("Karabiner-DriverKit-VirtualHIDDevice-\(Self.requiredDriverVersionString).pkg")
+
+        // Download the package
+        AppLogger.shared.log("📥 [VHIDManager] Downloading from \(downloadURL)")
+
+        do {
+            let (localURL, response) = try await URLSession.shared.download(from: URL(string: downloadURL)!)
+
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                AppLogger.shared.log("❌ [VHIDManager] Download failed - HTTP status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                return false
+            }
+
+            // Move downloaded file to temp location
+            try FileManager.default.moveItem(at: localURL, to: pkgPath)
+            AppLogger.shared.log("✅ [VHIDManager] Downloaded to \(pkgPath.path)")
+
+            // Install the package using installer command
+            AppLogger.shared.log("📦 [VHIDManager] Installing package...")
+
+            let installResult = await executeWithAdminPrivileges(
+                command: "/usr/sbin/installer -pkg \"\(pkgPath.path)\" -target /",
+                description: "Install Karabiner-DriverKit-VirtualHIDDevice v\(Self.requiredDriverVersionString)"
+            )
+
+            // Clean up downloaded package
+            try? FileManager.default.removeItem(at: pkgPath)
+
+            if installResult {
+                AppLogger.shared.log("✅ [VHIDManager] Successfully installed v\(Self.requiredDriverVersionString)")
+
+                // Wait for installation to complete
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+
+                // Activate the newly installed version
+                AppLogger.shared.log("🔧 [VHIDManager] Activating newly installed driver...")
+                let activateResult = await activateManager()
+
+                if activateResult {
+                    AppLogger.shared.log("✅ [VHIDManager] Driver activated successfully")
+                    return true
+                } else {
+                    AppLogger.shared.log("⚠️ [VHIDManager] Driver installed but activation may need user approval")
+                    return true // Still return true since installation succeeded
+                }
+            } else {
+                AppLogger.shared.log("❌ [VHIDManager] Installation failed")
+                return false
+            }
+
+        } catch {
+            AppLogger.shared.log("❌ [VHIDManager] Error downloading/installing: \(error)")
+            return false
         }
     }
 

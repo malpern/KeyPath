@@ -116,13 +116,15 @@ struct ComponentStatus {
     let vhidDeviceInstalled: Bool
     let vhidDeviceHealthy: Bool
     let launchDaemonServicesHealthy: Bool
+    let vhidVersionMismatch: Bool
 
     var hasAllRequired: Bool {
         kanataBinaryInstalled &&
         karabinerDriverInstalled &&
         karabinerDaemonRunning &&
         vhidDeviceHealthy &&
-        launchDaemonServicesHealthy
+        launchDaemonServicesHealthy &&
+        !vhidVersionMismatch  // Version must match (false means no mismatch)
     }
 }
 

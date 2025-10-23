@@ -154,12 +154,13 @@ class SystemValidator {
         // Check VirtualHID Device
         let vhidInstalled = vhidDeviceManager.detectInstallation()
         let vhidHealthy = vhidDeviceManager.detectConnectionHealth()
+        let vhidVersionMismatch = vhidDeviceManager.hasVersionMismatch()
 
         // Check LaunchDaemon services
         let daemonStatus = launchDaemonInstaller.getServiceStatus()
         let launchDaemonServicesHealthy = daemonStatus.allServicesHealthy
 
-        AppLogger.shared.log("🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy)")
+        AppLogger.shared.log("🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidVersionMismatch=\(vhidVersionMismatch)")
 
         return ComponentStatus(
             kanataBinaryInstalled: kanataBinaryInstalled,
@@ -167,7 +168,8 @@ class SystemValidator {
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidDeviceInstalled: vhidInstalled,
             vhidDeviceHealthy: vhidHealthy,
-            launchDaemonServicesHealthy: launchDaemonServicesHealthy
+            launchDaemonServicesHealthy: launchDaemonServicesHealthy,
+            vhidVersionMismatch: vhidVersionMismatch
         )
     }
 
