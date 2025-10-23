@@ -147,8 +147,8 @@ class SystemValidator {
         let binaryResult = kanataBinaryDetector.detectCurrentStatus()
         let kanataBinaryInstalled = binaryResult.status == .systemInstalled
 
-        // Check Karabiner driver
-        let karabinerDriverInstalled = kanataManager?.isKarabinerDriverInstalled() ?? false
+        // Check Karabiner driver - use extension enabled check for accurate status
+        let karabinerDriverInstalled = kanataManager?.isKarabinerDriverExtensionEnabled() ?? false
         let karabinerDaemonRunning = kanataManager?.isKarabinerDaemonRunning() ?? false
 
         // Check VirtualHID Device
@@ -176,16 +176,60 @@ class SystemValidator {
     private func checkConflicts() async -> ConflictStatus {
         AppLogger.shared.log("🔍 [SystemValidator] Checking for conflicts")
 
-        let conflictResolution = await processLifecycleManager.detectConflicts()
+        var allConflicts: [SystemConflict] = []
 
-        AppLogger.shared.log("🔍 [SystemValidator] Conflicts: \(conflictResolution.externalProcesses.count) external processes")
+        // Check for external kanata processes
+        let conflictResolution = await processLifecycleManager.detectConflicts()
+        allConflicts.append(contentsOf: conflictResolution.externalProcesses.map { process in
+            .kanataProcessRunning(pid: Int(process.pid), command: process.command)
+        })
+
+        // Check for Karabiner-Elements conflicts
+        if let manager = kanataManager {
+            let karabinerRunning = manager.karabinerConflictService.isKarabinerElementsRunning()
+            if karabinerRunning {
+                AppLogger.shared.log("⚠️ [SystemValidator] Karabiner-Elements grabber is running - conflicts with Kanata")
+                // Get PID for karabiner_grabber
+                if let pid = getKarabinerGrabberPID() {
+                    allConflicts.append(.karabinerGrabberRunning(pid: pid))
+                }
+            }
+        }
+
+        AppLogger.shared.log("🔍 [SystemValidator] Total conflicts: \(allConflicts.count) (\(conflictResolution.externalProcesses.count) kanata, \(allConflicts.count - conflictResolution.externalProcesses.count) karabiner)")
 
         return ConflictStatus(
-            conflicts: conflictResolution.externalProcesses.map { process in
-                .kanataProcessRunning(pid: Int(process.pid), command: process.command)
-            },
+            conflicts: allConflicts,
             canAutoResolve: conflictResolution.canAutoResolve
         )
+    }
+
+    /// Get PID of karabiner_grabber process
+    private func getKarabinerGrabberPID() -> Int? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-f", "karabiner_grabber"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            let pidString = output.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if let pid = Int(pidString) {
+                AppLogger.shared.log("🔍 [SystemValidator] Found karabiner_grabber PID: \(pid)")
+                return pid
+            }
+        } catch {
+            AppLogger.shared.log("❌ [SystemValidator] Error getting karabiner_grabber PID: \(error)")
+        }
+
+        return nil
     }
 
     // MARK: - Health Checking

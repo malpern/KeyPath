@@ -36,6 +36,7 @@ struct ContentView: View {
     @State private var repairFailedDetails = ""
     @State private var failedConfigBackupPath = ""
     @State private var showingInstallAlert = false
+    @State private var showingKanataNotRunningAlert = false
 
     @State private var saveDebounceTimer: Timer?
     private let saveDebounceDelay: TimeInterval = 0.5
@@ -292,6 +293,15 @@ struct ContentView: View {
         } message: {
             Text(repairFailedDetails)
         }
+        .alert("Kanata Not Running", isPresented: $showingKanataNotRunningAlert) {
+            Button("OK") { showingKanataNotRunningAlert = false }
+            Button("Open Wizard") {
+                showingKanataNotRunningAlert = false
+                showingInstallationWizard = true
+            }
+        } message: {
+            Text("Cannot save configuration because the Kanata service is not running. Please start Kanata using the Installation Wizard.")
+        }
     }
 
     private func showStatusMessage(message: String) {
@@ -455,6 +465,16 @@ struct ContentView: View {
     private func performSave() async {
         saveDebounceTimer?.invalidate()
         saveDebounceTimer = nil
+
+        // Pre-flight check: Ensure kanata is running before attempting save
+        guard kanataManager.isRunning else {
+            AppLogger.shared.log("⚠️ [ContentView] Cannot save - kanata service is not running")
+            await MainActor.run {
+                showingKanataNotRunningAlert = true
+            }
+            return
+        }
+
         await recordingCoordinator.saveMapping(
             kanataManager: kanataManager.underlyingManager,  // Phase 4: Business logic needs underlying manager
             onSuccess: { message in handleSaveSuccess(message) },

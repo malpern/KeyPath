@@ -87,7 +87,7 @@ class KanataViewModel: ObservableObject {
             await syncFromManager()
 
             // Start periodic sync (temporary until we implement proper observation)
-            Timer.publish(every: 0.1, on: .main, in: .common)
+            Timer.publish(every: 0.5, on: .main, in: .common)
                 .autoconnect()
                 .sink { [weak self] _ in
                     Task { @MainActor in
