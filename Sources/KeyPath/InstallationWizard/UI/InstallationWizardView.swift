@@ -652,6 +652,8 @@ struct InstallationWizardView: View {
             "Update UDP service configuration"
         case .restartCommServer:
             "Restart Service with Authentication"
+        case .fixDriverVersionMismatch:
+            "Fix Karabiner driver version (v6 → v5)"
         }
 
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")

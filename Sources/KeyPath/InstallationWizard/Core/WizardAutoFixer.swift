@@ -120,6 +120,8 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to regenerate communication service configuration
         case .restartCommServer:
             true // We can always attempt to restart communication server
+        case .fixDriverVersionMismatch:
+            vhidDeviceManager.hasVersionMismatch() // Only if there's a version mismatch
         }
     }
 
@@ -174,7 +176,70 @@ class WizardAutoFixer: AutoFixCapable {
             return await regenerateCommServiceConfiguration()
         case .restartCommServer:
             return await restartCommServer()
+        case .fixDriverVersionMismatch:
+            return await fixDriverVersionMismatch()
         }
+    }
+
+    // MARK: - Driver Version Management
+
+    private func fixDriverVersionMismatch() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Fixing driver version mismatch")
+
+        // Show dialog explaining the version downgrade
+        guard let versionMessage = vhidDeviceManager.getVersionMismatchMessage() else {
+            AppLogger.shared.log("⚠️ [AutoFixer] No version mismatch message available")
+            return false
+        }
+
+        // Show user-facing dialog on main thread
+        let userConfirmed = await MainActor.run {
+            let alert = NSAlert()
+            alert.messageText = "Karabiner Driver Version Fix Required"
+            alert.informativeText = versionMessage
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Download & Install v5.0.0")
+            alert.addButton(withTitle: "Cancel")
+
+            let response = alert.runModal()
+            return response == .alertFirstButtonReturn
+        }
+
+        guard userConfirmed else {
+            AppLogger.shared.log("ℹ️ [AutoFixer] User cancelled driver version fix")
+            return false
+        }
+
+        // Download and install the correct version
+        let success = await vhidDeviceManager.downloadAndInstallCorrectVersion()
+
+        if success {
+            AppLogger.shared.log("✅ [AutoFixer] Successfully fixed driver version mismatch")
+
+            // Show success message
+            await MainActor.run {
+                let alert = NSAlert()
+                alert.messageText = "Driver Version Fixed"
+                alert.informativeText = "Karabiner-DriverKit-VirtualHIDDevice v5.0.0 has been installed successfully. You may need to approve the driver extension in System Settings."
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        } else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to fix driver version mismatch")
+
+            // Show error message
+            await MainActor.run {
+                let alert = NSAlert()
+                alert.messageText = "Installation Failed"
+                alert.informativeText = "Failed to download or install Karabiner-DriverKit-VirtualHIDDevice v5.0.0. Please check your internet connection and try again."
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
+
+        return success
     }
 
     // MARK: - Reset Everything (Nuclear Option)

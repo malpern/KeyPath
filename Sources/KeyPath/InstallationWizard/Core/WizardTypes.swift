@@ -167,6 +167,7 @@ enum AutoFixAction: Equatable {
     case setupUDPAuthentication // Generate and configure UDP authentication token
     case regenerateCommServiceConfiguration // Update LaunchDaemon plist with UDP settings
     case restartCommServer // Restart service to enable UDP functionality
+    case fixDriverVersionMismatch // Download and install correct Karabiner driver version (v5 for kanata v1.9.0)
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation

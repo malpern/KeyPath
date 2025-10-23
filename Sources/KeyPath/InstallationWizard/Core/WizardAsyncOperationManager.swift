@@ -586,6 +586,8 @@ extension AutoFixAction {
             "Regenerate UDP Service Configuration"
         case .restartCommServer:
             "Restart UDP Server"
+        case .fixDriverVersionMismatch:
+            "Fix Karabiner Driver Version"
         }
     }
 }
