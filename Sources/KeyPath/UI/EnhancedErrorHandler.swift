@@ -507,11 +507,9 @@ extension View {
 // MARK: - Notifications
 
 extension Notification.Name {
-    static let openInstallationWizard = Notification.Name("openInstallationWizard")
+    // Legacy notification names (for backwards compatibility)
+    // Most notifications moved to Notifications.swift with KeyPath.Action prefix
     static let resetToSafeConfig = Notification.Name("resetToSafeConfig")
     static let openDiagnostics = Notification.Name("openDiagnostics")
     static let wizardClosed = Notification.Name("wizardClosed")
-    static let retryStartService = Notification.Name("retryStartService")
-    static let openInputMonitoringSettings = Notification.Name("openInputMonitoringSettings")
-    static let openAccessibilitySettings = Notification.Name("openAccessibilitySettings")
 }
