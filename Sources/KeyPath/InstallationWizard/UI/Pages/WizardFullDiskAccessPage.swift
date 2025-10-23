@@ -244,32 +244,28 @@ struct WizardFullDiskAccessPage: View {
     }
 
     private func performFDACheck() -> Bool {
-        // Use a completely non-invasive approach - just check if we're already in the FDA list
-        // This avoids triggering automatic addition to System Preferences
+        // Check if we can read the system TCC database (requires Full Disk Access)
+        // This is the most accurate test for Full Disk Access permission
+        //
+        // NOTE: The previous check tested ~/Library/Preferences/com.apple.finder.plist
+        // which doesn't require FDA (it's the user's own file), causing false positives
 
-        // We'll assume FDA is not granted unless the user explicitly grants it
-        // This prevents the invasive file operations that cause auto-addition
+        let systemTCCPath = "/Library/Application Support/com.apple.TCC/TCC.db"
 
-        AppLogger.shared.log("🔐 [Wizard] FDA check: Using non-invasive detection")
+        AppLogger.shared.log("🔐 [Wizard] FDA check: Testing system TCC database access")
 
-        // For now, we'll only return true if the user has manually granted it
-        // and we can detect it through less invasive means
-
-        // Check if we can access a commonly available but protected file without writing
-        // Only try a single, less sensitive location
-        let testPath = "\(NSHomeDirectory())/Library/Preferences/com.apple.finder.plist"
-
-        if FileManager.default.isReadableFile(atPath: testPath) {
+        // Try to read the system TCC database
+        if FileManager.default.isReadableFile(atPath: systemTCCPath) {
             // Try a very light read operation
-            if let data = try? Data(contentsOf: URL(fileURLWithPath: testPath), options: .mappedIfSafe) {
+            if let data = try? Data(contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe) {
                 if data.count > 0 {
-                    AppLogger.shared.log("✅ [Wizard] FDA detected via non-invasive check")
+                    AppLogger.shared.log("✅ [Wizard] FDA granted - can read system TCC database (\(data.count) bytes)")
                     return true
                 }
             }
         }
 
-        AppLogger.shared.log("❌ [Wizard] FDA not detected (non-invasive check)")
+        AppLogger.shared.log("❌ [Wizard] FDA not granted - cannot read system TCC database")
         return false
     }
 

@@ -227,22 +227,22 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Status Helpers
 
     private func checkFullDiskAccess() -> Bool {
-        // Use the same non-invasive check as WizardFullDiskAccessPage to maintain consistency
-        // This prevents automatic addition to System Preferences while giving accurate status
+        // Check if we can read the system TCC database (requires Full Disk Access)
+        // This is the most accurate test and matches WizardFullDiskAccessPage implementation
 
-        let testPath = "\(NSHomeDirectory())/Library/Preferences/com.apple.finder.plist"
+        let systemTCCPath = "/Library/Application Support/com.apple.TCC/TCC.db"
 
-        if FileManager.default.isReadableFile(atPath: testPath) {
+        if FileManager.default.isReadableFile(atPath: systemTCCPath) {
             // Try a very light read operation
-            if let data = try? Data(contentsOf: URL(fileURLWithPath: testPath), options: .mappedIfSafe) {
+            if let data = try? Data(contentsOf: URL(fileURLWithPath: systemTCCPath), options: .mappedIfSafe) {
                 if data.count > 0 {
-                    AppLogger.shared.log("🔐 [WizardSystemStatusOverview] FDA detected via non-invasive check")
+                    AppLogger.shared.log("🔐 [WizardSystemStatusOverview] FDA granted - can read system TCC database")
                     return true
                 }
             }
         }
 
-        AppLogger.shared.log("🔐 [WizardSystemStatusOverview] FDA not detected (non-invasive check)")
+        AppLogger.shared.log("🔐 [WizardSystemStatusOverview] FDA not granted - cannot read system TCC database")
         return false
     }
 

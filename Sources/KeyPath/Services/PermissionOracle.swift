@@ -558,20 +558,28 @@ actor PermissionOracle {
         let escService = escapeSQLiteLiteral(service)
         let escExec = escapeSQLiteLiteral(executablePath)
 
+        AppLogger.shared.log("🔍 [Oracle] Querying TCC database: \(dbPath)")
+        AppLogger.shared.log("🔍 [Oracle] Looking for: service=\(service), path=\(executablePath)")
+
         let queries = [
             "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY auth_value DESC LIMIT 1;",
             "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;"
         ]
 
-        for sql in queries {
+        for (index, sql) in queries.enumerated() {
+            AppLogger.shared.log("🔍 [Oracle] Trying query #\(index + 1)")
             if let out = await runSQLiteQuery(dbPath: dbPath, sql: sql, timeout: 0.4) {
                 let trimmed = out.trimmingCharacters(in: .whitespacesAndNewlines)
+                AppLogger.shared.log("🔍 [Oracle] Query #\(index + 1) returned: '\(trimmed)'")
                 if let val = Int(trimmed) {
                     AppLogger.shared.log("🔍 [Oracle] TCC '\(service)' for \(executablePath) via \(dbPath): \(val)")
                     return val
                 }
+            } else {
+                AppLogger.shared.log("🔍 [Oracle] Query #\(index + 1) returned nil (timeout or empty)")
             }
         }
+        AppLogger.shared.log("🔍 [Oracle] TCC query failed for \(executablePath) - no results found")
         return nil
     }
 

@@ -89,6 +89,17 @@ class MainAppStateController: ObservableObject {
             } else {
                 AppLogger.shared.log("✅ [MainAppStateController] Service is ready, proceeding with validation")
             }
+
+            // Clear startup mode flag now that services are ready
+            // This ensures Oracle runs full permission checks for accurate results
+            if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+                unsetenv("KEYPATH_STARTUP_MODE")
+                AppLogger.shared.log("🔍 [MainAppStateController] Cleared startup mode flag for accurate validation")
+
+                // Invalidate Oracle cache so it runs fresh permission checks without startup mode
+                await PermissionOracle.shared.invalidateCache()
+                AppLogger.shared.log("🔍 [MainAppStateController] Invalidated Oracle cache to force fresh permission checks")
+            }
         } else {
             AppLogger.shared.log("🔄 [MainAppStateController] Revalidation (skipping service wait)")
         }
