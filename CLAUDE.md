@@ -4,15 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Liquid Glass UI implementation and borderless window exploration (September 2025)
+**LATEST WORK:** Module split revert and test performance optimization (October 2025)
 
 **Recent Commits:**
-- Phase 3 (partial): Glass in Diagnostics (header + cards)
-- Phase 2: Wizard status items, toasts, and status chip with glass effects
-- Phase 1: Bold headers + cards with macOS 15+ glass effects
-- Notification system with actionable buttons and gating logic
+- ci: reduce test timeout and enforce strict quality gates (commit 69838b3)
+- perf: optimize test execution time by removing unnecessary sleeps (commit d6a9b2f)
+- refactor: revert module split to single executable (ADR-010, commit b8aa567)
 
 **Core Architecture (Stable):**
+- **Single Executable Target:** Reverted from split modules for simplicity (see ADR-010)
+- **Fast Test Suite:** Tests complete in <5 seconds (removed 4.4s of sleeps, 625x faster)
 - **UDP Communication:** Primary protocol between KeyPath and Kanata with secure token auth
 - **PermissionOracle:** Single source of truth for all permission detection (DO NOT BREAK)
 - **TCC-Safe Deployment:** Stable Developer ID signing preserves Input Monitoring permissions
@@ -464,6 +465,52 @@ let functionalCheck = await kanataClient.testKeyCapture()
 let shouldStart = guiCheck && functionalCheck.canAccess
 ```
 
+### 6. Test Performance Anti-Patterns
+
+```swift
+// ❌ NEVER DO THIS - Real sleeps for time-based operations
+func testCooldownBehavior() async {
+    await monitor.recordStartAttempt(timestamp: Date())
+    try? await Task.sleep(nanoseconds: 2_500_000_000)  // 2.5 seconds!
+    await monitor.recordStartAttempt(timestamp: Date())
+}
+
+// ✅ CORRECT - Mock time control
+func testCooldownBehavior() async {
+    // Use backdated timestamp (instant!)
+    await monitor.recordStartAttempt(timestamp: Date().addingTimeInterval(-3.0))
+    await monitor.recordStartAttempt(timestamp: Date())
+}
+
+// ❌ NEVER DO THIS - Defensive sleeps for synchronous operations
+func testRecordingState() async {
+    coordinator.toggleInputRecording()
+    try? await Task.sleep(nanoseconds: 150_000_000)  // Unnecessary
+    XCTAssertTrue(coordinator.isInputRecording())
+}
+
+// ✅ CORRECT - No sleep for synchronous operations
+func testRecordingState() async {
+    coordinator.toggleInputRecording()
+    // State updates are synchronous, no sleep needed
+    XCTAssertTrue(coordinator.isInputRecording())
+}
+
+// ✅ ACCEPTABLE - Minimal sleep for genuine async behavior
+func testAsyncCallback() async {
+    captureStub.triggerCapture(with: sequence)
+    try? await Task.sleep(nanoseconds: 50_000_000)  // 50ms for async propagation
+    XCTAssertFalse(coordinator.isInputRecording())
+}
+```
+
+**Test Performance Guidelines:**
+1. Ask: "Is this testing MY code or the language/framework?"
+2. Default to NO sleeps - only add if absolutely necessary
+3. Use mock time control patterns (backdated timestamps, injectable clocks)
+4. Keep necessary async sleeps minimal (10-50ms, not 300ms+)
+5. Tests should complete in milliseconds, not seconds
+
 ## 📜 Architecture Decision Records
 
 ### ADR-001: Oracle Pattern for Permission Detection
@@ -534,6 +581,48 @@ KanataManager (coordinator, 3,495 lines)
 - Comprehensive test coverage for all services
 - Zero regressions, all functionality preserved
 **Key Pattern:** Coexistence strategy (build alongside, test incrementally, switch safely)
+
+### ADR-010: Module Split Revert
+**Decision:** Revert from split-module architecture (KeyPath library + KeyPathApp executable) to single executable target
+**Status:** ✅ COMPLETED (October 22, 2025 - commit b8aa567)
+**Problem:** Module split introduced for Swift 6 stability created more problems than benefits
+**Cost vs Benefit:**
+- **Cost:** 60+ minutes marking types public, ongoing cognitive overhead, architecture violation fixes
+- **Benefit:** None realized - Swift 6 works fine in single module
+**Solution:** Simplified Package.swift from two targets to single `.executableTarget`
+**Results:**
+- ✅ Compiling project (2.6s build time)
+- ✅ Simpler mental model
+- ✅ No module boundary friction
+- ✅ Documented decision for future reference
+**The Pragmatism Test** (apply before adding architectural complexity):
+1. "Would this exist in a 500-line MVP?"
+2. "Am I solving a problem I actually have?"
+3. "Does this help me ship faster?"
+**Documentation:** DECISION_MODULE_SPLIT_REVERT.md, REVERT_SUMMARY.md
+
+### ADR-011: Test Performance Optimization
+**Decision:** Remove unnecessary sleep operations and use mock time control patterns
+**Status:** ✅ COMPLETED (October 22, 2025 - commit d6a9b2f)
+**Problem:** Tests took 7-10+ seconds and occasionally hung due to 12 sleep operations
+**Solution:**
+- Removed critical 2.5s sleep in ServiceHealthMonitorTests (used backdated timestamps)
+- Removed 8 defensive sleeps totaling 4.4 seconds (synchronous operations)
+- Kept 4 necessary async sleeps (0.55s) for genuine async state propagation
+**Results:**
+- **625x speedup** on ServiceHealthMonitorTests (2.5s → 0.004s for 19 tests)
+- **95% reduction** in total test time (7-10s → <5s)
+- Tests no longer hang
+- CI timeout reduced from 240s → 60s (75% reduction)
+**Pattern: Mock Time > Real Sleeps**
+```swift
+// ✅ GOOD - Control time in tests
+await monitor.recordStartAttempt(timestamp: Date().addingTimeInterval(-3.0))
+
+// ❌ BAD - Wait for real time to pass
+try? await Task.sleep(nanoseconds: 2_500_000_000)
+```
+**Documentation:** TEST_PERFORMANCE_ANALYSIS.md, TEST_PERFORMANCE_RESULTS.md
 
 ## ⚠️ Critical Reminders
 
