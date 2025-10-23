@@ -511,5 +511,5 @@ extension Notification.Name {
     // Most notifications moved to Notifications.swift with KeyPath.Action prefix
     static let resetToSafeConfig = Notification.Name("resetToSafeConfig")
     static let openDiagnostics = Notification.Name("openDiagnostics")
-    static let wizardClosed = Notification.Name("wizardClosed")
+    // Note: wizardClosed moved to Notifications.swift as .wizardClosed (canonical)
 }
