@@ -70,6 +70,10 @@ struct SystemSnapshot {
         if !components.karabinerDriverInstalled {
             issues.append(.componentMissing(name: "Karabiner driver", autoFix: true))
         }
+        // ⭐ Check version mismatch BEFORE health check (mismatch causes health issues)
+        if components.vhidVersionMismatch {
+            issues.append(.componentVersionMismatch(name: "Karabiner driver", autoFix: true))
+        }
         if !components.vhidDeviceHealthy {
             issues.append(.componentUnhealthy(name: "VirtualHID Device", autoFix: true))
         }
@@ -161,6 +165,7 @@ enum Issue: Equatable {
     case permissionMissing(app: String, permission: String, action: String)
     case componentMissing(name: String, autoFix: Bool)
     case componentUnhealthy(name: String, autoFix: Bool)
+    case componentVersionMismatch(name: String, autoFix: Bool)
     case serviceNotRunning(name: String, autoFix: Bool)
     case conflict(SystemConflict)
 
@@ -172,6 +177,8 @@ enum Issue: Equatable {
             return "\(name) not installed"
         case let .componentUnhealthy(name, _):
             return "\(name) unhealthy"
+        case let .componentVersionMismatch(name, _):
+            return "\(name) version incompatible"
         case let .serviceNotRunning(name, _):
             return "\(name) not running"
         case .conflict(let conflict):
@@ -196,6 +203,7 @@ enum Issue: Equatable {
             return false // User must grant permissions
         case let .componentMissing(_, autoFix),
              let .componentUnhealthy(_, autoFix),
+             let .componentVersionMismatch(_, autoFix),
              let .serviceNotRunning(_, autoFix):
             return autoFix
         case .conflict:
@@ -211,6 +219,8 @@ enum Issue: Equatable {
             return "Install via wizard"
         case .componentUnhealthy:
             return "Restart component"
+        case .componentVersionMismatch:
+            return "Install correct version"
         case .serviceNotRunning:
             return "Start service"
         case .conflict:

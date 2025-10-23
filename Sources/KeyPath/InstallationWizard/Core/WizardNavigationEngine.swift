@@ -93,7 +93,8 @@ class WizardNavigationEngine: WizardNavigating {
                      .component(.vhidDeviceActivation),
                      .component(.vhidDeviceRunning),
                      .component(.launchDaemonServices),
-                     .component(.vhidDaemonMisconfigured):
+                     .component(.vhidDaemonMisconfigured),
+                     .component(.vhidDriverVersionMismatch):
                     return true
                 default:
                     return false

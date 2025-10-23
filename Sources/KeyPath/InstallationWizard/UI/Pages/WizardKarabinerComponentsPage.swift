@@ -383,8 +383,13 @@ struct WizardKarabinerComponentsPage: View {
             }
             
             var success = false
-            
-            if vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) {
+
+            // ⭐ Check for driver version mismatch FIRST (root cause of other issues)
+            if vhidIssues.contains(where: { $0.identifier == .component(.vhidDriverVersionMismatch) }) {
+                // Fix driver version mismatch
+                AppLogger.shared.log("🔧 [Driver Repair] Fixing driver version mismatch (v6 → v5)")
+                success = await performAutoFix(.fixDriverVersionMismatch)
+            } else if vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) {
                 // Fix misconfigured daemon plist
                 AppLogger.shared.log("🔧 [Driver Repair] Repairing misconfigured VHID daemon services")
                 success = await performAutoFix(.repairVHIDDaemonServices)

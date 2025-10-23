@@ -40,7 +40,8 @@ enum KarabinerComponentsStatusEvaluator {
                      .component(.vhidDeviceRunning),
                      .component(.launchDaemonServices),
                      .component(.launchDaemonServicesUnhealthy),
-                     .component(.vhidDaemonMisconfigured):
+                     .component(.vhidDaemonMisconfigured),
+                     .component(.vhidDriverVersionMismatch):
                     return true
                 default:
                     return false
@@ -73,7 +74,8 @@ enum KarabinerComponentsStatusEvaluator {
                          .component(.vhidDeviceManager),
                          .component(.vhidDeviceActivation),
                          .component(.vhidDeviceRunning),
-                         .component(.vhidDaemonMisconfigured):
+                         .component(.vhidDaemonMisconfigured),
+                     .component(.vhidDriverVersionMismatch):
                         return true
                     default:
                         return false
@@ -116,7 +118,8 @@ enum KarabinerComponentsStatusEvaluator {
                      .component(.vhidDeviceRunning),
                      .component(.launchDaemonServices),
                      .component(.launchDaemonServicesUnhealthy),
-                     .component(.vhidDaemonMisconfigured):
+                     .component(.vhidDaemonMisconfigured),
+                     .component(.vhidDriverVersionMismatch):
                     return true
                 default:
                     return false

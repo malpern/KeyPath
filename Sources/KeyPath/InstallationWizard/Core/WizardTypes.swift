@@ -137,6 +137,7 @@ enum ComponentRequirement: Equatable {
     case launchDaemonServices
     case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case vhidDaemonMisconfigured
+    case vhidDriverVersionMismatch // Karabiner driver version incompatible with kanata version
     case kanataUDPServer // UDP server for Kanata communication and config validation
     case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
     case communicationServerConfiguration // Communication server enabled but not configured in service
@@ -206,7 +207,7 @@ enum IssueIdentifier: Equatable {
         switch self {
         case .component(let component):
             switch component {
-            case .vhidDeviceManager, .vhidDeviceActivation, .vhidDeviceRunning, .vhidDaemonMisconfigured:
+            case .vhidDeviceManager, .vhidDeviceActivation, .vhidDeviceRunning, .vhidDaemonMisconfigured, .vhidDriverVersionMismatch:
                 return true
             default:
                 return false
@@ -399,4 +400,34 @@ protocol WizardNavigating {
     func canNavigate(from: WizardPage, to: WizardPage, given state: WizardSystemState) -> Bool
     func nextPage(from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue])
         -> WizardPage?
+}
+
+// MARK: - Helper Extensions
+
+extension Array where Element == WizardIssue {
+    /// Formats issues into a tooltip-friendly string for hover text
+    /// Returns empty string if no issues, single issue details if one issue,
+    /// or numbered list if multiple issues
+    func asTooltipText() -> String {
+        guard !isEmpty else { return "" }
+
+        if count == 1 {
+            let issue = self[0]
+            return """
+            \(issue.title)
+
+            \(issue.description)
+            """
+        }
+
+        // Multiple issues - show numbered list
+        return self.enumerated()
+            .map { index, issue in
+                """
+                \(index + 1). \(issue.title)
+                   \(issue.description)
+                """
+            }
+            .joined(separator: "\n\n")
+    }
 }

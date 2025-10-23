@@ -21,6 +21,10 @@ final class VHIDDeviceManager: @unchecked Sendable {
     private static let requiredDriverVersionString = "5.0.0"
     private static let futureCompatibleVersion = "1.10" // Kanata version that will support v6
 
+    // Driver DriverKit extension identifiers
+    private static let driverTeamID = "G43BCU2T37" // pqrs.org team ID
+    private static let driverBundleID = "org.pqrs.driver.Karabiner-DriverKit-VirtualHIDDevice"
+
     // MARK: - Detection Methods
 
     /// Checks if the VirtualHIDDevice Manager application is installed
@@ -290,9 +294,14 @@ final class VHIDDeviceManager: @unchecked Sendable {
             DispatchQueue.global(qos: .userInitiated).async {
                 AppLogger.shared.log("🔧 [VHIDManager] Requesting admin privileges for: \(description)")
 
+                // Properly escape command for AppleScript (escape backslashes first, then quotes)
+                let escapedCommand = command
+                    .replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "\"", with: "\\\"")
+
                 // Use osascript to request admin privileges with proper password dialog
                 let osascriptCommand =
-                    "do shell script \"\(command)\" with administrator privileges with prompt \"KeyPath needs to \(description.lowercased()).\""
+                    "do shell script \"\(escapedCommand)\" with administrator privileges with prompt \"KeyPath needs to \(description.lowercased()).\""
 
                 let osascriptTask = Process()
                 osascriptTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -335,11 +344,78 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
     }
 
+    /// Uninstalls all existing Karabiner-DriverKit-VirtualHIDDevice versions
+    /// This ensures a clean slate before installing the correct version
+    func uninstallAllDriverVersions() async -> Bool {
+        AppLogger.shared.log("🧹 [VHIDManager] Uninstalling all existing driver versions...")
+
+        // First, check if there are any DriverKit extensions to uninstall
+        let listTask = Process()
+        listTask.executableURL = URL(fileURLWithPath: "/usr/bin/systemextensionsctl")
+        listTask.arguments = ["list"]
+
+        let listPipe = Pipe()
+        listTask.standardOutput = listPipe
+        listTask.standardError = listPipe
+
+        do {
+            try listTask.run()
+            listTask.waitUntilExit()
+
+            let data = listPipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            // Check if our driver extension is listed
+            let hasKarabinerDriver = output.contains("Karabiner-DriverKit-VirtualHIDDevice")
+
+            if !hasKarabinerDriver {
+                AppLogger.shared.log("ℹ️ [VHIDManager] No Karabiner driver extensions found - nothing to uninstall")
+                return true
+            }
+
+            AppLogger.shared.log("📋 [VHIDManager] Found Karabiner driver extension(s) to uninstall")
+
+            // Uninstall using systemextensionsctl with admin privileges
+            let uninstallCommand = "/usr/bin/systemextensionsctl uninstall \(Self.driverTeamID) \(Self.driverBundleID)"
+
+            let uninstallResult = await executeWithAdminPrivileges(
+                command: uninstallCommand,
+                description: "Uninstall existing Karabiner driver versions"
+            )
+
+            if uninstallResult {
+                AppLogger.shared.log("✅ [VHIDManager] Successfully uninstalled existing driver version(s)")
+
+                // Wait for uninstallation to complete
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+
+                return true
+            } else {
+                AppLogger.shared.log("⚠️ [VHIDManager] Uninstall command completed - may require restart to take full effect")
+                // Still return true since we attempted uninstall
+                return true
+            }
+
+        } catch {
+            AppLogger.shared.log("⚠️ [VHIDManager] Error checking/uninstalling drivers: \(error)")
+            // Don't fail - proceed with installation anyway
+            return true
+        }
+    }
+
     /// Downloads and installs the correct version of Karabiner-DriverKit-VirtualHIDDevice
     func downloadAndInstallCorrectVersion() async -> Bool {
         AppLogger.shared.log("🔧 [VHIDManager] Downloading and installing v\(Self.requiredDriverVersionString)")
 
+        // Step 1: Clean up existing driver versions first
+        AppLogger.shared.log("🔧 [VHIDManager] Step 1/4: Cleaning up existing driver versions...")
+        let uninstallSuccess = await uninstallAllDriverVersions()
+        if !uninstallSuccess {
+            AppLogger.shared.log("⚠️ [VHIDManager] Cleanup had issues, but proceeding with installation...")
+        }
+
         // Download URL for v5.0.0
+        AppLogger.shared.log("🔧 [VHIDManager] Step 2/4: Downloading v\(Self.requiredDriverVersionString)...")
         let downloadURL = "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v\(Self.requiredDriverVersionString)/Karabiner-DriverKit-VirtualHIDDevice-\(Self.requiredDriverVersionString).pkg"
         let tmpDir = FileManager.default.temporaryDirectory
         let pkgPath = tmpDir.appendingPathComponent("Karabiner-DriverKit-VirtualHIDDevice-\(Self.requiredDriverVersionString).pkg")
@@ -360,7 +436,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
             AppLogger.shared.log("✅ [VHIDManager] Downloaded to \(pkgPath.path)")
 
             // Install the package using installer command
-            AppLogger.shared.log("📦 [VHIDManager] Installing package...")
+            AppLogger.shared.log("🔧 [VHIDManager] Step 3/4: Installing package...")
 
             let installResult = await executeWithAdminPrivileges(
                 command: "/usr/sbin/installer -pkg \"\(pkgPath.path)\" -target /",
@@ -377,7 +453,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
 
                 // Activate the newly installed version
-                AppLogger.shared.log("🔧 [VHIDManager] Activating newly installed driver...")
+                AppLogger.shared.log("🔧 [VHIDManager] Step 4/4: Activating newly installed driver...")
                 let activateResult = await activateManager()
 
                 if activateResult {

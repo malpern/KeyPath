@@ -726,13 +726,15 @@ struct WizardStatusItem: View {
     let action: (() -> Void)?
     let isFinalStatus: Bool
     let showInitialClock: Bool
+    let tooltip: String?
 
     init(
         icon: String, title: String, subtitle: String? = nil, status: InstallationStatus,
         isNavigable: Bool = false,
         action: (() -> Void)? = nil,
         isFinalStatus: Bool = false,
-        showInitialClock: Bool = false
+        showInitialClock: Bool = false,
+        tooltip: String? = nil
     ) {
         self.icon = icon
         self.title = title
@@ -742,6 +744,7 @@ struct WizardStatusItem: View {
         self.action = action
         self.isFinalStatus = isFinalStatus
         self.showInitialClock = showInitialClock
+        self.tooltip = tooltip
     }
 
     var body: some View {
@@ -791,6 +794,7 @@ struct WizardStatusItem: View {
                 action?()
             }
         }
+        .help(tooltip ?? "")  // Show tooltip on hover if provided
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title): \(statusText)")
         .accessibilityHint(isNavigable ? "Tap to navigate to \(title) page" : "")

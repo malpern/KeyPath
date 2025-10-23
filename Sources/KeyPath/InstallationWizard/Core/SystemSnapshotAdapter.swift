@@ -146,6 +146,15 @@ struct SystemSnapshotAdapter {
             AppLogger.shared.log("📊 [SystemSnapshotAdapter]   Karabiner daemon: OK")
         }
 
+        // ⭐ Check for driver version mismatch FIRST (before health checks)
+        // Version mismatch CAUSES health issues, so fix the root cause first
+        if snapshot.components.vhidVersionMismatch {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   VHID driver version: MISMATCH (needs v5 for kanata v1.9.0)")
+            missing.append(.vhidDriverVersionMismatch)
+        } else {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   VHID driver version: OK")
+        }
+
         if !snapshot.components.vhidDeviceHealthy {
             AppLogger.shared.log("📊 [SystemSnapshotAdapter]   VHID device: UNHEALTHY")
             missing.append(.vhidDeviceRunning)
@@ -222,6 +231,17 @@ struct SystemSnapshotAdapter {
                     userAction: "Restart component"
                 )
 
+            case let .componentVersionMismatch(name, autoFix):
+                return WizardIssue(
+                    identifier: .component(.vhidDriverVersionMismatch),
+                    severity: .error,
+                    category: .installation,
+                    title: issue.title,
+                    description: "Install correct version for \(name)",
+                    autoFixAction: autoFix ? .fixDriverVersionMismatch : nil,
+                    userAction: "Install correct version"
+                )
+
             case let .serviceNotRunning(name, autoFix):
                 return WizardIssue(
                     identifier: .daemon,
@@ -252,6 +272,12 @@ struct SystemSnapshotAdapter {
 
         if snapshot.conflicts.hasConflicts, snapshot.conflicts.canAutoResolve {
             actions.append(.terminateConflictingProcesses)
+        }
+
+        // ⭐ Check for driver version mismatch FIRST (highest priority for driver issues)
+        if snapshot.components.vhidVersionMismatch {
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter] Adding auto-fix: fixDriverVersionMismatch")
+            actions.append(.fixDriverVersionMismatch)
         }
 
         let missingComponents = getMissingComponents(snapshot)

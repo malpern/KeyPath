@@ -20,7 +20,8 @@ struct WizardSystemStatusOverview: View {
                     isNavigable: item.isNavigable,
                     action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil,
                     isFinalStatus: isFinalKeyPathStatus(item: item),
-                    showInitialClock: shouldShowInitialClock(for: item)
+                    showInitialClock: shouldShowInitialClock(for: item),
+                    tooltip: item.relatedIssues.asTooltipText()
                 )
                 .padding(.horizontal, WizardDesign.Spacing.cardPadding)
                 .padding(.vertical, WizardDesign.Spacing.labelGap)
@@ -41,7 +42,8 @@ struct WizardSystemStatusOverview: View {
                                     subtitle: subItem.subtitle,
                                     status: subItem.status,
                                     isNavigable: subItem.isNavigable,
-                                    action: subItem.isNavigable ? { onNavigateToPage?(subItem.targetPage) } : nil
+                                    action: subItem.isNavigable ? { onNavigateToPage?(subItem.targetPage) } : nil,
+                                    tooltip: subItem.relatedIssues.asTooltipText()
                                 )
                                 .padding(.horizontal, WizardDesign.Spacing.cardPadding)
                                 .padding(.vertical, WizardDesign.Spacing.labelGap)
@@ -91,12 +93,12 @@ struct WizardSystemStatusOverview: View {
             ))
 
         // 2. System Conflicts
-        let hasConflicts = issues.contains { $0.category == .conflicts }
+        let conflictIssues = issues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = {
             if systemState == .initializing {
                 return .notStarted
             }
-            return hasConflicts ? .failed : .completed
+            return !conflictIssues.isEmpty ? .failed : .completed
         }()
         items.append(
             StatusItemModel(
@@ -105,11 +107,18 @@ struct WizardSystemStatusOverview: View {
                 title: "Resolve System Conflicts",
                 status: conflictStatus,
                 isNavigable: true,
-                targetPage: .conflicts
+                targetPage: .conflicts,
+                relatedIssues: conflictIssues
             ))
 
         // 3. Input Monitoring Permission
         let inputMonitoringStatus = getInputMonitoringStatus()
+        let inputMonitoringIssues = issues.filter { issue in
+            if case .permission(let req) = issue.identifier {
+                return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
+            }
+            return false
+        }
         items.append(
             StatusItemModel(
                 id: "input-monitoring",
@@ -117,11 +126,18 @@ struct WizardSystemStatusOverview: View {
                 title: "Input Monitoring Permission",
                 status: inputMonitoringStatus,
                 isNavigable: true,
-                targetPage: .inputMonitoring
+                targetPage: .inputMonitoring,
+                relatedIssues: inputMonitoringIssues
             ))
 
         // 4. Accessibility Permission
         let accessibilityStatus = getAccessibilityStatus()
+        let accessibilityIssues = issues.filter { issue in
+            if case .permission(let req) = issue.identifier {
+                return req == .keyPathAccessibility || req == .kanataAccessibility
+            }
+            return false
+        }
         items.append(
             StatusItemModel(
                 id: "accessibility",
@@ -129,11 +145,16 @@ struct WizardSystemStatusOverview: View {
                 title: "Accessibility Permission",
                 status: accessibilityStatus,
                 isNavigable: true,
-                targetPage: .accessibility
+                targetPage: .accessibility,
+                relatedIssues: accessibilityIssues
             ))
 
         // 5. Karabiner Driver Setup
         let karabinerStatus = getKarabinerComponentsStatus()
+        let karabinerIssues = issues.filter { issue in
+            // Filter for installation issues related to Karabiner driver
+            issue.category == .installation && issue.identifier.isVHIDRelated
+        }
         items.append(
             StatusItemModel(
                 id: "karabiner-components",
@@ -141,7 +162,8 @@ struct WizardSystemStatusOverview: View {
                 title: "Karabiner Driver Setup",
                 status: karabinerStatus,
                 isNavigable: true,
-                targetPage: .karabinerComponents
+                targetPage: .karabinerComponents,
+                relatedIssues: karabinerIssues
             ))
 
         // Check dependency requirements for remaining items
@@ -150,6 +172,13 @@ struct WizardSystemStatusOverview: View {
         // 6. Kanata Engine Setup (hidden if Karabiner Driver not completed)
         if prerequisitesMet.showKanataEngineItem {
             let kanataComponentsStatus = getKanataComponentsStatus()
+            let kanataComponentsIssues = issues.filter { issue in
+                // Kanata component issues
+                if case .component(let comp) = issue.identifier {
+                    return comp == .kanataBinaryMissing
+                }
+                return false
+            }
             items.append(
                 StatusItemModel(
                     id: "kanata-components",
@@ -157,7 +186,8 @@ struct WizardSystemStatusOverview: View {
                     title: "Kanata Engine Setup",
                     status: kanataComponentsStatus,
                     isNavigable: true,
-                    targetPage: .kanataComponents
+                    targetPage: .kanataComponents,
+                    relatedIssues: kanataComponentsIssues
                 ))
         }
 
@@ -165,6 +195,10 @@ struct WizardSystemStatusOverview: View {
         if prerequisitesMet.showServiceItem {
             let serviceStatus = getServiceStatus()
             let serviceNavigation = getServiceNavigationTarget()
+            let serviceIssues = issues.filter { issue in
+                // Daemon and service issues
+                issue.category == .daemon
+            }
             items.append(
                 StatusItemModel(
                     id: "service",
@@ -173,13 +207,15 @@ struct WizardSystemStatusOverview: View {
                     subtitle: serviceStatus == .failed ? "Fix permissions to enable service" : nil,
                     status: serviceStatus,
                     isNavigable: true,
-                    targetPage: serviceNavigation.page
+                    targetPage: serviceNavigation.page,
+                    relatedIssues: serviceIssues
                 ))
         }
 
         // 8. Communication Server (hidden if dependencies not met)
         if prerequisitesMet.showCommunicationItem {
             let commServerStatus = getCommunicationServerStatus()
+            // Communication server issues (no specific category, use empty for now)
             items.append(
                 StatusItemModel(
                     id: "communication-server",
@@ -404,6 +440,7 @@ private struct StatusItemModel {
     let isNavigable: Bool
     let targetPage: WizardPage
     let subItems: [StatusItemModel]
+    let relatedIssues: [WizardIssue]
 
     init(
         id: String,
@@ -413,7 +450,8 @@ private struct StatusItemModel {
         status: InstallationStatus,
         isNavigable: Bool = false,
         targetPage: WizardPage = .summary,
-        subItems: [StatusItemModel] = []
+        subItems: [StatusItemModel] = [],
+        relatedIssues: [WizardIssue] = []
     ) {
         self.id = id
         self.icon = icon
@@ -423,6 +461,7 @@ private struct StatusItemModel {
         self.isNavigable = isNavigable
         self.targetPage = targetPage
         self.subItems = subItems
+        self.relatedIssues = relatedIssues
     }
 }
 

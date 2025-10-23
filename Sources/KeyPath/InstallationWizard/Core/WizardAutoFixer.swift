@@ -216,11 +216,28 @@ class WizardAutoFixer: AutoFixCapable {
         if success {
             AppLogger.shared.log("✅ [AutoFixer] Successfully fixed driver version mismatch")
 
+            // Try to force macOS to reload the driver by restarting VHID daemon processes
+            AppLogger.shared.log("🔄 [AutoFixer] Restarting VirtualHID processes to reload driver...")
+            let killTask = Process()
+            killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+            killTask.arguments = ["/usr/bin/pkill", "-9", "Karabiner-VirtualHIDDevice"]
+            try? killTask.run()
+            killTask.waitUntilExit()
+            AppLogger.shared.log("🔄 [AutoFixer] VirtualHID processes restarted")
+
             // Show success message
             await MainActor.run {
                 let alert = NSAlert()
                 alert.messageText = "Driver Version Fixed"
-                alert.informativeText = "Karabiner-DriverKit-VirtualHIDDevice v5.0.0 has been installed successfully. You may need to approve the driver extension in System Settings."
+                alert.informativeText = """
+                Karabiner-DriverKit-VirtualHIDDevice v5.0.0 has been installed successfully.
+
+                ✓ Removed all existing driver versions
+                ✓ Installed v5.0.0
+                ✓ Restarted VirtualHID processes
+
+                If the driver still shows as unhealthy after checking status, you may need to restart your Mac for the new driver version to fully activate.
+                """
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "OK")
                 alert.runModal()

@@ -319,6 +319,7 @@ class IssueGenerator {
         case .vhidDeviceActivation: "VirtualHIDDevice Manager Not Activated"
         case .vhidDeviceRunning: "VirtualHIDDevice Daemon"
         case .vhidDaemonMisconfigured: "VirtualHIDDevice Daemon Misconfigured"
+        case .vhidDriverVersionMismatch: "Karabiner Driver Version Incompatible"
         case .launchDaemonServices: "LaunchDaemon Services Not Installed"
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
         case .kanataUDPServer: "UDP Server Not Responding"
@@ -351,6 +352,8 @@ class IssueGenerator {
                 "connection failures preventing keyboard remapping."
         case .vhidDaemonMisconfigured:
             "The installed LaunchDaemon for the VirtualHID daemon points to a legacy path. It should use the DriverKit daemon path."
+        case .vhidDriverVersionMismatch:
+            "The installed Karabiner-DriverKit-VirtualHIDDevice version is incompatible with the current version of Kanata. Kanata v1.9.0 requires driver v5.0.0, but a different version is installed. KeyPath can automatically download and install the correct version."
         case .launchDaemonServices:
             "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
         case .launchDaemonServicesUnhealthy:
@@ -406,6 +409,8 @@ class IssueGenerator {
             .restartVirtualHIDDaemon
         case .vhidDaemonMisconfigured:
             .repairVHIDDaemonServices
+        case .vhidDriverVersionMismatch:
+            .fixDriverVersionMismatch
         case .launchDaemonServices:
             .installLaunchDaemonServices
         case .launchDaemonServicesUnhealthy:
