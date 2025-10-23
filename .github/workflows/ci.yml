@@ -43,9 +43,10 @@ jobs:
         export SKIP_EVENT_TAP_TESTS=1
 
         # Run swift test (supports both XCTest and Swift Testing frameworks)
-        # Timeout after 240 seconds to prevent CI hangs
+        # Timeout after 60 seconds (reduced from 240s due to test performance improvements)
+        # Tests now complete in <5s after removing unnecessary sleeps (commit d6a9b2f)
         set +e
-        timeout 240 swift test 2>&1 | tee test_output.txt
+        timeout 60 swift test 2>&1 | tee test_output.txt
         TEST_EXIT=$?
         set -e
 
@@ -53,15 +54,15 @@ jobs:
           echo "✅ All tests passed"
           echo "TEST_STATUS=passed" >> $GITHUB_ENV
         elif [ "$TEST_EXIT" -eq 124 ]; then
-          echo "⏰ Tests timed out after 240s"
+          echo "⏰ Tests timed out after 60s"
           echo "TEST_STATUS=timeout" >> $GITHUB_ENV
-          # Don't fail CI on timeout (allows build verification to continue)
-          echo "⚠️ Continuing build verification despite timeout"
+          echo "❌ FAILING CI - Tests should complete in <5s, timeout indicates a problem"
+          exit 1
         else
           echo "❌ Tests failed with exit code $TEST_EXIT"
           echo "TEST_STATUS=failed" >> $GITHUB_ENV
-          # Don't fail CI on test failures (matches previous behavior)
-          echo "⚠️ Continuing build verification despite test failures"
+          echo "❌ FAILING CI - Test failures must be fixed"
+          exit 1
         fi
     
     - name: Upload Test Results
