@@ -251,8 +251,7 @@ final class KeyPathTests: XCTestCase {
         // Test that KanataManager initializes with auto-start
         let manager = KanataManager()
 
-        // Give it a moment to run init tasks
-        Thread.sleep(forTimeInterval: 0.1)
+        // No sleep needed - initialization is deterministic
 
         // Check that status was updated
         XCTAssertNotNil(manager.isRunning)
@@ -293,7 +292,7 @@ final class KeyPathTests: XCTestCase {
 
         if !manager.isInstalled() {
             // If not installed, there should be an error after init
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            // No sleep needed - error state is set synchronously during initialization
             XCTAssertNotNil(manager.lastError)
         }
     }
@@ -383,7 +382,7 @@ final class KeyPathTests: XCTestCase {
             // Should provide helpful error messages
             if !manager.isInstalled() {
                 // When binary is missing, should guide to installer
-                try? await Task.sleep(nanoseconds: 500_000_000) // Allow async init to complete
+                // No sleep needed - error state is set synchronously
                 if let error = manager.lastError {
                     XCTAssertTrue(
                         error.contains("sudo ./install-system.sh") || error.contains("install"),
@@ -394,7 +393,7 @@ final class KeyPathTests: XCTestCase {
 
             if !manager.isServiceInstalled() {
                 // When service is missing, should guide to installer
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                // No sleep needed - error state is set synchronously
                 if let error = manager.lastError {
                     XCTAssertTrue(
                         error.contains("LaunchDaemon") || error.contains("install"),
