@@ -10,6 +10,11 @@ let package = Package(
         .executable(
             name: "KeyPath",
             targets: ["KeyPath"]
+        ),
+        // Lightweight CLI for one-shot commands (map/list/reload)
+        .executable(
+            name: "keypath",
+            targets: ["KeyPathCLI"]
         )
     ],
     dependencies: [
@@ -32,6 +37,12 @@ let package = Package(
                 // Surface concurrency issues clearly in Debug builds
                 .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
             ]
+        ),
+        // CLI target (no external deps; simple argument parsing)
+        .executableTarget(
+            name: "KeyPathCLI",
+            dependencies: [],
+            path: "Sources/KeyPathCLI"
         ),
         // Tests
         .testTarget(

@@ -213,6 +213,7 @@ swift test
 - **[Architecture Overview](ARCHITECTURE.md)** - Technical details for developers
 - **[Debugging Guide](docs/DEBUGGING_KANATA.md)** - Advanced troubleshooting
 - **[FAQ](docs/FAQ.md)** - Frequently asked questions
+ - **[CLI (One‑Shot Commands)](docs/CLI.md)** - `keypath map/list/reload`
 
 
 ## 📄 License
