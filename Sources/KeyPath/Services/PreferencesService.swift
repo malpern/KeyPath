@@ -108,6 +108,15 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// Whether non-critical (info/success) notifications are enabled.
+    /// Critical/service/permission notifications are unaffected by this flag.
+    var successNotificationsEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(successNotificationsEnabled, forKey: Keys.successNotificationsEnabled)
+            AppLogger.shared.log("🔔 [PreferencesService] Success notifications: \(successNotificationsEnabled)")
+        }
+    }
+
     /// When true, leave mappings active while recording (effective preview).
     /// When false, temporarily suspend mappings so the recorder captures raw keys.
     var applyMappingsDuringRecording: Bool {
@@ -126,6 +135,7 @@ final class PreferencesService: @unchecked Sendable {
         static let tcpAuthToken = "KeyPath.TCP.AuthToken"
         static let tcpSessionTimeout = "KeyPath.TCP.SessionTimeout"
         static let notificationsEnabled = "KeyPath.Notifications.Enabled"
+        static let successNotificationsEnabled = "KeyPath.Notifications.SuccessEnabled"
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
     }
 
@@ -138,6 +148,7 @@ final class PreferencesService: @unchecked Sendable {
         static let tcpAuthToken = "" // Auto-generate token
         static let tcpSessionTimeout = 1800 // 30 minutes (same as Kanata default)
         static let notificationsEnabled = true
+        static let successNotificationsEnabled = true
         static let applyMappingsDuringRecording = true
     }
 
@@ -160,6 +171,9 @@ final class PreferencesService: @unchecked Sendable {
         notificationsEnabled =
             UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool
                 ?? Defaults.notificationsEnabled
+        successNotificationsEnabled =
+            UserDefaults.standard.object(forKey: Keys.successNotificationsEnabled) as? Bool
+                ?? Defaults.successNotificationsEnabled
 
         // Recording preference
         applyMappingsDuringRecording =

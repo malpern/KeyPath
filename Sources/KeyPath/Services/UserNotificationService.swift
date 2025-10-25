@@ -118,6 +118,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
     /// Send a notification if enabled, not frontmost (unless override), and not rate-limited.
     private func sendNotification(title: String, body: String, category: Category, key: String, ttl: TimeInterval, allowWhenFrontmost: Bool = false) {
         guard preferences.notificationsEnabled else { return }
+        if category == .info && !preferences.successNotificationsEnabled { return }
         if !allowWhenFrontmost && isFrontmost() { return }
         guard shouldSend(key: key, ttl: ttl) else { return }
 
@@ -206,6 +207,18 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
             category: .info,
             key: key,
             ttl: 1800,
+            allowWhenFrontmost: false
+        )
+    }
+
+    /// Notify user of a non-launch failure event (e.g., config repair failed)
+    func notifyFailureEvent(_ title: String, body: String, key: String) {
+        sendNotification(
+            title: title,
+            body: body,
+            category: .serviceFailure,
+            key: key,
+            ttl: 600,
             allowWhenFrontmost: false
         )
     }
