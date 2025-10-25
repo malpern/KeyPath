@@ -1,0 +1,376 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - Tests/KeyPathTests/LaunchDaemonInstallerTests.swift</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory Tests/KeyPathTests">Tests/KeyPathTests</a> - LaunchDaemonInstallerTests.swift<span style="font-size: 80%;"> (source / <a href="LaunchDaemonInstallerTests.swift.func-c.html" title="Click to go to function table">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryLo">2.1&nbsp;%</td>
+            <td class="headerCovTableEntry">238</td>
+            <td class="headerCovTableEntry">5</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2025-10-25 21:17:45</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryLo">2.4&nbsp;%</td>
+            <td class="headerCovTableEntry">42</td>
+            <td class="headerCovTableEntry">1</td>
+          </tr>
+                  <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">            Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>              : import XCTest</span>
+<span id="L2"><span class="lineNum">       2</span>              : @testable import KeyPath</span>
+<span id="L3"><span class="lineNum">       3</span>              : </span>
+<span id="L4"><span class="lineNum">       4</span>              : /// Tests for LaunchDaemonInstaller to ensure proper service dependency ordering</span>
+<span id="L5"><span class="lineNum">       5</span>              : final class LaunchDaemonInstallerTests: XCTestCase {</span>
+<span id="L6"><span class="lineNum">       6</span>              :     </span>
+<span id="L7"><span class="lineNum">       7</span>              :     // MARK: - Service Order Constants</span>
+<span id="L8"><span class="lineNum">       8</span>              :     </span>
+<span id="L9"><span class="lineNum">       9</span>              :     /// The correct dependency order for services</span>
+<span id="L10"><span class="lineNum">      10</span>              :     /// 1. VirtualHID Daemon first (provides the base VirtualHID framework)</span>
+<span id="L11"><span class="lineNum">      11</span>              :     /// 2. VirtualHID Manager second (manages VirtualHID devices)</span>
+<span id="L12"><span class="lineNum">      12</span>              :     /// 3. Kanata last (depends on the VirtualHID services being available)</span>
+<span id="L13"><span class="lineNum">      13</span> <span class="tlaGNC">           6 :     private let correctServiceOrder = [</span></span>
+<span id="L14"><span class="lineNum">      14</span> <span class="tlaGNC">           6 :         &quot;com.keypath.karabiner-vhiddaemon&quot;,</span></span>
+<span id="L15"><span class="lineNum">      15</span> <span class="tlaGNC">           6 :         &quot;com.keypath.karabiner-vhidmanager&quot;,</span></span>
+<span id="L16"><span class="lineNum">      16</span> <span class="tlaGNC">           6 :         &quot;com.keypath.kanata&quot;</span></span>
+<span id="L17"><span class="lineNum">      17</span> <span class="tlaGNC">           6 :     ]</span></span>
+<span id="L18"><span class="lineNum">      18</span>              :     </span>
+<span id="L19"><span class="lineNum">      19</span>              :     // MARK: - Test Helpers</span>
+<span id="L20"><span class="lineNum">      20</span>              :     </span>
+<span id="L21"><span class="lineNum">      21</span>              :     /// Extract bootstrap commands from a script in order</span>
+<span id="L22"><span class="lineNum">      22</span> <span class="tlaUNC">           0 :     private func extractBootstrapOrder(from script: String) -&gt; [String] {</span></span>
+<span id="L23"><span class="lineNum">      23</span> <span class="tlaUNC">           0 :         let lines = script.components(separatedBy: .newlines)</span></span>
+<span id="L24"><span class="lineNum">      24</span> <span class="tlaUNC">           0 :         var bootstrapServices: [String] = []</span></span>
+<span id="L25"><span class="lineNum">      25</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L26"><span class="lineNum">      26</span> <span class="tlaUNC">           0 :         for line in lines {</span></span>
+<span id="L27"><span class="lineNum">      27</span> <span class="tlaUNC">           0 :             // Match lines like: launchctl bootstrap system '/Library/LaunchDaemons/com.keypath.*.plist'</span></span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaUNC">           0 :             // or with Swift interpolation: launchctl bootstrap system '\(vhidDaemonFinal)'</span></span>
+<span id="L29"><span class="lineNum">      29</span> <span class="tlaUNC">           0 :             if line.contains(&quot;launchctl bootstrap system&quot;) {</span></span>
+<span id="L30"><span class="lineNum">      30</span> <span class="tlaUNC">           0 :                 // Extract service name from the plist path or variable name</span></span>
+<span id="L31"><span class="lineNum">      31</span> <span class="tlaUNC">           0 :                 if let serviceMatch = extractServiceNameFromBootstrap(from: line) {</span></span>
+<span id="L32"><span class="lineNum">      32</span> <span class="tlaUNC">           0 :                     bootstrapServices.append(serviceMatch)</span></span>
+<span id="L33"><span class="lineNum">      33</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L35"><span class="lineNum">      35</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L36"><span class="lineNum">      36</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L37"><span class="lineNum">      37</span> <span class="tlaUNC">           0 :         return bootstrapServices</span></span>
+<span id="L38"><span class="lineNum">      38</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L39"><span class="lineNum">      39</span>              :     </span>
+<span id="L40"><span class="lineNum">      40</span>              :     /// Extract service name from a launchctl bootstrap line with Swift interpolation</span>
+<span id="L41"><span class="lineNum">      41</span> <span class="tlaUNC">           0 :     private func extractServiceNameFromBootstrap(from line: String) -&gt; String? {</span></span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaUNC">           0 :         // Handle Swift interpolation patterns like '\(vhidDaemonFinal)'</span></span>
+<span id="L43"><span class="lineNum">      43</span> <span class="tlaUNC">           0 :         if line.contains(&quot;vhidDaemonFinal&quot;) {</span></span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC">           0 :             return &quot;com.keypath.karabiner-vhiddaemon&quot;</span></span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaUNC">           0 :         } else if line.contains(&quot;vhidManagerFinal&quot;) {</span></span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaUNC">           0 :             return &quot;com.keypath.karabiner-vhidmanager&quot;</span></span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaUNC">           0 :         } else if line.contains(&quot;kanataFinal&quot;) {</span></span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaUNC">           0 :             return &quot;com.keypath.kanata&quot;</span></span>
+<span id="L49"><span class="lineNum">      49</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaUNC">           0 :         // Also check for direct service names</span></span>
+<span id="L52"><span class="lineNum">      52</span> <span class="tlaUNC">           0 :         return extractServiceName(from: line)</span></span>
+<span id="L53"><span class="lineNum">      53</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L54"><span class="lineNum">      54</span>              :     </span>
+<span id="L55"><span class="lineNum">      55</span>              :     /// Extract service name from a launchctl bootstrap line</span>
+<span id="L56"><span class="lineNum">      56</span> <span class="tlaUNC">           0 :     private func extractServiceName(from line: String) -&gt; String? {</span></span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaUNC">           0 :         // Look for patterns like com.keypath.kanata, com.keypath.karabiner-vhiddaemon, etc.</span></span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaUNC">           0 :         let patterns = [</span></span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaUNC">           0 :             &quot;com.keypath.kanata&quot;,</span></span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaUNC">           0 :             &quot;com.keypath.karabiner-vhiddaemon&quot;, </span></span>
+<span id="L61"><span class="lineNum">      61</span> <span class="tlaUNC">           0 :             &quot;com.keypath.karabiner-vhidmanager&quot;</span></span>
+<span id="L62"><span class="lineNum">      62</span> <span class="tlaUNC">           0 :         ]</span></span>
+<span id="L63"><span class="lineNum">      63</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaUNC">           0 :         for pattern in patterns {</span></span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaUNC">           0 :             if line.contains(pattern) {</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaUNC">           0 :                 return pattern</span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L70"><span class="lineNum">      70</span> <span class="tlaUNC">           0 :         return nil</span></span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L72"><span class="lineNum">      72</span>              :     </span>
+<span id="L73"><span class="lineNum">      73</span>              :     /// Extract kickstart commands from a script in order</span>
+<span id="L74"><span class="lineNum">      74</span> <span class="tlaUNC">           0 :     private func extractKickstartOrder(from script: String) -&gt; [String] {</span></span>
+<span id="L75"><span class="lineNum">      75</span> <span class="tlaUNC">           0 :         let lines = script.components(separatedBy: .newlines)</span></span>
+<span id="L76"><span class="lineNum">      76</span> <span class="tlaUNC">           0 :         var kickstartServices: [String] = []</span></span>
+<span id="L77"><span class="lineNum">      77</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L78"><span class="lineNum">      78</span> <span class="tlaUNC">           0 :         for line in lines {</span></span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaUNC">           0 :             // Match lines like: launchctl kickstart -k system/com.keypath.*</span></span>
+<span id="L80"><span class="lineNum">      80</span> <span class="tlaUNC">           0 :             // or with Swift interpolation: launchctl kickstart -k system/\(Self.kanataServiceID)</span></span>
+<span id="L81"><span class="lineNum">      81</span> <span class="tlaUNC">           0 :             if line.contains(&quot;launchctl kickstart&quot;) {</span></span>
+<span id="L82"><span class="lineNum">      82</span> <span class="tlaUNC">           0 :                 // Extract service name - handle both direct names and Swift constants</span></span>
+<span id="L83"><span class="lineNum">      83</span> <span class="tlaUNC">           0 :                 if line.contains(&quot;Self.vhidDaemonServiceID&quot;) || line.contains(&quot;vhidDaemonServiceID&quot;) {</span></span>
+<span id="L84"><span class="lineNum">      84</span> <span class="tlaUNC">           0 :                     kickstartServices.append(&quot;com.keypath.karabiner-vhiddaemon&quot;)</span></span>
+<span id="L85"><span class="lineNum">      85</span> <span class="tlaUNC">           0 :                 } else if line.contains(&quot;Self.vhidManagerServiceID&quot;) || line.contains(&quot;vhidManagerServiceID&quot;) {</span></span>
+<span id="L86"><span class="lineNum">      86</span> <span class="tlaUNC">           0 :                     kickstartServices.append(&quot;com.keypath.karabiner-vhidmanager&quot;)</span></span>
+<span id="L87"><span class="lineNum">      87</span> <span class="tlaUNC">           0 :                 } else if line.contains(&quot;Self.kanataServiceID&quot;) || line.contains(&quot;kanataServiceID&quot;) {</span></span>
+<span id="L88"><span class="lineNum">      88</span> <span class="tlaUNC">           0 :                     kickstartServices.append(&quot;com.keypath.kanata&quot;)</span></span>
+<span id="L89"><span class="lineNum">      89</span> <span class="tlaUNC">           0 :                 } else if let serviceMatch = extractServiceName(from: line) {</span></span>
+<span id="L90"><span class="lineNum">      90</span> <span class="tlaUNC">           0 :                     kickstartServices.append(serviceMatch)</span></span>
+<span id="L91"><span class="lineNum">      91</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L92"><span class="lineNum">      92</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L93"><span class="lineNum">      93</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L94"><span class="lineNum">      94</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L95"><span class="lineNum">      95</span> <span class="tlaUNC">           0 :         return kickstartServices</span></span>
+<span id="L96"><span class="lineNum">      96</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L97"><span class="lineNum">      97</span>              :     </span>
+<span id="L98"><span class="lineNum">      98</span>              :     // MARK: - Tests</span>
+<span id="L99"><span class="lineNum">      99</span>              :     </span>
+<span id="L100"><span class="lineNum">     100</span>              :     /// Test that the executeConsolidatedInstallationWithAuthServices method respects dependency order</span>
+<span id="L101"><span class="lineNum">     101</span> <span class="tlaUNC">           0 :     func testAuthServicesInstallationRespectsServiceDependencyOrder() throws {</span></span>
+<span id="L102"><span class="lineNum">     102</span> <span class="tlaUNC">           0 :         // Read the LaunchDaemonInstaller source file</span></span>
+<span id="L103"><span class="lineNum">     103</span> <span class="tlaUNC">           0 :         let sourcePath = FileManager.default.currentDirectoryPath + &quot;/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift&quot;</span></span>
+<span id="L104"><span class="lineNum">     104</span> <span class="tlaUNC">           0 :         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)</span></span>
+<span id="L105"><span class="lineNum">     105</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L106"><span class="lineNum">     106</span> <span class="tlaUNC">           0 :         // Find the executeConsolidatedInstallationWithAuthServices method</span></span>
+<span id="L107"><span class="lineNum">     107</span> <span class="tlaUNC">           0 :         guard let methodStart = sourceCode.range(of: &quot;executeConsolidatedInstallationWithAuthServices&quot;)?.lowerBound else {</span></span>
+<span id="L108"><span class="lineNum">     108</span> <span class="tlaUNC">           0 :             XCTFail(&quot;Could not find executeConsolidatedInstallationWithAuthServices method&quot;)</span></span>
+<span id="L109"><span class="lineNum">     109</span> <span class="tlaUNC">           0 :             return</span></span>
+<span id="L110"><span class="lineNum">     110</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L111"><span class="lineNum">     111</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L112"><span class="lineNum">     112</span> <span class="tlaUNC">           0 :         // Extract the script content from this method</span></span>
+<span id="L113"><span class="lineNum">     113</span> <span class="tlaUNC">           0 :         let methodSection = String(sourceCode[methodStart...])</span></span>
+<span id="L114"><span class="lineNum">     114</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L115"><span class="lineNum">     115</span> <span class="tlaUNC">           0 :         // Find the script content between triple quotes</span></span>
+<span id="L116"><span class="lineNum">     116</span> <span class="tlaUNC">           0 :         guard let scriptStart = methodSection.range(of: &quot;#!/bin/bash&quot;)?.lowerBound,</span></span>
+<span id="L117"><span class="lineNum">     117</span> <span class="tlaUNC">           0 :               let scriptEnd = methodSection.range(of: &quot;\&quot;\&quot;\&quot;&quot;, range: scriptStart..&lt;methodSection.endIndex)?.lowerBound else {</span></span>
+<span id="L118"><span class="lineNum">     118</span> <span class="tlaUNC">           0 :             XCTFail(&quot;Could not extract script from executeConsolidatedInstallationWithAuthServices&quot;)</span></span>
+<span id="L119"><span class="lineNum">     119</span> <span class="tlaUNC">           0 :             return</span></span>
+<span id="L120"><span class="lineNum">     120</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L121"><span class="lineNum">     121</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L122"><span class="lineNum">     122</span> <span class="tlaUNC">           0 :         let script = String(methodSection[scriptStart..&lt;scriptEnd])</span></span>
+<span id="L123"><span class="lineNum">     123</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L124"><span class="lineNum">     124</span> <span class="tlaUNC">           0 :         // Extract bootstrap order</span></span>
+<span id="L125"><span class="lineNum">     125</span> <span class="tlaUNC">           0 :         let bootstrapOrder = extractBootstrapOrder(from: script)</span></span>
+<span id="L126"><span class="lineNum">     126</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L127"><span class="lineNum">     127</span> <span class="tlaUNC">           0 :         // Verify bootstrap order</span></span>
+<span id="L128"><span class="lineNum">     128</span> <span class="tlaUNC">           0 :         XCTAssertEqual(bootstrapOrder, correctServiceOrder,</span></span>
+<span id="L129"><span class="lineNum">     129</span> <span class="tlaUNC">           0 :                       &quot;Bootstrap order must be: VirtualHID Daemon → VirtualHID Manager → Kanata&quot;)</span></span>
+<span id="L130"><span class="lineNum">     130</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L131"><span class="lineNum">     131</span> <span class="tlaUNC">           0 :         // Extract kickstart order</span></span>
+<span id="L132"><span class="lineNum">     132</span> <span class="tlaUNC">           0 :         let kickstartOrder = extractKickstartOrder(from: script)</span></span>
+<span id="L133"><span class="lineNum">     133</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L134"><span class="lineNum">     134</span> <span class="tlaUNC">           0 :         // Verify kickstart order</span></span>
+<span id="L135"><span class="lineNum">     135</span> <span class="tlaUNC">           0 :         XCTAssertEqual(kickstartOrder, correctServiceOrder,</span></span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaUNC">           0 :                       &quot;Kickstart order must be: VirtualHID Daemon → VirtualHID Manager → Kanata&quot;)</span></span>
+<span id="L137"><span class="lineNum">     137</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L138"><span class="lineNum">     138</span>              :     </span>
+<span id="L139"><span class="lineNum">     139</span>              :     /// Test that the executeConsolidatedInstallationImproved method respects dependency order</span>
+<span id="L140"><span class="lineNum">     140</span> <span class="tlaUNC">           0 :     func testImprovedOsascriptInstallationRespectsServiceDependencyOrder() throws {</span></span>
+<span id="L141"><span class="lineNum">     141</span> <span class="tlaUNC">           0 :         // Read the LaunchDaemonInstaller source file</span></span>
+<span id="L142"><span class="lineNum">     142</span> <span class="tlaUNC">           0 :         let sourcePath = FileManager.default.currentDirectoryPath + &quot;/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift&quot;</span></span>
+<span id="L143"><span class="lineNum">     143</span> <span class="tlaUNC">           0 :         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)</span></span>
+<span id="L144"><span class="lineNum">     144</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L145"><span class="lineNum">     145</span> <span class="tlaUNC">           0 :         // Find the executeConsolidatedInstallationImproved method</span></span>
+<span id="L146"><span class="lineNum">     146</span> <span class="tlaUNC">           0 :         guard let methodStart = sourceCode.range(of: &quot;executeConsolidatedInstallationImproved&quot;)?.lowerBound else {</span></span>
+<span id="L147"><span class="lineNum">     147</span> <span class="tlaUNC">           0 :             XCTFail(&quot;Could not find executeConsolidatedInstallationImproved method&quot;)</span></span>
+<span id="L148"><span class="lineNum">     148</span> <span class="tlaUNC">           0 :             return</span></span>
+<span id="L149"><span class="lineNum">     149</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L151"><span class="lineNum">     151</span> <span class="tlaUNC">           0 :         // Extract the script content from this method</span></span>
+<span id="L152"><span class="lineNum">     152</span> <span class="tlaUNC">           0 :         let methodSection = String(sourceCode[methodStart...])</span></span>
+<span id="L153"><span class="lineNum">     153</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC">           0 :         // Find the script content - look for the command variable assignment starting with set -ex</span></span>
+<span id="L155"><span class="lineNum">     155</span> <span class="tlaUNC">           0 :         guard let commandStart = methodSection.range(of: &quot;set -ex&quot;)?.lowerBound,</span></span>
+<span id="L156"><span class="lineNum">     156</span> <span class="tlaUNC">           0 :               let commandEnd = methodSection.range(of: &quot;echo \&quot;Installation completed successfully\&quot;&quot;)?.upperBound else {</span></span>
+<span id="L157"><span class="lineNum">     157</span> <span class="tlaUNC">           0 :             XCTFail(&quot;Could not extract command script from executeConsolidatedInstallationImproved&quot;)</span></span>
+<span id="L158"><span class="lineNum">     158</span> <span class="tlaUNC">           0 :             return</span></span>
+<span id="L159"><span class="lineNum">     159</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaUNC">           0 :         let script = String(methodSection[commandStart..&lt;commandEnd])</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaUNC">           0 :         // Extract bootstrap order</span></span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaUNC">           0 :         let bootstrapOrder = extractBootstrapOrder(from: script)</span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaUNC">           0 :         // Verify bootstrap order</span></span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaUNC">           0 :         XCTAssertEqual(bootstrapOrder, correctServiceOrder,</span></span>
+<span id="L168"><span class="lineNum">     168</span> <span class="tlaUNC">           0 :                       &quot;Bootstrap order in improved method must be: VirtualHID Daemon → VirtualHID Manager → Kanata&quot;)</span></span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaUNC">           0 :         // Extract kickstart order</span></span>
+<span id="L171"><span class="lineNum">     171</span> <span class="tlaUNC">           0 :         let kickstartOrder = extractKickstartOrder(from: script)</span></span>
+<span id="L172"><span class="lineNum">     172</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L173"><span class="lineNum">     173</span> <span class="tlaUNC">           0 :         // Verify kickstart order</span></span>
+<span id="L174"><span class="lineNum">     174</span> <span class="tlaUNC">           0 :         XCTAssertEqual(kickstartOrder, correctServiceOrder,</span></span>
+<span id="L175"><span class="lineNum">     175</span> <span class="tlaUNC">           0 :                       &quot;Kickstart order in improved method must be: VirtualHID Daemon → VirtualHID Manager → Kanata&quot;)</span></span>
+<span id="L176"><span class="lineNum">     176</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L177"><span class="lineNum">     177</span>              :     </span>
+<span id="L178"><span class="lineNum">     178</span>              :     /// Test that inline script methods also respect dependency order</span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaUNC">           0 :     func testInlineScriptRespectsServiceDependencyOrder() throws {</span></span>
+<span id="L180"><span class="lineNum">     180</span> <span class="tlaUNC">           0 :         // Read the LaunchDaemonInstaller source file</span></span>
+<span id="L181"><span class="lineNum">     181</span> <span class="tlaUNC">           0 :         let sourcePath = FileManager.default.currentDirectoryPath + &quot;/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift&quot;</span></span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaUNC">           0 :         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L184"><span class="lineNum">     184</span> <span class="tlaUNC">           0 :         // Look for the inline version that has the three services in a row</span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaUNC">           0 :         // This typically appears in simplified installation scripts</span></span>
+<span id="L186"><span class="lineNum">     186</span> <span class="tlaUNC">           0 :         let lines = sourceCode.components(separatedBy: .newlines)</span></span>
+<span id="L187"><span class="lineNum">     187</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L188"><span class="lineNum">     188</span> <span class="tlaUNC">           0 :         var foundInlineBootstrap = false</span></span>
+<span id="L189"><span class="lineNum">     189</span> <span class="tlaUNC">           0 :         var inlineBootstrapOrder: [String] = []</span></span>
+<span id="L190"><span class="lineNum">     190</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L191"><span class="lineNum">     191</span> <span class="tlaUNC">           0 :         for line in lines {</span></span>
+<span id="L192"><span class="lineNum">     192</span> <span class="tlaUNC">           0 :             // Look for consecutive bootstrap commands</span></span>
+<span id="L193"><span class="lineNum">     193</span> <span class="tlaUNC">           0 :             if line.contains(&quot;/bin/launchctl bootstrap system&quot;) {</span></span>
+<span id="L194"><span class="lineNum">     194</span> <span class="tlaUNC">           0 :                 if let serviceName = extractServiceName(from: line) {</span></span>
+<span id="L195"><span class="lineNum">     195</span> <span class="tlaUNC">           0 :                     inlineBootstrapOrder.append(serviceName)</span></span>
+<span id="L196"><span class="lineNum">     196</span> <span class="tlaUNC">           0 :                     foundInlineBootstrap = true</span></span>
+<span id="L197"><span class="lineNum">     197</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L198"><span class="lineNum">     198</span> <span class="tlaUNC">           0 :                 </span></span>
+<span id="L199"><span class="lineNum">     199</span> <span class="tlaUNC">           0 :                 // Check if we've found all three services in sequence</span></span>
+<span id="L200"><span class="lineNum">     200</span> <span class="tlaUNC">           0 :                 if inlineBootstrapOrder.count == 3 {</span></span>
+<span id="L201"><span class="lineNum">     201</span> <span class="tlaUNC">           0 :                     break</span></span>
+<span id="L202"><span class="lineNum">     202</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L203"><span class="lineNum">     203</span> <span class="tlaUNC">           0 :             } else if foundInlineBootstrap &amp;&amp; !line.contains(&quot;launchctl bootstrap&quot;) {</span></span>
+<span id="L204"><span class="lineNum">     204</span> <span class="tlaUNC">           0 :                 // If we were collecting bootstrap commands and hit a non-bootstrap line,</span></span>
+<span id="L205"><span class="lineNum">     205</span> <span class="tlaUNC">           0 :                 // check if we have a complete set</span></span>
+<span id="L206"><span class="lineNum">     206</span> <span class="tlaUNC">           0 :                 if inlineBootstrapOrder.count == 3 {</span></span>
+<span id="L207"><span class="lineNum">     207</span> <span class="tlaUNC">           0 :                     break</span></span>
+<span id="L208"><span class="lineNum">     208</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L209"><span class="lineNum">     209</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L210"><span class="lineNum">     210</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L211"><span class="lineNum">     211</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L212"><span class="lineNum">     212</span> <span class="tlaUNC">           0 :         // Only verify if we found inline bootstrap commands</span></span>
+<span id="L213"><span class="lineNum">     213</span> <span class="tlaUNC">           0 :         if foundInlineBootstrap &amp;&amp; inlineBootstrapOrder.count == 3 {</span></span>
+<span id="L214"><span class="lineNum">     214</span> <span class="tlaUNC">           0 :             XCTAssertEqual(inlineBootstrapOrder, correctServiceOrder,</span></span>
+<span id="L215"><span class="lineNum">     215</span> <span class="tlaUNC">           0 :                           &quot;Inline bootstrap order must be: VirtualHID Daemon → VirtualHID Manager → Kanata&quot;)</span></span>
+<span id="L216"><span class="lineNum">     216</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L217"><span class="lineNum">     217</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L218"><span class="lineNum">     218</span>              :     </span>
+<span id="L219"><span class="lineNum">     219</span>              :     /// Test that no installation method violates the dependency order</span>
+<span id="L220"><span class="lineNum">     220</span> <span class="tlaUNC">           0 :     func testNoInstallationMethodViolatesDependencyOrder() throws {</span></span>
+<span id="L221"><span class="lineNum">     221</span> <span class="tlaUNC">           0 :         // Read the LaunchDaemonInstaller source file</span></span>
+<span id="L222"><span class="lineNum">     222</span> <span class="tlaUNC">           0 :         let sourcePath = FileManager.default.currentDirectoryPath + &quot;/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift&quot;</span></span>
+<span id="L223"><span class="lineNum">     223</span> <span class="tlaUNC">           0 :         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)</span></span>
+<span id="L224"><span class="lineNum">     224</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L225"><span class="lineNum">     225</span> <span class="tlaUNC">           0 :         let lines = sourceCode.components(separatedBy: .newlines)</span></span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaUNC">           0 :         // Track consecutive bootstrap commands</span></span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaUNC">           0 :         var currentBootstrapSequence: [String] = []</span></span>
+<span id="L229"><span class="lineNum">     229</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaUNC">           0 :         for line in lines {</span></span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaUNC">           0 :             if line.contains(&quot;launchctl bootstrap system&quot;) {</span></span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaUNC">           0 :                 if let serviceName = extractServiceName(from: line) {</span></span>
+<span id="L233"><span class="lineNum">     233</span> <span class="tlaUNC">           0 :                     currentBootstrapSequence.append(serviceName)</span></span>
+<span id="L234"><span class="lineNum">     234</span> <span class="tlaUNC">           0 :                     </span></span>
+<span id="L235"><span class="lineNum">     235</span> <span class="tlaUNC">           0 :                     // If we have kanata but not vhid services before it, that's wrong</span></span>
+<span id="L236"><span class="lineNum">     236</span> <span class="tlaUNC">           0 :                     if serviceName == &quot;com.keypath.kanata&quot; {</span></span>
+<span id="L237"><span class="lineNum">     237</span> <span class="tlaUNC">           0 :                         if currentBootstrapSequence.count == 1 {</span></span>
+<span id="L238"><span class="lineNum">     238</span> <span class="tlaUNC">           0 :                             XCTFail(&quot;Found Kanata being bootstrapped without VirtualHID services loaded first at line: \(line)&quot;)</span></span>
+<span id="L239"><span class="lineNum">     239</span> <span class="tlaUNC">           0 :                         }</span></span>
+<span id="L240"><span class="lineNum">     240</span> <span class="tlaUNC">           0 :                     }</span></span>
+<span id="L241"><span class="lineNum">     241</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L242"><span class="lineNum">     242</span> <span class="tlaUNC">           0 :             } else if !line.contains(&quot;launchctl bootstrap&quot;) &amp;&amp; !currentBootstrapSequence.isEmpty {</span></span>
+<span id="L243"><span class="lineNum">     243</span> <span class="tlaUNC">           0 :                 // End of a bootstrap sequence, reset</span></span>
+<span id="L244"><span class="lineNum">     244</span> <span class="tlaUNC">           0 :                 if currentBootstrapSequence.count &gt;= 3 {</span></span>
+<span id="L245"><span class="lineNum">     245</span> <span class="tlaUNC">           0 :                     // Verify this sequence</span></span>
+<span id="L246"><span class="lineNum">     246</span> <span class="tlaUNC">           0 :                     XCTAssertEqual(currentBootstrapSequence, correctServiceOrder,</span></span>
+<span id="L247"><span class="lineNum">     247</span> <span class="tlaUNC">           0 :                                   &quot;Found incorrect bootstrap sequence: \(currentBootstrapSequence)&quot;)</span></span>
+<span id="L248"><span class="lineNum">     248</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaUNC">           0 :                 currentBootstrapSequence = []</span></span>
+<span id="L250"><span class="lineNum">     250</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L251"><span class="lineNum">     251</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L252"><span class="lineNum">     252</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L253"><span class="lineNum">     253</span>              :     </span>
+<span id="L254"><span class="lineNum">     254</span>              :     /// Test documentation to ensure dependency requirements are documented</span>
+<span id="L255"><span class="lineNum">     255</span> <span class="tlaUNC">           0 :     func testDependencyOrderIsDocumented() throws {</span></span>
+<span id="L256"><span class="lineNum">     256</span> <span class="tlaUNC">           0 :         // Read the LaunchDaemonInstaller source file</span></span>
+<span id="L257"><span class="lineNum">     257</span> <span class="tlaUNC">           0 :         let sourcePath = FileManager.default.currentDirectoryPath + &quot;/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift&quot;</span></span>
+<span id="L258"><span class="lineNum">     258</span> <span class="tlaUNC">           0 :         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)</span></span>
+<span id="L259"><span class="lineNum">     259</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L260"><span class="lineNum">     260</span> <span class="tlaUNC">           0 :         // Look for comments mentioning dependencies</span></span>
+<span id="L261"><span class="lineNum">     261</span> <span class="tlaUNC">           0 :         let hasDepComment = sourceCode.contains(&quot;DEPENDENCIES FIRST&quot;) ||</span></span>
+<span id="L262"><span class="lineNum">     262</span> <span class="tlaUNC">           0 :                            sourceCode.contains(&quot;VirtualHID&quot;) &amp;&amp; sourceCode.contains(&quot;depends&quot;) ||</span></span>
+<span id="L263"><span class="lineNum">     263</span> <span class="tlaUNC">           0 :                            sourceCode.contains(&quot;dependency order&quot;)</span></span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaUNC">           0 :         </span></span>
+<span id="L265"><span class="lineNum">     265</span> <span class="tlaUNC">           0 :         XCTAssertTrue(hasDepComment,</span></span>
+<span id="L266"><span class="lineNum">     266</span> <span class="tlaUNC">           0 :                      &quot;LaunchDaemonInstaller should document the dependency order requirement&quot;)</span></span>
+<span id="L267"><span class="lineNum">     267</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L268"><span class="lineNum">     268</span>              : }</span>
+<span id="L269"><span class="lineNum">     269</span>              : </span>
+<span id="L270"><span class="lineNum">     270</span>              : // MARK: - Service Dependency Documentation</span>
+<span id="L271"><span class="lineNum">     271</span>              : </span>
+<span id="L272"><span class="lineNum">     272</span>              : extension LaunchDaemonInstallerTests {</span>
+<span id="L273"><span class="lineNum">     273</span>              :     /// Documentation test to ensure the service dependency order is clear</span>
+<span id="L274"><span class="lineNum">     274</span>              :     ///</span>
+<span id="L275"><span class="lineNum">     275</span>              :     /// Service Bootstrap Order Requirements:</span>
+<span id="L276"><span class="lineNum">     276</span>              :     /// 1. **VirtualHID Daemon** (`com.keypath.karabiner-vhiddaemon`)</span>
+<span id="L277"><span class="lineNum">     277</span>              :     ///    - Must be loaded first</span>
+<span id="L278"><span class="lineNum">     278</span>              :     ///    - Provides the base VirtualHID framework</span>
+<span id="L279"><span class="lineNum">     279</span>              :     ///    - Other services depend on this</span>
+<span id="L280"><span class="lineNum">     280</span>              :     ///</span>
+<span id="L281"><span class="lineNum">     281</span>              :     /// 2. **VirtualHID Manager** (`com.keypath.karabiner-vhidmanager`)</span>
+<span id="L282"><span class="lineNum">     282</span>              :     ///    - Must be loaded second</span>
+<span id="L283"><span class="lineNum">     283</span>              :     ///    - Manages VirtualHID devices</span>
+<span id="L284"><span class="lineNum">     284</span>              :     ///    - Depends on VirtualHID Daemon</span>
+<span id="L285"><span class="lineNum">     285</span>              :     ///</span>
+<span id="L286"><span class="lineNum">     286</span>              :     /// 3. **Kanata** (`com.keypath.kanata`)</span>
+<span id="L287"><span class="lineNum">     287</span>              :     ///    - Must be loaded last</span>
+<span id="L288"><span class="lineNum">     288</span>              :     ///    - Depends on both VirtualHID services being available</span>
+<span id="L289"><span class="lineNum">     289</span>              :     ///    - Will fail with &quot;Input/output error&quot; if VirtualHID services aren't running</span>
+<span id="L290"><span class="lineNum">     290</span>              :     ///</span>
+<span id="L291"><span class="lineNum">     291</span>              :     /// Failure to respect this order results in:</span>
+<span id="L292"><span class="lineNum">     292</span>              :     /// - `launchctl bootstrap` returning error code 5 (Input/output error)</span>
+<span id="L293"><span class="lineNum">     293</span>              :     /// - Services failing to start</span>
+<span id="L294"><span class="lineNum">     294</span>              :     /// - System services installation appearing to fail to users</span>
+<span id="L295"><span class="lineNum">     295</span> <span class="tlaUNC">           0 :     func testServiceDependencyDocumentation() {</span></span>
+<span id="L296"><span class="lineNum">     296</span> <span class="tlaUNC">           0 :         // This test exists to document the dependency requirements</span></span>
+<span id="L297"><span class="lineNum">     297</span> <span class="tlaUNC">           0 :         // The actual testing is done in the other test methods</span></span>
+<span id="L298"><span class="lineNum">     298</span> <span class="tlaUNC">           0 :         XCTAssertTrue(true, &quot;Dependency order is documented in test suite&quot;)</span></span>
+<span id="L299"><span class="lineNum">     299</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L300"><span class="lineNum">     300</span>              : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.3.2-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>

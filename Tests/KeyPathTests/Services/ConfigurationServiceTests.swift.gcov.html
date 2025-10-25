@@ -1,0 +1,398 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - Tests/KeyPathTests/Services/ConfigurationServiceTests.swift</title>
+  <link rel="stylesheet" type="text/css" href="../../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory Tests/KeyPathTests/Services">Tests/KeyPathTests/Services</a> - ConfigurationServiceTests.swift<span style="font-size: 80%;"> (source / <a href="ConfigurationServiceTests.swift.func-c.html" title="Click to go to function table">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
+            <td class="headerCovTableEntry">280</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2025-10-25 21:17:45</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
+            <td class="headerCovTableEntry">162</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+                  <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">            Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>              : import Foundation</span>
+<span id="L2"><span class="lineNum">       2</span>              : import XCTest</span>
+<span id="L3"><span class="lineNum">       3</span>              : </span>
+<span id="L4"><span class="lineNum">       4</span>              : @testable import KeyPath</span>
+<span id="L5"><span class="lineNum">       5</span>              : </span>
+<span id="L6"><span class="lineNum">       6</span>              : @MainActor</span>
+<span id="L7"><span class="lineNum">       7</span>              : class ConfigurationServiceTests: XCTestCase {</span>
+<span id="L8"><span class="lineNum">       8</span> <span class="tlaUNC">           0 :     lazy var tempDirectory: URL = {</span></span>
+<span id="L9"><span class="lineNum">       9</span> <span class="tlaUNC">           0 :         let url = FileManager.default.temporaryDirectory</span></span>
+<span id="L10"><span class="lineNum">      10</span> <span class="tlaUNC">           0 :             .appendingPathComponent(&quot;KeyPathConfigTests_\(UUID().uuidString)&quot;)</span></span>
+<span id="L11"><span class="lineNum">      11</span> <span class="tlaUNC">           0 :         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)</span></span>
+<span id="L12"><span class="lineNum">      12</span> <span class="tlaUNC">           0 :         return url</span></span>
+<span id="L13"><span class="lineNum">      13</span> <span class="tlaUNC">           0 :     }()</span></span>
+<span id="L14"><span class="lineNum">      14</span> <span class="tlaUNC">           0 :     lazy var configService: ConfigurationService = ConfigurationService(configDirectory: tempDirectory.path)</span></span>
+<span id="L15"><span class="lineNum">      15</span>              : </span>
+<span id="L16"><span class="lineNum">      16</span>              :     // MARK: - Configuration Generation Tests</span>
+<span id="L17"><span class="lineNum">      17</span>              : </span>
+<span id="L18"><span class="lineNum">      18</span> <span class="tlaUNC">           0 :     func testGenerateFromMappings_SingleMapping() {</span></span>
+<span id="L19"><span class="lineNum">      19</span> <span class="tlaUNC">           0 :         let mappings = [KeyMapping(input: &quot;caps&quot;, output: &quot;esc&quot;)]</span></span>
+<span id="L20"><span class="lineNum">      20</span> <span class="tlaUNC">           0 :         let config = KanataConfiguration.generateFromMappings(mappings)</span></span>
+<span id="L21"><span class="lineNum">      21</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L22"><span class="lineNum">      22</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;(defcfg&quot;), &quot;Config should contain defcfg section&quot;)</span></span>
+<span id="L23"><span class="lineNum">      23</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;process-unmapped-keys yes&quot;), &quot;Config should have safe defaults&quot;)</span></span>
+<span id="L24"><span class="lineNum">      24</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;(defsrc&quot;), &quot;Config should contain defsrc section&quot;)</span></span>
+<span id="L25"><span class="lineNum">      25</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;(deflayer base&quot;), &quot;Config should contain deflayer section&quot;)</span></span>
+<span id="L26"><span class="lineNum">      26</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;caps&quot;), &quot;Config should contain caps key&quot;)</span></span>
+<span id="L27"><span class="lineNum">      27</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;esc&quot;), &quot;Config should contain esc key&quot;)</span></span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L29"><span class="lineNum">      29</span>              : </span>
+<span id="L30"><span class="lineNum">      30</span> <span class="tlaUNC">           0 :     func testGenerateFromMappings_MultipleMappings() {</span></span>
+<span id="L31"><span class="lineNum">      31</span> <span class="tlaUNC">           0 :         let mappings = [</span></span>
+<span id="L32"><span class="lineNum">      32</span> <span class="tlaUNC">           0 :             KeyMapping(input: &quot;caps&quot;, output: &quot;esc&quot;),</span></span>
+<span id="L33"><span class="lineNum">      33</span> <span class="tlaUNC">           0 :             KeyMapping(input: &quot;a&quot;, output: &quot;b&quot;),</span></span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaUNC">           0 :             KeyMapping(input: &quot;c&quot;, output: &quot;d&quot;)</span></span>
+<span id="L35"><span class="lineNum">      35</span> <span class="tlaUNC">           0 :         ]</span></span>
+<span id="L36"><span class="lineNum">      36</span> <span class="tlaUNC">           0 :         let config = KanataConfiguration.generateFromMappings(mappings)</span></span>
+<span id="L37"><span class="lineNum">      37</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L38"><span class="lineNum">      38</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;caps&quot;), &quot;Config should contain all source keys&quot;)</span></span>
+<span id="L39"><span class="lineNum">      39</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;esc&quot;), &quot;Config should contain all layer keys&quot;)</span></span>
+<span id="L40"><span class="lineNum">      40</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;a&quot;), &quot;Config should contain 'a' key&quot;)</span></span>
+<span id="L41"><span class="lineNum">      41</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;b&quot;), &quot;Config should contain 'b' key&quot;)</span></span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L43"><span class="lineNum">      43</span>              : </span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC">           0 :     func testGenerateFromMappings_EmptyMappings() {</span></span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaUNC">           0 :         let config = KanataConfiguration.generateFromMappings([])</span></span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;(defcfg&quot;), &quot;Config should still contain defcfg&quot;)</span></span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;(defsrc)&quot;), &quot;Config should contain empty defsrc&quot;)</span></span>
+<span id="L49"><span class="lineNum">      49</span> <span class="tlaUNC">           0 :         XCTAssertTrue(config.contains(&quot;(deflayer base)&quot;), &quot;Config should contain empty deflayer&quot;)</span></span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L51"><span class="lineNum">      51</span>              : </span>
+<span id="L52"><span class="lineNum">      52</span>              :     // MARK: - Configuration Parsing Tests</span>
+<span id="L53"><span class="lineNum">      53</span>              : </span>
+<span id="L54"><span class="lineNum">      54</span> <span class="tlaUNC">           0 :     func testParseConfigurationFromString_ValidConfig() throws {</span></span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaUNC">           0 :         let configContent = &quot;&quot;&quot;</span></span>
+<span id="L56"><span class="lineNum">      56</span> <span class="tlaUNC">           0 :         (defcfg</span></span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaUNC">           0 :           process-unmapped-keys yes</span></span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaUNC">           0 :         (defsrc</span></span>
+<span id="L61"><span class="lineNum">      61</span> <span class="tlaUNC">           0 :           caps a b</span></span>
+<span id="L62"><span class="lineNum">      62</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L63"><span class="lineNum">      63</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaUNC">           0 :         (deflayer base</span></span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaUNC">           0 :           esc x y</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaUNC">           0 :         &quot;&quot;&quot;</span></span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaUNC">           0 :         let config = try configService.parseConfigurationFromString(configContent)</span></span>
+<span id="L70"><span class="lineNum">      70</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings.count, 3, &quot;Should parse 3 mappings&quot;)</span></span>
+<span id="L72"><span class="lineNum">      72</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings[0].input, &quot;caps&quot;)</span></span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings[0].output, &quot;esc&quot;)</span></span>
+<span id="L74"><span class="lineNum">      74</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings[1].input, &quot;a&quot;)</span></span>
+<span id="L75"><span class="lineNum">      75</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings[1].output, &quot;x&quot;)</span></span>
+<span id="L76"><span class="lineNum">      76</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L77"><span class="lineNum">      77</span>              : </span>
+<span id="L78"><span class="lineNum">      78</span> <span class="tlaUNC">           0 :     func testParseConfigurationFromString_WithComments() throws {</span></span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaUNC">           0 :         let configContent = &quot;&quot;&quot;</span></span>
+<span id="L80"><span class="lineNum">      80</span> <span class="tlaUNC">           0 :         ;; This is a comment</span></span>
+<span id="L81"><span class="lineNum">      81</span> <span class="tlaUNC">           0 :         (defcfg</span></span>
+<span id="L82"><span class="lineNum">      82</span> <span class="tlaUNC">           0 :           process-unmapped-keys yes</span></span>
+<span id="L83"><span class="lineNum">      83</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L84"><span class="lineNum">      84</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L85"><span class="lineNum">      85</span> <span class="tlaUNC">           0 :         (defsrc</span></span>
+<span id="L86"><span class="lineNum">      86</span> <span class="tlaUNC">           0 :           ;; Source keys comment</span></span>
+<span id="L87"><span class="lineNum">      87</span> <span class="tlaUNC">           0 :           caps</span></span>
+<span id="L88"><span class="lineNum">      88</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L89"><span class="lineNum">      89</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L90"><span class="lineNum">      90</span> <span class="tlaUNC">           0 :         (deflayer base</span></span>
+<span id="L91"><span class="lineNum">      91</span> <span class="tlaUNC">           0 :           ;; Layer keys comment</span></span>
+<span id="L92"><span class="lineNum">      92</span> <span class="tlaUNC">           0 :           esc</span></span>
+<span id="L93"><span class="lineNum">      93</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L94"><span class="lineNum">      94</span> <span class="tlaUNC">           0 :         &quot;&quot;&quot;</span></span>
+<span id="L95"><span class="lineNum">      95</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L96"><span class="lineNum">      96</span> <span class="tlaUNC">           0 :         let config = try configService.parseConfigurationFromString(configContent)</span></span>
+<span id="L97"><span class="lineNum">      97</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L98"><span class="lineNum">      98</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings.count, 1, &quot;Should parse 1 mapping, ignoring comments&quot;)</span></span>
+<span id="L99"><span class="lineNum">      99</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings[0].input, &quot;caps&quot;)</span></span>
+<span id="L100"><span class="lineNum">     100</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings[0].output, &quot;esc&quot;)</span></span>
+<span id="L101"><span class="lineNum">     101</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L102"><span class="lineNum">     102</span>              : </span>
+<span id="L103"><span class="lineNum">     103</span> <span class="tlaUNC">           0 :     func testParseConfigurationFromString_Deduplication() throws {</span></span>
+<span id="L104"><span class="lineNum">     104</span> <span class="tlaUNC">           0 :         let configContent = &quot;&quot;&quot;</span></span>
+<span id="L105"><span class="lineNum">     105</span> <span class="tlaUNC">           0 :         (defcfg</span></span>
+<span id="L106"><span class="lineNum">     106</span> <span class="tlaUNC">           0 :           process-unmapped-keys yes</span></span>
+<span id="L107"><span class="lineNum">     107</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L108"><span class="lineNum">     108</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L109"><span class="lineNum">     109</span> <span class="tlaUNC">           0 :         (defsrc</span></span>
+<span id="L110"><span class="lineNum">     110</span> <span class="tlaUNC">           0 :           caps caps a</span></span>
+<span id="L111"><span class="lineNum">     111</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L112"><span class="lineNum">     112</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L113"><span class="lineNum">     113</span> <span class="tlaUNC">           0 :         (deflayer base</span></span>
+<span id="L114"><span class="lineNum">     114</span> <span class="tlaUNC">           0 :           esc ctrl x</span></span>
+<span id="L115"><span class="lineNum">     115</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L116"><span class="lineNum">     116</span> <span class="tlaUNC">           0 :         &quot;&quot;&quot;</span></span>
+<span id="L117"><span class="lineNum">     117</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L118"><span class="lineNum">     118</span> <span class="tlaUNC">           0 :         let config = try configService.parseConfigurationFromString(configContent)</span></span>
+<span id="L119"><span class="lineNum">     119</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L120"><span class="lineNum">     120</span> <span class="tlaUNC">           0 :         // Should deduplicate caps, keeping the last mapping</span></span>
+<span id="L121"><span class="lineNum">     121</span> <span class="tlaUNC">           0 :         XCTAssertEqual(config.keyMappings.count, 2, &quot;Should deduplicate duplicate keys&quot;)</span></span>
+<span id="L122"><span class="lineNum">     122</span> <span class="tlaUNC">           0 :         let capsMapping = config.keyMappings.first { $0.input == &quot;caps&quot; }</span></span>
+<span id="L123"><span class="lineNum">     123</span> <span class="tlaUNC">           0 :         XCTAssertEqual(capsMapping?.output, &quot;ctrl&quot;, &quot;Should keep last mapping for caps&quot;)</span></span>
+<span id="L124"><span class="lineNum">     124</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L125"><span class="lineNum">     125</span>              : </span>
+<span id="L126"><span class="lineNum">     126</span>              :     // MARK: - Configuration Saving Tests</span>
+<span id="L127"><span class="lineNum">     127</span>              : </span>
+<span id="L128"><span class="lineNum">     128</span> <span class="tlaUNC">           0 :     func testSaveConfiguration_WithKeyMappings() async throws {</span></span>
+<span id="L129"><span class="lineNum">     129</span> <span class="tlaUNC">           0 :         let mappings = [KeyMapping(input: &quot;caps&quot;, output: &quot;esc&quot;)]</span></span>
+<span id="L130"><span class="lineNum">     130</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L131"><span class="lineNum">     131</span> <span class="tlaUNC">           0 :         try await configService.saveConfiguration(keyMappings: mappings)</span></span>
+<span id="L132"><span class="lineNum">     132</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L133"><span class="lineNum">     133</span> <span class="tlaUNC">           0 :         // Verify file was created</span></span>
+<span id="L134"><span class="lineNum">     134</span> <span class="tlaUNC">           0 :         let configPath = tempDirectory.appendingPathComponent(&quot;keypath.kbd&quot;)</span></span>
+<span id="L135"><span class="lineNum">     135</span> <span class="tlaUNC">           0 :         XCTAssertTrue(FileManager.default.fileExists(atPath: configPath.path), &quot;Config file should be created&quot;)</span></span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L137"><span class="lineNum">     137</span> <span class="tlaUNC">           0 :         // Verify content</span></span>
+<span id="L138"><span class="lineNum">     138</span> <span class="tlaUNC">           0 :         let savedContent = try String(contentsOfFile: configPath.path, encoding: .utf8)</span></span>
+<span id="L139"><span class="lineNum">     139</span> <span class="tlaUNC">           0 :         XCTAssertTrue(savedContent.contains(&quot;caps&quot;), &quot;Saved config should contain mapping&quot;)</span></span>
+<span id="L140"><span class="lineNum">     140</span> <span class="tlaUNC">           0 :         XCTAssertTrue(savedContent.contains(&quot;esc&quot;), &quot;Saved config should contain mapping&quot;)</span></span>
+<span id="L141"><span class="lineNum">     141</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L142"><span class="lineNum">     142</span>              : </span>
+<span id="L143"><span class="lineNum">     143</span> <span class="tlaUNC">           0 :     func testSaveConfiguration_WithInputOutput() async throws {</span></span>
+<span id="L144"><span class="lineNum">     144</span> <span class="tlaUNC">           0 :         try await configService.saveConfiguration(input: &quot;a&quot;, output: &quot;b&quot;)</span></span>
+<span id="L145"><span class="lineNum">     145</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L146"><span class="lineNum">     146</span> <span class="tlaUNC">           0 :         // Verify file was created</span></span>
+<span id="L147"><span class="lineNum">     147</span> <span class="tlaUNC">           0 :         let configPath = tempDirectory.appendingPathComponent(&quot;keypath.kbd&quot;)</span></span>
+<span id="L148"><span class="lineNum">     148</span> <span class="tlaUNC">           0 :         XCTAssertTrue(FileManager.default.fileExists(atPath: configPath.path), &quot;Config file should be created&quot;)</span></span>
+<span id="L149"><span class="lineNum">     149</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaUNC">           0 :         // Verify content</span></span>
+<span id="L151"><span class="lineNum">     151</span> <span class="tlaUNC">           0 :         let savedContent = try String(contentsOfFile: configPath.path, encoding: .utf8)</span></span>
+<span id="L152"><span class="lineNum">     152</span> <span class="tlaUNC">           0 :         XCTAssertTrue(savedContent.contains(&quot;a&quot;), &quot;Saved config should contain input&quot;)</span></span>
+<span id="L153"><span class="lineNum">     153</span> <span class="tlaUNC">           0 :         XCTAssertTrue(savedContent.contains(&quot;b&quot;), &quot;Saved config should contain output&quot;)</span></span>
+<span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L155"><span class="lineNum">     155</span>              : </span>
+<span id="L156"><span class="lineNum">     156</span>              :     // MARK: - Error Parsing Tests</span>
+<span id="L157"><span class="lineNum">     157</span>              : </span>
+<span id="L158"><span class="lineNum">     158</span> <span class="tlaUNC">           0 :     func testParseKanataErrors_WithErrorTags() {</span></span>
+<span id="L159"><span class="lineNum">     159</span> <span class="tlaUNC">           0 :         let output = &quot;&quot;&quot;</span></span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaUNC">           0 :         [ERROR] Line 5: Invalid key 'foo'</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaUNC">           0 :         [ERROR] Line 10: Missing closing parenthesis</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaUNC">           0 :         Some other output</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaUNC">           0 :         &quot;&quot;&quot;</span></span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaUNC">           0 :         let errors = configService.parseKanataErrors(output)</span></span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaUNC">           0 :         XCTAssertEqual(errors.count, 2, &quot;Should parse 2 errors&quot;)</span></span>
+<span id="L168"><span class="lineNum">     168</span> <span class="tlaUNC">           0 :         XCTAssertTrue(errors[0].contains(&quot;Line 5&quot;), &quot;Should extract error details&quot;)</span></span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaUNC">           0 :         XCTAssertTrue(errors[1].contains(&quot;Line 10&quot;), &quot;Should extract error details&quot;)</span></span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L171"><span class="lineNum">     171</span>              : </span>
+<span id="L172"><span class="lineNum">     172</span> <span class="tlaUNC">           0 :     func testParseKanataErrors_NoErrorTags() {</span></span>
+<span id="L173"><span class="lineNum">     173</span> <span class="tlaUNC">           0 :         let output = &quot;Some validation output without error tags&quot;</span></span>
+<span id="L174"><span class="lineNum">     174</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L175"><span class="lineNum">     175</span> <span class="tlaUNC">           0 :         let errors = configService.parseKanataErrors(output)</span></span>
+<span id="L176"><span class="lineNum">     176</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L177"><span class="lineNum">     177</span> <span class="tlaUNC">           0 :         // Should return the full output as error if no [ERROR] tags found</span></span>
+<span id="L178"><span class="lineNum">     178</span> <span class="tlaUNC">           0 :         XCTAssertEqual(errors.count, 1, &quot;Should return full output as error&quot;)</span></span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaUNC">           0 :         XCTAssertEqual(errors[0], output.trimmingCharacters(in: .whitespacesAndNewlines))</span></span>
+<span id="L180"><span class="lineNum">     180</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L181"><span class="lineNum">     181</span>              : </span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaUNC">           0 :     func testParseKanataErrors_EmptyOutput() {</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaUNC">           0 :         let errors = configService.parseKanataErrors(&quot;&quot;)</span></span>
+<span id="L184"><span class="lineNum">     184</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaUNC">           0 :         XCTAssertEqual(errors.count, 0, &quot;Should return empty array for empty output&quot;)</span></span>
+<span id="L186"><span class="lineNum">     186</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L187"><span class="lineNum">     187</span>              : </span>
+<span id="L188"><span class="lineNum">     188</span>              :     // MARK: - Key Conversion Tests</span>
+<span id="L189"><span class="lineNum">     189</span>              : </span>
+<span id="L190"><span class="lineNum">     190</span> <span class="tlaUNC">           0 :     func testConvertToKanataKey_StandardKeys() {</span></span>
+<span id="L191"><span class="lineNum">     191</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;caps&quot;), &quot;caps&quot;)</span></span>
+<span id="L192"><span class="lineNum">     192</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;space&quot;), &quot;spc&quot;)</span></span>
+<span id="L193"><span class="lineNum">     193</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;escape&quot;), &quot;esc&quot;)</span></span>
+<span id="L194"><span class="lineNum">     194</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;tab&quot;), &quot;tab&quot;)</span></span>
+<span id="L195"><span class="lineNum">     195</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L196"><span class="lineNum">     196</span>              : </span>
+<span id="L197"><span class="lineNum">     197</span> <span class="tlaUNC">           0 :     func testConvertToKanataKey_CaseInsensitive() {</span></span>
+<span id="L198"><span class="lineNum">     198</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;CAPS&quot;), &quot;caps&quot;)</span></span>
+<span id="L199"><span class="lineNum">     199</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;CapsLock&quot;), &quot;caps&quot;)</span></span>
+<span id="L200"><span class="lineNum">     200</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;Caps Lock&quot;), &quot;caps&quot;)</span></span>
+<span id="L201"><span class="lineNum">     201</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L202"><span class="lineNum">     202</span>              : </span>
+<span id="L203"><span class="lineNum">     203</span> <span class="tlaUNC">           0 :     func testConvertToKanataKey_ModifierKeys() {</span></span>
+<span id="L204"><span class="lineNum">     204</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;cmd&quot;), &quot;lmet&quot;)</span></span>
+<span id="L205"><span class="lineNum">     205</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;leftcmd&quot;), &quot;lmet&quot;)</span></span>
+<span id="L206"><span class="lineNum">     206</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;left command&quot;), &quot;lmet&quot;)</span></span>
+<span id="L207"><span class="lineNum">     207</span> <span class="tlaUNC">           0 :         XCTAssertEqual(KanataKeyConverter.convertToKanataKey(&quot;left shift&quot;), &quot;lsft&quot;)</span></span>
+<span id="L208"><span class="lineNum">     208</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L209"><span class="lineNum">     209</span>              : </span>
+<span id="L210"><span class="lineNum">     210</span> <span class="tlaUNC">           0 :     func testConvertToKanataSequence_SingleKey() {</span></span>
+<span id="L211"><span class="lineNum">     211</span> <span class="tlaUNC">           0 :         let result = KanataKeyConverter.convertToKanataSequence(&quot;esc&quot;)</span></span>
+<span id="L212"><span class="lineNum">     212</span> <span class="tlaUNC">           0 :         XCTAssertEqual(result, &quot;esc&quot;)</span></span>
+<span id="L213"><span class="lineNum">     213</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L214"><span class="lineNum">     214</span>              : </span>
+<span id="L215"><span class="lineNum">     215</span> <span class="tlaUNC">           0 :     func testConvertToKanataSequence_MultipleKeys() {</span></span>
+<span id="L216"><span class="lineNum">     216</span> <span class="tlaUNC">           0 :         let result = KanataKeyConverter.convertToKanataSequence(&quot;cmd space&quot;)</span></span>
+<span id="L217"><span class="lineNum">     217</span> <span class="tlaUNC">           0 :         XCTAssertTrue(result.hasPrefix(&quot;(&quot;), &quot;Multi-key sequence should be wrapped in parentheses&quot;)</span></span>
+<span id="L218"><span class="lineNum">     218</span> <span class="tlaUNC">           0 :         XCTAssertTrue(result.hasSuffix(&quot;)&quot;), &quot;Multi-key sequence should be wrapped in parentheses&quot;)</span></span>
+<span id="L219"><span class="lineNum">     219</span> <span class="tlaUNC">           0 :         XCTAssertTrue(result.contains(&quot;lmet&quot;), &quot;Should convert cmd to lmet&quot;)</span></span>
+<span id="L220"><span class="lineNum">     220</span> <span class="tlaUNC">           0 :         XCTAssertTrue(result.contains(&quot;spc&quot;), &quot;Should convert space to spc&quot;)</span></span>
+<span id="L221"><span class="lineNum">     221</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L222"><span class="lineNum">     222</span>              : </span>
+<span id="L223"><span class="lineNum">     223</span>              :     // MARK: - Backup and Recovery Tests</span>
+<span id="L224"><span class="lineNum">     224</span>              : </span>
+<span id="L225"><span class="lineNum">     225</span> <span class="tlaUNC">           0 :     func testBackupFailedConfigAndApplySafe() async throws {</span></span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaUNC">           0 :         let failedConfig = &quot;&quot;&quot;</span></span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaUNC">           0 :         (defcfg</span></span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaUNC">           0 :           invalid-option</span></span>
+<span id="L229"><span class="lineNum">     229</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaUNC">           0 :         &quot;&quot;&quot;</span></span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaUNC">           0 :         let mappings = [KeyMapping(input: &quot;caps&quot;, output: &quot;esc&quot;)]</span></span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L233"><span class="lineNum">     233</span> <span class="tlaUNC">           0 :         let backupPath = try await configService.backupFailedConfigAndApplySafe(</span></span>
+<span id="L234"><span class="lineNum">     234</span> <span class="tlaUNC">           0 :             failedConfig: failedConfig,</span></span>
+<span id="L235"><span class="lineNum">     235</span> <span class="tlaUNC">           0 :             mappings: mappings</span></span>
+<span id="L236"><span class="lineNum">     236</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L237"><span class="lineNum">     237</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L238"><span class="lineNum">     238</span> <span class="tlaUNC">           0 :         // Verify backup was created</span></span>
+<span id="L239"><span class="lineNum">     239</span> <span class="tlaUNC">           0 :         XCTAssertTrue(FileManager.default.fileExists(atPath: backupPath), &quot;Backup file should be created&quot;)</span></span>
+<span id="L240"><span class="lineNum">     240</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L241"><span class="lineNum">     241</span> <span class="tlaUNC">           0 :         // Verify backup contains original config</span></span>
+<span id="L242"><span class="lineNum">     242</span> <span class="tlaUNC">           0 :         let backupContent = try String(contentsOfFile: backupPath, encoding: .utf8)</span></span>
+<span id="L243"><span class="lineNum">     243</span> <span class="tlaUNC">           0 :         XCTAssertTrue(backupContent.contains(failedConfig), &quot;Backup should contain original config&quot;)</span></span>
+<span id="L244"><span class="lineNum">     244</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L245"><span class="lineNum">     245</span> <span class="tlaUNC">           0 :         // Verify safe config was applied</span></span>
+<span id="L246"><span class="lineNum">     246</span> <span class="tlaUNC">           0 :         let configPath = tempDirectory.appendingPathComponent(&quot;keypath.kbd&quot;)</span></span>
+<span id="L247"><span class="lineNum">     247</span> <span class="tlaUNC">           0 :         let safeContent = try String(contentsOfFile: configPath.path, encoding: .utf8)</span></span>
+<span id="L248"><span class="lineNum">     248</span> <span class="tlaUNC">           0 :         XCTAssertTrue(safeContent.contains(&quot;caps&quot;), &quot;Safe config should be applied&quot;)</span></span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaUNC">           0 :         XCTAssertTrue(safeContent.contains(&quot;escape&quot;), &quot;Safe config should use escape key&quot;)</span></span>
+<span id="L250"><span class="lineNum">     250</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L251"><span class="lineNum">     251</span>              : </span>
+<span id="L252"><span class="lineNum">     252</span> <span class="tlaUNC">           0 :     func testRepairConfiguration_MissingDefcfg() async throws {</span></span>
+<span id="L253"><span class="lineNum">     253</span> <span class="tlaUNC">           0 :         let brokenConfig = &quot;&quot;&quot;</span></span>
+<span id="L254"><span class="lineNum">     254</span> <span class="tlaUNC">           0 :         (defsrc caps)</span></span>
+<span id="L255"><span class="lineNum">     255</span> <span class="tlaUNC">           0 :         (deflayer base esc)</span></span>
+<span id="L256"><span class="lineNum">     256</span> <span class="tlaUNC">           0 :         &quot;&quot;&quot;</span></span>
+<span id="L257"><span class="lineNum">     257</span> <span class="tlaUNC">           0 :         let errors = [&quot;missing defcfg section&quot;]</span></span>
+<span id="L258"><span class="lineNum">     258</span> <span class="tlaUNC">           0 :         let mappings = [KeyMapping(input: &quot;caps&quot;, output: &quot;esc&quot;)]</span></span>
+<span id="L259"><span class="lineNum">     259</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L260"><span class="lineNum">     260</span> <span class="tlaUNC">           0 :         let repairedConfig = try await configService.repairConfiguration(</span></span>
+<span id="L261"><span class="lineNum">     261</span> <span class="tlaUNC">           0 :             config: brokenConfig,</span></span>
+<span id="L262"><span class="lineNum">     262</span> <span class="tlaUNC">           0 :             errors: errors,</span></span>
+<span id="L263"><span class="lineNum">     263</span> <span class="tlaUNC">           0 :             mappings: mappings</span></span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L265"><span class="lineNum">     265</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L266"><span class="lineNum">     266</span> <span class="tlaUNC">           0 :         XCTAssertTrue(repairedConfig.contains(&quot;(defcfg&quot;), &quot;Repaired config should have defcfg&quot;)</span></span>
+<span id="L267"><span class="lineNum">     267</span> <span class="tlaUNC">           0 :         XCTAssertTrue(</span></span>
+<span id="L268"><span class="lineNum">     268</span> <span class="tlaUNC">           0 :             repairedConfig.contains(&quot;process-unmapped-keys yes&quot;),</span></span>
+<span id="L269"><span class="lineNum">     269</span> <span class="tlaUNC">           0 :             &quot;Repaired config should have safe defaults&quot;</span></span>
+<span id="L270"><span class="lineNum">     270</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L271"><span class="lineNum">     271</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L272"><span class="lineNum">     272</span>              : </span>
+<span id="L273"><span class="lineNum">     273</span> <span class="tlaUNC">           0 :     func testRepairConfiguration_MismatchedLengths() async throws {</span></span>
+<span id="L274"><span class="lineNum">     274</span> <span class="tlaUNC">           0 :         let brokenConfig = &quot;&quot;&quot;</span></span>
+<span id="L275"><span class="lineNum">     275</span> <span class="tlaUNC">           0 :         (defcfg</span></span>
+<span id="L276"><span class="lineNum">     276</span> <span class="tlaUNC">           0 :           process-unmapped-keys yes</span></span>
+<span id="L277"><span class="lineNum">     277</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L278"><span class="lineNum">     278</span> <span class="tlaUNC">           0 :         (defsrc caps a b)</span></span>
+<span id="L279"><span class="lineNum">     279</span> <span class="tlaUNC">           0 :         (deflayer base esc)</span></span>
+<span id="L280"><span class="lineNum">     280</span> <span class="tlaUNC">           0 :         &quot;&quot;&quot;</span></span>
+<span id="L281"><span class="lineNum">     281</span> <span class="tlaUNC">           0 :         let errors = [&quot;mismatch in defsrc and deflayer lengths&quot;]</span></span>
+<span id="L282"><span class="lineNum">     282</span> <span class="tlaUNC">           0 :         let mappings = [</span></span>
+<span id="L283"><span class="lineNum">     283</span> <span class="tlaUNC">           0 :             KeyMapping(input: &quot;caps&quot;, output: &quot;esc&quot;),</span></span>
+<span id="L284"><span class="lineNum">     284</span> <span class="tlaUNC">           0 :             KeyMapping(input: &quot;a&quot;, output: &quot;x&quot;)</span></span>
+<span id="L285"><span class="lineNum">     285</span> <span class="tlaUNC">           0 :         ]</span></span>
+<span id="L286"><span class="lineNum">     286</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L287"><span class="lineNum">     287</span> <span class="tlaUNC">           0 :         let repairedConfig = try await configService.repairConfiguration(</span></span>
+<span id="L288"><span class="lineNum">     288</span> <span class="tlaUNC">           0 :             config: brokenConfig,</span></span>
+<span id="L289"><span class="lineNum">     289</span> <span class="tlaUNC">           0 :             errors: errors,</span></span>
+<span id="L290"><span class="lineNum">     290</span> <span class="tlaUNC">           0 :             mappings: mappings</span></span>
+<span id="L291"><span class="lineNum">     291</span> <span class="tlaUNC">           0 :         )</span></span>
+<span id="L292"><span class="lineNum">     292</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L293"><span class="lineNum">     293</span> <span class="tlaUNC">           0 :         // Should regenerate from mappings</span></span>
+<span id="L294"><span class="lineNum">     294</span> <span class="tlaUNC">           0 :         XCTAssertTrue(repairedConfig.contains(&quot;caps&quot;), &quot;Should contain all mappings&quot;)</span></span>
+<span id="L295"><span class="lineNum">     295</span> <span class="tlaUNC">           0 :         XCTAssertTrue(repairedConfig.contains(&quot;a&quot;), &quot;Should contain all mappings&quot;)</span></span>
+<span id="L296"><span class="lineNum">     296</span> <span class="tlaUNC">           0 :         XCTAssertTrue(repairedConfig.contains(&quot;esc&quot;), &quot;Should contain all layer keys&quot;)</span></span>
+<span id="L297"><span class="lineNum">     297</span> <span class="tlaUNC">           0 :         XCTAssertTrue(repairedConfig.contains(&quot;x&quot;), &quot;Should contain all layer keys&quot;)</span></span>
+<span id="L298"><span class="lineNum">     298</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L299"><span class="lineNum">     299</span>              : </span>
+<span id="L300"><span class="lineNum">     300</span>              :     // MARK: - Integration Tests</span>
+<span id="L301"><span class="lineNum">     301</span>              : </span>
+<span id="L302"><span class="lineNum">     302</span> <span class="tlaUNC">           0 :     func testRoundTrip_GenerateParseGenerate() throws {</span></span>
+<span id="L303"><span class="lineNum">     303</span> <span class="tlaUNC">           0 :         let originalMappings = [</span></span>
+<span id="L304"><span class="lineNum">     304</span> <span class="tlaUNC">           0 :             KeyMapping(input: &quot;caps&quot;, output: &quot;esc&quot;),</span></span>
+<span id="L305"><span class="lineNum">     305</span> <span class="tlaUNC">           0 :             KeyMapping(input: &quot;a&quot;, output: &quot;b&quot;)</span></span>
+<span id="L306"><span class="lineNum">     306</span> <span class="tlaUNC">           0 :         ]</span></span>
+<span id="L307"><span class="lineNum">     307</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L308"><span class="lineNum">     308</span> <span class="tlaUNC">           0 :         // Generate config</span></span>
+<span id="L309"><span class="lineNum">     309</span> <span class="tlaUNC">           0 :         let generatedConfig = KanataConfiguration.generateFromMappings(originalMappings)</span></span>
+<span id="L310"><span class="lineNum">     310</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L311"><span class="lineNum">     311</span> <span class="tlaUNC">           0 :         // Parse it back</span></span>
+<span id="L312"><span class="lineNum">     312</span> <span class="tlaUNC">           0 :         let parsed = try configService.parseConfigurationFromString(generatedConfig)</span></span>
+<span id="L313"><span class="lineNum">     313</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L314"><span class="lineNum">     314</span> <span class="tlaUNC">           0 :         // Verify mappings match</span></span>
+<span id="L315"><span class="lineNum">     315</span> <span class="tlaUNC">           0 :         XCTAssertEqual(parsed.keyMappings.count, originalMappings.count, &quot;Should preserve all mappings&quot;)</span></span>
+<span id="L316"><span class="lineNum">     316</span> <span class="tlaUNC">           0 :         for original in originalMappings {</span></span>
+<span id="L317"><span class="lineNum">     317</span> <span class="tlaUNC">           0 :             let found = parsed.keyMappings.first { $0.input == original.input }</span></span>
+<span id="L318"><span class="lineNum">     318</span> <span class="tlaUNC">           0 :             XCTAssertNotNil(found, &quot;Should find mapping for \(original.input)&quot;)</span></span>
+<span id="L319"><span class="lineNum">     319</span> <span class="tlaUNC">           0 :             XCTAssertEqual(found?.output, original.output, &quot;Output should match for \(original.input)&quot;)</span></span>
+<span id="L320"><span class="lineNum">     320</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L321"><span class="lineNum">     321</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L322"><span class="lineNum">     322</span>              : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.3.2-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>

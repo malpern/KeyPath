@@ -1,0 +1,444 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - Sources/KeyPath/InstallationWizard/Core/PermissionGrantCoordinator.swift</title>
+  <link rel="stylesheet" type="text/css" href="../../../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../../../index.html" title="Click to go to top-level">top level</a> - <a href="index.html" title="Click to go to directory Sources/KeyPath/InstallationWizard/Core">Sources/KeyPath/InstallationWizard/Core</a> - PermissionGrantCoordinator.swift<span style="font-size: 80%;"> (source / <a href="PermissionGrantCoordinator.swift.func-c.html" title="Click to go to function table">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only">Hit</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
+            <td class="headerCovTableEntry">317</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test Date:</td>
+            <td class="headerValue">2025-10-25 21:17:45</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
+            <td class="headerCovTableEntry">36</td>
+            <td class="headerCovTableEntry">0</td>
+          </tr>
+                  <tr><td><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">            Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>              : import Foundation</span>
+<span id="L2"><span class="lineNum">       2</span>              : import SwiftUI</span>
+<span id="L3"><span class="lineNum">       3</span>              : </span>
+<span id="L4"><span class="lineNum">       4</span>              : enum CoordinatorPermissionType: String, CaseIterable {</span>
+<span id="L5"><span class="lineNum">       5</span>              :     case accessibility</span>
+<span id="L6"><span class="lineNum">       6</span>              :     case inputMonitoring = &quot;input_monitoring&quot;</span>
+<span id="L7"><span class="lineNum">       7</span>              : </span>
+<span id="L8"><span class="lineNum">       8</span> <span class="tlaUNC">           0 :     var displayName: String {</span></span>
+<span id="L9"><span class="lineNum">       9</span> <span class="tlaUNC">           0 :         switch self {</span></span>
+<span id="L10"><span class="lineNum">      10</span> <span class="tlaUNC">           0 :         case .accessibility:</span></span>
+<span id="L11"><span class="lineNum">      11</span> <span class="tlaUNC">           0 :             &quot;Accessibility&quot;</span></span>
+<span id="L12"><span class="lineNum">      12</span> <span class="tlaUNC">           0 :         case .inputMonitoring:</span></span>
+<span id="L13"><span class="lineNum">      13</span> <span class="tlaUNC">           0 :             &quot;Input Monitoring&quot;</span></span>
+<span id="L14"><span class="lineNum">      14</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L15"><span class="lineNum">      15</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L16"><span class="lineNum">      16</span>              : </span>
+<span id="L17"><span class="lineNum">      17</span> <span class="tlaUNC">           0 :     var userDefaultsKey: String {</span></span>
+<span id="L18"><span class="lineNum">      18</span> <span class="tlaUNC">           0 :         &quot;wizard_pending_\(rawValue)&quot;</span></span>
+<span id="L19"><span class="lineNum">      19</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L20"><span class="lineNum">      20</span>              : </span>
+<span id="L21"><span class="lineNum">      21</span> <span class="tlaUNC">           0 :     var timestampKey: String {</span></span>
+<span id="L22"><span class="lineNum">      22</span> <span class="tlaUNC">           0 :         &quot;wizard_\(rawValue)_timestamp&quot;</span></span>
+<span id="L23"><span class="lineNum">      23</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L24"><span class="lineNum">      24</span>              : }</span>
+<span id="L25"><span class="lineNum">      25</span>              : </span>
+<span id="L26"><span class="lineNum">      26</span>              : @MainActor</span>
+<span id="L27"><span class="lineNum">      27</span>              : class PermissionGrantCoordinator: ObservableObject {</span>
+<span id="L28"><span class="lineNum">      28</span>              :     static let shared = PermissionGrantCoordinator()</span>
+<span id="L29"><span class="lineNum">      29</span>              : </span>
+<span id="L30"><span class="lineNum">      30</span> <span class="tlaUNC">           0 :     private let logger = WizardLogger.shared</span></span>
+<span id="L31"><span class="lineNum">      31</span> <span class="tlaUNC">           0 :     private let maxReturnTime: TimeInterval = 600 // 10 minutes</span></span>
+<span id="L32"><span class="lineNum">      32</span>              : </span>
+<span id="L33"><span class="lineNum">      33</span>              :     // Prevent double-dismiss race conditions</span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaUNC">           0 :     private var didFireCompletion = false</span></span>
+<span id="L35"><span class="lineNum">      35</span>              : </span>
+<span id="L36"><span class="lineNum">      36</span>              :     // Service bounce flag keys</span>
+<span id="L37"><span class="lineNum">      37</span>              :     private static let serviceBounceNeededKey = &quot;keypath_service_bounce_needed&quot;</span>
+<span id="L38"><span class="lineNum">      38</span>              :     private static let serviceBounceTimestampKey = &quot;keypath_service_bounce_timestamp&quot;</span>
+<span id="L39"><span class="lineNum">      39</span>              : </span>
+<span id="L40"><span class="lineNum">      40</span> <span class="tlaUNC">           0 :     private init() {}</span></span>
+<span id="L41"><span class="lineNum">      41</span>              : </span>
+<span id="L42"><span class="lineNum">      42</span>              :     func initiatePermissionGrant(for permissionType: CoordinatorPermissionType,</span>
+<span id="L43"><span class="lineNum">      43</span>              :                                  instructions: String,</span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC">           0 :                                  onComplete: (() -&gt; Void)? = nil) {</span></span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaUNC">           0 :         logger.log(&quot;SAVING wizard state for \(permissionType.displayName) restart:&quot;)</span></span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaUNC">           0 :         // Reset completion guard for new permission grant flow</span></span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaUNC">           0 :         didFireCompletion = false</span></span>
+<span id="L49"><span class="lineNum">      49</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaUNC">           0 :         let timestamp = Date().timeIntervalSince1970</span></span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L52"><span class="lineNum">      52</span> <span class="tlaUNC">           0 :         UserDefaults.standard.set(true, forKey: permissionType.userDefaultsKey)</span></span>
+<span id="L53"><span class="lineNum">      53</span> <span class="tlaUNC">           0 :         UserDefaults.standard.set(timestamp, forKey: permissionType.timestampKey)</span></span>
+<span id="L54"><span class="lineNum">      54</span> <span class="tlaUNC">           0 :         let synchronizeResult = UserDefaults.standard.synchronize()</span></span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L56"><span class="lineNum">      56</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - \(permissionType.userDefaultsKey): true&quot;)</span></span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - \(permissionType.timestampKey): \(timestamp)&quot;)</span></span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - synchronize result: \(synchronizeResult)&quot;)</span></span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaUNC">           0 :         // Verify the save worked</span></span>
+<span id="L61"><span class="lineNum">      61</span> <span class="tlaUNC">           0 :         logger.log(&quot;VERIFICATION after save:&quot;)</span></span>
+<span id="L62"><span class="lineNum">      62</span> <span class="tlaUNC">           0 :         let pendingValue = UserDefaults.standard.bool(forKey: permissionType.userDefaultsKey)</span></span>
+<span id="L63"><span class="lineNum">      63</span> <span class="tlaUNC">           0 :         let timestampValue = UserDefaults.standard.double(forKey: permissionType.timestampKey)</span></span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - pending: \(pendingValue)&quot;)</span></span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - timestamp: \(timestampValue)&quot;)</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaUNC">           0 :         // Show instructions dialog</span></span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaUNC">           0 :         showInstructionsDialog(for: permissionType, instructions: instructions) {</span></span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaUNC">           0 :             // Guard against double completion to prevent race conditions</span></span>
+<span id="L70"><span class="lineNum">      70</span> <span class="tlaUNC">           0 :             guard !self.didFireCompletion else {</span></span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaUNC">           0 :                 self.logger.log(&quot;⚠️ [PermissionGrant] Completion already fired, ignoring duplicate call&quot;)</span></span>
+<span id="L72"><span class="lineNum">      72</span> <span class="tlaUNC">           0 :                 return</span></span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L74"><span class="lineNum">      74</span> <span class="tlaUNC">           0 :             self.didFireCompletion = true</span></span>
+<span id="L75"><span class="lineNum">      75</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L76"><span class="lineNum">      76</span> <span class="tlaUNC">           0 :             onComplete?()</span></span>
+<span id="L77"><span class="lineNum">      77</span> <span class="tlaUNC">           0 :             self.quitApplication()</span></span>
+<span id="L78"><span class="lineNum">      78</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L80"><span class="lineNum">      80</span>              : </span>
+<span id="L81"><span class="lineNum">      81</span>              :     private func showInstructionsDialog(for permissionType: CoordinatorPermissionType,</span>
+<span id="L82"><span class="lineNum">      82</span>              :                                         instructions: String,</span>
+<span id="L83"><span class="lineNum">      83</span> <span class="tlaUNC">           0 :                                         onComplete: @escaping () -&gt; Void) {</span></span>
+<span id="L84"><span class="lineNum">      84</span> <span class="tlaUNC">           0 :         if TestEnvironment.isRunningTests {</span></span>
+<span id="L85"><span class="lineNum">      85</span> <span class="tlaUNC">           0 :             WizardLogger.shared.log(&quot;🧪 [PermissionGrant] Suppressing NSAlert in test environment&quot;)</span></span>
+<span id="L86"><span class="lineNum">      86</span> <span class="tlaUNC">           0 :             onComplete()</span></span>
+<span id="L87"><span class="lineNum">      87</span> <span class="tlaUNC">           0 :             return</span></span>
+<span id="L88"><span class="lineNum">      88</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L89"><span class="lineNum">      89</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L90"><span class="lineNum">      90</span> <span class="tlaUNC">           0 :         let alert = NSAlert()</span></span>
+<span id="L91"><span class="lineNum">      91</span> <span class="tlaUNC">           0 :         alert.messageText = &quot;\(permissionType.displayName) Permission Required&quot;</span></span>
+<span id="L92"><span class="lineNum">      92</span> <span class="tlaUNC">           0 :         alert.informativeText = instructions</span></span>
+<span id="L93"><span class="lineNum">      93</span> <span class="tlaUNC">           0 :         alert.alertStyle = .informational</span></span>
+<span id="L94"><span class="lineNum">      94</span> <span class="tlaUNC">           0 :         alert.addButton(withTitle: &quot;Open System Settings&quot;)</span></span>
+<span id="L95"><span class="lineNum">      95</span> <span class="tlaUNC">           0 :         alert.addButton(withTitle: &quot;Cancel&quot;)</span></span>
+<span id="L96"><span class="lineNum">      96</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L97"><span class="lineNum">      97</span> <span class="tlaUNC">           0 :         let response = alert.runModal()</span></span>
+<span id="L98"><span class="lineNum">      98</span> <span class="tlaUNC">           0 :         if response == .alertFirstButtonReturn {</span></span>
+<span id="L99"><span class="lineNum">      99</span> <span class="tlaUNC">           0 :             openSystemSettings(for: permissionType)</span></span>
+<span id="L100"><span class="lineNum">     100</span> <span class="tlaUNC">           0 :             onComplete()</span></span>
+<span id="L101"><span class="lineNum">     101</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L102"><span class="lineNum">     102</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L103"><span class="lineNum">     103</span>              : </span>
+<span id="L104"><span class="lineNum">     104</span> <span class="tlaUNC">           0 :     private func openSystemSettings(for permissionType: CoordinatorPermissionType) {</span></span>
+<span id="L105"><span class="lineNum">     105</span> <span class="tlaUNC">           0 :         let settingsPath = switch permissionType {</span></span>
+<span id="L106"><span class="lineNum">     106</span> <span class="tlaUNC">           0 :         case .accessibility:</span></span>
+<span id="L107"><span class="lineNum">     107</span> <span class="tlaUNC">           0 :             &quot;x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility&quot;</span></span>
+<span id="L108"><span class="lineNum">     108</span> <span class="tlaUNC">           0 :         case .inputMonitoring:</span></span>
+<span id="L109"><span class="lineNum">     109</span> <span class="tlaUNC">           0 :             &quot;x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent&quot;</span></span>
+<span id="L110"><span class="lineNum">     110</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L111"><span class="lineNum">     111</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L112"><span class="lineNum">     112</span> <span class="tlaUNC">           0 :         if let url = URL(string: settingsPath) {</span></span>
+<span id="L113"><span class="lineNum">     113</span> <span class="tlaUNC">           0 :             NSWorkspace.shared.open(url)</span></span>
+<span id="L114"><span class="lineNum">     114</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L115"><span class="lineNum">     115</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L116"><span class="lineNum">     116</span>              : </span>
+<span id="L117"><span class="lineNum">     117</span> <span class="tlaUNC">           0 :     private func quitApplication() {</span></span>
+<span id="L118"><span class="lineNum">     118</span> <span class="tlaUNC">           0 :         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {</span></span>
+<span id="L119"><span class="lineNum">     119</span> <span class="tlaUNC">           0 :             NSApp.terminate(nil)</span></span>
+<span id="L120"><span class="lineNum">     120</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L121"><span class="lineNum">     121</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L122"><span class="lineNum">     122</span>              : </span>
+<span id="L123"><span class="lineNum">     123</span> <span class="tlaUNC">           0 :     func checkForPendingPermissionGrant() -&gt; (shouldRestart: Bool, permissionType: CoordinatorPermissionType?) {</span></span>
+<span id="L124"><span class="lineNum">     124</span> <span class="tlaUNC">           0 :         let currentTime = Date().timeIntervalSince1970</span></span>
+<span id="L125"><span class="lineNum">     125</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L126"><span class="lineNum">     126</span> <span class="tlaUNC">           0 :         for permissionType in CoordinatorPermissionType.allCases {</span></span>
+<span id="L127"><span class="lineNum">     127</span> <span class="tlaUNC">           0 :             let pending = UserDefaults.standard.bool(forKey: permissionType.userDefaultsKey)</span></span>
+<span id="L128"><span class="lineNum">     128</span> <span class="tlaUNC">           0 :             let timestamp = UserDefaults.standard.double(forKey: permissionType.timestampKey)</span></span>
+<span id="L129"><span class="lineNum">     129</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L130"><span class="lineNum">     130</span> <span class="tlaUNC">           0 :             logger.log(&quot;APP RESTART - Checking for pending wizard:&quot;)</span></span>
+<span id="L131"><span class="lineNum">     131</span> <span class="tlaUNC">           0 :             logger.log(&quot;  - \(permissionType.userDefaultsKey): \(pending)&quot;)</span></span>
+<span id="L132"><span class="lineNum">     132</span> <span class="tlaUNC">           0 :             logger.log(&quot;  - \(permissionType.timestampKey): \(timestamp)&quot;)</span></span>
+<span id="L133"><span class="lineNum">     133</span> <span class="tlaUNC">           0 :             logger.log(&quot;  - current time: \(currentTime)&quot;)</span></span>
+<span id="L134"><span class="lineNum">     134</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L135"><span class="lineNum">     135</span> <span class="tlaUNC">           0 :             if pending, timestamp &gt; 0 {</span></span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaUNC">           0 :                 let timeSince = currentTime - timestamp</span></span>
+<span id="L137"><span class="lineNum">     137</span> <span class="tlaUNC">           0 :                 if timeSince &lt; maxReturnTime {</span></span>
+<span id="L138"><span class="lineNum">     138</span> <span class="tlaUNC">           0 :                     logger.log(&quot;DETECTED return from \(permissionType.displayName):&quot;)</span></span>
+<span id="L139"><span class="lineNum">     139</span> <span class="tlaUNC">           0 :                     logger.log(&quot;  - time since: \(Int(timeSince))s&quot;)</span></span>
+<span id="L140"><span class="lineNum">     140</span> <span class="tlaUNC">           0 :                     logger.log(&quot;  - Will reopen wizard in 1 second&quot;)</span></span>
+<span id="L141"><span class="lineNum">     141</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L142"><span class="lineNum">     142</span> <span class="tlaUNC">           0 :                     return (shouldRestart: true, permissionType: permissionType)</span></span>
+<span id="L143"><span class="lineNum">     143</span> <span class="tlaUNC">           0 :                 } else {</span></span>
+<span id="L144"><span class="lineNum">     144</span> <span class="tlaUNC">           0 :                     // Clear expired flags</span></span>
+<span id="L145"><span class="lineNum">     145</span> <span class="tlaUNC">           0 :                     clearPendingFlag(for: permissionType)</span></span>
+<span id="L146"><span class="lineNum">     146</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L147"><span class="lineNum">     147</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L148"><span class="lineNum">     148</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L149"><span class="lineNum">     149</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaUNC">           0 :         return (shouldRestart: false, permissionType: nil)</span></span>
+<span id="L151"><span class="lineNum">     151</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L152"><span class="lineNum">     152</span>              : </span>
+<span id="L153"><span class="lineNum">     153</span>              :     func performPermissionRestart(for permissionType: CoordinatorPermissionType,</span>
+<span id="L154"><span class="lineNum">     154</span>              :                                   kanataManager: KanataManager,</span>
+<span id="L155"><span class="lineNum">     155</span> <span class="tlaUNC">           0 :                                   completion: @escaping (Bool) -&gt; Void) {</span></span>
+<span id="L156"><span class="lineNum">     156</span> <span class="tlaUNC">           0 :         let timestamp = UserDefaults.standard.double(forKey: permissionType.timestampKey)</span></span>
+<span id="L157"><span class="lineNum">     157</span> <span class="tlaUNC">           0 :         let originalDate = Date(timeIntervalSince1970: timestamp)</span></span>
+<span id="L158"><span class="lineNum">     158</span> <span class="tlaUNC">           0 :         let timeSince = Date().timeIntervalSince1970 - timestamp</span></span>
+<span id="L159"><span class="lineNum">     159</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaUNC">           0 :         logger.log(&quot;PERMISSION RESTART CONTEXT:&quot;)</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - Original timestamp: \(timestamp) (\(originalDate))&quot;)</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - Time elapsed: \(String(format: &quot;%.1f&quot;, timeSince))s  &quot;)</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - Assumption: User granted \(permissionType.displayName) permissions to KeyPath and/or kanata&quot;)</span></span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - Action: Restarting kanata process to pick up new permissions&quot;)</span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - Method: KanataManager retryAfterFix for complete restart&quot;)</span></span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaUNC">           0 :         // Skip auto-launch to prevent resetting wizard flag</span></span>
+<span id="L168"><span class="lineNum">     168</span> <span class="tlaUNC">           0 :         logger.log(&quot;SKIPPING auto-launch (would reset wizard flag)&quot;)</span></span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaUNC">           0 :         // Log pre-restart permissions snapshot</span></span>
+<span id="L171"><span class="lineNum">     171</span> <span class="tlaUNC">           0 :         logPermissionSnapshot()</span></span>
+<span id="L172"><span class="lineNum">     172</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L173"><span class="lineNum">     173</span> <span class="tlaUNC">           0 :         // Attempt restart</span></span>
+<span id="L174"><span class="lineNum">     174</span> <span class="tlaUNC">           0 :         logger.log(&quot;KANATA RESTART ATTEMPT:&quot;)</span></span>
+<span id="L175"><span class="lineNum">     175</span> <span class="tlaUNC">           0 :         let startTime = Date()</span></span>
+<span id="L176"><span class="lineNum">     176</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L177"><span class="lineNum">     177</span> <span class="tlaUNC">           0 :         // Provide immediate user feedback</span></span>
+<span id="L178"><span class="lineNum">     178</span> <span class="tlaUNC">           0 :         showUserFeedback(&quot;🔄 Restarting keyboard service for new \(permissionType.displayName.lowercased()) permissions...&quot;)</span></span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L180"><span class="lineNum">     180</span> <span class="tlaUNC">           0 :         Task {</span></span>
+<span id="L181"><span class="lineNum">     181</span> <span class="tlaUNC">           0 :             let success = await attemptKanataRestart(kanataManager: kanataManager)</span></span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaUNC">           0 :             let duration = Date().timeIntervalSince1970 - startTime.timeIntervalSince1970</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L184"><span class="lineNum">     184</span> <span class="tlaUNC">           0 :             if success {</span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaUNC">           0 :                 logger.log(&quot;  • Service restart success: true&quot;)</span></span>
+<span id="L186"><span class="lineNum">     186</span> <span class="tlaUNC">           0 :                 logger.log(&quot;  • Duration: \(String(format: &quot;%.2f&quot;, duration))s&quot;)</span></span>
+<span id="L187"><span class="lineNum">     187</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L188"><span class="lineNum">     188</span> <span class="tlaUNC">           0 :                 // Show success feedback</span></span>
+<span id="L189"><span class="lineNum">     189</span> <span class="tlaUNC">           0 :                 showUserFeedback(&quot;✅ Keyboard service restarted - \(permissionType.displayName) permissions active!&quot;)</span></span>
+<span id="L190"><span class="lineNum">     190</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L191"><span class="lineNum">     191</span> <span class="tlaUNC">           0 :                 // Clear the pending flag on successful restart</span></span>
+<span id="L192"><span class="lineNum">     192</span> <span class="tlaUNC">           0 :                 clearPendingFlag(for: permissionType)</span></span>
+<span id="L193"><span class="lineNum">     193</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L194"><span class="lineNum">     194</span> <span class="tlaUNC">           0 :                 await MainActor.run {</span></span>
+<span id="L195"><span class="lineNum">     195</span> <span class="tlaUNC">           0 :                     completion(true)</span></span>
+<span id="L196"><span class="lineNum">     196</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L197"><span class="lineNum">     197</span> <span class="tlaUNC">           0 :             } else {</span></span>
+<span id="L198"><span class="lineNum">     198</span> <span class="tlaUNC">           0 :                 logger.log(&quot;  • Service restart success: false&quot;)</span></span>
+<span id="L199"><span class="lineNum">     199</span> <span class="tlaUNC">           0 :                 logger.log(&quot;  • Duration so far: \(String(format: &quot;%.2f&quot;, duration))s&quot;)</span></span>
+<span id="L200"><span class="lineNum">     200</span> <span class="tlaUNC">           0 :                 logger.log(&quot;RESTART FAILURE:&quot;)</span></span>
+<span id="L201"><span class="lineNum">     201</span> <span class="tlaUNC">           0 :                 logger.log(&quot;  • Service restart failed - will show in wizard&quot;)</span></span>
+<span id="L202"><span class="lineNum">     202</span> <span class="tlaUNC">           0 :                 logger.log(&quot;  • User can use wizard auto-fix for manual restart&quot;)</span></span>
+<span id="L203"><span class="lineNum">     203</span> <span class="tlaUNC">           0 :                 logger.log(&quot;  • Duration: \(String(format: &quot;%.2f&quot;, duration))s&quot;)</span></span>
+<span id="L204"><span class="lineNum">     204</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L205"><span class="lineNum">     205</span> <span class="tlaUNC">           0 :                 // Show failure feedback</span></span>
+<span id="L206"><span class="lineNum">     206</span> <span class="tlaUNC">           0 :                 showUserFeedback(&quot;⚠️ Service restart in progress - check wizard for status&quot;)</span></span>
+<span id="L207"><span class="lineNum">     207</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L208"><span class="lineNum">     208</span> <span class="tlaUNC">           0 :                 await MainActor.run {</span></span>
+<span id="L209"><span class="lineNum">     209</span> <span class="tlaUNC">           0 :                     completion(false)</span></span>
+<span id="L210"><span class="lineNum">     210</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L211"><span class="lineNum">     211</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L212"><span class="lineNum">     212</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L213"><span class="lineNum">     213</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L214"><span class="lineNum">     214</span>              : </span>
+<span id="L215"><span class="lineNum">     215</span> <span class="tlaUNC">           0 :     private func attemptKanataRestart(kanataManager: KanataManager) async -&gt; Bool {</span></span>
+<span id="L216"><span class="lineNum">     216</span> <span class="tlaUNC">           0 :         // Use the retryAfterFix method which handles complete restarts</span></span>
+<span id="L217"><span class="lineNum">     217</span> <span class="tlaUNC">           0 :         await kanataManager.retryAfterFix(&quot;Restarting after permission grant&quot;)</span></span>
+<span id="L218"><span class="lineNum">     218</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L219"><span class="lineNum">     219</span> <span class="tlaUNC">           0 :         // Give it a moment to complete the restart</span></span>
+<span id="L220"><span class="lineNum">     220</span> <span class="tlaUNC">           0 :         try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds</span></span>
+<span id="L221"><span class="lineNum">     221</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L222"><span class="lineNum">     222</span> <span class="tlaUNC">           0 :         // The retryAfterFix method doesn't return a success value, so we assume success</span></span>
+<span id="L223"><span class="lineNum">     223</span> <span class="tlaUNC">           0 :         // The coordinator will check permission status later anyway</span></span>
+<span id="L224"><span class="lineNum">     224</span> <span class="tlaUNC">           0 :         return true</span></span>
+<span id="L225"><span class="lineNum">     225</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L226"><span class="lineNum">     226</span>              : </span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaUNC">           0 :     private func logPermissionSnapshot() {</span></span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaUNC">           0 :         Task {</span></span>
+<span id="L229"><span class="lineNum">     229</span> <span class="tlaUNC">           0 :             logger.log(&quot;PRE-RESTART SNAPSHOT:&quot;)</span></span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaUNC">           0 :             let snapshot = await PermissionOracle.shared.currentSnapshot()</span></span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L233"><span class="lineNum">     233</span> <span class="tlaUNC">           0 :             let keyPathAccessibility = snapshot.keyPath.accessibility.isReady</span></span>
+<span id="L234"><span class="lineNum">     234</span> <span class="tlaUNC">           0 :             let keyPathInputMonitoring = snapshot.keyPath.inputMonitoring.isReady</span></span>
+<span id="L235"><span class="lineNum">     235</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L236"><span class="lineNum">     236</span> <span class="tlaUNC">           0 :             logger.log(&quot;  KeyPath permissions:&quot;)</span></span>
+<span id="L237"><span class="lineNum">     237</span> <span class="tlaUNC">           0 :             logger.log(&quot;    • Accessibility: \(keyPathAccessibility ? &quot;granted&quot; : &quot;denied&quot;)&quot;)</span></span>
+<span id="L238"><span class="lineNum">     238</span> <span class="tlaUNC">           0 :             logger.log(&quot;    • Input Monitoring: \(keyPathInputMonitoring ? &quot;granted&quot; : &quot;denied&quot;)&quot;)</span></span>
+<span id="L239"><span class="lineNum">     239</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L240"><span class="lineNum">     240</span> <span class="tlaUNC">           0 :             logger.log(&quot;  Kanata permissions (source: \(snapshot.kanata.source)):&quot;)</span></span>
+<span id="L241"><span class="lineNum">     241</span> <span class="tlaUNC">           0 :             logger.log(&quot;    • Accessibility: \(snapshot.kanata.accessibility)&quot;)</span></span>
+<span id="L242"><span class="lineNum">     242</span> <span class="tlaUNC">           0 :             logger.log(&quot;    • Input Monitoring: \(snapshot.kanata.inputMonitoring)&quot;)</span></span>
+<span id="L243"><span class="lineNum">     243</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L244"><span class="lineNum">     244</span> <span class="tlaUNC">           0 :             logger.log(&quot;  System ready: \(snapshot.isSystemReady)&quot;)</span></span>
+<span id="L245"><span class="lineNum">     245</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L246"><span class="lineNum">     246</span> <span class="tlaUNC">           0 :             if !snapshot.isSystemReady, let issue = snapshot.blockingIssue {</span></span>
+<span id="L247"><span class="lineNum">     247</span> <span class="tlaUNC">           0 :                 logger.log(&quot;  Blocking issue: \(issue)&quot;)</span></span>
+<span id="L248"><span class="lineNum">     248</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L250"><span class="lineNum">     250</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L251"><span class="lineNum">     251</span>              : </span>
+<span id="L252"><span class="lineNum">     252</span> <span class="tlaUNC">           0 :     func clearPendingFlag(for permissionType: CoordinatorPermissionType) {</span></span>
+<span id="L253"><span class="lineNum">     253</span> <span class="tlaUNC">           0 :         UserDefaults.standard.removeObject(forKey: permissionType.userDefaultsKey)</span></span>
+<span id="L254"><span class="lineNum">     254</span> <span class="tlaUNC">           0 :         UserDefaults.standard.removeObject(forKey: permissionType.timestampKey)</span></span>
+<span id="L255"><span class="lineNum">     255</span> <span class="tlaUNC">           0 :         UserDefaults.standard.synchronize()</span></span>
+<span id="L256"><span class="lineNum">     256</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L257"><span class="lineNum">     257</span>              : </span>
+<span id="L258"><span class="lineNum">     258</span> <span class="tlaUNC">           0 :     func clearAllPendingFlags() {</span></span>
+<span id="L259"><span class="lineNum">     259</span> <span class="tlaUNC">           0 :         for permissionType in CoordinatorPermissionType.allCases {</span></span>
+<span id="L260"><span class="lineNum">     260</span> <span class="tlaUNC">           0 :             clearPendingFlag(for: permissionType)</span></span>
+<span id="L261"><span class="lineNum">     261</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L262"><span class="lineNum">     262</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L263"><span class="lineNum">     263</span>              : </span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaUNC">           0 :     private func showUserFeedback(_ message: String) {</span></span>
+<span id="L265"><span class="lineNum">     265</span> <span class="tlaUNC">           0 :         // Send notification to ContentView to show user feedback</span></span>
+<span id="L266"><span class="lineNum">     266</span> <span class="tlaUNC">           0 :         DispatchQueue.main.async {</span></span>
+<span id="L267"><span class="lineNum">     267</span> <span class="tlaUNC">           0 :             NotificationCenter.default.post(</span></span>
+<span id="L268"><span class="lineNum">     268</span> <span class="tlaUNC">           0 :                 name: NSNotification.Name(&quot;ShowUserFeedback&quot;),</span></span>
+<span id="L269"><span class="lineNum">     269</span> <span class="tlaUNC">           0 :                 object: nil,</span></span>
+<span id="L270"><span class="lineNum">     270</span> <span class="tlaUNC">           0 :                 userInfo: [&quot;message&quot;: message]</span></span>
+<span id="L271"><span class="lineNum">     271</span> <span class="tlaUNC">           0 :             )</span></span>
+<span id="L272"><span class="lineNum">     272</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L273"><span class="lineNum">     273</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L274"><span class="lineNum">     274</span>              : </span>
+<span id="L275"><span class="lineNum">     275</span> <span class="tlaUNC">           0 :     func reopenWizard(for permissionType: CoordinatorPermissionType, kanataManager: KanataManager) {</span></span>
+<span id="L276"><span class="lineNum">     276</span> <span class="tlaUNC">           0 :         logger.log(&quot;REOPENING wizard to \(permissionType.displayName) page&quot;)</span></span>
+<span id="L277"><span class="lineNum">     277</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L278"><span class="lineNum">     278</span> <span class="tlaUNC">           0 :         // Set the appropriate wizard return flag and call the appropriate method</span></span>
+<span id="L279"><span class="lineNum">     279</span> <span class="tlaUNC">           0 :         switch permissionType {</span></span>
+<span id="L280"><span class="lineNum">     280</span> <span class="tlaUNC">           0 :         case .accessibility:</span></span>
+<span id="L281"><span class="lineNum">     281</span> <span class="tlaUNC">           0 :             UserDefaults.standard.set(true, forKey: &quot;wizard_return_to_accessibility&quot;)</span></span>
+<span id="L282"><span class="lineNum">     282</span> <span class="tlaUNC">           0 :             logger.log(&quot;KanataManager.showWizardForInputMonitoring called (using generic method)&quot;)</span></span>
+<span id="L283"><span class="lineNum">     283</span> <span class="tlaUNC">           0 :             Task { @MainActor in</span></span>
+<span id="L284"><span class="lineNum">     284</span> <span class="tlaUNC">           0 :                 await kanataManager.showWizardForInputMonitoring()</span></span>
+<span id="L285"><span class="lineNum">     285</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L286"><span class="lineNum">     286</span> <span class="tlaUNC">           0 :         case .inputMonitoring:</span></span>
+<span id="L287"><span class="lineNum">     287</span> <span class="tlaUNC">           0 :             UserDefaults.standard.set(true, forKey: &quot;wizard_return_to_input_monitoring&quot;)</span></span>
+<span id="L288"><span class="lineNum">     288</span> <span class="tlaUNC">           0 :             logger.log(&quot;KanataManager.showWizardForInputMonitoring called&quot;)</span></span>
+<span id="L289"><span class="lineNum">     289</span> <span class="tlaUNC">           0 :             Task { @MainActor in</span></span>
+<span id="L290"><span class="lineNum">     290</span> <span class="tlaUNC">           0 :                 await kanataManager.showWizardForInputMonitoring()</span></span>
+<span id="L291"><span class="lineNum">     291</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L292"><span class="lineNum">     292</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L293"><span class="lineNum">     293</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L294"><span class="lineNum">     294</span> <span class="tlaUNC">           0 :         logger.log(&quot;  - Wizard will be shown&quot;)</span></span>
+<span id="L295"><span class="lineNum">     295</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L296"><span class="lineNum">     296</span>              : </span>
+<span id="L297"><span class="lineNum">     297</span>              :     // MARK: - Service Bounce Management</span>
+<span id="L298"><span class="lineNum">     298</span>              : </span>
+<span id="L299"><span class="lineNum">     299</span>              :     /// Set flag to indicate Kanata service should be bounced on next app restart</span>
+<span id="L300"><span class="lineNum">     300</span> <span class="tlaUNC">           0 :     func setServiceBounceNeeded(reason: String) {</span></span>
+<span id="L301"><span class="lineNum">     301</span> <span class="tlaUNC">           0 :         let timestamp = Date().timeIntervalSince1970</span></span>
+<span id="L302"><span class="lineNum">     302</span> <span class="tlaUNC">           0 :         UserDefaults.standard.set(true, forKey: Self.serviceBounceNeededKey)</span></span>
+<span id="L303"><span class="lineNum">     303</span> <span class="tlaUNC">           0 :         UserDefaults.standard.set(timestamp, forKey: Self.serviceBounceTimestampKey)</span></span>
+<span id="L304"><span class="lineNum">     304</span> <span class="tlaUNC">           0 :         UserDefaults.standard.synchronize()</span></span>
+<span id="L305"><span class="lineNum">     305</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L306"><span class="lineNum">     306</span> <span class="tlaUNC">           0 :         logger.log(&quot;🔄 [ServiceBounce] Bounce scheduled for next restart - reason: \(reason)&quot;)</span></span>
+<span id="L307"><span class="lineNum">     307</span> <span class="tlaUNC">           0 :         logger.log(&quot;🔄 [ServiceBounce] Timestamp: \(timestamp)&quot;)</span></span>
+<span id="L308"><span class="lineNum">     308</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L309"><span class="lineNum">     309</span>              : </span>
+<span id="L310"><span class="lineNum">     310</span>              :     /// Check if service bounce is needed and return details</span>
+<span id="L311"><span class="lineNum">     311</span> <span class="tlaUNC">           0 :     func checkServiceBounceNeeded() -&gt; (shouldBounce: Bool, timeSinceScheduled: TimeInterval?) {</span></span>
+<span id="L312"><span class="lineNum">     312</span> <span class="tlaUNC">           0 :         let needsBounce = UserDefaults.standard.bool(forKey: Self.serviceBounceNeededKey)</span></span>
+<span id="L313"><span class="lineNum">     313</span> <span class="tlaUNC">           0 :         let timestamp = UserDefaults.standard.double(forKey: Self.serviceBounceTimestampKey)</span></span>
+<span id="L314"><span class="lineNum">     314</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L315"><span class="lineNum">     315</span> <span class="tlaUNC">           0 :         guard needsBounce, timestamp &gt; 0 else {</span></span>
+<span id="L316"><span class="lineNum">     316</span> <span class="tlaUNC">           0 :             return (shouldBounce: false, timeSinceScheduled: nil)</span></span>
+<span id="L317"><span class="lineNum">     317</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L318"><span class="lineNum">     318</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L319"><span class="lineNum">     319</span> <span class="tlaUNC">           0 :         let currentTime = Date().timeIntervalSince1970</span></span>
+<span id="L320"><span class="lineNum">     320</span> <span class="tlaUNC">           0 :         let timeSince = currentTime - timestamp</span></span>
+<span id="L321"><span class="lineNum">     321</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L322"><span class="lineNum">     322</span> <span class="tlaUNC">           0 :         // Clear if too old (older than max return time)</span></span>
+<span id="L323"><span class="lineNum">     323</span> <span class="tlaUNC">           0 :         if timeSince &gt; maxReturnTime {</span></span>
+<span id="L324"><span class="lineNum">     324</span> <span class="tlaUNC">           0 :             clearServiceBounceFlag()</span></span>
+<span id="L325"><span class="lineNum">     325</span> <span class="tlaUNC">           0 :             logger.log(&quot;🔄 [ServiceBounce] Clearing expired bounce flag (age: \(Int(timeSince))s)&quot;)</span></span>
+<span id="L326"><span class="lineNum">     326</span> <span class="tlaUNC">           0 :             return (shouldBounce: false, timeSinceScheduled: nil)</span></span>
+<span id="L327"><span class="lineNum">     327</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L328"><span class="lineNum">     328</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L329"><span class="lineNum">     329</span> <span class="tlaUNC">           0 :         return (shouldBounce: true, timeSinceScheduled: timeSince)</span></span>
+<span id="L330"><span class="lineNum">     330</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L331"><span class="lineNum">     331</span>              : </span>
+<span id="L332"><span class="lineNum">     332</span>              :     /// Clear the service bounce flag</span>
+<span id="L333"><span class="lineNum">     333</span> <span class="tlaUNC">           0 :     func clearServiceBounceFlag() {</span></span>
+<span id="L334"><span class="lineNum">     334</span> <span class="tlaUNC">           0 :         UserDefaults.standard.removeObject(forKey: Self.serviceBounceNeededKey)</span></span>
+<span id="L335"><span class="lineNum">     335</span> <span class="tlaUNC">           0 :         UserDefaults.standard.removeObject(forKey: Self.serviceBounceTimestampKey)</span></span>
+<span id="L336"><span class="lineNum">     336</span> <span class="tlaUNC">           0 :         UserDefaults.standard.synchronize()</span></span>
+<span id="L337"><span class="lineNum">     337</span> <span class="tlaUNC">           0 :         logger.log(&quot;🔄 [ServiceBounce] Bounce flag cleared&quot;)</span></span>
+<span id="L338"><span class="lineNum">     338</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L339"><span class="lineNum">     339</span>              : </span>
+<span id="L340"><span class="lineNum">     340</span>              :     /// Perform the service bounce using launchctl kickstart with admin privileges</span>
+<span id="L341"><span class="lineNum">     341</span> <span class="tlaUNC">           0 :     func performServiceBounce() async -&gt; Bool {</span></span>
+<span id="L342"><span class="lineNum">     342</span> <span class="tlaUNC">           0 :         logger.log(&quot;🔄 [ServiceBounce] Starting Kanata service bounce with launchctl kickstart&quot;)</span></span>
+<span id="L343"><span class="lineNum">     343</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L344"><span class="lineNum">     344</span> <span class="tlaUNC">           0 :         let script = &quot;&quot;&quot;</span></span>
+<span id="L345"><span class="lineNum">     345</span> <span class="tlaUNC">           0 :         do shell script &quot;launchctl kickstart -k system/com.keypath.kanata&quot; with administrator privileges with prompt &quot;KeyPath needs admin access to restart the keyboard service after permission changes.&quot;</span></span>
+<span id="L346"><span class="lineNum">     346</span> <span class="tlaUNC">           0 :         &quot;&quot;&quot;</span></span>
+<span id="L347"><span class="lineNum">     347</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L348"><span class="lineNum">     348</span> <span class="tlaUNC">           0 :         return await withCheckedContinuation { continuation in</span></span>
+<span id="L349"><span class="lineNum">     349</span> <span class="tlaUNC">           0 :             DispatchQueue.global(qos: .userInitiated).async {</span></span>
+<span id="L350"><span class="lineNum">     350</span> <span class="tlaUNC">           0 :                 let appleScript = NSAppleScript(source: script)</span></span>
+<span id="L351"><span class="lineNum">     351</span> <span class="tlaUNC">           0 :                 var error: NSDictionary?</span></span>
+<span id="L352"><span class="lineNum">     352</span> <span class="tlaUNC">           0 :                 _ = appleScript?.executeAndReturnError(&amp;error)</span></span>
+<span id="L353"><span class="lineNum">     353</span> <span class="tlaUNC">           0 : </span></span>
+<span id="L354"><span class="lineNum">     354</span> <span class="tlaUNC">           0 :                 if let error {</span></span>
+<span id="L355"><span class="lineNum">     355</span> <span class="tlaUNC">           0 :                     Task { @MainActor in</span></span>
+<span id="L356"><span class="lineNum">     356</span> <span class="tlaUNC">           0 :                         self.logger.log(&quot;❌ [ServiceBounce] Failed to bounce service: \(error)&quot;)</span></span>
+<span id="L357"><span class="lineNum">     357</span> <span class="tlaUNC">           0 :                     }</span></span>
+<span id="L358"><span class="lineNum">     358</span> <span class="tlaUNC">           0 :                     continuation.resume(returning: false)</span></span>
+<span id="L359"><span class="lineNum">     359</span> <span class="tlaUNC">           0 :                 } else {</span></span>
+<span id="L360"><span class="lineNum">     360</span> <span class="tlaUNC">           0 :                     Task { @MainActor in</span></span>
+<span id="L361"><span class="lineNum">     361</span> <span class="tlaUNC">           0 :                         self.logger.log(&quot;✅ [ServiceBounce] Service bounce completed successfully&quot;)</span></span>
+<span id="L362"><span class="lineNum">     362</span> <span class="tlaUNC">           0 :                     }</span></span>
+<span id="L363"><span class="lineNum">     363</span> <span class="tlaUNC">           0 :                     continuation.resume(returning: true)</span></span>
+<span id="L364"><span class="lineNum">     364</span> <span class="tlaUNC">           0 :                 }</span></span>
+<span id="L365"><span class="lineNum">     365</span> <span class="tlaUNC">           0 :             }</span></span>
+<span id="L366"><span class="lineNum">     366</span> <span class="tlaUNC">           0 :         }</span></span>
+<span id="L367"><span class="lineNum">     367</span> <span class="tlaUNC">           0 :     }</span></span>
+<span id="L368"><span class="lineNum">     368</span>              : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.3.2-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>

@@ -1,0 +1,1 @@
+genhtml -o dist/coverage/html dist/coverage/coverage.lcov
