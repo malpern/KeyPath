@@ -15,6 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install lcov
+        run: brew install lcov
+
       - name: Generate coverage (reuse if available)
         run: |
           bash Scripts/generate-coverage.sh --reuse || bash Scripts/generate-coverage.sh || true
