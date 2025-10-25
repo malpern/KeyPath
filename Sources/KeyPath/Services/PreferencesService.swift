@@ -108,7 +108,7 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
-    /// Whether non-critical (info/success) notifications are enabled.
+    /// Whether non-critical (info/success) notifications are enabled
     /// Critical/service/permission notifications are unaffected by this flag.
     var successNotificationsEnabled: Bool {
         didSet {

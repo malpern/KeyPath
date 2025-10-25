@@ -211,7 +211,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
         )
     }
 
-    /// Notify user of a non-launch failure event (e.g., config repair failed)
+    /// Notify user of a non-launch failure event (e.g., repair failed)
     func notifyFailureEvent(_ title: String, body: String, key: String) {
         sendNotification(
             title: title,
