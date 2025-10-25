@@ -204,29 +204,32 @@ func reloadViaTCP(timeout seconds: TimeInterval = 3.0) async -> Bool {
 
 // MARK: - CLI
 
-enum Command: String { case help, map, list, reload }
+enum Command: String { case help, map, list, reload, reset }
 
 func printHelp() {
     let p = configPath()
-    print(
-        """
-        keypath — one-shot KeyPath CLI
+        print(
+            """
+            keypath — one-shot KeyPath CLI
 
-        Usage:
-          keypath map --from <key> --to <key|chord> [--append] [--no-reload]
-          keypath list
-          keypath reload
+            Usage:
+              keypath map --from <key> --to <key|chord> [--append] [--no-reload]
+              keypath list
+              keypath reload
+              keypath reset [--empty] [--no-reload]
 
-        Examples:
-          keypath map --from caps --to esc --append
-          keypath map --from caps --to cmd+c
-          keypath list
+            Examples:
+              keypath map --from caps --to esc --append
+              keypath map --from caps --to cmd+c
+              keypath list
+              keypath reset            # default config (Caps → Esc)
+              keypath reset --empty    # no mappings
 
-        Notes:
-          - Config path: \(p)
-          - Reload uses 'launchctl kickstart -k system/com.keypath.kanata' (may require sudo).
-        """
-    )
+            Notes:
+              - Config path: \(p)
+              - Reload uses 'launchctl kickstart -k system/com.keypath.kanata' (may require sudo).
+            """
+        )
 }
 
 func main() {
@@ -309,6 +312,53 @@ func main() {
             exit(0)
         }
         RunLoop.main.run()
+    case .reset:
+        var makeEmpty = false
+        var reload = true
+        var i = 1
+        while i < args.count {
+            let a = args[i]
+            switch a {
+            case "--empty": makeEmpty = true
+            case "--no-reload": reload = false
+            default: break
+            }
+            i += 1
+        }
+
+        // Backup existing config (best effort)
+        let cfg = configPath()
+        if FileManager.default.fileExists(atPath: cfg) {
+            let ts = Int(Date().timeIntervalSince1970)
+            let bak = cfg + ".bak." + String(ts)
+            _ = try? FileManager.default.copyItem(atPath: cfg, toPath: bak)
+            print("🗂️  Backed up existing config to \(bak)")
+        }
+
+        // Write default or empty
+        if makeEmpty {
+            try? writeConfig([])
+            print("✅ Wrote empty configuration at \(cfg)")
+        } else {
+            try? writeConfig([Mapping(input: "caps", output: "esc")])
+            print("✅ Wrote default configuration (caps → esc) at \(cfg)")
+        }
+        playTink()
+
+        if reload {
+            Task {
+                if await reloadViaTCP() {
+                    print("🔄 Reload: TCP reload succeeded")
+                    playGlass()
+                } else {
+                    let status = tryRestartService()
+                    if status == 0 { print("🔄 Reload: launchctl kickstart succeeded"); playGlass() }
+                    else { print("⚠️ Reload failed (exit \(status)). Try: sudo launchctl kickstart -k system/com.keypath.kanata"); playErrorBeep() }
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
     }
 }
 

@@ -22,6 +22,10 @@ A minimal command‑line utility for quick, scripted key mapping tasks.
   - `keypath list`
 - Reload (live, like the GUI):
   - `keypath reload` (tries TCP hot‑reload first; falls back to `launchctl`)
+- Reset configuration:
+  - `keypath reset`        → default mapping (Caps → Esc) + reload
+  - `keypath reset --empty`→ empty config (no mappings) + reload
+  - Add `--no-reload` to skip live reload
 
 Notes
 - Config path: `~/.config/keypath/keypath.kbd`
@@ -35,3 +39,4 @@ Notes
 - Generates the same `defsrc/deflayer` structure used by the app for compatibility.
 - Non‑destructive: `--append` merges by input key (replaces if the input already exists).
 - Sounds use `/usr/bin/afplay` with system sound files (no AppKit), with an `osascript -e 'beep'` fallback.
+ - `reset` backs up the previous config to `keypath.kbd.bak.<timestamp>` before writing.
