@@ -234,6 +234,13 @@ func printHelp() {
 
 func main() {
     let args = Array(CommandLine.arguments.dropFirst())
+    
+    // Check for help flags
+    if args.isEmpty || args.contains("-help") || args.contains("--help") || args.contains("-h") {
+        printHelp()
+        return
+    }
+    
     guard let cmdRaw = args.first, let cmd = Command(rawValue: cmdRaw) else {
         printHelp(); return
     }
