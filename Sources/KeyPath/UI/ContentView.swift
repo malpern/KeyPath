@@ -726,14 +726,24 @@ struct RecordingSection: View {
                     PreferencesService.shared.applyMappingsDuringRecording.toggle()
                     coordinator.requestPlaceholders()
                 }, label: {
+                    let isOn = PreferencesService.shared.applyMappingsDuringRecording
                     Image(systemName: "app.background.dotted")
                         .font(.title2)
-                        .foregroundColor(.white)
+                        .foregroundColor(isOn ? .white : .blue)
+                        .frame(width: 32, height: 32)
+                        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 })
                 .buttonStyle(.plain)
-                .frame(width: 32, height: 32)
-                .appSolidGlassButton(tint: .blue, radius: 6)
+                .appSolidGlassButton(
+                    tint: PreferencesService.shared.applyMappingsDuringRecording ? .blue : .white,
+                    radius: 6
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(Color.blue.opacity(0.25), lineWidth: 0.5)
+                )
                 .cornerRadius(6)
+                .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .help(PreferencesService.shared.applyMappingsDuringRecording
                     ? "Mappings ON: Recording shows effective (mapped) keys. Click to show raw keys."
                     : "Mappings OFF: Recording shows raw (physical) keys. Click to show mapped keys.")
@@ -749,12 +759,18 @@ struct RecordingSection: View {
                 }, label: {
                     Image(systemName: "list.number")
                         .font(.title2)
-                        .foregroundColor(.white)
+                        .foregroundColor(coordinator.isSequenceMode ? .white : .blue)
+                        .frame(width: 32, height: 32)
+                        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 })
                 .buttonStyle(.plain)
-                .frame(width: 32, height: 32)
-                .appSolidGlassButton(tint: .blue, radius: 6)
+                .appSolidGlassButton(tint: coordinator.isSequenceMode ? .blue : .white, radius: 6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(Color.blue.opacity(0.25), lineWidth: 0.5)
+                )
                 .cornerRadius(6)
+                .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .help(coordinator.isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
                 .accessibilityIdentifier("sequence-mode-toggle")
                 .accessibilityLabel(coordinator.isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
@@ -788,11 +804,11 @@ struct RecordingSection: View {
                         .font(.title2)
                 })
                 .buttonStyle(.plain)
-                .frame(height: 44)
-                .frame(minWidth: 44)
+                .frame(width: 44, height: 44)
                 .appSolidGlassButton(tint: .accentColor, radius: 8)
                 .foregroundColor(.white)
                 .cornerRadius(8)
+                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .accessibilityIdentifier("input-key-record-button")
                 .accessibilityLabel(coordinator.isInputRecording() ? "Stop recording input key" : "Record input key")
                 .id(coordinator.isInputRecording())
@@ -840,11 +856,11 @@ struct RecordingSection: View {
                         .font(.title2)
                 })
                 .buttonStyle(.plain)
-                .frame(height: 44)
-                .frame(minWidth: 44)
+                .frame(width: 44, height: 44)
                 .appSolidGlassButton(tint: .accentColor, radius: 8)
                 .foregroundColor(.white)
                 .cornerRadius(8)
+                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .accessibilityIdentifier("output-key-record-button")
                 .accessibilityLabel(coordinator.isOutputRecording() ? "Stop recording output key" : "Record output key")
                 .accessibilityHint(

@@ -9,8 +9,6 @@ final class AppDelegateWindowTests: XCTestCase {
     var mockManager: KanataManager!
 
     override func setUp() async throws {
-        try await super.setUp()
-
         // Create mock kanata manager
         mockManager = KanataManager()
 
@@ -23,7 +21,6 @@ final class AppDelegateWindowTests: XCTestCase {
     override func tearDown() async throws {
         appDelegate = nil
         mockManager = nil
-        try await super.tearDown()
     }
 
     // MARK: - Eager Window Creation Tests
