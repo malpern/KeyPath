@@ -28,7 +28,7 @@ class SystemValidator {
 
     private let launchDaemonInstaller: LaunchDaemonInstaller
     private let vhidDeviceManager: VHIDDeviceManager
-    private let processLifecycleManager: ProcessLifecycleManager
+    private let processLifecycle: ProcessLifecycleProviding
     private weak var kanataManager: KanataManager?
 
     /// Instance-scoped validation count for deterministic tests
@@ -37,15 +37,30 @@ class SystemValidator {
     init(
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
-        processLifecycleManager: ProcessLifecycleManager,
+        processLifecycleManager: ProcessLifecycleProviding,
         kanataManager: KanataManager? = nil
     ) {
         self.launchDaemonInstaller = launchDaemonInstaller
         self.vhidDeviceManager = vhidDeviceManager
-        self.processLifecycleManager = processLifecycleManager
+        self.processLifecycle = processLifecycleManager
         self.kanataManager = kanataManager
 
         AppLogger.shared.log("🔍 [SystemValidator] Initialized (stateless, no cache)")
+    }
+
+    /// Convenience initializer for existing call sites using ProcessLifecycleManager
+    convenience init(
+        launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
+        vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
+        processLifecycleManager: ProcessLifecycleManager,
+        kanataManager: KanataManager? = nil
+    ) {
+        self.init(
+            launchDaemonInstaller: launchDaemonInstaller,
+            vhidDeviceManager: vhidDeviceManager,
+            processLifecycleManager: processLifecycleManager as ProcessLifecycleProviding,
+            kanataManager: kanataManager
+        )
     }
 
     // MARK: - Main Validation Method
@@ -185,7 +200,7 @@ class SystemValidator {
         var allConflicts: [SystemConflict] = []
 
         // Check for external kanata processes
-        let conflictResolution = await processLifecycleManager.detectConflicts()
+        let conflictResolution = await processLifecycle.detectConflicts()
         allConflicts.append(contentsOf: conflictResolution.externalProcesses.map { process in
             .kanataProcessRunning(pid: Int(process.pid), command: process.command)
         })

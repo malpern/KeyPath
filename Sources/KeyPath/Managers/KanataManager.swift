@@ -1520,7 +1520,7 @@ class KanataManager {
 
                     // Update lifecycle manager with current service PID
                     let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
-                    await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+                    await processService.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
                 }
             } else {
                 // Service is not running

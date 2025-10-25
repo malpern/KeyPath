@@ -470,6 +470,12 @@ final class KeyPathTests: XCTestCase {
     }
 
     func testRootPrivilegeVerification() async throws {
+        // Skip in CI environment - requires system integration and permissions
+        try XCTSkipIf(
+            ProcessInfo.processInfo.environment["CI"] == "true",
+            "Skipping system integration test in CI (requires launchctl and installed services)"
+        )
+
         let manager = KanataManager()
 
         // Test that root verification doesn't crash
