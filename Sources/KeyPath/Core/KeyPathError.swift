@@ -406,7 +406,7 @@ extension KeyPathError {
         .permission(.inputMonitoringNotGranted)
     }
 
-    /// Create a UDP timeout error
+    /// Create a network timeout error (legacy alias)
     public static var udpTimeout: KeyPathError {
         .communication(.timeout)
     }
