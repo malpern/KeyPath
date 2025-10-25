@@ -735,7 +735,7 @@ struct RecordingSection: View {
                 })
                 .buttonStyle(.plain)
                 .appSolidGlassButton(
-                    tint: PreferencesService.shared.applyMappingsDuringRecording ? .blue : .white,
+                    tint: PreferencesService.shared.applyMappingsDuringRecording ? .blue : Color(NSColor.textBackgroundColor),
                     radius: 6
                 )
                 .overlay(
@@ -764,7 +764,7 @@ struct RecordingSection: View {
                         .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 })
                 .buttonStyle(.plain)
-                .appSolidGlassButton(tint: coordinator.isSequenceMode ? .blue : .white, radius: 6)
+                .appSolidGlassButton(tint: coordinator.isSequenceMode ? .blue : Color(NSColor.textBackgroundColor), radius: 6)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .stroke(Color.blue.opacity(0.25), lineWidth: 0.5)
