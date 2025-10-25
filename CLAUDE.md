@@ -4,17 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Test coverage improvements (October 25, 2025)
+**LATEST WORK:** Window activation reliability fix (October 25, 2025)
 
 **Recent Commits:**
+- fix: ensure main window appears on every launch via eager creation (**IN PROGRESS**)
+  - Added eager window creation in `App.init()` to avoid timing dependencies
+  - Decoupled bootstrap tasks into `bootstrapOnce()` for idempotent initialization
+  - Added 1-second activation fallback timer for reliability
+  - Added debug assertion to catch regression
+  - Fixed recurring issue where window wouldn't appear without clicking dock icon
+  - See ADR-014 for full architecture rationale
 - chore: remove dead code and deprecated test files (commit b72bb39) - **COMPLETE**
   - Deleted 56 files (~432KB): empty extensions, deprecated tests, orphaned scripts
   - Removed KanataConfigManagerError enum (superseded by KeyPathError)
   - Zero functional impact, build verified passing
 - feat: add hover tooltips to all wizard pages (commit 829071c) - **COMPLETE**
 - feat: detect and fix Karabiner driver version mismatch (commit 7834e90) - **COMPLETE**
-- fix: detect VirtualHID driver activation errors in wizard (commit 8a47f72)
-- fix: improve wizard status detection accuracy (commit b80f02e)
 
 ## ℹ️ Update — October 25, 2025
 
@@ -305,6 +310,19 @@ Mock time > real sleeps. 625x speedup, tests now <5s. Pattern: `Date().addingTim
 - **Output** - CGEvent synthesis, posting, and VirtualHID interaction
 - **Keep in Core** - Coordination, lifecycle, state management
 **Principle:** Only create files with working code. No empty placeholders. If decomposition becomes necessary, extract cohesive subsets of actual functionality rather than creating architectural scaffolding.
+
+### ADR-014: Eager Window Creation ✅
+**Problem:** Main window wouldn't appear on launch without user interaction (clicking dock icon). This was a **recurring regression** that happened multiple times.
+**Root Cause:** `AppDelegate.applicationDidFinishLaunching(_:)` is not called reliably by SwiftUI's `@NSApplicationDelegateAdaptor` when the app has no primary SwiftUI window scene (only Settings scene).
+**Evidence:** Log analysis showed some launches called `applicationDidFinishLaunching` while others didn't - unpredictable AppKit/SwiftUI lifecycle interaction.
+**Solution:**
+- **Eager window creation** in `App.init()` (before any lifecycle methods) via `prepareMainWindowIfNeeded()`
+- **Idempotent bootstrap** moved to `bootstrapOnce()` (TCP token, service bounce, StartupCoordinator)
+- **Activation fallback** timer (1 second) ensures window appears even if `applicationDidBecomeActive` never fires
+- **DEBUG assertion** verifies window exists before first activation (catches regression during development)
+- **Single creation path** via `prepareMainWindowIfNeeded()` used everywhere (init, reopen)
+**Files:** `App.swift:192-266`, `AppDelegateWindowTests.swift`
+**Key Insight:** Don't depend on `applicationDidFinishLaunching` for critical setup - it's unreliable with @NSApplicationDelegateAdaptor. Create windows eagerly in `App.init()` instead.
 
 ## ⚠️ Critical Reminders
 

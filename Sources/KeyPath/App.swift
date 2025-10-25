@@ -62,6 +62,9 @@ public struct KeyPathApp: App {
 
         // Request user notification authorization on first launch
         UserNotificationService.shared.requestAuthorizationIfNeeded()
+
+        // Eagerly prepare main window to avoid lifecycle timing dependencies
+        appDelegate.prepareMainWindowIfNeeded()
     }
 
     public var body: some Scene {
@@ -178,9 +181,91 @@ func openConfigInEditor(viewModel: KanataViewModel) {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: KanataManager?
     var isHeadlessMode = false
-    private var mainWindowController: MainWindowController?
-    private var initialMainWindowShown = false
-    private var pendingReopenShow = false
+    internal var mainWindowController: MainWindowController? // Accessible for testing
+    internal var initialMainWindowShown = false // Accessible for testing
+    internal var pendingReopenShow = false // Accessible for testing
+    internal var bootstrapStarted = false // Accessible for testing
+    internal var activationFallbackScheduled = false // Accessible for testing
+
+    // MARK: - Window Lifecycle
+
+    /// Prepare main window eagerly (idempotent, safe to call multiple times)
+    func prepareMainWindowIfNeeded() {
+        guard mainWindowController == nil, !isHeadlessMode else { return }
+        guard let manager = kanataManager else {
+            AppLogger.shared.log("❌ [Window] Cannot prepare: KanataManager nil")
+            return
+        }
+
+        AppLogger.shared.log("🪟 [Window] Lifecycle: Prepared")
+        mainWindowController = MainWindowController(kanataManager: manager)
+
+        // Reuse existing helper instead of raw orderFrontRegardless
+        mainWindowController?.primeForActivation()
+        AppLogger.shared.log("🪟 [Window] Lifecycle: Primed")
+
+        // Request activation to trigger applicationDidBecomeActive
+        NSApplication.shared.activate(ignoringOtherApps: true)
+
+        // Fallback: if activation never happens, force show after 1 second
+        scheduleActivationFallback()
+    }
+
+    /// Perform one-time bootstrap tasks (idempotent)
+    private func bootstrapOnce() {
+        guard !bootstrapStarted else { return }
+        bootstrapStarted = true
+
+        AppLogger.shared.log("🔍 [Bootstrap] Starting one-time initialization")
+
+        // Phase 2/3: Ensure shared TCP token exists for cross-platform compatibility
+        Task { @MainActor in
+            _ = await TCPAuthTokenManager.ensureToken()
+            AppLogger.shared.log("🔐 [Bootstrap] TCP auth token ready")
+        }
+
+        // Check for pending service bounce
+        Task { @MainActor in
+            let (shouldBounce, timeSince) = PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
+
+            if shouldBounce {
+                if let timeSince {
+                    AppLogger.shared.log("🔄 [Bootstrap] Service bounce requested \(Int(timeSince))s ago - performing bounce")
+                } else {
+                    AppLogger.shared.log("🔄 [Bootstrap] Service bounce requested - performing bounce")
+                }
+
+                let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
+                if bounceSuccess {
+                    AppLogger.shared.log("✅ [Bootstrap] Service bounce completed successfully")
+                    PermissionGrantCoordinator.shared.clearServiceBounceFlag()
+                } else {
+                    AppLogger.shared.log("❌ [Bootstrap] Service bounce failed - flag remains for retry")
+                }
+            }
+        }
+
+        // Kick off boring, phased startup
+        StartupCoordinator.shared.start()
+        AppLogger.shared.log("🔍 [Bootstrap] One-time initialization complete")
+    }
+
+    /// Schedule fallback activation if applicationDidBecomeActive never fires
+    private func scheduleActivationFallback() {
+        guard !activationFallbackScheduled else { return }
+        activationFallbackScheduled = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self else { return }
+            if !self.initialMainWindowShown {
+                AppLogger.shared.log("⏰ [Window] Fallback: Activation never fired, forcing show")
+                self.mainWindowController?.show(focus: true)
+                self.initialMainWindowShown = true
+            }
+        }
+    }
+
+    // MARK: - Application Lifecycle
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
@@ -198,7 +283,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_: Notification) {
         AppLogger.shared.log("🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))")
-        
+
+        // Perform one-time bootstrap tasks first
+        bootstrapOnce()
+
+        #if DEBUG
+        // Assertion: Window should exist by now (created in App.init)
+        if !isHeadlessMode {
+            assert(mainWindowController != nil, "Window should be prepared by App.init before first activation")
+        }
+        #endif
+
         // One-shot first activation: unconditionally show window on first activation
         if !initialMainWindowShown {
             // Log diagnostic state at first activation for future debugging
@@ -240,32 +335,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let info = BuildInfo.current()
         AppLogger.shared.log("🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)")
 
-        // Phase 2/3: Ensure shared TCP token exists for cross-platform compatibility
-        Task { @MainActor in
-            _ = await TCPAuthTokenManager.ensureToken()
-            AppLogger.shared.log("🔐 [AppDelegate] TCP auth token ready")
-        }
-
-        // Check for pending service bounce first
-        Task { @MainActor in
-            let (shouldBounce, timeSince) = PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
-
-            if shouldBounce {
-                if let timeSince {
-                    AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce")
-                } else {
-                    AppLogger.shared.log("🔄 [AppDelegate] Service bounce requested - performing bounce")
-                }
-
-                let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
-                if bounceSuccess {
-                    AppLogger.shared.log("✅ [AppDelegate] Service bounce completed successfully")
-                    PermissionGrantCoordinator.shared.clearServiceBounceFlag()
-                } else {
-                    AppLogger.shared.log("❌ [AppDelegate] Service bounce failed - flag remains for retry")
-                }
-            }
-        }
+        // Note: Bootstrap tasks (TCP token, service bounce, StartupCoordinator) moved to bootstrapOnce()
+        // Note: Window creation moved to prepareMainWindowIfNeeded() (called from App.init)
 
         if isHeadlessMode {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - starting kanata service automatically")
@@ -280,28 +351,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     await manager.startKanata()
                 }
             }
-        }
-        // Note: In normal mode, kanata is already started in KanataManager.init() if requirements are met
-
-        // Create main window controller (defer fronting until first activation)
-        if !isHeadlessMode {
-            AppLogger.shared.log("🪟 [AppDelegate] Setting up main window controller")
-            
-            guard let manager = kanataManager else {
-                AppLogger.shared.log("❌ [AppDelegate] KanataManager is nil, cannot create window")
-                return
-            }
-            
-            mainWindowController = MainWindowController(kanataManager: manager)
-            AppLogger.shared.log("🪟 [AppDelegate] Main window controller created (deferring show until activation)")
-
-            // Defer all window fronting until the first applicationDidBecomeActive event
-            // to avoid AppKit display-cycle reentrancy during initial layout.
-
-            // Kick off boring, phased startup once the window is created.
-            StartupCoordinator.shared.start()
         } else {
-            AppLogger.shared.log("🤖 [AppDelegate] Headless mode - skipping window management")
+            AppLogger.shared.log("🪟 [AppDelegate] Normal mode - window prepared in App.init, will show on activation")
         }
 
         // Observe notification action events
@@ -343,20 +394,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))")
 
-        // If UI hasn’t been set up yet (e.g., app was started in headless mode by LaunchAgent),
-        // escalate to a regular app and create the main window on demand.
+        // If UI hasn't been set up yet (e.g., app was started in headless mode by LaunchAgent),
+        // escalate to a regular app and use the single creation path.
         if mainWindowController == nil {
             if NSApplication.shared.activationPolicy() != .regular {
                 NSApplication.shared.setActivationPolicy(.regular)
                 AppLogger.shared.log("🪟 [AppDelegate] Escalated activation policy to .regular for UI reopen")
             }
 
-            if let manager = kanataManager {
-                mainWindowController = MainWindowController(kanataManager: manager)
-                AppLogger.shared.log("🪟 [AppDelegate] Created main window controller on reopen")
-            } else {
-                AppLogger.shared.log("❌ [AppDelegate] Cannot create window on reopen: KanataManager is nil")
-            }
+            // Use single creation path (idempotent)
+            prepareMainWindowIfNeeded()
+            AppLogger.shared.log("🪟 [AppDelegate] Window prepared on reopen")
         }
 
         // During early startup, defer showing until first activation completed to avoid layout reentrancy
