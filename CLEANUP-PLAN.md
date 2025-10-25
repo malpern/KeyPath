@@ -44,13 +44,22 @@
 
 ## Executive Summary
 
-The KeyPath codebase is generally well-structured, but contains:
-- **852 lines of completely dead code** (never called, never referenced)
-- **Over-engineered abstractions** with no concrete implementations
-- **Large files** (2,794 lines) that violate Single Responsibility Principle
-- **Confusing deprecation markers** on actively-used code
+**✅ CLEANUP COMPLETE - October 24, 2025**
 
-This plan prioritizes **safe deletions first** (Phase 1-2), then **structural improvements** (Phase 3-4).
+The codebase cleanup successfully removed **1,216 lines of dead and over-engineered code**, exceeding the original target of 1,060 lines (114.7%).
+
+**What Was Removed:**
+- ✅ **694 lines** - Dead event processing framework, duplicate sound class, failed wizard state machine
+- ✅ **9 lines** - Confusing deprecation markers on actively-used code
+- ✅ **513 lines** - Dead KanataConfigManager (replaced by ConfigurationService per ADR-009)
+
+**Key Discovery:**
+Phase 3 original plan called for extracting configuration logic from KanataManager. Upon investigation, this work was already complete (ConfigurationService extraction documented in ADR-009). Instead, we deleted the dead KanataConfigManager scaffolding and updated tests to use production code.
+
+**Result:**
+- Cleaner codebase with 1,216 fewer lines of dead/confusing code
+- Tests now exercise production code paths instead of mocks
+- All builds passing, no functionality affected
 
 ---
 
