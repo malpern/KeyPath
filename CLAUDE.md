@@ -7,10 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **LATEST WORK:** Test suite reliability investigation and improvements (October 25, 2025)
 
 **Recent Commits:**
-- test: fix AppDelegateWindowTests and improve coverage script (**IN PROGRESS**)
+- test: improve test reliability and coverage script (commit 6a8c750) - **COMPLETE**
   - Fixed `AppDelegateWindowTests.swift:113` to use `NSApplication.shared` instead of `NSApp`
   - Added timeout handling to coverage script (5min full suite, 2min filtered)
   - Documented test suite performance characteristics and coverage limitations
+  - Removed tests of private implementation details (bootstrap, activation fallback)
 - chore: remove dead code and deprecated test files (commit b72bb39) - **COMPLETE**
   - Deleted 56 files (~432KB): empty extensions, deprecated tests, orphaned scripts
   - Removed KanataConfigManagerError enum (superseded by KeyPathError)
