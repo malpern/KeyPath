@@ -51,26 +51,43 @@ echo "📦 Generating coverage -> $OUTDIR"
 
 # Run tests (unless reusing existing data)
 if [[ "$REUSE" != "true" ]]; then
-  if [[ "$FULL" == "true" ]]; then
-    echo "🧪 Running full test suite with coverage (timeout: 5 minutes)"
-    timeout 300 swift test --parallel --enable-code-coverage 2>&1 | tee "$OUTDIR/.coverage-test-output.log" || {
-      EXIT_CODE=$?
-      if [[ $EXIT_CODE == 124 ]]; then
-        echo "⏰ Test run timed out after 5 minutes"
-        echo "⚠️  Consider using --filter to run a subset of tests, or investigate slow/hanging tests"
-      fi
-      exit $EXIT_CODE
-    }
+  # Check if timeout command is available (not standard on macOS)
+  if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
+    TIMEOUT_CMD=$(command -v timeout || command -v gtimeout)
   else
-    echo "🧪 Running filtered tests with coverage (filter: $FILTER, timeout: 2 minutes)"
-    timeout 120 swift test --parallel --enable-code-coverage --filter "$FILTER" 2>&1 | tee "$OUTDIR/.coverage-test-output.log" || {
-      EXIT_CODE=$?
-      if [[ $EXIT_CODE == 124 ]]; then
-        echo "⏰ Test run timed out after 2 minutes"
-        echo "⚠️  Filtered tests should complete quickly. This may indicate a test issue."
-      fi
-      exit $EXIT_CODE
-    }
+    TIMEOUT_CMD=""
+  fi
+
+  if [[ "$FULL" == "true" ]]; then
+    if [[ -n "$TIMEOUT_CMD" ]]; then
+      echo "🧪 Running full test suite with coverage (timeout: 5 minutes)"
+      $TIMEOUT_CMD 300 swift test --parallel --enable-code-coverage 2>&1 | tee "$OUTDIR/.coverage-test-output.log" || {
+        EXIT_CODE=$?
+        if [[ $EXIT_CODE == 124 ]]; then
+          echo "⏰ Test run timed out after 5 minutes"
+          echo "⚠️  Consider using --filter to run a subset of tests, or investigate slow/hanging tests"
+        fi
+        exit $EXIT_CODE
+      }
+    else
+      echo "🧪 Running full test suite with coverage (no timeout - timeout command not available)"
+      swift test --parallel --enable-code-coverage 2>&1 | tee "$OUTDIR/.coverage-test-output.log"
+    fi
+  else
+    if [[ -n "$TIMEOUT_CMD" ]]; then
+      echo "🧪 Running filtered tests with coverage (filter: $FILTER, timeout: 2 minutes)"
+      $TIMEOUT_CMD 120 swift test --parallel --enable-code-coverage --filter "$FILTER" 2>&1 | tee "$OUTDIR/.coverage-test-output.log" || {
+        EXIT_CODE=$?
+        if [[ $EXIT_CODE == 124 ]]; then
+          echo "⏰ Test run timed out after 2 minutes"
+          echo "⚠️  Filtered tests should complete quickly. This may indicate a test issue."
+        fi
+        exit $EXIT_CODE
+      }
+    else
+      echo "🧪 Running filtered tests with coverage (filter: $FILTER)"
+      swift test --parallel --enable-code-coverage --filter "$FILTER" 2>&1 | tee "$OUTDIR/.coverage-test-output.log"
+    fi
   fi
 else
   echo "⏭️  Reusing existing coverage data (no test run)"
@@ -83,7 +100,7 @@ BUILDDIR=$(swift build --show-bin-path | sed 's/\/.build\/.*/.build/g')
 PROFDATA="$BUILDDIR/arm64-apple-macosx/debug/codecov/default.profdata"
 if [[ ! -f "$PROFDATA" ]]; then
   # Fallback: search anywhere under .build for a profdata
-  PROFDATA=$(rg --hidden --glob '**/*.profdata' -n --no-heading "$BUILDDIR" | head -n1 | awk -F: '{print $1}')
+  PROFDATA=$(find "$BUILDDIR" -name '*.profdata' -type f 2>/dev/null | head -n1)
 fi
 if [[ -z "${PROFDATA:-}" || ! -f "$PROFDATA" ]]; then
   echo "❌ No .profdata found under $BUILDDIR" >&2
