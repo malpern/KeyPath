@@ -1,4 +1,6 @@
 import Foundation
+import AppKit
+import Network
 
 // Simple, dependency-free CLI for KeyPath
 // Commands:
@@ -132,6 +134,100 @@ func tryRestartService() -> Int32 {
     do { try task.run(); task.waitUntilExit(); return task.terminationStatus } catch { return 127 }
 }
 
+// MARK: - Sounds (match GUI semantics)
+
+func playTink() { NSSound(named: "Tink")?.play() }
+func playGlass() { NSSound(named: "Glass")?.play() }
+func playErrorBeep() { NSSound.beep() }
+
+// MARK: - TCP live reload (like GUI)
+
+struct CommPrefs {
+    let enabled: Bool
+    let port: Int
+}
+
+func readCommPrefs() -> CommPrefs {
+    let enabled = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerEnabled") as? Bool ?? true
+    let port = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 37001
+    return CommPrefs(enabled: enabled, port: port)
+}
+
+/// Send {"Reload":{}} over TCP and wait for a newline-terminated ServerResponse
+func reloadViaTCP(timeout seconds: TimeInterval = 3.0) async -> Bool {
+    let prefs = readCommPrefs()
+    guard prefs.enabled && (1024...65535).contains(prefs.port) else { return false }
+
+    let connection = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(integerLiteral: UInt16(prefs.port)), using: .tcp)
+    connection.start(queue: DispatchQueue.global())
+
+    // Wait for ready or failure
+    do {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                    connection.stateUpdateHandler = { state in
+                        switch state {
+                        case .ready: cont.resume()
+                        case .failed(let err): cont.resume(throwing: err)
+                        case .cancelled: cont.resume(throwing: NSError(domain: "cli", code: -1))
+                        default: break
+                        }
+                    }
+                }
+            }
+            group.addTask { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)); throw NSError(domain: "cli.timeout", code: 1) }
+            try await group.next()
+            group.cancelAll()
+        }
+    } catch {
+        connection.cancel(); return false
+    }
+
+    // Send JSON line {"Reload":{}}\n
+    let payload = "{\"Reload\":{}}\n".data(using: .utf8)!
+    do {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            connection.send(content: payload, completion: .contentProcessed { err in
+                if let err { cont.resume(throwing: err) } else { cont.resume() }
+            })
+        }
+    } catch {
+        connection.cancel(); return false
+    }
+
+    // Read lines until we get a JSON with status Ok/Error or timeout
+    var buffer = Data()
+    let deadline = Date().addingTimeInterval(seconds)
+    while Date() < deadline {
+        do {
+            let chunk: Data? = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data?, Error>) in
+                connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, isComplete, err in
+                    if let err { cont.resume(throwing: err); return }
+                    if isComplete { cont.resume(returning: nil); return }
+                    cont.resume(returning: data)
+                }
+            }
+            if let data = chunk, !data.isEmpty { buffer.append(data) } else { break }
+
+            // Extract complete lines
+            while let nl = buffer.firstIndex(of: 0x0A) { // \n
+                let line = buffer[0..<nl]
+                buffer.removeSubrange(0...nl)
+                if let json = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
+                   let status = json["status"] as? String {
+                    connection.cancel()
+                    if status == "Ok" { return true } else { return false }
+                }
+            }
+        } catch {
+            connection.cancel(); return false
+        }
+    }
+    connection.cancel()
+    return false
+}
+
 // MARK: - CLI
 
 enum Command: String { case help, map, list, reload }
@@ -209,15 +305,36 @@ func main() {
             try? writeConfig([new])
         }
         print("✅ Wrote configuration at \(configPath())")
+        // Match GUI: play tink on save
+        playTink()
         if reload {
-            let status = tryRestartService()
-            if status == 0 { print("🔄 Reload: launchctl kickstart succeeded") }
-            else { print("⚠️ Reload failed (exit \(status)). Try: sudo launchctl kickstart -k system/com.keypath.kanata") }
+            // Try live reload over TCP first, fallback to launchctl
+            Task {
+                if await reloadViaTCP() {
+                    print("🔄 Reload: TCP reload succeeded")
+                    playGlass()
+                } else {
+                    let status = tryRestartService()
+                    if status == 0 { print("🔄 Reload: launchctl kickstart succeeded") ; playGlass() }
+                    else { print("⚠️ Reload failed (exit \(status)). Try: sudo launchctl kickstart -k system/com.keypath.kanata"); playErrorBeep() }
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
         }
     case .reload:
-        let status = tryRestartService()
-        if status == 0 { print("🔄 Reload: launchctl kickstart succeeded") }
-        else { print("⚠️ Reload failed (exit \(status)). Try: sudo launchctl kickstart -k system/com.keypath.kanata") }
+        Task {
+            if await reloadViaTCP() {
+                print("🔄 Reload: TCP reload succeeded")
+                playGlass()
+            } else {
+                let status = tryRestartService()
+                if status == 0 { print("🔄 Reload: launchctl kickstart succeeded"); playGlass() }
+                else { print("⚠️ Reload failed (exit \(status)). Try: sudo launchctl kickstart -k system/com.keypath.kanata"); playErrorBeep() }
+            }
+            exit(0)
+        }
+        RunLoop.main.run()
     }
 }
 
