@@ -146,6 +146,16 @@ class MainAppStateController: ObservableObject {
         AppLogger.shared.log("📊 [MainAppStateController] Components.daemonServicesHealthy: \(snapshot.components.launchDaemonServicesHealthy)")
         AppLogger.shared.log("📊 [MainAppStateController] Blocking issues: \(snapshot.blockingIssues.count)")
 
+        // Before adapting for UI, surface permission notifications if needed
+        var missingPermissions: [PermissionRequirement] = []
+        if case .denied = snapshot.permissions.keyPath.accessibility { missingPermissions.append(.keyPathAccessibility) }
+        if case .denied = snapshot.permissions.keyPath.inputMonitoring { missingPermissions.append(.keyPathInputMonitoring) }
+        if case .denied = snapshot.permissions.kanata.accessibility { missingPermissions.append(.kanataAccessibility) }
+        if case .denied = snapshot.permissions.kanata.inputMonitoring { missingPermissions.append(.kanataInputMonitoring) }
+        if !missingPermissions.isEmpty {
+            UserNotificationService.shared.notifyPermissionRequired(missingPermissions)
+        }
+
         // Convert to old format for UI compatibility
         let result = SystemSnapshotAdapter.adapt(snapshot)
 
