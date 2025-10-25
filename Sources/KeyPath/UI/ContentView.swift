@@ -549,7 +549,7 @@ struct ContentView: View {
             configRepairSuccessful = false
             showingConfigCorruptionAlert = true
             showStatusMessage(message: "❌ Config repair failed - using safe fallback")
-            UserNotificationService.shared.notifyConfigEvent(
+            UserNotificationService.shared.notifyFailureEvent(
                 "Configuration Repair Failed",
                 body: "Using a safe fallback configuration",
                 key: "config.repair.failed"
