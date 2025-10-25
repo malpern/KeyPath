@@ -3,11 +3,6 @@ import Carbon
 import Foundation
 import SwiftUI
 
-// Import the event processing infrastructure
-#if canImport(KeyPath)
-    // This is to handle potential circular dependencies during build
-#endif
-
 @MainActor
 public class KeyboardCapture: ObservableObject {
     private var eventTap: CFMachPort?
@@ -38,13 +33,6 @@ public class KeyboardCapture: ObservableObject {
     private let dedupWindow: TimeInterval = 0.04 // 40ms
     private var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
 
-    /// Event router for processing captured events through the event processing chain
-    private var eventRouter: EventRouter?
-
-    /// Enable/disable event router integration (for backward compatibility)
-    /// Default: false to maintain legacy behavior and avoid CGEvent tap conflicts
-    public var useEventRouter: Bool = false
-
     /// Reference to KanataManager to check if Kanata is running (to avoid tap conflicts)
     private weak var kanataManager: KanataManager?
 
@@ -69,29 +57,6 @@ public class KeyboardCapture: ObservableObject {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let out = String(data: data, encoding: .utf8) ?? ""
         return !out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    // MARK: - Event Router Configuration
-
-    /// Set the event router for processing captured events
-    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager? = nil) {
-        eventRouter = router
-        self.kanataManager = kanataManager
-        AppLogger.shared.log("📋 [KeyboardCapture] Event router \(router != nil ? "enabled" : "disabled")")
-    }
-
-    /// Enable event router integration with the default router
-    public func enableEventRouter() {
-        // Note: We avoid importing defaultEventRouter here to prevent circular dependencies
-        // Instead, it should be set externally via setEventRouter()
-        useEventRouter = true
-        AppLogger.shared.log("📋 [KeyboardCapture] Event router integration enabled")
-    }
-
-    /// Disable event router integration (fallback to legacy behavior)
-    public func disableEventRouter() {
-        useEventRouter = false
-        AppLogger.shared.log("📋 [KeyboardCapture] Event router integration disabled")
     }
 
     // Emergency stop sequence detection
@@ -296,27 +261,10 @@ public class KeyboardCapture: ObservableObject {
 
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
 
-                // Process through event router if enabled
-                if capture.useEventRouter, let router = capture.eventRouter {
-                    let result = router.route(
-                        event: event,
-                        location: .cgSessionEventTap,
-                        proxy: tapProxy,
-                        scope: .keyboard
-                    )
-
-                    // Handle the routing result
-                    if let processedEvent = result.processedEvent {
-                        capture.handleKeyEvent(processedEvent)
-                    }
-                    // Allow event to pass in listen-only mode; suppress otherwise
-                    return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
-                } else {
-                    // Legacy behavior - process directly
-                    capture.handleKeyEvent(event)
-                    // Allow event to pass in listen-only mode; suppress otherwise
-                    return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
-                }
+                // Process the key event directly
+                capture.handleKeyEvent(event)
+                // Allow event to pass in listen-only mode; suppress otherwise
+                return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         )

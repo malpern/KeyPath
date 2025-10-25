@@ -4,7 +4,6 @@ import AppKit
 
 @MainActor
 protocol RecordingCapture: AnyObject {
-    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?)
     func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void)
     func stopCapture()
 }
@@ -15,10 +14,6 @@ final class KeyboardCaptureAdapter: RecordingCapture {
 
     init() {
         self.capture = KeyboardCapture()
-    }
-
-    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?) {
-        capture.setEventRouter(router, kanataManager: kanataManager)
     }
 
     func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) {
@@ -238,7 +233,6 @@ final class RecordingCoordinator: ObservableObject {
                 }
 
                 self.logFocusState(prefix: "[Coordinator:Input]")
-                capture.setEventRouter(nil, kanataManager: self.kanataManager)
                 let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
 
                 self.inputTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
@@ -362,7 +356,6 @@ final class RecordingCoordinator: ObservableObject {
                 }
 
                 self.logFocusState(prefix: "[Coordinator:Output]")
-                capture.setEventRouter(nil, kanataManager: self.kanataManager)
                 let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
 
                 self.outputTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
