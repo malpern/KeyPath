@@ -20,14 +20,14 @@ jobs:
           bash Scripts/generate-coverage.sh --reuse || bash Scripts/generate-coverage.sh || true
           if [ ! -f dist/coverage/html/index.html ]; then
             mkdir -p dist/coverage/html
-            cat > dist/coverage/html/index.html <<'HTML'
-            <!doctype html><meta charset="utf-8"><title>Coverage</title>
-            <h1>Coverage</h1>
-            <p>No HTML generated; see summary below.</p>
-            <pre>
-            HTML
-            (sed -n '1,200p' dist/coverage/summary.txt || true) >> dist/coverage/html/index.html
-            echo '</pre>' >> dist/coverage/html/index.html
+            {
+              echo '<!doctype html><meta charset="utf-8"><title>Coverage</title>'
+              echo '<h1>Coverage</h1>'
+              echo '<p>No HTML generated; see summary below.</p>'
+              echo '<pre>'
+              sed -n '1,200p' dist/coverage/summary.txt 2>/dev/null || echo 'No summary available'
+              echo '</pre>'
+            } > dist/coverage/html/index.html
           fi
 
       - name: Publish to gh-pages branch
