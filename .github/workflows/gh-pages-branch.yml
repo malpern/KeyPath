@@ -1,0 +1,44 @@
+name: Publish Coverage (gh-pages branch)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ master ]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate coverage (reuse if available)
+        run: |
+          bash Scripts/generate-coverage.sh --reuse || bash Scripts/generate-coverage.sh || true
+          if [ ! -f dist/coverage/html/index.html ]; then
+            mkdir -p dist/coverage/html
+            cat > dist/coverage/html/index.html <<'HTML'
+            <!doctype html><meta charset="utf-8"><title>Coverage</title>
+            <h1>Coverage</h1>
+            <p>No HTML generated; see summary below.</p>
+            <pre>
+            HTML
+            (sed -n '1,200p' dist/coverage/summary.txt || true) >> dist/coverage/html/index.html
+            echo '</pre>' >> dist/coverage/html/index.html
+          fi
+
+      - name: Publish to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: dist/coverage/html
+          force_orphan: true
+
+      - name: Post hint
+        run: |
+          echo "If not visible yet, set Settings → Pages → Source: Deploy from a branch → Branch: gh-pages / root."
+
