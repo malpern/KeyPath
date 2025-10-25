@@ -2,10 +2,10 @@ import XCTest
 
 @testable import KeyPath
 
-/// Tests for KanataManager state management - focuses on public interface and state management
-/// These tests address the specific issues we solved: timer consolidation and wizard triggering
+/// Tests for KanataManager public API - focuses on public interface and state management
+/// Complements KanataManagerTests which tests diagnostics, config validation, and installation
 @MainActor
-final class SimpleKanataManagerTests: XCTestCase {
+final class KanataManagerPublicAPITests: XCTestCase {
     // MARK: - Public Interface Tests
 
     func testStateTransitions() async {
@@ -102,7 +102,6 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Test retry mechanism exists
 
         let kanataManager = KanataManager()
-        // Consolidated: simpleManager is now just kanataManager
 
         // Test retry method exists and can be called
         await kanataManager.retryAfterFix("Test feedback")
@@ -116,7 +115,6 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Verify that status refresh exists (this was part of timer consolidation)
 
         let kanataManager = KanataManager()
-        // Consolidated: simpleManager is now just kanataManager
 
         // Should be able to force refresh status
         await kanataManager.forceRefreshStatus()
@@ -128,7 +126,6 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Test that multiple refreshes don't cause issues (timer consolidation benefit)
 
         let kanataManager = KanataManager()
-        // Consolidated: simpleManager is now just kanataManager
 
         // Multiple rapid refreshes should be handled gracefully
         for _ in 0 ..< 5 {
@@ -144,7 +141,6 @@ final class SimpleKanataManagerTests: XCTestCase {
         // Test that error states are properly handled
 
         let kanataManager = KanataManager()
-        // Consolidated: simpleManager is now just kanataManager
 
         // Error reason should be optional
         XCTAssertNil(kanataManager.errorReason, "Initial error reason should be nil")
