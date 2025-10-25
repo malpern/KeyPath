@@ -26,54 +26,10 @@ end_step() {
   log "✓ Completed in ${dur}s"
 }
 
-# Run a long step with periodic heartbeats and a soft timeout
-# Usage: run_with_heartbeat <label> <timeout_seconds> -- <cmd> [args...]
-run_with_heartbeat() {
-  local label="$1"; shift
-  local limit="$1"; shift
-  if [[ "$1" != "--" ]]; then
-    echo "run_with_heartbeat: missing -- before command" >&2; return 99
-  fi
-  shift
-
-  start_step "$label"
-  local start_ts=$(date +%s)
-  ( "$@" ) &
-  local pid=$!
-  local last_print=0
-  while kill -0 $pid 2>/dev/null; do
-    local now=$(date +%s)
-    local elapsed=$(( now - start_ts ))
-    if (( now - last_print >= 10 )); then
-      # Print a heartbeat and a lightweight ps snapshot (if available)
-      if command -v ps >/dev/null 2>&1; then
-        local psline
-        psline=$(ps -o pid=,pcpu=,etime=,rss= -p $pid 2>/dev/null | awk '{printf "pid=%s cpu=%s%% etime=%s rss=%sKB", $1,$2,$3,$4}') || psline="pid=$pid"
-        log "… still working on: $label (elapsed ${elapsed}s) [$psline]"
-      else
-        log "… still working on: $label (elapsed ${elapsed}s)"
-      fi
-      last_print=$now
-    fi
-    if (( elapsed > limit )); then
-      log "⛔ $label exceeded ${limit}s — terminating PID $pid"
-      kill -TERM $pid 2>/dev/null || true
-      sleep 2
-      kill -KILL $pid 2>/dev/null || true
-      wait $pid 2>/dev/null || true
-      return 124
-    fi
-    sleep 1
-  done
-  wait $pid
-  local rc=$?
-  end_step
-  return $rc
-}
-
 trap 'log "⛔ Build script aborted"' INT TERM
 
-if [[ "${SKIP_KANATA_BUILD:-0}" == "1" ]]; then
+# Skip kanata build by default (override with SKIP_KANATA_BUILD=0)
+if [[ "${SKIP_KANATA_BUILD:-1}" == "1" ]]; then
   start_step "Skipping bundled kanata build (SKIP_KANATA_BUILD=1)"
   echo "ℹ️  Will reuse build/kanata-universal if present; otherwise continue without bundling."
   end_step
@@ -87,15 +43,14 @@ else
   end_step
 fi
 
-echo "🏗️  Building KeyPath (release, no WMO)…"
-# Build main app (disable whole-module optimization to avoid hang). Timeout: 10 minutes hard cap.
-log "Running: swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization"
-if ! run_with_heartbeat "Swift build (release)" 600 -- \
-  swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization; then
-  log "⚠️  Swift build hit timeout or failed; retrying with verbose output"
-  run_with_heartbeat "Swift build retry (-v)" 600 -- \
-    swift build -v --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
+start_step "Building KeyPath (release, no WMO)"
+echo "🏗️  Building KeyPath..."
+# Build main app (disable whole-module optimization to avoid hang)
+if ! swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization; then
+  log "⚠️  Swift build failed; retrying with verbose output"
+  swift build -v --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
 fi
+end_step
 
 start_step "Creating app bundle"
 echo "📦 Creating app bundle..."

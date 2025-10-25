@@ -5,10 +5,16 @@
 
 set -e
 
-echo "🦀 Building bundled kanata for development..."
-# Build kanata from source with STABLE Developer ID signing
-# CRITICAL: Never use ad-hoc signing - breaks TCC identity persistence
-CODESIGN_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)" ./Scripts/build-kanata.sh
+# Skip kanata build by default (override with SKIP_KANATA_BUILD=0)
+if [[ "${SKIP_KANATA_BUILD:-1}" != "1" ]]; then
+    echo "🦀 Building bundled kanata for development..."
+    # Build kanata from source with STABLE Developer ID signing
+    # CRITICAL: Never use ad-hoc signing - breaks TCC identity persistence
+    CODESIGN_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)" ./Scripts/build-kanata.sh
+else
+    echo "⏭️  Skipping kanata build (using cached binary)"
+    echo "   To rebuild: SKIP_KANATA_BUILD=0 ./Scripts/build.sh"
+fi
 
 echo "🏗️  Building KeyPath..."
 # Build the Swift package (disable whole-module optimization to avoid hang)
