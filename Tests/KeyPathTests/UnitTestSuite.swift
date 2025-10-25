@@ -27,14 +27,12 @@ final class UnitTestSuite: XCTestCase {
     // MARK: - Configuration Generation Tests
 
     func testBasicConfigGeneration() throws {
-        let manager = KanataConfigManager()
         let mappings = [
             KeyMapping(input: "caps", output: "esc"),
             KeyMapping(input: "space", output: "space") // passthrough
         ]
 
-        let configSet = manager.createConfiguration(mappings: mappings)
-        let config = configSet.generatedConfig
+        let config = KanataConfiguration.generateFromMappings(mappings)
 
         // Check required sections
         XCTAssertTrue(config.contains("(defcfg"))
@@ -48,13 +46,11 @@ final class UnitTestSuite: XCTestCase {
     }
 
     func testComplexKeyMappingGeneration() throws {
-        let manager = KanataConfigManager()
         let mapping = KeyMapping(input: "caps", output: "cmd+c")
 
-        let configSet = manager.createConfiguration(mappings: [mapping])
-        let config = configSet.generatedConfig
+        let config = KanataConfiguration.generateFromMappings([mapping])
 
-        // Should generate macro for complex output
+        // Should generate macro for complex output (cmd+c becomes C-c in kanata syntax)
         XCTAssertTrue(config.contains("C-c") || config.contains("cmd") || config.contains("macro") || config.contains("caps"))
     }
 
