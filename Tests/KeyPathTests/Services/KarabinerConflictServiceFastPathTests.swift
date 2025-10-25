@@ -14,6 +14,7 @@ final class KarabinerConflictServiceFastPathTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempHome)
     }
 
+    @MainActor
     func testIsKarabinerElementsRunningRespectsDisabledMarker() async throws {
         // Create the disabled marker file to force early return path
         let marker = tempHome.appendingPathComponent(".keypath/karabiner-grabber-disabled")
@@ -25,6 +26,7 @@ final class KarabinerConflictServiceFastPathTests: XCTestCase {
         XCTAssertFalse(running, "Disabled marker should short-circuit to false without shelling out")
     }
 
+    @MainActor
     func testKillCommandContainsExpectedPieces() {
         let cmd = KarabinerConflictService().getKillKarabinerCommand()
         XCTAssertTrue(cmd.contains("launchctl unload"))
