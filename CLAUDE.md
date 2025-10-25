@@ -122,9 +122,31 @@ The PermissionOracle follows a strict hierarchy that was broken in commit 7f6882
 
 **Historical Context:**
 - **commit 71d7d06**: Original correct Oracle design
-- **commit 7f68821**: ❌ Broke Oracle by always using TCC fallback  
+- **commit 7f68821**: ❌ Broke Oracle by always using TCC fallback
 - **commit 8445b36**: ✅ Restored Oracle Apple-first hierarchy
 - **commit bbdd053**: ✅ Fixed UI consistency by removing SystemStatusChecker overrides
+
+### 📂 PermissionService Architecture Evolution
+
+**Historical:** PermissionService originally handled all permission checks directly, mixing business logic with TCC database access.
+
+**Current (Post-Oracle):**
+- PermissionService is now a **TCC database reader ONLY**
+- All permission logic moved to PermissionOracle (see ADR-001)
+- Service provides safe, deterministic database queries as Oracle fallback
+- Used exclusively when Apple APIs return `.unknown` (see hierarchy above)
+- DO NOT add permission logic here - use Oracle
+
+**Responsibilities:**
+- Read TCC database (`/Library/Application Support/com.apple.TCC/TCC.db`)
+- Query permission status for specific services (Accessibility, Input Monitoring)
+- Provide fallback data when Apple APIs are unavailable
+- No business logic, no decision-making, just data access
+
+**Related:**
+- ADR-001 (Oracle Pattern)
+- ADR-006 (Apple API Priority)
+- PermissionOracle.swift:102-106 (TCC fallback logic)
 
 ### 🎯 Validation Architecture (September 2025)
 

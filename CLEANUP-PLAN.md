@@ -13,7 +13,7 @@
 | Phase 1: Dead Code Removal | ✅ **COMPLETE** | -694 lines | 1c29843 | Oct 24, 2025 |
 | Phase 2: Code Quality Cleanup | ✅ **COMPLETE** | -9 lines | e62463a | Oct 24, 2025 |
 | Phase 3.1: Dead Config Manager | ✅ **COMPLETE** | -513 lines | 7758bd6 | Oct 24, 2025 |
-| Phase 4: Documentation | 🔄 Pending | Documentation | - | - |
+| Phase 4: Documentation | ✅ **COMPLETE** | +22 lines docs | TBD | Oct 24, 2025 |
 
 **Total Progress:** 1,216/1,060 lines removed (114.7%) ✅ **TARGET EXCEEDED**
 
@@ -450,6 +450,33 @@ final class KeyboardCaptureAdapter: RecordingCapture {
 4. **If 2+ implementations:** Keep adapter (legitimate abstraction)
 
 **Impact:** -30 lines if removed, simpler code
+
+---
+
+### Phase 4 Summary ✅
+
+**Executed:** October 24, 2025
+**Commit:** TBD
+**Lines Changed:** +22 lines (documentation)
+
+**Task 4.1: PermissionService Evolution Documentation** ✅
+- Added comprehensive architecture evolution section to CLAUDE.md:129-150
+- Documents historical context (pre-Oracle vs post-Oracle)
+- Clarifies current role: TCC database reader ONLY, no business logic
+- Lists specific responsibilities and related ADRs
+- **Impact:** Prevents future confusion about permission architecture
+
+**Task 4.2: KeyboardCaptureAdapter Evaluation** ✅
+- Investigation completed: adapter has legitimate purpose
+- Found 2 implementations of RecordingCapture protocol:
+  - `KeyboardCaptureAdapter` (production)
+  - `StubRecordingCapture` (test double)
+- **Decision:** KEEP adapter - enables dependency injection for testing
+- **Rationale:** Textbook Adapter pattern for testability, minimal abstraction
+- **Impact:** No code changes, validated architecture is correct
+
+**Build:** ✅ No functional changes (documentation only)
+**Result:** Clearer architectural boundaries, better onboarding for new developers
 
 ---
 
