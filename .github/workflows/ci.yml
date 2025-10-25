@@ -124,13 +124,14 @@ jobs:
       run: |
         set -e
         echo "🌐 Ensuring HTML coverage exists"
+        mkdir -p dist/coverage/html
         if command -v genhtml >/dev/null 2>&1 && [ -f dist/coverage/coverage.lcov ]; then
           genhtml -o dist/coverage/html dist/coverage/coverage.lcov || true
         fi
         if [ ! -f dist/coverage/html/index.html ]; then
-          echo "<!doctype html><meta charset=\"utf-8\"><title>Coverage</title><p>No coverage HTML found. See artifact contents." > dist/coverage/html/index.html
+          printf '%s\n' '<!doctype html><meta charset="utf-8"><title>Coverage</title><p>No coverage HTML found. See artifact contents.</p>' > dist/coverage/html/index.html
         fi
-        echo "Listing coverage HTML directory:" 
+        echo "Listing coverage HTML directory:"
         ls -la dist/coverage/html || true
 
     - name: Upload Coverage Artifacts
