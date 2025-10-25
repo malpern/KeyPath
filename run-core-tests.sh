@@ -5,6 +5,7 @@
 #
 
 set -e
+set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -31,22 +32,35 @@ run_test_suite() {
     local test_name="$1"
     local test_filter="$2"
     local timeout="${3:-120}"
-    
+
     echo "🔍 Running $test_name..."
-    
+
     # Use gtimeout on macOS, timeout on Linux
     TIMEOUT_CMD="timeout"
     if command -v gtimeout >/dev/null 2>&1; then
         TIMEOUT_CMD="gtimeout"
     fi
-    
-    if $TIMEOUT_CMD "$timeout" swift test --filter "$test_filter" --parallel 2>&1 | tee "test-results/$test_name.log"; then
-        echo "✅ $test_name completed successfully"
-        return 0
+
+    if [[ -n "$test_filter" ]]; then
+        # Filtered run (e.g., Unit tests)
+        if $TIMEOUT_CMD "$timeout" swift test --filter "$test_filter" --parallel 2>&1 | tee "test-results/$test_name.log"; then
+            echo "✅ $test_name completed successfully"
+            return 0
+        else
+            local exit_code=$?
+            echo "⚠️ $test_name failed (exit code: $exit_code)"
+            return $exit_code
+        fi
     else
-        local exit_code=$?
-        echo "⚠️ $test_name failed (exit code: $exit_code)"
-        return $exit_code
+        # Unfiltered run (e.g., Core tests = real suites)
+        if $TIMEOUT_CMD "$timeout" swift test --parallel 2>&1 | tee "test-results/$test_name.log"; then
+            echo "✅ $test_name completed successfully"
+            return 0
+        else
+            local exit_code=$?
+            echo "⚠️ $test_name failed (exit code: $exit_code)"
+            return $exit_code
+        fi
     fi
 }
 
@@ -67,7 +81,8 @@ fi
 echo ""
 
 # 2. Core Tests (essential functionality)
-if run_test_suite "Core Tests" "CoreTestSuite" 90; then
+# Run real suites without relying on a non-existent filter
+if run_test_suite "Core Tests" "" 90; then
     echo "  Core tests passed ✅"
 else
     echo "  Core tests failed ❌"
@@ -79,7 +94,7 @@ echo ""
 # 3. Basic Integration Tests (only if enabled)
 if [ "$CI_INTEGRATION_TESTS" = "true" ]; then
     echo "🔗 Integration tests enabled"
-    if run_test_suite "Integration Tests" "BasicIntegrationTestSuite" 120; then
+    if run_test_suite "Integration Tests" "IntegrationTestSuite" 120; then
         echo "  Integration tests passed ✅"
     else
         echo "  Integration tests failed ❌"

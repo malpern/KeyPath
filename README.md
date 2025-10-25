@@ -5,8 +5,8 @@
   
   **Remap any key to any other key with a simple, native macOS app**
   
-  [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg)](https://www.apple.com/macos/)
-  [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org)
+  [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
+  [![Swift 6](https://img.shields.io/badge/Swift-6-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
 
@@ -168,7 +168,7 @@ Our main runners already use this workaround: `./run-tests.sh` and `./Scripts/ru
 ## 🏗️ Requirements
 
 ### System Requirements
-- macOS 14.0 (Sonoma) or later
+- macOS 15.0 (Sequoia) or later
 - Apple Silicon or Intel Mac
 
 ### Dependencies (Handled Automatically)

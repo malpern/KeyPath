@@ -27,7 +27,7 @@ class ServiceHealthMonitorTests: XCTestCase {
 
     func testCheckServiceHealth_ProcessNotRunning() async {
         let status = ProcessHealthStatus(isRunning: false, pid: nil)
-        let healthStatus = await monitor.checkServiceHealth(processStatus: status, udpClient: nil)
+        let healthStatus = await monitor.checkServiceHealth(processStatus: status, tcpClient: nil)
 
         XCTAssertFalse(healthStatus.isHealthy, "Should be unhealthy when process not running")
         XCTAssertTrue(healthStatus.shouldRestart, "Should recommend restart")
@@ -36,7 +36,7 @@ class ServiceHealthMonitorTests: XCTestCase {
 
     func testCheckServiceHealth_ProcessRunning_NoUDPClient() async {
         let status = ProcessHealthStatus(isRunning: true, pid: 1234)
-        let healthStatus = await monitor.checkServiceHealth(processStatus: status, udpClient: nil)
+        let healthStatus = await monitor.checkServiceHealth(processStatus: status, tcpClient: nil)
 
         XCTAssertTrue(healthStatus.isHealthy, "Should be healthy when process running and no UDP check available")
         XCTAssertFalse(healthStatus.shouldRestart, "Should not recommend restart")
@@ -47,7 +47,7 @@ class ServiceHealthMonitorTests: XCTestCase {
         await monitor.recordStartAttempt(timestamp: Date())
 
         let status = ProcessHealthStatus(isRunning: true, pid: 1234)
-        let healthStatus = await monitor.checkServiceHealth(processStatus: status, udpClient: nil)
+        let healthStatus = await monitor.checkServiceHealth(processStatus: status, tcpClient: nil)
 
         XCTAssertTrue(healthStatus.isHealthy, "Should be healthy within grace period")
     }
@@ -262,7 +262,7 @@ class ServiceHealthMonitorTests: XCTestCase {
         let status = ProcessHealthStatus(isRunning: true, pid: 1234)
 
         // First check without UDP client - should be healthy
-        let healthStatus = await monitor.checkServiceHealth(processStatus: status, udpClient: nil)
+        let healthStatus = await monitor.checkServiceHealth(processStatus: status, tcpClient: nil)
         XCTAssertTrue(healthStatus.isHealthy)
     }
 
