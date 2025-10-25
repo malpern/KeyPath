@@ -20,7 +20,7 @@ jobs:
 
       - name: Generate coverage (reuse if available)
         run: |
-          bash Scripts/generate-coverage.sh --reuse || bash Scripts/generate-coverage.sh || true
+          bash Scripts/generate-coverage.sh --full --reuse || bash Scripts/generate-coverage.sh --full || true
           if [ ! -f dist/coverage/html/index.html ]; then
             mkdir -p dist/coverage/html
             {
