@@ -4,9 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Wizard hover tooltips and Karabiner driver version compatibility (October 23, 2025)
+**LATEST WORK:** Dead code cleanup (October 24, 2025)
 
 **Recent Commits:**
+- chore: remove dead code and deprecated test files (commit b72bb39) - **COMPLETE**
+  - Deleted 56 files (~432KB): empty extensions, deprecated tests, orphaned scripts
+  - Removed KanataConfigManagerError enum (superseded by KeyPathError)
+  - Zero functional impact, build verified passing
 - feat: add hover tooltips to all wizard pages (commit 829071c) - **COMPLETE**
 - feat: detect and fix Karabiner driver version mismatch (commit 7834e90) - **COMPLETE**
 - fix: detect VirtualHID driver activation errors in wizard (commit 8a47f72)
@@ -242,6 +246,17 @@ Mock time > real sleeps. 625x speedup, tests now <5s. Pattern: `Date().addingTim
 - Success message after completion
 **Future:** Update to v6 when kanata v1.10 releases
 **Files:** VHIDDeviceManager.swift, SystemValidator.swift, WizardAutoFixer.swift
+
+### ADR-013: KanataManager Decomposition Intentions 📝
+**Current State:** KanataManager is ~2,794 lines in single file
+**Historical Context:** Empty extension placeholders (KanataManager+Engine.swift, +EventTaps.swift, +Output.swift) deleted in commit b72bb39
+**Why Deleted:** Premature abstraction - created but never implemented
+**Future Decomposition (if needed):**
+- **Engine** - Key mapping transformations and layer management
+- **EventTaps** - CGEvent tap installation, callbacks, and event processing
+- **Output** - CGEvent synthesis, posting, and VirtualHID interaction
+- **Keep in Core** - Coordination, lifecycle, state management
+**Principle:** Only create files with working code. No empty placeholders. If decomposition becomes necessary, extract cohesive subsets of actual functionality rather than creating architectural scaffolding.
 
 ## ⚠️ Critical Reminders
 
