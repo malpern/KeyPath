@@ -23,33 +23,52 @@
 
 ### Critical Issues Discovered
 
-#### 🚨 Infrastructure Problems (Highest Priority)
-1. **Test runner gives false positives**
-   - Missing `set -o pipefail` in `run-core-tests.sh`
-   - Filters non-existent test suites (`CoreTestSuite`)
-   - Compile errors still report success ✅
-   - Result: **Zero tests actually running**
+#### 🚨 Infrastructure Problems (Highest Priority) ✅ ALL COMPLETE
+**Status: Fixed in Phase 0 & 1**
 
-2. **Linting disabled**
-   - `.swiftlint.yml` disables `file_length`, `type_body_length`, `function_body_length`
-   - Actively enables god objects to grow unchecked
+1. **✅ Test runner gives false positives** - FIXED
+   - ✅ Added `set -o pipefail` in `run-core-tests.sh`
+   - ✅ Fixed non-existent test suite filters (removed `CoreTestSuite`)
+   - ✅ Compile errors now properly fail CI
+   - **Result: Tests actually run and report correctly**
 
-3. **Documentation drift**
-   - README says Swift 5.9, Package.swift uses Swift 6
-   - Scripts check wrong file paths
-   - Erodes trust for contributors
+2. **✅ Linting disabled** - FIXED
+   - ✅ Re-enabled `file_length`, `type_body_length`, `function_body_length`
+   - ✅ Set generous initial thresholds (file: 1000, type: 600, func: 200)
+   - **Result: CI now enforces code quality standards**
 
-4. **Test API drift**
-   - Tests reference removed APIs (`setEventRouter`)
-   - Network API changed to TCP (`udpClient:` → `tcpClient:`)
-   - Tests can't compile, let alone run
+3. **✅ Documentation drift** - FIXED
+   - ✅ Updated README to Swift 6 (was incorrectly showing 5.9)
+   - ✅ Fixed script paths
+   - **Result: Documentation matches actual codebase**
 
-#### ⚠️ Code Quality Issues
-1. **God object:** KanataManager (2,788 lines) mixes UI state, config I/O, file watching, process lifecycle, TCP, diagnostics, backup/restore, notifications, permission gating, health checks
-2. **Over-complex permission detection:** PermissionOracle uses Apple APIs + SQLite TCC reads + netstat + TCP functional checks (fragile, contradicts own guidelines)
-3. **UI/Infrastructure coupling:** ConfigurationService imports SwiftUI unnecessarily (should be UI‑free)
-4. **Excessive abstraction layers:** UI → ViewModel → Manager → Service → File (5 layers)
-5. **40% of codebase wouldn't exist in MVP** (auto-fix wizard, health monitoring, advanced diagnostics)
+4. **✅ Test API drift** - FIXED
+   - ✅ Updated `udpClient:` → `tcpClient:` (4 instances)
+   - ✅ Removed `setEventRouter()` calls (API removed)
+   - ✅ Added missing `vhidVersionMismatch` parameter
+   - **Result: All tests compile and run successfully**
+
+#### ⚠️ Code Quality Issues - PENDING (Phases 2-6)
+**Status: Scheduled for future phases**
+
+1. **⏳ God object:** KanataManager (2,788 lines) - **Phase 2 (Week 3-4)**
+   - Scheduled: Split into ProcessService + ConfigManager + Coordinator
+   - Target: <700 lines per file
+
+2. **⏳ Over-complex permission detection** - **Phase 4 (Week 5-6)**
+   - Scheduled: Simplify PermissionOracle
+   - Remove: SQLite TCC reads, netstat checks, TCP permission inference
+
+3. **⏳ UI/Infrastructure coupling** - **Phase 3 (Week 5)**
+   - Scheduled: Remove SwiftUI imports from services
+   - Add: Error presentation protocols
+
+4. **⏳ Excessive abstraction layers** - **Ongoing evaluation**
+   - Will be addressed during Phase 2-4 refactoring
+
+5. **⏳ 40% MVP bloat** - **Not directly addressed**
+   - Philosophical question about product scope
+   - May inform future feature decisions
 
 ---
 
