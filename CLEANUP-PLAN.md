@@ -11,7 +11,7 @@
 | Phase | Status | Lines Removed | Commit | Date |
 |-------|--------|---------------|--------|------|
 | Phase 1: Dead Code Removal | ✅ **COMPLETE** | -694 lines | 1c29843 | Oct 24, 2025 |
-| Phase 2: Code Quality Cleanup | ✅ **COMPLETE** | -9 lines | TBD | Oct 24, 2025 |
+| Phase 2: Code Quality Cleanup | ✅ **COMPLETE** | -9 lines | e62463a | Oct 24, 2025 |
 | Phase 3: File Size Reduction | 🔄 Pending | ~-400 lines | - | - |
 | Phase 4: Documentation | 🔄 Pending | Documentation | - | - |
 
@@ -170,7 +170,7 @@ This plan prioritizes **safe deletions first** (Phase 1-2), then **structural im
 ## Phase 2: Code Quality Cleanup ✅ COMPLETE
 
 **Executed:** October 24, 2025
-**Commit:** TBD
+**Commit:** e62463a
 **Lines Removed:** -9 lines (vs. planned -204)
 
 ### Task 2.1: Evaluate ConfigurationProviding Protocol ✅
@@ -496,7 +496,7 @@ swift build
 ### PR #2: Phase 2 Code Quality Cleanup ✅ MERGED
 **Title:** "refactor: remove deprecated markers and validate architecture"
 
-**Status:** ✅ Merged to master (commit TBD, Oct 24 2025)
+**Status:** ✅ Merged to master (commit e62463a, Oct 24 2025)
 
 **Files Changed:**
 - ✅ UPDATED: KanataManager.swift (removed deprecation marker)
