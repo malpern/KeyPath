@@ -148,21 +148,16 @@ struct WizardInputMonitoringPage: View {
                         // Component details for error state
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: keyPathInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .red)
-                                    HStack(spacing: 0) {
-                                        Text("KeyPath.app")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Main application needs permission")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
+                                Image(systemName: keyPathInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("KeyPath.app")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Main application needs permission")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
                                 }
-                                .contentShape(Rectangle())
-                                .help(keyPathInputMonitoringIssues.asTooltipText())
-
                                 Spacer()
                                 if keyPathInputMonitoringStatus != .completed {
                                     Button("Fix") {
@@ -172,23 +167,19 @@ struct WizardInputMonitoringPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(keyPathInputMonitoringIssues.asTooltipText())
 
                             HStack(spacing: 12) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: kanataInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .red)
-                                    HStack(spacing: 0) {
-                                        Text("kanata")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Remapping engine needs permission")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
+                                Image(systemName: kanataInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("kanata")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Remapping engine needs permission")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
                                 }
-                                .contentShape(Rectangle())
-                                .help(kanataInputMonitoringIssues.asTooltipText())
-
                                 Spacer()
                                 if kanataInputMonitoringStatus != .completed {
                                     Button("Fix") {
@@ -198,6 +189,7 @@ struct WizardInputMonitoringPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(kanataInputMonitoringIssues.asTooltipText())
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)

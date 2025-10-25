@@ -72,7 +72,7 @@ public struct KanataConfiguration: Sendable {
 ///
 /// This service handles all configuration-related operations:
 /// - Loading and saving configuration files
-/// - Validation via TCP and file-based checks
+/// - Validation via UDP and file-based checks
 /// - File watching and change detection
 /// - Key mapping generation and conversion
 @MainActor public final class ConfigurationService: FileConfigurationProviding {
@@ -248,55 +248,55 @@ public struct KanataConfiguration: Sendable {
 
     // MARK: - Validation
 
-    /// Validate configuration via TCP with authentication and timeout
-    public func validateConfigViaTCP() async -> (isValid: Bool, errors: [String])? {
+    /// Validate configuration via UDP with authentication and timeout
+    public func validateConfigViaUDP() async -> (isValid: Bool, errors: [String])? {
         do {
             let config = await current()
             let commConfig = PreferencesService.communicationSnapshot()
-            let client = KanataTCPClient(port: commConfig.tcpPort)
+            let client = KanataUDPClient(port: commConfig.udpPort)
 
             // Authenticate first
-            let authToken = commConfig.tcpAuthToken.isEmpty ? nil : commConfig.tcpAuthToken
+            let authToken = commConfig.udpAuthToken.isEmpty ? nil : commConfig.udpAuthToken
             guard let token = authToken else {
-                AppLogger.shared.log("⚠️ [ConfigService] No TCP auth token available for validation")
+                AppLogger.shared.log("⚠️ [ConfigService] No UDP auth token available for validation")
                 return nil
             }
 
             guard await client.authenticate(token: token) else {
-                AppLogger.shared.log("❌ [ConfigService] TCP authentication failed for validation")
+                AppLogger.shared.log("❌ [ConfigService] UDP authentication failed for validation")
                 return nil
             }
 
             // Use proper async timeout with Task cancellation
-            let tcpResult = try await withThrowingTaskGroup(of: TCPValidationResult.self) { group in
+            let udpResult = try await withThrowingTaskGroup(of: UDPValidationResult.self) { group in
                 group.addTask { @Sendable in
                     await client.validateConfig(config.content)
                 }
 
                 group.addTask { @Sendable in
                     try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-                    return TCPValidationResult.networkError("Validation timeout")
+                    return UDPValidationResult.networkError("Validation timeout")
                 }
 
                 return try await group.next()!
             }
 
-            switch tcpResult {
+            switch udpResult {
             case .success:
                 return (true, [])
             case let .failure(errors: configErrors):
                 let errorMessages = configErrors.map { "Line \($0.line):\($0.column) - \($0.message)" }
                 return (false, errorMessages)
             case .authenticationRequired:
-                AppLogger.shared.log("❌ [ConfigService] TCP validation requires re-authentication")
+                AppLogger.shared.log("❌ [ConfigService] UDP validation requires re-authentication")
                 return nil
             case let .networkError(message):
-                AppLogger.shared.log("❌ [ConfigService] TCP validation network error: \(message)")
+                AppLogger.shared.log("❌ [ConfigService] UDP validation network error: \(message)")
                 return nil
             }
 
         } catch {
-            AppLogger.shared.log("⚠️ [ConfigService] TCP validation failed with error: \(error)")
+            AppLogger.shared.log("⚠️ [ConfigService] UDP validation failed with error: \(error)")
             return nil
         }
     }
@@ -344,58 +344,58 @@ public struct KanataConfiguration: Sendable {
         }
     }
 
-    /// Validate configuration content with combined TCP + CLI validation
-    /// Tries TCP first (fast, live server), falls back to CLI validation if TCP unavailable
-    public func validateConfiguration(_ config: String, tcpClient: KanataTCPClient? = nil) async -> (isValid: Bool, errors: [String]) {
+    /// Validate configuration content with combined UDP + CLI validation
+    /// Tries UDP first (fast, live server), falls back to CLI validation if UDP unavailable
+    public func validateConfiguration(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
 
-        // First try TCP validation if server is available
+        // First try UDP validation if server is available
         let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseTCP {
-            let tcpPort = commConfig.tcpPort
-            AppLogger.shared.log("📡 [Validation] TCP port configured: \(tcpPort)")
-            let client = tcpClient ?? KanataTCPClient(port: tcpPort)
+        if commConfig.shouldUseUDP {
+            let udpPort = commConfig.udpPort
+            AppLogger.shared.log("📡 [Validation] UDP port configured: \(udpPort)")
+            let udpClient = KanataUDPClient(port: udpPort)
 
-            // Check if TCP server is available
-            AppLogger.shared.log("📡 [Validation] Checking TCP server availability on port \(tcpPort)...")
-            if await client.checkServerStatus() {
-                AppLogger.shared.log("📡 [Validation] TCP server is AVAILABLE, using TCP validation")
-                let tcpStart = Date()
-                let result = await client.validateConfig(config)
-                let tcpDuration = Date().timeIntervalSince(tcpStart)
+            // Check if UDP server is available
+            AppLogger.shared.log("📡 [Validation] Checking UDP server availability on port \(udpPort)...")
+            if await udpClient.checkServerStatus() {
+                AppLogger.shared.log("📡 [Validation] UDP server is AVAILABLE, using UDP validation")
+                let udpStart = Date()
+                let result = await udpClient.validateConfig(config)
+                let udpDuration = Date().timeIntervalSince(udpStart)
                 AppLogger.shared.log(
-                    "⏱️ [Validation] TCP validation completed in \(String(format: "%.3f", tcpDuration)) seconds"
+                    "⏱️ [Validation] UDP validation completed in \(String(format: "%.3f", udpDuration)) seconds"
                 )
 
                 switch result {
                 case .success:
-                    AppLogger.shared.log("✅ [Validation] TCP validation PASSED")
+                    AppLogger.shared.log("✅ [Validation] UDP validation PASSED")
                     AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (true, [])
-                case let .failure(tcpErrors):
-                    AppLogger.shared.log("❌ [Validation] TCP validation FAILED with \(tcpErrors.count) errors:")
-                    let errorStrings = tcpErrors.map(\.description)
+                case let .failure(udpErrors):
+                    AppLogger.shared.log("❌ [Validation] UDP validation FAILED with \(udpErrors.count) errors:")
+                    let errorStrings = udpErrors.map(\.description)
                     for (index, error) in errorStrings.enumerated() {
                         AppLogger.shared.log("   Error \(index + 1): \(error)")
                     }
                     AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
                     return (false, errorStrings)
                 case let .networkError(error):
-                    AppLogger.shared.log("⚠️ [Validation] TCP validation network error: \(error)")
+                    AppLogger.shared.log("⚠️ [Validation] UDP validation network error: \(error)")
                     AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
                 // Fall through to CLI validation
                 case .authenticationRequired:
-                    AppLogger.shared.log("⚠️ [Validation] TCP authentication required")
+                    AppLogger.shared.log("⚠️ [Validation] UDP authentication required")
                     AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
                     // Fall through to CLI validation
                 }
             } else {
-                AppLogger.shared.log("⚠️ [Validation] TCP server NOT available on port \(tcpPort)")
+                AppLogger.shared.log("⚠️ [Validation] UDP server NOT available on port \(udpPort)")
                 AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
             }
         } else {
-            AppLogger.shared.log("ℹ️ [Validation] No TCP port configured or TCP disabled")
+            AppLogger.shared.log("ℹ️ [Validation] No UDP port configured or UDP disabled")
             AppLogger.shared.log("ℹ️ [Validation] Using CLI validation as primary method")
         }
 
@@ -777,14 +777,19 @@ public enum KanataKeyConverter {
         // Split on any whitespace
         let tokens = output.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
         if tokens.count > 1 {
-            // Multiple tokens = macro/sequence - wrap in parentheses
             let kanataKeys = tokens.map { convertToKanataKey($0) }
             return "(\(kanataKeys.joined(separator: " ")))"
         }
 
-        // Single token: convert and return bare key (no parentheses for simple keys)
-        // Parentheses are only for actions like tap-hold, not simple key outputs
-        return convertToKanataKey(output)
+        // Single token: if it contains non-alphanumerics or is long, wrap as a sequence
+        let token = output
+        let isAlnumOnly = token.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) }
+        if !isAlnumOnly || token.count > 4 {
+            let safe = convertToKanataKey(token)
+            return "(\(safe))"
+        }
+
+        return convertToKanataKey(token)
     }
 }
 

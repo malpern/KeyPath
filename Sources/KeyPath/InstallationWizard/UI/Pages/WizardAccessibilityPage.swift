@@ -169,21 +169,16 @@ struct WizardAccessibilityPage: View {
                         // Component details for error state
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: keyPathAccessibilityStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundColor(keyPathAccessibilityStatus == .completed ? .green : .red)
-                                    HStack(spacing: 0) {
-                                        Text("KeyPath.app")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Emergency stop detection")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
+                                Image(systemName: keyPathAccessibilityStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(keyPathAccessibilityStatus == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("KeyPath.app")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Emergency stop detection")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
                                 }
-                                .contentShape(Rectangle())
-                                .help(keyPathAccessibilityIssues.asTooltipText())
-
                                 Spacer()
                                 if keyPathAccessibilityStatus != .completed {
                                     Button("Fix") {
@@ -195,23 +190,19 @@ struct WizardAccessibilityPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(keyPathAccessibilityIssues.asTooltipText())
 
                             HStack(spacing: 12) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: kanataAccessibilityStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundColor(kanataAccessibilityStatus == .completed ? .green : .red)
-                                    HStack(spacing: 0) {
-                                        Text("kanata")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Keyboard monitoring engine")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
+                                Image(systemName: kanataAccessibilityStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(kanataAccessibilityStatus == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("kanata")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Keyboard monitoring engine")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
                                 }
-                                .contentShape(Rectangle())
-                                .help(kanataAccessibilityIssues.asTooltipText())
-
                                 Spacer()
                                 if kanataAccessibilityStatus != .completed {
                                     Button("Fix") {
@@ -224,6 +215,7 @@ struct WizardAccessibilityPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
+                            .help(kanataAccessibilityIssues.asTooltipText())
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)

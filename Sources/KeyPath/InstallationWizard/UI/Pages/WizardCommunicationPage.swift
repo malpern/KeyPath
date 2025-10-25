@@ -63,7 +63,7 @@ struct WizardCommunicationPage: View {
                             .lineLimit(2)
 
                         // Supporting copy (17pt)
-                        Text("TCP server is running for instant config reloading & external integrations with ~10x lower latency")
+                        Text("UDP server is running for instant config reloading & external integrations with ~10x lower latency")
                             .font(.system(size: 17, weight: .regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -104,7 +104,7 @@ struct WizardCommunicationPage: View {
                         .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
 
                         // Title
-                        Text("TCP Communication")
+                        Text("UDP Communication")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
@@ -186,36 +186,36 @@ struct WizardCommunicationPage: View {
         // Prefer a lightweight, non-blocking check that runs off the main actor.
         // The previous approach used SystemStatusChecker (MainActor) which spawned
         // synchronous launchctl calls and could momentarily block the UI.
-        await checkTCPStatusDirect()
+        await checkUDPStatusDirect()
     }
 
-    private func checkTCPStatusDirect() async {
+    private func checkUDPStatusDirect() async {
         // Snapshot prefs safely off-main
         let snapshot = PreferencesService.communicationSnapshot()
-        if !snapshot.shouldUseTCP {
-            await MainActor.run { commStatus = .needsSetup("TCP server is not enabled") }
+        if !snapshot.shouldUseUDP {
+            await MainActor.run { commStatus = .needsSetup("UDP server is not enabled") }
             return
         }
 
-        let port = snapshot.tcpPort
-        let client = KanataTCPClient(port: port)
-        AppLogger.shared.log("🧪 [WizardComm] Direct TCP check on port \(port)")
+        let port = snapshot.udpPort
+        let client = KanataUDPClient(port: port)
+        AppLogger.shared.log("🧪 [WizardComm] Direct UDP check on port \(port)")
 
         // 1) Is the server answering?
         let responding = await client.checkServerStatus()
         guard responding else {
-            await MainActor.run { commStatus = .needsSetup("TCP server is not responding on port \(port)") }
+            await MainActor.run { commStatus = .needsSetup("UDP server is not responding on port \(port)") }
             return
         }
 
         // 2) Do we have a token? If not, auth is required.
-        guard !snapshot.tcpAuthToken.isEmpty else {
+        guard !snapshot.udpAuthToken.isEmpty else {
             await MainActor.run { commStatus = .authRequired("Secure connection required for configuration changes") }
             return
         }
 
         // 3) Try to authenticate and perform a quick reload probe
-        let authed = await client.authenticate(token: snapshot.tcpAuthToken)
+        let authed = await client.authenticate(token: snapshot.udpAuthToken)
         guard authed else {
             await MainActor.run { commStatus = .authRequired("Authentication failed. Generate a new token and retry.") }
             return
@@ -227,14 +227,14 @@ struct WizardCommunicationPage: View {
         } else if case .authenticationRequired = reload {
             await MainActor.run { commStatus = .authRequired("Session expired; re-authentication required") }
         } else {
-            let msg = reload.errorMessage ?? "TCP server responded but reload failed"
+            let msg = reload.errorMessage ?? "UDP server responded but reload failed"
             await MainActor.run { commStatus = .authRequired(msg) }
         }
     }
 
     // MARK: - Authentication Helpers (for Auto-Fix functionality)
 
-    private func authenticateWithRetries(client: KanataTCPClient, token: String, attempts: Int = 5, initialDelay: TimeInterval = 0.2) async -> Bool {
+    private func authenticateWithRetries(client: KanataUDPClient, token: String, attempts: Int = 5, initialDelay: TimeInterval = 0.2) async -> Bool {
         var delay = initialDelay
         for attempt in 1 ... attempts {
             AppLogger.shared.log("🔐 [WizardComm] Authentication attempt \(attempt)/\(attempts)")
@@ -248,7 +248,7 @@ struct WizardCommunicationPage: View {
         return false
     }
 
-    private func testConfigReload(client: KanataTCPClient) async -> Bool {
+    private func testConfigReload(client: KanataUDPClient) async -> Bool {
         // Test a simple config reload to ensure full functionality
         let result = await client.reloadConfig()
         switch result {
@@ -297,11 +297,11 @@ struct WizardCommunicationPage: View {
     private func getAutoFixAction() -> (AutoFixAction, String, String) {
         switch commStatus {
         case .needsSetup:
-            (.enableTCPServer, "TCP server enabled successfully", "Failed to enable TCP server")
+            (.enableUDPServer, "UDP server enabled successfully", "Failed to enable UDP server")
         case .authRequired:
-            (.setupTCPAuthentication, "Secure connection established successfully", "Failed to setup authentication")
+            (.setupUDPAuthentication, "Secure connection established successfully", "Failed to setup authentication")
         default:
-            (.enableTCPServer, "Issue resolved", "Failed to fix issue")
+            (.enableUDPServer, "Issue resolved", "Failed to fix issue")
         }
     }
 
@@ -321,7 +321,7 @@ struct WizardCommunicationPage: View {
 
         // Update token directly to shared file
         await MainActor.run {
-            preferences.tcpAuthToken = newToken
+            preferences.udpAuthToken = newToken
         }
 
         // Regenerate service configuration with new token
@@ -340,15 +340,15 @@ struct WizardCommunicationPage: View {
             }
         }
 
-        // Wait for the TCP server to be ready before authenticating
-        AppLogger.shared.log("🔄 [WizardComm] Waiting for TCP server to be ready...")
-        let client = KanataTCPClient(port: preferences.tcpServerPort)
+        // Wait for the UDP server to be ready before authenticating
+        AppLogger.shared.log("🔄 [WizardComm] Waiting for UDP server to be ready...")
+        let client = KanataUDPClient(port: preferences.udpServerPort)
         let ready = await client.checkServerStatus()
         if !ready {
-            AppLogger.shared.log("❌ [WizardComm] TCP server did not become ready in time after restart")
+            AppLogger.shared.log("❌ [WizardComm] UDP server did not become ready in time after restart")
             return false
         }
-        AppLogger.shared.log("✅ [WizardComm] TCP server is ready, proceeding with authentication")
+        AppLogger.shared.log("✅ [WizardComm] UDP server is ready, proceeding with authentication")
 
         // Retry authenticate with small backoff to ride out any last startup work
         let authed = await WizardCommunicationPage.authenticateWithRetries(client: client, token: newToken, attempts: 5, initialDelay: 0.2)
@@ -376,7 +376,7 @@ private struct BounceIfAvailable: ViewModifier {
 // MARK: - Local helpers
 
 extension WizardCommunicationPage {
-    static func authenticateWithRetries(client: KanataTCPClient, token: String, attempts: Int, initialDelay: Double) async -> Bool {
+    static func authenticateWithRetries(client: KanataUDPClient, token: String, attempts: Int, initialDelay: Double) async -> Bool {
         var delay = initialDelay
         for _ in 0 ..< max(attempts, 1) {
             if await client.authenticate(token: token, clientName: "KeyPath") {
@@ -388,7 +388,7 @@ extension WizardCommunicationPage {
         return false
     }
 
-    static func testConfigReload(client: KanataTCPClient) async -> Bool {
+    static func testConfigReload(client: KanataUDPClient) async -> Bool {
         let result = await client.reloadConfig()
         return result.isSuccess
     }
@@ -481,7 +481,7 @@ enum CommunicationStatus: Equatable {
     var fixButtonText: String {
         switch self {
         case .needsSetup:
-            "Enable TCP Server"
+            "Enable UDP Server"
         case .authRequired:
             "Setup Authentication"
         default:

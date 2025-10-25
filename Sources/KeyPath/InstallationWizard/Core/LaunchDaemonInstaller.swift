@@ -1922,10 +1922,10 @@ class LaunchDaemonInstaller {
         return arguments
     }
 
-    /// Checks if the current service configuration matches the expected TCP settings (both arguments and environment variables)
+    /// Checks if the current service configuration matches the expected UDP settings (both arguments and environment variables)
     func isServiceConfigurationCurrent() -> Bool {
         guard let currentArgs = getKanataProgramArguments() else {
-            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check TCP configuration - plist unreadable")
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check UDP configuration - plist unreadable")
             return false
         }
 
@@ -1934,7 +1934,7 @@ class LaunchDaemonInstaller {
         // Compare argument arrays for exact match
         let argsMatch = currentArgs == expectedArgs
 
-        AppLogger.shared.log("🔍 [LaunchDaemon] TCP Configuration Check:")
+        AppLogger.shared.log("🔍 [LaunchDaemon] UDP Configuration Check:")
         AppLogger.shared.log("  Current Args:  \(currentArgs.joined(separator: " "))")
         AppLogger.shared.log("  Expected Args: \(expectedArgs.joined(separator: " "))")
         AppLogger.shared.log("  Args Match: \(argsMatch)")
@@ -1944,8 +1944,8 @@ class LaunchDaemonInstaller {
         let expectedEnvVars = PreferencesService.communicationSnapshot().communicationEnvironmentVariables
         let envVarsMatch = currentEnvVars == expectedEnvVars
 
-        AppLogger.shared.log("  Current Env Vars: \(currentEnvVars.keys.sorted()) (token: \(currentEnvVars["KANATA_TCP_TOKEN"]?.isEmpty == false ? "present" : "missing"))")
-        AppLogger.shared.log("  Expected Env Vars: \(expectedEnvVars.keys.sorted()) (token: \(expectedEnvVars["KANATA_TCP_TOKEN"]?.isEmpty == false ? "present" : "missing"))")
+        AppLogger.shared.log("  Current Env Vars: \(currentEnvVars.keys.sorted()) (token: \(currentEnvVars["KANATA_UDP_TOKEN"]?.isEmpty == false ? "present" : "missing"))")
+        AppLogger.shared.log("  Expected Env Vars: \(expectedEnvVars.keys.sorted()) (token: \(expectedEnvVars["KANATA_UDP_TOKEN"]?.isEmpty == false ? "present" : "missing"))")
         AppLogger.shared.log("  Env Vars Match: \(envVarsMatch)")
 
         let overallMatch = argsMatch && envVarsMatch
@@ -2061,18 +2061,18 @@ class LaunchDaemonInstaller {
 
     // MARK: - Argument Building
 
-    /// Builds Kanata command line arguments for LaunchDaemon plist including TCP port when enabled
+    /// Builds Kanata command line arguments for LaunchDaemon plist including UDP port when enabled
     private func buildKanataPlistArguments(binaryPath: String) -> [String] {
         var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
 
-        // Add TCP port if enabled and valid
+        // Add UDP port if enabled and valid
         let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseTCP {
-            // Add TCP communication arguments
+        if commConfig.shouldUseUDP {
+            // Add UDP communication arguments
             arguments.append(contentsOf: commConfig.communicationLaunchArguments)
-            AppLogger.shared.log("📡 [LaunchDaemon] TCP server enabled on port \(commConfig.tcpPort)")
+            AppLogger.shared.log("📡 [LaunchDaemon] UDP server enabled on port \(commConfig.udpPort)")
         } else {
-            AppLogger.shared.log("📡 [LaunchDaemon] TCP server disabled")
+            AppLogger.shared.log("📡 [LaunchDaemon] UDP server disabled")
         }
 
         arguments.append("--debug")

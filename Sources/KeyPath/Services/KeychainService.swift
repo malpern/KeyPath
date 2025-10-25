@@ -10,18 +10,18 @@ final class KeychainService {
 
     private init() {}
 
-    // MARK: - TCP Token Storage
+    // MARK: - UDP Token Storage
 
-    private let tcpTokenAccount = "tcp-auth-token"
+    private let udpTokenAccount = "udp-auth-token"
 
-    /// Store TCP authentication token securely in Keychain
-    nonisolated func storeTCPToken(_ token: String) throws {
+    /// Store UDP authentication token securely in Keychain
+    nonisolated func storeUDPToken(_ token: String) throws {
         let tokenData = token.data(using: .utf8) ?? Data()
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: tcpTokenAccount,
+            kSecAttrAccount as String: udpTokenAccount,
             kSecValueData as String: tokenData,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
@@ -35,15 +35,15 @@ final class KeychainService {
             throw KeyPathError.permission(.keychainSaveFailed(status: Int(status)))
         }
 
-        AppLogger.shared.log("🔐 [Keychain] TCP token stored securely")
+        AppLogger.shared.log("🔐 [Keychain] UDP token stored securely")
     }
 
-    /// Retrieve TCP authentication token from Keychain
-    nonisolated func retrieveTCPToken() throws -> String? {
+    /// Retrieve UDP authentication token from Keychain
+    nonisolated func retrieveUDPToken() throws -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: tcpTokenAccount,
+            kSecAttrAccount as String: udpTokenAccount,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -62,16 +62,16 @@ final class KeychainService {
             throw KeyPathError.permission(.keychainLoadFailed(status: Int(status)))
         }
 
-        AppLogger.shared.log("🔐 [Keychain] TCP token retrieved")
+        AppLogger.shared.log("🔐 [Keychain] UDP token retrieved")
         return token
     }
 
-    /// Delete TCP authentication token from Keychain
-    nonisolated func deleteTCPToken() throws {
+    /// Delete UDP authentication token from Keychain
+    nonisolated func deleteUDPToken() throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: tcpTokenAccount
+            kSecAttrAccount as String: udpTokenAccount
         ]
 
         let status = SecItemDelete(query as CFDictionary)
@@ -79,13 +79,13 @@ final class KeychainService {
             throw KeyPathError.permission(.keychainDeleteFailed(status: Int(status)))
         }
 
-        AppLogger.shared.log("🔐 [Keychain] TCP token deleted")
+        AppLogger.shared.log("🔐 [Keychain] UDP token deleted")
     }
 
-    /// Check if TCP token exists in Keychain
-    var hasTCPToken: Bool {
+    /// Check if UDP token exists in Keychain
+    var hasUDPToken: Bool {
         do {
-            return try retrieveTCPToken() != nil
+            return try retrieveUDPToken() != nil
         } catch {
             return false
         }

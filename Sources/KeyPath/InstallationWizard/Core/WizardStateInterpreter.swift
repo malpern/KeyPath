@@ -182,9 +182,9 @@ struct WizardStateInterpreter {
             issues.filter { issue in
                 if case let .component(component) = issue.identifier {
                     switch component {
-                    case .kanataTCPServer,
+                    case .kanataUDPServer,
                          .communicationServerConfiguration, .communicationServerNotResponding,
-                         .tcpServerConfiguration, .tcpServerNotResponding:
+                         .udpServerConfiguration, .udpServerNotResponding:
                         return true
                     default:
                         return false

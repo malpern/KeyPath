@@ -578,14 +578,14 @@ extension AutoFixAction {
             "Install Log Rotation"
         case .replaceKanataWithBundled:
             "Replace Kanata with Bundled Version"
-        case .enableTCPServer:
-            "Enable TCP Server"
-        case .setupTCPAuthentication:
-            "Setup TCP Authentication"
+        case .enableUDPServer:
+            "Enable UDP Server"
+        case .setupUDPAuthentication:
+            "Setup UDP Authentication"
         case .regenerateCommServiceConfiguration:
-            "Regenerate TCP Service Configuration"
+            "Regenerate UDP Service Configuration"
         case .restartCommServer:
-            "Restart TCP Server"
+            "Restart UDP Server"
         case .fixDriverVersionMismatch:
             "Fix Karabiner Driver Version"
         }

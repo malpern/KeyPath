@@ -459,22 +459,22 @@ struct KarabinerInstallationGuideSheet: View {
         VStack(spacing: 20) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Manual VirtualHID Driver Installation")
+                    Text("Install Karabiner-Elements")
                         .font(.title2)
                         .fontWeight(.semibold)
-                    Text("Automated installation failed - manual steps required")
+                    Text("Required for virtual keyboard functionality")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-
+                
                 Spacer()
-
+                
                 Button("Close") {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
             }
-
+            
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     // Why it's needed
@@ -482,41 +482,41 @@ struct KarabinerInstallationGuideSheet: View {
                         HStack(spacing: 8) {
                             Image(systemName: "info.circle.fill")
                                 .foregroundColor(.blue)
-                            Text("Why the VirtualHID driver is needed:")
+                            Text("Why Karabiner-Elements is needed:")
                                 .font(.headline)
                         }
-
-                        Text("KeyPath uses the Karabiner VirtualHIDDevice driver (v5.0.0) to safely remap keys at the system level. This is a standalone driver component - you do NOT need to install the full Karabiner-Elements application.")
+                        
+                        Text("KeyPath uses Karabiner-Elements' virtual HID device driver to safely remap keys at the system level. This driver must be installed separately.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color.blue.opacity(0.08))
                     .cornerRadius(8)
-
+                    
                     // Installation steps
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Installation Steps:")
                             .font(.headline)
-
+                        
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(alignment: .top) {
                                 Text("1.")
                                     .fontWeight(.medium)
                                     .frame(width: 20)
-                                Text("Download the VirtualHIDDevice driver v5.0.0 from GitHub releases")
+                                Text("Download Karabiner-Elements from the official website")
                             }
                             HStack(alignment: .top) {
                                 Text("2.")
                                     .fontWeight(.medium)
                                     .frame(width: 20)
-                                Text("Run the installer (.pkg file)")
+                                Text("Run the installer (.dmg file)")
                             }
                             HStack(alignment: .top) {
                                 Text("3.")
                                     .fontWeight(.medium)
                                     .frame(width: 20)
-                                Text("Grant permissions when prompted by macOS")
+                                Text("Grant permissions when prompted (you can ignore Karabiner-Elements setup)")
                             }
                             HStack(alignment: .top) {
                                 Text("4.")
@@ -530,7 +530,7 @@ struct KarabinerInstallationGuideSheet: View {
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
-
+                    
                     // Important note
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
@@ -539,11 +539,11 @@ struct KarabinerInstallationGuideSheet: View {
                             Text("Important:")
                                 .font(.headline)
                         }
-
+                        
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("• You only need the standalone VirtualHIDDevice driver (v5.0.0)")
-                            Text("• You do NOT need to install Karabiner-Elements")
-                            Text("• KeyPath manages all keyboard settings - no additional configuration needed")
+                            Text("• You only need to install Karabiner-Elements - you don't need to configure it")
+                            Text("• KeyPath will use its driver but manage all keyboard settings itself")
+                            Text("• You can ignore Karabiner-Elements' own setup wizard")
                         }
                         .font(.subheadline)
                     }
@@ -552,11 +552,11 @@ struct KarabinerInstallationGuideSheet: View {
                     .cornerRadius(8)
                 }
             }
-
+            
             // Action buttons
             VStack(spacing: 12) {
-                Button("Download VirtualHIDDevice v5.0.0") {
-                    if let url = URL(string: "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v5.0.0/Karabiner-DriverKit-VirtualHIDDevice-5.0.0.pkg") {
+                Button("Download Karabiner-Elements") {
+                    if let url = URL(string: "https://karabiner-elements.pqrs.org/") {
                         NSWorkspace.shared.open(url)
                     }
                 }

@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import os
-import SwiftUI
 
 /// Handles automatic fixing of detected issues - pure action logic
 class WizardAutoFixer: AutoFixCapable {
@@ -113,17 +112,16 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to install log rotation
         case .replaceKanataWithBundled:
             true // We can always attempt to replace kanata with bundled version
-        case .enableTCPServer:
-            true // We can always attempt to enable TCP server
-        case .setupTCPAuthentication:
-            true // We can always attempt to setup TCP authentication
+        case .enableUDPServer:
+            true // We can always attempt to enable UDP server
+        case .setupUDPAuthentication:
+            true // We can always attempt to setup UDP authentication
         case .regenerateCommServiceConfiguration:
             true // We can always attempt to regenerate communication service configuration
         case .restartCommServer:
             true // We can always attempt to restart communication server
         case .fixDriverVersionMismatch:
-            // Can fix if driver is missing OR has wrong version
-            !vhidDeviceManager.detectInstallation() || vhidDeviceManager.hasVersionMismatch()
+            vhidDeviceManager.hasVersionMismatch() // Only if there's a version mismatch
         }
     }
 
@@ -170,10 +168,10 @@ class WizardAutoFixer: AutoFixCapable {
             return await installLogRotation()
         case .replaceKanataWithBundled:
             return await replaceKanataWithBundled()
-        case .enableTCPServer:
-            return await enableTCPServer()
-        case .setupTCPAuthentication:
-            return await setupTCPAuthentication()
+        case .enableUDPServer:
+            return await enableUDPServer()
+        case .setupUDPAuthentication:
+            return await setupUDPAuthentication()
         case .regenerateCommServiceConfiguration:
             return await regenerateCommServiceConfiguration()
         case .restartCommServer:
@@ -186,38 +184,30 @@ class WizardAutoFixer: AutoFixCapable {
     // MARK: - Driver Version Management
 
     private func fixDriverVersionMismatch() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Fixing driver installation/version")
+        AppLogger.shared.log("🔧 [AutoFixer] Fixing driver version mismatch")
 
-        let driverInstalled = vhidDeviceManager.detectInstallation()
+        // Show dialog explaining the version downgrade
+        guard let versionMessage = vhidDeviceManager.getVersionMismatchMessage() else {
+            AppLogger.shared.log("⚠️ [AutoFixer] No version mismatch message available")
+            return false
+        }
 
-        // Only show confirmation dialog if driver is installed (version mismatch scenario)
-        // If driver is missing, assume caller (wizard) already showed confirmation
-        if driverInstalled {
-            // Show dialog explaining the version downgrade
-            guard let versionMessage = vhidDeviceManager.getVersionMismatchMessage() else {
-                AppLogger.shared.log("⚠️ [AutoFixer] Driver installed but no version mismatch message available")
-                return false
-            }
+        // Show user-facing dialog on main thread
+        let userConfirmed = await MainActor.run {
+            let alert = NSAlert()
+            alert.messageText = "Karabiner Driver Version Fix Required"
+            alert.informativeText = versionMessage
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Download & Install v5.0.0")
+            alert.addButton(withTitle: "Cancel")
 
-            // Show user-facing dialog on main thread
-            let userConfirmed = await MainActor.run {
-                let alert = NSAlert()
-                alert.messageText = "Karabiner Driver Version Fix Required"
-                alert.informativeText = versionMessage
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "Download & Install v5.0.0")
-                alert.addButton(withTitle: "Cancel")
+            let response = alert.runModal()
+            return response == .alertFirstButtonReturn
+        }
 
-                let response = alert.runModal()
-                return response == .alertFirstButtonReturn
-            }
-
-            guard userConfirmed else {
-                AppLogger.shared.log("ℹ️ [AutoFixer] User cancelled driver version fix")
-                return false
-            }
-        } else {
-            AppLogger.shared.log("🔧 [AutoFixer] Driver not installed - proceeding with installation (confirmation assumed from caller)")
+        guard userConfirmed else {
+            AppLogger.shared.log("ℹ️ [AutoFixer] User cancelled driver version fix")
+            return false
         }
 
         // Download and install the correct version
@@ -226,44 +216,32 @@ class WizardAutoFixer: AutoFixCapable {
         if success {
             AppLogger.shared.log("✅ [AutoFixer] Successfully fixed driver version mismatch")
 
-            // Kill old VirtualHID processes first
-            AppLogger.shared.log("🔄 [AutoFixer] Stopping old VirtualHID processes...")
+            // Try to force macOS to reload the driver by restarting VHID daemon processes
+            AppLogger.shared.log("🔄 [AutoFixer] Restarting VirtualHID processes to reload driver...")
             let killTask = Process()
             killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
             killTask.arguments = ["/usr/bin/pkill", "-9", "Karabiner-VirtualHIDDevice"]
             try? killTask.run()
             killTask.waitUntilExit()
-
-            // Activate the manager to register the new driver extension with macOS
-            AppLogger.shared.log("🚀 [AutoFixer] Activating manager to register v5.0.0 system extension...")
-            let activationSuccess = await vhidDeviceManager.activateManager()
-            if activationSuccess {
-                AppLogger.shared.log("✅ [AutoFixer] Manager activation succeeded - v5.0.0 should be registered")
-            } else {
-                AppLogger.shared.log("⚠️ [AutoFixer] Manager activation failed or timed out - may need manual activation")
-            }
+            AppLogger.shared.log("🔄 [AutoFixer] VirtualHID processes restarted")
 
             // Show success message
-            // TODO: Re-enable driver installation guide when DriverInstallationGuideView is available
-            /* await MainActor.run {
-                let guideView = DriverInstallationGuideView {
-                    // Open System Settings when button is clicked
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
+            await MainActor.run {
+                let alert = NSAlert()
+                alert.messageText = "Driver Version Fixed"
+                alert.informativeText = """
+                Karabiner-DriverKit-VirtualHIDDevice v5.0.0 has been installed successfully.
 
-                let hostingController = NSHostingController(rootView: guideView)
+                ✓ Removed all existing driver versions
+                ✓ Installed v5.0.0
+                ✓ Restarted VirtualHID processes
 
-                let window = NSWindow(contentViewController: hostingController)
-                window.title = "Driver Installation Guide"
-                window.styleMask = [.titled, .closable]
-                window.isReleasedWhenClosed = false
-                window.center()
-
-                NSApp.runModal(for: window)
-                window.close()
-            } */
+                If the driver still shows as unhealthy after checking status, you may need to restart your Mac for the new driver version to fully activate.
+                """
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
         } else {
             AppLogger.shared.log("❌ [AutoFixer] Failed to fix driver version mismatch")
 
@@ -689,17 +667,17 @@ class WizardAutoFixer: AutoFixCapable {
             let alert = NSAlert()
             alert.messageText = "Driver Extension Activation Required"
             alert.informativeText = """
-            KeyPath has installed the VirtualHID Device driver (v5.0.0), but it needs your approval to activate.
+            KeyPath needs to activate the VirtualHID Device driver extension, but this requires manual approval for security.
 
             Please follow these steps:
 
             1. Click "Open System Settings" below
-            2. In the Driver Extensions section, find "org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"
-            3. If you see multiple versions, make sure to enable version 5.0.0
-            4. Turn ON the toggle switch (you may need to approve in a popup)
-            5. Return to KeyPath and close the wizard
+            2. Go to Privacy & Security → Driver Extensions
+            3. Find "Karabiner-VirtualHIDDevice-Manager.app"
+            4. Turn ON the toggle switch
+            5. Return to KeyPath
 
-            NOTE: If you see an older version (like 1.8.0), you can disable it - we only need v5.0.0.
+            This is a one-time setup required for keyboard remapping functionality.
             """
             alert.alertStyle = .informational
             alert.addButton(withTitle: "Open System Settings")
@@ -708,10 +686,10 @@ class WizardAutoFixer: AutoFixCapable {
             let response = alert.runModal()
 
             if response == .alertFirstButtonReturn {
-                // Open System Settings to Driver Extensions category (macOS 15+)
+                // Open System Settings to Driver Extensions
                 AppLogger.shared.log(
-                    "🔧 [AutoFixer] Opening System Settings Driver Extensions category")
-                let url = URL(string: WizardSystemPaths.driverExtensionsCategory)!
+                    "🔧 [AutoFixer] Opening System Settings for driver extension activation")
+                let url = URL(string: "x-apple.systempreferences:com.apple.SystemExtensionsSettings")!
                 NSWorkspace.shared.open(url)
             } else {
                 AppLogger.shared.log("🔧 [AutoFixer] User chose to activate driver extension later")
@@ -719,9 +697,9 @@ class WizardAutoFixer: AutoFixCapable {
         }
     }
 
-    /// Open System Settings to the Driver Extensions category (macOS 15+)
+    /// Open System Settings to the Driver Extensions page
     private func openDriverExtensionSettings() {
-        let url = URL(string: WizardSystemPaths.driverExtensionsCategory)!
+        let url = URL(string: "x-apple.systempreferences:com.apple.SystemExtensionsSettings")!
         NSWorkspace.shared.open(url)
     }
 
@@ -927,8 +905,15 @@ class WizardAutoFixer: AutoFixCapable {
     }
 
     private func restartUnhealthyServices() async -> Bool {
+        // IMMEDIATE crash-proof logging
+        Swift.print("*** IMMEDIATE DEBUG *** restartUnhealthyServices() called at \(Date())")
+        try? "*** IMMEDIATE DEBUG *** restartUnhealthyServices() called at \(Date())\n".write(
+            to: URL(fileURLWithPath: NSHomeDirectory() + "/restart-services-debug.txt"), atomically: true,
+            encoding: .utf8
+        )
+
         AppLogger.shared.log(
-            "🔧 [AutoFixer] restartUnhealthyServices() called")
+            "🔧 [AutoFixer] *** ENHANCED DEBUGGING *** restartUnhealthyServices() called")
         AppLogger.shared.log("🔧 [AutoFixer] Timestamp: \(Date())")
         AppLogger.shared.log("🔧 [AutoFixer] OnMainActor: true")
         AppLogger.shared.log(
@@ -1013,7 +998,12 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         AppLogger.shared.log(
-            "🔧 [AutoFixer] restartUnhealthyServices() complete - returning: \(restartSuccess)")
+            "🔧 [AutoFixer] *** restartUnhealthyServices() COMPLETE *** Returning: \(restartSuccess)")
+        Swift.print("*** IMMEDIATE DEBUG *** restartUnhealthyServices() returning: \(restartSuccess)")
+        try? "*** IMMEDIATE DEBUG *** restartUnhealthyServices() returning: \(restartSuccess)\n".write(
+            to: URL(fileURLWithPath: NSHomeDirectory() + "/restart-services-debug.txt"),
+            atomically: false, encoding: .utf8
+        )
         return restartSuccess
     }
 
@@ -1106,32 +1096,32 @@ class WizardAutoFixer: AutoFixCapable {
         }
     }
 
-    // MARK: - TCP Communication Server Auto-Fix Actions
+    // MARK: - UDP Communication Server Auto-Fix Actions
 
-    private func enableTCPServer() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Enabling TCP server")
+    private func enableUDPServer() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Enabling UDP server")
 
         await MainActor.run {
-            PreferencesService.shared.tcpServerEnabled = true
+            PreferencesService.shared.udpServerEnabled = true
         }
 
-        // Restart service with TCP enabled
+        // Restart service with UDP enabled
         return await regenerateCommServiceConfiguration()
     }
 
-    private func setupTCPAuthentication() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Setting up TCP authentication")
+    private func setupUDPAuthentication() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Setting up UDP authentication")
 
         // Generate a new auth token using centralized manager
-        let newToken = await TCPAuthTokenManager.generateSecureToken()
+        let newToken = await UDPAuthTokenManager.shared.generateSecureToken()
 
         do {
             // Update token via centralized manager
-            try await TCPAuthTokenManager.setToken(newToken)
+            try await UDPAuthTokenManager.shared.setToken(newToken)
 
             // Also update preferences for consistency
             await MainActor.run {
-                PreferencesService.shared.tcpAuthToken = newToken
+                PreferencesService.shared.udpAuthToken = newToken
             }
 
             // Regenerate service configuration with new token
@@ -1150,13 +1140,13 @@ class WizardAutoFixer: AutoFixCapable {
 
             // Test the new token
             let commSnapshot = PreferencesService.communicationSnapshot()
-            let client = KanataTCPClient(port: commSnapshot.tcpPort)
+            let client = KanataUDPClient(port: commSnapshot.udpPort)
 
             if await client.authenticate(token: newToken) {
-                AppLogger.shared.log("✅ [AutoFixer] TCP authentication setup successful")
+                AppLogger.shared.log("✅ [AutoFixer] UDP authentication setup successful")
                 return true
             } else {
-                AppLogger.shared.log("❌ [AutoFixer] TCP authentication test failed")
+                AppLogger.shared.log("❌ [AutoFixer] UDP authentication test failed")
                 return false
             }
         } catch {

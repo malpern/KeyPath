@@ -8,12 +8,12 @@ struct SettingsView: View {
     @State private var showingDevResetConfirmation = false
     @State private var showingDiagnostics = false
     @State private var showingInstallationWizard = false
-    @State private var showingTCPPortAlert = false
-    @State private var tempTCPPort = ""
-    @State private var showingTCPTokenAlert = false
-    @State private var tempTCPToken = ""
-    @State private var showingTCPTimeoutAlert = false
-    @State private var tempTCPTimeout = ""
+    @State private var showingUDPPortAlert = false
+    @State private var tempUDPPort = ""
+    @State private var showingUDPTokenAlert = false
+    @State private var tempUDPToken = ""
+    @State private var showingUDPTimeoutAlert = false
+    @State private var tempUDPTimeout = ""
     // Timer removed - now handled by SimpleKanataManager centrally
 
     private var kanataServiceStatus: String {
@@ -54,68 +54,68 @@ struct SettingsView: View {
                 await kanataManager.forceRefreshStatus()
             }
         }
-        .alert("Enter TCP Port", isPresented: $showingTCPPortAlert) {
-            TextField("Port (1024-65535)", text: $tempTCPPort)
-                .accessibilityLabel("TCP Port Number")
+        .alert("Enter UDP Port", isPresented: $showingUDPPortAlert) {
+            TextField("Port (1024-65535)", text: $tempUDPPort)
+                .accessibilityLabel("UDP Port Number")
                 .accessibilityHint("Enter a port number between 1024 and 65535")
 
             Button("Cancel") {
-                tempTCPPort = ""
+                tempUDPPort = ""
             }
             .accessibilityLabel("Cancel port change")
 
             Button("Apply") {
-                if let port = Int(tempTCPPort), preferences.isValidPort(port) {
-                    preferences.tcpServerPort = port
-                    AppLogger.shared.log("🔧 [SettingsView] TCP port changed to: \(port)")
+                if let port = Int(tempUDPPort), preferences.isValidPort(port) {
+                    preferences.udpServerPort = port
+                    AppLogger.shared.log("🔧 [SettingsView] UDP port changed to: \(port)")
 
                     if kanataManager.currentState == .running {
-                        AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for TCP port change")
+                        AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for UDP port change")
                     }
                 }
-                tempTCPPort = ""
+                tempUDPPort = ""
             }
             .accessibilityLabel("Apply port change")
-            .accessibilityHint("Saves the new TCP port number")
+            .accessibilityHint("Saves the new UDP port number")
         } message: {
-            Text("Enter a TCP port number between 1024 and 65535. If Kanata is running, you'll need to restart the service for the change to take effect.")
+            Text("Enter a UDP port number between 1024 and 65535. If Kanata is running, you'll need to restart the service for the change to take effect.")
         }
-        .alert("Enter TCP Auth Token", isPresented: $showingTCPTokenAlert) {
-            TextField("Authentication Token (leave empty for auto-generated)", text: $tempTCPToken)
-                .accessibilityLabel("TCP Authentication Token")
+        .alert("Enter UDP Auth Token", isPresented: $showingUDPTokenAlert) {
+            TextField("Authentication Token (leave empty for auto-generated)", text: $tempUDPToken)
+                .accessibilityLabel("UDP Authentication Token")
                 .accessibilityHint("Enter a custom token or leave empty for auto-generation")
 
             Button("Cancel") {
-                tempTCPToken = ""
+                tempUDPToken = ""
             }
             .accessibilityLabel("Cancel token change")
 
             Button("Apply") {
-                preferences.tcpAuthToken = tempTCPToken
-                AppLogger.shared.log("🔧 [SettingsView] TCP auth token updated")
-                tempTCPToken = ""
+                preferences.udpAuthToken = tempUDPToken
+                AppLogger.shared.log("🔧 [SettingsView] UDP auth token updated")
+                tempUDPToken = ""
             }
             .accessibilityLabel("Apply token change")
             .accessibilityHint("Saves the authentication token")
         } message: {
-            Text("Enter a custom authentication token for the TCP server. Leave empty to let Kanata auto-generate a secure token.")
+            Text("Enter a custom authentication token for the UDP server. Leave empty to let Kanata auto-generate a secure token.")
         }
-        .alert("Enter TCP Session Timeout", isPresented: $showingTCPTimeoutAlert) {
-            TextField("Timeout in seconds (300-86400)", text: $tempTCPTimeout)
-                .accessibilityLabel("TCP Session Timeout")
+        .alert("Enter UDP Session Timeout", isPresented: $showingUDPTimeoutAlert) {
+            TextField("Timeout in seconds (300-86400)", text: $tempUDPTimeout)
+                .accessibilityLabel("UDP Session Timeout")
                 .accessibilityHint("Enter timeout in seconds, between 300 and 86400")
 
             Button("Cancel") {
-                tempTCPTimeout = ""
+                tempUDPTimeout = ""
             }
             .accessibilityLabel("Cancel timeout change")
 
             Button("Apply") {
-                if let timeout = Int(tempTCPTimeout), timeout >= 300, timeout <= 86400 {
-                    preferences.tcpSessionTimeout = timeout
-                    AppLogger.shared.log("🔧 [SettingsView] TCP session timeout changed to: \(timeout) seconds")
+                if let timeout = Int(tempUDPTimeout), timeout >= 300, timeout <= 86400 {
+                    preferences.udpSessionTimeout = timeout
+                    AppLogger.shared.log("🔧 [SettingsView] UDP session timeout changed to: \(timeout) seconds")
                 }
-                tempTCPTimeout = ""
+                tempUDPTimeout = ""
             }
             .accessibilityLabel("Apply timeout change")
             .accessibilityHint("Saves the new session timeout")
@@ -146,7 +146,7 @@ struct SettingsView: View {
             AppLogger.shared.log("🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)")
             showingInstallationWizard = shouldShow
         }
-        .onChange(of: preferences.tcpServerEnabled) { _, _ in
+        .onChange(of: preferences.udpServerEnabled) { _, _ in
             checkTCPServerStatus()
         }
         .onChange(of: preferences.communicationProtocol) { _, _ in
@@ -392,12 +392,12 @@ struct SettingsView: View {
     }
 
     private var communicationSection: some View {
-        SettingsSection(title: "TCP Communication") {
+        SettingsSection(title: "UDP Communication") {
             VStack(spacing: 12) {
-                tcpSettingsView
+                udpSettingsView
 
-                // TCP description
-                Text("High-performance TCP communication for real-time keyboard configuration and validation. Provides ~10x lower latency than TCP.")
+                // UDP description
+                Text("High-performance UDP communication for real-time keyboard configuration and validation. Provides ~10x lower latency than TCP.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.leading)
@@ -405,40 +405,40 @@ struct SettingsView: View {
         }
     }
 
-    private var tcpSettingsView: some View {
+    private var udpSettingsView: some View {
         VStack(spacing: 12) {
             HStack {
                 Toggle(
-                    "Enable TCP Server",
+                    "Enable UDP Server",
                     isOn: Binding(
-                        get: { preferences.tcpServerEnabled },
-                        set: { preferences.tcpServerEnabled = $0 }
+                        get: { preferences.udpServerEnabled },
+                        set: { preferences.udpServerEnabled = $0 }
                     )
                 )
-                .help("Enable TCP server for low-latency config operations and validation")
-                .accessibilityLabel("Enable TCP Server")
-                .accessibilityHint("Enable high-performance TCP communication for real-time keyboard configuration")
+                .help("Enable UDP server for low-latency config operations and validation")
+                .accessibilityLabel("Enable UDP Server")
+                .accessibilityHint("Enable high-performance UDP communication for real-time keyboard configuration")
 
                 Spacer()
             }
 
-            if preferences.tcpServerEnabled {
+            if preferences.udpServerEnabled {
                 // Port setting
                 HStack {
                     Text("Port:")
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
 
-                    Button("\(preferences.tcpServerPort)") {
-                        tempTCPPort = String(preferences.tcpServerPort)
-                        showingTCPPortAlert = true
+                    Button("\(preferences.udpServerPort)") {
+                        tempUDPPort = String(preferences.udpServerPort)
+                        showingUDPPortAlert = true
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .help("Click to change TCP port (1024-65535)")
-                    .accessibilityLabel("Change TCP Port")
-                    .accessibilityValue("Current port: \(preferences.tcpServerPort)")
-                    .accessibilityHint("Opens dialog to change the TCP server port")
+                    .help("Click to change UDP port (1024-65535)")
+                    .accessibilityLabel("Change UDP Port")
+                    .accessibilityValue("Current port: \(preferences.udpServerPort)")
+                    .accessibilityHint("Opens dialog to change the UDP server port")
 
                     Spacer()
                 }
@@ -449,15 +449,15 @@ struct SettingsView: View {
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
 
-                    Button(preferences.tcpAuthToken.isEmpty ? "Auto-generated" : "Custom") {
-                        tempTCPToken = preferences.tcpAuthToken
-                        showingTCPTokenAlert = true
+                    Button(preferences.udpAuthToken.isEmpty ? "Auto-generated" : "Custom") {
+                        tempUDPToken = preferences.udpAuthToken
+                        showingUDPTokenAlert = true
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .help("Click to set custom authentication token")
                     .accessibilityLabel("Change Authentication Token")
-                    .accessibilityValue(preferences.tcpAuthToken.isEmpty ? "Auto-generated" : "Custom token set")
+                    .accessibilityValue(preferences.udpAuthToken.isEmpty ? "Auto-generated" : "Custom token set")
                     .accessibilityHint("Opens dialog to set a custom authentication token")
 
                     Spacer()
@@ -469,15 +469,15 @@ struct SettingsView: View {
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
 
-                    Button("\(preferences.tcpSessionTimeout)s") {
-                        tempTCPTimeout = String(preferences.tcpSessionTimeout)
-                        showingTCPTimeoutAlert = true
+                    Button("\(preferences.udpSessionTimeout)s") {
+                        tempUDPTimeout = String(preferences.udpSessionTimeout)
+                        showingUDPTimeoutAlert = true
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .help("Click to change session timeout (300-86400 seconds)")
                     .accessibilityLabel("Change Session Timeout")
-                    .accessibilityValue("Current timeout: \(preferences.tcpSessionTimeout) seconds")
+                    .accessibilityValue("Current timeout: \(preferences.udpSessionTimeout) seconds")
                     .accessibilityHint("Opens dialog to change how long authentication sessions remain valid")
 
                     Spacer()
@@ -517,6 +517,375 @@ struct SettingsView: View {
             LaunchAgentSettingsView()
         }
     }
+
+    /*
+     private var oldFullSettingsContent: some View {
+         VStack(spacing: 0) {
+             // Header
+             HStack {
+                 Text("Settings")
+                     .font(.system(size: 20, weight: .semibold))
+                     .foregroundColor(.primary)
+
+                 Spacer()
+
+                 Button("Done") {
+                     dismiss()
+                 }
+                 .buttonStyle(.borderedProminent)
+                 .controlSize(.regular)
+                 .accessibilityIdentifier("settings-done-button")
+                 .accessibilityLabel("Close Settings")
+                 .accessibilityHint("Close the settings window")
+             }
+             .padding(.horizontal, 24)
+             .padding(.vertical, 20)
+             .background(Color(NSColor.controlBackgroundColor))
+
+             ScrollView {
+                 VStack(alignment: .leading, spacing: 24) {
+                     // Status Section
+                     SettingsSection(title: "Status") {
+                         StatusRow(
+                             label: "Kanata Service",
+                             status: kanataServiceStatus,
+                             isActive: kanataServiceStatus == "Running"
+                         )
+
+                         StatusRow(
+                             label: "Installation",
+                             status: kanataManager.isCompletelyInstalled() ? "Installed" : "Not Installed",
+                             isActive: kanataManager.isCompletelyInstalled()
+                         )
+                     }
+
+                     Divider()
+
+                     // Service Control Section
+                     SettingsSection(title: "Service Control") {
+                         VStack(spacing: 10) {
+                             SettingsButton(
+                                 title: "Restart Service",
+                                 systemImage: "arrow.clockwise.circle",
+                                 accessibilityId: "restart-service-button",
+                                 accessibilityHint: "Stop and restart the Kanata keyboard service",
+                                 action: {
+                                     Task {
+                                         AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
+                                         await kanataManager.manualStop()
+                                         try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
+                                         await kanataManager.manualStart()
+                                     }
+                                 }
+                             )
+
+                             SettingsButton(
+                                 title: "Refresh Status",
+                                 systemImage: "arrow.clockwise",
+                                 accessibilityId: "refresh-status-button",
+                                 accessibilityHint: "Check the current status of the Kanata service",
+                                 action: {
+                                     Task {
+                                         AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
+                                         await kanataManager.forceRefreshStatus()
+                                     }
+                                 }
+                             )
+
+                             SettingsButton(
+                                 title: "Stop Kanata Service",
+                                 systemImage: "stop.circle",
+                                 style: .destructive,
+                                 disabled: kanataManager.currentState == .stopped,
+                                 accessibilityId: "stop-kanata-service-button",
+                                 accessibilityHint: "Completely stop the Kanata service and prevent auto-reloading",
+                                 action: {
+                                     Task {
+                                         AppLogger.shared.log("🛑 [SettingsView] Stop Kanata Service clicked")
+                                         await stopKanataService()
+                                     }
+                                 }
+                             )
+
+                             SettingsButton(
+                                 title: "Run Installation Wizard",
+                                 systemImage: "wrench.and.screwdriver",
+                                 accessibilityId: "run-installation-wizard-button",
+                                 accessibilityHint: "Launch the installation wizard to configure KeyPath",
+                                 action: {
+                                     AppLogger.shared.log("🎭 [SettingsView] Manual wizard trigger")
+                                     showingInstallationWizard = true
+                                 }
+                             )
+                         }
+                     }
+
+                     Divider()
+
+                     // Configuration Section
+                     SettingsSection(title: "Configuration") {
+                         VStack(spacing: 10) {
+                             SettingsButton(
+                                 title: "Edit Configuration",
+                                 systemImage: "doc.text",
+                                 accessibilityId: "edit-configuration-button",
+                                 accessibilityHint: "Open the Kanata configuration file in an editor",
+                                 action: {
+                                     openConfigInZed()
+                                 }
+                             )
+
+                             SettingsButton(
+                                 title: "Reset to Default",
+                                 systemImage: "arrow.counterclockwise",
+                                 style: .destructive,
+                                 accessibilityId: "reset-to-default-button",
+                                 accessibilityHint: "Reset all keyboard mappings to default configuration",
+                                 action: {
+                                     showingResetConfirmation = true
+                                 }
+                             )
+                         }
+                     }
+
+                     Divider()
+
+                     // Diagnostics Section
+                     SettingsSection(title: "Diagnostics") {
+                         VStack(spacing: 10) {
+                             SettingsButton(
+                                 title: "Show Diagnostics",
+                                 systemImage: "stethoscope",
+                                 accessibilityId: "show-diagnostics-button",
+                                 accessibilityHint:
+                                 "View detailed system diagnostics and troubleshooting information",
+                                 action: {
+                                     showingDiagnostics = true
+                                 }
+                             )
+
+                             // Log access buttons
+                             HStack(spacing: 10) {
+                                 SettingsButton(
+                                     title: "KeyPath Logs",
+                                     systemImage: "doc.text",
+                                     accessibilityId: "keypath-logs-button",
+                                     accessibilityHint: "Open KeyPath application log files",
+                                     action: {
+                                         openKeyPathLogs()
+                                     }
+                                 )
+
+                                 SettingsButton(
+                                     title: "Kanata Logs",
+                                     systemImage: "terminal",
+                                     accessibilityId: "kanata-logs-button",
+                                     accessibilityHint: "Open Kanata service log files",
+                                     action: {
+                                         openKanataLogs()
+                                     }
+                                 )
+                             }
+
+                             // Quick diagnostic summary
+                             diagnosticSummaryView
+                         }
+                     }
+
+                     Divider()
+
+                     // TCP Server Configuration
+                     SettingsSection(title: "TCP Server") {
+                         VStack(spacing: 12) {
+                             HStack {
+                                 Toggle(
+                                     "Enable TCP Server",
+                                     isOn: Binding(
+                                         get: { preferences.udpServerEnabled },
+                                         set: { preferences.udpServerEnabled = $0 }
+                                     )
+                                 )
+                                 .help(
+                                     "Enable TCP server for config validation. Required for live config checking.")
+
+                                 Spacer()
+                             }
+
+                             if preferences.udpServerEnabled {
+                                 HStack {
+                                     Text("Port:")
+                                         .font(.system(size: 13))
+                                         .foregroundColor(.secondary)
+
+                                     Button("\(preferences.tcpServerPort)") {
+                                         tempTCPPort = String(preferences.tcpServerPort)
+                                         showingTCPPortAlert = true
+                                     }
+                                     .buttonStyle(.bordered)
+                                     .controlSize(.small)
+                                     .help("Click to change TCP port (1024-65535)")
+
+                                     Spacer()
+
+                                     Text("Status: \(getTCPServerStatus())")
+                                         .font(.system(size: 12))
+                                         .foregroundColor(.secondary)
+                                 }
+                             }
+
+                             Text("TCP server enables real-time config validation without restarting Kanata.")
+                                 .font(.system(size: 11))
+                                 .foregroundColor(.secondary)
+                                 .multilineTextAlignment(.leading)
+                         }
+                     }
+
+                     Divider()
+
+                     // Developer Tools Section
+                     SettingsSection(title: "Developer Tools") {
+                         VStack(spacing: 10) {
+                             SettingsButton(
+                                 title: "Reset (Dev Only)",
+                                 systemImage: "arrow.clockwise.circle.fill",
+                                 style: .bordered,
+                                 accessibilityId: "reset-dev-button",
+                                 accessibilityHint: "Stop daemon, clear logs, restart - does not touch TCC permissions",
+                                 action: {
+                                     showingDevResetConfirmation = true
+                                 }
+                             )
+
+                             SettingsButton(
+                                 title: "Show Enhanced Diagnostics",
+                                 systemImage: "info.circle",
+                                 accessibilityId: "enhanced-diagnostics-button",
+                                 accessibilityHint: "View enhanced diagnostics with system status, signatures, and TCC probes",
+                                 action: {
+                                     showingDiagnostics = true
+                                 }
+                             )
+                         }
+                     }
+
+                     Divider()
+
+                     // Startup Settings (LaunchAgent)
+                     SettingsSection(title: "Startup") {
+                         LaunchAgentSettingsView()
+                     }
+
+                     Divider()
+
+                     // Issues section removed - diagnostics system provides better error reporting
+                 }
+                 .padding(.horizontal, 24)
+                 .padding(.vertical, 20)
+             }
+             .background(Color(NSColor.windowBackgroundColor))
+         }
+         .frame(width: 480, height: 520)
+         .background(Color(NSColor.windowBackgroundColor))
+         .onAppear {
+             AppLogger.shared.log("🔍 [SettingsView] onAppear called")
+
+             AppLogger.shared.log(
+                 "🔍 [SettingsView] Using shared SimpleKanataManager - state: \(kanataManager.currentState.rawValue)"
+             )
+             AppLogger.shared.log(
+                 "🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(kanataManager.showWizard)"
+             )
+
+             // Check if wizard should be shown immediately
+             if kanataManager.showWizard {
+                 AppLogger.shared.log("🎭 [SettingsView] Triggering wizard from Settings - Kanata needs help")
+                 showingInstallationWizard = true
+             }
+
+             // Status monitoring now handled centrally by SimpleKanataManager
+             // Just do an initial status refresh
+             Task {
+                 await kanataManager.forceRefreshStatus()
+             }
+
+             // Check TCP server status
+             checkTCPServerStatus()
+         }
+         .alert("Reset Configuration", isPresented: $showingResetConfirmation) {
+             Button("Cancel", role: .cancel) {}
+             Button("Reset", role: .destructive) {
+                 resetToDefaultConfig()
+             }
+         } message: {
+             Text(
+                 "This will reset your Kanata configuration to default with no custom mappings. All current key mappings will be lost. This action cannot be undone."
+             )
+         }
+         .alert("Change TCP Port", isPresented: $showingTCPPortAlert) {
+             TextField("Port (1024-65535)", text: $tempTCPPort)
+                 .textFieldStyle(.roundedBorder)
+
+             Button("Cancel", role: .cancel) {
+                 tempTCPPort = ""
+             }
+
+             Button("Apply") {
+                 if let port = Int(tempTCPPort), preferences.isValidTCPPort(port) {
+                     preferences.tcpServerPort = port
+                     AppLogger.shared.log("🔧 [SettingsView] TCP port changed to: \(port)")
+
+                     // Suggest service restart if Kanata is running
+                     if kanataManager.currentState == .running {
+                         AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for TCP port change")
+                     }
+
+                     // Refresh TCP status
+                     checkTCPServerStatus()
+                 }
+                 tempTCPPort = ""
+             }
+         } message: {
+             Text(
+                 "Enter a port number between 1024 and 65535. If Kanata is running, you'll need to restart the service for the change to take effect."
+             )
+         }
+         .sheet(isPresented: $showingDiagnostics) {
+             DiagnosticsView(kanataManager: kanataManager)
+         }
+         .sheet(isPresented: $showingInstallationWizard) {
+             InstallationWizardView()
+                 .onAppear {
+                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard sheet is being presented")
+                 }
+                 .onDisappear {
+                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
+                     Task {
+                         await kanataManager.onWizardClosed()
+                     }
+                 }
+                 .environmentObject(kanataManager)
+         }
+         .onDisappear {
+             AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
+             // Status monitoring handled centrally - no cleanup needed
+         }
+         .onChange(of: kanataManager.showWizard) { shouldShow in
+             AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
+             AppLogger.shared.log(
+                 "🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
+             )
+             showingInstallationWizard = shouldShow
+         }
+         .onChange(of: preferences.udpServerEnabled) { _ in
+             // Refresh TCP status when enabled/disabled
+             checkTCPServerStatus()
+         }
+         .onChange(of: kanataManager.currentState) { _ in
+             // Refresh TCP status when Kanata state changes
+             checkTCPServerStatus()
+         }
+     }
+     */
 
     // MARK: - Computed Properties
 
@@ -730,28 +1099,28 @@ struct SettingsView: View {
         }
     }
 
-    @State private var tcpServerStatus = "Unknown"
+    @State private var udpServerStatus = "Unknown"
 
     private func getTCPServerStatus() -> String {
-        if !preferences.tcpServerEnabled {
+        if !preferences.udpServerEnabled {
             return "Disabled"
         }
 
-        return tcpServerStatus
+        return udpServerStatus
     }
 
     private func checkTCPServerStatus() {
         Task {
-            if preferences.tcpServerEnabled, kanataManager.currentState == .running {
-                let client = KanataTCPClient(port: preferences.tcpServerPort)
+            if preferences.udpServerEnabled, kanataManager.currentState == .running {
+                let client = KanataUDPClient(port: preferences.udpServerPort)
                 let isAvailable = await client.checkServerStatus()
 
                 await MainActor.run {
-                    tcpServerStatus = isAvailable ? "Connected" : "Not Connected"
+                    udpServerStatus = isAvailable ? "Connected" : "Not Connected"
                 }
             } else {
                 await MainActor.run {
-                    tcpServerStatus = "Not Running"
+                    udpServerStatus = "Not Running"
                 }
             }
         }

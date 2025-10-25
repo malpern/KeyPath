@@ -45,14 +45,6 @@ else
     echo "⚠️ WARNING: AppIcon.icns not found"
 fi
 
-# Copy SPM resource bundles (contains screenshots and other resources)
-if [ -d "$BUILD_DIR/KeyPath_KeyPath.bundle" ]; then
-    cp -R "$BUILD_DIR/KeyPath_KeyPath.bundle" "$RESOURCES/"
-    echo "✅ Copied KeyPath resource bundle"
-else
-    echo "⚠️ WARNING: KeyPath resource bundle not found"
-fi
-
 # Create PkgInfo file (required for app bundles)
 echo "APPL????" > "$CONTENTS/PkgInfo"
 

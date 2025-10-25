@@ -4,25 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Wizard hover tooltips and Karabiner driver version compatibility (October 23, 2025)
+**LATEST WORK:** Karabiner driver version compatibility detection and wizard fixes (October 23, 2025)
 
 **Recent Commits:**
-- feat: add hover tooltips to all wizard pages (commit 829071c) - **COMPLETE**
-- feat: detect and fix Karabiner driver version mismatch (commit 7834e90) - **COMPLETE**
+- feat: detect and fix Karabiner driver version mismatch (commit 7834e90) - **INCOMPLETE**
 - fix: detect VirtualHID driver activation errors in wizard (commit 8a47f72)
 - fix: improve wizard status detection accuracy (commit b80f02e)
 
-**✅ COMPLETED WORK:**
-- ADR-012: Karabiner driver version fix is fully implemented and tested
-  - ✅ Version detection working
-  - ✅ Download/install/activate functionality complete
-  - ✅ Fix button wired to WizardAutoFixer.fixDriverVersionMismatch()
-  - ✅ User dialog shows before download
-  - ✅ Success confirmation after installation
-- Wizard hover tooltips showing issue details on all pages
-
-**📅 FUTURE WORK:**
-- When kanata v1.10 is released, update requiredDriverVersionMajor to 6
+**⚠️ INCOMPLETE WORK (requires follow-up):**
+- ADR-012: Karabiner driver version detection implemented but NOT wired to Fix button
+- TODO: Connect VHIDDeviceManager.downloadAndInstallCorrectVersion() to WizardAutoFixer
+- TODO: Show version mismatch dialog when user clicks Fix button
+- TODO: When kanata v1.10 is released, update requiredDriverVersionMajor to 6
 
 **Previous Work:**
 - ci: reduce test timeout and enforce strict quality gates (commit 69838b3)
@@ -229,17 +222,10 @@ Single executable target. Swift 6 works fine without module split. **Pragmatism 
 ### ADR-011: Test Performance ✅
 Mock time > real sleeps. 625x speedup, tests now <5s. Pattern: `Date().addingTimeInterval(-3.0)`
 
-### ADR-012: Karabiner Driver Version ✅ COMPLETE
+### ADR-012: Karabiner Driver Version ⚠️ INCOMPLETE
 **Problem:** Kanata v1.9.0 requires driver v5.0.0, users may have v6.0.0
-**Solution:** Full automated fix with download, install, and activation
-**Implementation:**
-- Version detection in VHIDDeviceManager.hasVersionMismatch()
-- Automatic download from GitHub releases
-- Clean uninstall of existing versions
-- Installation of correct v5.0.0
-- Activation via Karabiner-VirtualHIDDevice-Manager
-- User dialog with confirmation before download
-- Success message after completion
+**Implemented:** Version detection, download logic
+**TODO:** Wire to WizardAutoFixer Fix button, show user dialog
 **Future:** Update to v6 when kanata v1.10 releases
 **Files:** VHIDDeviceManager.swift, SystemValidator.swift, WizardAutoFixer.swift
 
