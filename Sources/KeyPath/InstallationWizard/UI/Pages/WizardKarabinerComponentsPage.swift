@@ -152,16 +152,21 @@ struct WizardKarabinerComponentsPage: View {
                         // Component details for error state
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
-                                Image(systemName: componentStatus(for: .driver) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(componentStatus(for: .driver) == .completed ? .green : .red)
-                                HStack(spacing: 0) {
-                                    Text("Karabiner Driver")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - Virtual keyboard driver")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
+                                HStack(spacing: 12) {
+                                    Image(systemName: componentStatus(for: .driver) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(componentStatus(for: .driver) == .completed ? .green : .red)
+                                    HStack(spacing: 0) {
+                                        Text("Karabiner Driver")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Virtual keyboard driver")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
                                 }
+                                .contentShape(Rectangle())
+                                .help(driverIssues.asTooltipText())
+
                                 Spacer()
                                 if componentStatus(for: .driver) != .completed {
                                     Button("Fix") {
@@ -171,19 +176,23 @@ struct WizardKarabinerComponentsPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
-                            .help(driverIssues.asTooltipText())
 
                             HStack(spacing: 12) {
-                                Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
-                                HStack(spacing: 0) {
-                                    Text("Background Services")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - Login Items for automatic startup")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
+                                HStack(spacing: 12) {
+                                    Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
+                                    HStack(spacing: 0) {
+                                        Text("Background Services")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Login Items for automatic startup")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
                                 }
+                                .contentShape(Rectangle())
+                                .help(backgroundServicesIssues.asTooltipText())
+
                                 Spacer()
                                 if componentStatus(for: .backgroundServices) != .completed {
                                     Button("Fix") {
@@ -193,7 +202,6 @@ struct WizardKarabinerComponentsPage: View {
                                     .scaleEffect(0.8)
                                 }
                             }
-                            .help(backgroundServicesIssues.asTooltipText())
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -278,9 +286,17 @@ struct WizardKarabinerComponentsPage: View {
 
     private var driverIssues: [WizardIssue] {
         // Filter for driver-related issues (VHID, driver extension, etc.)
-        return issues.filter { issue in
+        let filtered = issues.filter { issue in
             issue.category == .installation && issue.identifier.isVHIDRelated
         }
+
+        // Debug logging to understand tooltip behavior
+        if componentStatus(for: .driver) != .completed {
+            AppLogger.shared.log("🔍 [Karabiner Page] Driver has failed status but driverIssues.count = \(filtered.count)")
+            AppLogger.shared.log("🔍 [Karabiner Page] All issues: \(issues.map { "[\($0.category)] \($0.title)" }.joined(separator: ", "))")
+        }
+
+        return filtered
     }
 
     private var backgroundServicesIssues: [WizardIssue] {
@@ -360,15 +376,15 @@ struct WizardKarabinerComponentsPage: View {
     /// Detects if Karabiner is installed vs needs installation
     private func handleKarabinerDriverFix() {
         let isInstalled = kanataManager.isKarabinerDriverInstalled()
-        
+
         if isInstalled {
             // Karabiner is installed but having issues - attempt automatic repair
             AppLogger.shared.log("🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
             performAutomaticDriverRepair()
         } else {
-            // Karabiner not installed - show installation guide
-            AppLogger.shared.log("💡 [Karabiner Fix] Driver not installed - showing installation guide")
-            showingInstallationGuide = true
+            // Karabiner not installed - use automated installation
+            AppLogger.shared.log("🔧 [Karabiner Fix] Driver not installed - starting automated installation")
+            performAutomaticDriverInstallation()
         }
     }
     
@@ -434,10 +450,10 @@ struct WizardKarabinerComponentsPage: View {
     private func performAutomaticServiceRepair() {
         Task { @MainActor in
             // Use the wizard's auto-fix capability
-            
+
             AppLogger.shared.log("🔧 [Service Repair] Installing/repairing LaunchDaemon services")
             let success = await performAutoFix(.installLaunchDaemonServices)
-            
+
             if success {
                 AppLogger.shared.log("✅ [Service Repair] Service repair succeeded - refreshing status")
                 onRefresh()
@@ -447,7 +463,60 @@ struct WizardKarabinerComponentsPage: View {
             }
         }
     }
-    
+
+    /// Performs automated VirtualHID driver installation
+    /// Downloads, installs, and activates the driver without user intervention
+    private func performAutomaticDriverInstallation() {
+        Task { @MainActor in
+            AppLogger.shared.log("🔧 [Driver Installation] Starting automated VirtualHID driver installation")
+
+            // Show confirmation dialog
+            let alert = NSAlert()
+            alert.messageText = "Install VirtualHID Driver"
+            alert.informativeText = """
+            KeyPath needs the Karabiner VirtualHIDDevice driver (v5.0.0) for keyboard remapping.
+
+            This will:
+            • Download the standalone driver (~2MB)
+            • Install and activate it
+            • Restart the keyboard remapping service
+
+            You do NOT need to install Karabiner-Elements.
+            """
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Download & Install")
+            alert.addButton(withTitle: "Cancel")
+
+            let response = alert.runModal()
+            guard response == .alertFirstButtonReturn else {
+                AppLogger.shared.log("ℹ️ [Driver Installation] User cancelled installation")
+                return
+            }
+
+            // Use the existing auto-fix action for driver installation
+            // (works for both version mismatch AND missing driver scenarios)
+            let success = await performAutoFix(.fixDriverVersionMismatch)
+
+            if success {
+                AppLogger.shared.log("✅ [Driver Installation] Driver installed successfully - restarting Kanata")
+
+                // Restart Kanata service to connect to the newly installed driver
+                await kanataManager.restartKanata()
+
+                // Give the service a moment to start
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+
+                // Refresh wizard status
+                onRefresh()
+
+                AppLogger.shared.log("✅ [Driver Installation] Complete - Kanata restarted")
+            } else {
+                AppLogger.shared.log("❌ [Driver Installation] Failed - showing manual installation guide")
+                showingInstallationGuide = true
+            }
+        }
+    }
+
     /// Perform auto-fix using the wizard's auto-fix capability
     private func performAutoFix(_ action: AutoFixAction) async -> Bool {
         return await onAutoFix(action)

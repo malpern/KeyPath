@@ -455,13 +455,6 @@ struct InstallationWizardView: View {
     // MARK: - Actions
 
     private func performAutoFix() {
-        // IMMEDIATE crash-proof logging with multiple output methods
-        Swift.print("*** IMMEDIATE DEBUG *** Fix button clicked at \(Date())")
-        try? "*** IMMEDIATE DEBUG *** Fix button clicked at \(Date())\n".write(
-            to: URL(fileURLWithPath: NSHomeDirectory() + "/fix-button-debug.txt"), atomically: true,
-            encoding: .utf8
-        )
-
         Task {
             do {
                 AppLogger.shared.log(
@@ -527,15 +520,6 @@ struct InstallationWizardView: View {
     }
 
     private func performAutoFix(_ action: AutoFixAction) async -> Bool {
-        // IMMEDIATE crash-proof logging for ACTUAL Fix button
-        Swift.print(
-            "*** IMMEDIATE DEBUG *** ACTUAL Fix button clicked for action: \(action) at \(Date())")
-        try? "*** IMMEDIATE DEBUG *** ACTUAL Fix button clicked for action: \(action) at \(Date())\n"
-            .write(
-                to: URL(fileURLWithPath: NSHomeDirectory() + "/actual-fix-button-debug.txt"),
-                atomically: true, encoding: .utf8
-            )
-
         AppLogger.shared.log("🔧 [NewWizard] Auto-fix for specific action: \(action)")
 
         // Immediately mark auto-fix as running to prevent monitoring loop interference
@@ -644,12 +628,12 @@ struct InstallationWizardView: View {
             "Install log rotation to keep logs under 10MB"
         case .replaceKanataWithBundled:
             "Replace kanata with Developer ID signed version"
-        case .enableUDPServer:
-            "Enable UDP server"
-        case .setupUDPAuthentication:
-            "Setup UDP authentication for secure communication"
+        case .enableTCPServer:
+            "Enable TCP server"
+        case .setupTCPAuthentication:
+            "Setup TCP authentication for secure communication"
         case .regenerateCommServiceConfiguration:
-            "Update UDP service configuration"
+            "Update TCP service configuration"
         case .restartCommServer:
             "Restart Service with Authentication"
         case .fixDriverVersionMismatch:

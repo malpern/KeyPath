@@ -126,6 +126,9 @@ class KanataManager {
     var lastProcessExitCode: Int32?
     var lastConfigUpdate: Date = .init()
 
+    // TCP client (reused to maintain session across authenticate + reload)
+    var tcpClient: KanataTCPClient?
+
     // UI state properties (from SimpleKanataManager)
     var currentState: SimpleKanataState = .starting {
         didSet {
@@ -262,7 +265,7 @@ class KanataManager {
             ProcessInfo.processInfo.arguments.contains("--headless")
                 || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
 
-        // Initialize UDP server grace period timestamp at app startup
+        // Initialize TCP server grace period timestamp at app startup
         // This prevents immediate admin requests on launch
         lastServiceKickstart = Date()
 
@@ -367,10 +370,10 @@ class KanataManager {
             let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log("📁 [FileWatcher] Read \(configContent.count) characters from external file")
 
-            // Validate the configuration via UDP if possible
+            // Validate the configuration via TCP if possible
             let commConfig = PreferencesService.communicationSnapshot()
-            if commConfig.udpEnabled {
-                if let validationResult = await configurationService.validateConfigViaUDP() {
+            if commConfig.tcpEnabled {
+                if let validationResult = await configurationService.validateConfigViaTCP() {
                     if !validationResult.isValid {
                         AppLogger.shared.log("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
                         Task { @MainActor in SoundManager.shared.playErrorSound() }
@@ -388,8 +391,8 @@ class KanataManager {
                 }
             }
 
-            // Trigger hot reload via UDP
-            let reloadResult = await triggerUDPReload()
+            // Trigger hot reload via TCP
+            let reloadResult = await triggerTCPReload()
 
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [FileWatcher] External config successfully reloaded")
@@ -470,7 +473,7 @@ class KanataManager {
         await startKanata()
     }
 
-    // UDP reload result is now handled by the KanataUDPClient.UDPReloadResult enum
+    // TCP reload result is now handled by the KanataTCPClient.TCPReloadResult enum
 
     /// Configuration management errors
     private enum ConfigError: Error, LocalizedError {
@@ -668,14 +671,14 @@ class KanataManager {
         await healthMonitor.recordStartAttempt(timestamp: Date())
         lastStartAttempt = Date()
 
-        // Hard requirement: UDP authentication token must exist (fail closed)
-        let ensuredToken = CommunicationSnapshot.ensureSharedUDPToken()
+        // Hard requirement: TCP authentication token must exist (fail closed)
+        let ensuredToken = CommunicationSnapshot.ensureSharedTCPToken()
         if ensuredToken.isEmpty {
-            AppLogger.shared.log("❌ [Start] Missing UDP auth token; aborting start to enforce authenticated UDP")
+            AppLogger.shared.log("❌ [Start] Missing TCP auth token; aborting start to enforce authenticated TCP")
             await MainActor.run {
                 self.currentState = .needsHelp
-                self.errorReason = "UDP authentication is required. Failed to create token."
-                self.launchFailureStatus = .configError("Missing UDP authentication token")
+                self.errorReason = "TCP authentication is required. Failed to create token."
+                self.launchFailureStatus = .configError("Missing TCP authentication token")
                 self.showWizard = true
             }
             return
@@ -697,10 +700,10 @@ class KanataManager {
                 isRunning: launchDaemonStatus.isRunning,
                 pid: launchDaemonStatus.pid
             )
-            let udpClient = await createUDPClient(timeout: 1.0)
+            let tcpClient = await createTCPClient(timeout: 1.0)
             let healthStatus = await healthMonitor.checkServiceHealth(
                 processStatus: processStatus,
-                udpClient: udpClient
+                tcpClient: tcpClient
             )
 
             if healthStatus.isHealthy && !healthStatus.shouldRestart {
@@ -802,30 +805,25 @@ class KanataManager {
         // Check if config file exists and is readable
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: configPath) {
-            AppLogger.shared.log("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
+            AppLogger.shared.log("⚠️ [Start] Config file does not exist at: \(configPath)")
             updateInternalState(
                 isRunning: false,
                 lastProcessExitCode: 1,
                 lastError: "Configuration file not found: \(configPath)"
             )
             return
-        } else {
-            AppLogger.shared.log("✅ [DEBUG] Config file exists at: \(configPath)")
-            if !fileManager.isReadableFile(atPath: configPath) {
-                AppLogger.shared.log("⚠️ [DEBUG] Config file is NOT readable")
-                updateInternalState(
-                    isRunning: false,
-                    lastProcessExitCode: 1,
-                    lastError: "Configuration file not readable: \(configPath)"
-                )
-                return
-            }
+        } else if !fileManager.isReadableFile(atPath: configPath) {
+            AppLogger.shared.log("⚠️ [Start] Config file is not readable: \(configPath)")
+            updateInternalState(
+                isRunning: false,
+                lastProcessExitCode: 1,
+                lastError: "Configuration file not readable: \(configPath)"
+            )
+            return
         }
 
         // Use LaunchDaemon service management exclusively
         AppLogger.shared.log("🚀 [Start] Starting Kanata via LaunchDaemon service...")
-        AppLogger.shared.log("🔍 [DEBUG] Config path: \(configPath)")
-        AppLogger.shared.log("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
 
         // Start the LaunchDaemon service
         // Record when we're triggering a service start for grace period tracking
@@ -1383,19 +1381,19 @@ class KanataManager {
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { @MainActor in SoundManager.shared.playTinkSound() }
 
-            // Trigger hot reload via UDP
-            let reloadResult = await triggerUDPReload()
+            // Trigger hot reload via TCP
+            let reloadResult = await triggerTCPReload()
             if reloadResult.isSuccess {
-                AppLogger.shared.log("✅ [KanataManager] UDP reload successful, config is active")
+                AppLogger.shared.log("✅ [KanataManager] TCP reload successful, config is active")
                 // Play glass sound asynchronously to avoid blocking completion
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
                 await MainActor.run {
                     saveStatus = .success
                 }
             } else {
-                // UDP reload failed - this is a critical error for validation-on-demand
-                let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
-                AppLogger.shared.log("❌ [KanataManager] UDP reload FAILED: \(errorMessage)")
+                // TCP reload failed - this is a critical error for validation-on-demand
+                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
+                AppLogger.shared.log("❌ [KanataManager] TCP reload FAILED: \(errorMessage)")
                 // Play error sound asynchronously
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
                 await MainActor.run {
@@ -1449,12 +1447,12 @@ class KanataManager {
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { @MainActor in SoundManager.shared.playTinkSound() }
 
-            // Attempt UDP reload and capture any errors
-            let reloadResult = await triggerUDPReload()
+            // Attempt TCP reload and capture any errors
+            let reloadResult = await triggerTCPReload()
 
             if reloadResult.isSuccess {
-                // UDP reload succeeded - config is valid
-                AppLogger.shared.log("✅ [Config] UDP reload successful, config is valid")
+                // TCP reload succeeded - config is valid
+                AppLogger.shared.log("✅ [Config] TCP reload successful, config is valid")
 
                 // Play glass sound asynchronously to avoid blocking completion
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
@@ -1463,10 +1461,12 @@ class KanataManager {
                     saveStatus = .success
                 }
             } else {
-                // UDP reload failed - this is a critical error for validation-on-demand
-                let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
-                AppLogger.shared.log("❌ [Config] UDP reload FAILED: \(errorMessage)")
-                AppLogger.shared.log("❌ [Config] UDP server is required for validation-on-demand - restoring backup")
+                // TCP reload failed - provide detailed diagnostics
+                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
+                let response = reloadResult.response ?? "No response"
+                AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
+                AppLogger.shared.log("❌ [Config] Server response: \(response)")
+                AppLogger.shared.log("❌ [Config] Restoring backup config")
 
                 // Play error sound asynchronously
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
@@ -1474,11 +1474,11 @@ class KanataManager {
                 // Restore backup since we can't verify the config was applied
                 try await restoreLastGoodConfig()
 
-                // Set error status
+                // Set error status with more context
                 await MainActor.run {
-                    saveStatus = .failed("UDP server required for hot reload failed: \(errorMessage)")
+                    saveStatus = .failed("Config reload failed: \(errorMessage)")
                 }
-                throw KeyPathError.configuration(.loadFailed(reason: "UDP server required for validation-on-demand failed: \(errorMessage)"))
+                throw KeyPathError.configuration(.loadFailed(reason: "Failed to reload config via TCP: \(errorMessage). Response: \(response.prefix(100))"))
             }
 
             // Reset to idle after a delay
@@ -2254,7 +2254,7 @@ class KanataManager {
 
         // Trigger reload after restoration
         Task {
-            _ = await self.triggerUDPReload()
+            _ = await self.triggerTCPReload()
         }
     }
 
@@ -2272,14 +2272,14 @@ class KanataManager {
 
         AppLogger.shared.log("💾 [Config] Reset to default configuration")
 
-        // Apply changes immediately via UDP reload if service is running
+        // Apply changes immediately via TCP reload if service is running
         if isRunning {
-            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via UDP...")
-            let reloadResult = await triggerUDPReload()
+            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via TCP...")
+            let reloadResult = await triggerTCPReload()
 
             if reloadResult.isSuccess {
                 let response = reloadResult.response ?? "Success"
-                AppLogger.shared.log("✅ [Reset] Default config applied successfully via UDP: \(response)")
+                AppLogger.shared.log("✅ [Reset] Default config applied successfully via TCP: \(response)")
                 // Play happy chime on successful reset
                 await MainActor.run {
                     SoundManager.shared.playGlassSound()
@@ -2287,9 +2287,9 @@ class KanataManager {
             } else {
                 let error = reloadResult.errorMessage ?? "Unknown error"
                 let response = reloadResult.response ?? "No response"
-                AppLogger.shared.log("⚠️ [Reset] UDP reload failed (\(error)), fallback restart initiated")
-                AppLogger.shared.log("📝 [Reset] UDP response: \(response)")
-                // If UDP reload fails, fall back to service restart
+                AppLogger.shared.log("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
+                AppLogger.shared.log("📝 [Reset] TCP response: \(response)")
+                // If TCP reload fails, fall back to service restart
                 await restartKanata()
             }
         }
@@ -2301,7 +2301,7 @@ class KanataManager {
     func pauseMappings() async -> Bool {
         AppLogger.shared.log("⏸️ [Mappings] Attempting to pause mappings for recording...")
 
-        // First, try UDP pause command (if Kanata supports it in the future)
+        // First, try TCP pause command (if Kanata supports it in the future)
         // For now, we'll stop the service as a fallback
 
         if isRunning {
@@ -2449,25 +2449,34 @@ class KanataManager {
 
     /// Validates a generated config string using Kanata's --check command
     private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
-        // Delegate to ConfigurationService for combined UDP+CLI validation
-        return await configurationService.validateConfiguration(config)
+        // Ensure TCP client exists before validation (so validation and reload use same client)
+        if tcpClient == nil {
+            let commConfig = PreferencesService.communicationSnapshot()
+            if commConfig.shouldUseTCP {
+                tcpClient = KanataTCPClient(port: commConfig.tcpPort)
+            }
+        }
+
+        // Delegate to ConfigurationService for combined TCP+CLI validation
+        // Pass the stored TCP client to reuse the same session
+        return await configurationService.validateConfiguration(config, tcpClient: tcpClient)
     }
 
-    /// Get UDP port for validation if UDP server is enabled
-    private func getUDPPort() async -> Int? {
+    /// Get TCP port for validation if TCP server is enabled
+    private func getTCPPort() async -> Int? {
         let commSnapshot = PreferencesService.communicationSnapshot()
-        guard commSnapshot.shouldUseUDP else {
+        guard commSnapshot.shouldUseTCP else {
             return nil
         }
-        return commSnapshot.udpPort
+        return commSnapshot.tcpPort
     }
 
-    /// Create a UDP client for health checking
-    private func createUDPClient(timeout: TimeInterval = 1.0) async -> KanataUDPClient? {
-        guard let udpPort = await getUDPPort() else {
+    /// Create a TCP client for health checking
+    private func createTCPClient(timeout: TimeInterval = 1.0) async -> KanataTCPClient? {
+        guard let tcpPort = await getTCPPort() else {
             return nil
         }
-        return KanataUDPClient(port: udpPort, timeout: timeout)
+        return KanataTCPClient(port: tcpPort, timeout: timeout)
     }
 
 
@@ -2518,84 +2527,50 @@ class KanataManager {
 
     /// Saves a validated config to disk
     private func saveValidatedConfig(_ config: String) async throws {
-        // DEBUG: Log detailed file save information
-        AppLogger.shared.log("🔍 [DEBUG] saveValidatedConfig called")
-        AppLogger.shared.log("🔍 [DEBUG] Target config path: \(configPath)")
-        AppLogger.shared.log("🔍 [DEBUG] Config size: \(config.count) characters")
+        AppLogger.shared.log("💾 [SaveConfig] Saving config to: \(configPath)")
 
-        // Perform final validation via UDP if available
+        // Perform final validation via TCP if available
         let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseUDP, isRunning {
-            AppLogger.shared.log("📡 [SaveConfig] Performing final UDP validation before save")
+        if commConfig.shouldUseTCP, isRunning {
+            AppLogger.shared.log("📡 [SaveConfig] Performing final TCP validation before save")
 
-            let client = KanataUDPClient(port: commConfig.udpPort)
+            let client = KanataTCPClient(port: commConfig.tcpPort)
             let validationResult = await client.validateConfig(config)
 
             switch validationResult {
             case .success:
-                AppLogger.shared.log("✅ [SaveConfig] UDP validation passed")
+                AppLogger.shared.log("✅ [SaveConfig] TCP validation passed")
             case let .failure(errors):
                 let errorMessages = errors.map(\.description).joined(separator: ", ")
-                AppLogger.shared.log("❌ [SaveConfig] UDP validation failed: \(errorMessages)")
+                AppLogger.shared.log("❌ [SaveConfig] TCP validation failed: \(errorMessages)")
 
-                // In testing environment, treat UDP validation failures as warnings rather than errors
+                // In testing environment, treat TCP validation failures as warnings rather than errors
                 let isInTestingEnvironment = NSClassFromString("XCTestCase") != nil
                 if isInTestingEnvironment {
                     AppLogger.shared.log(
-                        "⚠️ [SaveConfig] UDP validation failed in test environment - proceeding with save")
+                        "⚠️ [SaveConfig] TCP validation failed in test environment - proceeding with save")
                 } else {
                     throw KeyPathError.configuration(.validationFailed(errors: errors.map(\.description)))
                 }
             case let .networkError(message):
                 AppLogger.shared.log(
-                    "⚠️ [SaveConfig] UDP validation unavailable: \(message) - proceeding with save")
-            // Continue with save since UDP validation is optional
+                    "⚠️ [SaveConfig] TCP validation unavailable: \(message) - proceeding with save")
+            // Continue with save since TCP validation is optional
             case .authenticationRequired:
                 AppLogger.shared.log(
-                    "⚠️ [SaveConfig] UDP authentication required - proceeding with save")
-                // Continue with save since UDP validation is optional
+                    "⚠️ [SaveConfig] TCP authentication required - proceeding with save")
+                // Continue with save since TCP validation is optional
             }
         }
 
         let configDir = URL(fileURLWithPath: configDirectory)
         try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-        AppLogger.shared.log("🔍 [DEBUG] Config directory created/verified: \(configDirectory)")
 
         let configURL = URL(fileURLWithPath: configPath)
 
-        // Check if file exists before writing
-        let fileExists = FileManager.default.fileExists(atPath: configPath)
-        AppLogger.shared.log("🔍 [DEBUG] Config file exists before write: \(fileExists)")
-
-        // Get modification time before write (if file exists)
-        var beforeModTime: Date?
-        if fileExists {
-            let beforeAttributes = try? FileManager.default.attributesOfItem(atPath: configPath)
-            beforeModTime = beforeAttributes?[.modificationDate] as? Date
-            AppLogger.shared.log(
-                "🔍 [DEBUG] Modification time before write: \(beforeModTime?.description ?? "unknown")")
-        }
-
         // Write the config
         try config.write(to: configURL, atomically: true, encoding: .utf8)
-        AppLogger.shared.log("✅ [DEBUG] Config written to file successfully")
-
-        // Note: File watcher delay removed - we use TCP reload commands instead of --watch
-
-        // Get modification time after write
-        let afterAttributes = try FileManager.default.attributesOfItem(atPath: configPath)
-        let afterModTime = afterAttributes[.modificationDate] as? Date
-        let fileSize = afterAttributes[.size] as? Int ?? 0
-
-        AppLogger.shared.log(
-            "🔍 [DEBUG] Modification time after write: \(afterModTime?.description ?? "unknown")")
-        AppLogger.shared.log("🔍 [DEBUG] File size after write: \(fileSize) bytes")
-
-        // Calculate time difference if we have both times
-        if let before = beforeModTime, let after = afterModTime {
-            let timeDiff = after.timeIntervalSince(before)
-            AppLogger.shared.log("🔍 [DEBUG] File modification time changed by: \(timeDiff) seconds")
-        }
+        AppLogger.shared.log("✅ [SaveConfig] Config written successfully")
 
         // Post-save validation: verify the file was saved correctly
         await MainActor.run {
@@ -2638,7 +2613,6 @@ class KanataManager {
 
         // Notify UI that config was updated
         lastConfigUpdate = Date()
-        AppLogger.shared.log("🔍 [DEBUG] lastConfigUpdate timestamp set to: \(lastConfigUpdate)")
     }
 
     /// Synchronize config to system path for Kanata --watch compatibility
@@ -2717,13 +2691,13 @@ class KanataManager {
     func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
         var arguments = ["--cfg", configPath]
 
-        // Add UDP communication arguments if enabled
+        // Add TCP communication arguments if enabled
         let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseUDP {
+        if commConfig.shouldUseTCP {
             arguments.append(contentsOf: commConfig.communicationLaunchArguments)
-            AppLogger.shared.log("📡 [KanataArgs] UDP server enabled on port \(commConfig.udpPort)")
+            AppLogger.shared.log("📡 [KanataArgs] TCP server enabled on port \(commConfig.tcpPort)")
         } else {
-            AppLogger.shared.log("📡 [KanataArgs] UDP server disabled")
+            AppLogger.shared.log("📡 [KanataArgs] TCP server disabled")
         }
 
         if checkOnly {

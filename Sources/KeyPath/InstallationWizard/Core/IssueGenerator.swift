@@ -322,12 +322,12 @@ class IssueGenerator {
         case .vhidDriverVersionMismatch: "Karabiner Driver Version Incompatible"
         case .launchDaemonServices: "LaunchDaemon Services Not Installed"
         case .launchDaemonServicesUnhealthy: "LaunchDaemon Services Failing"
-        case .kanataUDPServer: "UDP Server Not Responding"
+        case .kanataTCPServer: "TCP Server Not Responding"
         case .orphanedKanataProcess: "Orphaned Kanata Process"
         case .communicationServerConfiguration: "Communication Server Configuration Outdated"
         case .communicationServerNotResponding: "Communication Server Not Responding"
-        case .udpServerConfiguration: "UDP Server Configuration Outdated"
-        case .udpServerNotResponding: "UDP Server Not Responding"
+        case .tcpServerConfiguration: "TCP Server Configuration Outdated"
+        case .tcpServerNotResponding: "TCP Server Not Responding"
         case .logRotation: "Log Rotation Recommended"
         }
     }
@@ -339,7 +339,7 @@ class IssueGenerator {
         case .kanataService:
             "Kanata service configuration is missing."
         case .karabinerDriver:
-            "Karabiner-Elements driver is required for virtual HID functionality."
+            "VirtualHIDDevice driver (v5.0.0) is required for virtual HID functionality."
         case .karabinerDaemon:
             "Karabiner Virtual HID Device Daemon is not running."
         case .vhidDeviceManager:
@@ -358,8 +358,8 @@ class IssueGenerator {
             "LaunchDaemon services are not installed or loaded. These provide reliable system-level service management for KeyPath components."
         case .launchDaemonServicesUnhealthy:
             "LaunchDaemon services are loaded but crashing or failing. This usually indicates a configuration problem or permission issue that can be fixed by restarting the services."
-        case .kanataUDPServer:
-            "Kanata UDP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with UDP enabled."
+        case .kanataTCPServer:
+            "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
         case .orphanedKanataProcess:
             """
             Kanata is running outside of LaunchDaemon management. This prevents reliable lifecycle control and hot-reload functionality.
@@ -382,15 +382,15 @@ class IssueGenerator {
 
             This prevents reliable permission detection and may affect external integrations. The service may need to be restarted.
             """
-        case .udpServerConfiguration:
+        case .tcpServerConfiguration:
             """
-            The UDP server is enabled in KeyPath preferences but the system service is not configured with the current UDP settings.
+            The TCP server is enabled in KeyPath preferences but the system service is not configured with the current TCP settings.
 
-            This happens when UDP preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current UDP port and authentication configuration.
+            This happens when TCP preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current TCP port and authentication configuration.
             """
-        case .udpServerNotResponding:
+        case .tcpServerNotResponding:
             """
-            The UDP server is properly configured but not responding on port \(PreferencesService.communicationSnapshot().udpPort).
+            The TCP server is properly configured but not responding on port \(PreferencesService.communicationSnapshot().tcpPort).
 
             This prevents low-latency communication and may affect external integrations. The service may need to be restarted.
             """
@@ -419,18 +419,18 @@ class IssueGenerator {
             .installBundledKanata // Install bundled kanata binary to system location
         case .kanataService:
             .installLaunchDaemonServices // Service configuration files
-        case .kanataUDPServer:
-            .restartUnhealthyServices // UDP server requires service restart with updated config
+        case .kanataTCPServer:
+            .restartUnhealthyServices // TCP server requires service restart with updated config
         case .orphanedKanataProcess:
             .adoptOrphanedProcess // Default to adopting the orphaned process
         case .communicationServerConfiguration:
             .regenerateCommServiceConfiguration // Update LaunchDaemon plist with communication settings
         case .communicationServerNotResponding:
             .restartCommServer // Restart service to enable communication functionality
-        case .udpServerConfiguration:
-            .enableUDPServer // Enable UDP server
-        case .udpServerNotResponding:
-            .enableUDPServer // Enable UDP server functionality
+        case .tcpServerConfiguration:
+            .enableTCPServer // Enable TCP server
+        case .tcpServerNotResponding:
+            .enableTCPServer // Enable TCP server functionality
         case .logRotation:
             .installLogRotation
         default:
@@ -441,19 +441,19 @@ class IssueGenerator {
     private func getUserAction(for component: ComponentRequirement) -> String? {
         switch component {
         case .karabinerDriver:
-            "Install Karabiner-Elements from website"
+            "Install VirtualHIDDevice driver v5.0.0"
         case .vhidDeviceManager:
-            "Install Karabiner-VirtualHIDDevice from website"
+            "Install VirtualHIDDevice driver"
         case .kanataBinaryMissing:
             "Use the Installation Wizard to install Kanata automatically"
         case .communicationServerConfiguration:
             "Click 'Fix' to update the service with current communication settings"
         case .communicationServerNotResponding:
             "Click 'Fix' to restart the service with communication functionality"
-        case .udpServerConfiguration:
-            "Click 'Fix' to enable UDP server"
-        case .udpServerNotResponding:
-            "Click 'Fix' to restart the service with UDP functionality"
+        case .tcpServerConfiguration:
+            "Click 'Fix' to enable TCP server"
+        case .tcpServerNotResponding:
+            "Click 'Fix' to restart the service with TCP functionality"
         case .logRotation:
             "Click 'Fix' to install log rotation service"
         default:

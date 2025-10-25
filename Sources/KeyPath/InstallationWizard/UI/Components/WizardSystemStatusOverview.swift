@@ -363,9 +363,9 @@ struct WizardSystemStatusOverview: View {
         let hasCommServerIssues = issues.contains { issue in
             if case let .component(component) = issue.identifier {
                 switch component {
-                case .kanataUDPServer,
+                case .kanataTCPServer,
                      .communicationServerConfiguration, .communicationServerNotResponding,
-                     .udpServerConfiguration, .udpServerNotResponding:
+                     .tcpServerConfiguration, .tcpServerNotResponding:
                     return true
                 default:
                     return false
@@ -379,13 +379,13 @@ struct WizardSystemStatusOverview: View {
             return .failed
         }
 
-        // Additional check: UDP server must be enabled in preferences
+        // Additional check: TCP server must be enabled in preferences
         let preferences = PreferencesService.shared
-        guard preferences.udpServerEnabled else {
-            return .failed // UDP disabled - needs setup
+        guard preferences.tcpServerEnabled else {
+            return .failed // TCP disabled - needs setup
         }
 
-        // If Kanata is running, UDP is enabled, and there are no detected communication issues
+        // If Kanata is running, TCP is enabled, and there are no detected communication issues
         // in the shared state, show as completed. The comprehensive testing results from
         // SystemStatusChecker will be reflected in the issues array.
         return .completed
