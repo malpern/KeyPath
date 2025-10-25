@@ -160,6 +160,12 @@ final class RecordingCoordinator: ObservableObject {
                 await kanataManager.updateStatus()
                 await MainActor.run {
                     onSuccess("Key mapping saved: \(inKey) → \(outKey)")
+                    // Surface a system notification when app isn't frontmost
+                    UserNotificationService.shared.notifyConfigEvent(
+                        "Mapping Saved",
+                        body: "\(inKey) → \(outKey)",
+                        key: "mapping.saved.\(inKey).\(outKey)"
+                    )
                     clearCapturedSequences()
                 }
             } catch {
@@ -178,6 +184,12 @@ final class RecordingCoordinator: ObservableObject {
 
             await MainActor.run {
                 onSuccess("Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
+                // System notification for background confirmation
+                UserNotificationService.shared.notifyConfigEvent(
+                    "Mapping Saved",
+                    body: "\(inputSequence.displayString) → \(outputSequence.displayString)",
+                    key: "mapping.saved.seq"
+                )
                 clearCapturedSequences()
             }
         } catch {
