@@ -35,15 +35,19 @@ run_test_suite() {
 
     echo "🔍 Running $test_name..."
 
-    # Use gtimeout on macOS, timeout on Linux
-    TIMEOUT_CMD="timeout"
+    # Use gtimeout on macOS, timeout on Linux; fall back to no timeout if unavailable
+    RUN_PREFIX=()
     if command -v gtimeout >/dev/null 2>&1; then
-        TIMEOUT_CMD="gtimeout"
+        RUN_PREFIX=(gtimeout "$timeout")
+    elif command -v timeout >/dev/null 2>&1; then
+        RUN_PREFIX=(timeout "$timeout")
+    else
+        RUN_PREFIX=() # no timeout available
     fi
 
     if [[ -n "$test_filter" ]]; then
         # Filtered run (e.g., Unit tests)
-        if $TIMEOUT_CMD "$timeout" swift test --enable-code-coverage --filter "$test_filter" --parallel 2>&1 | tee "test-results/$test_name.log"; then
+        if "${RUN_PREFIX[@]}" swift test --enable-code-coverage --filter "$test_filter" --parallel 2>&1 | tee "test-results/$test_name.log"; then
             echo "✅ $test_name completed successfully"
             return 0
         else
@@ -53,7 +57,7 @@ run_test_suite() {
         fi
     else
         # Unfiltered run (e.g., Core tests = real suites)
-        if $TIMEOUT_CMD "$timeout" swift test --enable-code-coverage --parallel 2>&1 | tee "test-results/$test_name.log"; then
+        if "${RUN_PREFIX[@]}" swift test --enable-code-coverage --parallel 2>&1 | tee "test-results/$test_name.log"; then
             echo "✅ $test_name completed successfully"
             return 0
         else
