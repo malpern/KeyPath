@@ -26,6 +26,44 @@ end_step() {
   log "✓ Completed in ${dur}s"
 }
 
+# Run a long step with periodic heartbeats and a soft timeout
+# Usage: run_with_heartbeat <label> <timeout_seconds> -- <cmd> [args...]
+run_with_heartbeat() {
+  local label="$1"; shift
+  local limit="$1"; shift
+  if [[ "$1" != "--" ]]; then
+    echo "run_with_heartbeat: missing -- before command" >&2; return 99
+  fi
+  shift
+
+  start_step "$label"
+  local start_ts=$(date +%s)
+  ( "$@" ) &
+  local pid=$!
+  local last_print=0
+  while kill -0 $pid 2>/dev/null; do
+    local now=$(date +%s)
+    local elapsed=$(( now - start_ts ))
+    if (( now - last_print >= 10 )); then
+      log "… still working on: $label (elapsed ${elapsed}s)"
+      last_print=$now
+    fi
+    if (( elapsed > limit )); then
+      log "⛔ $label exceeded ${limit}s — terminating PID $pid"
+      kill -TERM $pid 2>/dev/null || true
+      sleep 2
+      kill -KILL $pid 2>/dev/null || true
+      wait $pid 2>/dev/null || true
+      return 124
+    fi
+    sleep 1
+  done
+  wait $pid
+  local rc=$?
+  end_step
+  return $rc
+}
+
 trap 'log "⛔ Build script aborted"' INT TERM
 
 if [[ "${SKIP_KANATA_BUILD:-0}" == "1" ]]; then
@@ -42,12 +80,15 @@ else
   end_step
 fi
 
-start_step "Building KeyPath (release, no WMO)"
-echo "🏗️  Building KeyPath..."
-# Build main app (disable whole-module optimization to avoid hang)
+echo "🏗️  Building KeyPath (release, no WMO)…"
+# Build main app (disable whole-module optimization to avoid hang). Timeout: 10 minutes hard cap.
 log "Running: swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization"
-swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
-end_step
+if ! run_with_heartbeat "Swift build (release)" 600 -- \
+  swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization; then
+  log "⚠️  Swift build hit timeout or failed; retrying with verbose output"
+  run_with_heartbeat "Swift build retry (-v)" 600 -- \
+    swift build -v --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
+fi
 
 start_step "Creating app bundle"
 echo "📦 Creating app bundle..."
@@ -174,14 +215,37 @@ if [[ "${SKIP_NOTARIZE:-0}" == "1" || "${CI:-false}" != "true" ]]; then
   echo "ℹ️  Distribution zip is unsigned for notarization."
   end_step
 else
-  start_step "Submitting for notarization (this can take 2–10 minutes; Apple queue times vary)"
+  # Submit asynchronously, then poll to provide progress updates.
+  start_step "Submitting for notarization (async)"
   echo "📋 Submitting for notarization..."
-  if ! /usr/bin/xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" \
-      --keychain-profile "KeyPath-Profile" \
-      --wait; then
-    echo "❌ Notarization failed. You can rerun with SKIP_NOTARIZE=1 for local builds." >&2
+  SUBMIT_OUT=$(xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" --keychain-profile "KeyPath-Profile" --output-format json 2>/dev/null || true)
+  REQUEST_ID=$(echo "$SUBMIT_OUT" | /usr/bin/python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id",""))' 2>/dev/null || true)
+  if [[ -z "$REQUEST_ID" ]]; then
+    echo "❌ Notarization submission did not return an ID. Raw output:" >&2
+    echo "$SUBMIT_OUT" >&2
     exit 2
   fi
+  end_step
+
+  # Poll up to 20 minutes with heartbeats
+  start_step "Polling notarization status ($REQUEST_ID)"
+  POLL_START=$(date +%s)
+  while true; do
+    STATUS_JSON=$(xcrun notarytool info "$REQUEST_ID" --keychain-profile "KeyPath-Profile" --output-format json 2>/dev/null || true)
+    STATUS=$(echo "$STATUS_JSON" | /usr/bin/python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("status",""))' 2>/dev/null || true)
+    log "Notary status: ${STATUS:-unknown}"
+    if [[ "$STATUS" == "Accepted" ]]; then
+      break
+    elif [[ "$STATUS" == "Invalid" || "$STATUS" == "Rejected" ]]; then
+      echo "❌ Notarization failed: $STATUS_JSON" >&2
+      exit 2
+    fi
+    if (( $(date +%s) - POLL_START > 1200 )); then
+      echo "❌ Notarization polling exceeded 20 minutes." >&2
+      exit 2
+    fi
+    sleep 15
+  done
   end_step
 fi
 
