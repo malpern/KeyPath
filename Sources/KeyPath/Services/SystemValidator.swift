@@ -31,6 +31,9 @@ class SystemValidator {
     private let processLifecycleManager: ProcessLifecycleManager
     private weak var kanataManager: KanataManager?
 
+    /// Instance-scoped validation count for deterministic tests
+    private var instanceValidationCount = 0
+
     init(
         launchDaemonInstaller: LaunchDaemonInstaller = LaunchDaemonInstaller(),
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
@@ -78,6 +81,7 @@ class SystemValidator {
         defer { Self.activeValidations -= 1 }
 
         Self.validationCount += 1
+        instanceValidationCount += 1
         let myID = Self.validationCount
 
         // 🚨 DEFENSIVE WARNING: Detect rapid-fire validations (indicates automatic triggers)
@@ -258,6 +262,9 @@ class SystemValidator {
     static func getValidationStats() -> (activeCount: Int, totalCount: Int, lastStart: Date?) {
         return (activeValidations, validationCount, lastValidationStart)
     }
+
+    /// Instance-scoped stats for deterministic testing (unaffected by concurrent tests)
+    func getInstanceValidationCount() -> Int { instanceValidationCount }
 
     /// Reset validation counters (for testing)
     static func resetCounters() {

@@ -33,16 +33,14 @@ struct SystemValidatorTests {
         // First validation
         _ = await validator.checkSystem()
 
-        var stats = SystemValidator.getValidationStats()
-        #expect(stats.totalCount == 1)
-        #expect(stats.activeCount == 0) // Should be 0 after completion
+        // Use instance-scoped count to avoid interference from other concurrent tests
+        var instanceCount = validator.getInstanceValidationCount()
+        #expect(instanceCount == 1)
 
         // Second validation
         _ = await validator.checkSystem()
-
-        stats = SystemValidator.getValidationStats()
-        #expect(stats.totalCount == 2)
-        #expect(stats.activeCount == 0)
+        instanceCount = validator.getInstanceValidationCount()
+        #expect(instanceCount == 2)
     }
 
     @Test("SystemSnapshot has fresh timestamp")
