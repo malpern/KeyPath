@@ -278,7 +278,7 @@ class KanataManager {
         diagnosticsService = DiagnosticsService(processLifecycleManager: processLifecycleManager)
 
         // Initialize health monitor
-        healthMonitor = ServiceHealthMonitor(processLifecycle: processLifecycleManager)
+        healthMonitor = ServiceHealthMonitor(processLifecycle: processService as any ProcessLifecycleProviding)
 
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()

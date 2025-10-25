@@ -106,7 +106,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
     // MARK: - Dependencies
 
-    private let processLifecycle: ProcessLifecycleManager
+    private let processLifecycle: ProcessLifecycleProviding
 
     // MARK: - Configuration Constants
 
@@ -129,9 +129,16 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
     // MARK: - Initialization
 
+    // Backward-compatible initializer
     init(processLifecycle: ProcessLifecycleManager) {
         self.processLifecycle = processLifecycle
         AppLogger.shared.log("🏥 [HealthMonitor] Initialized with process lifecycle manager")
+    }
+
+    // Preferred initializer: accept any provider (e.g., ProcessService)
+    init(processLifecycle: ProcessLifecycleProviding) {
+        self.processLifecycle = processLifecycle
+        AppLogger.shared.log("🏥 [HealthMonitor] Initialized with lifecycle provider")
     }
 
     // MARK: - Health Checking

@@ -183,3 +183,7 @@ final class ProcessService: @unchecked Sendable {
         }
     }
 }
+
+// Provide the minimal conflict-detection interface for components that should
+// not depend on the full ProcessLifecycleManager type.
+extension ProcessService: ProcessLifecycleProviding {}
