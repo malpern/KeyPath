@@ -375,6 +375,27 @@ swift build -c release
 ./Scripts/build-and-sign.sh
 ```
 
+### Local Dev Build (Agents)
+
+For fast, repeatable local builds during development, prefer the dev script and Make target:
+
+```bash
+# Fast debug build → packages .app → installs to /Applications → launches
+make dev
+
+# Variants
+LAUNCH_APP=0 make dev                 # build + install only, do not launch
+CODESIGN_IDENTITY=- make dev          # force ad‑hoc signing for local runs
+APP_DEST="$HOME/Applications/KeyPath.app" make dev  # alternate install path
+```
+
+Why this matters
+- Keeps a stable bundle path (/Applications/KeyPath.app) so Accessibility/Input Monitoring approvals persist.
+- Skips notarization and Gatekeeper checks for speed.
+- Uses Developer ID if available; falls back to ad‑hoc automatically.
+
+Claude/agents: When asked to “build locally” or to “run the app,” default to `make dev` (or `./Scripts/build-dev-local.sh`). Do not run notarization steps for local builds, and avoid changing the bundle identifier or install path unless explicitly requested.
+
 ## Test Commands
 
 ```bash

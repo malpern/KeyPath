@@ -2,6 +2,9 @@
 
 .PHONY: test core-tests coverage coverage-full coverage-reuse
 
+dev:
+	SKIP_KANATA_BUILD=1 LAUNCH_APP=1 ./Scripts/build-dev-local.sh
+
 test:
 	./run-core-tests.sh
 
@@ -16,4 +19,3 @@ coverage-full:
 
 coverage-reuse:
 	./Scripts/generate-coverage.sh --reuse
-
