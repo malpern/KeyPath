@@ -1,10 +1,16 @@
 name: KeyPath CI
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 on:
   push:
     branches: [ main, master, split-arch, another-light-refactor ]
   pull_request:
     branches: [ main, master, split-arch ]
+  workflow_dispatch: {}
 
 jobs:
   build-and-test:
@@ -103,6 +109,64 @@ jobs:
         echo "- Integration tests requiring sudo may be skipped in CI" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "---" >> $GITHUB_STEP_SUMMARY
+
+    - name: Generate Coverage (reuse existing)
+      if: always()
+      run: |
+        echo "📊 Generating coverage (reuse existing profdata)"
+        bash Scripts/generate-coverage.sh --reuse || true
+
+    - name: Upload Coverage Artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: dist/coverage
+        retention-days: 7
+
+    - name: Append Coverage Summary
+      if: always()
+      run: |
+        echo "### 📊 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        if [ -f dist/coverage/summary_app_target.txt ]; then
+          LINE=$(tail -n 1 dist/coverage/summary_app_target.txt | sed -E 's/\x1b\[[0-9;]*m//g')
+          echo "Using app target summary (excludes Tests/)" >> $GITHUB_STEP_SUMMARY
+        else
+          LINE=$(tail -n 1 dist/coverage/summary.txt | sed -E 's/\x1b\[[0-9;]*m//g')
+          echo "Using full summary (includes Tests/)" >> $GITHUB_STEP_SUMMARY
+        fi
+        RE='[0-9]+\.[0-9]+%'
+        PCTS=$(echo "$LINE" | grep -Eo "$RE" || true)
+        REGIONS=$(echo "$PCTS" | sed -n '1p')
+        FUNCS=$(echo "$PCTS" | sed -n '2p')
+        LINES=$(echo "$PCTS" | sed -n '3p')
+        echo "- Regions: ${REGIONS:-n/a}" >> $GITHUB_STEP_SUMMARY
+        echo "- Functions: ${FUNCS:-n/a}" >> $GITHUB_STEP_SUMMARY
+        echo "- Lines: ${LINES:-n/a}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Artifacts: dist/coverage" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload Pages Artifact (coverage HTML)
+      if: always() && hashFiles('dist/coverage/html/index.html') != ''
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: dist/coverage/html
+
+  deploy-pages:
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && always() }}
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Add Pages Link to Summary
+        run: |
+          echo "### 🌐 Coverage Report (GitHub Pages)" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
     
     - name: Build Release
       run: |
@@ -322,3 +386,10 @@ jobs:
         echo "- **CI:** Comprehensive analysis, reporting, and quality gates" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "*Most checks are informational and do not block CI*" >> $GITHUB_STEP_SUMMARY
+    - name: Install lcov (for HTML coverage)
+      if: always()
+      run: |
+        if ! command -v genhtml >/dev/null 2>&1; then
+          echo "📦 Installing lcov for HTML coverage..."
+          brew install lcov
+        fi

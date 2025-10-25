@@ -126,6 +126,14 @@ fi
 
 echo ""
 
+# Generate coverage (default on; set CI_COVERAGE=false to skip)
+if [ "${CI_COVERAGE:-true}" = "true" ]; then
+    echo "📊 Generating coverage report"
+    # Prefer reusing existing profdata to avoid re-running failing suites
+    ./Scripts/generate-coverage.sh --reuse || true
+    echo "📁 Coverage artifacts: dist/coverage"
+fi
+
 # Final result
 if [ $OVERALL_SUCCESS -eq 0 ]; then
     echo "🎉 All enabled tests passed!"

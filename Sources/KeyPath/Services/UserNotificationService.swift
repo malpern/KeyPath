@@ -7,7 +7,7 @@ import AppKit
 final class UserNotificationService: NSObject, @preconcurrency UNUserNotificationCenterDelegate {
     static let shared = UserNotificationService()
 
-    private let center = UNUserNotificationCenter.current()
+    private lazy var center = UNUserNotificationCenter.current()
     private let preferences: PreferencesService
     private let authorizationRequestedKey = "KeyPath.NotificationAuthorizationRequested"
     private let lastSentKey = "KeyPath.Notifications.LastSent"
