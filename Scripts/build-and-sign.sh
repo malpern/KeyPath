@@ -217,54 +217,17 @@ ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip"
 cd ..
 end_step
 
-if [[ "${SKIP_NOTARIZE:-0}" == "1" || "${CI:-false}" != "true" ]]; then
-  start_step "Skipping notarization (SKIP_NOTARIZE=1 or not running in CI)"
-  echo "ℹ️  Distribution zip is unsigned for notarization."
-  end_step
-else
-  # Submit asynchronously, then poll to provide progress updates.
-  start_step "Submitting for notarization (async)"
-  echo "📋 Submitting for notarization..."
-  SUBMIT_OUT=$(xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" --keychain-profile "KeyPath-Profile" --output-format json 2>/dev/null || true)
-  REQUEST_ID=$(echo "$SUBMIT_OUT" | /usr/bin/python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id",""))' 2>/dev/null || true)
-  if [[ -z "$REQUEST_ID" ]]; then
-    echo "❌ Notarization submission did not return an ID. Raw output:" >&2
-    echo "$SUBMIT_OUT" >&2
-    exit 2
-  fi
-  end_step
+## --- Notarization temporarily disabled ---
+## To re‑enable, remove the comment block and ensure Keychain profile is available.
+## Original behavior supported SKIP_NOTARIZE toggle and async polling via notarytool.
+start_step "Notarization disabled"
+echo "ℹ️  Notarization step is commented out for now. Distribution zip not submitted to Apple."
+end_step
 
-  # Poll up to 20 minutes with heartbeats
-  start_step "Polling notarization status ($REQUEST_ID)"
-  POLL_START=$(date +%s)
-  while true; do
-    STATUS_JSON=$(xcrun notarytool info "$REQUEST_ID" --keychain-profile "KeyPath-Profile" --output-format json 2>/dev/null || true)
-    STATUS=$(echo "$STATUS_JSON" | /usr/bin/python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("status",""))' 2>/dev/null || true)
-    log "Notary status: ${STATUS:-unknown}"
-    if [[ "$STATUS" == "Accepted" ]]; then
-      break
-    elif [[ "$STATUS" == "Invalid" || "$STATUS" == "Rejected" ]]; then
-      echo "❌ Notarization failed: $STATUS_JSON" >&2
-      exit 2
-    fi
-    if (( $(date +%s) - POLL_START > 1200 )); then
-      echo "❌ Notarization polling exceeded 20 minutes." >&2
-      exit 2
-    fi
-    sleep 15
-  done
-  end_step
-fi
-
-if [[ "${SKIP_NOTARIZE:-0}" == "1" || "${CI:-false}" != "true" ]]; then
-  start_step "Skipping stapling (not notarized)"
-  end_step
-else
-  start_step "Stapling notarization"
-  echo "🔖 Stapling notarization..."
-  xcrun stapler staple "$APP_BUNDLE"
-  end_step
-fi
+## --- Stapling temporarily disabled (requires notarization) ---
+start_step "Stapling disabled"
+echo "ℹ️  Stapling step is commented out because notarization is disabled."
+end_step
 
 start_step "Final verification"
 echo "🎉 Build complete!"
