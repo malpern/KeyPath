@@ -9,7 +9,14 @@
 # - Preserve existing signed binary to maintain TCC identity
 # - Use git hash + file timestamps to detect changes
 
-set -e
+set -euo pipefail
+
+# Verbose mode: VERBOSE=1 ./Scripts/build-kanata.sh
+if [[ "${VERBOSE:-0}" == "1" ]]; then set -x; fi
+
+STEP_TS=$(date +%s)
+log() { printf "%s %s\n" "$(date '+%H:%M:%S')" "$*"; }
+step() { local now=$(date +%s); local d=$(( now - STEP_TS )); log "✓ $1 (${d}s)"; STEP_TS=$now; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -21,6 +28,7 @@ CACHE_INFO="$BUILD_DIR/kanata-cache.info"
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 
 echo "🦀 Building Kanata from source (with TCC-safe caching)..."
+log "Rust toolchain: $(rustc --version 2>/dev/null || echo 'not installed')"
 
 # Check prerequisites
 if ! command -v cargo >/dev/null 2>&1; then
@@ -47,6 +55,7 @@ mkdir -p "$BUILD_DIR"
 
 echo "📁 Kanata source: $KANATA_SOURCE"
 echo "📁 Build directory: $BUILD_DIR"
+log "Calculating source hash to determine cache hit..."
 
 # TCC-Safe Caching Logic
 function calculate_source_hash() {
@@ -97,15 +106,18 @@ if [[ "$CACHE_VALID" == "true" ]]; then
     VERSION=$("$BUILD_DIR/kanata-universal" --version)
     echo "✅ Cached kanata ready: $VERSION"
     echo "📊 Size: $(du -h "$BUILD_DIR/kanata-universal" | cut -f1)"
+    step "Cache check"
     exit 0
 fi
 
 echo "🔨 Proceeding with kanata compilation..."
+log "This step can take a few minutes on first run."
 
 # Add required Rust targets
 echo "🎯 Adding Rust targets..."
 rustup target add aarch64-apple-darwin >/dev/null 2>&1 || true
 rustup target add x86_64-apple-darwin >/dev/null 2>&1 || true
+step "Rust targets ensured"
 
 # Build for ARM64 (Apple Silicon)
 echo "🔨 Building for ARM64 (Apple Silicon)..."
@@ -115,6 +127,7 @@ cargo build \
     --release \
     --features cmd \
     --target aarch64-apple-darwin
+step "ARM64 build"
 
 # Skip x86_64 build for now due to Rust toolchain issues
 echo "⚠️ Skipping x86_64 build (ARM64 only for now)..."
@@ -135,10 +148,12 @@ else
     echo "⚠️  lipo failed, using ARM64 binary (sufficient for Apple Silicon)"
     cp "$KANATA_SOURCE/target/aarch64-apple-darwin/release/kanata" "$BUILD_DIR/kanata-universal"
 fi
+step "Create universal (or ARM64) binary"
 
 # Verify the binary
 echo "✅ Verifying binary..."
 file "$BUILD_DIR/kanata-universal"
+step "Verify binary"
 
 # Sign the binary
 echo "🔏 Signing kanata binary..."
@@ -164,12 +179,14 @@ else
         exit 1
     fi
 fi
+step "Sign binary"
 
 # Verify signature
 echo "🔍 Verifying code signature..."
 codesign --verify --deep --strict --verbose=2 "$BUILD_DIR/kanata-universal" 2>&1 || {
     echo "⚠️  Code signature verification failed (may be expected for development builds)"
 }
+step "Verify signature"
 
 # Test basic functionality
 echo "🧪 Testing kanata binary..."
@@ -180,6 +197,7 @@ else
     echo "❌ Error: Kanata binary failed basic functionality test" >&2
     exit 1
 fi
+step "Version check"
 
 echo "🎉 Kanata build complete!"
 echo "📍 Output: $BUILD_DIR/kanata-universal"
@@ -191,3 +209,4 @@ NEW_HASH=$(calculate_source_hash)
 echo "$NEW_HASH" > "$CACHE_INFO"
 echo "📋 Cache updated with hash: $NEW_HASH"
 echo "🔐 Future builds will preserve this TCC identity until kanata source changes"
+log "Kanata build finished in $(( $(date +%s) - STEP_TS ))s"

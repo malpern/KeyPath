@@ -3,16 +3,45 @@
 # KeyPath Build, Sign, and Notarize Script
 # Run this to create a production-ready, signed, and notarized app
 
-set -e  # Exit on any error
+set -euo pipefail
 
+# Verbose mode: VERBOSE=1 ./Scripts/build-and-sign.sh
+if [[ "${VERBOSE:-0}" == "1" ]]; then set -x; fi
+
+SCRIPT_START_TS=$(date +%s)
+STEP_START_TS=$SCRIPT_START_TS
+
+log() {
+  printf "%s %s\n" "$(date '+%H:%M:%S')" "$*"
+}
+
+start_step() {
+  STEP_START_TS=$(date +%s)
+  log "▶ $*"
+}
+
+end_step() {
+  local now=$(date +%s)
+  local dur=$(( now - STEP_START_TS ))
+  log "✓ Completed in ${dur}s"
+}
+
+trap 'log "⛔ Build script aborted"' INT TERM
+
+start_step "Building bundled kanata (first run can take several minutes)"
 echo "🦀 Building bundled kanata..."
 # Build kanata from source (required for proper signing)
 ./Scripts/build-kanata.sh
+end_step
 
+start_step "Building KeyPath (release, no WMO)"
 echo "🏗️  Building KeyPath..."
 # Build main app (disable whole-module optimization to avoid hang)
+log "Running: swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization"
 swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
+end_step
 
+start_step "Creating app bundle"
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
 BUILD_DIR=".build/arm64-apple-macosx/release"
@@ -78,7 +107,9 @@ cat > "$RESOURCES/BuildInfo.plist" <<EOF
 </dict>
 </plist>
 EOF
+end_step
 
+start_step "Signing executables"
 echo "✍️  Signing executables..."
 SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
 
@@ -94,30 +125,42 @@ else
     echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
     codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
 fi
+end_step
 
+start_step "Verifying signatures"
 echo "✅ Verifying signatures..."
 codesign -dvvv "$APP_BUNDLE"
+end_step
 
+start_step "Creating distribution archive"
 echo "📦 Creating distribution archive..."
 cd "$DIST_DIR"
 ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip"
 cd ..
+end_step
 
+start_step "Submitting for notarization (this can take 2–10 minutes; Apple queue times vary)"
 echo "📋 Submitting for notarization..."
 xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" \
     --keychain-profile "KeyPath-Profile" \
     --wait
+end_step
 
+start_step "Stapling notarization"
 echo "🔖 Stapling notarization..."
 xcrun stapler staple "$APP_BUNDLE"
+end_step
 
+start_step "Final verification"
 echo "🎉 Build complete!"
 echo "📍 Signed app: $APP_BUNDLE"
 echo "📦 Distribution zip: ${DIST_DIR}/${APP_NAME}.zip"
 
 echo "🔍 Final verification..."
 spctl -a -vvv "$APP_BUNDLE"
+end_step
 
+start_step "Deploy to /Applications"
 echo "✨ Ready for distribution!"
 
 echo "📂 Deploying to /Applications..."
@@ -130,3 +173,8 @@ if ditto "$APP_BUNDLE" "$APP_DEST"; then
 else
     echo "⚠️ WARNING: Failed to copy $APP_NAME to /Applications. You may need to rerun this step with sudo." >&2
 fi
+
+end_step
+
+TOTAL_DUR=$(( $(date +%s) - SCRIPT_START_TS ))
+log "🏁 All steps completed in ${TOTAL_DUR}s"
