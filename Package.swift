@@ -13,7 +13,7 @@ let package = Package(
         ),
         // Lightweight CLI for one-shot commands (map/list/reload)
         .executable(
-            name: "keypath",
+            name: "keypath-cli",
             targets: ["KeyPathCLI"]
         )
     ],

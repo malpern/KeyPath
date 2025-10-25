@@ -58,8 +58,8 @@ DEST_DIR="$PREFIX/bin"
 DEST_BIN="$DEST_DIR/keypath"
 
 echo "📦 Building CLI (release)…"
-BIN_DIR=$(swift build -c release --product keypath --show-bin-path)
-SRC_BIN="$BIN_DIR/keypath"
+BIN_DIR=$(swift build -c release --product keypath-cli --show-bin-path)
+SRC_BIN="$BIN_DIR/keypath-cli"
 
 if [[ ! -x "$SRC_BIN" ]]; then
   echo "❌ Built CLI not found at $SRC_BIN" >&2
