@@ -234,6 +234,12 @@ struct ContentView: View {
         .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
             // Show status message when config is updated externally
             showStatusMessage(message: "Key mappings updated")
+            // Also raise a system notification when not frontmost
+            UserNotificationService.shared.notifyConfigEvent(
+                "Key mappings updated",
+                body: "Configuration reloaded",
+                key: "config.updated"
+            )
             // NOTE: Do NOT trigger validation here - causes validation spam during startup
             // Validation happens on: app launch, wizard close, manual refresh only
         }
@@ -523,6 +529,11 @@ struct ContentView: View {
             configRepairSuccessful = false
             showingConfigCorruptionAlert = true
             showStatusMessage(message: "⚠️ Config repaired automatically")
+            UserNotificationService.shared.notifyConfigEvent(
+                "Configuration Repaired",
+                body: "Automatic repair applied to your config",
+                key: "config.repaired"
+            )
             return
         }
 
@@ -538,6 +549,11 @@ struct ContentView: View {
             configRepairSuccessful = false
             showingConfigCorruptionAlert = true
             showStatusMessage(message: "❌ Config repair failed - using safe fallback")
+            UserNotificationService.shared.notifyFailureEvent(
+                "Configuration Repair Failed",
+                body: "Using a safe fallback configuration",
+                key: "config.repair.failed"
+            )
             return
         }
 
