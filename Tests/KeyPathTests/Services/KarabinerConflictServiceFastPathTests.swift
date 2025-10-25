@@ -1,7 +1,6 @@
 import XCTest
 @testable import KeyPath
 
-@MainActor
 final class KarabinerConflictServiceFastPathTests: XCTestCase {
     private var tempHome: URL!
 
