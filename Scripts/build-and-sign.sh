@@ -28,11 +28,19 @@ end_step() {
 
 trap 'log "⛔ Build script aborted"' INT TERM
 
-start_step "Building bundled kanata (first run can take several minutes)"
-echo "🦀 Building bundled kanata..."
-# Build kanata from source (required for proper signing)
-./Scripts/build-kanata.sh
-end_step
+if [[ "${SKIP_KANATA_BUILD:-0}" == "1" ]]; then
+  start_step "Skipping bundled kanata build (SKIP_KANATA_BUILD=1)"
+  echo "ℹ️  Will reuse build/kanata-universal if present; otherwise continue without bundling."
+  end_step
+else
+  start_step "Building bundled kanata (first run can take several minutes)"
+  echo "🦀 Building bundled kanata..."
+  # Build kanata from source (required for proper signing)
+  ./Scripts/build-kanata.sh || {
+    echo "⚠️  Kanata build failed or unavailable. Proceeding without bundling kanata." >&2
+  }
+  end_step
+fi
 
 start_step "Building KeyPath (release, no WMO)"
 echo "🏗️  Building KeyPath..."
@@ -60,8 +68,13 @@ mkdir -p "$CONTENTS/Library/KeyPath"
 # Copy main executable
 cp "$BUILD_DIR/KeyPath" "$MACOS/"
 
-# Copy bundled kanata binary
-cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
+# Copy bundled kanata binary if available
+if [ -f "build/kanata-universal" ]; then
+  cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
+  echo "✅ Bundled kanata included"
+else
+  echo "⚠️  No bundled kanata found; app will expect system-installed kanata"
+fi
 
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
@@ -111,19 +124,36 @@ end_step
 
 start_step "Signing executables"
 echo "✍️  Signing executables..."
-SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
+# Detect signing identity if not provided
+SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
+if ! security find-identity -p codesigning -v 2>/dev/null | grep -q "${SIGNING_IDENTITY}"; then
+  echo "⚠️  Signing identity '${SIGNING_IDENTITY}' not found; falling back to ad-hoc signing" >&2
+  SIGNING_IDENTITY="-" # ad-hoc
+fi
 
 # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
-codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS/Library/KeyPath/kanata"
+if [ -f "$CONTENTS/Library/KeyPath/kanata" ]; then
+  if [[ "$SIGNING_IDENTITY" == "-" ]]; then
+    codesign --force -s - "$CONTENTS/Library/KeyPath/kanata" || true
+  else
+    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS/Library/KeyPath/kanata" || true
+  fi
+fi
 
 # Sign main app WITH entitlements
 ENTITLEMENTS_FILE="KeyPath.entitlements"
-if [ -f "$ENTITLEMENTS_FILE" ]; then
-    echo "Applying entitlements from $ENTITLEMENTS_FILE..."
-    codesign --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+if [[ "$SIGNING_IDENTITY" == "-" ]]; then
+  echo "⚠️  Using ad-hoc signing for app bundle (development only)"
+  # Entitlements are ignored for ad-hoc; sign shallow to keep fast
+  codesign --force -s - "$APP_BUNDLE" || true
 else
-    echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
-    codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+  if [ -f "$ENTITLEMENTS_FILE" ]; then
+      echo "Applying entitlements from $ENTITLEMENTS_FILE..."
+      codesign --force --options=runtime --entitlements "$ENTITLEMENTS_FILE" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+  else
+      echo "⚠️ WARNING: No entitlements file found - admin operations may fail"
+      codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+  fi
 fi
 end_step
 
@@ -139,17 +169,31 @@ ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip"
 cd ..
 end_step
 
-start_step "Submitting for notarization (this can take 2–10 minutes; Apple queue times vary)"
-echo "📋 Submitting for notarization..."
-xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" \
-    --keychain-profile "KeyPath-Profile" \
-    --wait
-end_step
+if [[ "${SKIP_NOTARIZE:-0}" == "1" || "${CI:-false}" != "true" ]]; then
+  start_step "Skipping notarization (SKIP_NOTARIZE=1 or not running in CI)"
+  echo "ℹ️  Distribution zip is unsigned for notarization."
+  end_step
+else
+  start_step "Submitting for notarization (this can take 2–10 minutes; Apple queue times vary)"
+  echo "📋 Submitting for notarization..."
+  if ! /usr/bin/xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" \
+      --keychain-profile "KeyPath-Profile" \
+      --wait; then
+    echo "❌ Notarization failed. You can rerun with SKIP_NOTARIZE=1 for local builds." >&2
+    exit 2
+  fi
+  end_step
+fi
 
-start_step "Stapling notarization"
-echo "🔖 Stapling notarization..."
-xcrun stapler staple "$APP_BUNDLE"
-end_step
+if [[ "${SKIP_NOTARIZE:-0}" == "1" || "${CI:-false}" != "true" ]]; then
+  start_step "Skipping stapling (not notarized)"
+  end_step
+else
+  start_step "Stapling notarization"
+  echo "🔖 Stapling notarization..."
+  xcrun stapler staple "$APP_BUNDLE"
+  end_step
+fi
 
 start_step "Final verification"
 echo "🎉 Build complete!"

@@ -31,16 +31,13 @@ echo "🦀 Building Kanata from source (with TCC-safe caching)..."
 log "Rust toolchain: $(rustc --version 2>/dev/null || echo 'not installed')"
 
 # Check prerequisites
-if ! command -v cargo >/dev/null 2>&1; then
-    echo "❌ Error: Rust toolchain (cargo) not found." >&2
-    echo "   Install via: https://rustup.rs" >&2
-    echo "   Or run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh" >&2
-    exit 1
-fi
-
-if ! command -v rustup >/dev/null 2>&1; then
-    echo "❌ Error: rustup not found." >&2
-    echo "   Install via: https://rustup.rs" >&2
+if ! command -v cargo >/dev/null 2>&1 || ! command -v rustup >/dev/null 2>&1; then
+    echo "⚠️  Rust toolchain not available; attempting to reuse cached binary if present" >&2
+    if [[ -f "$BUILD_DIR/kanata-universal" ]]; then
+        echo "✅ Reusing cached kanata binary"
+        exit 0
+    fi
+    echo "❌ Error: Rust toolchain missing and no cached kanata binary found at $BUILD_DIR/kanata-universal" >&2
     exit 1
 fi
 
