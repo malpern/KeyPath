@@ -22,8 +22,8 @@ extension KanataManager {
         await updateStatus()
 
         // First, adopt any existing KeyPath-looking kanata processes before deciding to auto-start
-        let lifecycle = ProcessLifecycleManager(kanataManager: self)
-        await lifecycle.recoverFromCrash()
+        // Use centralized process service for orphan cleanup
+        await processService.cleanupOrphansIfNeeded()
         await updateStatus()
         // Try to start Kanata automatically on launch if all requirements are met
         let status = await getSystemRequirementsStatus()

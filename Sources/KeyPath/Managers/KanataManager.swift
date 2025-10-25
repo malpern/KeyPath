@@ -218,6 +218,7 @@ class KanataManager {
     private let karabinerConflictService: KarabinerConflictManaging
     private var isStartingKanata = false
     private let processLifecycleManager: ProcessLifecycleManager
+    let processService: ProcessService
     var isInitializing = false
     private let isHeadlessMode: Bool
 
@@ -266,8 +267,9 @@ class KanataManager {
         // Initialize service dependencies
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
 
-        // Initialize process lifecycle manager
+        // Initialize process lifecycle manager and façade service
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
+        processService = ProcessService(lifecycle: processLifecycleManager)
 
         // Initialize Karabiner conflict service
         karabinerConflictService = KarabinerConflictService()
@@ -289,7 +291,7 @@ class KanataManager {
         if !TestEnvironment.isRunningTests {
             Task.detached { [weak self] in
                 // Clean up any orphaned processes first
-                await self?.processLifecycleManager.cleanupOrphanedProcesses()
+                await self?.processService.cleanupOrphansIfNeeded()
                 await self?.performInitialization()
             }
         } else {
@@ -729,7 +731,7 @@ class KanataManager {
                 if let pid = serviceStatus.pid {
                     AppLogger.shared.log("📝 [Start] Service restarted with PID: \(pid)")
                     let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
-                    await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+                    await processService.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
                 }
             } else {
                 AppLogger.shared.log("❌ [Start] Kickstart restart failed - will fall through to full startup")
@@ -835,7 +837,7 @@ class KanataManager {
 
                     // Register with lifecycle manager
                     let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
-                    await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+                    await processService.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
 
                     // Start real-time log monitoring for VirtualHID connection issues
                     startLogMonitoring()
@@ -1225,7 +1227,7 @@ class KanataManager {
     private func resolveProcessConflicts() async {
         AppLogger.shared.log("🔍 [Conflict] Checking for conflicting Kanata processes...")
 
-        let conflicts = await processLifecycleManager.detectConflicts()
+        let conflicts = await processService.detectConflicts()
         let allProcesses = conflicts.managedProcesses + conflicts.externalProcesses
 
         if !allProcesses.isEmpty {
@@ -1250,7 +1252,7 @@ class KanataManager {
         // Wait a moment for any conflicts to surface
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
 
-        let conflicts = await processLifecycleManager.detectConflicts()
+        let conflicts = await processService.detectConflicts()
         let managedProcesses = conflicts.managedProcesses
         let conflictProcesses = conflicts.externalProcesses
 
@@ -1316,7 +1318,7 @@ class KanataManager {
             AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata LaunchDaemon service")
 
             // Unregister from lifecycle manager
-            await processLifecycleManager.unregisterProcess()
+            await processService.unregisterProcess()
 
             // Stop log monitoring when Kanata stops
             stopLogMonitoring()
@@ -1604,7 +1606,7 @@ class KanataManager {
                 AppLogger.shared.log("⚠️ [Status] LaunchDaemon service is not running")
 
                 // Clean up lifecycle manager
-                await processLifecycleManager.unregisterProcess()
+                await processService.unregisterProcess()
             }
         }
 
