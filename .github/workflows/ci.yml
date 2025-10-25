@@ -111,6 +111,8 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "---" >> $GITHUB_STEP_SUMMARY
 
+    # Removed duplicate lcov install from code-quality; installed in build-and-test
+
     - name: Generate Coverage (reuse existing)
       if: always()
       run: |
@@ -192,6 +194,7 @@ jobs:
     if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     needs: build-and-test
     runs-on: ubuntu-latest
+    continue-on-error: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
