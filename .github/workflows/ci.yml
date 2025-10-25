@@ -36,29 +36,24 @@ jobs:
         swift build
         echo "✅ Build completed successfully"
     
-    - name: Run All Tests (Swift Test + XCTest)
+    - name: Run All Tests (Core Test Runner)
       run: |
-        echo "🧪 Running KeyPath tests with swift test (supports both XCTest and Swift Testing)"
-        export CI_ENVIRONMENT=true
+        echo "🧪 Running KeyPath tests with run-core-tests.sh"
+        echo "   - Uses improved test runner with pipefail (Phase 0)"
+        echo "   - Proper test filtering and timeout handling"
+        echo "   - Consistent between local and CI"
         export SKIP_EVENT_TAP_TESTS=1
 
-        # Run swift test (supports both XCTest and Swift Testing frameworks)
-        # Timeout after 60 seconds (reduced from 240s due to test performance improvements)
-        # Tests now complete in <5s after removing unnecessary sleeps (commit d6a9b2f)
-        set +e
-        timeout 60 swift test 2>&1 | tee test_output.txt
-        TEST_EXIT=$?
-        set -e
-
-        if [ "$TEST_EXIT" -eq 0 ]; then
+        # Use the core test runner script (Phase 0 improvements)
+        # - set -o pipefail for proper error detection
+        # - Correct test suite filters
+        # - CI environment auto-detected
+        # - Tests complete in <5s after perf improvements (commit d6a9b2f)
+        if ./run-core-tests.sh; then
           echo "✅ All tests passed"
           echo "TEST_STATUS=passed" >> $GITHUB_ENV
-        elif [ "$TEST_EXIT" -eq 124 ]; then
-          echo "⏰ Tests timed out after 60s"
-          echo "TEST_STATUS=timeout" >> $GITHUB_ENV
-          echo "❌ FAILING CI - Tests should complete in <5s, timeout indicates a problem"
-          exit 1
         else
+          TEST_EXIT=$?
           echo "❌ Tests failed with exit code $TEST_EXIT"
           echo "TEST_STATUS=failed" >> $GITHUB_ENV
           echo "❌ FAILING CI - Test failures must be fixed"
