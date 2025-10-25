@@ -1,5 +1,4 @@
 import Foundation
-import AppKit
 import Network
 
 // Simple, dependency-free CLI for KeyPath
@@ -134,11 +133,27 @@ func tryRestartService() -> Int32 {
     do { try task.run(); task.waitUntilExit(); return task.terminationStatus } catch { return 127 }
 }
 
-// MARK: - Sounds (match GUI semantics)
+// MARK: - Sounds (match GUI semantics) via afplay (no AppKit dependency)
 
-func playTink() { NSSound(named: "Tink")?.play() }
-func playGlass() { NSSound(named: "Glass")?.play() }
-func playErrorBeep() { NSSound.beep() }
+@discardableResult
+func playSystemSound(_ name: String) -> Bool {
+    let soundPath = "/System/Library/Sounds/\(name).aiff"
+    let proc = Process()
+    proc.launchPath = "/usr/bin/afplay"
+    proc.arguments = [soundPath]
+    do { try proc.run(); return true } catch { return false }
+}
+
+func beepFallback() {
+    let p = Process()
+    p.launchPath = "/usr/bin/osascript"
+    p.arguments = ["-e", "beep"]
+    try? p.run()
+}
+
+func playTink() { if !playSystemSound("Tink") { beepFallback() } }
+func playGlass() { if !playSystemSound("Glass") { beepFallback() } }
+func playErrorBeep() { if !playSystemSound("Basso") { beepFallback() } }
 
 // MARK: - TCP live reload (like GUI)
 

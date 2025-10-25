@@ -29,3 +29,4 @@ Notes
 - No external dependencies; simple `CommandLine.arguments` parsing.
 - Generates the same `defsrc/deflayer` structure used by the app for compatibility.
 - Non‑destructive: `--append` merges by input key (replaces if the input already exists).
+- Sounds use `/usr/bin/afplay` with system sound files (no AppKit), with an `osascript -e 'beep'` fallback.
