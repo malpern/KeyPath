@@ -1169,59 +1169,10 @@ class KanataManager {
     // MARK: - LaunchDaemon Service Management
 
     /// Start the Kanata LaunchDaemon service via privileged operations facade
-    private func startLaunchDaemonService() async -> Bool {
-        AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service via PrivilegedOperations...")
-        return await PrivilegedOperationsProvider.shared.startKanataService()
-    }
+    private func startLaunchDaemonService() async -> Bool { await processService.startLaunchDaemonService() }
 
     /// Check the status of the LaunchDaemon service
-    private func checkLaunchDaemonStatus() async -> (isRunning: Bool, pid: Int?) {
-        // Skip actual system calls in test environment
-        if TestEnvironment.shouldSkipAdminOperations {
-            AppLogger.shared.log("🧪 [TestEnvironment] Skipping launchctl check - returning mock data")
-            return (true, nil) // Mock: service loaded but not running
-        }
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["print", "system/com.keypath.kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            // Parse the output to find the PID
-            if task.terminationStatus == 0 {
-                // Look for "pid = XXXX" in the output
-                let lines = output.components(separatedBy: .newlines)
-                for line in lines where line.contains("pid =") {
-                    let components = line.components(separatedBy: "=")
-                    if components.count >= 2,
-                       let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
-                       let pid = Int(pidString) {
-                        AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
-                        return (true, pid)
-                    }
-                }
-                // Service loaded but no PID found (may be starting)
-                AppLogger.shared.log("🔍 [LaunchDaemon] Service loaded but PID not found")
-                return (true, nil)
-            } else {
-                AppLogger.shared.log("🔍 [LaunchDaemon] Service not loaded or failed - FIXED VERSION")
-                return (false, nil)
-            }
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Failed to check service status: \(error)")
-            return (false, nil)
-        }
-    }
+    private func checkLaunchDaemonStatus() async -> (isRunning: Bool, pid: Int?) { await processService.checkLaunchDaemonStatus() }
 
     /// Resolve any conflicting Kanata processes before starting
     private func resolveProcessConflicts() async {
@@ -1276,35 +1227,10 @@ class KanataManager {
     }
 
     /// Stop the Kanata LaunchDaemon service via privileged operations facade
-    private func stopLaunchDaemonService() async -> Bool {
-        AppLogger.shared.log("🛑 [LaunchDaemon] Stopping Kanata service via PrivilegedOperations...")
-        let ok = await PrivilegedOperationsProvider.shared.stopKanataService()
-        if ok {
-            // Wait a moment for graceful shutdown
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-        }
-        return ok
-    }
+    private func stopLaunchDaemonService() async -> Bool { await processService.stopLaunchDaemonService() }
 
     /// Kill a specific process by PID
-    private func killProcess(pid: Int) async {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["kill", "-TERM", String(pid)]
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [Kill] Successfully killed process \(pid)")
-            } else {
-                AppLogger.shared.log("⚠️ [Kill] Failed to kill process \(pid) (may have already exited)")
-            }
-        } catch {
-            AppLogger.shared.log("❌ [Kill] Exception killing process \(pid): \(error)")
-        }
-    }
+    private func killProcess(pid: Int) async { await processService.killProcess(pid: pid) }
 
     // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service management
 
