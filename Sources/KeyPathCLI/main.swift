@@ -3,7 +3,7 @@ import Network
 
 // Simple, dependency-free CLI for KeyPath
 // Commands:
-//   keypath map --from caps --to esc [--append] [--no-reload]
+//   keypath map <key->key> [<key->key> ...] [--no-reload]
 //   keypath list
 //   keypath reload
 
@@ -202,6 +202,42 @@ func reloadViaTCP(timeout seconds: TimeInterval = 3.0) async -> Bool {
     return false
 }
 
+// MARK: - Parsing
+
+enum CLIError: Error, CustomStringConvertible {
+    case invalidMapping(String)
+    case emptyKey(String)
+    case multipleArrows(String)
+
+    var description: String {
+        switch self {
+        case .invalidMapping(let arg):
+            return "Invalid mapping '\(arg)'. Expected format: KEY->KEY"
+        case .emptyKey(let arg):
+            return "Invalid mapping '\(arg)'. Both keys must be non-empty"
+        case .multipleArrows(let arg):
+            return "Invalid mapping '\(arg)'. Expected single '->' separator"
+        }
+    }
+}
+
+func parseMapping(_ arg: String) throws -> Mapping {
+    let parts = arg.split(separator: "->", omittingEmptySubsequences: false)
+
+    guard parts.count == 2 else {
+        throw CLIError.invalidMapping(arg)
+    }
+
+    let from = parts[0].trimmingCharacters(in: .whitespaces)
+    let to = parts[1].trimmingCharacters(in: .whitespaces)
+
+    guard !from.isEmpty && !to.isEmpty else {
+        throw CLIError.emptyKey(arg)
+    }
+
+    return Mapping(input: from, output: to)
+}
+
 // MARK: - CLI
 
 enum Command: String { case help, map, list, reload, reset }
@@ -213,14 +249,15 @@ func printHelp() {
             keypath — one-shot KeyPath CLI
 
             Usage:
-              keypath map --from <key> --to <key|chord> [--append] [--no-reload]
+              keypath map <key->key> [<key->key> ...] [--no-reload]
               keypath list
               keypath reload
               keypath reset [--empty] [--no-reload]
 
             Examples:
-              keypath map --from caps --to esc --append
-              keypath map --from caps --to cmd+c
+              keypath map caps->esc
+              keypath map caps->esc 2->3 a->b
+              keypath map caps->cmd+c
               keypath list
               keypath reset            # default config (Caps → Esc)
               keypath reset --empty    # no mappings
@@ -257,37 +294,53 @@ func main() {
         }
         for m in maps { print("\(m.input) -> \(m.output)") }
     case .map:
-        var fromKey: String?
-        var toKey: String?
-        var append = false
+        var newMappings: [Mapping] = []
         var reload = true
         var i = 1
+
         while i < args.count {
             let a = args[i]
-            switch a {
-            case "--from": i += 1; if i < args.count { fromKey = args[i] }
-            case "--to": i += 1; if i < args.count { toKey = args[i] }
-            case "--append": append = true
-            case "--no-reload": reload = false
-            default: break
+            if a == "--no-reload" {
+                reload = false
+            } else if a.contains("->") {
+                do {
+                    let mapping = try parseMapping(a)
+                    newMappings.append(mapping)
+                } catch let error as CLIError {
+                    print("Error: \(error)\n")
+                    printHelp()
+                    return
+                } catch {
+                    print("Error parsing mapping '\(a)'\n")
+                    printHelp()
+                    return
+                }
+            } else {
+                print("Unknown argument: \(a)\n")
+                printHelp()
+                return
             }
             i += 1
         }
-        guard let f = fromKey, let t = toKey else { print("Missing --from or --to\n"); printHelp(); return }
 
-        let new = Mapping(input: f, output: t)
-        if append, let content = readConfig(), let existing = parseMappings(from: content) {
-            var merged = existing
-            // Replace mapping if same input exists
-            if let idx = merged.firstIndex(where: { normInput($0.input) == normInput(new.input) }) {
-                merged[idx] = new
-            } else {
-                merged.append(new)
-            }
-            try? writeConfig(merged)
-        } else {
-            try? writeConfig([new])
+        guard !newMappings.isEmpty else {
+            print("No mappings provided\n")
+            printHelp()
+            return
         }
+
+        // Always replace all mappings with the new set
+        var finalMappings = newMappings
+
+        // Deduplicate: if same input appears multiple times, keep last one
+        var seen: [String: Mapping] = [:]
+        for mapping in finalMappings {
+            let key = normInput(mapping.input)
+            seen[key] = mapping
+        }
+        finalMappings = Array(seen.values)
+
+        try? writeConfig(finalMappings)
         print("✅ Wrote configuration at \(configPath())")
         // Match GUI: play tink on save
         playTink()
