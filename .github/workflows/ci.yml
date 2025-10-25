@@ -164,11 +164,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Artifacts: dist/coverage" >> $GITHUB_STEP_SUMMARY
 
-    - name: Upload Pages Artifact (coverage HTML)
-      if: always()
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: dist/coverage/html
+    # Pages artifact is prepared in a separate job after downloading the coverage artifact
     
     - name: Build Release
       run: |
@@ -205,9 +201,40 @@ jobs:
         path: .build/release/KeyPath
         retention-days: 30
 
+  prepare-pages:
+    if: ${{ always() }}
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: pages
+        
+      - name: Ensure HTML exists
+        run: |
+          set -e
+          mkdir -p pages/html
+          if [ ! -f pages/html/index.html ]; then
+            if [ -f pages/summary.txt ]; then
+              printf '%s\n<pre>\n' '<!doctype html><meta charset="utf-8"><title>Coverage</title><h1>Coverage</h1>' > pages/html/index.html
+              sed -n '1,200p' pages/summary.txt >> pages/html/index.html || true
+              printf '%s\n' '</pre>' >> pages/html/index.html
+            else
+              printf '%s\n' '<!doctype html><meta charset="utf-8"><title>Coverage</title><p>No coverage summary available.</p>' > pages/html/index.html
+            fi
+          fi
+          ls -la pages/html || true
+      
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages/html
+
   deploy-pages:
     if: ${{ always() && (github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') }}
-    needs: build-and-test
+    needs: prepare-pages
     runs-on: ubuntu-latest
     concurrency:
       group: pages
