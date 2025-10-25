@@ -367,11 +367,27 @@ protocol ErrorPresenting {
 // Services depend on protocol, UI implements
 ```
 
+##### Fix UI Behavior Issues
+- [ ] Fix background launch issue in App.swift:230-279
+```swift
+// BEFORE: App launches in background, requires clicking dock icon
+func applicationDidFinishLaunching(_ notification: Notification) {
+    // ... setup code ...
+}
+
+// AFTER: App activates on launch
+func applicationDidFinishLaunching(_ notification: Notification) {
+    // ... setup code ...
+    NSApplication.shared.activate(ignoringOtherApps: true)
+}
+```
+
 ##### Checklist
 - [ ] Remove SwiftUI from ConfigurationService
 - [ ] Remove AppKit from non-UI Infrastructure files
 - [ ] Create error presentation protocols
 - [ ] Update services to use protocols
+- [ ] Fix background launch issue (add activate call)
 - [ ] Tests pass (may need mock presenters)
 
 ##### Acceptance Criteria
