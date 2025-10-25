@@ -4,7 +4,12 @@ A minimal command‑line utility for quick, scripted key mapping tasks.
 
 ## Install / Build
 
-- Build via SwiftPM: `swift build -c release --product keypath`
+- Quick install (copies to /usr/local or /opt/homebrew):
+  - `Scripts/install-cli.sh [--user|--prefix <dir>] [--link] [--force]`
+    - `--user` installs to `~/.local/bin` (no sudo)
+    - `--link` symlinks to the built binary (handy for development)
+  
+- Manual build via SwiftPM: `swift build -c release --product keypath`
 - Run in place: `.build/arm64-apple-macosx/release/keypath --help`
 
 ## Usage
