@@ -4,6 +4,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  pull-requests: write
 
 on:
   push:
@@ -147,26 +148,10 @@ jobs:
         echo "Artifacts: dist/coverage" >> $GITHUB_STEP_SUMMARY
 
     - name: Upload Pages Artifact (coverage HTML)
-      if: always() && hashFiles('dist/coverage/html/index.html') != ''
+      if: ${{ always() && hashFiles('dist/coverage/html/index.html') != '' }}
       uses: actions/upload-pages-artifact@v3
       with:
         path: dist/coverage/html
-
-  deploy-pages:
-    if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-      - name: Add Pages Link to Summary
-        run: |
-          echo "### 🌐 Coverage Report (GitHub Pages)" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
     
     - name: Build Release
       run: |
@@ -202,6 +187,37 @@ jobs:
         name: keypath-release-binary
         path: .build/release/KeyPath
         retention-days: 30
+
+  deploy-pages:
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Add Pages Link to Summary
+        run: |
+          echo "### 🌐 Coverage Report (GitHub Pages)" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+      - name: Comment PR with coverage link
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            const pageUrl = process.env.PAGE_URL || '';
+            const body = `🔍 Coverage Report: ${pageUrl}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });
 
   code-quality:
     runs-on: macos-latest
