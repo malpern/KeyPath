@@ -2,7 +2,7 @@
 
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
-**Timeline:** 6 weeks
+**Timeline:** 6 weeks (Week 1-2 complete)
 **Last Updated:** October 25, 2025
 
 ---
@@ -607,17 +607,17 @@ Do these FIRST for immediate impact:
 
 ## 📊 Progress Tracking
 
-### Week 1: Infrastructure
-- [ ] Test runner fixed (pipefail + filters)
-- [ ] Linting re-enabled
-- [ ] Documentation synced
-- [ ] Scripts updated
+### Week 1: Infrastructure ✅ COMPLETE
+- [x] Test runner fixed (pipefail + filters)
+- [x] Linting re-enabled
+- [x] Documentation synced
+- [x] Scripts updated
 
-### Week 2: Test Reality
-- [ ] Tests compile
-- [ ] Tests run and report accurately
-- [ ] Legacy tests handled
-- [ ] Baseline coverage established
+### Week 2: Test Reality ✅ COMPLETE
+- [x] Tests compile
+- [x] Tests run and report accurately
+- [x] Legacy tests handled
+- [x] Baseline coverage established
 
 ### Week 3-4: Core Refactoring
 - [ ] KanataManager → ProcessService + ConfigManager + Coordinator
@@ -682,6 +682,6 @@ Record here as refactoring progresses:
 
 ---
 
-**Last Updated:** October 24, 2025
-**Status:** Planning phase
-**Next Action:** Phase 0 - Fix test runner
+**Last Updated:** October 25, 2025
+**Status:** Phase 0 & 1 Complete ✅
+**Next Action:** Phase 2 - Split God Objects (KanataManager, ContentView, Wizard)
