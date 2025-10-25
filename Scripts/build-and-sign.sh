@@ -45,7 +45,14 @@ run_with_heartbeat() {
     local now=$(date +%s)
     local elapsed=$(( now - start_ts ))
     if (( now - last_print >= 10 )); then
-      log "… still working on: $label (elapsed ${elapsed}s)"
+      # Print a heartbeat and a lightweight ps snapshot (if available)
+      if command -v ps >/dev/null 2>&1; then
+        local psline
+        psline=$(ps -o pid=,pcpu=,etime=,rss= -p $pid 2>/dev/null | awk '{printf "pid=%s cpu=%s%% etime=%s rss=%sKB", $1,$2,$3,$4}') || psline="pid=$pid"
+        log "… still working on: $label (elapsed ${elapsed}s) [$psline]"
+      else
+        log "… still working on: $label (elapsed ${elapsed}s)"
+      fi
       last_print=$now
     fi
     if (( elapsed > limit )); then
