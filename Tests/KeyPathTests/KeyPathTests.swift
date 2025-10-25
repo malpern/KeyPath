@@ -85,7 +85,8 @@ final class KeyPathTests: XCTestCase {
 
         // Check config structure
         XCTAssertTrue(config.contains("(defcfg"))
-        XCTAssertTrue(config.contains("process-unmapped-keys no")) // SAFETY: Updated expectation
+        // SAFETY: Unmapped keys should pass through by default to avoid lockout
+        XCTAssertTrue(config.contains("process-unmapped-keys yes"))
         XCTAssertTrue(config.contains("(defsrc"))
         XCTAssertTrue(config.contains("caps"))
         XCTAssertTrue(config.contains("(deflayer base"))
@@ -361,7 +362,7 @@ final class KeyPathTests: XCTestCase {
         let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Config should contain safety features
-        XCTAssertTrue(config.contains("process-unmapped-keys no"), "Should have safety setting")
+        XCTAssertTrue(config.contains("process-unmapped-keys yes"), "Should have safety setting (pass-through)")
         XCTAssertTrue(config.contains("SAFETY FEATURES"), "Should have safety documentation")
 
         // Test that saveConfiguration handles the complete workflow

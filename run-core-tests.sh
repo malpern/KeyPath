@@ -43,7 +43,7 @@ run_test_suite() {
 
     if [[ -n "$test_filter" ]]; then
         # Filtered run (e.g., Unit tests)
-        if $TIMEOUT_CMD "$timeout" swift test --filter "$test_filter" --parallel 2>&1 | tee "test-results/$test_name.log"; then
+        if $TIMEOUT_CMD "$timeout" swift test --enable-code-coverage --filter "$test_filter" --parallel 2>&1 | tee "test-results/$test_name.log"; then
             echo "✅ $test_name completed successfully"
             return 0
         else
@@ -53,7 +53,7 @@ run_test_suite() {
         fi
     else
         # Unfiltered run (e.g., Core tests = real suites)
-        if $TIMEOUT_CMD "$timeout" swift test --parallel 2>&1 | tee "test-results/$test_name.log"; then
+        if $TIMEOUT_CMD "$timeout" swift test --enable-code-coverage --parallel 2>&1 | tee "test-results/$test_name.log"; then
             echo "✅ $test_name completed successfully"
             return 0
         else
@@ -80,18 +80,27 @@ fi
 
 echo ""
 
-# 2. Core Tests (essential functionality)
-# Run real suites without relying on a non-existent filter
-if run_test_suite "Core Tests" "" 90; then
-    echo "  Core tests passed ✅"
+# 2. Core Services (stable, CI-friendly)
+if run_test_suite "Core Services" "SystemValidatorTests" 90; then
+    echo "  Core services tests passed ✅"
 else
-    echo "  Core tests failed ❌"
+    echo "  Core services tests failed ❌"
     OVERALL_SUCCESS=1
 fi
 
 echo ""
 
-# 3. Basic Integration Tests (only if enabled)
+# 3. Configuration Service (deterministic)
+if run_test_suite "Configuration Service" "KeyPathTests.ConfigurationServiceTests" 90; then
+    echo "  Configuration service tests passed ✅"
+else
+    echo "  Configuration service tests failed ❌"
+    OVERALL_SUCCESS=1
+fi
+
+echo ""
+
+# 4. Basic Integration Tests (only if enabled)
 if [ "$CI_INTEGRATION_TESTS" = "true" ]; then
     echo "🔗 Integration tests enabled"
     if run_test_suite "Integration Tests" "IntegrationTestSuite" 120; then

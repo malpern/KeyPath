@@ -473,7 +473,8 @@ final class ErrorHandlingTests: XCTestCase {
             XCTAssertTrue(config.contains("(defcfg"), "Random config should have defcfg: \(input)")
             XCTAssertTrue(config.contains("(defsrc"), "Random config should have defsrc: \(input)")
             XCTAssertTrue(config.contains("(deflayer"), "Random config should have deflayer: \(input)")
-            XCTAssertTrue(config.contains("process-unmapped-keys no"), "Random config should have safety setting: \(input)")
+            // Safety: unmapped keys pass through to avoid keyboard lockout
+            XCTAssertTrue(config.contains("process-unmapped-keys yes"), "Random config should have safety setting (pass-through): \(input)")
 
             // Should be well-formed
             let openParens = config.components(separatedBy: "(").count - 1
