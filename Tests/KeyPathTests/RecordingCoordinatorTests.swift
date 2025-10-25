@@ -108,9 +108,7 @@ private final class StubRecordingCapture: RecordingCapture {
     private var callback: ((KeySequence) -> Void)?
     var autoFire = true
 
-    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?) {
-        // No-op in tests
-    }
+    // Legacy setEventRouter() method removed - no longer needed in protocol
 
     func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) {
         startCalls += 1

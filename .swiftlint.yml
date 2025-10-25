@@ -37,11 +37,21 @@ identifier_name:
     - rx
   allowed_symbols: ["_"]  # Allow underscores in names
 
-# Disable problematic rules for CI
+# Re-enabled with generous thresholds for Phase 0
+file_length:
+  warning: 700
+  error: 1000
+
+type_body_length:
+  warning: 400
+  error: 600
+
+function_body_length:
+  warning: 120
+  error: 200
+
+# Disable only truly problematic rules for CI
 disabled_rules:
-  - type_body_length
-  - file_length
-  - function_body_length
   - cyclomatic_complexity
   - large_tuple
   - function_parameter_count
