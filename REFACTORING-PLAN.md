@@ -48,27 +48,19 @@
    - ✅ Added missing `vhidVersionMismatch` parameter
    - **Result: All tests compile and run successfully**
 
-#### ⚠️ Code Quality Issues - PENDING (Phases 2-6)
+#### ⚠️ Code Quality Issues - PENDING (Phases 2-3)
 **Status: Scheduled for future phases**
 
 1. **⏳ God object:** KanataManager (2,788 lines) - **Phase 2 (Week 3-4)**
    - Scheduled: Split into ProcessService + ConfigManager + Coordinator
    - Target: <700 lines per file
 
-2. **⏳ Over-complex permission detection** - **Phase 4 (Week 5-6)**
-   - Scheduled: Simplify PermissionOracle
-   - Remove: SQLite TCC reads, netstat checks, TCP permission inference
-
-3. **⏳ UI/Infrastructure coupling** - **Phase 3 (Week 5)**
+2. **⏳ UI/Infrastructure coupling** - **Phase 3 (Week 5)**
    - Scheduled: Remove SwiftUI imports from services
    - Add: Error presentation protocols
 
-4. **⏳ Excessive abstraction layers** - **Ongoing evaluation**
-   - Will be addressed during Phase 2-4 refactoring
-
-5. **⏳ 40% MVP bloat** - **Not directly addressed**
-   - Philosophical question about product scope
-   - May inform future feature decisions
+3. **⏳ Excessive abstraction layers** - **Ongoing evaluation**
+   - Will be addressed during Phase 2-3 refactoring
 
 ---
 
@@ -419,80 +411,7 @@ func applicationDidFinishLaunching(_ notification: Notification) {
 
 ---
 
-### Phase 4: Simplify PermissionOracle (Week 5-6)
-
-**Goal:** Remove fragile TCC database reads, simplify permission detection
-
-#### Current Complexity (410 lines)
-```swift
-// 3-tier hierarchy:
-// 1. Apple APIs (IOHIDCheckAccess)
-// 2. SQLite TCC database reads ⚠️ fragile
-// 3. TCP functional checks ⚠️ unreliable for permissions
-// 4. netstat port scanning
-```
-
-#### Simplified Design (200-250 lines)
-```swift
-// NEW: 2-tier hierarchy
-actor PermissionOracle {
-    func currentSnapshot() async -> Snapshot {
-        // Priority 1: Apple APIs ONLY
-        let accessibility = AXIsProcessTrusted()
-        let inputMon = IOHIDCheckAccess(.listenEvent) == .granted
-
-        // Priority 2: If .unknown → return .unknown
-        // UI shows clear guidance to System Settings
-
-        // REMOVED:
-        // - SQLite TCC database queries
-        // - TCP functional permission checks
-        // - netstat port scanning
-
-        return Snapshot(
-            accessibility: accessibility ? .granted : .denied,
-            inputMonitoring: inputMon ? .granted : .denied,
-            source: "apple-api",
-            confidence: .high
-        )
-    }
-}
-```
-
-#### Tasks
-- [ ] Remove `queryTCCDatabase()` method
-- [ ] Remove `performFunctionalCheck()` via TCP
-- [ ] Remove `netstat` permission inference
-- [ ] Simplify to Apple APIs + clear UI error messages
-- [ ] Update UI to show actionable System Settings guidance
-- [ ] Update tests to not expect TCC reads
-
-#### UI Error Messages
-```swift
-// When permissions missing:
-"KeyPath needs Input Monitoring permission.
-
-1. Open System Settings
-2. Go to Privacy & Security → Input Monitoring
-3. Enable KeyPath
-4. Restart KeyPath
-
-[Open System Settings] [Quit]"
-```
-
-#### Acceptance Criteria
-- [ ] No SQLite TCC database access
-- [ ] No TCP-based permission inference
-- [ ] Apple APIs only (AXIsProcessTrusted, IOHIDCheckAccess)
-- [ ] Clear UI guidance for missing permissions
-- [ ] File reduced from 410 → ~200 LOC
-- [ ] Tests pass with simplified logic
-
-**Estimated Time:** 3-4 days
-
----
-
-### Phase 5: Increase Test Coverage (Week 6)
+### Phase 4: Increase Test Coverage (Week 6)
 
 **Goal:** Achieve >50% coverage on critical paths before declaring refactor complete
 
@@ -647,7 +566,6 @@ Do these FIRST for immediate impact:
 ### Week 5: Decoupling
 - [ ] UI imports removed from Infrastructure
 - [ ] Error presentation protocols added
-- [ ] PermissionOracle simplified
 
 ### Week 6: Test Coverage
 - [ ] Critical path tests added
@@ -685,6 +603,44 @@ After each phase:
 - ADRs: See docs/architecture/
 - Test strategy: ADR-011 (Test Performance)
 - MVVM pattern: ADR-009 (Service Extraction)
+
+---
+
+## 💭 Future Discussion
+
+These topics are deferred for later consideration, after Phase 4 is complete:
+
+### Permission Detection Simplification
+
+**Current State:** PermissionOracle uses a 3-tier hierarchy:
+1. Apple APIs (IOHIDCheckAccess)
+2. SQLite TCC database reads
+3. TCP functional checks
+4. netstat port scanning
+
+**Proposed Simplification:** Use only Apple APIs, remove TCC database and inference logic
+
+**Status:** Deferred - Current implementation works reliably. Simplification would need careful evaluation to ensure no regression in permission detection edge cases.
+
+**Considerations:**
+- Current approach handles edge cases that pure Apple API might miss
+- TCC database fallback helps with wizard scenarios
+- Would reduce code from ~410 lines to ~200 lines
+- Need to verify System Settings guidance is sufficient replacement
+
+### Product Scope Evaluation ("40% MVP Bloat")
+
+**Question:** Does the current feature set exceed what's necessary for a minimum viable product?
+
+**Status:** Philosophical question about product scope, not a technical issue
+
+**Considerations:**
+- Many features were added based on real user needs discovered during development
+- "Bloat" depends on target audience - power users vs. casual users
+- Some "extra" features enable the core value proposition (auto-fix wizard, diagnostics)
+- Should be evaluated after refactoring is complete, when code is cleaner
+
+**Future Action:** Revisit after Phase 4 completion, when architecture is clean and we can objectively evaluate feature value vs. maintenance cost.
 
 ---
 
