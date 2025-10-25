@@ -107,8 +107,22 @@ enum WizardSystemPaths {
         "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
 
     /// Login Items settings URL (macOS 13+)
+    /// NOTE: For macOS 13+, prefer using SMAppService.openSystemSettingsLoginItems() instead
     static let loginItemsSettings =
         "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
+
+    /// System Extensions settings (general)
+    static let systemExtensionsSettings =
+        "x-apple.systempreferences:com.apple.SystemExtensionsSettings"
+
+    /// Driver Extensions category (macOS 15+)
+    /// Opens Extensions view filtered to driver extensions - more direct than general system extensions
+    static let driverExtensionsCategory =
+        "x-apple.systempreferences:com.apple.ExtensionsPreferences?extensionPointIdentifier=com.apple.system_extension.driver_extension.extension-point"
+
+    /// Network Extensions category (macOS 15+)
+    static let networkExtensionsCategory =
+        "x-apple.systempreferences:com.apple.ExtensionsPreferences?extensionPointIdentifier=com.apple.system_extension.network_extension.extension-point"
 
     // MARK: - Helper Methods
 

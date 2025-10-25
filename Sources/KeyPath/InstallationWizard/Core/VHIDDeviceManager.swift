@@ -23,7 +23,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     // Driver DriverKit extension identifiers
     private static let driverTeamID = "G43BCU2T37" // pqrs.org team ID
-    private static let driverBundleID = "org.pqrs.driver.Karabiner-DriverKit-VirtualHIDDevice"
+    private static let driverBundleID = "org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"
 
     // MARK: - Detection Methods
 
@@ -38,14 +38,90 @@ final class VHIDDeviceManager: @unchecked Sendable {
     }
 
     /// Checks if the VirtualHIDDevice Manager has been activated
-    /// This involves checking if the daemon binaries are in place
+    /// This checks BOTH file existence AND system extension activation status
     func detectActivation() -> Bool {
         let fileManager = FileManager.default
         let daemonExists = fileManager.fileExists(atPath: Self.vhidDeviceDaemonPath)
 
         AppLogger.shared.log(
             "🔍 [VHIDManager] Daemon exists at \(Self.vhidDeviceDaemonPath): \(daemonExists)")
-        return daemonExists
+
+        guard daemonExists else {
+            return false
+        }
+
+        // Check if system extension is enabled
+        let isEnabled = isSystemExtensionEnabled()
+        guard isEnabled else {
+            AppLogger.shared.log("⚠️ [VHIDManager] System extension not enabled")
+            return false
+        }
+
+        // Get both registered and file versions
+        let registeredVersion = getRegisteredExtensionVersion()
+        let fileVersion = getInstalledVersion()
+
+        // Workaround for macOS caching: If files are v5.0.0 and extension is enabled,
+        // trust the file version even if registry still shows v1.8.0
+        if let fileVer = fileVersion {
+            let fileComponents = fileVer.split(separator: ".").compactMap { Int($0) }
+            if let fileMajor = fileComponents.first {
+                let fileVersionCorrect = fileMajor == Self.requiredDriverVersionMajor
+
+                if fileVersionCorrect {
+                    AppLogger.shared.log(
+                        "✅ [VHIDManager] File version v\(fileVer) is correct and extension is enabled (registered shows: \(registeredVersion ?? "none"))")
+                    return true
+                }
+            }
+        }
+
+        // Fall back to registered version check
+        if let regVer = registeredVersion {
+            let regComponents = regVer.split(separator: ".").compactMap { Int($0) }
+            if let regMajor = regComponents.first {
+                let regVersionCorrect = regMajor == Self.requiredDriverVersionMajor
+                AppLogger.shared.log(
+                    "🔍 [VHIDManager] Registered version v\(regVer) - Correct: \(regVersionCorrect)")
+                return regVersionCorrect
+            }
+        }
+
+        AppLogger.shared.log("⚠️ [VHIDManager] Could not determine driver version")
+        return false
+    }
+
+    /// Checks if the Karabiner system extension is enabled (not just activated/waiting for approval)
+    private func isSystemExtensionEnabled() -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/systemextensionsctl")
+        task.arguments = ["list"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            // Look for our driver with [activated enabled] status
+            for line in output.components(separatedBy: .newlines) {
+                if line.contains(Self.driverBundleID) && line.contains("[activated enabled]") {
+                    AppLogger.shared.log("✅ [VHIDManager] System extension is [activated enabled]")
+                    return true
+                }
+            }
+
+            AppLogger.shared.log("⚠️ [VHIDManager] System extension not in [activated enabled] state")
+            return false
+        } catch {
+            AppLogger.shared.log("❌ [VHIDManager] Failed to check extension enabled status: \(error)")
+            return false
+        }
     }
 
     /// Checks if VirtualHIDDevice processes are currently running
@@ -217,11 +293,90 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
     }
 
+    /// Gets the version of the REGISTERED system extension (not just installed files)
+    func getRegisteredExtensionVersion() -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/systemextensionsctl")
+        task.arguments = ["list"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            // Parse the output to find our driver extension
+            // Example line: "	*	G43BCU2T37	org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (1.8.0/1.8.0)	org.pqrs.Karabiner-DriverKit-VirtualHIDDevice	[activated waiting for user]"
+            for line in output.components(separatedBy: .newlines) {
+                if line.contains(Self.driverBundleID) {
+                    // Extract version from pattern (X.Y.Z/X.Y.Z)
+                    if let versionRange = line.range(of: #"\(\d+\.\d+\.\d+/\d+\.\d+\.\d+\)"#, options: .regularExpression) {
+                        let versionString = String(line[versionRange])
+                        // Extract first version number
+                        if let firstVersion = versionString.components(separatedBy: "/").first?.trimmingCharacters(in: CharacterSet(charactersIn: "()")) {
+                            AppLogger.shared.log("🔍 [VHIDManager] Registered extension version: \(firstVersion)")
+                            return firstVersion
+                        }
+                    }
+                }
+            }
+
+            AppLogger.shared.log("🔍 [VHIDManager] No registered system extension found")
+            return nil
+        } catch {
+            AppLogger.shared.log("❌ [VHIDManager] Failed to check registered extension: \(error)")
+            return nil
+        }
+    }
+
     /// Checks if the installed driver version is compatible with current kanata
+    /// Checks file version first (workaround for macOS caching), then registered version
     func hasVersionMismatch() -> Bool {
+        // Workaround for macOS caching: If extension is enabled and files are correct version,
+        // trust the file version even if registry shows old version
+        if isSystemExtensionEnabled(), let fileVersion = getInstalledVersion() {
+            let fileComponents = fileVersion.split(separator: ".").compactMap { Int($0) }
+            if let fileMajor = fileComponents.first {
+                let fileVersionCorrect = fileMajor == Self.requiredDriverVersionMajor
+
+                if fileVersionCorrect {
+                    AppLogger.shared.log("✅ [VHIDManager] File version v\(fileVersion) is correct (ignoring registry cache)")
+                    return false // No mismatch - file version is correct
+                } else {
+                    AppLogger.shared.log("❌ [VHIDManager] File version v\(fileVersion) mismatch (major: \(fileMajor), required: \(Self.requiredDriverVersionMajor))")
+                    return true
+                }
+            }
+        }
+
+        // Fall back to registered extension version check
+        if let registeredVersion = getRegisteredExtensionVersion() {
+            let versionComponents = registeredVersion.split(separator: ".").compactMap { Int($0) }
+            guard let majorVersion = versionComponents.first else {
+                AppLogger.shared.log("⚠️ [VHIDManager] Cannot parse registered version \(registeredVersion)")
+                return false
+            }
+
+            let hasMismatch = majorVersion != Self.requiredDriverVersionMajor
+            if hasMismatch {
+                AppLogger.shared.log("❌ [VHIDManager] Registered extension version mismatch:")
+                AppLogger.shared.log("  - Registered: v\(registeredVersion) (major: \(majorVersion))")
+                AppLogger.shared.log("  - Required: v\(Self.requiredDriverVersionString) (major: \(Self.requiredDriverVersionMajor))")
+            } else {
+                AppLogger.shared.log("✅ [VHIDManager] Registered extension version compatible: v\(registeredVersion)")
+            }
+            return hasMismatch
+        }
+
+        // Fallback to installed file version if no registered extension
         guard let installedVersion = getInstalledVersion() else {
-            AppLogger.shared.log("⚠️ [VHIDManager] Cannot determine version - assuming no mismatch")
-            return false
+            AppLogger.shared.log("⚠️ [VHIDManager] No registered extension and cannot determine installed version - assuming mismatch")
+            return true // Assume mismatch if we can't determine version
         }
 
         // Parse major version
@@ -233,20 +388,23 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
         let hasMismatch = majorVersion != Self.requiredDriverVersionMajor
         if hasMismatch {
-            AppLogger.shared.log("❌ [VHIDManager] Version mismatch detected:")
+            AppLogger.shared.log("❌ [VHIDManager] Installed file version mismatch:")
             AppLogger.shared.log("  - Installed: v\(installedVersion) (major: \(majorVersion))")
             AppLogger.shared.log("  - Required: v\(Self.requiredDriverVersionString) (major: \(Self.requiredDriverVersionMajor))")
-            AppLogger.shared.log("  - Note: Kanata \(Self.futureCompatibleVersion)+ will support v6.0.0+")
         } else {
-            AppLogger.shared.log("✅ [VHIDManager] Version compatible: v\(installedVersion)")
+            AppLogger.shared.log("✅ [VHIDManager] Installed file version compatible: v\(installedVersion)")
         }
 
         return hasMismatch
     }
 
     /// Gets a user-friendly message about version compatibility
+    /// Uses REGISTERED system extension version
     func getVersionMismatchMessage() -> String? {
-        guard let installedVersion = getInstalledVersion() else {
+        // Check registered version first
+        let versionToCheck = getRegisteredExtensionVersion() ?? getInstalledVersion()
+
+        guard let installedVersion = versionToCheck else {
             return nil
         }
 
@@ -256,15 +414,33 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
 
         if majorVersion != Self.requiredDriverVersionMajor {
-            return """
+            let registeredVersion = getRegisteredExtensionVersion()
+            let fileVersion = getInstalledVersion()
+
+            var message = """
             Version Compatibility Issue
 
             You have Karabiner-DriverKit-VirtualHIDDevice v\(installedVersion) installed, but the current version of Kanata (v1.9.0) requires v\(Self.requiredDriverVersionString).
 
             KeyPath will automatically download and install v\(Self.requiredDriverVersionString) for you.
+            """
+
+            // Add note if registered and file versions differ
+            if let reg = registeredVersion, let file = fileVersion, reg != file {
+                message += """
+
+
+                📋 Note: System extension registration shows v\(reg), but installed files show v\(file). The fix will update both.
+                """
+            }
+
+            message += """
+
 
             📝 Note: Kanata v\(Self.futureCompatibleVersion) (currently in pre-release) will support v6.0.0+. Once v\(Self.futureCompatibleVersion) is released and stable, we'll update KeyPath to use the newer driver version.
             """
+
+            return message
         }
 
         return nil
@@ -282,10 +458,22 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
         AppLogger.shared.log("🔧 [VHIDManager] Activating VHIDDevice Manager...")
 
-        return await executeWithAdminPrivileges(
-            command: "\(Self.vhidManagerPath) activate",
+        let commandSucceeded = await executeWithAdminPrivileges(
+            command: "\(Self.vhidManagerPath) forceActivate",
             description: "Activate VirtualHIDDevice Manager"
         )
+
+        if commandSucceeded {
+            // Wait for activation to take effect
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+
+            // Verify activation worked
+            let activated = detectActivation()
+            AppLogger.shared.log("🔍 [VHIDManager] Post-activation verification: \(activated)")
+            return activated
+        } else {
+            return false
+        }
     }
 
     /// Execute a command with administrator privileges using osascript
@@ -313,23 +501,34 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
                 do {
                     try osascriptTask.run()
-                    osascriptTask.waitUntilExit()
+
+                    // Use DispatchGroup to implement timeout (10 seconds for admin commands)
+                    let group = DispatchGroup()
+                    group.enter()
+
+                    DispatchQueue.global().async {
+                        osascriptTask.waitUntilExit()
+                        group.leave()
+                    }
+
+                    let timeoutResult = group.wait(timeout: .now() + 10.0)
+
+                    if timeoutResult == .timedOut {
+                        osascriptTask.terminate()
+                        AppLogger.shared.log("⚠️ [VHIDManager] \(description) timed out after 10s - command may still be processing in background")
+                        continuation.resume(returning: false)
+                        return
+                    }
 
                     let data = pipe.fileHandleForReading.readDataToEndOfFile()
                     let output = String(data: data, encoding: .utf8) ?? ""
 
                     if osascriptTask.terminationStatus == 0 {
                         AppLogger.shared.log("✅ [VHIDManager] \(description) completed successfully")
-
-                        // Wait a moment for the activation to take effect
-                        Task {
-                            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-                            // Verify activation worked
-                            let activated = self.detectActivation()
-                            AppLogger.shared.log("🔍 [VHIDManager] Post-activation verification: \(activated)")
-                            continuation.resume(returning: activated)
+                        if !output.isEmpty {
+                            AppLogger.shared.log("📋 [VHIDManager] Command output: \(output)")
                         }
+                        continuation.resume(returning: true)
                     } else {
                         AppLogger.shared.log(
                             "❌ [VHIDManager] \(description) failed with status \(osascriptTask.terminationStatus): \(output)"

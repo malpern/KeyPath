@@ -138,12 +138,12 @@ enum ComponentRequirement: Equatable {
     case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case vhidDaemonMisconfigured
     case vhidDriverVersionMismatch // Karabiner driver version incompatible with kanata version
-    case kanataUDPServer // UDP server for Kanata communication and config validation
+    case kanataTCPServer // TCP server for Kanata communication and config validation
     case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
     case communicationServerConfiguration // Communication server enabled but not configured in service
     case communicationServerNotResponding // Communication server configured but not responding
-    case udpServerConfiguration // UDP enabled but not configured in service
-    case udpServerNotResponding // UDP configured but not responding
+    case tcpServerConfiguration // TCP enabled but not configured in service
+    case tcpServerNotResponding // TCP configured but not responding
     case logRotation // Log rotation service to manage Kanata logs
 }
 
@@ -164,10 +164,10 @@ enum AutoFixAction: Equatable {
     case replaceOrphanedProcess // Kill orphaned process and start managed one
     case installLogRotation // Install log rotation service to keep logs under 10MB
     case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
-    case enableUDPServer // Enable UDP server for communication
-    case setupUDPAuthentication // Generate and configure UDP authentication token
-    case regenerateCommServiceConfiguration // Update LaunchDaemon plist with UDP settings
-    case restartCommServer // Restart service to enable UDP functionality
+    case enableTCPServer // Enable TCP server for communication
+    case setupTCPAuthentication // Generate and configure TCP authentication token
+    case regenerateCommServiceConfiguration // Update LaunchDaemon plist with TCP settings
+    case restartCommServer // Restart service to enable TCP functionality
     case fixDriverVersionMismatch // Download and install correct Karabiner driver version (v5 for kanata v1.9.0)
 }
 

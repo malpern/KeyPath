@@ -37,15 +37,15 @@ extension KanataManager {
             return (false, ["Config file does not exist at: \(configurationService.configurationPath)"])
         }
 
-        // Try UDP validation first if enabled and Kanata is running
+        // Try TCP validation first if enabled and Kanata is running
         let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseUDP, isRunning {
-            AppLogger.shared.log("📡 [Validation] Attempting UDP validation")
-            if let udpResult = await configurationService.validateConfigViaUDP() {
-                return udpResult
+        if commConfig.shouldUseTCP, isRunning {
+            AppLogger.shared.log("📡 [Validation] Attempting TCP validation")
+            if let tcpResult = await configurationService.validateConfigViaTCP() {
+                return tcpResult
             } else {
                 AppLogger.shared.log(
-                    "📡 [Validation] UDP validation unavailable, falling back to file-based validation")
+                    "📡 [Validation] TCP validation unavailable, falling back to file-based validation")
             }
         }
 
@@ -54,30 +54,30 @@ extension KanataManager {
         return configurationService.validateConfigViaFile()
     }
 
-    // MARK: - Hot Reload via UDP
+    // MARK: - Hot Reload via TCP
 
-    /// Main reload method using UDP protocol
+    /// Main reload method using TCP protocol
     func triggerConfigReload() async -> ReloadResult {
         let commConfig = PreferencesService.communicationSnapshot()
 
-        // Try UDP reload
-        if commConfig.shouldUseUDP {
-            AppLogger.shared.log("📡 [Reload] Attempting UDP reload")
-            let udpResult = await triggerUDPReload()
-            if udpResult.isSuccess {
+        // Try TCP reload
+        if commConfig.shouldUseTCP {
+            AppLogger.shared.log("📡 [Reload] Attempting TCP reload")
+            let tcpResult = await triggerTCPReload()
+            if tcpResult.isSuccess {
                 return ReloadResult(
                     success: true,
-                    response: udpResult.response ?? "",
+                    response: tcpResult.response ?? "",
                     errorMessage: nil,
-                    protocol: .udp
+                    protocol: .tcp
                 )
             } else {
-                AppLogger.shared.log("📡 [Reload] UDP reload failed: \(udpResult.errorMessage ?? "Unknown error")")
+                AppLogger.shared.log("📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")")
             }
         }
 
-        // If UDP is not available, fall back to service restart
-        AppLogger.shared.log("⚠️ [Reload] UDP communication not available - falling back to service restart")
+        // If TCP is not available, fall back to service restart
+        AppLogger.shared.log("⚠️ [Reload] TCP communication not available - falling back to service restart")
         await restartKanata()
         return ReloadResult(
             success: true,
@@ -87,37 +87,41 @@ extension KanataManager {
         )
     }
 
-    /// UDP-based config reload using secure actor-based client
-    func triggerUDPReload() async -> UDPReloadResult {
+    /// TCP-based config reload using secure actor-based client
+    func triggerTCPReload() async -> TCPReloadResult {
         if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [UDP Reload] Skipping UDP reload in test environment")
-            return .networkError("Test environment - UDP disabled")
+            AppLogger.shared.log("🧪 [TCP Reload] Skipping TCP reload in test environment")
+            return .networkError("Test environment - TCP disabled")
         }
         let commConfig = PreferencesService.communicationSnapshot()
-        guard commConfig.shouldUseUDP else {
-            AppLogger.shared.log("⚠️ [UDP Reload] UDP server not enabled - skipping")
-            return .networkError("UDP server not enabled")
+        guard commConfig.shouldUseTCP else {
+            AppLogger.shared.log("⚠️ [TCP Reload] TCP server not enabled - skipping")
+            return .networkError("TCP server not enabled")
         }
 
-        AppLogger.shared.log("📡 [UDP Reload] Triggering config reload via UDP on port \(commConfig.udpPort)")
+        AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via TCP on port \(commConfig.tcpPort)")
 
-        let client = KanataUDPClient(port: commConfig.udpPort)
+        // Ensure TCP client exists (should have been created during validation)
+        if tcpClient == nil {
+            tcpClient = KanataTCPClient(port: commConfig.tcpPort)
+        }
+        let client = tcpClient!
 
         // Get secure token from Keychain
         let secureToken: String
         do {
             secureToken = try await MainActor.run {
-                try KeychainService.shared.retrieveUDPToken()
+                try KeychainService.shared.retrieveTCPToken()
             } ?? ""
         } catch {
-            AppLogger.shared.log("❌ [UDP Reload] Failed to retrieve secure token: \(error)")
+            AppLogger.shared.log("❌ [TCP Reload] Failed to retrieve secure token: \(error)")
             return .authenticationRequired
         }
 
         // Try auto-generated token if no stored token
-        let authToken = secureToken.isEmpty ? await getGeneratedUDPToken() : secureToken
+        let authToken = secureToken.isEmpty ? await getGeneratedTCPToken() : secureToken
         guard let token = authToken, await client.authenticate(token: token) else {
-            AppLogger.shared.log("❌ [UDP Reload] Authentication failed")
+            AppLogger.shared.log("❌ [TCP Reload] Authentication failed")
             return .authenticationRequired
         }
 
@@ -135,49 +139,50 @@ extension KanataManager {
 
     // MARK: - Helper Methods
 
-    /// Get the auto-generated UDP token from Kanata logs
+    /// Get the auto-generated TCP token from Kanata logs
     /// Returns nil if token not found or server not running
-    private func getGeneratedUDPToken() async -> String? {
-        AppLogger.shared.log("🔍 [UDP Token] Searching for auto-generated token in logs...")
+    private func getGeneratedTCPToken() async -> String? {
+        AppLogger.shared.log("🔍 [TCP Token] Searching for auto-generated token in logs...")
 
-        // Check if Kanata is running with UDP server
+        // Check if Kanata is running with TCP server
         guard isRunning else {
-            AppLogger.shared.log("⚠️ [UDP Token] Kanata not running - cannot extract token")
+            AppLogger.shared.log("⚠️ [TCP Token] Kanata not running - cannot extract token")
             return nil
         }
 
         // Try to read the log file for auto-generated token
         let logPath = "/var/log/kanata.log"
         guard FileManager.default.fileExists(atPath: logPath) else {
-            AppLogger.shared.log("⚠️ [UDP Token] Log file not found at \(logPath)")
+            AppLogger.shared.log("⚠️ [TCP Token] Log file not found at \(logPath)")
             return nil
         }
 
         do {
             let logContent = try String(contentsOfFile: logPath)
 
-            // Look for the pattern: "UDP auth token: <token>"
-            let pattern = #"UDP auth token: ([a-f0-9]+)"#
+            // Look for the pattern: "TCP auth token: <token>"
+            // Token is base64-style with uppercase, lowercase, and digits
+            let pattern = #"TCP auth token: ([A-Za-z0-9+/=]+)"#
             let regex = try NSRegularExpression(pattern: pattern)
             let range = NSRange(logContent.startIndex..., in: logContent)
 
             if let match = regex.firstMatch(in: logContent, options: [], range: range),
                let tokenRange = Range(match.range(at: 1), in: logContent) {
                 let token = String(logContent[tokenRange])
-                AppLogger.shared.log("✅ [UDP Token] Found auto-generated token")
+                AppLogger.shared.log("✅ [TCP Token] Found auto-generated token")
 
                 // Store the discovered token securely
                 try await MainActor.run {
-                    try KeychainService.shared.storeUDPToken(token)
+                    try KeychainService.shared.storeTCPToken(token)
                 }
 
                 return token
             } else {
-                AppLogger.shared.log("⚠️ [UDP Token] No auto-generated token found in logs")
+                AppLogger.shared.log("⚠️ [TCP Token] No auto-generated token found in logs")
                 return nil
             }
         } catch {
-            AppLogger.shared.log("❌ [UDP Token] Failed to read log file: \(error)")
+            AppLogger.shared.log("❌ [TCP Token] Failed to read log file: \(error)")
             return nil
         }
     }
@@ -185,7 +190,7 @@ extension KanataManager {
 
 // MARK: - Result Types
 
-/// UDP reload result
+/// TCP reload result
 struct ReloadResult {
     let success: Bool
     let response: String?

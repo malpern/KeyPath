@@ -53,11 +53,11 @@ protocol ServiceHealthMonitorProtocol: AnyObject {
     /// Check if the service is currently healthy
     /// - Parameters:
     ///   - processStatus: The current process status from LaunchDaemon
-    ///   - udpClient: Optional UDP client for health checks
+    ///   - tcpClient: Optional TCP client for health checks
     /// - Returns: Health status with recommendation
     func checkServiceHealth(
         processStatus: ProcessHealthStatus,
-        udpClient: KanataUDPClient?
+        tcpClient: KanataTCPClient?
     ) async -> ServiceHealthStatus
 
     /// Check if a restart is allowed based on cooldown state
@@ -111,12 +111,12 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     // MARK: - Configuration Constants
 
     private let minRestartInterval: TimeInterval = 2.0 // Minimum time between restarts
-    private let udpServerGracePeriod: TimeInterval = 10.0 // Time to wait for UDP server to start
+    private let tcpServerGracePeriod: TimeInterval = 10.0 // Time to wait for TCP server to start
     private let maxConnectionFailures = 10 // VirtualHID connection failures before recovery
     private let maxStartAttempts = 2 // Max auto-start attempts before giving up
     private let maxRetryAttempts = 3 // Max retry attempts after fixes
-    private let maxUDPHealthCheckRetries = 3 // Retries for UDP health checks
-    private let udpRetryDelay: TimeInterval = 0.5 // Delay between UDP retry attempts
+    private let maxTCPHealthCheckRetries = 3 // Retries for TCP health checks
+    private let tcpRetryDelay: TimeInterval = 0.5 // Delay between TCP retry attempts
 
     // MARK: - State Tracking
 
@@ -138,7 +138,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
     func checkServiceHealth(
         processStatus: ProcessHealthStatus,
-        udpClient: KanataUDPClient?
+        tcpClient: KanataTCPClient?
     ) async -> ServiceHealthStatus {
         AppLogger.shared.log("🏥 [HealthMonitor] Checking service health...")
 
@@ -150,26 +150,26 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
         AppLogger.shared.log("🏥 [HealthMonitor] Process running with PID: \(processStatus.pid?.description ?? "unknown")")
 
-        // Check if we're in UDP grace period
+        // Check if we're in TCP grace period
         if let lastStart = lastServiceStart {
             let timeSinceStart = Date().timeIntervalSince(lastStart)
-            if timeSinceStart < udpServerGracePeriod {
+            if timeSinceStart < tcpServerGracePeriod {
                 AppLogger.shared.log(
-                    "🏥 [HealthMonitor] Within UDP grace period (\(String(format: "%.1f", timeSinceStart))s < \(udpServerGracePeriod)s)"
+                    "🏥 [HealthMonitor] Within TCP grace period (\(String(format: "%.1f", timeSinceStart))s < \(tcpServerGracePeriod)s)"
                 )
                 return ServiceHealthStatus.healthy()
             }
         }
 
-        // Second check: Try UDP health check with retries
-        guard let client = udpClient else {
-            AppLogger.shared.log("🏥 [HealthMonitor] No UDP client available - assuming healthy")
+        // Second check: Try TCP health check with retries
+        guard let client = tcpClient else {
+            AppLogger.shared.log("🏥 [HealthMonitor] No TCP client available - assuming healthy")
             return ServiceHealthStatus.healthy()
         }
 
-        let udpHealthy = await performUDPHealthCheck(client: client)
+        let tcpHealthy = await performTCPHealthCheck(client: client)
 
-        if udpHealthy {
+        if tcpHealthy {
             AppLogger.shared.log("🏥 [HealthMonitor] Service is healthy")
             let status = ServiceHealthStatus.healthy()
             lastHealthCheckResult = status
@@ -178,27 +178,27 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
             // Check if we should wait for grace period
             if let lastStart = lastServiceStart {
                 let timeSinceStart = Date().timeIntervalSince(lastStart)
-                if timeSinceStart < udpServerGracePeriod {
+                if timeSinceStart < tcpServerGracePeriod {
                     AppLogger.shared.log(
-                        "🏥 [HealthMonitor] UDP check failed but within grace period - giving more time"
+                        "🏥 [HealthMonitor] TCP check failed but within grace period - giving more time"
                     )
-                    return ServiceHealthStatus.unhealthy(reason: "UDP check failed (in grace period)", shouldRestart: false)
+                    return ServiceHealthStatus.unhealthy(reason: "TCP check failed (in grace period)", shouldRestart: false)
                 }
             }
 
-            AppLogger.shared.log("🏥 [HealthMonitor] Service unhealthy - UDP check failed")
-            let status = ServiceHealthStatus.unhealthy(reason: "UDP health check failed", shouldRestart: true)
+            AppLogger.shared.log("🏥 [HealthMonitor] Service unhealthy - TCP check failed")
+            let status = ServiceHealthStatus.unhealthy(reason: "TCP health check failed", shouldRestart: true)
             lastHealthCheckResult = status
             return status
         }
     }
 
-    /// Perform UDP health check with retry logic
-    private func performUDPHealthCheck(client: KanataUDPClient) async -> Bool {
+    /// Perform TCP health check with retry logic
+    private func performTCPHealthCheck(client: KanataTCPClient) async -> Bool {
         var isHealthy = false
 
-        for attempt in 1...maxUDPHealthCheckRetries {
-            AppLogger.shared.log("🏥 [HealthMonitor] UDP health check attempt \(attempt)/\(maxUDPHealthCheckRetries)")
+        for attempt in 1...maxTCPHealthCheckRetries {
+            AppLogger.shared.log("🏥 [HealthMonitor] TCP health check attempt \(attempt)/\(maxTCPHealthCheckRetries)")
 
             isHealthy = await client.checkServerStatus()
             if isHealthy {
@@ -206,15 +206,15 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
             }
 
             // Brief pause between retries
-            if attempt < maxUDPHealthCheckRetries {
-                try? await Task.sleep(nanoseconds: UInt64(udpRetryDelay * 1_000_000_000))
+            if attempt < maxTCPHealthCheckRetries {
+                try? await Task.sleep(nanoseconds: UInt64(tcpRetryDelay * 1_000_000_000))
             }
         }
 
         if isHealthy {
-            AppLogger.shared.log("🏥 [HealthMonitor] UDP health check passed")
+            AppLogger.shared.log("🏥 [HealthMonitor] TCP health check passed")
         } else {
-            AppLogger.shared.log("🏥 [HealthMonitor] UDP health check failed after \(maxUDPHealthCheckRetries) attempts")
+            AppLogger.shared.log("🏥 [HealthMonitor] TCP health check failed after \(maxTCPHealthCheckRetries) attempts")
         }
 
         return isHealthy
@@ -243,7 +243,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         var isInGracePeriod = false
         if let lastStart = lastServiceStart {
             let timeSinceStart = now.timeIntervalSince(lastStart)
-            isInGracePeriod = timeSinceStart < udpServerGracePeriod
+            isInGracePeriod = timeSinceStart < tcpServerGracePeriod
         }
 
         return RestartCooldownState(

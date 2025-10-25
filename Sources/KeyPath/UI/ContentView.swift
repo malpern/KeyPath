@@ -456,17 +456,22 @@ struct ContentView: View {
     }
 
     private func debouncedSave() {
+        AppLogger.shared.log("🔵 [ContentView] debouncedSave() called")
         saveDebounceTimer?.invalidate()
+        AppLogger.shared.log("🔵 [ContentView] Creating debounce timer with delay: \(saveDebounceDelay)s")
         saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: saveDebounceDelay, repeats: false) { _ in
+            AppLogger.shared.log("🔵 [ContentView] Debounce timer fired, calling performSave()")
             Task { await performSave() }
         }
     }
 
     private func performSave() async {
+        AppLogger.shared.log("🟢 [ContentView] performSave() started")
         saveDebounceTimer?.invalidate()
         saveDebounceTimer = nil
 
         // Pre-flight check: Ensure kanata is running before attempting save
+        AppLogger.shared.log("🟢 [ContentView] Checking if kanata is running: \(kanataManager.isRunning)")
         guard kanataManager.isRunning else {
             AppLogger.shared.log("⚠️ [ContentView] Cannot save - kanata service is not running")
             await MainActor.run {
@@ -475,6 +480,7 @@ struct ContentView: View {
             return
         }
 
+        AppLogger.shared.log("🟢 [ContentView] Calling recordingCoordinator.saveMapping()")
         await recordingCoordinator.saveMapping(
             kanataManager: kanataManager.underlyingManager,  // Phase 4: Business logic needs underlying manager
             onSuccess: { message in handleSaveSuccess(message) },
@@ -535,8 +541,41 @@ struct ContentView: View {
             return
         }
 
+        // Handle communication errors with user-friendly messages
+        if case let KeyPathError.communication(commError) = error {
+            let message: String
+            switch commError {
+            case .timeout:
+                message = "❌ Save timed out - Kanata took too long to respond. Try again."
+            case .connectionFailed(let reason):
+                if reason.contains("Connection refused") || reason.contains("61") {
+                    message = "❌ Cannot connect to Kanata. Please restart the app."
+                } else {
+                    message = "❌ Connection failed: \(reason)"
+                }
+            case .noResponse:
+                message = "❌ Kanata didn't respond. The service may be stuck - try restarting the app."
+            case .notAuthenticated:
+                message = "❌ Authentication failed. Please restart the app to reconnect."
+            case .invalidResponse:
+                message = "❌ Kanata sent an unexpected response. Check the logs for details."
+            case .deserializationFailed:
+                message = "❌ Could not parse Kanata's response. The config may have syntax errors."
+            case .serializationFailed:
+                message = "❌ Could not send request to Kanata. Internal error - check logs."
+            case .invalidPort:
+                message = "❌ Invalid port configuration. Please restart the app."
+            case .payloadTooLarge(let size):
+                message = "❌ Request too large (\(size) bytes). Simplify your configuration."
+            }
+            showStatusMessage(message: message)
+            AppLogger.shared.log("❌ [Save Error] \(commError)")
+            return
+        }
+
         // Generic error handling for all other cases
         showStatusMessage(message: "❌ Error saving: \(error.localizedDescription)")
+        AppLogger.shared.log("❌ [Save Error] Unhandled: \(error)")
     }
 
     private func handleInputRecordTap() {
