@@ -52,11 +52,25 @@ echo "📦 Generating coverage -> $OUTDIR"
 # Run tests (unless reusing existing data)
 if [[ "$REUSE" != "true" ]]; then
   if [[ "$FULL" == "true" ]]; then
-    echo "🧪 Running full test suite with coverage"
-    swift test --parallel --enable-code-coverage 2>&1 | tee "$OUTDIR/.coverage-test-output.log"
+    echo "🧪 Running full test suite with coverage (timeout: 5 minutes)"
+    timeout 300 swift test --parallel --enable-code-coverage 2>&1 | tee "$OUTDIR/.coverage-test-output.log" || {
+      EXIT_CODE=$?
+      if [[ $EXIT_CODE == 124 ]]; then
+        echo "⏰ Test run timed out after 5 minutes"
+        echo "⚠️  Consider using --filter to run a subset of tests, or investigate slow/hanging tests"
+      fi
+      exit $EXIT_CODE
+    }
   else
-    echo "🧪 Running filtered tests with coverage (filter: $FILTER)"
-    swift test --parallel --enable-code-coverage --filter "$FILTER" 2>&1 | tee "$OUTDIR/.coverage-test-output.log"
+    echo "🧪 Running filtered tests with coverage (filter: $FILTER, timeout: 2 minutes)"
+    timeout 120 swift test --parallel --enable-code-coverage --filter "$FILTER" 2>&1 | tee "$OUTDIR/.coverage-test-output.log" || {
+      EXIT_CODE=$?
+      if [[ $EXIT_CODE == 124 ]]; then
+        echo "⏰ Test run timed out after 2 minutes"
+        echo "⚠️  Filtered tests should complete quickly. This may indicate a test issue."
+      fi
+      exit $EXIT_CODE
+    }
   fi
 else
   echo "⏭️  Reusing existing coverage data (no test run)"

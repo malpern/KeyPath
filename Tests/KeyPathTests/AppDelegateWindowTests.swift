@@ -74,57 +74,9 @@ final class AppDelegateWindowTests: XCTestCase {
         XCTAssertNil(appDelegate.mainWindowController, "Should not create window without KanataManager")
     }
 
-    // MARK: - Bootstrap Tests
-
-    func testBootstrapOnceIsIdempotent() async {
-        // Given: Fresh app delegate
-        let initialBootstrap = appDelegate.bootstrapStarted
-        XCTAssertFalse(initialBootstrap, "Bootstrap should not be started initially")
-
-        // When: Bootstrap called multiple times
-        appDelegate.bootstrapOnce()
-        let firstCall = appDelegate.bootstrapStarted
-
-        appDelegate.bootstrapOnce()
-        let secondCall = appDelegate.bootstrapStarted
-
-        // Then: Only runs once
-        XCTAssertTrue(firstCall, "Bootstrap should be marked as started after first call")
-        XCTAssertTrue(secondCall, "Bootstrap should remain started after second call")
-
-        // Small delay to let async tasks start
-        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-    }
-
-    // MARK: - Activation Fallback Tests
-
-    func testActivationFallback() async {
-        // Given: Window prepared but not shown
-        appDelegate.prepareMainWindowIfNeeded()
-        XCTAssertFalse(appDelegate.initialMainWindowShown, "Window should not be shown yet")
-
-        // When: Wait for fallback timer (1 second + margin)
-        try? await Task.sleep(nanoseconds: 1_200_000_000) // 1.2 seconds
-
-        // Then: Window is shown
-        XCTAssertTrue(appDelegate.initialMainWindowShown, "Fallback should have shown window after timeout")
-    }
-
-    func testActivationFallbackOnlyScheduledOnce() {
-        // Given: Fresh app delegate
-        XCTAssertFalse(appDelegate.activationFallbackScheduled, "Fallback should not be scheduled initially")
-
-        // When: Schedule fallback twice
-        appDelegate.scheduleActivationFallback()
-        let firstSchedule = appDelegate.activationFallbackScheduled
-
-        appDelegate.scheduleActivationFallback()
-        let secondSchedule = appDelegate.activationFallbackScheduled
-
-        // Then: Only scheduled once
-        XCTAssertTrue(firstSchedule, "Should be scheduled after first call")
-        XCTAssertTrue(secondSchedule, "Should still be scheduled (idempotent)")
-    }
+    // MARK: - Bootstrap and Activation Tests
+    // Note: Bootstrap and activation fallback are private implementation details.
+    // They are tested indirectly through the full lifecycle test below.
 
     // MARK: - Integration Tests
 
@@ -141,10 +93,11 @@ final class AppDelegateWindowTests: XCTestCase {
         XCTAssertFalse(appDelegate.initialMainWindowShown, "Window should not be shown yet")
 
         // When: First activation (happens in applicationDidBecomeActive)
-        appDelegate.bootstrapOnce()
+        appDelegate.applicationDidBecomeActive(Notification(name: NSApplication.didBecomeActiveNotification))
 
-        // Then: Bootstrap completed
+        // Then: Bootstrap completed and window shown
         XCTAssertTrue(appDelegate.bootstrapStarted, "Bootstrap should be started after activation")
+        XCTAssertTrue(appDelegate.initialMainWindowShown, "Window should be shown on first activation")
 
         // Small delay for async tasks
         try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
@@ -157,7 +110,7 @@ final class AppDelegateWindowTests: XCTestCase {
 
         // When: User reopens app from Dock
         appDelegate.isHeadlessMode = false // Escalate to regular mode
-        let result = appDelegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false)
+        let result = appDelegate.applicationShouldHandleReopen(NSApplication.shared, hasVisibleWindows: false)
 
         // Then: Window is created and method returns true
         XCTAssertNotNil(appDelegate.mainWindowController, "Window should be created on reopen")

@@ -15,7 +15,7 @@ final class KarabinerConflictServiceFastPathTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempHome)
     }
 
-    func testIsKarabinerElementsRunningRespectsDisabledMarker() async {
+    func testIsKarabinerElementsRunningRespectsDisabledMarker() async throws {
         // Create the disabled marker file to force early return path
         let marker = tempHome.appendingPathComponent(".keypath/karabiner-grabber-disabled")
         try FileManager.default.createDirectory(at: marker.deletingLastPathComponent(), withIntermediateDirectories: true)
