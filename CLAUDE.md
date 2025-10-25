@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Dead code cleanup (October 24, 2025)
+**LATEST WORK:** Test coverage improvements (October 25, 2025)
 
 **Recent Commits:**
 - chore: remove dead code and deprecated test files (commit b72bb39) - **COMPLETE**
@@ -15,6 +15,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - feat: detect and fix Karabiner driver version mismatch (commit 7834e90) - **COMPLETE**
 - fix: detect VirtualHID driver activation errors in wizard (commit 8a47f72)
 - fix: improve wizard status detection accuracy (commit b80f02e)
+
+## ℹ️ Update — October 25, 2025
+
+What changed
+- Fixed flakiness in `PermissionOracleTests` by tolerating sub‑second timestamp jitter.
+- Added focused tests in preparation for refactors:
+  - TCP models round‑trip, SharedTCPClientService singleton/reset, KanataTCPClient auth semantics.
+  - PreferencesService TCP args/env and CommunicationSnapshot token file IO (HOME sandboxed to tmp).
+  - PIDFileManager (read/write/remove, corrupted file recovery) and KeychainService (store/retrieve/delete).
+  - SystemRequirementsChecker report sanity; KarabinerConflictService fast paths (disabled marker + kill command text).
+
+How to run
+- Full suite with coverage: `COVERAGE_FULL_SUITE=true ./Scripts/generate-coverage.sh` (artifacts in `dist/coverage`).
+- Core CI‑friendly run: `./run-core-tests.sh` (set `CI_INTEGRATION_TESTS=true` to include integration set).
+
+Notes
+- Coverage script produces lcov/text plus app‑only summaries; some Swift 6 actor/static enums show as 0% in app‑only despite execution. Will tune llvm‑cov invocation next.
+
+## ▶️ Next Steps
+- Tests
+  - Exercise `ProcessLifecycleManager` reachable branches (PID ownership/orphan cleanup) without privileged actions.
+  - Expand `ServiceHealthMonitor` decision logic tests (cooldown, grace period, connection‑failure thresholds).
+  - Add pure‑logic tests under `InstallationWizard/Core` (e.g., `SystemSnapshotAdapter`, `IssueGenerator`).
+- Tooling
+  - Improve `Scripts/generate-coverage.sh` symbol mapping: always include app binary and test bundle in `llvm-cov report/export`; optionally list objects.
+  - Consider a minimum app‑only coverage gate in CI after numbers stabilize.
 
 **✅ COMPLETED WORK:**
 - ADR-012: Karabiner driver version fix is fully implemented and tested

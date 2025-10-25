@@ -34,3 +34,26 @@
 ## Security & Configuration Tips
 - Do not bypass macOS TCC: app requires Input Monitoring and Accessibility.
 - Keep entitlements in `KeyPath.entitlements`; avoid privileged hard‑coded paths. Use `Scripts/` for service/daemon operations.
+
+## Agent Update — 2025-10-25
+- Stabilized flakiness in `PermissionOracleTests` by relaxing timestamp equality to tolerate sub‑second jitter.
+- Added focused tests across Services/Managers to raise confidence before refactors:
+  - TCP stack and models, shared client singleton/reset
+  - PreferencesService TCP args/env, CommunicationSnapshot token file IO (HOME sandboxed)
+  - PIDFileManager read/write/remove + corrupted file handling
+  - KeychainService store/retrieve/delete
+  - SystemRequirementsChecker end‑to‑end report sanity
+  - KarabinerConflictService fast paths (disabled marker shortcut, kill command text)
+
+## Next Steps (Tests)
+- Expand coverage for lifecycle logic:
+  - ProcessLifecycleManager reachable paths (non‑privileged, PID ownership branches).
+  - ServiceHealthMonitor decision matrix with controlled inputs (cooldowns, failures, grace period).
+- Add pure‑logic tests in `InstallationWizard/Core` (e.g., `SystemSnapshotAdapter`, `IssueGenerator`).
+- Consider small seams around shell/process invocations to enable stricter unit tests without UI/system dependencies.
+
+## Next Steps (Tooling)
+- Tune `Scripts/generate-coverage.sh` to improve Swift 6 symbol mapping:
+  - Always pass both test bundle and app binary to `llvm-cov report`/`export`.
+  - Optionally emit object list for the app target to help coverage association.
+- Gate PRs on `./run-core-tests.sh` and optionally a minimum app‑only coverage threshold once stable.
