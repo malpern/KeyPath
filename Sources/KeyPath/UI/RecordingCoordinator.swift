@@ -526,10 +526,6 @@ private extension RecordingCoordinator {
 
 extension RecordingCoordinator {
     /// Recording coordinator errors
-    ///
-    /// - Deprecated: Use `KeyPathError.coordination(...)` instead for consistent error handling
-    @available(*, deprecated, message: "Use KeyPathError.coordination(...) instead")
-
     enum RecordingFailureReason {
         case permissionFailure
         case captureInitializationFailure

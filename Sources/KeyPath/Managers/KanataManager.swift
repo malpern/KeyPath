@@ -11,12 +11,6 @@ actor ProcessSynchronizationActor {
     }
 }
 
-/// Errors related to configuration management
-/// Configuration validation and repair errors
-///
-/// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
-@available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
-
 /// Represents a simple key mapping from input to output
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID

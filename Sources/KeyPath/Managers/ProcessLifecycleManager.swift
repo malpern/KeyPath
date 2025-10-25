@@ -6,9 +6,6 @@ import Foundation
 /// - When we start kanata, we write a PID file
 /// - When checking conflicts, we read the PID file to know what we own
 /// - No more guessing based on command patterns
-///
-/// - Deprecated: Use `KeyPathError.process(...)` instead for consistent error handling
-@available(*, deprecated, message: "Use KeyPathError.process(...) instead")
 @MainActor
 
 enum ProcessIntent {
