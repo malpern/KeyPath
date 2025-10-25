@@ -164,7 +164,7 @@ jobs:
         echo "Artifacts: dist/coverage" >> $GITHUB_STEP_SUMMARY
 
     - name: Upload Pages Artifact (coverage HTML)
-      if: ${{ always() && hashFiles('dist/coverage/html/index.html') != '' }}
+      if: always()
       uses: actions/upload-pages-artifact@v3
       with:
         path: dist/coverage/html
@@ -205,7 +205,7 @@ jobs:
         retention-days: 30
 
   deploy-pages:
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ always() && (github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') }}
     needs: build-and-test
     runs-on: ubuntu-latest
     continue-on-error: true
