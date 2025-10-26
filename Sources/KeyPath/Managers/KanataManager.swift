@@ -727,14 +727,13 @@ class KanataManager {
             // Record when we're triggering a service kickstart for grace period tracking
             lastServiceKickstart = Date()
 
-            let success = await startLaunchDaemonService() // Already uses kickstart -k
-
-            if success {
-                AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via kickstart")
+            await kanataCoordinator.start() // delegates to ProcessService kickstart
+            let restartedStatus = await checkLaunchDaemonStatus()
+            if restartedStatus.isRunning {
+                AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via coordinator")
                 await healthMonitor.recordStartSuccess()
                 // Update service status after restart
-                let serviceStatus = await checkLaunchDaemonStatus()
-                if let pid = serviceStatus.pid {
+                if let pid = restartedStatus.pid {
                     AppLogger.shared.log("📝 [Start] Service restarted with PID: \(pid)")
                     let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
                     await processService.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
@@ -744,7 +743,7 @@ class KanataManager {
                 // Don't return - let it fall through to full startup sequence
             }
 
-            if success {
+            if restartedStatus.isRunning {
                 return // Successfully restarted, we're done
             }
         }
@@ -830,14 +829,13 @@ class KanataManager {
         // Start the LaunchDaemon service
         // Record when we're triggering a service start for grace period tracking
         lastServiceKickstart = Date()
-        let success = await startLaunchDaemonService()
+        await kanataCoordinator.start()
+        // Wait a moment for service to initialize
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
 
-        if success {
-                // Wait a moment for service to initialize
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-
-                // Verify service started successfully
-                let serviceStatus = await checkLaunchDaemonStatus()
+        // Verify service started successfully
+        let serviceStatus = await checkLaunchDaemonStatus()
+        if serviceStatus.isRunning {
                 if let pid = serviceStatus.pid {
                     AppLogger.shared.log("📝 [Start] LaunchDaemon service started with PID: \(pid)")
 
