@@ -23,11 +23,22 @@ class WizardNavigationEngine: WizardNavigating {
             AppLogger.shared.log("🔍 [NavigationEngine]   - \(issue.category): \(issue.title)")
         }
 
-        // 0. Full Disk Access (optional but helpful - show early if not checked)
-        // Show FDA page if we haven't shown it yet AND we're not in active state
-        if !hasShownFullDiskAccessPage, state != .active {
-            AppLogger.shared.log(
-                "🔍 [NavigationEngine] → .fullDiskAccess (first run - optional FDA check)")
+        // 0. Full Disk Access (optional) — only show first when there are no blocking issues
+        // Determine presence of higher-priority issues up front
+        let hasConflictIssues = issues.contains { $0.category == .conflicts }
+        let hasPermissionIssues = issues.contains {
+            if case .permission = $0.identifier { return true }
+            return false
+        }
+        let hasComponentIssues = issues.contains { issue in
+            issue.category == .installation || issue.category == .daemon || issue.category == .backgroundServices
+        }
+        if !hasShownFullDiskAccessPage,
+           state == .initializing,
+           !hasConflictIssues,
+           !hasPermissionIssues,
+           !hasComponentIssues {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .fullDiskAccess (optional pre-check)")
             hasShownFullDiskAccessPage = true
             return .fullDiskAccess
         }
@@ -242,9 +253,9 @@ class WizardNavigationEngine: WizardNavigating {
         case .conflicts:
             "Resolve Conflicts"
         case .permissions:
-            "Open System Settings"
+            "Open Settings"
         case .components:
-            "Install Required Components"
+            "Install Components"
         case .inputMonitoring, .accessibility:
             "Open System Settings"
         case .karabinerComponents:
@@ -254,7 +265,7 @@ class WizardNavigationEngine: WizardNavigating {
         case .communication:
             "Check TCP Server"
         case .service:
-            "Start Keyboard Service"
+            "Manage Service"
         case .fullDiskAccess:
             "Grant Full Disk Access"
         case .summary:

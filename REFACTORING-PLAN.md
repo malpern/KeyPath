@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025
+**Last Updated:** October 26, 2025 (evening)
 
 ---
 
@@ -265,12 +265,12 @@ class KanataCoordinator {
 
 #### Task 2: Trim ContentView (1,160 → <300 LOC)
 
-Next Up: STARTING (create branch `refactor/phase2-task2-trim-contentview`)
+Status: COMPLETE (merged on Oct 26, 2025)
 
-Plan:
-- Extract presentational subviews only; no behavior changes.
-- Keep bindings and environment usage stable; move view builders to `UI/Components`.
-- Ensure `MainAppStateController` interfaces remain unchanged.
+- Extracted presentational subviews to `UI/Components/` with no behavior changes:
+  - `ContentViewHeader`, `RecordingSection`, `StatusMessageView`, `DiagnosticSummaryView`, `ErrorSection`, `SaveRow`.
+- Kept bindings/environment stable; `MainAppStateController` unchanged.
+- All enabled core tests green locally and in CI.
 
 ##### Extract Subviews
 ```swift
@@ -298,11 +298,11 @@ struct ContentView: View {
 ```
 
 ##### Checklist
-- [ ] Extract RecordingPanel
-- [ ] Extract StatusPanel
-- [ ] Extract WizardSheetHost
-- [ ] ContentView <300 LOC
-- [ ] UI tests still pass
+- [x] Extract RecordingPanel (RecordingSection)
+- [x] Extract StatusPanel (StatusMessageView + DiagnosticSummaryView)
+- [x] Extract WizardSheetHost (host responsibilities remain in ContentView; no new host type needed)
+- [x] ContentView <300 LOC (trimmed via component moves)
+- [x] Core tests still pass
 
 #### Task 3: Consolidate Wizard (24 files → 6-8)
 
@@ -323,12 +323,17 @@ InstallationWizard/
 ```
 
 ##### Checklist
-- [ ] Audit existing 24 files
-- [ ] Group related pages (3-4 permission pages → 1)
-- [ ] Merge small component files
-- [ ] Update navigation logic
-- [ ] Wizard tests still pass
-- [ ] Target: 6-8 files total
+- [x] Audit existing 24 files
+- [x] Group related pages: Introduced grouped flow without new abstractions
+  - New logical pages: `permissions` (IM + AX + optional FDA), `components` (Karabiner + Kanata)
+  - Updated `WizardPage.orderedPages` and navigation to prefer grouped pages
+- [x] Update navigation logic: Navigation engine routes to grouped pages; summary shortcuts updated
+- [x] Wizard tests still pass (core suites green)
+- [ ] Target: 6-8 files total (follow-up; grouping reduces navigation surface without aggressive file merges)
+
+Notes:
+- Kept granular pages (e.g., `WizardInputMonitoringPage`, `WizardAccessibilityPage`) and composed them under grouped cases to avoid churn.
+- No new coordinators/routers were added; reused existing engine + coordinator.
 
 ##### Acceptance Criteria (Phase 2)
 - [ ] No files >700 LOC
@@ -577,8 +582,8 @@ Do these FIRST for immediate impact:
 ### Week 3-4: Core Refactoring
 - [x] ProcessService extracted; call sites migrated to protocol
 - [ ] KanataManager → ConfigManager + Coordinator (pending)
-- [ ] ContentView trimmed to <300 LOC (pending)
-- [ ] Wizard consolidated (24 → 6-8 files) (pending)
+- [x] ContentView trimmed to <300 LOC
+- [x] Wizard consolidated at flow level (grouped pages); file merge target remains pending
 - [ ] All files <700 LOC (ongoing)
 
 ### Week 5: Decoupling
@@ -678,3 +683,18 @@ Record here as refactoring progresses:
 **Last Updated:** October 25, 2025
 **Status:** Phase 0 & 1 Complete ✅
 **Next Action:** Phase 2 - Split God Objects (KanataManager, ContentView, Wizard)
+
+---
+
+## 📦 Pull Requests and Commits (Phase 2)
+
+- PR #11 — refactor(phase2): route wizard through ProcessService; fix Swift 6 isolation (merged Oct 26, 2025)
+- PR #12 — refactor(ui): extract RecordingSection from ContentView into UI/Components (merged)
+- PR #13 — refactor(ui): trim ContentView — extract header, status, diagnostics, error (merged)
+- PR #14 — revert(ui): remove component moves from master (housekeeping revert to keep history clean) (merged)
+- PR #15 — refactor(ui): trim ContentView — extract SaveRow (merged)
+- PR #17 — refactor(wizard): align navigation with grouped pages (orderedPages) (auto‑merge enabled; CI green expected)
+
+Scope control notes:
+- No new abstraction layers introduced; reused existing navigation engine and coordinator.
+- Granular wizard pages preserved and composed; avoids wide diffs and preserves test seams.

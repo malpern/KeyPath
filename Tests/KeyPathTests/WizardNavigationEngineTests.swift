@@ -32,7 +32,11 @@ class WizardNavigationEngineTests: XCTestCase {
 
     func testNavigationPriorityInstallationSecond() {
         // Given: System has component issues but no conflicts
-        let componentIssue = createTestIssue(category: .installation, title: "Kanata Binary Missing")
+        let componentIssue = createTestIssue(
+            category: .installation,
+            title: "Kanata Binary Missing",
+            identifier: .component(.kanataBinaryMissing)
+        )
         let permissionIssue = createTestIssue(category: .permissions, title: "Test Permission")
         let issues = [componentIssue, permissionIssue]
 
@@ -40,7 +44,7 @@ class WizardNavigationEngineTests: XCTestCase {
         let page = engine.determineCurrentPage(for: .missingComponents(missing: []), issues: issues)
 
         // Then: Should navigate to installation second
-        XCTAssertEqual(page, .kanataComponents, "Installation should have second highest priority")
+        XCTAssertEqual(page, .components, "Installation should have second highest priority (grouped)")
     }
 
     func testNavigationPriorityInputMonitoringThird() {
@@ -60,8 +64,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Determining current page
         let page = engine.determineCurrentPage(for: .missingPermissions(missing: []), issues: issues)
 
-        // Then: Should navigate to input monitoring before accessibility
-        XCTAssertEqual(page, .inputMonitoring, "Input monitoring should come before accessibility")
+        // Then: Should go to grouped permissions
+        XCTAssertEqual(page, .permissions, "Permissions should be grouped")
     }
 
     func testNavigationPriorityAccessibilityFourth() {
@@ -76,10 +80,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Determining current page
         let page = engine.determineCurrentPage(for: .missingPermissions(missing: []), issues: issues)
 
-        // Then: Should navigate to accessibility
-        XCTAssertEqual(
-            page, .accessibility, "Should navigate to accessibility when no input monitoring issues"
-        )
+        // Then: Should go to grouped permissions
+        XCTAssertEqual(page, .permissions, "Should navigate to grouped permissions when AX issues present")
     }
 
     func testNavigationServiceNotRunning() {
@@ -120,13 +122,12 @@ class WizardNavigationEngineTests: XCTestCase {
     func testPageOrder() {
         // Given: Navigation engine
         let expectedOrder: [WizardPage] = [
+            .summary,
+            .permissions,
+            .components,
             .conflicts,
-            .inputMonitoring,
-            .accessibility,
             .service,
-            .kanataComponents,
-            .service,
-            .summary
+            .communication
         ]
 
         // When: Getting page order
@@ -140,12 +141,13 @@ class WizardNavigationEngineTests: XCTestCase {
         // Given: Navigation engine
 
         // When: Getting page indices
-        let conflictsIndex = engine.pageIndex(.conflicts)
         let summaryIndex = engine.pageIndex(.summary)
+        let lastIndex = engine.pageIndex(.communication)
+        let expectedOrderCount = engine.getPageOrder().count
 
         // Then: Should return correct indices
-        XCTAssertEqual(conflictsIndex, 0, "Conflicts should be first (index 0)")
-        XCTAssertEqual(summaryIndex, 7, "Summary should be last (index 7)")
+        XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
+        XCTAssertEqual(lastIndex, expectedOrderCount - 1, "Communication should be last")
     }
 
     // MARK: - Blocking Page Tests
@@ -155,8 +157,8 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // When: Checking if pages are blocking
         let conflictsBlocking = engine.isBlockingPage(.conflicts)
-        let installationBlocking = engine.isBlockingPage(.kanataComponents)
-        let permissionsBlocking = engine.isBlockingPage(.inputMonitoring)
+        let installationBlocking = engine.isBlockingPage(.components)
+        let permissionsBlocking = engine.isBlockingPage(.permissions)
         let backgroundServicesBlocking = engine.isBlockingPage(.service)
         let serviceBlocking = engine.isBlockingPage(.service)
         let summaryBlocking = engine.isBlockingPage(.summary)
@@ -215,8 +217,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // Given: Different pages
         let buttonTexts: [(WizardPage, String)] = [
             (.conflicts, "Resolve Conflicts"),
-            (.inputMonitoring, "Open Settings"),
-            (.kanataComponents, "Install Components"),
+            (.permissions, "Open Settings"),
+            (.components, "Install Components"),
             (.service, "Manage Service")
         ]
 
@@ -263,7 +265,7 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // Then: Navigation state should be correct
         XCTAssertEqual(navState.currentPage, currentPage)
-        XCTAssertEqual(navState.availablePages, WizardPage.allCases)
+        XCTAssertEqual(navState.availablePages, WizardPage.orderedPages)
         XCTAssertTrue(navState.canNavigatePrevious, "Should always allow going back")
     }
 
@@ -272,20 +274,28 @@ class WizardNavigationEngineTests: XCTestCase {
     func testNextPageLogic() {
         // Given: Current page and system state with issues
         let currentPage = WizardPage.conflicts
-        let issues = [createTestIssue(category: .installation, title: "Kanata Binary Missing")]
+        let issues = [createTestIssue(
+            category: .installation,
+            title: "Kanata Binary Missing",
+            identifier: .component(.kanataBinaryMissing)
+        )]
         let systemState = WizardSystemState.missingComponents(missing: [])
 
         // When: Getting next page
         let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
         // Then: Should return the target page based on current issues
-        XCTAssertEqual(nextPage, .kanataComponents, "Next page should be installation based on issues")
+        XCTAssertEqual(nextPage, .components, "Next page should be installation (grouped components) based on issues")
     }
 
     func testNextPageWhenAlreadyOnTarget() {
         // Given: Already on the target page
-        let currentPage = WizardPage.kanataComponents
-        let issues = [createTestIssue(category: .installation, title: "Kanata Binary Missing")]
+        let currentPage = WizardPage.components
+        let issues = [createTestIssue(
+            category: .installation,
+            title: "Kanata Binary Missing",
+            identifier: .component(.kanataBinaryMissing)
+        )]
         let systemState = WizardSystemState.missingComponents(missing: [])
 
         // When: Getting next page
