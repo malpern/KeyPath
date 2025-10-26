@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025 (late night)
+**Last Updated:** October 26, 2025 (very late night)
 
 ---
 
@@ -264,7 +264,7 @@ class KanataCoordinator {
 - [x] Replace remaining direct references in Wizard with `ProcessService`
 - [x] Tests still pass (`./run-core-tests.sh` green locally)
 - [x] Introduce thin `ConfigurationManager` wrapper (added)
-- [ ] Migrate limited call sites to `ConfigurationManager` (keep diffs small)
+- [x] Start migrating call sites to `ConfigurationManager` (PR #20)
 - [ ] Refactor KanataManager → KanataCoordinator
 - [ ] KanataCoordinator <300 LOC
 - [ ] Delete or mark old KanataManager deprecated
@@ -588,10 +588,15 @@ Do these FIRST for immediate impact:
 ### Week 3-4: Core Refactoring
 - [x] ProcessService extracted; call sites migrated to protocol
 - [x] App + Wizard decoupled from ProcessLifecycleManager (PR #19)
-- [ ] KanataManager → ConfigManager + Coordinator (pending)
+- [ ] KanataManager → ConfigManager + Coordinator (in progress)
 - [x] ContentView trimmed to <300 LOC
 - [x] Wizard consolidated at flow level (grouped pages); file merge target remains pending
 - [ ] All files <700 LOC (ongoing)
+
+Recent PRs:
+- #19: Decouple app/wizard from ProcessLifecycleManager — merged Oct 26
+- #20: Begin adopting ConfigurationManager in KanataManager — merged Oct 26
+- #21: Start wiring KanataCoordinator (stop path only) — merged Oct 26
 
 ### Week 5: Decoupling
 - [ ] UI imports removed from Infrastructure
