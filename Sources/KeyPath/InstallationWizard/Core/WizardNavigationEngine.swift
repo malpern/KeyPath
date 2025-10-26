@@ -52,13 +52,10 @@ class WizardNavigationEngine: WizardNavigating {
             return false
         }
 
-        if inputMonitoringIssues {
+        if inputMonitoringIssues || accessibilityIssues {
             AppLogger.shared.log(
-                "🔍 [NavigationEngine] → .inputMonitoring (found Input Monitoring issues)")
-            return .inputMonitoring
-        } else if accessibilityIssues {
-            AppLogger.shared.log("🔍 [NavigationEngine] → .accessibility (found Accessibility issues)")
-            return .accessibility
+                "🔍 [NavigationEngine] → .permissions (found permission issues)")
+            return .permissions
         }
 
         // 3. Communication Server Configuration Issues (critical for permission detection)
@@ -104,11 +101,7 @@ class WizardNavigationEngine: WizardNavigating {
             return issue.category == .daemon || issue.category == .backgroundServices
         }
 
-        if hasKarabinerIssues {
-            AppLogger.shared.log(
-                "🔍 [NavigationEngine] → .karabinerComponents (found Karabiner-related issues)")
-            return .karabinerComponents
-        }
+        var needsComponents = hasKarabinerIssues
 
         // 5. Kanata Components - binary and service
         let hasKanataIssues = issues.contains { issue in
@@ -124,9 +117,11 @@ class WizardNavigationEngine: WizardNavigating {
             return false
         }
 
-        if hasKanataIssues {
-            AppLogger.shared.log("🔍 [NavigationEngine] → .kanataComponents (found Kanata-related issues)")
-            return .kanataComponents
+        if hasKanataIssues { needsComponents = true }
+
+        if needsComponents {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .components (found component issues)")
+            return .components
         }
 
         // 6. Service state check (directly from WizardSystemState)
@@ -188,16 +183,7 @@ class WizardNavigationEngine: WizardNavigating {
 
     /// Returns the typical ordering of pages for a complete setup flow
     func getPageOrder() -> [WizardPage] {
-        [
-            .summary, // Overview
-            .fullDiskAccess, // Optional FDA for better diagnostics
-            .conflicts, // Must resolve conflicts first
-            .inputMonitoring, // Input Monitoring permission
-            .accessibility, // Accessibility permission
-            .karabinerComponents, // Karabiner driver and VirtualHID setup
-            .kanataComponents, // Kanata binary and service setup
-            .service // Start keyboard service
-        ]
+        WizardPage.orderedPages
     }
 
     /// Returns the index of a page in the typical flow
@@ -211,10 +197,14 @@ class WizardNavigationEngine: WizardNavigating {
         switch page {
         case .conflicts:
             true // Cannot proceed with conflicts
-        case .karabinerComponents, .kanataComponents:
+        case .components:
             true // Cannot use without components
-        case .inputMonitoring, .accessibility:
+        case .permissions:
             false // Can proceed but functionality limited
+        case .inputMonitoring, .accessibility:
+            false
+        case .karabinerComponents, .kanataComponents:
+            true
         case .service:
             false // Can manage service state
         case .fullDiskAccess:
@@ -251,9 +241,11 @@ class WizardNavigationEngine: WizardNavigating {
         switch page {
         case .conflicts:
             "Resolve Conflicts"
-        case .inputMonitoring:
+        case .permissions:
             "Open System Settings"
-        case .accessibility:
+        case .components:
+            "Install Required Components"
+        case .inputMonitoring, .accessibility:
             "Open System Settings"
         case .karabinerComponents:
             "Install Karabiner Components"
@@ -291,9 +283,9 @@ class WizardNavigationEngine: WizardNavigating {
                 return !conflicts.isEmpty
             }
             return false
-        case .inputMonitoring, .accessibility:
+        case .permissions, .inputMonitoring, .accessibility:
             return true // Can always open settings
-        case .karabinerComponents, .kanataComponents:
+        case .components, .karabinerComponents, .kanataComponents:
             if case let .missingComponents(missing) = state {
                 return !missing.isEmpty
             }
