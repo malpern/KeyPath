@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025 (wrap‑up)
+**Last Updated:** October 26, 2025 (end of night)
 
 ---
 
@@ -599,6 +599,7 @@ Recent PRs:
 - #21: Start wiring KanataCoordinator (stop path) — merged Oct 26
 - #22: Delegate start path to KanataCoordinator (no behavior change) — merged Oct 26
 - #23: Adopt ConfigurationManager for backup/repair flows — merged Oct 26
+- #24: Delegate restart path to KanataCoordinator — merged Oct 26
 
 ### Week 5: Decoupling
 - [ ] UI imports removed from Infrastructure
