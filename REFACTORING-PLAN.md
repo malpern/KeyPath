@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025 (very late night)
+**Last Updated:** October 26, 2025 (night wrap‑up)
 
 ---
 
@@ -596,7 +596,8 @@ Do these FIRST for immediate impact:
 Recent PRs:
 - #19: Decouple app/wizard from ProcessLifecycleManager — merged Oct 26
 - #20: Begin adopting ConfigurationManager in KanataManager — merged Oct 26
-- #21: Start wiring KanataCoordinator (stop path only) — merged Oct 26
+- #21: Start wiring KanataCoordinator (stop path) — merged Oct 26
+- #22: Delegate start path to KanataCoordinator (no behavior change) — merged Oct 26
 
 ### Week 5: Decoupling
 - [ ] UI imports removed from Infrastructure
