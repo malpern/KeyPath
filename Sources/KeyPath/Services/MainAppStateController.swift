@@ -51,8 +51,8 @@ class MainAppStateController: ObservableObject {
     func configure(with kanataManager: KanataManager) {
         self.kanataManager = kanataManager
 
-        // Create validator using ProcessService for conflict checks
-        let processService = ProcessService(lifecycle: ProcessLifecycleManager(kanataManager: kanataManager))
+        // Create validator using ProcessService for conflict checks (no direct ProcessLifecycleManager)
+        let processService = ProcessService()
         self.validator = SystemValidator(
             processLifecycleManager: processService,
             kanataManager: kanataManager

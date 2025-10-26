@@ -327,7 +327,7 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Terminating conflicting kanata processes")
 
         // Use ProcessService (facade) to find external kanata processes
-        let processService = ProcessService(lifecycle: ProcessLifecycleManager(kanataManager: kanataManager))
+        let processService = ProcessService()
         let conflicts = await processService.detectConflicts()
 
         if conflicts.externalProcesses.isEmpty {
