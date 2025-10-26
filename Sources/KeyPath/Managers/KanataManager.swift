@@ -220,6 +220,7 @@ class KanataManager {
     private var isStartingKanata = false
     private let processLifecycleManager: ProcessLifecycleManager
     let processService: ProcessService
+    let kanataCoordinator: KanataCoordinator
     var isInitializing = false
     private let isHeadlessMode: Bool
 
@@ -281,6 +282,9 @@ class KanataManager {
 
         // Initialize health monitor
         healthMonitor = ServiceHealthMonitor(processLifecycle: processService as any ProcessLifecycleProviding)
+
+        // Initialize coordinator (orchestration wrapper)
+        kanataCoordinator = KanataCoordinator(processService: processService, configManager: configurationManager)
 
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
@@ -1239,8 +1243,12 @@ class KanataManager {
     func stopKanata() async {
         AppLogger.shared.log("🛑 [Stop] Stopping Kanata LaunchDaemon service...")
 
-        // Stop the LaunchDaemon service
-        let success = await stopLaunchDaemonService()
+        // Stop via coordinator (delegates to ProcessService)
+        await kanataCoordinator.stop()
+
+        // Verify stopped
+        let statusAfter = await checkLaunchDaemonStatus()
+        let success = !statusAfter.isRunning
 
         if success {
             AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata LaunchDaemon service")
