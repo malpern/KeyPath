@@ -1793,7 +1793,7 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log("🔍 [LaunchDaemon] Analyzing Kanata logs for error patterns...")
 
         do {
-            let logContent = try String(contentsOfFile: "/var/log/kanata.log")
+            let logContent = try String(contentsOfFile: "/var/log/kanata.log", encoding: .utf8)
             let lastLines = logContent.components(separatedBy: .newlines).suffix(50).joined(
                 separator: "\n")
 

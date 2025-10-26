@@ -93,6 +93,11 @@ struct WizardCommunicationPage: View {
     }
 }
 
+// Minimal shim to preserve previous modifier usage
+struct BounceIfAvailable: ViewModifier {
+    func body(content: Content) -> some View { content }
+}
+
 struct WizardKanataServicePage: View {
     @EnvironmentObject var kanataViewModel: KanataViewModel
     let systemState: WizardSystemState
@@ -145,4 +150,3 @@ struct WizardKanataServicePage: View {
         .background(WizardDesign.Colors.wizardBackground)
     }
 }
-
