@@ -388,6 +388,7 @@ enum WizardConstants {
 // SystemStateDetecting protocol removed - SystemStatusChecker is now the single detection system
 
 /// Protocol for objects that can automatically fix issues
+@MainActor
 protocol AutoFixCapable {
     func canAutoFix(_ action: AutoFixAction) -> Bool
     func performAutoFix(_ action: AutoFixAction) async -> Bool

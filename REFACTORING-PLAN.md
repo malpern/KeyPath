@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 25, 2025
+**Last Updated:** October 26, 2025
 
 ---
 
@@ -186,6 +186,19 @@
 
 #### Task 1: Split KanataManager (2,788 lines → ~700)
 
+Status: COMPLETE (PR #10 merged on Oct 26, 2025)
+
+- Introduced `ProcessService` as the façade for lifecycle/launchctl operations.
+- Added `ProcessLifecycleProviding` protocol; `ProcessService` and `ProcessLifecycleManager` both conform.
+- `ServiceHealthMonitor`, `SystemValidator`, `DiagnosticsService`, `KanataManager` now depend on the protocol rather than the concrete manager.
+- Replaced remaining direct usages in the wizard layer:
+  - `WizardStateManager` now constructs `SystemValidator` with `ProcessService`.
+  - `WizardAutoFixer` uses `ProcessService` for conflict detection; class and protocol (`AutoFixCapable`) are scoped to `@MainActor` to satisfy Swift 6 isolation.
+- Added/adjusted tests: core suites pass via `./run-core-tests.sh` locally.
+
+Follow‑ups (non‑blocking):
+- Consider moving `ProcessInfo` type out of `ProcessLifecycleManager` into a shared model to eliminate lingering type references in `WizardTypes`.
+
 ##### Extract ProcessService (~400 LOC)
 ```swift
 // NEW: Sources/KeyPath/Services/ProcessService.swift
@@ -241,15 +254,23 @@ class KanataCoordinator {
 ```
 
 ##### Checklist
-- [ ] Create ProcessService.swift
+- [x] Create `ProcessService.swift`
+- [x] Update core services and validator to depend on `ProcessLifecycleProviding`
+- [x] Replace remaining direct references in Wizard with `ProcessService`
+- [x] Tests still pass (`./run-core-tests.sh` green locally)
 - [ ] Consolidate ConfigurationService (or introduce thin ConfigurationManager wrapper)
 - [ ] Refactor KanataManager → KanataCoordinator
-- [ ] Update all callers to use new services
-- [ ] Tests still pass ✅
 - [ ] KanataCoordinator <300 LOC
 - [ ] Delete or mark old KanataManager deprecated
 
 #### Task 2: Trim ContentView (1,160 → <300 LOC)
+
+Next Up: STARTING (create branch `refactor/phase2-task2-trim-contentview`)
+
+Plan:
+- Extract presentational subviews only; no behavior changes.
+- Keep bindings and environment usage stable; move view builders to `UI/Components`.
+- Ensure `MainAppStateController` interfaces remain unchanged.
 
 ##### Extract Subviews
 ```swift
@@ -554,10 +575,11 @@ Do these FIRST for immediate impact:
 - [x] Baseline coverage established
 
 ### Week 3-4: Core Refactoring
-- [ ] KanataManager → ProcessService + ConfigManager + Coordinator
-- [ ] ContentView trimmed to <300 LOC
-- [ ] Wizard consolidated (24 → 6-8 files)
-- [ ] All files <700 LOC
+- [x] ProcessService extracted; call sites migrated to protocol
+- [ ] KanataManager → ConfigManager + Coordinator (pending)
+- [ ] ContentView trimmed to <300 LOC (pending)
+- [ ] Wizard consolidated (24 → 6-8 files) (pending)
+- [ ] All files <700 LOC (ongoing)
 
 ### Week 5: Decoupling
 - [ ] UI imports removed from Infrastructure

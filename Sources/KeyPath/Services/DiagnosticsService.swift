@@ -59,10 +59,10 @@ protocol DiagnosticsServiceProtocol: Sendable {
 
 final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable {
     // Dependencies
-    private let processLifecycleManager: ProcessLifecycleManager
+    private let processLifecycle: ProcessLifecycleProviding
 
-    init(processLifecycleManager: ProcessLifecycleManager) {
-        self.processLifecycleManager = processLifecycleManager
+    init(processLifecycleManager: ProcessLifecycleProviding) {
+        self.processLifecycle = processLifecycleManager
     }
 
     // MARK: - Failure Analysis
@@ -324,7 +324,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
     func checkProcessConflicts() async -> [KanataDiagnostic] {
         var diagnostics: [KanataDiagnostic] = []
-        let conflicts = await processLifecycleManager.detectConflicts()
+        let conflicts = await processLifecycle.detectConflicts()
 
         // Show managed processes (informational)
         if !conflicts.managedProcesses.isEmpty {
