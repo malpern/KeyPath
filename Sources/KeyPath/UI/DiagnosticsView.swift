@@ -544,7 +544,7 @@ struct ConfigStatusSection: View {
                 .buttonStyle(.plain)
 
                 if showConfigContent {
-                    if let configContent = try? String(contentsOfFile: kanataManager.configPath) {
+                    if let configContent = try? String(contentsOfFile: kanataManager.configPath, encoding: .utf8) {
                         ScrollView {
                             Text(configContent)
                                 .font(.system(.caption, design: .monospaced))

@@ -886,7 +886,7 @@ class WizardAutoFixer: AutoFixCapable {
             }
 
             // Read the user config
-            let configContent = try String(contentsOfFile: userConfigPath)
+            let configContent = try String(contentsOfFile: userConfigPath, encoding: .utf8)
             AppLogger.shared.log("📄 [AutoFixer] Read \(configContent.count) characters from user config")
 
             // Use AppleScript to write to system location with admin privileges
@@ -905,7 +905,7 @@ class WizardAutoFixer: AutoFixCapable {
 
             // Verify the file was written
             if FileManager.default.fileExists(atPath: systemConfigPath) {
-                let systemContent = try String(contentsOfFile: systemConfigPath)
+                let systemContent = try String(contentsOfFile: systemConfigPath, encoding: .utf8)
                 let success = systemContent == configContent
 
                 if success {

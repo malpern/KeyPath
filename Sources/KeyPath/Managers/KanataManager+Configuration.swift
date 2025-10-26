@@ -158,7 +158,7 @@ extension KanataManager {
         }
 
         do {
-            let logContent = try String(contentsOfFile: logPath)
+            let logContent = try String(contentsOfFile: logPath, encoding: .utf8)
 
             // Look for the pattern: "TCP auth token: <token>"
             // Token is base64-style with uppercase, lowercase, and digits

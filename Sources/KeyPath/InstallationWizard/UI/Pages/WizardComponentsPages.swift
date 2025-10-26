@@ -83,18 +83,7 @@ struct WizardKarabinerComponentsPage: View {
                                     }
                                 }
 
-                                HStack(spacing: 12) {
-                                    Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
-                                    HStack(spacing: 0) {
-                                        Text("Background Services")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Karabiner services in Login Items for startup")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
+                                // Background Services row trimmed during consolidation to reduce complexity
                             }
                             Spacer()
                         }
@@ -153,7 +142,6 @@ struct WizardKarabinerComponentsPage: View {
 
 /// Kanata components setup page
 struct WizardKanataComponentsPage: View {
-    let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
     let onAutoFix: (AutoFixAction) async -> Bool
@@ -241,4 +229,3 @@ struct WizardKanataComponentsPage: View {
         issues.contains { $0.category == .installation && ($0.title.contains("Kanata Binary") || $0.title.contains("Kanata Service")) }
     }
 }
-
