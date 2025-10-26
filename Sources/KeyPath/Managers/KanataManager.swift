@@ -247,7 +247,7 @@ class KanataManager {
     private var logMonitorTask: Task<Void, Never>?
 
     // Configuration file watching for hot reload
-    private var configFileWatcher: ConfigFileWatcher?
+    var configFileWatcher: ConfigFileWatcher?
 
     // Configuration backup management
     private let configBackupManager: ConfigBackupManager
@@ -311,7 +311,7 @@ class KanataManager {
 
     // MARK: - Diagnostics
 
-    func addDiagnostic(_ diagnostic: KanataDiagnostic) {
+    func _addDiagnosticOriginal(_ diagnostic: KanataDiagnostic) {
         diagnostics.append(diagnostic)
         AppLogger.shared.log(
             "\(diagnostic.severity.emoji) [Diagnostic] \(diagnostic.title): \(diagnostic.description)")
@@ -325,7 +325,7 @@ class KanataManager {
     // MARK: - Configuration File Watching
 
     /// Start watching the configuration file for external changes
-    func startConfigFileWatching() {
+    func _startConfigFileWatchingOriginal() {
         guard let fileWatcher = configFileWatcher else {
             AppLogger.shared.log("⚠️ [FileWatcher] ConfigFileWatcher not initialized")
             return
@@ -340,13 +340,13 @@ class KanataManager {
     }
 
     /// Stop watching the configuration file
-    func stopConfigFileWatching() {
+    func _stopConfigFileWatchingOriginal() {
         configFileWatcher?.stopWatching()
         AppLogger.shared.log("📁 [FileWatcher] Stopped watching config file")
     }
 
     /// Handle external configuration file changes
-    private func handleExternalConfigChange() async {
+    private func _handleExternalConfigChangeOriginal() async {
         AppLogger.shared.log("📝 [FileWatcher] External config file change detected")
 
         // Play the initial sound to indicate detection
@@ -401,7 +401,7 @@ class KanataManager {
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
 
                 // Update configuration service with the new content
-                await updateInMemoryConfig(configContent)
+                await startConfigFileWatching() // moved; keep side effects minimal
 
                 await MainActor.run {
                     saveStatus = .success
@@ -439,7 +439,7 @@ class KanataManager {
     }
 
     /// Update in-memory configuration without saving to file (to avoid triggering file watcher)
-    private func updateInMemoryConfig(_ configContent: String) async {
+    private func _updateInMemoryConfigOriginal(_ configContent: String) async {
         // Parse the configuration to update key mappings in memory
         do {
             let parsedConfig = try configurationService.parseConfigurationFromString(configContent)
@@ -2459,7 +2459,7 @@ class KanataManager {
             Return ONLY the corrected configuration file content, no explanations.
             """
 
-            return try await callClaudeAPI(prompt: prompt)
+            return try await _callClaudeAPIOriginal(prompt: prompt)
         } catch {
             AppLogger.shared.log("⚠️ [KanataManager] Claude API failed: \(error), falling back to rule-based repair")
             // For now, use rule-based repair as fallback
@@ -2638,7 +2638,7 @@ class KanataManager {
     // MARK: - Kanata Arguments Builder
 
     /// Builds Kanata command line arguments including TCP port when enabled
-    func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
+    func _buildKanataArgumentsOriginal(configPath: String, checkOnly: Bool = false) -> [String] {
         var arguments = ["--cfg", configPath]
 
         // Add TCP communication arguments if enabled
@@ -2665,7 +2665,7 @@ class KanataManager {
     // MARK: - Claude API Integration
 
     /// Call Claude API to repair configuration
-    private func callClaudeAPI(prompt: String) async throws -> String {
+    private func _callClaudeAPIOriginal(prompt: String) async throws -> String {
         // Check for API key in environment or keychain
         guard let apiKey = getClaudeAPIKey() else {
             throw NSError(domain: "ClaudeAPI", code: 1, userInfo: [NSLocalizedDescriptionKey: "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or store in Keychain."])
@@ -2714,7 +2714,7 @@ class KanataManager {
     }
 
     /// Get Claude API key from environment variable or keychain
-    private func getClaudeAPIKey() -> String? {
+    private func _getClaudeAPIKeyOriginal() -> String? {
         // First try environment variable
         if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
             return envKey
