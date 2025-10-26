@@ -141,6 +141,16 @@ struct WizardStateInterpreter {
                     || $0.identifier == .permission(.keyPathAccessibility)
                     || $0.identifier == .permission(.driverExtensionEnabled)
             }
+        case .permissions:
+            // Combined permissions page (IM + AX + driver extension)
+            issues.filter {
+                if case let .permission(p) = $0.identifier {
+                    return p == .kanataInputMonitoring || p == .keyPathInputMonitoring ||
+                           p == .kanataAccessibility || p == .keyPathAccessibility ||
+                           p == .driverExtensionEnabled
+                }
+                return false
+            }
         case .karabinerComponents:
             // Karabiner-related components and background services
             issues.filter { issue in
@@ -176,6 +186,22 @@ struct WizardStateInterpreter {
                     }
                 }
                 return false
+            }
+        case .components:
+            // Combined components page: Karabiner + Kanata related + daemon/background
+            issues.filter { issue in
+                if issue.category == .installation {
+                    switch issue.identifier {
+                    case .component(.karabinerDriver), .component(.karabinerDaemon), .component(.vhidDeviceManager),
+                         .component(.vhidDeviceActivation), .component(.vhidDeviceRunning), .component(.launchDaemonServices),
+                         .component(.vhidDaemonMisconfigured), .component(.vhidDriverVersionMismatch),
+                         .component(.kanataBinaryMissing), .component(.kanataService):
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                return issue.category == .daemon || issue.category == .backgroundServices
             }
         case .communication:
             // Communication Server issues

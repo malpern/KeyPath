@@ -77,7 +77,7 @@ extension WizardNavigationCoordinator {
     var navigationState: WizardNavigationState {
         WizardNavigationState(
             currentPage: currentPage,
-            availablePages: WizardPage.allCases,
+            availablePages: WizardPage.orderedPages,
             canNavigateNext: false, // This would need system state to determine
             canNavigatePrevious: false, // This would need system state to determine
             shouldAutoNavigate: !isInUserInteractionMode()
@@ -93,7 +93,7 @@ extension WizardNavigationCoordinator {
     func getAvailablePages(for _: WizardSystemState) -> [WizardPage] {
         // This could be enhanced to show which pages are accessible
         // based on current system state
-        WizardPage.allCases
+        WizardPage.orderedPages
     }
 }
 

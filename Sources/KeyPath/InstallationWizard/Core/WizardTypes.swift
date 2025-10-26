@@ -8,6 +8,8 @@ enum WizardPage: String, CaseIterable {
     case summary = "Summary"
     case fullDiskAccess = "Full Disk Access"
     case conflicts = "Resolve Conflicts"
+    case permissions = "Permissions"
+    case components = "Components"
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
     case communication = "Communication"
@@ -21,6 +23,8 @@ enum WizardPage: String, CaseIterable {
         case .summary: "Setup Overview"
         case .fullDiskAccess: "Full Disk Access (Optional)"
         case .conflicts: "Resolve System Conflicts"
+        case .permissions: "Grant Required Permissions"
+        case .components: "Install Required Components"
         case .inputMonitoring: "Input Monitoring Permission"
         case .accessibility: "Accessibility Permission"
         case .karabinerComponents: "Karabiner Driver Setup"
@@ -36,6 +40,8 @@ enum WizardPage: String, CaseIterable {
         case .summary: "overview"
         case .fullDiskAccess: "full-disk-access"
         case .conflicts: "conflicts"
+        case .permissions: "permissions"
+        case .components: "components"
         case .inputMonitoring: "input-monitoring"
         case .accessibility: "accessibility"
         case .karabinerComponents: "karabiner-components"
@@ -51,12 +57,9 @@ enum WizardPage: String, CaseIterable {
 extension WizardPage {
     static let orderedPages: [WizardPage] = [
         .summary,
-        .fullDiskAccess,
+        .permissions,
+        .components,
         .conflicts,
-        .inputMonitoring,
-        .accessibility,
-        .karabinerComponents,
-        .kanataComponents,
         .service,
         .communication
     ]

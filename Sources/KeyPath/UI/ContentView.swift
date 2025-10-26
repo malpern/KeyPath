@@ -61,27 +61,14 @@ struct ContentView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
 
-            HStack {
-                Spacer()
-                Button(action: { debouncedSave() }) {
-                    HStack {
-                        if kanataManager.saveStatus.isActive {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .frame(width: 16, height: 16)
-                        }
-                        Text(kanataManager.saveStatus.message.isEmpty ? "Save" : kanataManager.saveStatus.message)
-                    }
-                    .frame(minWidth: 100)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(recordingCoordinator.capturedInputSequence() == nil ||
-                          recordingCoordinator.capturedOutputSequence() == nil ||
-                          kanataManager.saveStatus.isActive)
-                .accessibilityIdentifier("save-mapping-button")
-                .accessibilityLabel(kanataManager.saveStatus.message.isEmpty ? "Save key mapping" : kanataManager.saveStatus.message)
-                .accessibilityHint("Save the input and output key mapping to your configuration")
-            }
+            SaveRow(
+                isActive: kanataManager.saveStatus.isActive,
+                label: kanataManager.saveStatus.message.isEmpty ? "Save" : kanataManager.saveStatus.message,
+                isDisabled: (recordingCoordinator.capturedInputSequence() == nil ||
+                             recordingCoordinator.capturedOutputSequence() == nil ||
+                             kanataManager.saveStatus.isActive),
+                onSave: { debouncedSave() }
+            )
 
             // Debug row removed in production UI
 

@@ -217,6 +217,50 @@ struct InstallationWizardView: View {
                         onRefresh: { refreshState() },
                         kanataManager: kanataManager
                     )
+                case .permissions:
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        WizardInputMonitoringPage(
+                            systemState: systemState,
+                            issues: currentIssues.filter { $0.category == .permissions },
+                            onRefresh: { refreshState() },
+                            onNavigateToPage: { page in navigationCoordinator.navigateToPage(page) },
+                            onDismiss: { dismissAndRefreshMainScreen() },
+                            kanataManager: kanataManager
+                        )
+
+                        WizardAccessibilityPage(
+                            systemState: systemState,
+                            issues: currentIssues.filter { $0.category == .permissions },
+                            onRefresh: { refreshState() },
+                            onNavigateToPage: { page in navigationCoordinator.navigateToPage(page) },
+                            onDismiss: { dismissAndRefreshMainScreen() },
+                            kanataManager: kanataManager
+                        )
+
+                        // Optional FDA page last
+                        WizardFullDiskAccessPage()
+                    }
+
+                case .components:
+                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                        WizardKarabinerComponentsPage(
+                            systemState: systemState,
+                            issues: currentIssues,
+                            isFixing: asyncOperationManager.hasRunningOperations,
+                            onAutoFix: performAutoFix,
+                            onRefresh: { refreshState() },
+                            kanataManager: kanataManager
+                        )
+
+                        WizardKanataComponentsPage(
+                            issues: currentIssues,
+                            isFixing: asyncOperationManager.hasRunningOperations,
+                            onAutoFix: performAutoFix,
+                            onRefresh: { refreshState() },
+                            kanataManager: kanataManager
+                        )
+                    }
+
                 case .inputMonitoring:
                     WizardInputMonitoringPage(
                         systemState: systemState,
