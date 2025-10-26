@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025 (end of night, consolidation complete)
+**Last Updated:** October 26, 2025 (post‑service consolidation ✅)
 
 ---
 
@@ -307,8 +307,8 @@ struct ContentView: View {
 - [x] Extract RecordingPanel (RecordingSection)
 - [x] Extract StatusPanel (StatusMessageView + DiagnosticSummaryView)
 - [x] Extract WizardSheetHost (host responsibilities remain in ContentView; no new host type needed)
-- [x] ContentView <300 LOC (trimmed via component moves)
-- [x] Core tests still pass
+- [x] ContentView <300 LOC (trimmed via component moves) ✅
+- [x] Core tests still pass ✅
 
 #### Task 3: Consolidate Wizard (24 files → 6-8)
 
@@ -333,9 +333,9 @@ InstallationWizard/
 - [x] Group related pages: Introduced grouped flow without new abstractions
   - New logical pages: `permissions` (IM + AX + optional FDA), `components` (Karabiner + Kanata)
   - Updated `WizardPage.orderedPages` and navigation to prefer grouped pages
-- [x] Update navigation logic: Navigation engine routes to grouped pages; summary shortcuts updated
-- [x] Wizard tests still pass (core suites green)
-- [x] Target: 6–8 files total — reached by consolidating Karabiner + Kanata into `WizardComponentsPages.swift` (PR #25); remaining pages are grouped and can be merged further later if desired.
+- [x] Update navigation logic: Navigation engine routes to grouped pages; summary shortcuts updated ✅
+- [x] Wizard tests still pass (core suites green) ✅
+- [x] Target: 6–8 files total — reached by consolidating Components (PR #25) and Service (PR #26) pages into `WizardComponentsPages.swift` and `WizardServicePages.swift` ✅
 
 Notes:
 - Kept granular pages (e.g., `WizardInputMonitoringPage`, `WizardAccessibilityPage`) and composed them under grouped cases to avoid churn.
@@ -344,9 +344,9 @@ Notes:
 ##### Acceptance Criteria (Phase 2)
 - [ ] No files >700 LOC
 - [ ] KanataManager eliminated or <300 LOC
-- [x] ContentView <300 LOC (Task 2 complete)
-- [x] Wizard consolidated to 6–8 files (components merged; grouped flow active)
-- [x] All tests green for merged PRs to date
+- [x] ContentView <300 LOC (Task 2 complete) ✅
+- [x] Wizard consolidated to 6–8 files (components + service consolidated; grouped flow active) ✅
+- [x] All tests green for merged PRs to date ✅
 - [ ] Lint warnings addressed (track macOS 15 deprecation warnings)
 
 ---
@@ -590,7 +590,7 @@ Do these FIRST for immediate impact:
 - [x] App + Wizard decoupled from ProcessLifecycleManager (PR #19)
 - [ ] KanataManager → ConfigManager + Coordinator (in progress)
 - [x] ContentView trimmed to <300 LOC
-- [x] Wizard consolidated at flow level (grouped pages); file merge target remains pending
+- [x] Wizard consolidated (components + service pages) ✅
 - [ ] All files <700 LOC (ongoing)
 
 Recent PRs:
