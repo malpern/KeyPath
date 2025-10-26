@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025 (end of night, post‑consolidation)
+**Last Updated:** October 26, 2025 (end of night, consolidation complete)
 
 ---
 
@@ -601,6 +601,7 @@ Recent PRs:
 - #23: Adopt ConfigurationManager for backup/repair flows — merged Oct 26
 - #24: Delegate restart path to KanataCoordinator — merged Oct 26
 - #25: Consolidate wizard components pages (Karabiner + Kanata) — merged Oct 26
+- #26: Consolidate wizard service pages (Communication + Service) — merged Oct 26
 
 ### Week 5: Decoupling
 - [ ] UI imports removed from Infrastructure
