@@ -2124,7 +2124,7 @@ class KanataManager {
     private func parseKanataConfig(_ configContent: String) -> [KeyMapping] {
         // Delegate to ConfigurationService for parsing
         do {
-            let config = try configurationService.parseConfigurationFromString(configContent)
+        let config = try configurationService.parseConfigurationFromString(configContent)
             return config.keyMappings
         } catch {
             AppLogger.shared.log("⚠️ [Parse] Failed to parse config: \(error)")
@@ -2452,7 +2452,7 @@ class KanataManager {
         async throws -> String
     {
         // Delegate to ConfigurationService for rule-based repair
-        return try await configurationService.repairConfiguration(config: config, errors: errors, mappings: mappings)
+        return try await configurationManager.repair(config: config, errors: errors, mappings: mappings)
     }
 
     /// Saves a validated config to disk
@@ -2553,7 +2553,7 @@ class KanataManager {
         -> String
     {
         // Delegate to ConfigurationService for backup and safe config application
-        let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
+        let backupPath = try await configurationManager.backupFailedAndApplySafe(
             failedConfig: failedConfig,
             mappings: mappings
         )
