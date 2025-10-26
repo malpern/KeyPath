@@ -1271,9 +1271,29 @@ class KanataManager {
     }
 
     func restartKanata() async {
-        AppLogger.shared.log("🔄 [Restart] Restarting Kanata...")
-        await stopKanata()
-        await startKanata()
+        AppLogger.shared.log("🔄 [Restart] Restarting Kanata via Coordinator...")
+        await kanataCoordinator.restart()
+        // Verify and update internal state similar to start/stop paths
+        let status = await checkLaunchDaemonStatus()
+        if status.isRunning {
+            // Mirror start success bookkeeping
+            if let pid = status.pid {
+                let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
+                await processService.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+            }
+            updateInternalState(
+                isRunning: true,
+                lastProcessExitCode: nil,
+                lastError: nil,
+                shouldClearDiagnostics: false
+            )
+        } else {
+            updateInternalState(
+                isRunning: false,
+                lastProcessExitCode: 1,
+                lastError: "Failed to restart LaunchDaemon service"
+            )
+        }
     }
 
     /// Save a complete generated configuration (for Claude API generated configs)
