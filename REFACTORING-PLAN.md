@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025 (evening)
+**Last Updated:** October 26, 2025 (night)
 
 ---
 
@@ -195,6 +195,9 @@ Status: COMPLETE (PR #10 merged on Oct 26, 2025)
   - `WizardStateManager` now constructs `SystemValidator` with `ProcessService`.
   - `WizardAutoFixer` uses `ProcessService` for conflict detection; class and protocol (`AutoFixCapable`) are scoped to `@MainActor` to satisfy Swift 6 isolation.
 - Added/adjusted tests: core suites pass via `./run-core-tests.sh` locally.
+
+Verification (Oct 26):
+- ✅ No direct `ProcessLifecycleManager(...)` instantiation in app + wizard code paths (`Wizard*`, `MainAppStateController`).
 
 Follow‑ups (non‑blocking):
 - Consider moving `ProcessInfo` type out of `ProcessLifecycleManager` into a shared model to eliminate lingering type references in `WizardTypes`.

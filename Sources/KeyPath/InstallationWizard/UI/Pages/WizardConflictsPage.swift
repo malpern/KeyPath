@@ -570,7 +570,7 @@ struct TechnicalDetailsView: View {
 
     private func loadConflictDetails() async {
         isLoadingConflicts = true
-        let conflicts = await ProcessService(lifecycle: ProcessLifecycleManager(kanataManager: kanataManager)).detectConflicts()
+        let conflicts = await ProcessService().detectConflicts()
 
         await MainActor.run {
             conflictDetectionResult = ConflictDetectionResult(
