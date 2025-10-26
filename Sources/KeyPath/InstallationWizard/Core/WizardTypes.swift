@@ -171,6 +171,12 @@ enum AutoFixAction: Equatable {
     case fixDriverVersionMismatch // Download and install correct Karabiner driver version (v5 for kanata v1.9.0)
 }
 
+// Provide Optional conveniences to help inference in older tests that compare
+// Optional<AutoFixAction> using a leading-dot syntax.
+extension Optional where Wrapped == AutoFixAction {
+    static var synchronizeConfigPaths: Optional<AutoFixAction> { .some(.synchronizeConfigPaths) }
+}
+
 /// Structured identifier for wizard issues to enable type-safe navigation
 enum IssueIdentifier: Equatable {
     case permission(PermissionRequirement)
@@ -345,12 +351,46 @@ struct ConfigPathMismatchResult {
     }
 }
 
+// MARK: - Backward compatibility convenience initializers (for older tests)
+extension ConflictDetectionResult {
+    init(conflicts: [SystemConflict], timestamp: Date) {
+        self.init(conflicts: conflicts, canAutoResolve: false, description: "")
+    }
+}
+
+extension PermissionCheckResult {
+    init(missing: [PermissionRequirement], granted: [PermissionRequirement], timestamp: Date) {
+        self.init(missing: missing, granted: granted, needsUserAction: !missing.isEmpty)
+    }
+}
+
+extension ComponentCheckResult {
+    init(missing: [ComponentRequirement], installed: [ComponentRequirement], timestamp: Date) {
+        self.init(missing: missing, installed: installed, canAutoInstall: !missing.isEmpty)
+    }
+}
+
+extension ConfigPathMismatchResult {
+    init(mismatches: [ConfigPathMismatch], timestamp: Date) {
+        self.init(mismatches: mismatches, canAutoResolve: !mismatches.isEmpty)
+    }
+}
+
 /// Represents a config path mismatch between Kanata process and KeyPath expectations
 struct ConfigPathMismatch {
     let processPID: pid_t
     let processCommand: String
     let actualConfigPath: String
     let expectedConfigPath: String
+}
+
+extension ConfigPathMismatch {
+    init(processPID: pid_t, actualConfigPath: String, expectedConfigPath: String) {
+        self.processPID = processPID
+        self.processCommand = "kanata"
+        self.actualConfigPath = actualConfigPath
+        self.expectedConfigPath = expectedConfigPath
+    }
 }
 
 // MARK: - Constants
