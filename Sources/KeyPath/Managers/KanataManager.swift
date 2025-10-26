@@ -213,6 +213,7 @@ class KanataManager {
     // MARK: - Service Dependencies (Milestone 4)
 
     let configurationService: ConfigurationService
+    let configurationManager: ConfigurationManager
     private let healthMonitor: ServiceHealthMonitorProtocol
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     private let karabinerConflictService: KarabinerConflictManaging
@@ -266,6 +267,7 @@ class KanataManager {
 
         // Initialize service dependencies
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
+        configurationManager = ConfigurationManager(service: configurationService)
 
         // Initialize process lifecycle manager and façade service
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
@@ -1362,9 +1364,9 @@ class KanataManager {
             // Backup current config before making changes
             await backupCurrentConfig()
 
-            // Delegate to ConfigurationService for saving
-            try await configurationService.saveConfiguration(keyMappings: keyMappings)
-            AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationService")
+            // Delegate to ConfigurationManager for saving (thin wrapper over ConfigurationService)
+            try await configurationManager.save(keyMappings: keyMappings)
+            AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationManager")
 
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { @MainActor in SoundManager.shared.playTinkSound() }

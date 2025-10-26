@@ -10,7 +10,7 @@ extension KanataManager {
 
     func createInitialConfigIfNeeded() async {
         do {
-            try await configurationService.createInitialConfigIfNeeded()
+            try await configurationManager.createInitialConfigIfNeeded()
         } catch {
             AppLogger.shared.log("❌ [Config] Failed to create initial config via ConfigurationService: \(error)")
         }
@@ -41,7 +41,7 @@ extension KanataManager {
         let commConfig = PreferencesService.communicationSnapshot()
         if commConfig.shouldUseTCP, isRunning {
             AppLogger.shared.log("📡 [Validation] Attempting TCP validation")
-            if let tcpResult = await configurationService.validateConfigViaTCP() {
+            if let tcpResult = await configurationManager.validateTCP() {
                 return tcpResult
             } else {
                 AppLogger.shared.log(
@@ -51,7 +51,7 @@ extension KanataManager {
 
         // Fallback to traditional file-based validation
         AppLogger.shared.log("📄 [Validation] Using file-based validation")
-        return configurationService.validateConfigViaFile()
+        return configurationManager.validateFile()
     }
 
     // MARK: - Hot Reload via TCP
