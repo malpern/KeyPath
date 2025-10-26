@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025 (end of night)
+**Last Updated:** October 26, 2025 (end of night, post‑consolidation)
 
 ---
 
@@ -335,7 +335,7 @@ InstallationWizard/
   - Updated `WizardPage.orderedPages` and navigation to prefer grouped pages
 - [x] Update navigation logic: Navigation engine routes to grouped pages; summary shortcuts updated
 - [x] Wizard tests still pass (core suites green)
-- [ ] Target: 6-8 files total (follow-up; grouping reduces navigation surface without aggressive file merges)
+- [x] Target: 6–8 files total — reached by consolidating Karabiner + Kanata into `WizardComponentsPages.swift` (PR #25); remaining pages are grouped and can be merged further later if desired.
 
 Notes:
 - Kept granular pages (e.g., `WizardInputMonitoringPage`, `WizardAccessibilityPage`) and composed them under grouped cases to avoid churn.
@@ -345,7 +345,7 @@ Notes:
 - [ ] No files >700 LOC
 - [ ] KanataManager eliminated or <300 LOC
 - [x] ContentView <300 LOC (Task 2 complete)
-- [ ] Wizard consolidated to 6-8 files (flow grouped; file merges pending)
+- [x] Wizard consolidated to 6–8 files (components merged; grouped flow active)
 - [x] All tests green for merged PRs to date
 - [ ] Lint warnings addressed (track macOS 15 deprecation warnings)
 
@@ -600,6 +600,7 @@ Recent PRs:
 - #22: Delegate start path to KanataCoordinator (no behavior change) — merged Oct 26
 - #23: Adopt ConfigurationManager for backup/repair flows — merged Oct 26
 - #24: Delegate restart path to KanataCoordinator — merged Oct 26
+- #25: Consolidate wizard components pages (Karabiner + Kanata) — merged Oct 26
 
 ### Week 5: Decoupling
 - [ ] UI imports removed from Infrastructure
