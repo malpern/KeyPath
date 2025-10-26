@@ -265,8 +265,8 @@ class KanataCoordinator {
 - [x] Tests still pass (`./run-core-tests.sh` green locally)
 - [x] Introduce thin `ConfigurationManager` wrapper (added)
 - [x] Start migrating call sites to `ConfigurationManager` (PR #20, #23)
-- [ ] Refactor KanataManager → KanataCoordinator
-- [ ] KanataCoordinator <300 LOC
+- [x] Refactor KanataManager → KanataCoordinator (start/stop/restart via coordinator) ✅
+- [x] KanataCoordinator <300 LOC ✅
 - [ ] Delete or mark old KanataManager deprecated
 
 #### Task 2: Trim ContentView (1,160 → <300 LOC)
