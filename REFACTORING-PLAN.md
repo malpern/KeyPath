@@ -3,7 +3,7 @@
 **Goal:** Prepare codebase for open-source release by eliminating over-engineering, fixing infrastructure, and improving maintainability.
 
 **Timeline:** 6 weeks (Week 1-2 complete)
-**Last Updated:** October 26, 2025 (night)
+**Last Updated:** October 26, 2025 (late night)
 
 ---
 
@@ -187,6 +187,7 @@
 #### Task 1: Split KanataManager (2,788 lines → ~700)
 
 Status: COMPLETE (PR #10 merged on Oct 26, 2025)
+Follow-up decoupling: PR #19 merged on Oct 26, 2025 — removed remaining direct `ProcessLifecycleManager` usages from app + wizard; all call sites now go through `ProcessService()`.
 
 - Introduced `ProcessService` as the façade for lifecycle/launchctl operations.
 - Added `ProcessLifecycleProviding` protocol; `ProcessService` and `ProcessLifecycleManager` both conform.
@@ -198,6 +199,7 @@ Status: COMPLETE (PR #10 merged on Oct 26, 2025)
 
 Verification (Oct 26):
 - ✅ No direct `ProcessLifecycleManager(...)` instantiation in app + wizard code paths (`Wizard*`, `MainAppStateController`).
+ - ✅ PR #19 auto-merged; master updated; branch cleaned.
 
 Follow‑ups (non‑blocking):
 - Consider moving `ProcessInfo` type out of `ProcessLifecycleManager` into a shared model to eliminate lingering type references in `WizardTypes`.
@@ -261,7 +263,8 @@ class KanataCoordinator {
 - [x] Update core services and validator to depend on `ProcessLifecycleProviding`
 - [x] Replace remaining direct references in Wizard with `ProcessService`
 - [x] Tests still pass (`./run-core-tests.sh` green locally)
-- [ ] Consolidate ConfigurationService (or introduce thin ConfigurationManager wrapper)
+- [x] Introduce thin `ConfigurationManager` wrapper (added)
+- [ ] Migrate limited call sites to `ConfigurationManager` (keep diffs small)
 - [ ] Refactor KanataManager → KanataCoordinator
 - [ ] KanataCoordinator <300 LOC
 - [ ] Delete or mark old KanataManager deprecated
@@ -341,10 +344,10 @@ Notes:
 ##### Acceptance Criteria (Phase 2)
 - [ ] No files >700 LOC
 - [ ] KanataManager eliminated or <300 LOC
-- [ ] ContentView <300 LOC
-- [ ] Wizard consolidated to 6-8 files
-- [ ] All tests green throughout refactoring
-- [ ] Lint warnings addressed
+- [x] ContentView <300 LOC (Task 2 complete)
+- [ ] Wizard consolidated to 6-8 files (flow grouped; file merges pending)
+- [x] All tests green for merged PRs to date
+- [ ] Lint warnings addressed (track macOS 15 deprecation warnings)
 
 ---
 
@@ -584,6 +587,7 @@ Do these FIRST for immediate impact:
 
 ### Week 3-4: Core Refactoring
 - [x] ProcessService extracted; call sites migrated to protocol
+- [x] App + Wizard decoupled from ProcessLifecycleManager (PR #19)
 - [ ] KanataManager → ConfigManager + Coordinator (pending)
 - [x] ContentView trimmed to <300 LOC
 - [x] Wizard consolidated at flow level (grouped pages); file merge target remains pending
