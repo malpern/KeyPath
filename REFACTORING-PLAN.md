@@ -680,9 +680,9 @@ Record here as refactoring progresses:
 
 ---
 
-**Last Updated:** October 25, 2025
-**Status:** Phase 0 & 1 Complete ✅
-**Next Action:** Phase 2 - Split God Objects (KanataManager, ContentView, Wizard)
+**Last Updated:** October 26, 2025 (evening)
+**Status:** Phase 0 & 1 Complete ✅ · Phase 2 In Progress
+**Next Action:** Phase 2 — Finish Split God Objects (add ConfigurationManager, introduce KanataCoordinator; keep tests green)
 
 ---
 
