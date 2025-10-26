@@ -929,7 +929,7 @@ struct InstallationWizardView: View {
 
     /// Navigate to the previous page using keyboard left arrow
     private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
+        let allPages = WizardPage.orderedPages
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
               currentIndex > 0
         else { return }
@@ -942,7 +942,7 @@ struct InstallationWizardView: View {
 
     /// Navigate to the next page using keyboard right arrow
     private func navigateToNextPage() {
-        let allPages = WizardPage.allCases
+        let allPages = WizardPage.orderedPages
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
               currentIndex < allPages.count - 1
         else { return }

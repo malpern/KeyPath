@@ -270,7 +270,7 @@ struct WizardKarabinerComponentsPage: View {
     }
 
     private func navigateToNextPage() {
-        let allPages = WizardPage.allCases
+        let allPages = WizardPage.orderedPages
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
               currentIndex < allPages.count - 1
         else { return }
