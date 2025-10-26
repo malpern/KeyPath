@@ -172,7 +172,7 @@ class WizardNavigationEngine: WizardNavigating {
 
         return WizardNavigationState(
             currentPage: currentPage,
-            availablePages: WizardPage.orderedPages,
+            availablePages: WizardPage.allCases,
             canNavigateNext: shouldAutoNavigate,
             canNavigatePrevious: true, // Users can always go back manually
             shouldAutoNavigate: shouldAutoNavigate

@@ -126,7 +126,7 @@ struct WizardSystemStatusOverview: View {
                 title: "Input Monitoring Permission",
                 status: inputMonitoringStatus,
                 isNavigable: true,
-                targetPage: .permissions,
+                targetPage: .inputMonitoring,
                 relatedIssues: inputMonitoringIssues
             ))
 
@@ -145,7 +145,7 @@ struct WizardSystemStatusOverview: View {
                 title: "Accessibility Permission",
                 status: accessibilityStatus,
                 isNavigable: true,
-                targetPage: .permissions,
+                targetPage: .accessibility,
                 relatedIssues: accessibilityIssues
             ))
 
@@ -162,7 +162,7 @@ struct WizardSystemStatusOverview: View {
                 title: "Karabiner Driver Setup",
                 status: karabinerStatus,
                 isNavigable: true,
-                targetPage: .components,
+                targetPage: .karabinerComponents,
                 relatedIssues: karabinerIssues
             ))
 
@@ -186,7 +186,7 @@ struct WizardSystemStatusOverview: View {
                     title: "Kanata Engine Setup",
                     status: kanataComponentsStatus,
                     isNavigable: true,
-                    targetPage: .components,
+                    targetPage: .kanataComponents,
                     relatedIssues: kanataComponentsIssues
                 ))
         }
@@ -418,8 +418,10 @@ struct WizardSystemStatusOverview: View {
         }
 
         // Navigate to the first blocking permission page
-        if hasInputMonitoringIssues || hasAccessibilityIssues {
-            return (.permissions, "Permissions required")
+        if hasInputMonitoringIssues {
+            return (.inputMonitoring, "Input Monitoring permission required")
+        } else if hasAccessibilityIssues {
+            return (.accessibility, "Accessibility permission required")
         } else {
             // Default to service page if no specific permission issue
             return (.service, "Check service status")
