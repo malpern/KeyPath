@@ -667,11 +667,123 @@ struct ContentView: View {
     }
 }
 
-// ContentViewHeader moved to UI/Components/ContentViewHeader.swift
+struct ContentViewHeader: View {
+    @ObservedObject var validator: MainAppStateController // 🎯 Phase 3: New controller
+    @Binding var showingInstallationWizard: Bool
+    @EnvironmentObject var kanataManager: KanataViewModel // Phase 4: MVVM
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Button(action: {
+                        AppLogger.shared.log(
+                            "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
+                        showingInstallationWizard = true
+                    }, label: {
+                        Image(systemName: "keyboard")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    })
+                .buttonStyle(PlainButtonStyle())
+                .accessibilityIdentifier("launch-installation-wizard-button")
+                .accessibilityLabel("Launch Installation Wizard")
+                .accessibilityHint("Click to open the KeyPath installation and setup wizard")
+
+                Text("KeyPath")
+                    .font(.largeTitle.weight(.bold))
+
+                Spacer()
+
+                // System Status Indicator in top-right
+                SystemStatusIndicator(
+                    validator: validator,
+                    showingWizard: $showingInstallationWizard,
+                    onClick: {
+                        kanataManager.requestWizardPresentation()
+                    }
+                )
+            }
+
+                Text("Record keyboard shortcuts and create custom key mappings")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        // Transparent background - no glass header
+    }
+}
 
 // RecordingSection moved to UI/Components/RecordingSection.swift
 
-// ErrorSection moved to UI/Components/ErrorSection.swift
+struct ErrorSection: View {
+    @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
+    @Binding var showingInstallationWizard: Bool
+    let error: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.headline)
+
+                Text("KeyPath Error")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                Button("Fix Issues") {
+                    Task {
+                        AppLogger.shared.log(
+                            "🔄 [UI] Fix Issues button clicked - attempting to fix configuration and restart")
+
+                        // Create a default user config if missing
+                        let created = await kanataManager.createDefaultUserConfigIfMissing()
+
+                        if created {
+                            await MainActor.run {
+                                kanataManager.lastError = nil
+                            }
+                            AppLogger.shared.log(
+                                "✅ [UI] Created default config at ~/Library/Application Support/KeyPath/keypath.kbd"
+                            )
+                        } else {
+                            // Still not fixed – open wizard to guide the user
+                            showingInstallationWizard = true
+                        }
+
+                        // Try starting after config creation
+                        await kanataManager.startKanata()
+                        await kanataManager.updateStatus()
+                        AppLogger.shared.log(
+                            "🔄 [UI] Fix Issues completed - service status: \(kanataManager.isRunning)")
+                    }
+                    // Only open wizard above if needed
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+
+            Text(error)
+                .font(.body)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(NSColor.textBackgroundColor).opacity(0.95))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
 
 struct DiagnosticSummarySection: View {
     let criticalIssues: [KanataDiagnostic]
@@ -739,9 +851,163 @@ struct DiagnosticSummarySection: View {
     }
 }
 
-// StatusMessageView moved to UI/Components/StatusMessageView.swift
+struct StatusMessageView: View {
+    let message: String
+    let isVisible: Bool
 
-// DiagnosticSummaryView moved to UI/Components/DiagnosticSummaryView.swift
+    var body: some View {
+        Group {
+            if isVisible {
+                HStack(spacing: 12) {
+                    Image(systemName: iconName)
+                        .font(.title2)
+                        .foregroundColor(iconColor)
+
+                    Text(message)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(backgroundColor)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(borderColor, lineWidth: 1)
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                .transition(
+                    .asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .bottom).combined(with: .opacity)
+                    ))
+            }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isVisible)
+    }
+
+    private var iconName: String {
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            "xmark.circle.fill"
+        } else if message.contains("⚠️") || message.contains("Config repaired")
+            || message.contains("backed up") {
+            "exclamationmark.triangle.fill"
+        } else {
+            "checkmark.circle.fill"
+        }
+    }
+
+    private var iconColor: Color {
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            .red
+        } else if message.contains("⚠️") || message.contains("Config repaired")
+            || message.contains("backed up") {
+            .orange
+        } else {
+            .green
+        }
+    }
+
+    private var backgroundColor: Color {
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            Color.red.opacity(0.1)
+        } else if message.contains("⚠️") || message.contains("Config repaired")
+            || message.contains("backed up") {
+            Color.orange.opacity(0.1)
+        } else {
+            Color.green.opacity(0.1)
+        }
+    }
+
+    private var borderColor: Color {
+        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
+            Color.red.opacity(0.3)
+        } else if message.contains("⚠️") || message.contains("Config repaired")
+            || message.contains("backed up") {
+            Color.orange.opacity(0.3)
+        } else {
+            Color.green.opacity(0.3)
+        }
+    }
+}
+
+struct DiagnosticSummaryView: View {
+    let criticalIssues: [KanataDiagnostic]
+    let onViewDiagnostics: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("System Issues Detected")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text("\(criticalIssues.count) critical issue\(criticalIssues.count == 1 ? "" : "s") need attention")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button(action: onViewDiagnostics, label: {
+                    Text("View Details")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                })
+                .buttonStyle(.plain)
+            }
+
+            // Show first 2 critical issues as preview
+            ForEach(Array(criticalIssues.prefix(2).enumerated()), id: \.offset) { _, issue in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: issue.severity == .critical ? "exclamationmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(issue.severity == .critical ? .red : .orange)
+                        .font(.caption)
+                        .padding(.top, 2)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(issue.title)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+
+                        if !issue.description.isEmpty {
+                            Text(issue.description)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+
+            if criticalIssues.count > 2 {
+                Text("... and \(criticalIssues.count - 2) more issue\(criticalIssues.count - 2 == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 16)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.orange.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+}
 
 #Preview {
     let manager = KanataManager()
