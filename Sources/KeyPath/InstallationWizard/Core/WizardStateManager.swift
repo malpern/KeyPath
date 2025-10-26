@@ -6,10 +6,11 @@ class WizardStateManager: ObservableObject {
     private var validator: SystemValidator?
 
     func configure(kanataManager: KanataManager) {
-        // Create validator with process manager
-        let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
+        // Create validator backed by ProcessService to avoid direct
+        // dependencies on ProcessLifecycleManager in wizard code.
+        let processService = ProcessService(lifecycle: ProcessLifecycleManager(kanataManager: kanataManager))
         validator = SystemValidator(
-            processLifecycleManager: processManager,
+            processLifecycleManager: processService,
             kanataManager: kanataManager
         )
         AppLogger.shared.log("🎯 [WizardStateManager] Configured with NEW SystemValidator (Phase 2)")

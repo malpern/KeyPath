@@ -275,7 +275,7 @@ class KanataManager {
         karabinerConflictService = KarabinerConflictService()
 
         // Initialize diagnostics service
-        diagnosticsService = DiagnosticsService(processLifecycleManager: processLifecycleManager)
+        diagnosticsService = DiagnosticsService(processLifecycleManager: processService)
 
         // Initialize health monitor
         healthMonitor = ServiceHealthMonitor(processLifecycle: processService as any ProcessLifecycleProviding)

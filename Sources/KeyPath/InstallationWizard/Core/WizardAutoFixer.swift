@@ -4,6 +4,7 @@ import os
 import SwiftUI
 
 /// Handles automatic fixing of detected issues - pure action logic
+@MainActor
 class WizardAutoFixer: AutoFixCapable {
     private let kanataManager: KanataManager
     private let vhidDeviceManager: VHIDDeviceManager
@@ -322,12 +323,12 @@ class WizardAutoFixer: AutoFixCapable {
 
     // MARK: - Individual Auto-Fix Actions
 
-    private func terminateConflictingProcesses() async -> Bool {
+    @MainActor private func terminateConflictingProcesses() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Terminating conflicting kanata processes")
 
-        // Use ProcessLifecycleManager to find external kanata processes
-        let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
-        let conflicts = await processManager.detectConflicts()
+        // Use ProcessService (facade) to find external kanata processes
+        let processService = ProcessService(lifecycle: ProcessLifecycleManager(kanataManager: kanataManager))
+        let conflicts = await processService.detectConflicts()
 
         if conflicts.externalProcesses.isEmpty {
             AppLogger.shared.log("✅ [AutoFixer] No external kanata processes to terminate")
@@ -343,7 +344,7 @@ class WizardAutoFixer: AutoFixCapable {
 
         // Give the system a moment to settle, then re-check
         try? await Task.sleep(nanoseconds: 800_000_000)
-        let after = await processManager.detectConflicts()
+        let after = await processService.detectConflicts()
         let remaining = after.externalProcesses.count
 
         if remaining == 0 {
@@ -358,7 +359,7 @@ class WizardAutoFixer: AutoFixCapable {
     }
 
     /// Try to kill a process by PID with a non-privileged signal; fallback to admin if needed
-    private func killProcessByPID(_ pid: pid_t) async -> Bool {
+    @MainActor private func killProcessByPID(_ pid: pid_t) async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Killing process PID=\(pid)")
 
         // First try without sudo
