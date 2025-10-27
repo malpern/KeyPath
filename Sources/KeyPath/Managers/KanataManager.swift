@@ -1171,130 +1171,7 @@ class KanataManager {
     }
 
     // MARK: - LaunchDaemon Service Management
-
-    /// Start the Kanata LaunchDaemon service via privileged operations facade
-    private func startLaunchDaemonService() async -> Bool { await processService.startLaunchDaemonService() }
-
-    /// Check the status of the LaunchDaemon service
-    private func checkLaunchDaemonStatus() async -> (isRunning: Bool, pid: Int?) { await processService.checkLaunchDaemonStatus() }
-
-    /// Resolve any conflicting Kanata processes before starting
-    private func resolveProcessConflicts() async {
-        AppLogger.shared.log("🔍 [Conflict] Checking for conflicting Kanata processes...")
-
-        let conflicts = await processService.detectConflicts()
-        let allProcesses = conflicts.managedProcesses + conflicts.externalProcesses
-
-        if !allProcesses.isEmpty {
-            AppLogger.shared.log("⚠️ [Conflict] Found \(allProcesses.count) existing Kanata processes")
-
-            for processInfo in allProcesses {
-                AppLogger.shared.log("⚠️ [Conflict] Process PID \(processInfo.pid): \(processInfo.command)")
-
-                // Kill non-LaunchDaemon processes
-                if !processInfo.command.contains("launchd"), !processInfo.command.contains("system/com.keypath.kanata") {
-                    AppLogger.shared.log("🔄 [Conflict] Killing non-LaunchDaemon process: \(processInfo.pid)")
-                    await killProcess(pid: Int(processInfo.pid))
-                }
-            }
-        } else {
-            AppLogger.shared.log("✅ [Conflict] No conflicting processes found")
-        }
-    }
-
-    /// Verify no process conflicts exist after starting
-    private func verifyNoProcessConflicts() async {
-        // Wait a moment for any conflicts to surface
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-        let conflicts = await processService.detectConflicts()
-        let managedProcesses = conflicts.managedProcesses
-        let conflictProcesses = conflicts.externalProcesses
-
-        AppLogger.shared.log("🔍 [Verify] Process status: \(managedProcesses.count) managed, \(conflictProcesses.count) conflicts")
-
-        // Show managed processes (should be our LaunchDaemon)
-        for processInfo in managedProcesses {
-            AppLogger.shared.log("✅ [Verify] Managed LaunchDaemon process: PID \(processInfo.pid)")
-        }
-
-        // Show any conflicting processes (these are the problem)
-        for processInfo in conflictProcesses {
-            AppLogger.shared.log("⚠️ [Verify] Conflicting process: PID \(processInfo.pid) - \(processInfo.command)")
-        }
-
-        if conflictProcesses.isEmpty {
-            AppLogger.shared.log("✅ [Verify] Clean single-process architecture confirmed - no conflicts")
-        } else {
-            AppLogger.shared.log("⚠️ [Verify] WARNING: \(conflictProcesses.count) conflicting processes detected!")
-        }
-    }
-
-    /// Stop the Kanata LaunchDaemon service via privileged operations facade
-    private func stopLaunchDaemonService() async -> Bool { await processService.stopLaunchDaemonService() }
-
-    /// Kill a specific process by PID
-    private func killProcess(pid: Int) async { await processService.killProcess(pid: pid) }
-
-    // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service management
-
-    func stopKanata() async {
-        AppLogger.shared.log("🛑 [Stop] Stopping Kanata LaunchDaemon service...")
-
-        // Stop via coordinator (delegates to ProcessService)
-        await kanataCoordinator.stop()
-
-        // Verify stopped
-        let statusAfter = await checkLaunchDaemonStatus()
-        let success = !statusAfter.isRunning
-
-        if success {
-            AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata LaunchDaemon service")
-
-            // Unregister from lifecycle manager
-            await processService.unregisterProcess()
-
-            // Stop log monitoring when Kanata stops
-            stopLogMonitoring()
-
-            updateInternalState(
-                isRunning: false,
-                lastProcessExitCode: nil,
-                lastError: nil
-            )
-        } else {
-            AppLogger.shared.log("⚠️ [Stop] Failed to stop Kanata LaunchDaemon service")
-
-            // Still update status to reflect current state
-            await updateStatus()
-        }
-    }
-
-    func restartKanata() async {
-        AppLogger.shared.log("🔄 [Restart] Restarting Kanata via Coordinator...")
-        await kanataCoordinator.restart()
-        // Verify and update internal state similar to start/stop paths
-        let status = await checkLaunchDaemonStatus()
-        if status.isRunning {
-            // Mirror start success bookkeeping
-            if let pid = status.pid {
-                let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
-                await processService.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
-            }
-            updateInternalState(
-                isRunning: true,
-                lastProcessExitCode: nil,
-                lastError: nil,
-                shouldClearDiagnostics: false
-            )
-        } else {
-            updateInternalState(
-                isRunning: false,
-                lastProcessExitCode: 1,
-                lastError: "Failed to restart LaunchDaemon service"
-            )
-        }
-    }
+    // See KanataManager+LaunchDaemon.swift for service management implementation
 
     /// Save a complete generated configuration (for Claude API generated configs)
     func saveGeneratedConfiguration(_ configContent: String) async throws {
@@ -1497,7 +1374,7 @@ class KanataManager {
 
     /// Main actor function to safely update internal state properties
     @MainActor
-    private func updateInternalState(
+    func updateInternalState(
         isRunning: Bool,
         lastProcessExitCode: Int32?,
         lastError: String?,
@@ -1568,54 +1445,7 @@ class KanataManager {
         await verifyNoProcessConflicts()
     }
 
-    /// Stop Kanata when the app is terminating (async version).
-    func cleanup() async {
-        await stopKanata()
-    }
-
-    /// Synchronous cleanup for app termination - blocks until process is killed
-    func cleanupSync() {
-        AppLogger.shared.log("🛝 [Cleanup] Performing synchronous cleanup...")
-
-        // LaunchDaemon service management - synchronous cleanup not directly supported
-        // The LaunchDaemon service will handle process lifecycle automatically
-        AppLogger.shared.log("ℹ️ [Cleanup] LaunchDaemon service will handle process cleanup automatically")
-
-        // Clean up PID file
-        try? PIDFileManager.removePID()
-        AppLogger.shared.log("✅ [Cleanup] Synchronous cleanup complete")
-    }
-
-    private func checkExternalKanataProcess() async -> Bool {
-        // Use more specific search for actual kanata binary processes
-        // instead of any process with "kanata" in command line (which can match KeyPath's own processes)
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        // Look for processes where the executable name is kanata, not just command lines containing kanata
-        task.arguments = ["-x", "kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            let isRunning = !trimmed.isEmpty
-
-            // Debug logging removed - fix confirmed working
-
-            return isRunning
-        } catch {
-            AppLogger.shared.log(
-                "🔍 [KanataManager] checkExternalKanataProcess() - pgrep failed: \(error)")
-            return false
-        }
-    }
+    // cleanup(), cleanupSync(), and checkExternalKanataProcess() moved to KanataManager+LaunchDaemon.swift
 
     // MARK: - Installation and Permissions
 
@@ -2341,7 +2171,7 @@ class KanataManager {
     }
 
     /// Stop log monitoring
-    private func stopLogMonitoring() {
+    func stopLogMonitoring() {
         logMonitorTask?.cancel()
         logMonitorTask = nil
         Task { await healthMonitor.recordConnectionSuccess() } // Reset on stop
