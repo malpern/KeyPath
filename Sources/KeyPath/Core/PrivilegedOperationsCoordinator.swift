@@ -85,6 +85,18 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
+    /// Install all LaunchDaemon services (convenience overload - uses PreferencesService for config)
+    func installAllLaunchDaemonServices() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Installing all LaunchDaemon services (using preferences)")
+
+        switch Self.operationMode {
+        case .privilegedHelper:
+            try await helperInstallAllServicesWithPreferences()
+        case .directSudo:
+            try await sudoInstallAllServicesWithPreferences()
+        }
+    }
+
     /// Restart unhealthy LaunchDaemon services
     func restartUnhealthyServices() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Restarting unhealthy services")
@@ -118,6 +130,30 @@ final class PrivilegedOperationsCoordinator {
             try await helperInstallLogRotation()
         case .directSudo:
             try await sudoInstallLogRotation()
+        }
+    }
+
+    /// Repair VirtualHID daemon LaunchDaemon services
+    func repairVHIDDaemonServices() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Repairing VHID daemon services")
+
+        switch Self.operationMode {
+        case .privilegedHelper:
+            try await helperRepairVHIDServices()
+        case .directSudo:
+            try await sudoRepairVHIDServices()
+        }
+    }
+
+    /// Install LaunchDaemon services without loading them (for adopting orphaned processes)
+    func installLaunchDaemonServicesWithoutLoading() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Installing LaunchDaemon services (install-only, no load)")
+
+        switch Self.operationMode {
+        case .privilegedHelper:
+            try await helperInstallServicesWithoutLoading()
+        case .directSudo:
+            try await sudoInstallServicesWithoutLoading()
         }
     }
 
@@ -156,6 +192,19 @@ final class PrivilegedOperationsCoordinator {
             try await helperInstallDriver(version: version, downloadURL: downloadURL)
         case .directSudo:
             try await sudoInstallDriver(version: version, downloadURL: downloadURL)
+        }
+    }
+
+    /// Download and install correct VirtualHID driver version (convenience method)
+    /// Uses VHIDDeviceManager to determine the correct version automatically
+    func downloadAndInstallCorrectVHIDDriver() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Downloading and installing correct VHID driver version")
+
+        switch Self.operationMode {
+        case .privilegedHelper:
+            try await helperInstallCorrectDriver()
+        case .directSudo:
+            try await sudoInstallCorrectDriver()
         }
     }
 
@@ -227,6 +276,11 @@ final class PrivilegedOperationsCoordinator {
         fatalError("Privileged helper not yet implemented - Phase 2 work")
     }
 
+    private func helperInstallAllServicesWithPreferences() async throws {
+        // TODO: Phase 2 - Implement XPC call to privileged helper
+        fatalError("Privileged helper not yet implemented - Phase 2 work")
+    }
+
     private func helperRestartServices() async throws {
         // TODO: Phase 2 - Implement XPC call to privileged helper
         fatalError("Privileged helper not yet implemented - Phase 2 work")
@@ -242,6 +296,16 @@ final class PrivilegedOperationsCoordinator {
         fatalError("Privileged helper not yet implemented - Phase 2 work")
     }
 
+    private func helperRepairVHIDServices() async throws {
+        // TODO: Phase 2 - Implement XPC call to privileged helper
+        fatalError("Privileged helper not yet implemented - Phase 2 work")
+    }
+
+    private func helperInstallServicesWithoutLoading() async throws {
+        // TODO: Phase 2 - Implement XPC call to privileged helper
+        fatalError("Privileged helper not yet implemented - Phase 2 work")
+    }
+
     private func helperActivateVHID() async throws {
         // TODO: Phase 2 - Implement XPC call to privileged helper
         fatalError("Privileged helper not yet implemented - Phase 2 work")
@@ -253,6 +317,11 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func helperInstallDriver(version: String, downloadURL: String) async throws {
+        // TODO: Phase 2 - Implement XPC call to privileged helper
+        fatalError("Privileged helper not yet implemented - Phase 2 work")
+    }
+
+    private func helperInstallCorrectDriver() async throws {
         // TODO: Phase 2 - Implement XPC call to privileged helper
         fatalError("Privileged helper not yet implemented - Phase 2 work")
     }
@@ -314,6 +383,16 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
+    /// Install all LaunchDaemon services (convenience - uses PreferencesService)
+    private func sudoInstallAllServicesWithPreferences() async throws {
+        let installer = LaunchDaemonInstaller()
+        let success = installer.createConfigureAndLoadAllServices()
+
+        if !success {
+            throw PrivilegedOperationError.installationFailed("LaunchDaemon installation failed")
+        }
+    }
+
     /// Restart unhealthy services using LaunchDaemonInstaller
     private func sudoRestartServices() async throws {
         let installer = LaunchDaemonInstaller()
@@ -344,6 +423,26 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
+    /// Repair VHID daemon services using LaunchDaemonInstaller
+    private func sudoRepairVHIDServices() async throws {
+        let installer = LaunchDaemonInstaller()
+        let success = await installer.repairVHIDDaemonServices()
+
+        if !success {
+            throw PrivilegedOperationError.operationFailed("VHID daemon repair failed")
+        }
+    }
+
+    /// Install LaunchDaemon services without loading them using LaunchDaemonInstaller
+    private func sudoInstallServicesWithoutLoading() async throws {
+        let installer = LaunchDaemonInstaller()
+        let success = installer.createAllLaunchDaemonServicesInstallOnly()
+
+        if !success {
+            throw PrivilegedOperationError.operationFailed("Service installation (install-only) failed")
+        }
+    }
+
     /// Activate VirtualHID Manager using VHIDDeviceManager
     private func sudoActivateVHID() async throws {
         let vhidManager = VHIDDeviceManager()
@@ -366,6 +465,16 @@ final class PrivilegedOperationsCoordinator {
 
     /// Install VirtualHID driver using VHIDDeviceManager
     private func sudoInstallDriver(version: String, downloadURL: String) async throws {
+        let vhidManager = VHIDDeviceManager()
+        let success = await vhidManager.downloadAndInstallCorrectVersion()
+
+        if !success {
+            throw PrivilegedOperationError.operationFailed("Driver installation failed")
+        }
+    }
+
+    /// Download and install correct VirtualHID driver version using VHIDDeviceManager
+    private func sudoInstallCorrectDriver() async throws {
         let vhidManager = VHIDDeviceManager()
         let success = await vhidManager.downloadAndInstallCorrectVersion()
 

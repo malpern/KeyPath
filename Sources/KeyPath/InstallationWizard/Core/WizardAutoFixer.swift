@@ -208,8 +208,15 @@ class WizardAutoFixer: AutoFixCapable {
             return false
         }
 
-        // Download and install the correct version
-        let success = await vhidDeviceManager.downloadAndInstallCorrectVersion()
+        // Download and install the correct version using coordinator
+        let success: Bool
+        do {
+            try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
+            success = true
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Coordinator failed to install driver: \(error)")
+            success = false
+        }
 
         if success {
             AppLogger.shared.log("✅ [AutoFixer] Successfully fixed driver version mismatch")
@@ -430,13 +437,14 @@ class WizardAutoFixer: AutoFixCapable {
 
     private func repairVHIDDaemonServices() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Repairing VHID LaunchDaemon services")
-        let success = await launchDaemonInstaller.repairVHIDDaemonServices()
-        if success {
+        do {
+            try await PrivilegedOperationsCoordinator.shared.repairVHIDDaemonServices()
             AppLogger.shared.log("✅ [AutoFixer] Repaired VHID LaunchDaemon services")
-        } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to repair VHID LaunchDaemon services")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to repair VHID LaunchDaemon services: \(error)")
+            return false
         }
-        return success
     }
 
     /// Clear Kanata log file to reset connection health detection
@@ -624,8 +632,15 @@ class WizardAutoFixer: AutoFixCapable {
     private func activateVHIDDeviceManager() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Activating VHIDDevice Manager")
 
-        // First try automatic activation
-        let success = await vhidDeviceManager.activateManager()
+        // First try automatic activation using coordinator
+        let success: Bool
+        do {
+            try await PrivilegedOperationsCoordinator.shared.activateVirtualHIDManager()
+            success = true
+        } catch {
+            AppLogger.shared.log("⚠️ [AutoFixer] Coordinator activation failed: \(error)")
+            success = false
+        }
 
         if success {
             AppLogger.shared.log("✅ [AutoFixer] Successfully activated VHIDDevice Manager")
@@ -705,27 +720,23 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log(
             "🔧 [AutoFixer] *** ENTRY POINT *** installLaunchDaemonServices() called")
         AppLogger.shared.log(
-            "🔧 [AutoFixer] Installing LaunchDaemon services with consolidated single-prompt method")
-        AppLogger.shared.log("🔧 [AutoFixer] About to call launchDaemonInstaller.createConfigureAndLoadAllServices()")
+            "🔧 [AutoFixer] Installing LaunchDaemon services using coordinator")
 
-        // Use the new consolidated method that handles everything with a single admin prompt:
+        // Use coordinator which delegates to LaunchDaemonInstaller
+        // Handles everything with a single admin prompt:
         // - Install all LaunchDaemon plist files
         // - Create system config directories
         // - Copy/create system config files
         // - Load all services into launchctl
-        AppLogger.shared.log("🔧 [AutoFixer] Calling createConfigureAndLoadAllServices() now...")
-        let installer1 = launchDaemonInstaller
-        let success = await MainActor.run { installer1.createConfigureAndLoadAllServices() }
-        AppLogger.shared.log("🔧 [AutoFixer] createConfigureAndLoadAllServices() returned: \(success)")
-
-        if success {
+        do {
+            try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()
             AppLogger.shared.log(
                 "✅ [AutoFixer] LaunchDaemon installation completed successfully with single admin prompt")
-        } else {
-            AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed: \(error)")
+            return false
         }
-
-        return success
     }
 
     private func installBundledKanata() async -> Bool {
