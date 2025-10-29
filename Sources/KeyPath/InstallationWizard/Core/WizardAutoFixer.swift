@@ -952,14 +952,13 @@ class WizardAutoFixer: AutoFixCapable {
             AppLogger.shared.log(
                 "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services first"
             )
-            let installer3 = launchDaemonInstaller
-            let installSuccess = await MainActor.run { installer3.createConfigureAndLoadAllServices() }
-            AppLogger.shared.log("🔧 [AutoFixer] Installation result: \(installSuccess)")
-            if !installSuccess {
-                AppLogger.shared.log("❌ [AutoFixer] Failed to install missing services")
+            do {
+                try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()
+                AppLogger.shared.log("✅ [AutoFixer] Installed missing services")
+            } catch {
+                AppLogger.shared.log("❌ [AutoFixer] Failed to install missing services: \(error)")
                 return false
             }
-            AppLogger.shared.log("✅ [AutoFixer] Installed missing services")
         } else {
             AppLogger.shared.log(
                 "🔧 [AutoFixer] Step 2: All services already loaded, skipping installation")
@@ -967,11 +966,18 @@ class WizardAutoFixer: AutoFixCapable {
 
         // Step 2: Restart any unhealthy services
         AppLogger.shared.log(
-            "🔧 [AutoFixer] Step 3: Calling comprehensive restart method on LaunchDaemonInstaller")
+            "🔧 [AutoFixer] Step 3: Calling comprehensive restart method via coordinator")
         AppLogger.shared.log(
-            "🔧 [AutoFixer] About to call: launchDaemonInstaller.restartUnhealthyServices()")
+            "🔧 [AutoFixer] About to call: coordinator.restartUnhealthyServices()")
 
-        let restartSuccess = await launchDaemonInstaller.restartUnhealthyServices()
+        let restartSuccess: Bool
+        do {
+            try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
+            restartSuccess = true
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Coordinator restart failed: \(error)")
+            restartSuccess = false
+        }
 
         AppLogger.shared.log(
             "🔧 [AutoFixer] Step 4: LaunchDaemonInstaller.restartUnhealthyServices() returned: \(restartSuccess)"
@@ -1022,18 +1028,14 @@ class WizardAutoFixer: AutoFixCapable {
     private func adoptOrphanedProcess() async -> Bool {
         AppLogger.shared.log("🔗 [AutoFixer] Starting orphaned process adoption")
 
-        // Show user feedback
-
         // Install LaunchDaemon service files without loading/starting them (no interference with running process)
         AppLogger.shared.log("🔗 [AutoFixer] Installing LaunchDaemon service files for future management")
-        let installer5 = launchDaemonInstaller
-        let installSuccess = await MainActor.run { installer5.createAllLaunchDaemonServicesInstallOnly() }
-
-        if installSuccess {
+        do {
+            try await PrivilegedOperationsCoordinator.shared.installLaunchDaemonServicesWithoutLoading()
             AppLogger.shared.log("✅ [AutoFixer] Successfully adopted orphaned Kanata process")
             return true
-        } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to adopt orphaned process")
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to adopt orphaned process: \(error)")
             return false
         }
     }
@@ -1071,16 +1073,14 @@ class WizardAutoFixer: AutoFixCapable {
     private func installLogRotation() async -> Bool {
         AppLogger.shared.log("📝 [AutoFixer] Installing log rotation service for Kanata logs")
 
-        let installer6 = launchDaemonInstaller
-        let success = await MainActor.run { installer6.installLogRotationService() }
-
-        if success {
+        do {
+            try await PrivilegedOperationsCoordinator.shared.installLogRotation()
             AppLogger.shared.log("✅ [AutoFixer] Successfully installed log rotation service")
-        } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to install log rotation service")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to install log rotation service: \(error)")
+            return false
         }
-
-        return success
     }
 
     private func replaceKanataWithBundled() async -> Bool {
@@ -1169,30 +1169,26 @@ class WizardAutoFixer: AutoFixCapable {
     private func regenerateCommServiceConfiguration() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Regenerating communication service configuration")
 
-        // Use the existing service configuration regeneration method
-        let success = await launchDaemonInstaller.regenerateServiceWithCurrentSettings()
-
-        if success {
+        do {
+            try await PrivilegedOperationsCoordinator.shared.regenerateServiceConfiguration()
             AppLogger.shared.log("✅ [AutoFixer] Successfully regenerated communication service configuration")
-        } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate communication service configuration")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate communication service configuration: \(error)")
+            return false
         }
-
-        return success
     }
 
     private func restartCommServer() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Restarting communication server")
 
-        // Use the existing unhealthy services restart method
-        let success = await launchDaemonInstaller.restartUnhealthyServices()
-
-        if success {
+        do {
+            try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
             AppLogger.shared.log("✅ [AutoFixer] Successfully restarted communication server")
-        } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server: \(error)")
+            return false
         }
-
-        return success
     }
 }
