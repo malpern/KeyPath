@@ -240,4 +240,5 @@ final class LaunchAgentManager {
 }
 
 // MARK: - Error Types
+
 // (Removed deprecated LaunchAgentError - now using KeyPathError directly)

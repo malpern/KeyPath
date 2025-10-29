@@ -8,5 +8,3 @@ public struct MockPrivilegedOperations: PrivilegedOperations {
     public func restartKanataService() async -> Bool { true }
     public func stopKanataService() async -> Bool { true }
 }
-
-

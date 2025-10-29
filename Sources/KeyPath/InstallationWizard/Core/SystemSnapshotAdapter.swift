@@ -4,7 +4,6 @@ import Foundation
 /// This allows testing the new SystemValidator in the existing wizard without rewriting all pages
 @MainActor
 struct SystemSnapshotAdapter {
-
     /// Convert SystemSnapshot to SystemStateResult for backward compatibility
     static func adapt(_ snapshot: SystemSnapshot) -> SystemStateResult {
         // Convert to wizard system state
@@ -177,17 +176,15 @@ struct SystemSnapshotAdapter {
         snapshot.blockingIssues.map { issue in
             switch issue {
             case let .permissionMissing(app, permission, action):
-                let req: PermissionRequirement = {
-                    if app == "KeyPath" && permission == "Input Monitoring" {
-                        return .keyPathInputMonitoring
-                    } else if app == "KeyPath" && permission == "Accessibility" {
-                        return .keyPathAccessibility
-                    } else if app == "Kanata" && permission == "Input Monitoring" {
-                        return .kanataInputMonitoring
-                    } else {
-                        return .kanataAccessibility
-                    }
-                }()
+                let req: PermissionRequirement = if app == "KeyPath", permission == "Input Monitoring" {
+                    .keyPathInputMonitoring
+                } else if app == "KeyPath", permission == "Accessibility" {
+                    .keyPathAccessibility
+                } else if app == "Kanata", permission == "Input Monitoring" {
+                    .kanataInputMonitoring
+                } else {
+                    .kanataAccessibility
+                }
 
                 return WizardIssue(
                     identifier: .permission(req),
@@ -200,15 +197,13 @@ struct SystemSnapshotAdapter {
                 )
 
             case let .componentMissing(name, autoFix):
-                let comp: ComponentRequirement = {
-                    if name.contains("Kanata") {
-                        return .kanataBinaryMissing
-                    } else if name.contains("Karabiner driver") {
-                        return .karabinerDriver
-                    } else {
-                        return .vhidDeviceRunning
-                    }
-                }()
+                let comp: ComponentRequirement = if name.contains("Kanata") {
+                    .kanataBinaryMissing
+                } else if name.contains("Karabiner driver") {
+                    .karabinerDriver
+                } else {
+                    .vhidDeviceRunning
+                }
 
                 return WizardIssue(
                     identifier: .component(comp),

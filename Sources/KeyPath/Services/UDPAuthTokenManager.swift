@@ -30,14 +30,16 @@ final class UDPAuthTokenManager {
         // Use cache if recent (within 30 seconds)
         if let cached = cachedToken,
            let lastUpdate = lastCacheUpdate,
-           Date().timeIntervalSince(lastUpdate) < 30 {
+           Date().timeIntervalSince(lastUpdate) < 30
+        {
             return cached
         }
 
         // Try Keychain first (user preference)
         do {
             if let keychainToken = try KeychainService.shared.retrieveUDPToken(),
-               !keychainToken.isEmpty {
+               !keychainToken.isEmpty
+            {
                 cachedToken = keychainToken
                 lastCacheUpdate = Date()
                 return keychainToken
@@ -175,7 +177,7 @@ final class UDPAuthTokenManager {
             attributes: [.posixPermissions: 0o600]
         ) else {
             throw NSError(domain: "TokenManager", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to create temporary token file"
+                NSLocalizedDescriptionKey: "Failed to create temporary token file",
             ])
         }
 
@@ -222,7 +224,8 @@ extension UDPAuthTokenManager {
         do {
             if let keychainToken = try KeychainService.shared.retrieveUDPToken(),
                !keychainToken.isEmpty,
-               readSharedToken() == nil {
+               readSharedToken() == nil
+            {
                 AppLogger.shared.log("🔄 [TokenManager] Migrating existing Keychain token to shared file")
                 try writeSharedToken(keychainToken)
                 cachedToken = keychainToken

@@ -307,7 +307,6 @@ struct WizardKanataComponentsPage: View {
             }
             return hasIssue ? .failed : .completed
 
-
         default:
             // Fallback for any other potential component
             let hasIssue = issues.contains { issue in

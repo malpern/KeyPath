@@ -107,7 +107,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         description: "Another process is already using the keyboard device.",
                         technicalDetails: output,
                         suggestedAction:
-                            "Check for conflicting keyboard software (Karabiner-Elements grabber, other keyboard tools)",
+                        "Check for conflicting keyboard software (Karabiner-Elements grabber, other keyboard tools)",
                         canAutoFix: false
                     ))
             }
@@ -147,10 +147,10 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         category: .conflict,
                         title: "VirtualHID Connection Failed",
                         description:
-                            "Kanata captured keyboard input but failed to connect to VirtualHID driver, causing unresponsive keyboard.",
+                        "Kanata captured keyboard input but failed to connect to VirtualHID driver, causing unresponsive keyboard.",
                         technicalDetails: "Exit code: 6 (VirtualHID connection failure)\nOutput: \(output)",
                         suggestedAction:
-                            "Restart Karabiner-VirtualHIDDevice daemon or try starting KeyPath again",
+                        "Restart Karabiner-VirtualHIDDevice daemon or try starting KeyPath again",
                         canAutoFix: true
                     ))
             } else {
@@ -171,7 +171,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             // For unknown exit codes, check if it might be permission-related
             let isPermissionRelated =
                 output.contains("permission") || output.contains("access") || output.contains("denied")
-                || output.contains("IOHIDDeviceOpen") || output.contains("privilege")
+                    || output.contains("IOHIDDeviceOpen") || output.contains("privilege")
 
             if isPermissionRelated {
                 diagnostics.append(
@@ -279,7 +279,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     description: "karabiner_grabber is running and will prevent Kanata from starting",
                     technicalDetails: "This causes 'exclusive access and device already open' errors",
                     suggestedAction: "Quit Karabiner-Elements or disable its key remapping",
-                    canAutoFix: true  // We can kill it
+                    canAutoFix: true // We can kill it
                 ))
         }
 
@@ -392,7 +392,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             let lines = logContent.components(separatedBy: .newlines)
 
             // Look for common error patterns
-            for line in lines.suffix(100) {  // Check last 100 lines
+            for line in lines.suffix(100) { // Check last 100 lines
                 if line.contains("IOHIDDeviceOpen error") {
                     diagnostics.append(
                         KanataDiagnostic(

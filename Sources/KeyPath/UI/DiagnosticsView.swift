@@ -1,5 +1,27 @@
 import SwiftUI
 
+// MARK: - File Navigation (999 lines)
+
+//
+// This file displays system diagnostics and health checks. Use CMD+F to jump to:
+//
+// Main Actions:
+//   - runDiagnostics()         Collect all diagnostic information
+//   - refreshSystemStatus()    Update system state
+//   - validateConfig()         Check Kanata configuration
+//
+// Data Collection:
+//   - getKanataVersion()       Check Kanata binary version
+//   - getCodeSignature()       Verify code signing
+//   - getLaunchDaemonState()   Check service status
+//   - probePermissions()       Test all permissions
+//
+// UI Utilities:
+//   - severityColor()          Color for diagnostic severity
+//   - categoryColor()          Color for diagnostic category
+//   - openKeyPathLogs()        Open KeyPath log directory
+//   - openKanataLogs()         Open Kanata log file
+
 struct DiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM

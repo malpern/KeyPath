@@ -114,7 +114,7 @@ struct WizardSystemStatusOverview: View {
         // 3. Input Monitoring Permission
         let inputMonitoringStatus = getInputMonitoringStatus()
         let inputMonitoringIssues = issues.filter { issue in
-            if case .permission(let req) = issue.identifier {
+            if case let .permission(req) = issue.identifier {
                 return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
             }
             return false
@@ -133,7 +133,7 @@ struct WizardSystemStatusOverview: View {
         // 4. Accessibility Permission
         let accessibilityStatus = getAccessibilityStatus()
         let accessibilityIssues = issues.filter { issue in
-            if case .permission(let req) = issue.identifier {
+            if case let .permission(req) = issue.identifier {
                 return req == .keyPathAccessibility || req == .kanataAccessibility
             }
             return false
@@ -174,7 +174,7 @@ struct WizardSystemStatusOverview: View {
             let kanataComponentsStatus = getKanataComponentsStatus()
             let kanataComponentsIssues = issues.filter { issue in
                 // Kanata component issues
-                if case .component(let comp) = issue.identifier {
+                if case let .component(comp) = issue.identifier {
                     return comp == .kanataBinaryMissing
                 }
                 return false
@@ -243,16 +243,16 @@ struct WizardSystemStatusOverview: View {
         // Prerequisites for Kanata Engine Setup:
         // - Karabiner Driver Setup must be completed (Kanata requires VirtualHID driver)
         let karabinerDriverCompleted = getKarabinerComponentsStatus() == .completed
-        
+
         // Prerequisites for Service item:
         // - Kanata Engine Setup must be completed (not failed)
         let kanataEngineCompleted = getKanataComponentsStatus() == .completed
-        
+
         // Prerequisites for Communication Server:
         // - Kanata Engine Setup must be completed AND
         // - Service must be available (either completed or at least not blocked)
         let serviceAvailable = kanataEngineCompleted // Service can only work if Kanata Engine is ready
-        
+
         return DependencyVisibility(
             showKanataEngineItem: karabinerDriverCompleted,
             showServiceItem: kanataEngineCompleted,
@@ -314,7 +314,7 @@ struct WizardSystemStatusOverview: View {
 
     private func getKarabinerComponentsStatus() -> InstallationStatus {
         // Use centralized evaluator (single source of truth)
-        return KarabinerComponentsStatusEvaluator.evaluate(
+        KarabinerComponentsStatusEvaluator.evaluate(
             systemState: systemState,
             issues: issues
         )
@@ -355,10 +355,6 @@ struct WizardSystemStatusOverview: View {
             return .notStarted
         }
 
-        // Use comprehensive communication testing for accurate status
-        // Note: This will be called synchronously, but SystemStatusChecker uses caching
-        // so the comprehensive tests run by the shared instance will provide fast results
-
         // Check for communication server issues in the shared issues array first
         let hasCommServerIssues = issues.contains { issue in
             if case let .component(component) = issue.identifier {
@@ -379,15 +375,37 @@ struct WizardSystemStatusOverview: View {
             return .failed
         }
 
-        // Additional check: UDP server must be enabled in preferences
-        let preferences = PreferencesService.shared
-        guard preferences.udpServerEnabled else {
-            return .failed // UDP disabled - needs setup
+        // Additional check: Verify TCP token exists in keychain
+        // If there's no token, TCP authentication isn't set up properly
+        let hasToken = (try? KeychainService.shared.retrieveTCPToken()) != nil
+        guard hasToken else {
+            return .failed // No TCP token - communication not configured
         }
 
-        // If Kanata is running, UDP is enabled, and there are no detected communication issues
-        // in the shared state, show as completed. The comprehensive testing results from
-        // SystemStatusChecker will be reflected in the issues array.
+        // Check if the LaunchDaemon plist exists and has TCP configuration
+        // If plist doesn't exist or doesn't have --port argument, service needs regeneration
+        let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+        let plistExists = FileManager.default.fileExists(atPath: plistPath)
+
+        if !plistExists {
+            return .failed // Service plist doesn't exist
+        }
+
+        // Try to read plist and check for TCP port argument
+        if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+           let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+           let args = plist["ProgramArguments"] as? [String]
+        {
+            // Check if --port argument exists (TCP configuration)
+            let hasTCPPort = args.contains("--port")
+            guard hasTCPPort else {
+                return .failed // Service uses old UDP configuration
+            }
+        } else {
+            return .failed // Can't read plist or parse arguments
+        }
+
+        // If everything checks out, show as completed
         return .completed
     }
 
@@ -480,7 +498,7 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
                     description: "Test conflict",
                     autoFixAction: .terminateConflictingProcesses,
                     userAction: nil
-                )
+                ),
             ],
             stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: { _ in },

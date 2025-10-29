@@ -37,7 +37,7 @@ actor KanataUDPClient {
 
     // MARK: - Initialization
 
-    init(host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 5.0, reuseConnection: Bool = true) {
+    init(host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 5.0, reuseConnection _: Bool = true) {
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -63,10 +63,10 @@ actor KanataUDPClient {
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let authResponseDict = json["Authenticated"] as? [String: Any],
                let success = authResponseDict["success"] as? Bool,
-               let sessionId = authResponseDict["session_id"] as? String {
-
+               let sessionId = authResponseDict["session_id"] as? String
+            {
                 if success {
-                    self.authToken = token
+                    authToken = token
                     self.sessionId = sessionId
                     AppLogger.shared.log("✅ [UDP] Authentication successful, session: \(sessionId)")
                     return true
@@ -195,7 +195,8 @@ actor KanataUDPClient {
             let responseData = try await send(requestData)
 
             if let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String, status == "Ok" {
+               let status = json["status"] as? String, status == "Ok"
+            {
                 AppLogger.shared.log("✅ [UDP] Kanata restart request sent")
                 return true
             }
@@ -234,7 +235,7 @@ actor KanataUDPClient {
 
     /// Core UDP send/receive implementation
     private func sendAndReceive(_ data: Data) async throws -> Data {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             // Create connection (lightweight for localhost UDP)
             let connection = NWConnection(
                 host: NWEndpoint.Host(host),
@@ -258,7 +259,7 @@ actor KanataUDPClient {
                         }
 
                         // Receive response
-                        connection.receiveMessage { content, _, isComplete, error in
+                        connection.receiveMessage { content, _, _, error in
                             defer { connection.cancel() }
 
                             if completionFlag.markCompleted() {
@@ -273,7 +274,7 @@ actor KanataUDPClient {
                         }
                     })
 
-                case .failed(let error):
+                case let .failed(error):
                     if completionFlag.markCompleted() {
                         continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
                     }
@@ -297,7 +298,8 @@ actor KanataUDPClient {
     private func extractError(from response: String) -> String {
         if let data = response.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let error = json["error"] as? String {
+           let error = json["error"] as? String
+        {
             return error
         }
         return "Unknown error"

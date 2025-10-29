@@ -385,34 +385,34 @@ public enum KeyPathError: Error, LocalizedError {
 
 // MARK: - Convenience Constructors
 
-extension KeyPathError {
+public extension KeyPathError {
     /// Create a configuration file not found error
-    public static func configFileNotFound(_ path: String) -> KeyPathError {
+    static func configFileNotFound(_ path: String) -> KeyPathError {
         .configuration(.fileNotFound(path: path))
     }
 
     /// Create a process start failed error
-    public static func processStartFailed(_ reason: String) -> KeyPathError {
+    static func processStartFailed(_ reason: String) -> KeyPathError {
         .process(.startFailed(reason: reason))
     }
 
     /// Create an accessibility permission error
-    public static var accessibilityNotGranted: KeyPathError {
+    static var accessibilityNotGranted: KeyPathError {
         .permission(.accessibilityNotGranted)
     }
 
     /// Create an input monitoring permission error
-    public static var inputMonitoringNotGranted: KeyPathError {
+    static var inputMonitoringNotGranted: KeyPathError {
         .permission(.inputMonitoringNotGranted)
     }
 
     /// Create a UDP timeout error
-    public static var udpTimeout: KeyPathError {
+    static var udpTimeout: KeyPathError {
         .communication(.timeout)
     }
 
     /// Create a driver not loaded error
-    public static func driverNotLoaded(_ driver: String) -> KeyPathError {
+    static func driverNotLoaded(_ driver: String) -> KeyPathError {
         .system(.driverNotLoaded(driver: driver))
     }
 }

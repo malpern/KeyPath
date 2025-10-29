@@ -3,6 +3,7 @@ import SwiftUI
 /// Simplified action section for the summary page
 struct WizardActionSection: View {
     let systemState: WizardSystemState
+    let isFullyConfigured: Bool // True only when EVERYTHING including TCP is working
     let onStartService: () -> Void
     let onDismiss: () -> Void
 

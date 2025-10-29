@@ -272,7 +272,7 @@ struct PageDotsIndicator: View {
     var body: some View {
         let pages = WizardPage.orderedPages
         HStack(spacing: WizardDesign.Spacing.labelGap) {
-            ForEach(Array(pages.enumerated()), id: \.1) { (index, page) in
+            ForEach(Array(pages.enumerated()), id: \.1) { index, page in
                 PageDot(
                     isCurrent: currentPage == page,
                     page: page,

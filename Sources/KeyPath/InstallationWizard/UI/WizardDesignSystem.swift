@@ -794,7 +794,7 @@ struct WizardStatusItem: View {
                 action?()
             }
         }
-        .help(tooltip ?? "")  // Show tooltip on hover if provided
+        .help(tooltip ?? "") // Show tooltip on hover if provided
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title): \(statusText)")
         .accessibilityHint(isNavigable ? "Tap to navigate to \(title) page" : "")

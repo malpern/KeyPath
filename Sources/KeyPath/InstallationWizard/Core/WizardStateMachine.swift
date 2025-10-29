@@ -47,7 +47,7 @@ class WizardStateMachine: ObservableObject {
 
         // Create validator with process manager
         let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
-        self.validator = SystemValidator(
+        validator = SystemValidator(
             processLifecycleManager: processManager,
             kanataManager: kanataManager
         )
@@ -69,9 +69,9 @@ class WizardStateMachine: ObservableObject {
             let interval = Date().timeIntervalSince(last)
             if interval < 0.5 {
                 AppLogger.shared.log("""
-                    ⚠️ [WizardStateMachine] RAPID REFRESH: \(String(format: "%.3f", interval))s since last
-                    This might indicate automatic triggers - expected: manual user actions only
-                    """)
+                ⚠️ [WizardStateMachine] RAPID REFRESH: \(String(format: "%.3f", interval))s since last
+                This might indicate automatic triggers - expected: manual user actions only
+                """)
             }
         }
         lastRefreshStart = Date()
@@ -198,23 +198,23 @@ class WizardStateMachine: ObservableObject {
         // Simple reverse navigation
         switch current {
         case .summary:
-            return .summary // First page
+            .summary // First page
         case .fullDiskAccess:
-            return .summary
+            .summary
         case .conflicts:
-            return .summary
+            .summary
         case .inputMonitoring:
-            return .conflicts
+            .conflicts
         case .accessibility:
-            return .inputMonitoring
+            .inputMonitoring
         case .karabinerComponents:
-            return .accessibility
+            .accessibility
         case .kanataComponents:
-            return .karabinerComponents
+            .karabinerComponents
         case .communication:
-            return .kanataComponents
+            .kanataComponents
         case .service:
-            return .communication
+            .communication
         }
     }
 
@@ -244,6 +244,6 @@ class WizardStateMachine: ObservableObject {
 
     /// Get refresh stats for debugging
     func getRefreshStats() -> (count: Int, lastStart: Date?) {
-        return (refreshCount, lastRefreshStart)
+        (refreshCount, lastRefreshStart)
     }
 }

@@ -31,7 +31,7 @@ class LaunchDaemonInstaller {
     static var kanataPlistPath: String {
         "\(systemLaunchDaemonsDir)/\(kanataServiceID).plist"
     }
-    
+
     /// Path to the Kanata LaunchAgent plist file (per-user)
     static var kanataLaunchAgentPlistPath: String {
         "\(systemLaunchAgentsDir)/\(kanataServiceID).plist"
@@ -72,28 +72,28 @@ class LaunchDaemonInstaller {
 
         // Execute directly without semaphore to avoid deadlock
         let success = executeOSAScriptDirectly(osascriptCode)
-        
+
         AppLogger.shared.log("🔧 [LaunchDaemon] Admin dialog test result: \(success)")
         return success
     }
-    
+
     /// Execute osascript directly without thread switching
     private func executeOSAScriptDirectly(_ osascriptCode: String) -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         task.arguments = ["-e", osascriptCode]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
-            
+
             AppLogger.shared.log("🔧 [LaunchDaemon] OSAScript test output: \(output)")
             return task.terminationStatus == 0
         } catch {
@@ -182,36 +182,36 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log("✅ [LaunchDaemon] Using bundled Kanata path for TCC stability: \(bundledPath)")
         return bundledPath
     }
-    
+
     /// Checks if the bundled kanata is newer than the system-installed version
     /// Returns true if an upgrade is needed
     func shouldUpgradeKanata() -> Bool {
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
         let bundledPath = WizardSystemPaths.bundledKanataPath
-        
+
         // If system version doesn't exist, we need to install it
         guard FileManager.default.fileExists(atPath: systemPath) else {
             AppLogger.shared.log("🔄 [LaunchDaemon] System kanata not found - initial installation needed")
             return true
         }
-        
+
         // If bundled version doesn't exist, no upgrade possible
         guard FileManager.default.fileExists(atPath: bundledPath) else {
             AppLogger.shared.log("⚠️ [LaunchDaemon] Bundled kanata not found - cannot upgrade")
             return false
         }
-        
+
         let systemVersion = getKanataVersionAtPath(systemPath)
         let bundledVersion = getKanataVersionAtPath(bundledPath)
-        
+
         AppLogger.shared.log("🔄 [LaunchDaemon] Version check: System=\(systemVersion ?? "unknown"), Bundled=\(bundledVersion ?? "unknown")")
-        
+
         // If we can't determine versions, assume upgrade is needed for safety
         guard let systemVer = systemVersion, let bundledVer = bundledVersion else {
             AppLogger.shared.log("⚠️ [LaunchDaemon] Cannot determine versions - assuming upgrade needed")
             return true
         }
-        
+
         // Compare versions (simple string comparison works for most version formats)
         let upgradeNeeded = bundledVer != systemVer
         if upgradeNeeded {
@@ -219,27 +219,27 @@ class LaunchDaemonInstaller {
         } else {
             AppLogger.shared.log("✅ [LaunchDaemon] Kanata versions match - no upgrade needed")
         }
-        
+
         return upgradeNeeded
     }
-    
+
     /// Gets the version of kanata at a specific path
     private func getKanataVersionAtPath(_ path: String) -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: path)
         task.arguments = ["--version"]
-        
+
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
-        
+
         do {
             try task.run()
             task.waitUntilExit()
-            
+
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            
+
             return output
         } catch {
             AppLogger.shared.log("❌ [LaunchDaemon] Failed to get kanata version at \(path): \(error)")
@@ -564,29 +564,8 @@ class LaunchDaemonInstaller {
     private func generateKanataPlist(binaryPath: String) -> String {
         let arguments = buildKanataPlistArguments(binaryPath: binaryPath)
 
-        // Generate environment variables XML for secure token passing
-        let commConfig = PreferencesService.communicationSnapshot()
-        let environmentVariables = commConfig.communicationEnvironmentVariables
-        var environmentXML = ""
-
-        if !environmentVariables.isEmpty {
-            environmentXML = """
-
-                        <key>EnvironmentVariables</key>
-                        <dict>
-            """
-            for (key, value) in environmentVariables {
-                environmentXML += """
-
-                                <key>\(key)</key>
-                                <string>\(value)</string>
-                """
-            }
-            environmentXML += """
-
-                        </dict>
-            """
-        }
+        // TCP mode: No environment variables needed (auth token stored in Keychain)
+        let environmentXML = ""
 
         var argumentsXML = ""
         for arg in arguments {
@@ -765,7 +744,7 @@ class LaunchDaemonInstaller {
                 let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
                 for (src, dst) in [
                     (kanataTemp, kanataFinal), (vhidDaemonTemp, vhidDaemonFinal),
-                    (vhidManagerTemp, vhidManagerFinal)
+                    (vhidManagerTemp, vhidManagerFinal),
                 ] {
                     try? fm.removeItem(atPath: dst)
                     try fm.copyItem(atPath: src, toPath: dst)
@@ -827,7 +806,8 @@ class LaunchDaemonInstaller {
 
     /// Execute LaunchDaemon installation with administrator privileges using osascript
     private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-        -> Bool {
+        -> Bool
+    {
         AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
         // Create the command to copy the file and set proper permissions
@@ -926,7 +906,7 @@ class LaunchDaemonInstaller {
         /bin/launchctl enable system/\(Self.kanataServiceID) 2>/dev/null || true
         /bin/launchctl enable system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
         /bin/launchctl enable system/\(Self.vhidManagerServiceID) 2>/dev/null || true
-        
+
         # Load services using bootstrap (modern approach) - DEPENDENCIES FIRST!
         launchctl bootstrap system '\(vhidDaemonFinal)'
         launchctl bootstrap system '\(vhidManagerFinal)'
@@ -1066,37 +1046,37 @@ class LaunchDaemonInstaller {
             "🔧 [LaunchDaemon] Starting consolidated installation with improved osascript")
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Using direct osascript execution with proper environment")
-            
+
         // First, test if osascript works at all with a simple command
         AppLogger.shared.log("🔧 [LaunchDaemon] Testing osascript functionality first...")
         let testCommand = """
         do shell script "echo 'osascript test successful'" with administrator privileges
         """
-        
+
         let testTask = Process()
         testTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         testTask.arguments = ["-e", testCommand]
-        
+
         // Capture both stdout and stderr
         let testPipe = Pipe()
         let testErrorPipe = Pipe()
         testTask.standardOutput = testPipe
         testTask.standardError = testErrorPipe
-        
+
         do {
             try testTask.run()
             testTask.waitUntilExit()
-            
+
             let testStatus = testTask.terminationStatus
             AppLogger.shared.log("🔧 [LaunchDaemon] osascript test result: \(testStatus)")
-            
+
             if testStatus != 0 {
                 // Capture stderr for detailed error info
                 let errorData = testErrorPipe.fileHandleForReading.readDataToEndOfFile()
                 if let errorString = String(data: errorData, encoding: .utf8), !errorString.isEmpty {
                     AppLogger.shared.log("❌ [LaunchDaemon] osascript error output: \(errorString)")
                 }
-                
+
                 AppLogger.shared.log("❌ [LaunchDaemon] osascript test failed - admin dialogs may be blocked")
                 AppLogger.shared.log("❌ [LaunchDaemon] This usually indicates missing entitlements or sandbox restrictions")
                 return false
@@ -1156,7 +1136,7 @@ class LaunchDaemonInstaller {
         /bin/launchctl enable system/\(Self.kanataServiceID) 2>/dev/null || true
         /bin/launchctl enable system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
         /bin/launchctl enable system/\(Self.vhidManagerServiceID) 2>/dev/null || true
-        
+
         # Load services using bootstrap (modern approach) - DEPENDENCIES FIRST!
         launchctl bootstrap system '\(vhidDaemonFinal)'
         launchctl bootstrap system '\(vhidManagerFinal)'
@@ -1286,7 +1266,7 @@ class LaunchDaemonInstaller {
 
                 for (src, dst) in [
                     (kanataTemp, kanataFinal), (vhidDaemonTemp, vhidDaemonFinal),
-                    (vhidManagerTemp, vhidManagerFinal)
+                    (vhidManagerTemp, vhidManagerFinal),
                 ] {
                     try? fm.removeItem(atPath: dst)
                     try fm.copyItem(atPath: src, toPath: dst)
@@ -2065,15 +2045,10 @@ class LaunchDaemonInstaller {
     private func buildKanataPlistArguments(binaryPath: String) -> [String] {
         var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
 
-        // Add UDP port if enabled and valid
-        let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseUDP {
-            // Add UDP communication arguments
-            arguments.append(contentsOf: commConfig.communicationLaunchArguments)
-            AppLogger.shared.log("📡 [LaunchDaemon] UDP server enabled on port \(commConfig.udpPort)")
-        } else {
-            AppLogger.shared.log("📡 [LaunchDaemon] UDP server disabled")
-        }
+        // Add TCP port for communication server
+        let tcpPort = UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort") as? Int ?? 37001
+        arguments.append(contentsOf: ["--port", "\(tcpPort)"])
+        AppLogger.shared.log("📡 [LaunchDaemon] TCP server enabled on port \(tcpPort)")
 
         arguments.append("--debug")
         arguments.append("--log-layer-changes")
@@ -2272,16 +2247,16 @@ class LaunchDaemonInstaller {
             AppLogger.shared.log("⚠️ [LaunchDaemon] Error during immediate log rotation: \(error)")
         }
     }
-    
+
     /// Install only the bundled kanata binary to system location (recommended architecture)
     /// This replaces the need for Homebrew installation and ensures proper Developer ID signing
     func installBundledKanataBinaryOnly() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing bundled kanata binary to system location")
-        
+
         let bundledPath = WizardSystemPaths.bundledKanataPath
         let systemPath = WizardSystemPaths.kanataSystemInstallPath
         let systemDir = "/Library/KeyPath/bin"
-        
+
         // Ensure bundled binary exists
         guard FileManager.default.fileExists(atPath: bundledPath) else {
             AppLogger.shared.log("❌ [LaunchDaemon] CRITICAL: Bundled kanata binary not found at: \(bundledPath)")
@@ -2289,15 +2264,15 @@ class LaunchDaemonInstaller {
             // TODO: Surface this as a wizard issue with severity .critical
             return false
         }
-        
+
         // Verify the bundled binary is executable
         guard FileManager.default.isExecutableFile(atPath: bundledPath) else {
             AppLogger.shared.log("❌ [LaunchDaemon] Bundled kanata binary exists but is not executable: \(bundledPath)")
             return false
         }
-        
+
         AppLogger.shared.log("📂 [LaunchDaemon] Copying \(bundledPath) → \(systemPath)")
-        
+
         // Check if we should skip admin operations for testing
         let success: Bool
         if TestEnvironment.shouldSkipAdminOperations {
@@ -2312,37 +2287,37 @@ class LaunchDaemonInstaller {
             chown root:wheel '\(systemPath)' && \
             xattr -d com.apple.quarantine '\(systemPath)' 2>/dev/null || true
             """
-            
+
             // Use osascript approach like other admin operations
             let escapedCommand = escapeForAppleScript(command)
             let osascriptCommand = """
             do shell script "\(escapedCommand)" with administrator privileges
             """
-            
+
             success = executeOSAScriptOnMainThread(osascriptCommand)
         }
-        
+
         if success {
             AppLogger.shared.log("✅ [LaunchDaemon] Bundled kanata binary installed successfully to \(systemPath)")
-            
+
             // Verify code signing and trust
             AppLogger.shared.log("🔍 [LaunchDaemon] Verifying code signing and trust...")
             let verifyCommand = "spctl -a '\(systemPath)' 2>&1"
             let verifyTask = Process()
             verifyTask.executableURL = URL(fileURLWithPath: "/bin/bash")
             verifyTask.arguments = ["-c", verifyCommand]
-            
+
             let pipe = Pipe()
             verifyTask.standardOutput = pipe
             verifyTask.standardError = pipe
-            
+
             do {
                 try verifyTask.run()
                 verifyTask.waitUntilExit()
-                
+
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 let output = String(data: data, encoding: .utf8) ?? ""
-                
+
                 if verifyTask.terminationStatus == 0 {
                     AppLogger.shared.log("✅ [LaunchDaemon] Binary passed Gatekeeper verification")
                 } else if output.contains("rejected") || output.contains("not accepted") {
@@ -2352,25 +2327,25 @@ class LaunchDaemonInstaller {
             } catch {
                 AppLogger.shared.log("⚠️ [LaunchDaemon] Could not verify code signing: \(error)")
             }
-            
+
             // Smoke test: verify the binary can actually execute (skip in test mode)
             if !TestEnvironment.shouldSkipAdminOperations {
                 AppLogger.shared.log("🔍 [LaunchDaemon] Running smoke test to verify binary execution...")
                 let smokeTest = Process()
                 smokeTest.executableURL = URL(fileURLWithPath: systemPath)
                 smokeTest.arguments = ["--version"]
-                
+
                 let smokePipe = Pipe()
                 smokeTest.standardOutput = smokePipe
                 smokeTest.standardError = smokePipe
-                
+
                 do {
                     try smokeTest.run()
                     smokeTest.waitUntilExit()
-                    
+
                     let smokeData = smokePipe.fileHandleForReading.readDataToEndOfFile()
                     let smokeOutput = String(data: smokeData, encoding: .utf8) ?? ""
-                    
+
                     if smokeTest.terminationStatus == 0 {
                         AppLogger.shared.log("✅ [LaunchDaemon] Kanata binary executes successfully (--version): \(smokeOutput.trimmingCharacters(in: .whitespacesAndNewlines))")
                     } else {
@@ -2382,12 +2357,12 @@ class LaunchDaemonInstaller {
                     // Continue anyway - the binary is installed
                 }
             }
-            
+
             // Verify the installation using detector
             let detector = KanataBinaryDetector.shared
             let result = detector.detectCurrentStatus()
             AppLogger.shared.log("🔍 [LaunchDaemon] Post-installation detection: \(result.status) at \(result.path ?? "unknown")")
-            
+
             return result.status == .systemInstalled
         } else {
             AppLogger.shared.log("❌ [LaunchDaemon] Failed to install bundled kanata binary")

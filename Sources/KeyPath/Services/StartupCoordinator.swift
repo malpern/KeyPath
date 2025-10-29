@@ -1,5 +1,5 @@
-import Foundation
 import AppKit
+import Foundation
 
 /// Coordinates a boring, phased startup to keep the first display cycle clean.
 ///
@@ -28,27 +28,27 @@ final class StartupCoordinator: ObservableObject {
 
         schedule(after: 0.25) { [weak self] in
             guard let self else { return }
-            self.transition(to: .warmed)
+            transition(to: .warmed)
             NotificationCenter.default.post(name: .kp_startupWarm, object: nil)
         }
 
         // Start auto-launch earlier so validation runs after service kick-off
         schedule(after: 0.50) { [weak self] in
             guard let self else { return }
-            self.transition(to: .launched)
+            transition(to: .launched)
             NotificationCenter.default.post(name: .kp_startupAutoLaunch, object: nil)
         }
 
         schedule(after: 1.00) { [weak self] in
             guard let self else { return }
-            self.transition(to: .validated)
+            transition(to: .validated)
             // Trigger validation via .kp_startupRevalidate notification
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
         }
 
         schedule(after: 1.25) { [weak self] in
             guard let self else { return }
-            self.transition(to: .monitoring)
+            transition(to: .monitoring)
             NotificationCenter.default.post(name: .kp_startupEmergencyMonitor, object: nil)
         }
     }

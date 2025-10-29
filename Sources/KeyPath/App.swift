@@ -42,7 +42,7 @@ public struct KeyPathApp: App {
 
         // Phase 4: MVVM - Initialize KanataManager and ViewModel
         let manager = KanataManager()
-        self.kanataManager = manager
+        kanataManager = manager
         _viewModel = StateObject(wrappedValue: KanataViewModel(manager: manager))
         AppLogger.shared.log("🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping KanataManager")
 
@@ -69,7 +69,7 @@ public struct KeyPathApp: App {
         // Settings scene for preferences window
         Settings {
             SettingsView()
-                .environmentObject(viewModel)  // Phase 4: Inject ViewModel
+                .environmentObject(viewModel) // Phase 4: Inject ViewModel
                 .environment(\.preferencesService, PreferencesService.shared)
                 .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
         }
@@ -87,7 +87,7 @@ public struct KeyPathApp: App {
                             ),
                             NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
                             NSApplication.AboutPanelOptionKey.applicationVersion: info.version,
-                            NSApplication.AboutPanelOptionKey.version: "Build \(info.build)"
+                            NSApplication.AboutPanelOptionKey.version: "Build \(info.build)",
                         ]
                     )
                 }
@@ -198,7 +198,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_: Notification) {
         AppLogger.shared.log("🔍 [AppDelegate] applicationDidBecomeActive called (initialShown=\(initialMainWindowShown))")
-        
+
         // One-shot first activation: unconditionally show window on first activation
         if !initialMainWindowShown {
             // Log diagnostic state at first activation for future debugging
@@ -206,13 +206,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let appHidden = NSApp.isHidden
             let windowOcclusion = mainWindowController?.window?.occlusionState ?? []
             AppLogger.shared.log("🔍 [AppDelegate] First activation diagnostics: isActive=\(appActive), isHidden=\(appHidden), windowOcclusion=\(windowOcclusion.rawValue)")
-            
+
             // Check if app was hidden and unhide if needed
             if NSApp.isHidden {
                 NSApp.unhide(nil)
                 AppLogger.shared.log("🪟 [AppDelegate] App was hidden, unhiding")
             }
-            
+
             // Unconditionally show and focus the main window on first activation
             mainWindowController?.show(focus: true)
             initialMainWindowShown = true
@@ -291,12 +291,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create main window controller (defer fronting until first activation)
         if !isHeadlessMode {
             AppLogger.shared.log("🪟 [AppDelegate] Setting up main window controller")
-            
+
             guard let manager = kanataManager else {
                 AppLogger.shared.log("❌ [AppDelegate] KanataManager is nil, cannot create window")
                 return
             }
-            
+
             mainWindowController = MainWindowController(kanataManager: manager)
             AppLogger.shared.log("🪟 [AppDelegate] Main window controller created (deferring show until activation)")
 
@@ -345,7 +345,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.log("✅ [AppDelegate] Cleanup complete, app terminating")
     }
 
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))")
 
         // If UI hasn’t been set up yet (e.g., app was started in headless mode by LaunchAgent),

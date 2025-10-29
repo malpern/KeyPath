@@ -1,5 +1,26 @@
 import SwiftUI
 
+// MARK: - File Navigation (1,352 lines)
+
+//
+// This file is organized into clear sections. Use CMD+F to jump to:
+//
+// Main Sections:
+//   - statusSection           Service and installation status
+//   - serviceControlSection   Start/stop/restart buttons, wizard trigger
+//   - configurationSection    Edit, reset, backup config
+//   - diagnosticsSection      Enhanced diagnostics
+//   - notificationsSection    Notification preferences
+//   - communicationSection    UDP settings and configuration
+//   - developerToolsSection   Dev reset and diagnostics
+//   - startupSection          Launch agent settings
+//
+// Helper Methods:
+//   - stopKanataService()     Stop daemon logic
+//   - openConfigInZed()       Open config in editor
+//   - performDevReset()       Developer reset flow
+//   - performFullReset()      Complete system reset
+
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var kanataManager: KanataViewModel // Phase 4: MVVM
@@ -1111,8 +1132,9 @@ struct SettingsView: View {
 
     private func checkTCPServerStatus() {
         Task {
-            if preferences.udpServerEnabled, kanataManager.currentState == .running {
-                let client = KanataUDPClient(port: preferences.udpServerPort)
+            if kanataManager.currentState == .running {
+                let port = 37001 // TCP port (kanata default)
+                let client = KanataTCPClient(port: port)
                 let isAvailable = await client.checkServerStatus()
 
                 await MainActor.run {

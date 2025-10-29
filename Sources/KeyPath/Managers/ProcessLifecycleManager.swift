@@ -302,7 +302,8 @@ final class ProcessLifecycleManager: @unchecked Sendable {
 
         // Skip log monitoring and other utilities that contain "kanata" in paths
         if command.contains("tail") || command.contains("cat") || command.contains("grep")
-            || command.contains("less") || command.contains("vim") || command.contains("nano") {
+            || command.contains("less") || command.contains("vim") || command.contains("nano")
+        {
             return false
         }
 

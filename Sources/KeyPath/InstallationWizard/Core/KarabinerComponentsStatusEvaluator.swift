@@ -4,8 +4,8 @@ import Foundation
 
 /// Individual Karabiner components that can be checked independently
 enum KarabinerComponent {
-    case driver        // Karabiner VirtualHID driver and related components
-    case backgroundServices  // LaunchDaemon services for automatic startup
+    case driver // Karabiner VirtualHID driver and related components
+    case backgroundServices // LaunchDaemon services for automatic startup
 }
 
 // MARK: - Karabiner Components Status Evaluator
@@ -13,7 +13,6 @@ enum KarabinerComponent {
 /// Single source of truth for Karabiner Components status evaluation across all wizard pages
 /// Follows the same pattern as ServiceStatusEvaluator for consistency
 enum KarabinerComponentsStatusEvaluator {
-    
     /// Evaluates overall Karabiner Components status using comprehensive logic
     /// - Parameters:
     ///   - systemState: Current wizard system state
@@ -53,7 +52,7 @@ enum KarabinerComponentsStatusEvaluator {
 
         return hasKarabinerIssues ? .failed : .completed
     }
-    
+
     /// Get status of individual Karabiner component for detailed breakdown
     /// - Parameters:
     ///   - component: The specific component to check
@@ -75,7 +74,7 @@ enum KarabinerComponentsStatusEvaluator {
                          .component(.vhidDeviceActivation),
                          .component(.vhidDeviceRunning),
                          .component(.vhidDaemonMisconfigured),
-                     .component(.vhidDriverVersionMismatch):
+                         .component(.vhidDriverVersionMismatch):
                         return true
                     default:
                         return false
@@ -84,7 +83,7 @@ enum KarabinerComponentsStatusEvaluator {
                 return false
             }
             return hasDriverIssues ? .failed : .completed
-            
+
         case .backgroundServices:
             // Check for background services issues
             let hasBackgroundServiceIssues = issues.contains { issue in
@@ -102,12 +101,12 @@ enum KarabinerComponentsStatusEvaluator {
             return hasBackgroundServiceIssues ? .failed : .completed
         }
     }
-    
+
     /// Get all Karabiner-related issues for detailed error display
     /// - Parameter issues: Issues detected by SystemStatusChecker
     /// - Returns: Array of issues related to Karabiner components
     static func getKarabinerRelatedIssues(from issues: [WizardIssue]) -> [WizardIssue] {
-        return issues.filter { issue in
+        issues.filter { issue in
             // Include installation issues related to Karabiner
             if issue.category == .installation {
                 switch issue.identifier {
@@ -129,7 +128,7 @@ enum KarabinerComponentsStatusEvaluator {
             return issue.category == .daemon || issue.category == .backgroundServices
         }
     }
-    
+
     /// Check if there are any issues that can be auto-fixed
     /// - Parameter issues: Issues detected by SystemStatusChecker
     /// - Returns: True if any Karabiner issues have auto-fix actions available

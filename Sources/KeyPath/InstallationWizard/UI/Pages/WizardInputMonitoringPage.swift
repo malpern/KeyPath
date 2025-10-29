@@ -4,6 +4,7 @@ import SwiftUI
 struct WizardInputMonitoringPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
+    let stateInterpreter: WizardStateInterpreter
     let onRefresh: () async -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
     let onDismiss: (() -> Void)?
@@ -276,28 +277,16 @@ struct WizardInputMonitoringPage: View {
     }
 
     private var keyPathInputMonitoringStatus: InstallationStatus {
-        let hasKeyPathIssue = issues.contains { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathInputMonitoring
-            }
-            return false
-        }
-        return hasKeyPathIssue ? .notStarted : .completed
+        stateInterpreter.getPermissionStatus(.keyPathInputMonitoring, in: issues)
     }
 
     private var kanataInputMonitoringStatus: InstallationStatus {
-        let hasKanataIssue = issues.contains { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .kanataInputMonitoring
-            }
-            return false
-        }
-        return hasKanataIssue ? .notStarted : .completed
+        stateInterpreter.getPermissionStatus(.kanataInputMonitoring, in: issues)
     }
 
     // Issue filtering for tooltips
     private var keyPathInputMonitoringIssues: [WizardIssue] {
-        return issues.filter { issue in
+        issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathInputMonitoring
             }
@@ -306,7 +295,7 @@ struct WizardInputMonitoringPage: View {
     }
 
     private var kanataInputMonitoringIssues: [WizardIssue] {
-        return issues.filter { issue in
+        issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .kanataInputMonitoring
             }
@@ -493,8 +482,9 @@ struct WizardInputMonitoringPage_Previews: PreviewProvider {
                     description: "KeyPath needs Input Monitoring permission to capture keyboard events.",
                     autoFixAction: nil,
                     userAction: "Grant permission in System Settings > Privacy & Security > Input Monitoring"
-                )
+                ),
             ],
+            stateInterpreter: WizardStateInterpreter(),
             onRefresh: {},
             onNavigateToPage: nil,
             onDismiss: nil,

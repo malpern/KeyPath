@@ -216,4 +216,3 @@ enum MouseEventType: Sendable {
         }
     }
 }
-

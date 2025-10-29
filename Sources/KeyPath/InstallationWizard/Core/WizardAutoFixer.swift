@@ -26,8 +26,6 @@ class WizardAutoFixer: AutoFixCapable {
         self.bundledKanataManager = bundledKanataManager
     }
 
-    
-
     // MARK: - Error Analysis
 
     /// Analyze a kanata startup error and provide guidance
@@ -112,10 +110,10 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to install log rotation
         case .replaceKanataWithBundled:
             true // We can always attempt to replace kanata with bundled version
-        case .enableUDPServer:
-            true // We can always attempt to enable UDP server
-        case .setupUDPAuthentication:
-            true // We can always attempt to setup UDP authentication
+        case .enableTCPServer:
+            true // We can always attempt to enable TCP server
+        case .setupTCPAuthentication:
+            true // We can always attempt to setup TCP authentication
         case .regenerateCommServiceConfiguration:
             true // We can always attempt to regenerate communication service configuration
         case .restartCommServer:
@@ -168,10 +166,10 @@ class WizardAutoFixer: AutoFixCapable {
             return await installLogRotation()
         case .replaceKanataWithBundled:
             return await replaceKanataWithBundled()
-        case .enableUDPServer:
-            return await enableUDPServer()
-        case .setupUDPAuthentication:
-            return await setupUDPAuthentication()
+        case .enableTCPServer:
+            return await enableTCPServer()
+        case .setupTCPAuthentication:
+            return await setupTCPAuthentication()
         case .regenerateCommServiceConfiguration:
             return await regenerateCommServiceConfiguration()
         case .restartCommServer:
@@ -499,7 +497,7 @@ class WizardAutoFixer: AutoFixCapable {
                         }
                         return false
                     }
-                    
+
                     if shouldResume {
                         AppLogger.shared.log(
                             "⚠️ [AutoFixer] VirtualHID Manager activation timed out after 10 seconds")
@@ -519,7 +517,7 @@ class WizardAutoFixer: AutoFixCapable {
                         }
                         return false
                     }
-                    
+
                     if shouldResume {
                         let success = process.terminationStatus == 0
                         if success {
@@ -545,7 +543,7 @@ class WizardAutoFixer: AutoFixCapable {
                         }
                         return false
                     }
-                    
+
                     if shouldResume {
                         AppLogger.shared.log("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
                         continuation.resume(returning: false)
@@ -740,7 +738,7 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Step 1/\(totalSteps): Verifying bundled kanata binary...")
         let bundledManager = await BundledKanataManager()
         let signingStatus = await bundledManager.bundledKanataSigningStatus()
-        
+
         guard signingStatus.isDeveloperID else {
             AppLogger.shared.log("❌ [AutoFixer] Step 1 FAILED: Bundled kanata binary is not properly signed: \(signingStatus)")
             return false
@@ -751,7 +749,7 @@ class WizardAutoFixer: AutoFixCapable {
         // Step 2: Install bundled binary to system location
         AppLogger.shared.log("🔧 [AutoFixer] Step 2/\(totalSteps): Installing bundled binary to system location...")
         let installSuccess = await bundledManager.replaceBinaryWithBundled()
-        
+
         if installSuccess {
             stepsCompleted += 1
             AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Bundled kanata binary installed successfully")
@@ -1062,7 +1060,6 @@ class WizardAutoFixer: AutoFixCapable {
     private func installLogRotation() async -> Bool {
         AppLogger.shared.log("📝 [AutoFixer] Installing log rotation service for Kanata logs")
 
-
         let installer6 = launchDaemonInstaller
         let success = await MainActor.run { installer6.installLogRotationService() }
 
@@ -1077,7 +1074,6 @@ class WizardAutoFixer: AutoFixCapable {
 
     private func replaceKanataWithBundled() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Replacing system kanata with bundled Developer ID signed version")
-
 
         let success = await bundledKanataManager.replaceBinaryWithBundled()
 
@@ -1096,32 +1092,36 @@ class WizardAutoFixer: AutoFixCapable {
         }
     }
 
-    // MARK: - UDP Communication Server Auto-Fix Actions
+    // MARK: - TCP Communication Server Auto-Fix Actions
 
-    private func enableUDPServer() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Enabling UDP server")
+    private func enableTCPServer() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Enabling TCP server")
 
-        await MainActor.run {
-            PreferencesService.shared.udpServerEnabled = true
-        }
-
-        // Restart service with UDP enabled
+        // TCP is enabled by default through port configuration
+        // Just regenerate service configuration with current settings
         return await regenerateCommServiceConfiguration()
     }
 
-    private func setupUDPAuthentication() async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Setting up UDP authentication")
+    private func setupTCPAuthentication() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Setting up TCP authentication")
 
-        // Generate a new auth token using centralized manager
-        let newToken = await UDPAuthTokenManager.shared.generateSecureToken()
+        // Generate a new secure auth token
+        var randomBytes = [UInt8](repeating: 0, count: 32)
+        let result = SecRandomCopyBytes(kSecRandomDefault, 32, &randomBytes)
+        guard result == errSecSuccess else {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to generate secure random token")
+            return false
+        }
+
+        let newToken = Data(randomBytes).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
 
         do {
-            // Update token via centralized manager
-            try await UDPAuthTokenManager.shared.setToken(newToken)
-
-            // Also update preferences for consistency
-            await MainActor.run {
-                PreferencesService.shared.udpAuthToken = newToken
+            // Store token in keychain
+            try await MainActor.run {
+                try KeychainService.shared.storeTCPToken(newToken)
             }
 
             // Regenerate service configuration with new token
@@ -1139,18 +1139,18 @@ class WizardAutoFixer: AutoFixCapable {
             }
 
             // Test the new token
-            let commSnapshot = PreferencesService.communicationSnapshot()
-            let client = KanataUDPClient(port: commSnapshot.udpPort)
+            let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+            let client = KanataTCPClient(port: port, timeout: 5.0)
 
             if await client.authenticate(token: newToken) {
-                AppLogger.shared.log("✅ [AutoFixer] UDP authentication setup successful")
+                AppLogger.shared.log("✅ [AutoFixer] TCP authentication setup successful")
                 return true
             } else {
-                AppLogger.shared.log("❌ [AutoFixer] UDP authentication test failed")
+                AppLogger.shared.log("❌ [AutoFixer] TCP authentication test failed")
                 return false
             }
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to set token via TokenManager: \(error)")
+            AppLogger.shared.log("❌ [AutoFixer] Failed to setup TCP authentication: \(error)")
             return false
         }
     }

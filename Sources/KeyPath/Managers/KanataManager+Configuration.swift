@@ -162,7 +162,8 @@ extension KanataManager {
             let range = NSRange(logContent.startIndex..., in: logContent)
 
             if let match = regex.firstMatch(in: logContent, options: [], range: range),
-               let tokenRange = Range(match.range(at: 1), in: logContent) {
+               let tokenRange = Range(match.range(at: 1), in: logContent)
+            {
                 let token = String(logContent[tokenRange])
                 AppLogger.shared.log("✅ [UDP Token] Found auto-generated token")
 

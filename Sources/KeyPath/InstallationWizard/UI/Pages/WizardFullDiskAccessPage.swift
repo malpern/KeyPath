@@ -1,10 +1,10 @@
-import SwiftUI
 import os
+import SwiftUI
 
 // Thread-safe counter for detection attempts
 final class DetectionCounter: @unchecked Sendable {
     private let lock = OSAllocatedUnfairLock(initialState: 0)
-    
+
     func increment() -> Int {
         lock.withLock { state in
             state += 1
@@ -210,7 +210,8 @@ struct WizardFullDiskAccessPage: View {
         // Check cache first
         if let lastCheckTime = lastFDACheckTime,
            Date().timeIntervalSince(lastCheckTime) < cacheValidityDuration,
-           cachedFDAStatus {
+           cachedFDAStatus
+        {
             // Use cached positive result (don't cache negative to allow quick detection)
             hasFullDiskAccess = cachedFDAStatus
             hasCheckedPermission = true
@@ -301,13 +302,13 @@ struct WizardFullDiskAccessPage: View {
         // Start enhanced detection timer
         // Use a thread-safe counter for detection attempts
         let detectionCounter = DetectionCounter()
-        
+
         detectionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
             // Use synchronous MainActor.assumeIsolated to avoid data race
             MainActor.assumeIsolated {
                 let currentCount = detectionCounter.increment()
                 systemSettingsDetectionAttempts = currentCount
-                
+
                 let shouldStop: Bool
                 if performFDACheck() {
                     shouldStop = true
@@ -326,7 +327,7 @@ struct WizardFullDiskAccessPage: View {
                 } else {
                     shouldStop = false
                 }
-                
+
                 if shouldStop {
                     detectionTimer?.invalidate()
                     detectionTimer = nil

@@ -52,8 +52,8 @@ struct SystemStatusIndicator: View {
         }
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Click to open system setup wizard")
-        .opacity(validator.validationState == nil ? 0 : 1)  // Invisible but reserves space
-        .animation(.easeIn(duration: 0.2), value: validator.validationState == nil)  // Smooth fade-in
+        .opacity(validator.validationState == nil ? 0 : 1) // Invisible but reserves space
+        .animation(.easeIn(duration: 0.2), value: validator.validationState == nil) // Smooth fade-in
     }
 
     // MARK: - Icon View

@@ -64,19 +64,19 @@ struct InstallationWizardView: View {
             hasKeyboardFocus = true
             setupWizard()
         }
-        .onChange(of: asyncOperationManager.hasRunningOperations) { oldValue, newValue in
+        .onChange(of: asyncOperationManager.hasRunningOperations) { _, newValue in
             // When overlays disappear, reclaim focus for ESC key
             if !newValue {
                 hasKeyboardFocus = true
             }
         }
-        .onChange(of: showingStartConfirmation) { oldValue, newValue in
+        .onChange(of: showingStartConfirmation) { _, newValue in
             // Reclaim focus when start confirmation dialog closes
             if !newValue {
                 hasKeyboardFocus = true
             }
         }
-        .onChange(of: showingCloseConfirmation) { oldValue, newValue in
+        .onChange(of: showingCloseConfirmation) { _, newValue in
             // Reclaim focus when close confirmation dialog closes
             if !newValue {
                 hasKeyboardFocus = true
@@ -181,7 +181,7 @@ struct InstallationWizardView: View {
 
                 navigationCoordinator.navigateToPage(page)
                 AppLogger.shared.log(
-                    "🔍 [NewWizard] User manually navigated to \(page) - entering user interaction mode")
+                    "🔍 [Wizard] User manually navigated to \(page) - entering user interaction mode")
             }
             .fixedSize(horizontal: false, vertical: true) // Prevent dots from expanding
         }
@@ -221,6 +221,7 @@ struct InstallationWizardView: View {
                     WizardInputMonitoringPage(
                         systemState: systemState,
                         issues: currentIssues.filter { $0.category == .permissions },
+                        stateInterpreter: stateInterpreter,
                         onRefresh: { refreshState() },
                         onNavigateToPage: { page in
                             navigationCoordinator.navigateToPage(page)
@@ -309,14 +310,14 @@ struct InstallationWizardView: View {
     // MARK: - State Management
 
     private func setupWizard() {
-        AppLogger.shared.log("🔍 [NewWizard] Setting up wizard with new architecture")
+        AppLogger.shared.log("🔍 [Wizard] Setting up wizard with new architecture")
 
         // Always reset navigation state for fresh run
         navigationCoordinator.navigationEngine.resetNavigationState()
 
         // If an initial page was specified, navigate to it
         if let initialPage {
-            AppLogger.shared.log("🔍 [NewWizard] Navigating to initial page: \(initialPage)")
+            AppLogger.shared.log("🔍 [Wizard] Navigating to initial page: \(initialPage)")
             navigationCoordinator.navigateToPage(initialPage)
         }
 
@@ -332,7 +333,7 @@ struct InstallationWizardView: View {
                 // Set basic default state so UI can render
                 systemState = .initializing
                 currentIssues = []
-                AppLogger.shared.log("🚀 [NewWizard] UI shown immediately, heavy checks deferred")
+                AppLogger.shared.log("🚀 [Wizard] UI shown immediately, heavy checks deferred")
             }
 
             // Defer heavy system detection to background
@@ -346,17 +347,17 @@ struct InstallationWizardView: View {
     private func performInitialStateCheck() async {
         // Check if user has already closed wizard
         guard !Task.isCancelled else {
-            AppLogger.shared.log("🔍 [NewWizard] Initial state check cancelled - wizard closing")
+            AppLogger.shared.log("🔍 [Wizard] Initial state check cancelled - wizard closing")
             return
         }
 
         // Check if force closing flag is set
         guard !isForceClosing else {
-            AppLogger.shared.log("🔍 [NewWizard] Initial state check blocked - force closing in progress")
+            AppLogger.shared.log("🔍 [Wizard] Initial state check blocked - force closing in progress")
             return
         }
 
-        AppLogger.shared.log("🔍 [NewWizard] Performing initial state check")
+        AppLogger.shared.log("🔍 [Wizard] Performing initial state check")
 
         let operation = WizardOperations.stateDetection(stateManager: stateManager)
 
@@ -371,10 +372,10 @@ struct InstallationWizardView: View {
             }
 
             AppLogger.shared.log(
-                "🔍 [NewWizard] Initial setup - State: \(result.state), Issues: \(result.issues.count), Target Page: \(navigationCoordinator.currentPage)"
+                "🔍 [Wizard] Initial setup - State: \(result.state), Issues: \(result.issues.count), Target Page: \(navigationCoordinator.currentPage)"
             )
             AppLogger.shared.log(
-                "🔍 [NewWizard] Issue details: \(result.issues.map { "\($0.category)-\($0.title)" })")
+                "🔍 [Wizard] Issue details: \(result.issues.map { "\($0.category)-\($0.title)" })")
         }
     }
 
@@ -413,7 +414,7 @@ struct InstallationWizardView: View {
     private func performSmartStateCheck() async {
         // Check if force closing is in progress
         guard !isForceClosing else {
-            AppLogger.shared.log("🔍 [NewWizard] Smart state check blocked - force closing in progress")
+            AppLogger.shared.log("🔍 [Wizard] Smart state check blocked - force closing in progress")
             return
         }
 
@@ -437,7 +438,7 @@ struct InstallationWizardView: View {
 
                 if oldState != systemState || oldPage != navigationCoordinator.currentPage {
                     AppLogger.shared.log(
-                        "🔍 [NewWizard] State changed: \(oldState) -> \(systemState), page: \(oldPage) -> \(navigationCoordinator.currentPage)"
+                        "🔍 [Wizard] State changed: \(oldState) -> \(systemState), page: \(oldPage) -> \(navigationCoordinator.currentPage)"
                     )
                 }
             }
@@ -465,29 +466,29 @@ struct InstallationWizardView: View {
         Task {
             do {
                 AppLogger.shared.log(
-                    "🔍 [NewWizard] *** FIX BUTTON CLICKED *** Auto-fix started - BUILD VERSION CHECK")
+                    "🔍 [Wizard] *** FIX BUTTON CLICKED *** Auto-fix started - BUILD VERSION CHECK")
                 Swift.print("*** CRASH-PROOF *** AppLogger.log called successfully")
-                AppLogger.shared.log("🔍 [NewWizard] TIMESTAMP: \(Date())")
-                AppLogger.shared.log("🔍 [NewWizard] Current issues: \(currentIssues.count) total")
+                AppLogger.shared.log("🔍 [Wizard] TIMESTAMP: \(Date())")
+                AppLogger.shared.log("🔍 [Wizard] Current issues: \(currentIssues.count) total")
 
                 // Log each current issue for debugging
                 for (index, issue) in currentIssues.enumerated() {
                     if let autoFixAction = issue.autoFixAction {
                         AppLogger.shared.log(
-                            "🔍 [NewWizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
+                            "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
                     } else {
                         AppLogger.shared.log(
-                            "🔍 [NewWizard] Issue \(index): \(issue.identifier) -> AutoFix: nil")
+                            "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: nil")
                     }
                 }
 
                 // Find issues that can be auto-fixed
                 let autoFixableIssues = currentIssues.compactMap(\.autoFixAction)
-                AppLogger.shared.log("🔍 [NewWizard] Auto-fixable actions found: \(autoFixableIssues)")
+                AppLogger.shared.log("🔍 [Wizard] Auto-fixable actions found: \(autoFixableIssues)")
 
                 for action in autoFixableIssues {
                     guard let actualAutoFixer = autoFixer.autoFixer else {
-                        AppLogger.shared.log("❌ [NewWizard] AutoFixer not configured - skipping auto-fix")
+                        AppLogger.shared.log("❌ [Wizard] AutoFixer not configured - skipping auto-fix")
                         continue
                     }
                     let operation = WizardOperations.autoFix(action: action, autoFixer: actualAutoFixer)
@@ -495,7 +496,7 @@ struct InstallationWizardView: View {
 
                     asyncOperationManager.execute(operation: operation) { (success: Bool) in
                         AppLogger.shared.log(
-                            "🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
+                            "🔧 [Wizard] Auto-fix \(action): \(success ? "success" : "failed")")
 
                         // Show toast notification
                         if success {
@@ -504,12 +505,12 @@ struct InstallationWizardView: View {
                             }
                         } else {
                             Task { @MainActor in
-                                AppLogger.shared.log("❌ [NewWizard] Auto-fix FAILED for action: \(action)")
-                                AppLogger.shared.log("❌ [NewWizard] Action description: \(actionDescription)")
+                                AppLogger.shared.log("❌ [Wizard] Auto-fix FAILED for action: \(action)")
+                                AppLogger.shared.log("❌ [Wizard] Action description: \(actionDescription)")
                                 let errorMessage = getDetailedErrorMessage(
                                     for: action, actionDescription: actionDescription
                                 )
-                                AppLogger.shared.log("❌ [NewWizard] Generated error message: \(errorMessage)")
+                                AppLogger.shared.log("❌ [Wizard] Generated error message: \(errorMessage)")
                                 toastManager.showError(errorMessage)
                             }
                         }
@@ -519,9 +520,8 @@ struct InstallationWizardView: View {
                 // Refresh state after auto-fix attempts
                 refreshState()
 
-                AppLogger.shared.log("🔍 [NewWizard] *** PERFORMAUTOFIX COMPLETED SUCCESSFULLY ***")
+                AppLogger.shared.log("🔍 [Wizard] *** PERFORMAUTOFIX COMPLETED SUCCESSFULLY ***")
                 Swift.print("*** CRASH-PROOF *** performAutoFix completed successfully")
-
             }
         }
     }
@@ -536,7 +536,7 @@ struct InstallationWizardView: View {
                 atomically: true, encoding: .utf8
             )
 
-        AppLogger.shared.log("🔧 [NewWizard] Auto-fix for specific action: \(action)")
+        AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
         // Immediately mark auto-fix as running to prevent monitoring loop interference
         let operationId = "auto_fix_\(String(describing: action))"
@@ -545,7 +545,7 @@ struct InstallationWizardView: View {
         }
 
         guard let actualAutoFixer = autoFixer.autoFixer else {
-            AppLogger.shared.log("❌ [NewWizard] AutoFixer not configured for single auto-fix")
+            AppLogger.shared.log("❌ [Wizard] AutoFixer not configured for single auto-fix")
             return false
         }
         let operation = WizardOperations.autoFix(action: action, autoFixer: actualAutoFixer)
@@ -562,7 +562,7 @@ struct InstallationWizardView: View {
                     operation: operation,
                     onSuccess: { success in
                         AppLogger.shared.log(
-                            "🔧 [NewWizard] Auto-fix \(action): \(success ? "success" : "failed")")
+                            "🔧 [Wizard] Auto-fix \(action): \(success ? "success" : "failed")")
 
                         // Show toast notification
                         if success {
@@ -595,7 +595,7 @@ struct InstallationWizardView: View {
                     },
                     onFailure: { error in
                         AppLogger.shared.log(
-                            "❌ [NewWizard] Auto-fix \(action) error: \(error.localizedDescription)")
+                            "❌ [Wizard] Auto-fix \(action) error: \(error.localizedDescription)")
 
                         // Show error toast
                         Task { @MainActor in
@@ -644,12 +644,12 @@ struct InstallationWizardView: View {
             "Install log rotation to keep logs under 10MB"
         case .replaceKanataWithBundled:
             "Replace kanata with Developer ID signed version"
-        case .enableUDPServer:
-            "Enable UDP server"
-        case .setupUDPAuthentication:
-            "Setup UDP authentication for secure communication"
+        case .enableTCPServer:
+            "Enable TCP server"
+        case .setupTCPAuthentication:
+            "Setup TCP authentication for secure communication"
         case .regenerateCommServiceConfiguration:
-            "Update UDP service configuration"
+            "Update TCP service configuration"
         case .restartCommServer:
             "Restart Service with Authentication"
         case .fixDriverVersionMismatch:
@@ -663,11 +663,11 @@ struct InstallationWizardView: View {
     private func refreshState() {
         // Check if force closing is in progress
         guard !isForceClosing else {
-            AppLogger.shared.log("🔍 [NewWizard] Refresh state blocked - force closing in progress")
+            AppLogger.shared.log("🔍 [Wizard] Refresh state blocked - force closing in progress")
             return
         }
 
-        AppLogger.shared.log("🔍 [NewWizard] Refreshing system state (using cache if available)")
+        AppLogger.shared.log("🔍 [Wizard] Refreshing system state (using cache if available)")
 
         // Don't clear cache - let the 2-second TTL handle freshness
         // Only clear cache when we actually need fresh data (e.g., after auto-fix)
@@ -682,7 +682,7 @@ struct InstallationWizardView: View {
             systemState = result.state
             currentIssues = result.issues
             AppLogger.shared.log(
-                "🔍 [NewWizard] Refresh complete - Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
+                "🔍 [Wizard] Refresh complete - Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
             )
         }
     }
@@ -698,14 +698,14 @@ struct InstallationWizardView: View {
 
                     asyncOperationManager.execute(operation: operation) { (success: Bool) in
                         if success {
-                            AppLogger.shared.log("✅ [NewWizard] Kanata service started successfully")
+                            AppLogger.shared.log("✅ [Wizard] Kanata service started successfully")
                             dismissAndRefreshMainScreen()
                         } else {
-                            AppLogger.shared.log("❌ [NewWizard] Failed to start Kanata service")
+                            AppLogger.shared.log("❌ [Wizard] Failed to start Kanata service")
                         }
                     } onFailure: { error in
                         AppLogger.shared.log(
-                            "❌ [NewWizard] Error starting Kanata service: \(error.localizedDescription)")
+                            "❌ [Wizard] Error starting Kanata service: \(error.localizedDescription)")
                     }
                 } else {
                     // Service already running, dismiss wizard
@@ -868,7 +868,8 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 
@@ -941,7 +942,7 @@ struct InstallationWizardView: View {
 class WizardAutoFixerManager: ObservableObject {
     private(set) var autoFixer: WizardAutoFixer?
 
-    func configure(kanataManager: KanataManager, toastManager: WizardToastManager) {
+    func configure(kanataManager: KanataManager, toastManager _: WizardToastManager) {
         AppLogger.shared.log("🔧 [AutoFixerManager] Configuring with KanataManager")
         // FIXED: Removed toastManager parameter (was unused, created Core→UI architecture violation)
         autoFixer = WizardAutoFixer(kanataManager: kanataManager)
@@ -1001,6 +1002,7 @@ struct KeyboardNavigationModifier: ViewModifier {
 }
 
 // MARK: - UI-Layer WizardOperations Extension
+
 // This extends WizardOperations (from Core) with UI-specific factory methods that need UI types
 
 extension WizardOperations {

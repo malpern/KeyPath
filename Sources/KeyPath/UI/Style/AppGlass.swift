@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - AppGlass Styles
 
@@ -30,13 +30,13 @@ struct AppGlassBackground: View {
     private var material: NSVisualEffectView.Material {
         switch style {
         case .headerStrong:
-            return .menu
+            .menu
         case .cardBold, .chipBold:
-            return .menu
+            .menu
         case .popoverBold:
-            return .popover
+            .popover
         case .sheetBold:
-            return .hudWindow
+            .hudWindow
         }
     }
 
@@ -104,6 +104,7 @@ extension View {
         background(AppGlassBackground(style: .popoverBold, cornerRadius: cornerRadius))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
+
     func appGlassSheet(cornerRadius: CGFloat = 12) -> some View {
         background(AppGlassBackground(style: .sheetBold, cornerRadius: cornerRadius))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -190,6 +191,7 @@ extension View {
         modifier(AppButtonGlass(tint: tint, radius: radius, active: active))
     }
 }
+
 // MARK: - Solid Glass Button
 
 struct AppSolidGlassButton: ViewModifier {

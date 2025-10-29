@@ -14,5 +14,3 @@ public protocol PrivilegedOperations: Sendable {
     /// Stop the Kanata LaunchDaemon service.
     func stopKanataService() async -> Bool
 }
-
-

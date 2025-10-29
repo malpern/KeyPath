@@ -6,7 +6,8 @@ class IssueGenerator {
     // MARK: - Issue Creation
 
     func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult)
-        -> [WizardIssue] {
+        -> [WizardIssue]
+    {
         var issues: [WizardIssue] = []
 
         // Create issues for each compatibility problem
@@ -80,7 +81,8 @@ class IssueGenerator {
     }
 
     private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict])
-        -> String {
+        -> String
+    {
         let count = conflicts.count
         let plural = count > 1 ? "es" : ""
 
@@ -428,9 +430,9 @@ class IssueGenerator {
         case .communicationServerNotResponding:
             .restartCommServer // Restart service to enable communication functionality
         case .udpServerConfiguration:
-            .enableUDPServer // Enable UDP server
+            .enableTCPServer // Enable TCP server
         case .udpServerNotResponding:
-            .enableUDPServer // Enable UDP server functionality
+            .enableTCPServer // Enable TCP server functionality
         case .logRotation:
             .installLogRotation
         default:

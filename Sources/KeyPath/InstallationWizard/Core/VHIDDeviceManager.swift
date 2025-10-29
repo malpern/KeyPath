@@ -67,16 +67,16 @@ final class VHIDDeviceManager: @unchecked Sendable {
         do {
             let startTime = CFAbsoluteTimeGetCurrent()
             try task.run()
-            
+
             // Use DispatchGroup to implement timeout for process execution
             let group = DispatchGroup()
             group.enter()
-            
+
             DispatchQueue.global().async {
                 task.waitUntilExit()
                 group.leave()
             }
-            
+
             let timeoutResult = group.wait(timeout: .now() + 2.0) // 2 second timeout
             if timeoutResult == .timedOut {
                 task.terminate()

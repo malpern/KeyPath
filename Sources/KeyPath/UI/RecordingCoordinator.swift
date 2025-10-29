@@ -1,6 +1,6 @@
+import AppKit
 import Foundation
 import SwiftUI
-import AppKit
 
 @MainActor
 protocol RecordingCapture: AnyObject {
@@ -14,7 +14,7 @@ final class KeyboardCaptureAdapter: RecordingCapture {
     private let capture: KeyboardCapture
 
     init() {
-        self.capture = KeyboardCapture()
+        capture = KeyboardCapture()
     }
 
     func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?) {
@@ -70,9 +70,9 @@ final class RecordingCoordinator: ObservableObject {
         keyboardCaptureFactory: @escaping () -> RecordingCapture = { KeyboardCaptureAdapter() }
     ) {
         self.kanataManager = kanataManager
-        self.showStatusMessage = statusHandler
+        showStatusMessage = statusHandler
         self.permissionProvider = permissionProvider
-        self.captureFactory = keyboardCaptureFactory
+        captureFactory = keyboardCaptureFactory
         refreshDisplayTexts()
     }
 
@@ -157,7 +157,8 @@ final class RecordingCoordinator: ObservableObject {
         if inputSequence.keys.count == 1,
            outputSequence.keys.count == 1,
            inputSequence.keys[0].modifiers.isEmpty,
-           outputSequence.keys[0].modifiers.isEmpty {
+           outputSequence.keys[0].modifiers.isEmpty
+        {
             let inKey = inputSequence.keys[0].baseKey
             let outKey = outputSequence.keys[0].baseKey
             do {
@@ -225,7 +226,8 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager {
+                   let km = self.kanataManager
+                {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -349,7 +351,8 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager {
+                   let km = self.kanataManager
+                {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -512,6 +515,7 @@ final class RecordingCoordinator: ObservableObject {
 }
 
 // MARK: - Normalization Helpers
+
 private extension RecordingCoordinator {
     func normalize(_ sequence: KeySequence) -> KeySequence {
         guard !sequence.keys.isEmpty else { return sequence }
@@ -521,7 +525,8 @@ private extension RecordingCoordinator {
             if let last = result.last,
                last.baseKey == kp.baseKey,
                last.modifiers == kp.modifiers,
-               kp.timestamp.timeIntervalSince(last.timestamp) <= window {
+               kp.timestamp.timeIntervalSince(last.timestamp) <= window
+            {
                 continue
             }
             result.append(kp)
@@ -545,31 +550,31 @@ extension RecordingCoordinator {
         var displayMessage: String {
             switch self {
             case .permissionFailure:
-                return "⚠️ Accessibility permission required for recording"
+                "⚠️ Accessibility permission required for recording"
             case .captureInitializationFailure:
-                return "⚠️ Failed to initialize keyboard capture"
+                "⚠️ Failed to initialize keyboard capture"
             case .timeout:
-                return "⚠️ Recording timed out - try again"
+                "⚠️ Recording timed out - try again"
             }
         }
 
         var bannerMessage: String {
             switch self {
             case .permissionFailure:
-                return "❌ Recording requires Accessibility permission. Open the Installation Wizard to grant access."
+                "❌ Recording requires Accessibility permission. Open the Installation Wizard to grant access."
             case .captureInitializationFailure:
-                return "❌ Failed to start keyboard capture. Check KeyPath diagnostics."
+                "❌ Failed to start keyboard capture. Check KeyPath diagnostics."
             case .timeout:
-                return "⚠️ Recording timed out — try again."
+                "⚠️ Recording timed out — try again."
             }
         }
 
         var shouldShowBanner: Bool {
             switch self {
             case .timeout:
-                return true
+                true
             case .permissionFailure, .captureInitializationFailure:
-                return true
+                true
             }
         }
     }

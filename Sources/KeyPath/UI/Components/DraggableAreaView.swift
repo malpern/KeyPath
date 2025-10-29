@@ -3,7 +3,7 @@ import SwiftUI
 
 /// A transparent NSView that lets users drag the window from SwiftUI regions.
 struct DraggableAreaView: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
+    func makeNSView(context _: Context) -> NSView {
         let v = NSView(frame: .zero)
         v.wantsLayer = true
         v.layer?.backgroundColor = .clear
@@ -13,7 +13,7 @@ struct DraggableAreaView: NSViewRepresentable {
         return v
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
+    func updateNSView(_: NSView, context _: Context) {
         // No-op
     }
 }

@@ -61,7 +61,8 @@ struct ErrorInfo: Identifiable {
         // TCP timeout errors (like the user experienced)
         if (errorString.contains("tcp") && errorString.contains("timeout")) ||
             errorString.contains("tcp request timed out") ||
-            errorString.contains("tcp communication failed") {
+            errorString.contains("tcp communication failed")
+        {
             return ErrorInfo(
                 originalError: error,
                 errorType: .tcpTimeout,
@@ -73,7 +74,7 @@ struct ErrorInfo: Identifiable {
                 """,
                 recoveryActions: [
                     .restartKanataService,
-                    .openDiagnostics
+                    .openDiagnostics,
                 ]
             )
         }
@@ -91,7 +92,7 @@ struct ErrorInfo: Identifiable {
                 """,
                 recoveryActions: [
                     .openPermissionSettings,
-                    .runInstallationWizard
+                    .runInstallationWizard,
                 ]
             )
         }
@@ -110,7 +111,7 @@ struct ErrorInfo: Identifiable {
                 recoveryActions: [
                     .startKanataService,
                     .runInstallationWizard,
-                    .openDiagnostics
+                    .openDiagnostics,
                 ]
             )
         }
@@ -128,7 +129,7 @@ struct ErrorInfo: Identifiable {
                 """,
                 recoveryActions: [
                     .resetToSafeConfig,
-                    .openDiagnostics
+                    .openDiagnostics,
                 ]
             )
         }
@@ -145,7 +146,7 @@ struct ErrorInfo: Identifiable {
             """,
             recoveryActions: [
                 .runInstallationWizard,
-                .openDiagnostics
+                .openDiagnostics,
             ]
         )
     }
@@ -253,11 +254,11 @@ enum RecoveryAction: Identifiable, CaseIterable {
     // MARK: - Recovery Action Implementations
 
     private func restartKanataService() async throws -> Bool {
-        return await PrivilegedOperationsProvider.shared.restartKanataService()
+        await PrivilegedOperationsProvider.shared.restartKanataService()
     }
 
     private func startKanataService() async throws -> Bool {
-        return await PrivilegedOperationsProvider.shared.startKanataService()
+        await PrivilegedOperationsProvider.shared.startKanataService()
     }
 
     private func openPermissionSettings() async -> Bool {

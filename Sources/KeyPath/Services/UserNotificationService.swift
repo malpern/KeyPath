@@ -1,6 +1,6 @@
+import AppKit
 import Foundation
 import UserNotifications
-import AppKit
 
 /// Manages local user notifications for KeyPath
 @MainActor
@@ -87,14 +87,18 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
     private func loadLastSentCache() {
         if let dict = UserDefaults.standard.dictionary(forKey: lastSentKey) as? [String: TimeInterval] {
             var cache: [String: Date] = [:]
-            for (k, ts) in dict { cache[k] = Date(timeIntervalSince1970: ts) }
+            for (k, ts) in dict {
+                cache[k] = Date(timeIntervalSince1970: ts)
+            }
             lastSentCache = cache
         }
     }
 
     private func saveLastSentCache() {
         var dict: [String: TimeInterval] = [:]
-        for (k, d) in lastSentCache { dict[k] = d.timeIntervalSince1970 }
+        for (k, d) in lastSentCache {
+            dict[k] = d.timeIntervalSince1970
+        }
         UserDefaults.standard.set(dict, forKey: lastSentKey)
     }
 
@@ -118,7 +122,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
     /// Send a notification if enabled, not frontmost (unless override), and not rate-limited.
     private func sendNotification(title: String, body: String, category: Category, key: String, ttl: TimeInterval, allowWhenFrontmost: Bool = false) {
         guard preferences.notificationsEnabled else { return }
-        if !allowWhenFrontmost && isFrontmost() { return }
+        if !allowWhenFrontmost, isFrontmost() { return }
         guard shouldSend(key: key, ttl: ttl) else { return }
 
         let content = UNMutableNotificationContent()
@@ -212,7 +216,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
 
     // MARK: - UNUserNotificationCenterDelegate
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+    nonisolated func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let action = response.actionIdentifier
         switch action {
         case Action.openWizard.rawValue:

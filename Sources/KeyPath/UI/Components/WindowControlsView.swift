@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 struct WindowControlsView: View {
     var body: some View {
@@ -27,4 +27,3 @@ struct WindowControlsView: View {
         .accessibilityHidden(true)
     }
 }
-

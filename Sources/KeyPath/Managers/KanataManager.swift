@@ -15,9 +15,9 @@ actor ProcessSynchronizationActor {
 /// Configuration validation and repair errors
 ///
 /// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
+/// Represents a simple key mapping from input to output
 @available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
 
-/// Represents a simple key mapping from input to output
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let input: String
@@ -33,9 +33,9 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
-        self.input = try container.decode(String.self, forKey: .input)
-        self.output = try container.decode(String.self, forKey: .output)
+        id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
+        input = try container.decode(String.self, forKey: .input)
+        output = try container.decode(String.self, forKey: .output)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -72,6 +72,67 @@ enum SimpleKanataState: String, CaseIterable {
 }
 
 /// Manages the Kanata process lifecycle and configuration directly.
+///
+/// # Architecture: Main Coordinator + Extension Files (2,820 lines total)
+///
+/// KanataManager is the main orchestrator for Kanata process management and configuration.
+/// It's split across multiple extension files for maintainability:
+///
+/// ## Extension Files (organized by concern):
+///
+/// **KanataManager.swift** (main file, ~1,200 lines)
+/// - Core initialization and state management
+/// - UI state snapshots and ViewModel interface
+/// - Health monitoring and auto-start logic
+/// - Diagnostics and error handling
+///
+/// **KanataManager+Lifecycle.swift** (~400 lines)
+/// - Process start/stop/restart operations
+/// - LaunchDaemon service management
+/// - State machine transitions
+/// - Recovery and health checks
+///
+/// **KanataManager+Configuration.swift** (~500 lines)
+/// - Config file I/O and validation
+/// - Key mapping CRUD operations
+/// - Backup and repair logic
+/// - TCP server configuration
+///
+/// **KanataManager+Engine.swift** (~300 lines)
+/// - Kanata engine communication
+/// - UDP/TCP protocol handling
+/// - Config reload and layer management
+///
+/// **KanataManager+EventTaps.swift** (~200 lines)
+/// - CGEvent monitoring and key capture
+/// - Keyboard input recording
+/// - Event tap lifecycle
+///
+/// **KanataManager+Output.swift** (~150 lines)
+/// - Log parsing and monitoring
+/// - Output processing from Kanata daemon
+///
+/// ## Key Dependencies (used by extensions):
+///
+/// - **ConfigurationService**: File I/O, parsing, validation (Configuration extension)
+/// - **ProcessLifecycleManager**: PID tracking, daemon registration (Lifecycle extension)
+/// - **ServiceHealthMonitor**: Restart cooldown, recovery (Lifecycle extension)
+/// - **DiagnosticsService**: System analysis, failure diagnosis (main file)
+/// - **PermissionOracle**: Permission state (main file + Lifecycle)
+///
+/// ## Navigation Tips:
+///
+/// - Starting Kanata? → See `+Lifecycle.swift`
+/// - Reading/writing config? → See `+Configuration.swift`
+/// - Talking to Kanata? → See `+Engine.swift`
+/// - Recording keypresses? → See `+EventTaps.swift`
+/// - Parsing logs? → See `+Output.swift`
+///
+/// ## MVVM Architecture Note:
+///
+/// KanataManager is **not** an ObservableObject. UI state is handled by `KanataViewModel`,
+/// which reads snapshots via `getCurrentUIState()`. This separation keeps business logic
+/// independent of SwiftUI reactivity.
 
 /// Actions available in validation error dialogs
 struct ValidationAlertAction {
@@ -115,6 +176,7 @@ enum SaveStatus {
 @MainActor
 class KanataManager {
     // MARK: - Internal State Properties
+
     // Note: These are internal (not private) to allow extensions to access them
     // ViewModel reads these via getCurrentUIState() snapshot method
 
@@ -626,7 +688,7 @@ class KanataManager {
                 if await MainActor.run(resultType: Bool.self, body: { self.isRunning }) {
                     AppLogger.shared.log(
                         "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
-                    await self.stopKanata()
+                    await stopKanata()
 
                     // Show safety notification (skip in tests)
                     await MainActor.run {
@@ -703,7 +765,7 @@ class KanataManager {
                 udpClient: udpClient
             )
 
-            if healthStatus.isHealthy && !healthStatus.shouldRestart {
+            if healthStatus.isHealthy, !healthStatus.shouldRestart {
                 AppLogger.shared.log("✅ [Start] Kanata is healthy - no restart needed")
                 return
             }
@@ -833,73 +895,73 @@ class KanataManager {
         let success = await startLaunchDaemonService()
 
         if success {
-                // Wait a moment for service to initialize
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            // Wait a moment for service to initialize
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
 
-                // Verify service started successfully
-                let serviceStatus = await checkLaunchDaemonStatus()
-                if let pid = serviceStatus.pid {
-                    AppLogger.shared.log("📝 [Start] LaunchDaemon service started with PID: \(pid)")
+            // Verify service started successfully
+            let serviceStatus = await checkLaunchDaemonStatus()
+            if let pid = serviceStatus.pid {
+                AppLogger.shared.log("📝 [Start] LaunchDaemon service started with PID: \(pid)")
 
-                    // Register with lifecycle manager
-                    let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
-                    await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+                // Register with lifecycle manager
+                let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
+                await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
 
-                    // Start real-time log monitoring for VirtualHID connection issues
-                    startLogMonitoring()
+                // Start real-time log monitoring for VirtualHID connection issues
+                startLogMonitoring()
 
-                    // Check for process conflicts after starting
-                    await verifyNoProcessConflicts()
+                // Check for process conflicts after starting
+                await verifyNoProcessConflicts()
 
-                    // Update state and clear old diagnostics when successfully starting
-                    updateInternalState(
-                        isRunning: true,
-                        lastProcessExitCode: nil,
-                        lastError: nil,
-                        shouldClearDiagnostics: true
-                    )
-
-                    AppLogger.shared.log("✅ [Start] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
-                    AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
-                    await healthMonitor.recordStartSuccess()
-
-                } else {
-                    // Service started but no PID found - may still be initializing
-                    AppLogger.shared.log("⚠️ [Start] LaunchDaemon service started but PID not yet available")
-
-                    // Update state to indicate running
-                    updateInternalState(
-                        isRunning: true,
-                        lastProcessExitCode: nil,
-                        lastError: nil,
-                        shouldClearDiagnostics: true
-                    )
-
-                    AppLogger.shared.log("✅ [Start] LaunchDaemon service started successfully")
-                    AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
-                    await healthMonitor.recordStartSuccess()
-                }
-            } else {
-                // Failed to start LaunchDaemon service
+                // Update state and clear old diagnostics when successfully starting
                 updateInternalState(
-                    isRunning: false,
-                    lastProcessExitCode: 1,
-                    lastError: "Failed to start LaunchDaemon service"
+                    isRunning: true,
+                    lastProcessExitCode: nil,
+                    lastError: nil,
+                    shouldClearDiagnostics: true
                 )
-                AppLogger.shared.log("❌ [Start] Failed to start LaunchDaemon service")
 
-                let diagnostic = KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .process,
-                    title: "LaunchDaemon Start Failed",
-                    description: "Failed to start Kanata LaunchDaemon service.",
-                    technicalDetails: "launchctl kickstart command failed",
-                    suggestedAction: "Check LaunchDaemon installation and permissions",
-                    canAutoFix: true
+                AppLogger.shared.log("✅ [Start] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
+                AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
+                await healthMonitor.recordStartSuccess()
+
+            } else {
+                // Service started but no PID found - may still be initializing
+                AppLogger.shared.log("⚠️ [Start] LaunchDaemon service started but PID not yet available")
+
+                // Update state to indicate running
+                updateInternalState(
+                    isRunning: true,
+                    lastProcessExitCode: nil,
+                    lastError: nil,
+                    shouldClearDiagnostics: true
                 )
-                addDiagnostic(diagnostic)
+
+                AppLogger.shared.log("✅ [Start] LaunchDaemon service started successfully")
+                AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
+                await healthMonitor.recordStartSuccess()
             }
+        } else {
+            // Failed to start LaunchDaemon service
+            updateInternalState(
+                isRunning: false,
+                lastProcessExitCode: 1,
+                lastError: "Failed to start LaunchDaemon service"
+            )
+            AppLogger.shared.log("❌ [Start] Failed to start LaunchDaemon service")
+
+            let diagnostic = KanataDiagnostic(
+                timestamp: Date(),
+                severity: .error,
+                category: .process,
+                title: "LaunchDaemon Start Failed",
+                description: "Failed to start Kanata LaunchDaemon service.",
+                technicalDetails: "launchctl kickstart command failed",
+                suggestedAction: "Check LaunchDaemon installation and permissions",
+                canAutoFix: true
+            )
+            addDiagnostic(diagnostic)
+        }
 
         await updateStatus()
     }
@@ -910,14 +972,12 @@ class KanataManager {
     private func isFirstTimeInstall() -> Bool {
         // Check for system-installed Kanata binary (bundled-only doesn't count as installed)
         let status = KanataBinaryDetector.shared.detectCurrentStatus().status
-        let hasSystemKanataBinary: Bool = {
-            switch status {
-            case .systemInstalled: 
-                return true
-            default: 
-                return false
-            }
-        }()
+        let hasSystemKanataBinary = switch status {
+        case .systemInstalled:
+            true
+        default:
+            false
+        }
 
         if !hasSystemKanataBinary {
             AppLogger.shared.log("🆕 [FreshInstall] No system Kanata binary found - fresh install detected")
@@ -1211,7 +1271,8 @@ class KanataManager {
                     let components = line.components(separatedBy: "=")
                     if components.count >= 2,
                        let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
-                       let pid = Int(pidString) {
+                       let pid = Int(pidString)
+                    {
                         AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
                         return (true, pid)
                     }
@@ -1672,7 +1733,7 @@ class KanataManager {
     func isInstalled() -> Bool {
         // Fast, non-blocking check for UI gating during startup.
         // Avoids kicking off binary signature detection on the main thread.
-        return FileManager.default.fileExists(atPath: WizardSystemPaths.kanataSystemInstallPath)
+        FileManager.default.fileExists(atPath: WizardSystemPaths.kanataSystemInstallPath)
     }
 
     func isCompletelyInstalled() -> Bool {
@@ -1750,7 +1811,8 @@ class KanataManager {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -1758,12 +1820,14 @@ class KanataManager {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -1851,7 +1915,6 @@ class KanataManager {
         await karabinerConflictService.startKarabinerDaemon()
     }
 
-
     func performTransparentInstallation() async -> Bool {
         AppLogger.shared.log("🔧 [Installation] Starting transparent installation...")
 
@@ -1862,21 +1925,21 @@ class KanataManager {
         // 1. Ensure Kanata binary exists - install if missing
         AppLogger.shared.log(
             "🔧 [Installation] Step 1/\(totalSteps): Checking/installing Kanata binary...")
-        
+
         // Use KanataBinaryDetector for consistent detection logic
         let detector = KanataBinaryDetector.shared
         let detectionResult = detector.detectCurrentStatus()
-        
+
         if detectionResult.status != .systemInstalled {
             AppLogger.shared.log(
                 "⚠️ [Installation] Kanata binary needs installation - status: \(detectionResult.status)")
 
             // Install bundled kanata binary to system location
             AppLogger.shared.log("🔧 [Installation] Installing bundled Kanata binary to system location...")
-            
+
             let installer = LaunchDaemonInstaller()
             let installSuccess = installer.installBundledKanataBinaryOnly()
-            
+
             if installSuccess {
                 AppLogger.shared.log("✅ [Installation] Successfully installed bundled Kanata binary")
                 AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary installed and verified")
@@ -2131,7 +2194,7 @@ class KanataManager {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
                     }
                     self?.showingValidationAlert = false
-                }
+                },
             ]
 
             showingValidationAlert = true
@@ -2403,7 +2466,8 @@ class KanataManager {
 
         for line in lines {
             if line.contains("connect_failed asio.system:2")
-                || line.contains("connect_failed asio.system:61") {
+                || line.contains("connect_failed asio.system:61")
+            {
                 let shouldTriggerRecovery = await healthMonitor.recordConnectionFailure()
 
                 if shouldTriggerRecovery {
@@ -2450,7 +2514,7 @@ class KanataManager {
     /// Validates a generated config string using Kanata's --check command
     private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
         // Delegate to ConfigurationService for combined UDP+CLI validation
-        return await configurationService.validateConfiguration(config)
+        await configurationService.validateConfiguration(config)
     }
 
     /// Get UDP port for validation if UDP server is enabled
@@ -2470,10 +2534,10 @@ class KanataManager {
         return KanataUDPClient(port: udpPort, timeout: timeout)
     }
 
-
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
+        async throws -> String
+    {
         // Try Claude API first, fallback to rule-based repair
         do {
             let prompt = """
@@ -2513,7 +2577,7 @@ class KanataManager {
         async throws -> String
     {
         // Delegate to ConfigurationService for rule-based repair
-        return try await configurationService.repairConfiguration(config: config, errors: errors, mappings: mappings)
+        try await configurationService.repairConfiguration(config: config, errors: errors, mappings: mappings)
     }
 
     /// Saves a validated config to disk
@@ -2760,9 +2824,9 @@ class KanataManager {
             "messages": [
                 [
                     "role": "user",
-                    "content": prompt
-                ]
-            ]
+                    "content": prompt,
+                ],
+            ],
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -2802,7 +2866,7 @@ class KanataManager {
             kSecAttrService as String: "KeyPath",
             kSecAttrAccount as String: "claude-api-key",
             kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecMatchLimit as String: kSecMatchLimitOne,
         ]
 
         var dataTypeRef: AnyObject?

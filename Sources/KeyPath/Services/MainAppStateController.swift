@@ -13,7 +13,7 @@ import SwiftUI
 class MainAppStateController: ObservableObject {
     // MARK: - Published State (Compatible with existing UI)
 
-    @Published var validationState: ValidationState? = nil  // nil = not yet validated, show nothing
+    @Published var validationState: ValidationState? = nil // nil = not yet validated, show nothing
     @Published var issues: [WizardIssue] = []
     @Published var lastValidationDate: Date?
 
@@ -53,7 +53,7 @@ class MainAppStateController: ObservableObject {
 
         // Create validator
         let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
-        self.validator = SystemValidator(
+        validator = SystemValidator(
             processLifecycleManager: processManager,
             kanataManager: kanataManager
         )
@@ -165,9 +165,9 @@ class MainAppStateController: ObservableObject {
         let blockingIssues = result.issues.filter { issue in
             switch issue.category {
             case .conflicts:
-                return false // Conflicts are resolvable, not blocking
+                false // Conflicts are resolvable, not blocking
             case .permissions, .installation, .systemRequirements, .backgroundServices, .daemon:
-                return issue.severity == .critical || issue.severity == .error
+                issue.severity == .critical || issue.severity == .error
             }
         }
 

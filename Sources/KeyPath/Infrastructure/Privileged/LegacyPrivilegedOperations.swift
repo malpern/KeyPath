@@ -53,7 +53,7 @@ public struct LegacyPrivilegedOperations: PrivilegedOperations {
 
     private func executeAppleScript(_ source: String) async -> Bool {
         AppLogger.shared.log("🔧 [PrivilegedOps] Executing AppleScript with 15-second timeout...")
-        
+
         do {
             let success = try await withTimeout(seconds: 15.0) {
                 await withCheckedContinuation { continuation in
@@ -61,33 +61,33 @@ public struct LegacyPrivilegedOperations: PrivilegedOperations {
                         let appleScript = NSAppleScript(source: source)
                         var errorDict: NSDictionary?
                         _ = appleScript?.executeAndReturnError(&errorDict)
-                        
+
                         let success = errorDict == nil
                         if !success, let error = errorDict {
                             AppLogger.shared.log("❌ [PrivilegedOps] AppleScript error: \(error)")
                         }
-                        
+
                         continuation.resume(returning: success)
                     }
                 }
             }
-            
+
             AppLogger.shared.log("✅ [PrivilegedOps] AppleScript completed successfully")
             return success
-            
+
         } catch {
             AppLogger.shared.log("⚠️ [PrivilegedOps] AppleScript timed out or failed: \(error)")
             return false
         }
     }
-    
+
     /// Timeout wrapper for async operations
     private func withTimeout<T: Sendable>(seconds: Double, operation: @Sendable @escaping () async -> T) async throws -> T {
-        return try await withThrowingTaskGroup(of: T.self) { group in
+        try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask {
                 await operation()
             }
-            
+
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                 throw KeyPathError.permission(.privilegedOperationFailed(operation: "privileged operation", reason: "Operation timed out"))
@@ -96,11 +96,9 @@ public struct LegacyPrivilegedOperations: PrivilegedOperations {
             guard let result = try await group.next() else {
                 throw KeyPathError.permission(.privilegedOperationFailed(operation: "privileged operation", reason: "Operation timed out"))
             }
-            
+
             group.cancelAll()
             return result
         }
     }
 }
-
-

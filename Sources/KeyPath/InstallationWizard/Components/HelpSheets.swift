@@ -387,7 +387,8 @@ struct BackgroundServicesHelpSheet: View {
                         HStack(spacing: 12) {
                             Button("Open System Settings") {
                                 if let url = URL(
-                                    string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+                                    string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
+                                {
                                     NSWorkspace.shared.open(url)
                                 }
                             }
@@ -454,7 +455,7 @@ struct KarabinerInstallationGuideSheet: View {
     let kanataManager: KanataManager
     @Environment(\.dismiss) private var dismiss
     @State private var isCheckingStatus = false
-    
+
     var body: some View {
         VStack(spacing: 20) {
             HStack {
@@ -466,15 +467,15 @@ struct KarabinerInstallationGuideSheet: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Button("Close") {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
             }
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     // Why it's needed
@@ -485,7 +486,7 @@ struct KarabinerInstallationGuideSheet: View {
                             Text("Why Karabiner-Elements is needed:")
                                 .font(.headline)
                         }
-                        
+
                         Text("KeyPath uses Karabiner-Elements' virtual HID device driver to safely remap keys at the system level. This driver must be installed separately.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -493,12 +494,12 @@ struct KarabinerInstallationGuideSheet: View {
                     .padding()
                     .background(Color.blue.opacity(0.08))
                     .cornerRadius(8)
-                    
+
                     // Installation steps
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Installation Steps:")
                             .font(.headline)
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(alignment: .top) {
                                 Text("1.")
@@ -530,7 +531,7 @@ struct KarabinerInstallationGuideSheet: View {
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .cornerRadius(8)
-                    
+
                     // Important note
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
@@ -539,7 +540,7 @@ struct KarabinerInstallationGuideSheet: View {
                             Text("Important:")
                                 .font(.headline)
                         }
-                        
+
                         VStack(alignment: .leading, spacing: 4) {
                             Text("• You only need to install Karabiner-Elements - you don't need to configure it")
                             Text("• KeyPath will use its driver but manage all keyboard settings itself")
@@ -552,7 +553,7 @@ struct KarabinerInstallationGuideSheet: View {
                     .cornerRadius(8)
                 }
             }
-            
+
             // Action buttons
             VStack(spacing: 12) {
                 Button("Download Karabiner-Elements") {
@@ -562,14 +563,14 @@ struct KarabinerInstallationGuideSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                
+
                 HStack(spacing: 12) {
                     Button("I've Installed It - Check Again") {
                         recheckSystemStatus()
                     }
                     .buttonStyle(.bordered)
                     .disabled(isCheckingStatus)
-                    
+
                     if isCheckingStatus {
                         ProgressView()
                             .scaleEffect(0.7)
@@ -580,13 +581,13 @@ struct KarabinerInstallationGuideSheet: View {
         .frame(width: 550, height: 500)
         .padding()
     }
-    
+
     private func recheckSystemStatus() {
         isCheckingStatus = true
         Task {
             // Give a brief delay for user to see the loading state
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            
+
             // Trigger a system state refresh - ViewModel will update automatically
             await kanataManager.updateStatus()
 

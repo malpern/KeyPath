@@ -100,6 +100,23 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    // MARK: - TCP Server Configuration
+
+    /// TCP server port for Kanata communication
+    var tcpServerPort: Int {
+        didSet {
+            // Validate port range and revert if invalid
+            if !isValidPort(tcpServerPort) {
+                AppLogger.shared.log(
+                    "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)")
+                tcpServerPort = oldValue
+            } else {
+                UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
+                AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
+            }
+        }
+    }
+
     /// Whether user notifications are enabled
     var notificationsEnabled: Bool {
         didSet {
@@ -125,6 +142,7 @@ final class PreferencesService: @unchecked Sendable {
         static let udpServerPort = "KeyPath.UDP.ServerPort"
         static let udpAuthToken = "KeyPath.UDP.AuthToken"
         static let udpSessionTimeout = "KeyPath.UDP.SessionTimeout"
+        static let tcpServerPort = "KeyPath.TCP.ServerPort"
         static let notificationsEnabled = "KeyPath.Notifications.Enabled"
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
     }
@@ -137,6 +155,7 @@ final class PreferencesService: @unchecked Sendable {
         static let udpServerPort = 37001 // Default port for Kanata UDP server
         static let udpAuthToken = "" // Auto-generate token
         static let udpSessionTimeout = 1800 // 30 minutes (same as Kanata default)
+        static let tcpServerPort = 37001 // Default port for Kanata TCP server
         static let notificationsEnabled = true
         static let applyMappingsDuringRecording = true
     }
@@ -156,6 +175,9 @@ final class PreferencesService: @unchecked Sendable {
 
         udpSessionTimeout =
             UserDefaults.standard.object(forKey: Keys.udpSessionTimeout) as? Int ?? Defaults.udpSessionTimeout
+
+        tcpServerPort =
+            UserDefaults.standard.object(forKey: Keys.tcpServerPort) as? Int ?? Defaults.tcpServerPort
 
         notificationsEnabled =
             UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool
@@ -297,7 +319,6 @@ extension PreferencesService {
         return [:]
     }
 }
-
 
 // MARK: - Thread-Safe Snapshot API
 

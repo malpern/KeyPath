@@ -8,15 +8,49 @@ import IOKit.hid
 /// 🔮 THE ORACLE - Single source of truth for all permission detection in KeyPath
 ///
 /// This actor eliminates the chaos of multiple conflicting permission detection methods.
-/// It provides deterministic, hierarchical permission checking with clear source precedence:
+/// It provides deterministic, hierarchical permission checking with clear source precedence.
 ///
-/// HIERARCHY (UPDATED based on macOS TCC limitations):
+/// ## Quick Start for New Developers
+///
+/// **The Oracle is the ONLY way to check permissions in KeyPath.** Never call PermissionService,
+/// AXIsProcessTrusted(), or IOHIDCheckAccess() directly.
+///
+/// **Basic Usage:**
+/// ```swift
+/// // Get current permission status
+/// let snapshot = await PermissionOracle.shared.currentSnapshot()
+///
+/// // Check if system is ready
+/// if snapshot.isSystemReady {
+///     print("✓ All permissions granted")
+/// } else if let issue = snapshot.blockingIssue {
+///     print("✗ Blocked: \(issue)")
+/// }
+///
+/// // After permission changes, force refresh
+/// let updated = await PermissionOracle.shared.forceRefresh()
+/// ```
+///
+/// **Why Oracle exists:**
+/// - Prevents UI showing stale "denied" while service works perfectly
+/// - Provides consistent 1.5s cached results (no permission check spam)
+/// - Handles macOS TCC quirks and race conditions
+/// - Single source of truth = no conflicting status across UI
+///
+/// **Architecture:** See `ARCHITECTURE.md` for full permission hierarchy explanation.
+///
+/// ## Permission Detection Hierarchy
+///
 /// Priority 1: Apple APIs from GUI (IOHIDCheckAccess - reliable in user session)
-/// Priority 2: Kanata UDP API (functional status, but unreliable for permissions)
-/// Priority 3: Unknown (never guess)
+/// Priority 2: TCC Database Fallback (only when Apple API returns .unknown)
+/// Priority 3: Functional Verification (UDP connectivity for accessibility, not Input Monitoring)
 ///
-/// ⚠️ CRITICAL: Kanata UDP reports false negatives for Input Monitoring
-/// due to IOHIDCheckAccess() being unreliable for root processes
+/// **CRITICAL RULE:** Apple API results (.granted/.denied) are AUTHORITATIVE.
+/// Never bypass with TCC fallback when APIs give definitive answers.
+///
+/// ⚠️ **Known Limitation:** Kanata UDP reports false negatives for Input Monitoring
+/// due to IOHIDCheckAccess() being unreliable for root processes. This is why we check
+/// from GUI context instead.
 actor PermissionOracle {
     static let shared = PermissionOracle()
 
@@ -155,7 +189,8 @@ actor PermissionOracle {
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,
-           Date().timeIntervalSince(cachedTime) < cacheTTL {
+           Date().timeIntervalSince(cachedTime) < cacheTTL
+        {
             AppLogger.shared.log("🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)")
             return cached
         }
@@ -212,7 +247,7 @@ actor PermissionOracle {
         // Input Monitoring check via official Apple API (no prompt, no CGEvent tap)
         // Skip during startup if this is the first call to avoid UI freezing
         var inputMonitoring: Status = .unknown
-        
+
         if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
             // During startup, skip the potentially blocking IOHIDCheckAccess call
             AppLogger.shared.log("🔮 [Oracle] Startup mode - skipping IOHIDCheckAccess to prevent UI freeze")
@@ -222,11 +257,11 @@ actor PermissionOracle {
             let accessCheckStart = Date()
             let accessType = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
             let accessCheckDuration = Date().timeIntervalSince(accessCheckStart)
-            
+
             if accessCheckDuration > 2.0 {
                 AppLogger.shared.log("⚠️ [Oracle] IOHIDCheckAccess took \(String(format: "%.3f", accessCheckDuration))s - unusually slow")
             }
-            
+
             let imGranted = accessType == kIOHIDAccessTypeGranted
             inputMonitoring = imGranted ? .granted : .denied
         }
@@ -235,7 +270,7 @@ actor PermissionOracle {
         AppLogger.shared.log("🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), IM: \(inputMonitoring)")
 
         let isStartupMode = if case .unknown = inputMonitoring { true } else { false }
-        
+
         return PermissionSet(
             accessibility: accessibility,
             inputMonitoring: inputMonitoring,
@@ -327,15 +362,15 @@ actor PermissionOracle {
     }
 
     /// Check kanata binary Input Monitoring permission from GUI context (AUTHORITATIVE)
-    /// 
+    ///
     /// 🚨 CRITICAL: This is THE definitive permission check - DO NOT BYPASS WITH TCC DATABASE
-    /// 
+    ///
     /// Why this works reliably:
     /// - IOHIDCheckAccess from GUI context can check permissions for ANY binary path
     /// - Apple's official API, not a workaround or heuristic
     /// - Returns definitive .granted/.denied status (never .unknown in practice)
     /// - Works regardless of whether the target binary is currently running
-    /// 
+    ///
     /// Why we trust this over TCC database:
     /// - TCC database can be stale/inconsistent after permission grants
     /// - This API reflects the ACTUAL current permission state
@@ -351,9 +386,9 @@ actor PermissionOracle {
         // IOHIDCheckAccess from GUI context is the official Apple method
         // and works reliably for checking permissions of any executable path
         let hasPermission = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-        
+
         AppLogger.shared.log("🔮 [Oracle] AUTHORITATIVE Apple API check for kanata binary: \(hasPermission ? "GRANTED" : "DENIED")")
-        
+
         return hasPermission ? .granted : .denied
     }
 
@@ -374,20 +409,20 @@ actor PermissionOracle {
             AppLogger.shared.log("🔮 [Oracle] Kanata functional check: UNKNOWN (no server)")
             return .unknown
         }
-        
+
         // Add additional timeout protection to prevent wizard hanging
         let client = KanataUDPClient(port: port, timeout: 3.0)
         AppLogger.shared.log("🔮 [Oracle] Testing UDP connection to port \(port)...")
-        
+
         do {
             // Wrap in additional timeout to prevent indefinite hanging
             let isConnected = try await withTimeout(seconds: 3.5) {
                 await client.checkServerStatus()
             }
-            
+
             AppLogger.shared.log("🔮 [Oracle] UDP connection result: \(isConnected)")
             AppLogger.shared.log("🔮 [Oracle] Kanata functional check: \(isConnected ? "GRANTED (responding)" : "UNKNOWN (not responding)")")
-            
+
             // Only grant on positive signal; otherwise unknown (don't mark as denied)
             return isConnected ? .granted : .unknown
         } catch {
@@ -396,14 +431,14 @@ actor PermissionOracle {
             return .unknown
         }
     }
-    
+
     /// Additional timeout wrapper to prevent hanging
     private func withTimeout<T: Sendable>(seconds: Double, operation: @Sendable @escaping () async -> T) async throws -> T {
-        return try await withThrowingTaskGroup(of: T.self) { group in
+        try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask {
                 await operation()
             }
-            
+
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                 throw KeyPathError.permission(.privilegedOperationFailed(operation: "permission check", reason: "Operation timed out"))
@@ -412,12 +447,12 @@ actor PermissionOracle {
             guard let result = try await group.next() else {
                 throw KeyPathError.permission(.privilegedOperationFailed(operation: "permission check", reason: "Operation timed out"))
             }
-            
+
             group.cancelAll()
             return result
         }
     }
-    
+
     /// Fast check if UDP port is listening using netstat to prevent hanging connections
     private func isUDPPortListening(port: Int) -> Bool {
         let task = Process()
@@ -449,7 +484,7 @@ actor PermissionOracle {
                 let components = line.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
 
                 // UDP lines have format: proto recv-q send-q local foreign [state]
-                if components.count >= 5 && components[0].hasPrefix("udp") {
+                if components.count >= 5, components[0].hasPrefix("udp") {
                     let localAddr = components[3]
 
                     // Check if this is a listening socket on our port
@@ -462,7 +497,7 @@ actor PermissionOracle {
 
             AppLogger.shared.log("🔍 [Oracle] Port \(port) listening check: \(isListening)")
             return isListening
-            
+
         } catch {
             AppLogger.shared.log("❌ [Oracle] Error checking UDP port \(port): \(error)")
             // On error, assume port might be listening to avoid false negatives
@@ -482,7 +517,7 @@ actor PermissionOracle {
     }
 
     // MARK: - TCC Database Fallback (Necessary to break chicken-and-egg problem)
-    
+
     // TCC service names across macOS versions
     private enum TCCServiceName: String {
         case accessibility = "kTCCServiceAccessibility"
@@ -563,7 +598,7 @@ actor PermissionOracle {
 
         let queries = [
             "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY auth_value DESC LIMIT 1;",
-            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;"
+            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;",
         ]
 
         for (index, sql) in queries.enumerated() {

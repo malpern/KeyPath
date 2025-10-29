@@ -63,7 +63,7 @@ struct WizardCommunicationPage: View {
                             .lineLimit(2)
 
                         // Supporting copy (17pt)
-                        Text("UDP server is running for instant config reloading & external integrations with ~10x lower latency")
+                        Text("TCP server is running for instant config reloading & external integrations")
                             .font(.system(size: 17, weight: .regular))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -104,7 +104,7 @@ struct WizardCommunicationPage: View {
                         .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
 
                         // Title
-                        Text("UDP Communication")
+                        Text("TCP Communication")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.center)
@@ -190,51 +190,78 @@ struct WizardCommunicationPage: View {
     }
 
     private func checkUDPStatusDirect() async {
-        // Snapshot prefs safely off-main
-        let snapshot = PreferencesService.communicationSnapshot()
-        if !snapshot.shouldUseUDP {
-            await MainActor.run { commStatus = .needsSetup("UDP server is not enabled") }
-            return
-        }
+        // Check TCP server status (kanata uses TCP) with timeout
+        let port = preferences.tcpServerPort
+        let client = KanataTCPClient(port: port, timeout: 8.0)
+        AppLogger.shared.log("🧪 [WizardComm] Checking TCP server on port \(port)")
 
-        let port = snapshot.udpPort
-        let client = KanataUDPClient(port: port)
-        AppLogger.shared.log("🧪 [WizardComm] Direct UDP check on port \(port)")
+        do {
+            // Add timeout wrapper around the entire check (15s total)
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                // Main check task
+                group.addTask {
+                    // 1) Is the server answering?
+                    let responding = await client.checkServerStatus()
+                    guard responding else {
+                        await MainActor.run {
+                            commStatus = .needsSetup("TCP server is not responding. Service may use old UDP configuration. Click Fix to regenerate with TCP.")
+                        }
+                        return
+                    }
 
-        // 1) Is the server answering?
-        let responding = await client.checkServerStatus()
-        guard responding else {
-            await MainActor.run { commStatus = .needsSetup("UDP server is not responding on port \(port)") }
-            return
-        }
+                    // 2) Do we have a token? If not, auth is required.
+                    let token = try? await MainActor.run { try KeychainService.shared.retrieveTCPToken() }
+                    guard let token, !token.isEmpty else {
+                        await MainActor.run { commStatus = .authRequired("Secure connection required for configuration changes") }
+                        return
+                    }
 
-        // 2) Do we have a token? If not, auth is required.
-        guard !snapshot.udpAuthToken.isEmpty else {
-            await MainActor.run { commStatus = .authRequired("Secure connection required for configuration changes") }
-            return
-        }
+                    // 3) Try to authenticate and perform a quick reload probe
+                    let authed = await client.authenticate(token: token)
+                    guard authed else {
+                        await MainActor.run { commStatus = .authRequired("Authentication failed. Generate a new token and retry.") }
+                        return
+                    }
 
-        // 3) Try to authenticate and perform a quick reload probe
-        let authed = await client.authenticate(token: snapshot.udpAuthToken)
-        guard authed else {
-            await MainActor.run { commStatus = .authRequired("Authentication failed. Generate a new token and retry.") }
-            return
-        }
+                    let reload = await client.reloadConfig()
+                    if reload.isSuccess {
+                        await MainActor.run { commStatus = .ready("Ready for instant configuration changes and external integrations") }
+                    } else if case .authenticationRequired = reload {
+                        await MainActor.run { commStatus = .authRequired("Session expired; re-authentication required") }
+                    } else {
+                        let msg = reload.errorMessage ?? "TCP server responded but reload failed"
+                        await MainActor.run { commStatus = .authRequired(msg) }
+                    }
+                }
 
-        let reload = await client.reloadConfig()
-        if reload.isSuccess {
-            await MainActor.run { commStatus = .ready("Ready for instant configuration changes and external integrations") }
-        } else if case .authenticationRequired = reload {
-            await MainActor.run { commStatus = .authRequired("Session expired; re-authentication required") }
-        } else {
-            let msg = reload.errorMessage ?? "UDP server responded but reload failed"
-            await MainActor.run { commStatus = .authRequired(msg) }
+                // Timeout task (15 seconds total)
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 15_000_000_000)
+                    throw TimeoutError()
+                }
+
+                // Wait for first to complete
+                try await group.next()
+                group.cancelAll()
+            }
+        } catch is TimeoutError {
+            AppLogger.shared.log("⚠️ [WizardComm] TCP check timed out after 15s")
+            await MainActor.run {
+                commStatus = .needsSetup("Connection timed out. Service may be using old UDP configuration. Click Fix to regenerate with TCP.")
+            }
+        } catch {
+            AppLogger.shared.log("❌ [WizardComm] TCP check failed: \(error)")
+            await MainActor.run {
+                commStatus = .needsSetup("Failed to connect to TCP server. Click Fix to regenerate service configuration.")
+            }
         }
     }
 
+    private struct TimeoutError: Error {}
+
     // MARK: - Authentication Helpers (for Auto-Fix functionality)
 
-    private func authenticateWithRetries(client: KanataUDPClient, token: String, attempts: Int = 5, initialDelay: TimeInterval = 0.2) async -> Bool {
+    private func authenticateWithRetries(client: KanataTCPClient, token: String, attempts: Int = 5, initialDelay: TimeInterval = 0.2) async -> Bool {
         var delay = initialDelay
         for attempt in 1 ... attempts {
             AppLogger.shared.log("🔐 [WizardComm] Authentication attempt \(attempt)/\(attempts)")
@@ -248,7 +275,7 @@ struct WizardCommunicationPage: View {
         return false
     }
 
-    private func testConfigReload(client: KanataUDPClient) async -> Bool {
+    private func testConfigReload(client: KanataTCPClient) async -> Bool {
         // Test a simple config reload to ensure full functionality
         let result = await client.reloadConfig()
         switch result {
@@ -297,11 +324,11 @@ struct WizardCommunicationPage: View {
     private func getAutoFixAction() -> (AutoFixAction, String, String) {
         switch commStatus {
         case .needsSetup:
-            (.enableUDPServer, "UDP server enabled successfully", "Failed to enable UDP server")
+            (.regenerateCommServiceConfiguration, "Service regenerated with TCP configuration", "Failed to regenerate service")
         case .authRequired:
-            (.setupUDPAuthentication, "Secure connection established successfully", "Failed to setup authentication")
+            (.setupTCPAuthentication, "Secure connection established successfully", "Failed to setup authentication")
         default:
-            (.enableUDPServer, "Issue resolved", "Failed to fix issue")
+            (.regenerateCommServiceConfiguration, "Issue resolved", "Failed to fix issue")
         }
     }
 
@@ -319,9 +346,14 @@ struct WizardCommunicationPage: View {
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
 
-        // Update token directly to shared file
-        await MainActor.run {
-            preferences.udpAuthToken = newToken
+        // Store token in keychain
+        do {
+            try await MainActor.run {
+                try KeychainService.shared.storeTCPToken(newToken)
+            }
+        } catch {
+            AppLogger.shared.log("❌ [WizardComm] Failed to store TCP token in keychain: \(error)")
+            return false
         }
 
         // Regenerate service configuration with new token
@@ -340,21 +372,21 @@ struct WizardCommunicationPage: View {
             }
         }
 
-        // Wait for the UDP server to be ready before authenticating
-        AppLogger.shared.log("🔄 [WizardComm] Waiting for UDP server to be ready...")
-        let client = KanataUDPClient(port: preferences.udpServerPort)
+        // Wait for the TCP server to be ready before authenticating
+        AppLogger.shared.log("🔄 [WizardComm] Waiting for TCP server to be ready...")
+        let client = KanataTCPClient(port: preferences.tcpServerPort, timeout: 8.0)
         let ready = await client.checkServerStatus()
         if !ready {
-            AppLogger.shared.log("❌ [WizardComm] UDP server did not become ready in time after restart")
+            AppLogger.shared.log("❌ [WizardComm] TCP server did not become ready in time after restart")
             return false
         }
-        AppLogger.shared.log("✅ [WizardComm] UDP server is ready, proceeding with authentication")
+        AppLogger.shared.log("✅ [WizardComm] TCP server is ready, proceeding with authentication")
 
         // Retry authenticate with small backoff to ride out any last startup work
-        let authed = await WizardCommunicationPage.authenticateWithRetries(client: client, token: newToken, attempts: 5, initialDelay: 0.2)
+        let authed = await authenticateWithRetries(client: client, token: newToken)
         if authed {
             // Test config reload to ensure full functionality
-            return await WizardCommunicationPage.testConfigReload(client: client)
+            return await testConfigReload(client: client)
         } else {
             return false
         }
@@ -370,27 +402,6 @@ private struct BounceIfAvailable: ViewModifier {
         } else {
             content
         }
-    }
-}
-
-// MARK: - Local helpers
-
-extension WizardCommunicationPage {
-    static func authenticateWithRetries(client: KanataUDPClient, token: String, attempts: Int, initialDelay: Double) async -> Bool {
-        var delay = initialDelay
-        for _ in 0 ..< max(attempts, 1) {
-            if await client.authenticate(token: token, clientName: "KeyPath") {
-                return true
-            }
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            delay *= 1.5
-        }
-        return false
-    }
-
-    static func testConfigReload(client: KanataUDPClient) async -> Bool {
-        let result = await client.reloadConfig()
-        return result.isSuccess
     }
 }
 
@@ -481,7 +492,7 @@ enum CommunicationStatus: Equatable {
     var fixButtonText: String {
         switch self {
         case .needsSetup:
-            "Enable UDP Server"
+            "Regenerate Service Configuration"
         case .authRequired:
             "Setup Authentication"
         default:

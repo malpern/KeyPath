@@ -14,4 +14,3 @@ enum FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
     }
 }
-

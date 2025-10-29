@@ -85,9 +85,9 @@ class SystemValidator {
             let interval = Date().timeIntervalSince(lastStart)
             if interval < 0.5 {
                 AppLogger.shared.log("""
-                    ⚠️ [SystemValidator] RAPID VALIDATION: \(String(format: "%.3f", interval))s since last validation
-                    This might indicate automatic triggers. Expected: manual user actions only.
-                    """)
+                ⚠️ [SystemValidator] RAPID VALIDATION: \(String(format: "%.3f", interval))s since last validation
+                This might indicate automatic triggers. Expected: manual user actions only.
+                """)
             }
         }
         Self.lastValidationStart = Date()
@@ -130,7 +130,7 @@ class SystemValidator {
         // 🚨 DEFENSIVE ASSERTION 4: Verify Oracle snapshot is fresh
         let oracleAge = Date().timeIntervalSince(snapshot.timestamp)
         assert(oracleAge < 5.0,
-            "Oracle snapshot is \(String(format: "%.1f", oracleAge))s old - Oracle cache may be broken")
+               "Oracle snapshot is \(String(format: "%.1f", oracleAge))s old - Oracle cache may be broken")
 
         AppLogger.shared.log("🔍 [SystemValidator] Oracle snapshot: ready=\(snapshot.isSystemReady), age=\(String(format: "%.3f", oracleAge))s")
 
@@ -256,7 +256,7 @@ class SystemValidator {
 
     /// Get current validation stats (for debugging)
     static func getValidationStats() -> (activeCount: Int, totalCount: Int, lastStart: Date?) {
-        return (activeValidations, validationCount, lastValidationStart)
+        (activeValidations, validationCount, lastValidationStart)
     }
 
     /// Reset validation counters (for testing)

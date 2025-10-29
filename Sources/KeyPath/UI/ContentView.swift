@@ -1,6 +1,33 @@
-import SwiftUI
 import AppKit
 import Combine
+import SwiftUI
+
+// MARK: - File Navigation (1,125 lines)
+
+//
+// This file is the main recording UI. Use CMD+F to jump to:
+//
+// UI Sections:
+//   - inputSection            Input key recording UI and controls
+//   - outputSection           Output key recording UI and controls
+//
+// Recording Logic:
+//   - handleInputRecordTap()  Start/stop input recording
+//   - handleOutputRecordTap() Start/stop output recording
+//   - inputDisabledReason()   Check why input recording is disabled
+//   - outputDisabledReason()  Check why output recording is disabled
+//
+// Save & Validation:
+//   - debouncedSave()         Debounced save trigger
+//   - performSave()           Actual save logic
+//   - handleSaveSuccess()     Success handling
+//   - handleSaveError()       Error handling
+//
+// Startup & Status:
+//   - setupStartupObservers()        Initialize observers
+//   - checkForPendingPermissionGrant() Check permission state
+//   - showStatusMessage()            Display status to user
+//   - startEmergencyMonitoringIfPossible() Emergency recovery
 
 struct ContentView: View {
     @State private var keyboardCapture: KeyboardCapture?
@@ -15,6 +42,7 @@ struct ContentView: View {
             )
         }
     }
+
     // Gate modal presentation until after early startup phases
     @State private var canPresentModals = false
     @State private var pendingShowWizardRequest = false
@@ -76,8 +104,8 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(recordingCoordinator.capturedInputSequence() == nil ||
-                          recordingCoordinator.capturedOutputSequence() == nil ||
-                          kanataManager.saveStatus.isActive)
+                    recordingCoordinator.capturedOutputSequence() == nil ||
+                    kanataManager.saveStatus.isActive)
                 .accessibilityIdentifier("save-mapping-button")
                 .accessibilityLabel(kanataManager.saveStatus.message.isEmpty ? "Save key mapping" : kanataManager.saveStatus.message)
                 .accessibilityHint("Save the input and output key mapping to your configuration")
@@ -120,7 +148,11 @@ struct ContentView: View {
         .sheet(isPresented: $showingInstallationWizard) {
             // Determine initial page if we're returning from permission granting
             let initialPage: WizardPage? = {
-                if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
+                if UserDefaults.standard.bool(forKey: "wizard_return_to_summary") {
+                    UserDefaults.standard.removeObject(forKey: "wizard_return_to_summary")
+                    AppLogger.shared.log("✅ [ContentView] Permissions granted - returning to Summary")
+                    return .summary
+                } else if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
                     UserDefaults.standard.removeObject(forKey: "wizard_return_to_input_monitoring")
                     return .inputMonitoring
                 } else if UserDefaults.standard.bool(forKey: "wizard_return_to_accessibility") {
@@ -222,7 +254,7 @@ struct ContentView: View {
             AppLogger.shared.log(
                 "🔍 [ContentView] Current errorReason: \(kanataManager.errorReason ?? "nil")")
 
-            if shouldShow && !canPresentModals {
+            if shouldShow, !canPresentModals {
                 pendingShowWizardRequest = true
                 AppLogger.shared.log("🔍 [ContentView] Deferring wizard presentation until modals are allowed")
                 return
@@ -407,14 +439,14 @@ struct ContentView: View {
             // Perform the permission restart using the coordinator
             PermissionGrantCoordinator.shared.performPermissionRestart(
                 for: permissionType,
-                kanataManager: kanataManager.underlyingManager  // Phase 4: Business logic needs underlying manager
+                kanataManager: kanataManager.underlyingManager // Phase 4: Business logic needs underlying manager
             ) { _ in
                 // Show wizard after service restart completes to display results
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     // Reopen wizard to the appropriate permission page
                     PermissionGrantCoordinator.shared.reopenWizard(
                         for: permissionType,
-                        kanataManager: kanataManager.underlyingManager  // Phase 4: Business logic needs underlying manager
+                        kanataManager: kanataManager.underlyingManager // Phase 4: Business logic needs underlying manager
                     )
                 }
             }
@@ -476,7 +508,7 @@ struct ContentView: View {
         }
 
         await recordingCoordinator.saveMapping(
-            kanataManager: kanataManager.underlyingManager,  // Phase 4: Business logic needs underlying manager
+            kanataManager: kanataManager.underlyingManager, // Phase 4: Business logic needs underlying manager
             onSuccess: { message in handleSaveSuccess(message) },
             onError: { error in handleSaveError(error) }
         )
@@ -569,7 +601,7 @@ struct ContentView: View {
 
     private func inputDisabledReason() -> String {
         var reasons: [String] = []
-        if !kanataManager.isCompletelyInstalled() && !recordingCoordinator.isInputRecording() {
+        if !kanataManager.isCompletelyInstalled(), !recordingCoordinator.isInputRecording() {
             reasons.append("notInstalled")
         }
         if NSApp?.isActive == false {
@@ -583,7 +615,7 @@ struct ContentView: View {
 
     private func outputDisabledReason() -> String {
         var reasons: [String] = []
-        if !kanataManager.isCompletelyInstalled() && !recordingCoordinator.isOutputRecording() {
+        if !kanataManager.isCompletelyInstalled(), !recordingCoordinator.isOutputRecording() {
             reasons.append("notInstalled")
         }
         if NSApp?.isActive == false {
@@ -619,16 +651,16 @@ struct ContentViewHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Button(action: {
-                        AppLogger.shared.log(
-                            "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
-                        showingInstallationWizard = true
-                    }, label: {
-                        Image(systemName: "keyboard")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                    })
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Button(action: {
+                    AppLogger.shared.log(
+                        "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
+                    showingInstallationWizard = true
+                }, label: {
+                    Image(systemName: "keyboard")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                })
                 .buttonStyle(PlainButtonStyle())
                 .accessibilityIdentifier("launch-installation-wizard-button")
                 .accessibilityLabel("Launch Installation Wizard")
@@ -649,10 +681,10 @@ struct ContentViewHeader: View {
                 )
             }
 
-                Text("Record keyboard shortcuts and create custom key mappings")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 0)
+            Text("Record keyboard shortcuts and create custom key mappings")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.top, 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
@@ -998,7 +1030,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             "xmark.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             "exclamationmark.triangle.fill"
         } else {
             "checkmark.circle.fill"
@@ -1009,7 +1042,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             .orange
         } else {
             .green
@@ -1020,7 +1054,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.1)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             Color.orange.opacity(0.1)
         } else {
             Color.green.opacity(0.1)
@@ -1031,7 +1066,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.3)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             Color.orange.opacity(0.3)
         } else {
             Color.green.opacity(0.3)

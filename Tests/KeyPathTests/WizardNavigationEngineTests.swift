@@ -32,7 +32,11 @@ class WizardNavigationEngineTests: XCTestCase {
 
     func testNavigationPriorityInstallationSecond() {
         // Given: System has component issues but no conflicts
-        let componentIssue = createTestIssue(category: .installation, title: "Kanata Binary Missing")
+        let componentIssue = createTestIssue(
+            category: .installation,
+            title: "Kanata Binary Missing",
+            identifier: .component(.kanataBinaryMissing)
+        )
         let permissionIssue = createTestIssue(category: .permissions, title: "Test Permission")
         let issues = [componentIssue, permissionIssue]
 
@@ -120,13 +124,14 @@ class WizardNavigationEngineTests: XCTestCase {
     func testPageOrder() {
         // Given: Navigation engine
         let expectedOrder: [WizardPage] = [
-            .conflicts,
-            .inputMonitoring,
-            .accessibility,
-            .service,
-            .kanataComponents,
-            .service,
-            .summary
+            .summary, // Overview
+            .fullDiskAccess, // Optional FDA for better diagnostics
+            .conflicts, // Must resolve conflicts first
+            .inputMonitoring, // Input Monitoring permission
+            .accessibility, // Accessibility permission
+            .karabinerComponents, // Karabiner driver and VirtualHID setup
+            .kanataComponents, // Kanata binary and service setup
+            .service // Start keyboard service
         ]
 
         // When: Getting page order
@@ -140,12 +145,14 @@ class WizardNavigationEngineTests: XCTestCase {
         // Given: Navigation engine
 
         // When: Getting page indices
-        let conflictsIndex = engine.pageIndex(.conflicts)
         let summaryIndex = engine.pageIndex(.summary)
+        let conflictsIndex = engine.pageIndex(.conflicts)
+        let serviceIndex = engine.pageIndex(.service)
 
         // Then: Should return correct indices
-        XCTAssertEqual(conflictsIndex, 0, "Conflicts should be first (index 0)")
-        XCTAssertEqual(summaryIndex, 7, "Summary should be last (index 7)")
+        XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
+        XCTAssertEqual(conflictsIndex, 2, "Conflicts should be at index 2")
+        XCTAssertEqual(serviceIndex, 7, "Service should be last (index 7)")
     }
 
     // MARK: - Blocking Page Tests
@@ -215,9 +222,11 @@ class WizardNavigationEngineTests: XCTestCase {
         // Given: Different pages
         let buttonTexts: [(WizardPage, String)] = [
             (.conflicts, "Resolve Conflicts"),
-            (.inputMonitoring, "Open Settings"),
-            (.kanataComponents, "Install Components"),
-            (.service, "Manage Service")
+            (.inputMonitoring, "Open System Settings"),
+            (.accessibility, "Open System Settings"),
+            (.karabinerComponents, "Install Karabiner Components"),
+            (.kanataComponents, "Install Kanata Components"),
+            (.service, "Start Keyboard Service")
         ]
 
         // When/Then: Each page should have appropriate button text
@@ -272,7 +281,13 @@ class WizardNavigationEngineTests: XCTestCase {
     func testNextPageLogic() {
         // Given: Current page and system state with issues
         let currentPage = WizardPage.conflicts
-        let issues = [createTestIssue(category: .installation, title: "Kanata Binary Missing")]
+        let issues = [
+            createTestIssue(
+                category: .installation,
+                title: "Kanata Binary Missing",
+                identifier: .component(.kanataBinaryMissing)
+            )
+        ]
         let systemState = WizardSystemState.missingComponents(missing: [])
 
         // When: Getting next page
@@ -283,16 +298,35 @@ class WizardNavigationEngineTests: XCTestCase {
     }
 
     func testNextPageWhenAlreadyOnTarget() {
-        // Given: Already on the target page
+        // Given: Already on the target page but want to continue sequentially
         let currentPage = WizardPage.kanataComponents
-        let issues = [createTestIssue(category: .installation, title: "Kanata Binary Missing")]
+        let issues = [
+            createTestIssue(
+                category: .installation,
+                title: "Kanata Binary Missing",
+                identifier: .component(.kanataBinaryMissing)
+            )
+        ]
         let systemState = WizardSystemState.missingComponents(missing: [])
 
         // When: Getting next page
         let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
-        // Then: Should return nil since already on target
-        XCTAssertNil(nextPage, "Should return nil when already on target page")
+        // Then: Should continue to next page in sequence (.service comes after .kanataComponents)
+        XCTAssertEqual(nextPage, .service, "Should continue to next page in sequence")
+    }
+
+    func testNextPageNoIssuesSequentialProgression() {
+        // Given: On Input Monitoring page with no issues
+        let currentPage = WizardPage.inputMonitoring
+        let issues: [WizardIssue] = []
+        let systemState = WizardSystemState.active
+
+        // When: Getting next page
+        let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
+
+        // Then: Should advance to next page (Accessibility)
+        XCTAssertEqual(nextPage, .accessibility, "Should advance to accessibility page")
     }
 
     // MARK: - Helper Methods

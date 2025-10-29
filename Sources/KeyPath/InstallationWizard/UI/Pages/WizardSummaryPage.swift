@@ -70,7 +70,45 @@ struct WizardSummaryPage: View {
     // MARK: - Helper Properties
 
     private var isEverythingComplete: Bool {
-        // Check if system is active and running, meaning everything is properly configured
-        systemState == .active && kanataManager.isRunning && issues.isEmpty
+        // Check if system is active and running
+        guard systemState == .active && kanataManager.isRunning else {
+            return false
+        }
+
+        // Check that there are no issues
+        guard issues.isEmpty else {
+            return false
+        }
+
+        // Additional check: Verify TCP communication is properly configured
+        // Check if TCP token exists in keychain
+        let hasToken = (try? KeychainService.shared.retrieveTCPToken()) != nil
+        guard hasToken else {
+            return false // No TCP token - communication not configured
+        }
+
+        // Check if the LaunchDaemon plist exists and has TCP configuration
+        let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+        let plistExists = FileManager.default.fileExists(atPath: plistPath)
+
+        guard plistExists else {
+            return false // Service plist doesn't exist
+        }
+
+        // Verify plist has TCP port argument
+        if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+           let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+           let args = plist["ProgramArguments"] as? [String]
+        {
+            let hasTCPPort = args.contains("--port")
+            guard hasTCPPort else {
+                return false // Service uses old UDP configuration
+            }
+        } else {
+            return false // Can't read plist or parse arguments
+        }
+
+        // Everything is properly configured
+        return true
     }
 }

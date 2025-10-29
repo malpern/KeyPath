@@ -23,16 +23,7 @@ class WizardNavigationEngine: WizardNavigating {
             AppLogger.shared.log("🔍 [NavigationEngine]   - \(issue.category): \(issue.title)")
         }
 
-        // 0. Full Disk Access (optional but helpful - show early if not checked)
-        // Show FDA page if we haven't shown it yet AND we're not in active state
-        if !hasShownFullDiskAccessPage, state != .active {
-            AppLogger.shared.log(
-                "🔍 [NavigationEngine] → .fullDiskAccess (first run - optional FDA check)")
-            hasShownFullDiskAccessPage = true
-            return .fullDiskAccess
-        }
-
-        // 1. Conflicts (highest priority after FDA)
+        // 1. Conflicts (highest priority)
         if issues.contains(where: { $0.category == .conflicts }) {
             AppLogger.shared.log("🔍 [NavigationEngine] → .conflicts (found conflicts)")
             return .conflicts
@@ -142,7 +133,17 @@ class WizardNavigationEngine: WizardNavigating {
             break
         }
 
-        // 7. If no issues and service is running, go to summary
+        // 7. Full Disk Access (optional but helpful - show once when no blocking issues)
+        // If we reach here, all blocking issues (conflicts, permissions, components, service) have been checked
+        // Show FDA page if we haven't shown it yet AND system is not already active
+        if !hasShownFullDiskAccessPage, state != .active {
+            AppLogger.shared.log(
+                "🔍 [NavigationEngine] → .fullDiskAccess (no blocking issues - checking optional FDA)")
+            hasShownFullDiskAccessPage = true
+            return .fullDiskAccess
+        }
+
+        // 8. If no issues and service is running, go to summary
         AppLogger.shared.log("🔍 [NavigationEngine] → .summary (no issues found)")
         return .summary
     }
@@ -156,15 +157,37 @@ class WizardNavigationEngine: WizardNavigating {
     func nextPage(
         from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue] = []
     ) -> WizardPage? {
-        // Determine what the next logical page should be based on current state
-        let targetPage = determineCurrentPage(for: state, issues: issues)
-
-        // If we're already on the target page, no next page
-        if current == targetPage {
+        // Get the logical page order
+        let pageOrder = getPageOrder()
+        guard let currentIndex = pageOrder.firstIndex(of: current) else {
             return nil
         }
 
-        return targetPage
+        // Check if there are blocking issues that require going to a specific page
+        let targetPage = determineCurrentPage(for: state, issues: issues)
+
+        // If the target is a blocking page and we're not on it, jump there immediately
+        if isBlockingPage(targetPage), targetPage != current {
+            return targetPage
+        }
+
+        // If the target page is ahead of us in the flow and different from current, jump to it
+        if let targetIndex = pageOrder.firstIndex(of: targetPage),
+           targetIndex > currentIndex,
+           targetPage != current
+        {
+            return targetPage
+        }
+
+        // Otherwise, continue forward in the sequential flow
+        // This handles: no issues, non-blocking issues resolved, or optional pages
+        let nextIndex = currentIndex + 1
+        if nextIndex < pageOrder.count {
+            return pageOrder[nextIndex]
+        }
+
+        // We're at the end of the flow
+        return nil
     }
 
     // MARK: - Navigation State Creation
@@ -196,7 +219,7 @@ class WizardNavigationEngine: WizardNavigating {
             .accessibility, // Accessibility permission
             .karabinerComponents, // Karabiner driver and VirtualHID setup
             .kanataComponents, // Kanata binary and service setup
-            .service // Start keyboard service
+            .service, // Start keyboard service
         ]
     }
 

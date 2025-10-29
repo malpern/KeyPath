@@ -298,7 +298,7 @@ struct WizardAccessibilityPage: View {
 
     // Issue filtering for tooltips
     private var keyPathAccessibilityIssues: [WizardIssue] {
-        return issues.filter { issue in
+        issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .keyPathAccessibility
             }
@@ -307,7 +307,7 @@ struct WizardAccessibilityPage: View {
     }
 
     private var kanataAccessibilityIssues: [WizardIssue] {
-        return issues.filter { issue in
+        issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
                 return permissionType == .kanataAccessibility
             }
@@ -346,7 +346,8 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -367,7 +368,7 @@ struct WizardAccessibilityPage_Previews: PreviewProvider {
                     description: "KeyPath needs Accessibility permission to monitor keyboard events.",
                     autoFixAction: nil,
                     userAction: "Grant permission in System Settings > Privacy & Security > Accessibility"
-                )
+                ),
             ],
             onRefresh: {},
             onNavigateToPage: nil,

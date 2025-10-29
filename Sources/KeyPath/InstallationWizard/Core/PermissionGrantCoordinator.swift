@@ -41,7 +41,8 @@ class PermissionGrantCoordinator: ObservableObject {
 
     func initiatePermissionGrant(for permissionType: CoordinatorPermissionType,
                                  instructions: String,
-                                 onComplete: (() -> Void)? = nil) {
+                                 onComplete: (() -> Void)? = nil)
+    {
         logger.log("SAVING wizard state for \(permissionType.displayName) restart:")
 
         // Reset completion guard for new permission grant flow
@@ -80,7 +81,8 @@ class PermissionGrantCoordinator: ObservableObject {
 
     private func showInstructionsDialog(for permissionType: CoordinatorPermissionType,
                                         instructions: String,
-                                        onComplete: @escaping () -> Void) {
+                                        onComplete: @escaping () -> Void)
+    {
         if TestEnvironment.isRunningTests {
             WizardLogger.shared.log("🧪 [PermissionGrant] Suppressing NSAlert in test environment")
             onComplete()
@@ -152,7 +154,8 @@ class PermissionGrantCoordinator: ObservableObject {
 
     func performPermissionRestart(for permissionType: CoordinatorPermissionType,
                                   kanataManager: KanataManager,
-                                  completion: @escaping (Bool) -> Void) {
+                                  completion: @escaping (Bool) -> Void)
+    {
         let timestamp = UserDefaults.standard.double(forKey: permissionType.timestampKey)
         let originalDate = Date(timeIntervalSince1970: timestamp)
         let timeSince = Date().timeIntervalSince1970 - timestamp
@@ -273,25 +276,49 @@ class PermissionGrantCoordinator: ObservableObject {
     }
 
     func reopenWizard(for permissionType: CoordinatorPermissionType, kanataManager: KanataManager) {
-        logger.log("REOPENING wizard to \(permissionType.displayName) page")
+        logger.log("REOPENING wizard - checking \(permissionType.displayName) permission status")
 
-        // Set the appropriate wizard return flag and call the appropriate method
+        // Check permissions asynchronously and set appropriate flags
+        Task { @MainActor in
+            let permissionsGranted = await checkIfPermissionsGranted(for: permissionType)
+
+            if permissionsGranted {
+                logger.log("✅ Permissions granted! Returning to Summary page")
+                UserDefaults.standard.set(true, forKey: "wizard_return_to_summary")
+            } else {
+                logger.log("⚠️ Permissions still missing - returning to \(permissionType.displayName) page")
+                // Set the appropriate wizard return flag
+                switch permissionType {
+                case .accessibility:
+                    UserDefaults.standard.set(true, forKey: "wizard_return_to_accessibility")
+                case .inputMonitoring:
+                    UserDefaults.standard.set(true, forKey: "wizard_return_to_input_monitoring")
+                }
+            }
+
+            logger.log("KanataManager.showWizardForInputMonitoring called")
+            await kanataManager.showWizardForInputMonitoring()
+            logger.log("  - Wizard shown")
+        }
+    }
+
+    /// Check if permissions were successfully granted for the given permission type
+    private func checkIfPermissionsGranted(for permissionType: CoordinatorPermissionType) async -> Bool {
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+
         switch permissionType {
         case .accessibility:
-            UserDefaults.standard.set(true, forKey: "wizard_return_to_accessibility")
-            logger.log("KanataManager.showWizardForInputMonitoring called (using generic method)")
-            Task { @MainActor in
-                await kanataManager.showWizardForInputMonitoring()
-            }
-        case .inputMonitoring:
-            UserDefaults.standard.set(true, forKey: "wizard_return_to_input_monitoring")
-            logger.log("KanataManager.showWizardForInputMonitoring called")
-            Task { @MainActor in
-                await kanataManager.showWizardForInputMonitoring()
-            }
-        }
+            // Both KeyPath and kanata should have accessibility
+            let keyPathGranted = snapshot.keyPath.accessibility == .granted
+            let kanataGranted = snapshot.kanata.accessibility == .granted
+            return keyPathGranted && kanataGranted
 
-        logger.log("  - Wizard will be shown")
+        case .inputMonitoring:
+            // Both KeyPath and kanata should have input monitoring
+            let keyPathGranted = snapshot.keyPath.inputMonitoring == .granted
+            let kanataGranted = snapshot.kanata.inputMonitoring == .granted
+            return keyPathGranted && kanataGranted
+        }
     }
 
     // MARK: - Service Bounce Management

@@ -35,7 +35,8 @@ public class KanataConfigGenerator {
 
         // Try to load from the project directory
         if let projectRoot = getProjectRoot(),
-           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8) {
+           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8)
+        {
             AppLogger.shared.log("✅ [ConfigGenerator] Loaded Kanata config guide from project")
             return content
         }
@@ -121,7 +122,7 @@ public class KanataConfigGenerator {
             "backspace": "bspc",
             "delete": "del",
             "caps": "caps",
-            "capslock": "caps"
+            "capslock": "caps",
         ]
 
         if let mapped = keyMap[result] {
@@ -245,9 +246,9 @@ public class KanataConfigGenerator {
             "messages": [
                 [
                     "role": "user",
-                    "content": prompt
-                ]
-            ]
+                    "content": prompt,
+                ],
+            ],
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -287,7 +288,7 @@ public class KanataConfigGenerator {
             kSecAttrService as String: "KeyPath",
             kSecAttrAccount as String: "claude-api-key",
             kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecMatchLimit as String: kSecMatchLimitOne,
         ]
 
         var dataTypeRef: AnyObject?

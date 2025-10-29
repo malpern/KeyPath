@@ -14,9 +14,9 @@ struct SystemSnapshot {
     /// System is ready when all critical components are operational
     var isReady: Bool {
         permissions.isSystemReady &&
-        !conflicts.hasConflicts &&
-        components.hasAllRequired &&
-        health.isHealthy
+            !conflicts.hasConflicts &&
+            components.hasAllRequired &&
+            health.isHealthy
     }
 
     /// Issues that prevent the system from working
@@ -124,11 +124,11 @@ struct ComponentStatus {
 
     var hasAllRequired: Bool {
         kanataBinaryInstalled &&
-        karabinerDriverInstalled &&
-        karabinerDaemonRunning &&
-        vhidDeviceHealthy &&
-        launchDaemonServicesHealthy &&
-        !vhidVersionMismatch  // Version must match (false means no mismatch)
+            karabinerDriverInstalled &&
+            karabinerDaemonRunning &&
+            vhidDeviceHealthy &&
+            launchDaemonServicesHealthy &&
+            !vhidVersionMismatch // Version must match (false means no mismatch)
     }
 }
 
@@ -172,27 +172,27 @@ enum Issue: Equatable {
     var title: String {
         switch self {
         case let .permissionMissing(app, permission, _):
-            return "\(app) needs \(permission) permission"
+            "\(app) needs \(permission) permission"
         case let .componentMissing(name, _):
-            return "\(name) not installed"
+            "\(name) not installed"
         case let .componentUnhealthy(name, _):
-            return "\(name) unhealthy"
+            "\(name) unhealthy"
         case let .componentVersionMismatch(name, _):
-            return "\(name) version incompatible"
+            "\(name) version incompatible"
         case let .serviceNotRunning(name, _):
-            return "\(name) not running"
-        case .conflict(let conflict):
+            "\(name) not running"
+        case let .conflict(conflict):
             switch conflict {
-            case .kanataProcessRunning(let pid, _):
-                return "Conflicting Kanata process (PID \(pid))"
-            case .karabinerGrabberRunning(let pid):
-                return "Karabiner Grabber running (PID \(pid))"
-            case .karabinerVirtualHIDDeviceRunning(let pid, _):
-                return "Karabiner VirtualHID running (PID \(pid))"
-            case .karabinerVirtualHIDDaemonRunning(let pid):
-                return "Karabiner VirtualHID Daemon running (PID \(pid))"
-            case .exclusiveDeviceAccess(let device):
-                return "Device \(device) in use"
+            case let .kanataProcessRunning(pid, _):
+                "Conflicting Kanata process (PID \(pid))"
+            case let .karabinerGrabberRunning(pid):
+                "Karabiner Grabber running (PID \(pid))"
+            case let .karabinerVirtualHIDDeviceRunning(pid, _):
+                "Karabiner VirtualHID running (PID \(pid))"
+            case let .karabinerVirtualHIDDaemonRunning(pid):
+                "Karabiner VirtualHID Daemon running (PID \(pid))"
+            case let .exclusiveDeviceAccess(device):
+                "Device \(device) in use"
             }
         }
     }
@@ -200,31 +200,31 @@ enum Issue: Equatable {
     var canAutoFix: Bool {
         switch self {
         case .permissionMissing:
-            return false // User must grant permissions
+            false // User must grant permissions
         case let .componentMissing(_, autoFix),
              let .componentUnhealthy(_, autoFix),
              let .componentVersionMismatch(_, autoFix),
              let .serviceNotRunning(_, autoFix):
-            return autoFix
+            autoFix
         case .conflict:
-            return true // Can terminate conflicting processes
+            true // Can terminate conflicting processes
         }
     }
 
     var action: String {
         switch self {
         case let .permissionMissing(_, _, action):
-            return action
+            action
         case .componentMissing:
-            return "Install via wizard"
+            "Install via wizard"
         case .componentUnhealthy:
-            return "Restart component"
+            "Restart component"
         case .componentVersionMismatch:
-            return "Install correct version"
+            "Install correct version"
         case .serviceNotRunning:
-            return "Start service"
+            "Start service"
         case .conflict:
-            return "Terminate conflicting process"
+            "Terminate conflicting process"
         }
     }
 }

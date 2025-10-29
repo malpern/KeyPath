@@ -749,7 +749,7 @@ public enum KanataKeyConverter {
             "right option": "ralt",
             "ralt": "ralt",
             "(": "lpar",
-            ")": "rpar"
+            ")": "rpar",
         ]
 
         let lowercased = input.lowercased()

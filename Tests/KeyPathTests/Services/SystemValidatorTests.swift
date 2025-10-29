@@ -88,7 +88,8 @@ struct SystemValidatorTests {
                 karabinerDaemonRunning: false,
                 vhidDeviceInstalled: false,
                 vhidDeviceHealthy: false,
-                launchDaemonServicesHealthy: false
+                launchDaemonServicesHealthy: false,
+                vhidVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(

@@ -118,7 +118,7 @@ enum WizardSystemPaths {
         if FileManager.default.fileExists(atPath: kanataSystemInstallPath) {
             return kanataSystemInstallPath
         }
-        
+
         // Fall back to bundled kanata
         if FileManager.default.fileExists(atPath: bundledKanataPath) {
             return bundledKanataPath

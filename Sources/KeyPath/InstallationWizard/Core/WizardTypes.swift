@@ -58,7 +58,7 @@ extension WizardPage {
         .karabinerComponents,
         .kanataComponents,
         .service,
-        .communication
+        .communication,
     ]
 }
 
@@ -164,10 +164,10 @@ enum AutoFixAction: Equatable {
     case replaceOrphanedProcess // Kill orphaned process and start managed one
     case installLogRotation // Install log rotation service to keep logs under 10MB
     case replaceKanataWithBundled // Replace system kanata with bundled Developer ID signed binary
-    case enableUDPServer // Enable UDP server for communication
-    case setupUDPAuthentication // Generate and configure UDP authentication token
-    case regenerateCommServiceConfiguration // Update LaunchDaemon plist with UDP settings
-    case restartCommServer // Restart service to enable UDP functionality
+    case enableTCPServer // Enable TCP server for communication
+    case setupTCPAuthentication // Generate and configure TCP authentication token
+    case regenerateCommServiceConfiguration // Update LaunchDaemon plist with TCP settings
+    case restartCommServer // Restart service to enable TCP functionality
     case fixDriverVersionMismatch // Download and install correct Karabiner driver version (v5 for kanata v1.9.0)
 }
 
@@ -201,19 +201,19 @@ enum IssueIdentifier: Equatable {
         if case .daemon = self { return true }
         return false
     }
-    
+
     /// Check if this identifier is related to VirtualHIDDevice issues
     var isVHIDRelated: Bool {
         switch self {
-        case .component(let component):
+        case let .component(component):
             switch component {
             case .vhidDeviceManager, .vhidDeviceActivation, .vhidDeviceRunning, .vhidDaemonMisconfigured, .vhidDriverVersionMismatch:
-                return true
+                true
             default:
-                return false
+                false
             }
         default:
-            return false
+            false
         }
     }
 }
@@ -404,7 +404,7 @@ protocol WizardNavigating {
 
 // MARK: - Helper Extensions
 
-extension Array where Element == WizardIssue {
+extension [WizardIssue] {
     /// Formats issues into a tooltip-friendly string for hover text
     /// Returns empty string if no issues, single issue details if one issue,
     /// or numbered list if multiple issues
@@ -421,7 +421,7 @@ extension Array where Element == WizardIssue {
         }
 
         // Multiple issues - show numbered list
-        return self.enumerated()
+        return enumerated()
             .map { index, issue in
                 """
                 \(index + 1). \(issue.title)

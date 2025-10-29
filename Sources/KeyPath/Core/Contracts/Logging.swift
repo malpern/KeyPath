@@ -242,4 +242,3 @@ extension ComponentLogging {
         log(message, level: level, category: componentName)
     }
 }
-

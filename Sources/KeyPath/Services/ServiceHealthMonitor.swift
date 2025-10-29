@@ -103,7 +103,6 @@ struct ProcessHealthStatus: Sendable {
 /// Monitors service health and manages restart cooldowns and recovery strategies
 @MainActor
 final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
-
     // MARK: - Dependencies
 
     private let processLifecycle: ProcessLifecycleManager
@@ -197,7 +196,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     private func performUDPHealthCheck(client: KanataUDPClient) async -> Bool {
         var isHealthy = false
 
-        for attempt in 1...maxUDPHealthCheckRetries {
+        for attempt in 1 ... maxUDPHealthCheckRetries {
             AppLogger.shared.log("🏥 [HealthMonitor] UDP health check attempt \(attempt)/\(maxUDPHealthCheckRetries)")
 
             isHealthy = await client.checkServerStatus()

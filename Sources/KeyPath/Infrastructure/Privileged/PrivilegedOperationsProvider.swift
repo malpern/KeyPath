@@ -12,5 +12,3 @@ public enum PrivilegedOperationsProvider: Sendable {
         return LegacyPrivilegedOperations()
     }()
 }
-
-

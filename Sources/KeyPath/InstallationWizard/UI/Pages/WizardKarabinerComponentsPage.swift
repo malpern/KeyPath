@@ -273,26 +273,26 @@ struct WizardKarabinerComponentsPage: View {
 
     private var karabinerRelatedIssues: [WizardIssue] {
         // Use centralized evaluator (single source of truth)
-        return KarabinerComponentsStatusEvaluator.getKarabinerRelatedIssues(from: issues)
+        KarabinerComponentsStatusEvaluator.getKarabinerRelatedIssues(from: issues)
     }
 
     private var driverIssues: [WizardIssue] {
         // Filter for driver-related issues (VHID, driver extension, etc.)
-        return issues.filter { issue in
+        issues.filter { issue in
             issue.category == .installation && issue.identifier.isVHIDRelated
         }
     }
 
     private var backgroundServicesIssues: [WizardIssue] {
         // Filter for background services issues
-        return issues.filter { issue in
+        issues.filter { issue in
             issue.category == .backgroundServices
         }
     }
 
     private func componentStatus(for component: KarabinerComponent) -> InstallationStatus {
         // Use centralized evaluator for individual components (single source of truth)
-        return KarabinerComponentsStatusEvaluator.getIndividualComponentStatus(
+        KarabinerComponentsStatusEvaluator.getIndividualComponentStatus(
             component,
             in: issues
         )
@@ -353,14 +353,14 @@ struct WizardKarabinerComponentsPage: View {
             NSWorkspace.shared.open(url)
         }
     }
-    
+
     // MARK: - Smart Fix Handlers
-    
+
     /// Smart handler for Karabiner Driver Fix button
     /// Detects if Karabiner is installed vs needs installation
     private func handleKarabinerDriverFix() {
         let isInstalled = kanataManager.isKarabinerDriverInstalled()
-        
+
         if isInstalled {
             // Karabiner is installed but having issues - attempt automatic repair
             AppLogger.shared.log("🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
@@ -371,12 +371,12 @@ struct WizardKarabinerComponentsPage: View {
             showingInstallationGuide = true
         }
     }
-    
-    /// Smart handler for Background Services Fix button  
+
+    /// Smart handler for Background Services Fix button
     /// Attempts repair first, falls back to system settings
     private func handleBackgroundServicesFix() {
         let isInstalled = kanataManager.isKarabinerDriverInstalled()
-        
+
         if isInstalled {
             // Try automatic repair first
             AppLogger.shared.log("🔧 [Background Services Fix] Attempting automatic service repair")
@@ -387,17 +387,17 @@ struct WizardKarabinerComponentsPage: View {
             openLoginItemsSettings()
         }
     }
-    
+
     /// Attempts automatic repair of Karabiner driver issues
     private func performAutomaticDriverRepair() {
         Task { @MainActor in
             // Use the wizard's auto-fix capability
-            
+
             // Check what specific issues we need to fix
             let vhidIssues = issues.filter { issue in
                 issue.identifier.isVHIDRelated
             }
-            
+
             var success = false
 
             // ⭐ Check for driver version mismatch FIRST (root cause of other issues)
@@ -418,7 +418,7 @@ struct WizardKarabinerComponentsPage: View {
                 AppLogger.shared.log("🔧 [Driver Repair] Restarting VirtualHID daemon")
                 success = await performAutoFix(.restartVirtualHIDDaemon)
             }
-            
+
             if success {
                 AppLogger.shared.log("✅ [Driver Repair] Automatic repair succeeded - refreshing status")
                 // Trigger status refresh
@@ -429,15 +429,15 @@ struct WizardKarabinerComponentsPage: View {
             }
         }
     }
-    
+
     /// Attempts automatic repair of background services
     private func performAutomaticServiceRepair() {
         Task { @MainActor in
             // Use the wizard's auto-fix capability
-            
+
             AppLogger.shared.log("🔧 [Service Repair] Installing/repairing LaunchDaemon services")
             let success = await performAutoFix(.installLaunchDaemonServices)
-            
+
             if success {
                 AppLogger.shared.log("✅ [Service Repair] Service repair succeeded - refreshing status")
                 onRefresh()
@@ -447,9 +447,9 @@ struct WizardKarabinerComponentsPage: View {
             }
         }
     }
-    
+
     /// Perform auto-fix using the wizard's auto-fix capability
     private func performAutoFix(_ action: AutoFixAction) async -> Bool {
-        return await onAutoFix(action)
+        await onAutoFix(action)
     }
 }

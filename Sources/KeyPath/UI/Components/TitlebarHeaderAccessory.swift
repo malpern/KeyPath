@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 final class TitlebarHeaderAccessory: NSTitlebarAccessoryViewController {
-    init(width: CGFloat = 500) {
+    init(width _: CGFloat = 500) {
         super.init(nibName: nil, bundle: nil)
 
         let info = BuildInfo.current()
@@ -29,5 +29,5 @@ final class TitlebarHeaderAccessory: NSTitlebarAccessoryViewController {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    required init?(coder _: NSCoder) { fatalError("init(coder:) has not been implemented") }
 }

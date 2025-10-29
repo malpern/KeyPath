@@ -16,7 +16,7 @@ public class KeyboardCapture: ObservableObject {
     private var sequenceCallback: ((KeySequence) -> Void)?
     private var isCapturing = false
     private var isContinuous = false
-    internal private(set) var suppressEvents = true // default: suppress during raw capture (exposed for tests)
+    private(set) var suppressEvents = true // default: suppress during raw capture (exposed for tests)
     private var pauseTimer: Timer?
     private let pauseDuration: TimeInterval = 2.0 // 2 seconds pause to auto-stop
     private var noEventTimer: Timer?
@@ -224,15 +224,15 @@ public class KeyboardCapture: ObservableObject {
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { _ in
                 // Swallow the key to avoid system beep while recording, but do NOT
                 // feed it into the capture pipeline to prevent duplicate events.
-                return nil
+                nil
             }
         }
         // Breadcrumb if no events arrive within 1s
-        noKeyBreadcrumbTimer?.invalidate();
+        noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                if self.isCapturing && !self.anyEventSeen {
+                if self.isCapturing, !self.anyEventSeen {
                     AppLogger.shared.log("⏱️ [KeyboardCapture] No key events received after 1.0s (mode=\(self.captureMode), tap=\(self.suppressEvents ? "defaultTap" : "listenOnly"), location=\(self.currentTapLocation))")
                 }
             }
@@ -388,7 +388,8 @@ public class KeyboardCapture: ObservableObject {
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
                last.modifiers == keyPress.modifiers,
-               now.timeIntervalSince(lastAt) <= dedupWindow {
+               now.timeIntervalSince(lastAt) <= dedupWindow
+            {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
                 return
             }
@@ -493,7 +494,7 @@ public class KeyboardCapture: ObservableObject {
             30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
             37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
             44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps"
+            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps",
         ]
 
         if let keyName = keyMap[keyCode] {
@@ -506,7 +507,7 @@ public class KeyboardCapture: ObservableObject {
     // Check permissions without prompting - using synchronous method to avoid deadlocks
     func checkAccessibilityPermissionsSilently() -> Bool {
         // Use direct API call instead of async PermissionOracle to avoid semaphore deadlock
-        return AXIsProcessTrusted()
+        AXIsProcessTrusted()
     }
 
     // Public method to explicitly request permissions (for use in wizard)
@@ -605,7 +606,8 @@ public class KeyboardCapture: ObservableObject {
             // Check if all three keys are pressed simultaneously
             if pressedKeys.contains(leftControlKey),
                pressedKeys.contains(spaceKey),
-               pressedKeys.contains(escapeKey) {
+               pressedKeys.contains(escapeKey)
+            {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
                 DispatchQueue.main.async {
