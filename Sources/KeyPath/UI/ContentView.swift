@@ -84,7 +84,8 @@ struct ContentView: View {
             RecordingSection(
                 coordinator: recordingCoordinator,
                 onInputRecord: { handleInputRecordTap() },
-                onOutputRecord: { handleOutputRecordTap() }
+                onOutputRecord: { handleOutputRecordTap() },
+                onShowMessage: { message in showStatusMessage(message: message) }
             )
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
@@ -697,6 +698,7 @@ struct RecordingSection: View {
     @ObservedObject var coordinator: RecordingCoordinator
     let onInputRecord: () -> Void
     let onOutputRecord: () -> Void
+    let onShowMessage: (String) -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -716,24 +718,36 @@ struct RecordingSection: View {
                 Spacer()
 
                 Button(action: {
-                    PreferencesService.shared.applyMappingsDuringRecording.toggle()
+                    let newValue = !PreferencesService.shared.applyMappingsDuringRecording
+                    PreferencesService.shared.applyMappingsDuringRecording = newValue
                     coordinator.requestPlaceholders()
+
+                    // Show confirmation message
+                    let message = newValue
+                        ? "✓ Mappings will be applied during recording\n(Service stays running)"
+                        : "⚠️ Mappings paused during recording\n(Service will stop/restart - requires admin)"
+                    onShowMessage(message)
                 }, label: {
-                    Image(systemName: "app.background.dotted")
+                    Image(systemName: PreferencesService.shared.applyMappingsDuringRecording
+                        ? "keyboard.badge.checkmark"
+                        : "keyboard.badge.xmark")
                         .font(.title2)
                         .foregroundColor(.white)
                 })
                 .buttonStyle(.plain)
                 .frame(width: 32, height: 32)
-                .appSolidGlassButton(tint: .blue, radius: 6)
+                .appSolidGlassButton(
+                    tint: PreferencesService.shared.applyMappingsDuringRecording ? .green : .orange,
+                    radius: 6
+                )
                 .cornerRadius(6)
                 .help(PreferencesService.shared.applyMappingsDuringRecording
-                    ? "Mappings ON: Recording shows effective (mapped) keys. Click to show raw keys."
-                    : "Mappings OFF: Recording shows raw (physical) keys. Click to show mapped keys.")
+                    ? "Apply Mappings During Recording: ON\n\nRecording shows mapped keys (what you configured).\nKanata service stays running.\n\nClick to toggle OFF (shows raw physical keys, stops service)."
+                    : "Apply Mappings During Recording: OFF\n\nRecording shows raw physical keys.\n⚠️ Kanata service will stop/restart (requires admin password).\n\nClick to toggle ON (keeps service running).")
                 .accessibilityIdentifier("apply-mappings-toggle")
                 .accessibilityLabel(PreferencesService.shared.applyMappingsDuringRecording
-                    ? "Disable mappings during recording"
-                    : "Enable mappings during recording")
+                    ? "Disable mappings during recording (requires admin)"
+                    : "Enable mappings during recording (recommended)")
                 .padding(.trailing, 5)
 
                 Button(action: {
