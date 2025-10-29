@@ -87,48 +87,18 @@ extension KanataManager {
     }
 
     func killAllKanataProcesses() async {
-        let script = """
-        do shell script "/usr/bin/pkill -f kanata" with administrator privileges with prompt "KeyPath needs to stop keyboard remapping processes."
-        """
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", script]
-
         do {
-            try task.run()
-            task.waitUntilExit()
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("🔧 [Recovery] Killed Kanata processes")
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [Recovery] Failed to kill Kanata processes - exit code: \(task.terminationStatus)")
-            }
+            try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
+            AppLogger.shared.log("🔧 [Recovery] Killed Kanata processes")
         } catch {
             AppLogger.shared.log("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
         }
     }
 
     func restartKarabinerDaemon() async {
-        // First kill the daemon
-        let killScript =
-            "do shell script \"/usr/bin/pkill -f Karabiner-VirtualHIDDevice-Daemon\" with administrator privileges with prompt \"KeyPath needs to restart the virtual keyboard daemon.\""
-
-        let killTask = Process()
-        killTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        killTask.arguments = ["-e", killScript]
-
         do {
-            try killTask.run()
-            killTask.waitUntilExit()
-
-            if killTask.terminationStatus == 0 {
-                AppLogger.shared.log("🔧 [Recovery] Killed Karabiner daemon")
-            } else {
-                AppLogger.shared.log(
-                    "⚠️ [Recovery] Failed to kill Karabiner daemon - exit code: \(killTask.terminationStatus)")
-            }
+            try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemon()
+            AppLogger.shared.log("🔧 [Recovery] Restarted Karabiner daemon")
 
             // Wait a moment then check if it auto-restarts
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
