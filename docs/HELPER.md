@@ -210,29 +210,69 @@ The coordinator implements the complete API surface:
 
 **NOT Modified:** Existing callers (wizard, settings, etc.) still use legacy implementations directly. Phase 2 will wire up the XPC helper, then Phase 3 will migrate all callers.
 
-### Phase 2A: Create Privileged Helper Infrastructure (0.5 days)
+### Phase 2A: Create Privileged Helper Infrastructure ✅ COMPLETE
 
 **Goal:** Build helper executable with XPC communication.
 
-**Status:** 🚧 In Progress
+**Status:** ✅ Completed 2025-10-30
 
 **Why Split Phase 2?** Building infrastructure without using it creates untestable technical debt. By splitting into 2A (build) + 2B (wire), we can test the coordinator immediately with real callers before adding the helper binary in Phase 3.
 
-**Tasks:**
-- [ ] Create `KeyPathHelper` target in Package.swift
-- [ ] Define `HelperProtocol.swift` (XPC interface - 17 operations)
-- [ ] Implement `main.swift` (XPC listener entry point)
-- [ ] Implement `HelperService.swift` (root operations implementation)
-- [ ] Create `HelperManager.swift` (app-side XPC connection manager)
-- [ ] Wire coordinator helper methods (replace fatalError stubs)
-- [ ] Implement SMJobBless() installation flow
-- [ ] Add helper version checking and upgrade logic
+**Completed Tasks:**
+- [x] Create `KeyPathHelper` target in Package.swift
+- [x] Define `HelperProtocol.swift` (XPC interface - 18 operations including getVersion)
+- [x] Implement `main.swift` (XPC listener entry point with security validation)
+- [x] Implement `HelperService.swift` (root operations implementation with 2 working operations)
+- [x] Create `HelperManager.swift` (app-side XPC connection manager with async/await wrappers)
+- [x] Wire coordinator helper methods (replaced all 16 fatalError stubs with XPC calls)
+- [x] Implement SMJobBless() installation flow (installHelper/uninstallHelper methods)
+- [x] Add helper version checking and upgrade logic (getVersion, isCompatible, needsUpgrade)
 
-**Test Criteria:**
-- Helper compiles successfully
-- XPC protocol matches coordinator API (17 methods)
-- HelperManager can detect helper presence
-- All coordinator helper stubs replaced with XPC calls
+**Implementation Details:**
+
+**Files Created:**
+- `Sources/KeyPathHelper/main.swift` (70 lines) - XPC listener with security validation
+- `Sources/KeyPathHelper/HelperService.swift` (240 lines) - Service implementation with 18 operations
+- `Sources/KeyPathHelper/HelperProtocol.swift` (103 lines) - XPC interface definition
+- `Sources/KeyPath/Core/HelperProtocol.swift` (103 lines) - Duplicated for app target
+- `Sources/KeyPath/Core/HelperManager.swift` (420 lines) - XPC connection manager
+
+**Files Modified:**
+- `Package.swift` - Added KeyPathHelper executable target
+- `Sources/KeyPath/Core/PrivilegedOperationsCoordinator.swift` - Wired all 16 helper methods to HelperManager
+
+**Protocol Extensions:**
+- Added parameters to `installLaunchDaemon` (plistPath, serviceID)
+- Added parameters to `installAllLaunchDaemonServices` (binaryPath, configPath, tcpPort)
+- Added `installAllLaunchDaemonServicesWithPreferences` for convenience
+- Added parameters to `installVirtualHIDDriver` (version, downloadURL)
+- Added `getVersion` for version compatibility checking
+
+**Implemented Operations:**
+- `terminateProcess(pid:)` - Fully implemented using kill() syscall
+- `executeCommand(_:description:)` - Fully implemented using Process
+- All other 16 operations - Stub implementations throwing NotImplementedError
+
+**Version Management:**
+- Helper version: 1.0.0
+- Version query via XPC
+- Compatibility checking
+- Upgrade detection logic
+
+**Test Results:**
+- ✅ Both KeyPath and KeyPathHelper targets compile successfully
+- ✅ XPC protocol defined with all 18 operations
+- ✅ HelperManager can check installation status
+- ✅ All coordinator helper methods wired to HelperManager
+- ✅ SMJobBless flow implemented (not yet testable without embedded helper)
+- ✅ Version checking logic complete
+
+**Current State:**
+- Infrastructure complete and compiles
+- Helper can be built but not yet embedded in app bundle (Phase 3)
+- In DEBUG builds: coordinator uses direct sudo (current behavior unchanged)
+- In RELEASE builds: coordinator checks for helper, falls back to sudo
+- Helper operations are stubs - will be implemented progressively in Phase 2B/3
 
 ### Phase 2B: Migrate Callers to Coordinator (0.5 days)
 

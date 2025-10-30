@@ -10,6 +10,10 @@ let package = Package(
         .executable(
             name: "KeyPath",
             targets: ["KeyPath"]
+        ),
+        .executable(
+            name: "KeyPathHelper",
+            targets: ["KeyPathHelper"]
         )
     ],
     dependencies: [
@@ -30,6 +34,16 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 // Surface concurrency issues clearly in Debug builds
+                .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
+            ]
+        ),
+        // Privileged helper executable
+        .executableTarget(
+            name: "KeyPathHelper",
+            dependencies: [],
+            path: "Sources/KeyPathHelper",
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
                 .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         ),

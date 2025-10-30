@@ -37,10 +37,9 @@ final class PrivilegedOperationsCoordinator {
         return .directSudo
         #else
         // Release builds prefer helper if available, fall back to sudo
-        // TODO: Phase 2 - Check if helper is installed
-        // if HelperManager.shared.isHelperInstalled() {
-        //     return .privilegedHelper
-        // }
+        if HelperManager.shared.isHelperInstalled() {
+            return .privilegedHelper
+        }
         return .directSudo
         #endif
     }
@@ -263,8 +262,7 @@ final class PrivilegedOperationsCoordinator {
     // MARK: - Privileged Helper Path (Phase 2 - Future Implementation)
 
     private func helperInstallLaunchDaemon(plistPath: String, serviceID: String) async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.installLaunchDaemon(plistPath: plistPath, serviceID: serviceID)
     }
 
     private func helperInstallAllServices(
@@ -272,78 +270,67 @@ final class PrivilegedOperationsCoordinator {
         kanataConfigPath: String,
         tcpPort: Int
     ) async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.installAllLaunchDaemonServices(
+            kanataBinaryPath: kanataBinaryPath,
+            kanataConfigPath: kanataConfigPath,
+            tcpPort: tcpPort
+        )
     }
 
     private func helperInstallAllServicesWithPreferences() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.installAllLaunchDaemonServicesWithPreferences()
     }
 
     private func helperRestartServices() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.restartUnhealthyServices()
     }
 
     private func helperRegenerateConfig() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.regenerateServiceConfiguration()
     }
 
     private func helperInstallLogRotation() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.installLogRotation()
     }
 
     private func helperRepairVHIDServices() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.repairVHIDDaemonServices()
     }
 
     private func helperInstallServicesWithoutLoading() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.installLaunchDaemonServicesWithoutLoading()
     }
 
     private func helperActivateVHID() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.activateVirtualHIDManager()
     }
 
     private func helperUninstallDrivers() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.uninstallVirtualHIDDrivers()
     }
 
     private func helperInstallDriver(version: String, downloadURL: String) async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.installVirtualHIDDriver(version: version, downloadURL: downloadURL)
     }
 
     private func helperInstallCorrectDriver() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.downloadAndInstallCorrectVHIDDriver()
     }
 
     private func helperTerminateProcess(pid: Int32) async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.terminateProcess(pid)
     }
 
     private func helperKillAllKanata() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.killAllKanataProcesses()
     }
 
     private func helperRestartKarabinerDaemon() async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.restartKarabinerDaemon()
     }
 
     private func helperExecuteCommand(_ command: String, description: String) async throws {
-        // TODO: Phase 2 - Implement XPC call to privileged helper
-        fatalError("Privileged helper not yet implemented - Phase 2 work")
+        try await HelperManager.shared.executeCommand(command, description: description)
     }
 
     // MARK: - Direct Sudo Path (Current Implementation)
