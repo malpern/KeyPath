@@ -10,32 +10,25 @@ struct WizardSystemStatusOverview: View {
     let kanataIsRunning: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
+        List {
             ForEach(statusItems, id: \.id) { item in
-                WizardStatusItem(
-                    icon: item.icon,
-                    title: item.title,
-                    subtitle: item.subtitle,
-                    status: item.status,
-                    isNavigable: item.isNavigable,
-                    action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil,
-                    isFinalStatus: isFinalKeyPathStatus(item: item),
-                    showInitialClock: shouldShowInitialClock(for: item),
-                    tooltip: item.relatedIssues.asTooltipText()
-                )
-                .padding(.horizontal, WizardDesign.Spacing.cardPadding)
-                .padding(.vertical, WizardDesign.Spacing.labelGap)
-                .background(AppGlassBackground(style: .cardBold, cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 0) {
+                    WizardStatusItem(
+                        icon: item.icon,
+                        title: item.title,
+                        subtitle: item.subtitle,
+                        status: item.status,
+                        isNavigable: item.isNavigable,
+                        action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil,
+                        isFinalStatus: isFinalKeyPathStatus(item: item),
+                        showInitialClock: shouldShowInitialClock(for: item),
+                        tooltip: item.relatedIssues.asTooltipText()
+                    )
 
-                // Show expanded details for failed items
-                if item.status == .failed, !item.subItems.isEmpty {
-                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
-                        ForEach(item.subItems, id: \.id) { subItem in
-                            HStack(spacing: WizardDesign.Spacing.iconGap) {
-                                Rectangle()
-                                    .fill(Color.clear)
-                                    .frame(width: WizardDesign.Spacing.indentation)
-
+                    // Show expanded details for failed items
+                    if item.status == .failed, !item.subItems.isEmpty {
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
+                            ForEach(item.subItems, id: \.id) { subItem in
                                 WizardStatusItem(
                                     icon: subItem.icon,
                                     title: subItem.title,
@@ -45,15 +38,18 @@ struct WizardSystemStatusOverview: View {
                                     action: subItem.isNavigable ? { onNavigateToPage?(subItem.targetPage) } : nil,
                                     tooltip: subItem.relatedIssues.asTooltipText()
                                 )
-                                .padding(.horizontal, WizardDesign.Spacing.cardPadding)
-                                .padding(.vertical, WizardDesign.Spacing.labelGap)
-                                .background(AppGlassBackground(style: .cardBold, cornerRadius: 8))
+                                .padding(.leading, WizardDesign.Spacing.indentation)
                             }
                         }
+                        .padding(.top, WizardDesign.Spacing.labelGap)
                     }
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
     }
 
     // MARK: - Animation Helpers

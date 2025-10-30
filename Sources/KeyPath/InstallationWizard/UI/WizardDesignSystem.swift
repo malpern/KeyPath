@@ -833,6 +833,11 @@ struct AnimatedStatusIcon: View {
                     Image(systemName: finalStateIcon)
                         .foregroundColor(finalStateColor)
                         .font(.system(size: 16))
+                        .background(
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 18, height: 18)
+                        )
                         .modifier(AvailabilitySymbolBounce())
                         .modifier(AvailabilitySymbolBounce(repeating: isFinalStatus))
                         .transition(.asymmetric(
@@ -871,6 +876,11 @@ struct AnimatedStatusIcon: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(WizardDesign.Colors.success)
                         .font(.system(size: 16))
+                        .background(
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 18, height: 18)
+                        )
                         .modifier(AvailabilitySymbolBounce())
                         .modifier(AvailabilitySymbolBounce(repeating: isFinalStatus))
 
@@ -879,6 +889,11 @@ struct AnimatedStatusIcon: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(WizardDesign.Colors.error)
                         .font(.system(size: 16))
+                        .background(
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 18, height: 18)
+                        )
                         .modifier(AvailabilitySymbolBounce())
                 }
             }

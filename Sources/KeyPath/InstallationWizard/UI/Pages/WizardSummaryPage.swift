@@ -40,17 +40,14 @@ struct WizardSummaryPage: View {
                 .padding(.bottom, WizardDesign.Spacing.sectionGap)
 
                 // System Status Overview
-                ScrollView {
-                    WizardSystemStatusOverview(
-                        systemState: systemState,
-                        issues: issues,
-                        stateInterpreter: stateInterpreter,
-                        onNavigateToPage: onNavigateToPage,
-                        kanataIsRunning: kanataManager.isRunning
-                    )
-                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                }
-                .frame(maxHeight: geometry.size.height * 0.5) // Limit scroll area
+                WizardSystemStatusOverview(
+                    systemState: systemState,
+                    issues: issues,
+                    stateInterpreter: stateInterpreter,
+                    onNavigateToPage: onNavigateToPage,
+                    kanataIsRunning: kanataManager.isRunning
+                )
+                .frame(maxHeight: geometry.size.height * 0.5) // Limit list height
 
                 Spacer(minLength: WizardDesign.Spacing.itemGap)
 
