@@ -210,18 +210,60 @@ The coordinator implements the complete API surface:
 
 **NOT Modified:** Existing callers (wizard, settings, etc.) still use legacy implementations directly. Phase 2 will wire up the XPC helper, then Phase 3 will migrate all callers.
 
-### Phase 2: Create Privileged Helper (1 day)
+### Phase 2A: Create Privileged Helper Infrastructure (0.5 days)
 
-**Goal:** Implement helper target with XPC communication.
+**Goal:** Build helper executable with XPC communication.
+
+**Status:** 🚧 In Progress
+
+**Why Split Phase 2?** Building infrastructure without using it creates untestable technical debt. By splitting into 2A (build) + 2B (wire), we can test the coordinator immediately with real callers before adding the helper binary in Phase 3.
 
 **Tasks:**
 - [ ] Create `KeyPathHelper` target in Package.swift
-- [ ] Implement `main.swift` (XPC listener setup)
-- [ ] Implement `HelperService.swift` (root operations)
-- [ ] Define `HelperProtocol.swift` (XPC interface)
-- [ ] Create `HelperManager.swift` (app-side XPC connection)
+- [ ] Define `HelperProtocol.swift` (XPC interface - 17 operations)
+- [ ] Implement `main.swift` (XPC listener entry point)
+- [ ] Implement `HelperService.swift` (root operations implementation)
+- [ ] Create `HelperManager.swift` (app-side XPC connection manager)
+- [ ] Wire coordinator helper methods (replace fatalError stubs)
 - [ ] Implement SMJobBless() installation flow
-- [ ] Add helper version checking
+- [ ] Add helper version checking and upgrade logic
+
+**Test Criteria:**
+- Helper compiles successfully
+- XPC protocol matches coordinator API (17 methods)
+- HelperManager can detect helper presence
+- All coordinator helper stubs replaced with XPC calls
+
+### Phase 2B: Migrate Callers to Coordinator (0.5 days)
+
+**Goal:** Replace all direct sudo calls with coordinator API calls.
+
+**Status:** ⏳ Not Started
+
+**Why Important?** This makes the coordinator actually run in DEBUG builds (via sudo path), validating the API design with real usage before Phase 3 adds the helper binary.
+
+**Tasks:**
+- [ ] Migrate `LaunchDaemonInstaller` to use coordinator
+- [ ] Migrate `WizardAutoFixer` to use coordinator
+- [ ] Migrate `VHIDDeviceManager` to use coordinator
+- [ ] Migrate `KanataManager+Lifecycle` to use coordinator
+- [ ] Update settings UI privileged operations
+- [ ] Remove deprecated legacy operation classes
+- [ ] Test: All operations work via coordinator → sudo path
+
+**Files to Modify:**
+- `InstallationWizard/Core/LaunchDaemonInstaller.swift`
+- `InstallationWizard/Core/WizardAutoFixer.swift`
+- `Services/VHIDDeviceManager.swift`
+- `Managers/KanataManager+Lifecycle.swift`
+- `UI/SettingsView.swift`
+
+**Result After 2B:**
+- ✅ All privileged operations go through coordinator
+- ✅ Coordinator tested with real usage (sudo path)
+- ✅ API validated before adding helper
+- ✅ Can ship this: Better error handling, unified API
+- ✅ Phase 3 becomes trivial: Just embed signed helper
 
 **New files:**
 - `Sources/KeyPathHelper/main.swift`
