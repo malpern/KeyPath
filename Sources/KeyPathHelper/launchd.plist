@@ -23,11 +23,11 @@
         <string>/Library/PrivilegedHelperTools/com.keypath.helper</string>
     </array>
 
-    <!-- Keep helper running -->
+    <!-- On-demand activation via XPC (not always resident) -->
     <key>KeepAlive</key>
-    <true/>
+    <false/>
 
-    <!-- Run on demand when XPC connection is made -->
+    <!-- Don't run at system boot (XPC will launch on demand) -->
     <key>RunAtLoad</key>
     <false/>
 

@@ -2,42 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Required for osascript admin operations -->
-    <key>com.apple.security.automation.apple-events</key>
-    <true/>
-    
-    <!-- Required for executing shell scripts with admin privileges -->
-    <key>com.apple.security.temporary-exception.unix-socket</key>
-    <true/>
-    
-    <!-- Disable sandboxing for admin operations -->
+    <!-- Disable sandboxing (required for system-level operations) -->
     <key>com.apple.security.app-sandbox</key>
     <false/>
-    
-    <!-- Allow executing external processes -->
+
+    <!-- Required for AppleScript admin prompts (DEBUG mode fallback) -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
+    <!-- Allow executing external processes (kanata, helper) -->
     <key>com.apple.security.inherit</key>
     <true/>
-    
-    <!-- Allow network access for inter-process communication -->
+
+    <!-- Network access for TCP communication with kanata -->
     <key>com.apple.security.network.client</key>
     <true/>
-    
-    <!-- File system access for creating LaunchDaemons -->
-    <key>com.apple.security.files.downloads.read-write</key>
-    <true/>
-
-    <!-- SMJobBless: Required for installing privileged helper -->
-    <key>com.apple.security.application-groups</key>
-    <array>
-        <string>com.keypath.app</string>
-    </array>
-
-    <!-- SMJobBless: Privileged helper tool requirement -->
-    <!-- This must match the helper's code signature -->
-    <key>SMPrivilegedExecutables</key>
-    <dict>
-        <key>com.keypath.helper</key>
-        <string>identifier "com.keypath.helper" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13]</string>
-    </dict>
 </dict>
 </plist>

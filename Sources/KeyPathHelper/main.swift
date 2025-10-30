@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 /// KeyPath Privileged Helper
 ///
@@ -6,9 +7,55 @@ import Foundation
 /// via XPC communication. It is installed using SMJobBless() and runs as a LaunchDaemon.
 ///
 /// **Security:**
-/// - Only accepts connections from KeyPath.app (com.keypath.app)
-/// - Validates code signature before accepting connections
+/// - Only accepts connections from KeyPath.app (com.keypath.KeyPath)
+/// - Validates code signature via audit token before accepting connections
 /// - All operations are logged to system log for audit trail
+
+// MARK: - Security Validation
+
+/// Validates an XPC connection using the caller's process ID
+/// - Parameters:
+///   - connection: The XPC connection to validate
+///   - requirement: The code signature requirement string
+/// - Returns: true if the connection is from a valid, authorized caller
+func validateConnection(_ connection: NSXPCConnection, requirement requirementString: String) -> Bool {
+    // Get the process ID from the connection
+    let pid = connection.processIdentifier
+
+    // Create attributes dictionary for the guest code object using PID
+    let attributes: [CFString: Any] = [
+        kSecGuestAttributePid: pid
+    ]
+
+    // Get the code object for the connecting process
+    var code: SecCode?
+    var status = SecCodeCopyGuestWithAttributes(nil, attributes as CFDictionary, [], &code)
+
+    guard status == errSecSuccess, let validCode = code else {
+        NSLog("[KeyPathHelper] Failed to get code object for PID \(pid): \(status)")
+        return false
+    }
+
+    // Create the requirement
+    var requirement: SecRequirement?
+    status = SecRequirementCreateWithString(requirementString as CFString, [], &requirement)
+
+    guard status == errSecSuccess, let validRequirement = requirement else {
+        NSLog("[KeyPathHelper] Failed to create requirement: \(status)")
+        return false
+    }
+
+    // Validate the code against the requirement
+    status = SecCodeCheckValidity(validCode, [], validRequirement)
+
+    if status == errSecSuccess {
+        NSLog("[KeyPathHelper] Code signature validation passed for PID \(pid)")
+        return true
+    } else {
+        NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")
+        return false
+    }
+}
 
 /// Delegate for the XPC listener
 class HelperDelegate: NSObject, NSXPCListenerDelegate {
@@ -20,28 +67,16 @@ class HelperDelegate: NSObject, NSXPCListenerDelegate {
     /// - Returns: true if the connection should be accepted, false otherwise
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
 
-        // Verify the caller is KeyPath.app with valid code signature
-        let securityRequirement = "identifier \"com.keypath.app\" and anchor apple generic"
+        // Security requirement: must be signed by our team and have correct bundle ID
+        let requirementString = "identifier \"com.keypath.KeyPath\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13]"
 
-        // Create a SecRequirement from the requirement string
-        var requirement: SecRequirement?
-        let status = SecRequirementCreateWithString(
-            securityRequirement as CFString,
-            [],
-            &requirement
-        )
-
-        guard status == errSecSuccess, requirement != nil else {
-            NSLog("[KeyPathHelper] Failed to create security requirement: \(status)")
+        // Validate the caller's code signature using audit token
+        guard validateConnection(connection, requirement: requirementString) else {
+            NSLog("[KeyPathHelper] ❌ Connection rejected: signature validation failed")
             return false
         }
 
-        // Validate the connection against the requirement
-        // Note: In production, we'd extract the audit token from the connection
-        // and validate it. For now, we rely on the Mach service configuration.
-        // The LaunchDaemon plist restricts which bundle IDs can connect.
-
-        NSLog("[KeyPathHelper] Accepting connection from KeyPath.app")
+        NSLog("[KeyPathHelper] ✅ Accepting connection from validated KeyPath.app")
 
         // Set up the XPC interface
         connection.exportedInterface = NSXPCInterface(with: HelperProtocol.self)

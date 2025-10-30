@@ -32,7 +32,7 @@
     <!-- SMJobBless: Clients that can install this helper -->
     <key>SMAuthorizedClients</key>
     <array>
-        <string>identifier "com.keypath.app" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13]</string>
+        <string>identifier "com.keypath.KeyPath" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13]</string>
     </array>
 </dict>
 </plist>
