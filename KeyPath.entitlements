@@ -25,5 +25,19 @@
     <!-- File system access for creating LaunchDaemons -->
     <key>com.apple.security.files.downloads.read-write</key>
     <true/>
+
+    <!-- SMJobBless: Required for installing privileged helper -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>com.keypath.app</string>
+    </array>
+
+    <!-- SMJobBless: Privileged helper tool requirement -->
+    <!-- This must match the helper's code signature -->
+    <key>SMPrivilegedExecutables</key>
+    <dict>
+        <key>com.keypath.helper</key>
+        <string>identifier "com.keypath.helper" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13]</string>
+    </dict>
 </dict>
 </plist>

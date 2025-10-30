@@ -371,15 +371,62 @@ Application Code → Coordinator → Implementation (LaunchDaemonInstaller/VHIDD
 <string>com.keypath.helper</string>
 ```
 
-### Phase 3: Build Script Updates (0.5 days)
+### Phase 3: Build Script Updates & Helper Embedding ⚠️ BLOCKED
 
 **Goal:** Support both dev and release workflows.
 
-**Tasks:**
-- [ ] Create `Scripts/build-dev-local.sh` (DEBUG, no helper)
-- [ ] Update `Scripts/build-and-sign.sh` (RELEASE, embed helper)
-- [ ] Update `Package.swift` with conditional helper target
-- [ ] Add helper code signing to release script
+**Status:** ⚠️ Blocked on Developer ID Certificate
+
+**Blocker:** Requires Developer ID Application certificate ($99/year) to:
+- Sign the helper tool
+- Embed signed helper in app bundle
+- Test SMJobBless installation flow
+- Verify XPC communication works
+
+**Completed Tasks:**
+- [x] Create entitlements files (KeyPath.app + Helper)
+- [x] Create helper LaunchDaemon plist (`Sources/KeyPathHelper/launchd.plist`)
+- [x] Create helper Info.plist (`Sources/KeyPathHelper/Info.plist`)
+- [x] Create `Scripts/build-dev-local.sh` (DEBUG, no helper, no cert needed)
+- [x] Create `Scripts/build-helper.sh` (helper build script template)
+
+**Files Created:**
+
+1. **KeyPath.entitlements** (updated)
+   - Added SMJobBless entitlements
+   - Specifies trusted helper bundle ID
+   - Code signing requirements for helper
+
+2. **Sources/KeyPathHelper/KeyPathHelper.entitlements**
+   - Helper entitlements (runs as root, no sandbox)
+   - Required for code signing helper
+
+3. **Sources/KeyPathHelper/Info.plist**
+   - Helper bundle metadata
+   - Version info (must match app version)
+   - SMAuthorizedClients (which apps can install this helper)
+
+4. **Sources/KeyPathHelper/launchd.plist**
+   - LaunchDaemon configuration
+   - Mach service name for XPC
+   - Logging configuration
+
+5. **Scripts/build-dev-local.sh**
+   - Development build (no certificate required)
+   - Builds in DEBUG mode
+   - Uses direct sudo (no helper)
+
+6. **Scripts/build-helper.sh**
+   - Helper build and signing script
+   - Template for production builds
+   - Requires Developer ID certificate
+
+**Pending Tasks (Requires Certificate):**
+- [ ] Update `Scripts/build-and-sign.sh` to call build-helper.sh
+- [ ] Embed signed helper in app bundle at Contents/Library/LaunchServices/
+- [ ] Test SMJobBless() installation flow
+- [ ] Verify helper XPC communication
+- [ ] Test privilege escalation flow
 
 **Build strategies:**
 

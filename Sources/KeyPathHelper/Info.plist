@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Bundle identifier (must match entitlements and LaunchDaemon) -->
+    <key>CFBundleIdentifier</key>
+    <string>com.keypath.helper</string>
+
+    <!-- Bundle name -->
+    <key>CFBundleName</key>
+    <string>KeyPathHelper</string>
+
+    <!-- Version (must match main app for upgrade detection) -->
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+
+    <key>CFBundleVersion</key>
+    <string>1</string>
+
+    <!-- Executable name -->
+    <key>CFBundleExecutable</key>
+    <string>KeyPathHelper</string>
+
+    <!-- Package type -->
+    <key>CFBundlePackageType</key>
+    <string>XPC!</string>
+
+    <!-- Info dictionary version -->
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+
+    <!-- SMJobBless: Clients that can install this helper -->
+    <key>SMAuthorizedClients</key>
+    <array>
+        <string>identifier "com.keypath.app" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13]</string>
+    </array>
+</dict>
+</plist>
