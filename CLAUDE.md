@@ -4,23 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** Karabiner driver version compatibility detection and wizard fixes (October 23, 2025)
+**LATEST WORK:** UX improvements and config validation hardening (October 30, 2025)
 
 **Recent Commits:**
+- feat: comprehensive UX improvements and config validation hardening (commit 6bc628a)
+  - Real-time key display during recording
+  - Instant recording mode switching
+  - Config validation on write AND read
+  - Auto-recovery from paused state during save
+  - Toast notification improvements
+  - Code signature preservation with ditto
+
+**Previous Session Work:**
 - feat: detect and fix Karabiner driver version mismatch (commit 7834e90) - **INCOMPLETE**
 - fix: detect VirtualHID driver activation errors in wizard (commit 8a47f72)
 - fix: improve wizard status detection accuracy (commit b80f02e)
+- ci: reduce test timeout and enforce strict quality gates (commit 69838b3)
+- perf: optimize test execution time by removing unnecessary sleeps (commit d6a9b2f)
+- refactor: revert module split to single executable (ADR-010, commit b8aa567)
 
 **⚠️ INCOMPLETE WORK (requires follow-up):**
 - ADR-012: Karabiner driver version detection implemented but NOT wired to Fix button
 - TODO: Connect VHIDDeviceManager.downloadAndInstallCorrectVersion() to WizardAutoFixer
 - TODO: Show version mismatch dialog when user clicks Fix button
 - TODO: When kanata v1.10 is released, update requiredDriverVersionMajor to 6
-
-**Previous Work:**
-- ci: reduce test timeout and enforce strict quality gates (commit 69838b3)
-- perf: optimize test execution time by removing unnecessary sleeps (commit d6a9b2f)
-- refactor: revert module split to single executable (ADR-010, commit b8aa567)
+- HELPER.md: Phase 1 complete (coordinator extraction), Phase 2-4 pending (XPC helper)
 
 **Core Architecture (Stable):**
 - **Single Executable Target:** Reverted from split modules for simplicity (see ADR-010)
