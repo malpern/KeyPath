@@ -60,8 +60,12 @@ public struct KeyPathApp: App {
         appDelegate.kanataManager = manager
         appDelegate.isHeadlessMode = isHeadlessMode
 
-        // Request user notification authorization on first launch
-        UserNotificationService.shared.requestAuthorizationIfNeeded()
+        // Request user notification authorization after app has fully launched
+        // Delayed to avoid UNUserNotificationCenter initialization issues during bundle setup
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s delay
+            UserNotificationService.shared.requestAuthorizationIfNeeded()
+        }
     }
 
     public var body: some Scene {
