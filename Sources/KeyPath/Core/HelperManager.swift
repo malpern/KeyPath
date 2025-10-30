@@ -385,26 +385,7 @@ class HelperManager {
         }
     }
 
-    // MARK: - Generic Operations
-
-    func executeCommand(_ command: String, description: String) async throws {
-        AppLogger.shared.log("📤 [HelperManager] Calling executeCommand: \(description)")
-
-        let proxy = try getRemoteProxy()
-
-        return try await withCheckedThrowingContinuation { continuation in
-            proxy.executeCommand(command, description: description) { success, errorMessage in
-                if success {
-                    AppLogger.shared.log("✅ [HelperManager] executeCommand succeeded: \(description)")
-                    continuation.resume()
-                } else {
-                    let error = errorMessage ?? "Unknown error"
-                    AppLogger.shared.log("❌ [HelperManager] executeCommand failed: \(error)")
-                    continuation.resume(throwing: HelperManagerError.operationFailed(error))
-                }
-            }
-        }
-    }
+    // Note: executeCommand removed for security. Use explicit operations only.
 }
 
 // MARK: - Error Types

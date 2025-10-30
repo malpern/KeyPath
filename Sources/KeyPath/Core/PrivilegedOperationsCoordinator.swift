@@ -259,17 +259,9 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Execute a shell command with administrator privileges
-    func executeCommand(_ command: String, description: String) async throws {
-        AppLogger.shared.log("🔐 [PrivCoordinator] Executing: \(description)")
-
-        switch Self.operationMode {
-        case .privilegedHelper:
-            try await helperExecuteCommand(command, description: description)
-        case .directSudo:
-            try await sudoExecuteCommand(command, description: description)
-        }
-    }
+    // Note: executeCommand removed for security. All privileged operations
+    // must be explicitly defined. Internal sudoExecuteCommand remains for
+    // implementation of specific operations.
 
     // MARK: - Privileged Helper Path (Phase 2 - Future Implementation)
 
@@ -345,10 +337,6 @@ final class PrivilegedOperationsCoordinator {
         // TODO: Implement XPC call for bundled kanata installation
         // For now, fall back to sudo path
         try await sudoInstallBundledKanata()
-    }
-
-    private func helperExecuteCommand(_ command: String, description: String) async throws {
-        try await HelperManager.shared.executeCommand(command, description: description)
     }
 
     // MARK: - Direct Sudo Path (Current Implementation)

@@ -210,38 +210,7 @@ class HelperService: NSObject, HelperProtocol {
         )
     }
 
-    // MARK: - Generic Operations
-
-    func executeCommand(_ command: String, description: String, reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] executeCommand requested: \(description)")
-        executePrivilegedOperation(
-            name: "executeCommand",
-            operation: {
-                // Execute shell command as root
-                let task = Process()
-                task.executableURL = URL(fileURLWithPath: "/bin/sh")
-                task.arguments = ["-c", command]
-
-                let outputPipe = Pipe()
-                let errorPipe = Pipe()
-                task.standardOutput = outputPipe
-                task.standardError = errorPipe
-
-                try task.run()
-                task.waitUntilExit()
-
-                let exitCode = task.terminationStatus
-                if exitCode != 0 {
-                    let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                    let errorOutput = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                    throw HelperError.operationFailed("Command failed with exit code \(exitCode): \(errorOutput)")
-                }
-
-                NSLog("[KeyPathHelper] Command executed successfully: \(description)")
-            },
-            reply: reply
-        )
-    }
+    // Note: executeCommand removed for security. Use explicit operations only.
 
     // MARK: - Helper Methods
 

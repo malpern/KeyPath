@@ -96,12 +96,7 @@ import Foundation
     /// - Parameter reply: Completion handler with (success, errorMessage)
     func restartKarabinerDaemon(reply: @escaping (Bool, String?) -> Void)
 
-    // MARK: - Generic Operations
-
-    /// Execute an arbitrary privileged command
-    /// - Parameters:
-    ///   - command: Shell command to execute
-    ///   - description: Human-readable description for logging
-    ///   - reply: Completion handler with (success, errorMessage)
-    func executeCommand(_ command: String, description: String, reply: @escaping (Bool, String?) -> Void)
+    // Note: executeCommand removed for security reasons.
+    // All privileged operations must be explicitly defined with proper validation.
+    // Arbitrary shell command execution creates too broad an attack surface.
 }
