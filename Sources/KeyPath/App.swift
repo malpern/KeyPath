@@ -240,16 +240,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let info = BuildInfo.current()
         AppLogger.shared.log("🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)")
 
-        // Phase 2/3: Ensure shared UDP token exists for cross-platform compatibility
-        Task { @MainActor in
-            do {
-                _ = try await UDPAuthTokenManager.shared.ensureToken()
-                await UDPAuthTokenManager.shared.migrateExistingTokens()
-                AppLogger.shared.log("🔐 [AppDelegate] UDP auth token ready")
-            } catch {
-                AppLogger.shared.log("❌ [AppDelegate] Failed to setup UDP auth token: \(error)")
-            }
-        }
+        // Phase 2/3: TCP-only mode (no authentication needed)
+        AppLogger.shared.log("📡 [AppDelegate] TCP communication mode - no auth token needed")
 
         // Check for pending service bounce first
         Task { @MainActor in

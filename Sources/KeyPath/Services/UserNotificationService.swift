@@ -7,7 +7,7 @@ import UserNotifications
 final class UserNotificationService: NSObject, @preconcurrency UNUserNotificationCenterDelegate {
     static let shared = UserNotificationService()
 
-    private let center = UNUserNotificationCenter.current()
+    private let center: UNUserNotificationCenter?
     private let preferences: PreferencesService
     private let authorizationRequestedKey = "KeyPath.NotificationAuthorizationRequested"
     private let lastSentKey = "KeyPath.Notifications.LastSent"
@@ -34,14 +34,25 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
 
     private init(preferences: PreferencesService = .shared) {
         self.preferences = preferences
+
+        // Skip notification center initialization in test environment
+        if TestEnvironment.isRunningTests {
+            self.center = nil
+            super.init()
+            AppLogger.shared.log("🧪 [UserNotificationService] Initialized in test mode - notifications disabled")
+            return
+        }
+
+        self.center = UNUserNotificationCenter.current()
         super.init()
-        center.delegate = self
+        center?.delegate = self
         registerCategories()
         loadLastSentCache()
     }
 
     /// Request authorization if it hasn't been requested before
     func requestAuthorizationIfNeeded() {
+        guard let center = center else { return }
         let requested = UserDefaults.standard.bool(forKey: authorizationRequestedKey)
         guard !requested else { return }
 
@@ -56,6 +67,8 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
     // MARK: - Category Registration
 
     private func registerCategories() {
+        guard let center = center else { return }
+
         let openWizard = UNNotificationAction(identifier: Action.openWizard.rawValue, title: "Open Wizard", options: [.foreground])
         let retryStart = UNNotificationAction(identifier: Action.retryStart.rawValue, title: "Start Service", options: [])
         let openIM = UNNotificationAction(identifier: Action.openInputMonitoring.rawValue, title: "Open Input Monitoring", options: [.foreground])
@@ -121,6 +134,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
 
     /// Send a notification if enabled, not frontmost (unless override), and not rate-limited.
     private func sendNotification(title: String, body: String, category: Category, key: String, ttl: TimeInterval, allowWhenFrontmost: Bool = false) {
+        guard let center = center else { return }
         guard preferences.notificationsEnabled else { return }
         if !allowWhenFrontmost, isFrontmost() { return }
         guard shouldSend(key: key, ttl: ttl) else { return }

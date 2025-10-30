@@ -248,59 +248,6 @@ public struct KanataConfiguration: Sendable {
 
     // MARK: - Validation
 
-    /// Validate configuration via UDP with authentication and timeout
-    public func validateConfigViaUDP() async -> (isValid: Bool, errors: [String])? {
-        do {
-            let config = await current()
-            let commConfig = PreferencesService.communicationSnapshot()
-            let client = KanataUDPClient(port: commConfig.udpPort)
-
-            // Authenticate first
-            let authToken = commConfig.udpAuthToken.isEmpty ? nil : commConfig.udpAuthToken
-            guard let token = authToken else {
-                AppLogger.shared.log("⚠️ [ConfigService] No UDP auth token available for validation")
-                return nil
-            }
-
-            guard await client.authenticate(token: token) else {
-                AppLogger.shared.log("❌ [ConfigService] UDP authentication failed for validation")
-                return nil
-            }
-
-            // Use proper async timeout with Task cancellation
-            let udpResult = try await withThrowingTaskGroup(of: UDPValidationResult.self) { group in
-                group.addTask { @Sendable in
-                    await client.validateConfig(config.content)
-                }
-
-                group.addTask { @Sendable in
-                    try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-                    return UDPValidationResult.networkError("Validation timeout")
-                }
-
-                return try await group.next()!
-            }
-
-            switch udpResult {
-            case .success:
-                return (true, [])
-            case let .failure(errors: configErrors):
-                let errorMessages = configErrors.map { "Line \($0.line):\($0.column) - \($0.message)" }
-                return (false, errorMessages)
-            case .authenticationRequired:
-                AppLogger.shared.log("❌ [ConfigService] UDP validation requires re-authentication")
-                return nil
-            case let .networkError(message):
-                AppLogger.shared.log("❌ [ConfigService] UDP validation network error: \(message)")
-                return nil
-            }
-
-        } catch {
-            AppLogger.shared.log("⚠️ [ConfigService] UDP validation failed with error: \(error)")
-            return nil
-        }
-    }
-
     /// Validate configuration via file-based check
     public func validateConfigViaFile() -> (isValid: Bool, errors: [String]) {
         let task = Process()
@@ -344,63 +291,12 @@ public struct KanataConfiguration: Sendable {
         }
     }
 
-    /// Validate configuration content with combined UDP + CLI validation
-    /// Tries UDP first (fast, live server), falls back to CLI validation if UDP unavailable
+    /// Validate configuration content using CLI validation
     public func validateConfiguration(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
+        AppLogger.shared.log("🖥️ [Validation] Using CLI validation (TCP-only mode)")
 
-        // First try UDP validation if server is available
-        let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseUDP {
-            let udpPort = commConfig.udpPort
-            AppLogger.shared.log("📡 [Validation] UDP port configured: \(udpPort)")
-            let udpClient = KanataUDPClient(port: udpPort)
-
-            // Check if UDP server is available
-            AppLogger.shared.log("📡 [Validation] Checking UDP server availability on port \(udpPort)...")
-            if await udpClient.checkServerStatus() {
-                AppLogger.shared.log("📡 [Validation] UDP server is AVAILABLE, using UDP validation")
-                let udpStart = Date()
-                let result = await udpClient.validateConfig(config)
-                let udpDuration = Date().timeIntervalSince(udpStart)
-                AppLogger.shared.log(
-                    "⏱️ [Validation] UDP validation completed in \(String(format: "%.3f", udpDuration)) seconds"
-                )
-
-                switch result {
-                case .success:
-                    AppLogger.shared.log("✅ [Validation] UDP validation PASSED")
-                    AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-                    return (true, [])
-                case let .failure(udpErrors):
-                    AppLogger.shared.log("❌ [Validation] UDP validation FAILED with \(udpErrors.count) errors:")
-                    let errorStrings = udpErrors.map(\.description)
-                    for (index, error) in errorStrings.enumerated() {
-                        AppLogger.shared.log("   Error \(index + 1): \(error)")
-                    }
-                    AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-                    return (false, errorStrings)
-                case let .networkError(error):
-                    AppLogger.shared.log("⚠️ [Validation] UDP validation network error: \(error)")
-                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
-                // Fall through to CLI validation
-                case .authenticationRequired:
-                    AppLogger.shared.log("⚠️ [Validation] UDP authentication required")
-                    AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
-                    // Fall through to CLI validation
-                }
-            } else {
-                AppLogger.shared.log("⚠️ [Validation] UDP server NOT available on port \(udpPort)")
-                AppLogger.shared.log("⚠️ [Validation] Falling back to CLI validation...")
-            }
-        } else {
-            AppLogger.shared.log("ℹ️ [Validation] No UDP port configured or UDP disabled")
-            AppLogger.shared.log("ℹ️ [Validation] Using CLI validation as primary method")
-        }
-
-        // Fallback to CLI validation
-        AppLogger.shared.log("🖥️ [Validation] Starting CLI validation...")
         let cliResult = await validateConfigWithCLI(config)
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
         return cliResult
@@ -663,10 +559,11 @@ public struct KanataConfiguration: Sendable {
             args.append("--check")
         }
 
-        // Add communication protocol arguments only for actual runs (not validation checks)
+        // Add TCP port argument for actual runs (not validation checks)
         if !checkOnly {
-            let commConfig = PreferencesService.communicationSnapshot()
-            args.append(contentsOf: commConfig.communicationLaunchArguments)
+            let tcpPort = PreferencesService.shared.tcpServerPort
+            args.append(contentsOf: ["--port", "\(tcpPort)"])
+            AppLogger.shared.log("📡 [ConfigService] Added TCP port argument: --port \(tcpPort)")
         }
 
         return args

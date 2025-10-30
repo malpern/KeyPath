@@ -392,44 +392,11 @@ actor PermissionOracle {
         return hasPermission ? .granted : .denied
     }
 
-    /// Use UDP for functional verification, not permission status
+    /// Functional verification disabled in TCP-only mode
+    /// TCP connectivity check would require protocol implementation
     private func checkKanataFunctionalStatus() async -> Status {
-        // Quick functional check - is kanata responding via UDP?
-        let commSnapshot = PreferencesService.communicationSnapshot()
-        guard commSnapshot.shouldUseUDP else {
-            AppLogger.shared.log("🔮 [Oracle] UDP server disabled - functional status unknown")
-            return .unknown
-        }
-
-        // Pre-flight check: verify UDP port is listening before attempting connection
-        // This prevents the UDP client from hanging indefinitely on non-listening ports
-        let port = commSnapshot.udpPort
-        if !isUDPPortListening(port: port) {
-            AppLogger.shared.log("🔮 [Oracle] UDP port \(port) not listening - skipping connection test")
-            AppLogger.shared.log("🔮 [Oracle] Kanata functional check: UNKNOWN (no server)")
-            return .unknown
-        }
-
-        // Add additional timeout protection to prevent wizard hanging
-        let client = KanataUDPClient(port: port, timeout: 3.0)
-        AppLogger.shared.log("🔮 [Oracle] Testing UDP connection to port \(port)...")
-
-        do {
-            // Wrap in additional timeout to prevent indefinite hanging
-            let isConnected = try await withTimeout(seconds: 3.5) {
-                await client.checkServerStatus()
-            }
-
-            AppLogger.shared.log("🔮 [Oracle] UDP connection result: \(isConnected)")
-            AppLogger.shared.log("🔮 [Oracle] Kanata functional check: \(isConnected ? "GRANTED (responding)" : "UNKNOWN (not responding)")")
-
-            // Only grant on positive signal; otherwise unknown (don't mark as denied)
-            return isConnected ? .granted : .unknown
-        } catch {
-            AppLogger.shared.log("🔮 [Oracle] UDP connection timed out or failed: \(error)")
-            AppLogger.shared.log("🔮 [Oracle] Kanata functional check: UNKNOWN (timeout/error)")
-            return .unknown
-        }
+        AppLogger.shared.log("🔮 [Oracle] Functional status check disabled (TCP-only mode)")
+        return .unknown
     }
 
     /// Additional timeout wrapper to prevent hanging
@@ -453,57 +420,6 @@ actor PermissionOracle {
         }
     }
 
-    /// Fast check if UDP port is listening using netstat to prevent hanging connections
-    private func isUDPPortListening(port: Int) -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/sbin/netstat")
-        task.arguments = ["-an", "-p", "udp"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            // Look for lines where the LOCAL address (first column) is listening on this port
-            // Format is typically: "udp4  0  0  *.37001  *.*" or "udp4  0  0  127.0.0.1.37001  *.*"
-            // We need to check the LOCAL address column, not the remote address column
-            let lines = output.components(separatedBy: .newlines)
-            var isListening = false
-
-            for line in lines {
-                // Skip empty lines
-                if line.trimmingCharacters(in: .whitespaces).isEmpty { continue }
-
-                // Parse netstat output - columns are whitespace separated
-                let components = line.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-
-                // UDP lines have format: proto recv-q send-q local foreign [state]
-                if components.count >= 5, components[0].hasPrefix("udp") {
-                    let localAddr = components[3]
-
-                    // Check if this is a listening socket on our port
-                    if localAddr == "*.\(port)" || localAddr == "127.0.0.1.\(port)" {
-                        isListening = true
-                        break
-                    }
-                }
-            }
-
-            AppLogger.shared.log("🔍 [Oracle] Port \(port) listening check: \(isListening)")
-            return isListening
-
-        } catch {
-            AppLogger.shared.log("❌ [Oracle] Error checking UDP port \(port): \(error)")
-            // On error, assume port might be listening to avoid false negatives
-            return true
-        }
-    }
 
     // MARK: - Utilities
 
@@ -658,29 +574,6 @@ actor PermissionOracle {
         }
     }
 
-    // MARK: - UDP Restart Integration
-
-    /// Restart Kanata after permission changes (if UDP available)
-    func restartKanataAfterPermissionChange() async -> Bool {
-        let commSnapshot = PreferencesService.communicationSnapshot()
-        guard commSnapshot.shouldUseUDP else {
-            AppLogger.shared.log("🔮 [Oracle] UDP disabled, cannot restart Kanata via UDP")
-            return false
-        }
-
-        let client = KanataUDPClient(port: commSnapshot.udpPort, timeout: 2.0)
-        let success = await client.restartKanata()
-
-        if success {
-            AppLogger.shared.log("🔮 [Oracle] ✅ Kanata restarted successfully via UDP")
-            // Invalidate cache to force fresh permission check
-            _ = await forceRefresh()
-        } else {
-            AppLogger.shared.log("🔮 [Oracle] ❌ Failed to restart Kanata via UDP")
-        }
-
-        return success
-    }
 }
 
 // MARK: - Status Display Helpers

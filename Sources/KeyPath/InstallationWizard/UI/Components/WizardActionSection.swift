@@ -119,18 +119,21 @@ struct WizardActionSection_Previews: PreviewProvider {
         VStack(spacing: 40) {
             WizardActionSection(
                 systemState: .active,
+                isFullyConfigured: true,
                 onStartService: {},
                 onDismiss: {}
             )
 
             WizardActionSection(
                 systemState: .serviceNotRunning,
+                isFullyConfigured: false,
                 onStartService: {},
                 onDismiss: {}
             )
 
             WizardActionSection(
                 systemState: .conflictsDetected(conflicts: []),
+                isFullyConfigured: false,
                 onStartService: {},
                 onDismiss: {}
             )

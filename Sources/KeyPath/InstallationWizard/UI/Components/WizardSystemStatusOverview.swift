@@ -142,7 +142,7 @@ struct WizardSystemStatusOverview: View {
             StatusItemModel(
                 id: "accessibility",
                 icon: "accessibility",
-                title: "Accessibility Permission",
+                title: "Accessibility",
                 status: accessibilityStatus,
                 isNavigable: true,
                 targetPage: .accessibility,
@@ -159,7 +159,7 @@ struct WizardSystemStatusOverview: View {
             StatusItemModel(
                 id: "karabiner-components",
                 icon: "keyboard.macwindow",
-                title: "Karabiner Driver Setup",
+                title: "Karabiner Driver",
                 status: karabinerStatus,
                 isNavigable: true,
                 targetPage: .karabinerComponents,
@@ -203,7 +203,7 @@ struct WizardSystemStatusOverview: View {
                 StatusItemModel(
                     id: "service",
                     icon: "gearshape.2",
-                    title: "Start Keyboard Service",
+                    title: "Kanata Service",
                     subtitle: serviceStatus == .failed ? "Fix permissions to enable service" : nil,
                     status: serviceStatus,
                     isNavigable: true,
@@ -220,7 +220,7 @@ struct WizardSystemStatusOverview: View {
                 StatusItemModel(
                     id: "communication-server",
                     icon: "network",
-                    title: "Communication Server",
+                    title: "Communication",
                     subtitle: commServerStatus == .notStarted && !kanataIsRunning ? "Kanata isn't running" : nil,
                     status: commServerStatus,
                     isNavigable: true,
@@ -345,6 +345,11 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getCommunicationServerStatus() -> InstallationStatus {
+        // SECURITY NOTE (ADR-013): No authentication check needed
+        // Kanata v1.9.0 TCP server does not support authentication.
+        // We only verify: (1) plist has --port argument, (2) Kanata is running
+        // This is acceptable for localhost-only IPC with config validation.
+
         // If system is still initializing, don't show status
         if systemState == .initializing {
             return .notStarted
@@ -359,9 +364,9 @@ struct WizardSystemStatusOverview: View {
         let hasCommServerIssues = issues.contains { issue in
             if case let .component(component) = issue.identifier {
                 switch component {
-                case .kanataUDPServer,
+                case .kanataTCPServer,
                      .communicationServerConfiguration, .communicationServerNotResponding,
-                     .udpServerConfiguration, .udpServerNotResponding:
+                     .tcpServerConfiguration, .tcpServerNotResponding:
                     return true
                 default:
                     return false
@@ -375,12 +380,8 @@ struct WizardSystemStatusOverview: View {
             return .failed
         }
 
-        // Additional check: Verify TCP token exists in keychain
-        // If there's no token, TCP authentication isn't set up properly
-        let hasToken = (try? KeychainService.shared.retrieveTCPToken()) != nil
-        guard hasToken else {
-            return .failed // No TCP token - communication not configured
-        }
+        // NOTE: Kanata v1.9.0 TCP does NOT require authentication
+        // No token check needed - just verify service has TCP configuration
 
         // Check if the LaunchDaemon plist exists and has TCP configuration
         // If plist doesn't exist or doesn't have --port argument, service needs regeneration
@@ -399,7 +400,7 @@ struct WizardSystemStatusOverview: View {
             // Check if --port argument exists (TCP configuration)
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
-                return .failed // Service uses old UDP configuration
+                return .failed // Service uses old TCP configuration
             }
         } else {
             return .failed // Can't read plist or parse arguments

@@ -80,7 +80,8 @@ enum KarabinerComponentsStatusEvaluator {
                         return false
                     }
                 }
-                return false
+                // Include daemon category issues as they affect the driver
+                return issue.category == .daemon
             }
             return hasDriverIssues ? .failed : .completed
 

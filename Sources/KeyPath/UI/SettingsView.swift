@@ -11,7 +11,7 @@ import SwiftUI
 //   - configurationSection    Edit, reset, backup config
 //   - diagnosticsSection      Enhanced diagnostics
 //   - notificationsSection    Notification preferences
-//   - communicationSection    UDP settings and configuration
+//   - communicationSection    TCP settings and configuration
 //   - developerToolsSection   Dev reset and diagnostics
 //   - startupSection          Launch agent settings
 //
@@ -29,12 +29,12 @@ struct SettingsView: View {
     @State private var showingDevResetConfirmation = false
     @State private var showingDiagnostics = false
     @State private var showingInstallationWizard = false
-    @State private var showingUDPPortAlert = false
-    @State private var tempUDPPort = ""
-    @State private var showingUDPTokenAlert = false
-    @State private var tempUDPToken = ""
-    @State private var showingUDPTimeoutAlert = false
-    @State private var tempUDPTimeout = ""
+    @State private var showingTCPPortAlert = false
+    @State private var tempTCPPort = ""
+    @State private var showingTCPTokenAlert = false
+    @State private var tempTCPToken = ""
+    @State private var showingTCPTimeoutAlert = false
+    @State private var tempTCPTimeout = ""
     // Timer removed - now handled by SimpleKanataManager centrally
 
     private var kanataServiceStatus: String {
@@ -75,74 +75,6 @@ struct SettingsView: View {
                 await kanataManager.forceRefreshStatus()
             }
         }
-        .alert("Enter UDP Port", isPresented: $showingUDPPortAlert) {
-            TextField("Port (1024-65535)", text: $tempUDPPort)
-                .accessibilityLabel("UDP Port Number")
-                .accessibilityHint("Enter a port number between 1024 and 65535")
-
-            Button("Cancel") {
-                tempUDPPort = ""
-            }
-            .accessibilityLabel("Cancel port change")
-
-            Button("Apply") {
-                if let port = Int(tempUDPPort), preferences.isValidPort(port) {
-                    preferences.udpServerPort = port
-                    AppLogger.shared.log("🔧 [SettingsView] UDP port changed to: \(port)")
-
-                    if kanataManager.currentState == .running {
-                        AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for UDP port change")
-                    }
-                }
-                tempUDPPort = ""
-            }
-            .accessibilityLabel("Apply port change")
-            .accessibilityHint("Saves the new UDP port number")
-        } message: {
-            Text("Enter a UDP port number between 1024 and 65535. If Kanata is running, you'll need to restart the service for the change to take effect.")
-        }
-        .alert("Enter UDP Auth Token", isPresented: $showingUDPTokenAlert) {
-            TextField("Authentication Token (leave empty for auto-generated)", text: $tempUDPToken)
-                .accessibilityLabel("UDP Authentication Token")
-                .accessibilityHint("Enter a custom token or leave empty for auto-generation")
-
-            Button("Cancel") {
-                tempUDPToken = ""
-            }
-            .accessibilityLabel("Cancel token change")
-
-            Button("Apply") {
-                preferences.udpAuthToken = tempUDPToken
-                AppLogger.shared.log("🔧 [SettingsView] UDP auth token updated")
-                tempUDPToken = ""
-            }
-            .accessibilityLabel("Apply token change")
-            .accessibilityHint("Saves the authentication token")
-        } message: {
-            Text("Enter a custom authentication token for the UDP server. Leave empty to let Kanata auto-generate a secure token.")
-        }
-        .alert("Enter UDP Session Timeout", isPresented: $showingUDPTimeoutAlert) {
-            TextField("Timeout in seconds (300-86400)", text: $tempUDPTimeout)
-                .accessibilityLabel("UDP Session Timeout")
-                .accessibilityHint("Enter timeout in seconds, between 300 and 86400")
-
-            Button("Cancel") {
-                tempUDPTimeout = ""
-            }
-            .accessibilityLabel("Cancel timeout change")
-
-            Button("Apply") {
-                if let timeout = Int(tempUDPTimeout), timeout >= 300, timeout <= 86400 {
-                    preferences.udpSessionTimeout = timeout
-                    AppLogger.shared.log("🔧 [SettingsView] UDP session timeout changed to: \(timeout) seconds")
-                }
-                tempUDPTimeout = ""
-            }
-            .accessibilityLabel("Apply timeout change")
-            .accessibilityHint("Saves the new session timeout")
-        } message: {
-            Text("Enter session timeout in seconds (5 minutes to 24 hours). This controls how long authentication sessions remain valid.")
-        }
         .sheet(isPresented: $showingDiagnostics) {
             DiagnosticsView(kanataManager: kanataManager)
         }
@@ -166,9 +98,6 @@ struct SettingsView: View {
             AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
             AppLogger.shared.log("🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)")
             showingInstallationWizard = shouldShow
-        }
-        .onChange(of: preferences.udpServerEnabled) { _, _ in
-            checkTCPServerStatus()
         }
         .onChange(of: preferences.communicationProtocol) { _, _ in
             // Protocol changed, no specific action needed as it will be picked up on next operation
@@ -413,12 +342,12 @@ struct SettingsView: View {
     }
 
     private var communicationSection: some View {
-        SettingsSection(title: "UDP Communication") {
+        SettingsSection(title: "TCP Communication") {
             VStack(spacing: 12) {
-                udpSettingsView
+                tcpSettingsView
 
                 // UDP description
-                Text("High-performance UDP communication for real-time keyboard configuration and validation. Provides ~10x lower latency than TCP.")
+                Text("TCP communication for reliable keyboard configuration and validation. No authentication required.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.leading)
@@ -426,83 +355,27 @@ struct SettingsView: View {
         }
     }
 
-    private var udpSettingsView: some View {
+    private var tcpSettingsView: some View {
         VStack(spacing: 12) {
             HStack {
-                Toggle(
-                    "Enable UDP Server",
-                    isOn: Binding(
-                        get: { preferences.udpServerEnabled },
-                        set: { preferences.udpServerEnabled = $0 }
-                    )
-                )
-                .help("Enable UDP server for low-latency config operations and validation")
-                .accessibilityLabel("Enable UDP Server")
-                .accessibilityHint("Enable high-performance UDP communication for real-time keyboard configuration")
-
+                Text("TCP Server: Always Enabled")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
                 Spacer()
             }
+            .help("TCP server is always enabled for config operations (no authentication required)")
 
-            if preferences.udpServerEnabled {
-                // Port setting
-                HStack {
-                    Text("Port:")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+            // TCP Port setting
+            HStack {
+                Text("TCP Port:")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
 
-                    Button("\(preferences.udpServerPort)") {
-                        tempUDPPort = String(preferences.udpServerPort)
-                        showingUDPPortAlert = true
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Click to change UDP port (1024-65535)")
-                    .accessibilityLabel("Change UDP Port")
-                    .accessibilityValue("Current port: \(preferences.udpServerPort)")
-                    .accessibilityHint("Opens dialog to change the UDP server port")
+                Text("\(preferences.tcpServerPort)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.primary)
 
-                    Spacer()
-                }
-
-                // Auth Token setting
-                HStack {
-                    Text("Auth Token:")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-
-                    Button(preferences.udpAuthToken.isEmpty ? "Auto-generated" : "Custom") {
-                        tempUDPToken = preferences.udpAuthToken
-                        showingUDPTokenAlert = true
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Click to set custom authentication token")
-                    .accessibilityLabel("Change Authentication Token")
-                    .accessibilityValue(preferences.udpAuthToken.isEmpty ? "Auto-generated" : "Custom token set")
-                    .accessibilityHint("Opens dialog to set a custom authentication token")
-
-                    Spacer()
-                }
-
-                // Session Timeout setting
-                HStack {
-                    Text("Session Timeout:")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-
-                    Button("\(preferences.udpSessionTimeout)s") {
-                        tempUDPTimeout = String(preferences.udpSessionTimeout)
-                        showingUDPTimeoutAlert = true
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Click to change session timeout (300-86400 seconds)")
-                    .accessibilityLabel("Change Session Timeout")
-                    .accessibilityValue("Current timeout: \(preferences.udpSessionTimeout) seconds")
-                    .accessibilityHint("Opens dialog to change how long authentication sessions remain valid")
-
-                    Spacer()
-                }
+                Spacer()
             }
         }
     }
@@ -722,8 +595,8 @@ struct SettingsView: View {
                                  Toggle(
                                      "Enable TCP Server",
                                      isOn: Binding(
-                                         get: { preferences.udpServerEnabled },
-                                         set: { preferences.udpServerEnabled = $0 }
+                                         get: { preferences.tcpServerEnabled },
+                                         set: { preferences.tcpServerEnabled = $0 }
                                      )
                                  )
                                  .help(
@@ -732,7 +605,7 @@ struct SettingsView: View {
                                  Spacer()
                              }
 
-                             if preferences.udpServerEnabled {
+                             if preferences.tcpServerEnabled {
                                  HStack {
                                      Text("Port:")
                                          .font(.system(size: 13))
@@ -896,10 +769,6 @@ struct SettingsView: View {
                  "🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
              )
              showingInstallationWizard = shouldShow
-         }
-         .onChange(of: preferences.udpServerEnabled) { _ in
-             // Refresh TCP status when enabled/disabled
-             checkTCPServerStatus()
          }
          .onChange(of: kanataManager.currentState) { _ in
              // Refresh TCP status when Kanata state changes
@@ -1120,14 +989,11 @@ struct SettingsView: View {
         }
     }
 
-    @State private var udpServerStatus = "Unknown"
+    @State private var tcpServerStatus = "Unknown"
 
     private func getTCPServerStatus() -> String {
-        if !preferences.udpServerEnabled {
-            return "Disabled"
-        }
-
-        return udpServerStatus
+        // TCP server is always enabled in TCP-only mode
+        return tcpServerStatus
     }
 
     private func checkTCPServerStatus() {
@@ -1138,11 +1004,11 @@ struct SettingsView: View {
                 let isAvailable = await client.checkServerStatus()
 
                 await MainActor.run {
-                    udpServerStatus = isAvailable ? "Connected" : "Not Connected"
+                    tcpServerStatus = isAvailable ? "Connected" : "Not Connected"
                 }
             } else {
                 await MainActor.run {
-                    udpServerStatus = "Not Running"
+                    tcpServerStatus = "Not Running"
                 }
             }
         }

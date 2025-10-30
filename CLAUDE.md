@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Core Architecture (Stable):**
 - **Single Executable Target:** Reverted from split modules for simplicity (see ADR-010)
 - **Fast Test Suite:** Tests complete in <5 seconds (removed 4.4s of sleeps, 625x faster)
-- **UDP Communication:** Primary protocol between KeyPath and Kanata with secure token auth
+- **TCP Communication:** Primary protocol between KeyPath and Kanata (no authentication - see ADR-013)
 - **PermissionOracle:** Single source of truth for all permission detection (DO NOT BREAK)
 - **TCC-Safe Deployment:** Stable Developer ID signing preserves Input Monitoring permissions
 - **Bundled Kanata:** Uses bundled binary for TCC stability and consistent experience
@@ -94,8 +94,8 @@ The PermissionOracle follows a strict hierarchy that was broken in commit 7f6882
    ├─ When wizard needs permissions before starting service
    └─ Can be stale/inconsistent (why it's not primary source)
 
-3. FUNCTIONAL VERIFICATION → For accessibility status only
-   └─ UDP connectivity test (cannot determine Input Monitoring)
+3. FUNCTIONAL VERIFICATION → Disabled in TCP-only mode
+   └─ TCP connectivity check would require protocol implementation (currently not used)
 ```
 
 **❌ NEVER DO THIS (what commit 7f68821 broke):**
@@ -148,7 +148,7 @@ class SystemValidator {
 - Pull > Push: Explicit validation beats reactive cascades
 - ALL UI must use Oracle as single source of truth
 - No automatic revalidation listeners (Combine/onChange/NotificationCenter)
-- Shared resources (Oracle, UDP) must manage their own lifecycle
+- Shared resources (Oracle, TCP) must manage their own lifecycle
 
 ## 🚫 Critical Anti-Patterns to Avoid
 
@@ -156,7 +156,7 @@ class SystemValidator {
 ❌ **Never bypass Oracle** - All permission checks must go through `PermissionOracle.shared`
 ❌ **Never check permissions from root process** - IOHIDCheckAccess unreliable for daemons
 ❌ **Never create multiple sources of truth** - Oracle only, no direct API calls
-✅ **Always** use Oracle for GUI checks, verify functionality via UDP
+✅ **Always** use Oracle for GUI checks, verify functionality via TCP health checks
 
 ### Validation
 ❌ **No automatic triggers** - No onChange/Combine/NotificationCenter listeners
@@ -229,6 +229,35 @@ Mock time > real sleeps. 625x speedup, tests now <5s. Pattern: `Date().addingTim
 **Future:** Update to v6 when kanata v1.10 releases
 **Files:** VHIDDeviceManager.swift, SystemValidator.swift, WizardAutoFixer.swift
 
+### ADR-013: TCP Communication Without Authentication ⚠️ SECURITY
+**Problem:** Kanata v1.9.0 TCP server does not support authentication (unlike UDP which had robust auth)
+**Decision:** Use unauthenticated TCP for localhost IPC
+**Rationale:**
+- Kanata's tcp_server.rs explicitly ignores Authenticate messages
+- TCP server binds to localhost only (127.0.0.1:37001) - not exposed to network
+- Limited attack surface: can only trigger config reloads, not arbitrary code execution
+- Config validation happens before reload (malformed configs rejected)
+- Kanata already requires root privileges (TCC Input Monitoring)
+
+**Security Implications:**
+- ✅ Acceptable: Localhost-only IPC with minimal attack surface
+- ⚠️ Risk: Any local process can send reload commands to Kanata
+- ⚠️ Risk: No client identity verification
+
+**Migration History:**
+- Aug 2025: Used UDP with token-based authentication (commit b45dbdc)
+- Oct 2025: Switched to TCP, discovered authentication not supported (commit ccbccc1)
+- Oct 2025: Removed non-functional authentication checks (current state)
+
+**Future Work:**
+- Consider contributing TCP authentication to upstream Kanata
+- Design: Session-based tokens similar to UDP implementation
+- Design: Token exchange via initial handshake
+- Design: Session expiry and token rotation
+- Alternative: Switch back to UDP if authentication becomes critical
+
+**Files:** KanataTCPClient.swift, WizardCommunicationPage.swift, WizardSystemStatusOverview.swift
+
 ## ⚠️ Critical Reminders
 
 **This architecture represents months of debugging complex macOS integration issues. Every design decision solves specific edge cases discovered through real-world usage.**
@@ -289,17 +318,17 @@ sudo ./Scripts/uninstall.sh
 sudo launchctl kickstart -k system/com.keypath.kanata  # Restart
 sudo launchctl print system/com.keypath.kanata         # Status
 tail -f /var/log/kanata.log                             # Logs
-netstat -an | grep 37000                                # UDP server
+netstat -an | grep 37001                                # TCP server
 ```
 
 **Config:** `~/Library/Application Support/KeyPath/keypath.kbd`
-**Hot reload:** UDP-based, no service restart needed
+**Hot reload:** TCP-based, no service restart needed
 
-## UDP Server
+## TCP Server
 
-- **Port:** Command-line arg `--port 37000` (NOT in .kbd file)
-- **Auth:** Token-based via Keychain, auto-managed by KeyPath
-- **Security:** Localhost-only, session expiry, 1200-byte packet limit
+- **Port:** Command-line arg `--port 37001` (NOT in .kbd file)
+- **Auth:** No authentication (Kanata v1.9.0 TCP server doesn't support it - see ADR-013)
+- **Security:** Localhost-only, connection pooling with proper timeouts
 
 ## Development
 

@@ -242,7 +242,9 @@ struct WizardKanataComponentsPage: View {
                     Spacer()
                     Button("Continue") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Components page")
-                        navigateToNextPage()
+                        Task {
+                            await navigateToNextPage()
+                        }
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                     Spacer()
@@ -257,14 +259,31 @@ struct WizardKanataComponentsPage: View {
 
     // MARK: - Helper Methods
 
-    private func navigateToNextPage() {
+    private func navigateToNextPage() async {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
               currentIndex < allPages.count - 1
         else { return }
         let nextPage = allPages[currentIndex + 1]
-        navigationCoordinator.navigateToPage(nextPage)
-        AppLogger.shared.log("➡️ [Kanata Components] Navigated to next page: \(nextPage.displayName)")
+
+        // Show spinning cursor during state refresh
+        await MainActor.run {
+            NSCursor.operationNotAllowed.push()
+        }
+
+        // Pre-fetch state for pages that need async checks
+        if nextPage == .service {
+            // Refresh state so Service page has current data
+            onRefresh()
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds for refresh to complete
+        }
+
+        // Restore cursor and navigate
+        await MainActor.run {
+            NSCursor.pop()
+            navigationCoordinator.navigateToPage(nextPage)
+            AppLogger.shared.log("➡️ [Kanata Components] Navigated to next page: \(nextPage.displayName)")
+        }
     }
 
     private var kanataRelatedIssues: [WizardIssue] {

@@ -167,6 +167,21 @@ struct WizardCommunicationPage: View {
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                 }
             }
+
+            Spacer()
+
+            // Bottom Done button - navigates back to summary
+            HStack {
+                Spacer()
+                Button("Done") {
+                    AppLogger.shared.log("ℹ️ [Wizard] User completing wizard from Communication page")
+                    navigationCoordinator.navigateToPage(.summary)
+                }
+                .buttonStyle(WizardDesign.Component.PrimaryButton())
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -180,7 +195,11 @@ struct WizardCommunicationPage: View {
     // MARK: - Communication Status Check (Using Shared SystemStatusChecker)
 
     private func checkCommunicationStatus() async {
-        commStatus = .checking
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                commStatus = .checking
+            }
+        }
         lastCheckTime = Date()
 
         // Prefer a lightweight, non-blocking check that runs off the main actor.
@@ -190,6 +209,11 @@ struct WizardCommunicationPage: View {
     }
 
     private func checkUDPStatusDirect() async {
+        // SECURITY NOTE (ADR-013): Kanata v1.9.0 TCP does NOT support authentication
+        // We previously used UDP with token-based auth, but TCP explicitly ignores auth messages.
+        // This is acceptable for localhost-only IPC with limited attack surface (config reloads only).
+        // Future work: Consider contributing authentication support to upstream Kanata.
+
         // Check TCP server status (kanata uses TCP) with timeout
         let port = preferences.tcpServerPort
         let client = KanataTCPClient(port: port, timeout: 8.0)
@@ -200,37 +224,36 @@ struct WizardCommunicationPage: View {
             try await withThrowingTaskGroup(of: Void.self) { group in
                 // Main check task
                 group.addTask {
+                    // IMPORTANT: Kanata v1.9.0 TCP server does NOT support authentication
+                    // It ignores all Authenticate messages. We only need to verify the server responds.
+
                     // 1) Is the server answering?
                     let responding = await client.checkServerStatus()
                     guard responding else {
                         await MainActor.run {
-                            commStatus = .needsSetup("TCP server is not responding. Service may use old UDP configuration. Click Fix to regenerate with TCP.")
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                commStatus = .needsSetup("TCP server is not responding. Service may use old TCP configuration. Click Fix to regenerate with TCP.")
+                            }
                         }
                         return
                     }
 
-                    // 2) Do we have a token? If not, auth is required.
-                    let token = try? await MainActor.run { try KeychainService.shared.retrieveTCPToken() }
-                    guard let token, !token.isEmpty else {
-                        await MainActor.run { commStatus = .authRequired("Secure connection required for configuration changes") }
-                        return
-                    }
-
-                    // 3) Try to authenticate and perform a quick reload probe
-                    let authed = await client.authenticate(token: token)
-                    guard authed else {
-                        await MainActor.run { commStatus = .authRequired("Authentication failed. Generate a new token and retry.") }
-                        return
-                    }
-
+                    // 2) Test if we can send commands (e.g., reload config)
+                    // No authentication needed - TCP mode is open for local connections
                     let reload = await client.reloadConfig()
                     if reload.isSuccess {
-                        await MainActor.run { commStatus = .ready("Ready for instant configuration changes and external integrations") }
-                    } else if case .authenticationRequired = reload {
-                        await MainActor.run { commStatus = .authRequired("Session expired; re-authentication required") }
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                commStatus = .ready("Ready for instant configuration changes and external integrations")
+                            }
+                        }
                     } else {
                         let msg = reload.errorMessage ?? "TCP server responded but reload failed"
-                        await MainActor.run { commStatus = .authRequired(msg) }
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                commStatus = .needsSetup(msg)
+                            }
+                        }
                     }
                 }
 
@@ -247,12 +270,16 @@ struct WizardCommunicationPage: View {
         } catch is TimeoutError {
             AppLogger.shared.log("⚠️ [WizardComm] TCP check timed out after 15s")
             await MainActor.run {
-                commStatus = .needsSetup("Connection timed out. Service may be using old UDP configuration. Click Fix to regenerate with TCP.")
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    commStatus = .needsSetup("Connection timed out. Service may be using old TCP configuration. Click Fix to regenerate with TCP.")
+                }
             }
         } catch {
             AppLogger.shared.log("❌ [WizardComm] TCP check failed: \(error)")
             await MainActor.run {
-                commStatus = .needsSetup("Failed to connect to TCP server. Click Fix to regenerate service configuration.")
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    commStatus = .needsSetup("Failed to connect to TCP server. Click Fix to regenerate service configuration.")
+                }
             }
         }
     }
@@ -301,9 +328,19 @@ struct WizardCommunicationPage: View {
         let (action, successMessage, failureMessage) = getAutoFixAction()
         var success = await onAutoFix(action)
 
-        // For authentication setup, we need additional steps
-        if success, commStatus.isAuthenticationRelated {
-            success = await setupAuthentication()
+        // For service regeneration, restart the service
+        // NOTE: TCP mode doesn't require authentication (Kanata v1.9.0 ignores auth messages)
+        if success, case .needsSetup = commStatus {
+            AppLogger.shared.log("🔄 [WizardComm] Service regenerated, restarting Kanata...")
+            success = await onAutoFix(.restartCommServer)
+
+            if success {
+                // Wait for TCP server to start
+                AppLogger.shared.log("⏳ [WizardComm] Waiting for TCP server to be ready...")
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+            } else {
+                AppLogger.shared.log("❌ [WizardComm] Failed to restart service after regeneration")
+            }
         }
 
         isFixing = false

@@ -61,6 +61,47 @@ class MainAppStateController: ObservableObject {
         AppLogger.shared.log("🎯 [MainAppStateController] Configured with SystemValidator (Phase 3)")
     }
 
+    // MARK: - TCP Configuration Check
+
+    /// Check if TCP communication is properly configured
+    /// Matches wizard logic from WizardSystemStatusOverview.getCommunicationServerStatus()
+    ///
+    /// **SECURITY NOTE (ADR-013):** No authentication check needed.
+    /// Kanata v1.9.0 TCP server does not support authentication.
+    /// We only verify: (1) plist exists, (2) plist has --port argument
+    private func checkTCPConfiguration() async -> Bool {
+        // NOTE: Kanata v1.9.0 TCP does NOT require authentication
+        // No token check needed - just verify service has TCP configuration
+
+        // Check if the LaunchDaemon plist exists and has TCP configuration
+        let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+        let plistExists = FileManager.default.fileExists(atPath: plistPath)
+
+        guard plistExists else {
+            AppLogger.shared.log("⚠️ [MainAppStateController] TCP check failed: Service plist doesn't exist")
+            return false
+        }
+
+        // Verify plist has TCP port argument
+        if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+           let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+           let args = plist["ProgramArguments"] as? [String]
+        {
+            let hasTCPPort = args.contains("--port")
+            guard hasTCPPort else {
+                AppLogger.shared.log("⚠️ [MainAppStateController] TCP check failed: Service missing --port argument")
+                return false
+            }
+        } else {
+            AppLogger.shared.log("⚠️ [MainAppStateController] TCP check failed: Can't read plist or parse arguments")
+            return false
+        }
+
+        // All checks passed
+        AppLogger.shared.log("✅ [MainAppStateController] TCP configuration verified: plist has --port")
+        return true
+    }
+
     // MARK: - Validation Methods
 
     /// Perform initial validation on app launch
@@ -185,14 +226,28 @@ class MainAppStateController: ObservableObject {
         switch result.state {
         case .active:
             // Kanata is running - but check if there are blocking issues that prevent proper operation
-            if blockingIssues.isEmpty {
+            // Also verify TCP communication is properly configured (matches wizard logic)
+            let tcpConfigured = await checkTCPConfiguration()
+
+            if blockingIssues.isEmpty && tcpConfigured {
                 validationState = .success
-                AppLogger.shared.log("✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues")
+                AppLogger.shared.log("✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues, TCP configured")
             } else {
-                validationState = .failed(blockingCount: blockingIssues.count, totalCount: result.issues.count)
-                AppLogger.shared.log("❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues even though kanata running")
+                var reasons: [String] = []
+                if !blockingIssues.isEmpty {
+                    reasons.append("\(blockingIssues.count) blocking issues")
+                }
+                if !tcpConfigured {
+                    reasons.append("TCP communication not configured")
+                }
+
+                validationState = .failed(blockingCount: blockingIssues.count + (tcpConfigured ? 0 : 1), totalCount: result.issues.count)
+                AppLogger.shared.log("❌ [MainAppStateController] Validation FAILED - \(reasons.joined(separator: ", "))")
                 for (index, issue) in blockingIssues.enumerated() {
                     AppLogger.shared.log("   Blocking \(index + 1): \(issue.title)")
+                }
+                if !tcpConfigured {
+                    AppLogger.shared.log("   TCP: Communication server not properly configured")
                 }
             }
 

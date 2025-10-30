@@ -125,9 +125,6 @@ struct ContentView: View {
                 )
             }
 
-            // Push status message and diagnostics to bottom - keeps top content stable
-            Spacer(minLength: 0)
-
             // Status Message - Only show for success messages, errors use enhanced handler
             StatusMessageView(message: statusMessage, isVisible: showStatusMessage && !statusMessage.contains("❌"))
                 .frame(height: (showStatusMessage && !statusMessage.contains("❌")) ? nil : 0)
@@ -144,7 +141,7 @@ struct ContentView: View {
             }
         }
         .padding()
-        .frame(width: 500)
+        .frame(width: 500, alignment: .top)
         .fixedSize(horizontal: false, vertical: true)
         .sheet(isPresented: $showingInstallationWizard) {
             // Determine initial page if we're returning from permission granting
@@ -353,8 +350,8 @@ struct ContentView: View {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 showStatusMessage = true
             }
-            // Hide after 3 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            // Hide after 5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                 withAnimation(.easeOut(duration: 0.3)) {
                     showStatusMessage = false
                 }
@@ -724,20 +721,18 @@ struct RecordingSection: View {
 
                     // Show confirmation message
                     let message = newValue
-                        ? "✓ Mappings will be applied during recording\n(Service stays running)"
-                        : "⚠️ Mappings paused during recording\n(Service will stop/restart - requires admin)"
+                        ? "Mappings will be applied during recording\nService stays running"
+                        : "Mappings paused during recording\nService will stop/restart - requires admin"
                     onShowMessage(message)
                 }, label: {
-                    Image(systemName: PreferencesService.shared.applyMappingsDuringRecording
-                        ? "keyboard.badge.checkmark"
-                        : "keyboard.badge.xmark")
+                    Image(systemName: "app.background.dotted")
                         .font(.title2)
-                        .foregroundColor(.white)
+                        .foregroundColor(PreferencesService.shared.applyMappingsDuringRecording ? .white : .blue)
                 })
                 .buttonStyle(.plain)
                 .frame(width: 32, height: 32)
                 .appSolidGlassButton(
-                    tint: PreferencesService.shared.applyMappingsDuringRecording ? .green : .orange,
+                    tint: PreferencesService.shared.applyMappingsDuringRecording ? .blue : Color(NSColor.textBackgroundColor),
                     radius: 6
                 )
                 .cornerRadius(6)
@@ -1013,9 +1008,17 @@ struct StatusMessageView: View {
                         .font(.title2)
                         .foregroundColor(iconColor)
 
-                    Text(message)
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(messageTitle)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+
+                        if let subtitle = messageSubtitle {
+                            Text(subtitle)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
 
                     Spacer()
                 }
@@ -1040,11 +1043,20 @@ struct StatusMessageView: View {
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isVisible)
     }
 
+    private var messageTitle: String {
+        message.components(separatedBy: "\n").first ?? message
+    }
+
+    private var messageSubtitle: String? {
+        let lines = message.components(separatedBy: "\n")
+        return lines.count > 1 ? lines[1] : nil
+    }
+
     private var iconName: String {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             "xmark.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
+            || message.contains("backed up") || message.contains("paused")
         {
             "exclamationmark.triangle.fill"
         } else {
@@ -1056,7 +1068,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
+            || message.contains("backed up") || message.contains("paused")
         {
             .orange
         } else {
@@ -1068,7 +1080,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.1)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
+            || message.contains("backed up") || message.contains("paused")
         {
             Color.orange.opacity(0.1)
         } else {
@@ -1080,7 +1092,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.3)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
+            || message.contains("backed up") || message.contains("paused")
         {
             Color.orange.opacity(0.3)
         } else {

@@ -21,8 +21,27 @@ private final class CompletionFlag: @unchecked Sendable {
 /// - Localhost IPC, not distributed networking
 /// - Persistent TCP connection for reliability
 /// - Simple timeout mechanism
-/// - Keep authentication (required by kanata protocol)
 /// - Connection pooling for efficiency
+///
+/// **SECURITY NOTE (ADR-013):**
+/// Kanata v1.9.0 TCP server does NOT support authentication.
+/// The tcp_server.rs code explicitly ignores Authenticate messages:
+/// ```rust
+/// ClientMessage::Authenticate { .. } => {
+///     log::debug!("TCP server ignoring authentication message (not needed for TCP)");
+///     continue;
+/// }
+/// ```
+///
+/// This means:
+/// - No client identity verification
+/// - Any local process can send commands to localhost:37001
+/// - Limited attack surface: only config reloads, not arbitrary code execution
+///
+/// **Future Work:**
+/// Consider contributing authentication support to upstream Kanata.
+/// Design would mirror the UDP authentication (token-based, session expiry).
+/// Until then, rely on localhost-only binding and OS-level process isolation.
 actor KanataTCPClient {
     private let host: String
     private let port: Int
@@ -236,17 +255,13 @@ actor KanataTCPClient {
     }
 
     /// Send reload command to Kanata
+    /// NOTE: Kanata v1.9.0 TCP server does NOT require authentication
     func reloadConfig() async -> TCPReloadResult {
-        guard isAuthenticated, let sessionId else {
-            AppLogger.shared.log("❌ [TCP] Not authenticated for config reload")
-            return .authenticationRequired
-        }
-
-        AppLogger.shared.log("🔄 [TCP] Triggering config reload")
+        AppLogger.shared.log("🔄 [TCP] Triggering config reload (no auth required)")
 
         do {
-            let request = TCPReloadRequest(session_id: sessionId)
-            let requestData = try JSONEncoder().encode(["Reload": request])
+            // Kanata TCP server accepts simple {"Reload":{}} without session_id
+            let requestData = try JSONEncoder().encode(["Reload": [:] as [String: String]])
             let responseData = try await send(requestData)
 
             let responseString = String(data: responseData, encoding: .utf8) ?? ""
@@ -342,17 +357,20 @@ actor KanataTCPClient {
                 }
 
                 // Receive response (TCP streams data, so we need to handle framing)
-                // Kanata sends newline-delimited JSON, read until newline
-                connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, isComplete, error in
-                    if completionFlag.markCompleted() {
-                        if let error {
-                            continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
-                        } else if let content {
-                            continuation.resume(returning: content)
-                        } else if isComplete {
-                            continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Connection closed")))
-                        } else {
-                            continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Empty response")))
+                // Kanata sends multiple newline-delimited JSON objects
+                // Wait a bit to accumulate all responses before reading
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
+                    connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, isComplete, error in
+                        if completionFlag.markCompleted() {
+                            if let error {
+                                continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
+                            } else if let content {
+                                continuation.resume(returning: content)
+                            } else if isComplete {
+                                continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Connection closed")))
+                            } else {
+                                continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Empty response")))
+                            }
                         }
                     }
                 }
@@ -391,7 +409,7 @@ private struct TCPReloadRequest: Codable {
 
 enum TCPValidationResult {
     case success
-    case failure(errors: [ConfigValidationError])
+    case failure(errors: [String])
     case authenticationRequired
     case networkError(String)
 }

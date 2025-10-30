@@ -337,13 +337,10 @@ enum WizardOperations {
                     }
 
                 if hasPermission {
-                    AppLogger.shared.log("🔮 [WizardAsyncOperationManager] Permission granted, attempting TCP restart of Kanata")
+                    AppLogger.shared.log("🔮 [WizardAsyncOperationManager] Permission granted")
 
-                    // Use Oracle to restart Kanata after permission change
-                    let restartSuccess = await PermissionOracle.shared.restartKanataAfterPermissionChange()
-                    if !restartSuccess {
-                        AppLogger.shared.log("⚠️ [WizardAsyncOperationManager] TCP restart failed (TCP may be disabled)")
-                    }
+                    // TCP-only mode: No automatic restart needed
+                    // User can manually restart via UI if needed
 
                     progressCallback(1.0)
                     return true

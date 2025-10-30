@@ -268,7 +268,8 @@ struct InstallationWizardView: View {
                 case .service:
                     WizardKanataServicePage(
                         systemState: systemState,
-                        issues: currentIssues
+                        issues: currentIssues,
+                        onRefresh: { refreshState() }
                     )
                 }
             }

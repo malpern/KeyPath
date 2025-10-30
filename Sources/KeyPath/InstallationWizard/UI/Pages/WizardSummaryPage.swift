@@ -57,6 +57,7 @@ struct WizardSummaryPage: View {
                 // Action Section
                 WizardActionSection(
                     systemState: systemState,
+                    isFullyConfigured: isEverythingComplete,
                     onStartService: onStartService,
                     onDismiss: onDismiss
                 )
@@ -81,11 +82,8 @@ struct WizardSummaryPage: View {
         }
 
         // Additional check: Verify TCP communication is properly configured
-        // Check if TCP token exists in keychain
-        let hasToken = (try? KeychainService.shared.retrieveTCPToken()) != nil
-        guard hasToken else {
-            return false // No TCP token - communication not configured
-        }
+        // NOTE: Kanata v1.9.0 TCP does NOT require authentication
+        // No token check needed - just verify service has TCP configuration
 
         // Check if the LaunchDaemon plist exists and has TCP configuration
         let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
@@ -102,7 +100,7 @@ struct WizardSummaryPage: View {
         {
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
-                return false // Service uses old UDP configuration
+                return false // Service uses old TCP configuration
             }
         } else {
             return false // Can't read plist or parse arguments

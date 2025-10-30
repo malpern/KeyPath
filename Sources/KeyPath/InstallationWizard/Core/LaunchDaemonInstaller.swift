@@ -176,11 +176,19 @@ class LaunchDaemonInstaller {
 
     /// Gets the Kanata binary path for LaunchDaemon
     private func getKanataBinaryPath() -> String {
-        // CRITICAL: Use bundled path to preserve TCC permissions
-        // Copying to /Library/KeyPath/bin breaks TCC identity and Input Monitoring permission
-        let bundledPath = WizardSystemPaths.bundledKanataPath
-        AppLogger.shared.log("✅ [LaunchDaemon] Using bundled Kanata path for TCC stability: \(bundledPath)")
-        return bundledPath
+        // Use system install path which has Input Monitoring TCC permissions
+        // The bundled path inside KeyPath.app does NOT have permissions
+        let systemPath = WizardSystemPaths.kanataSystemInstallPath
+
+        // Verify the system path exists, otherwise fall back to bundled
+        if FileManager.default.fileExists(atPath: systemPath) {
+            AppLogger.shared.log("✅ [LaunchDaemon] Using system Kanata path (has TCC permissions): \(systemPath)")
+            return systemPath
+        } else {
+            let bundledPath = WizardSystemPaths.bundledKanataPath
+            AppLogger.shared.log("⚠️ [LaunchDaemon] System kanata not found, using bundled path: \(bundledPath)")
+            return bundledPath
+        }
     }
 
     /// Checks if the bundled kanata is newer than the system-installed version
@@ -1905,7 +1913,7 @@ class LaunchDaemonInstaller {
     /// Checks if the current service configuration matches the expected UDP settings (both arguments and environment variables)
     func isServiceConfigurationCurrent() -> Bool {
         guard let currentArgs = getKanataProgramArguments() else {
-            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check UDP configuration - plist unreadable")
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check TCP configuration - plist unreadable")
             return false
         }
 
@@ -1919,13 +1927,13 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log("  Expected Args: \(expectedArgs.joined(separator: " "))")
         AppLogger.shared.log("  Args Match: \(argsMatch)")
 
-        // CRITICAL FIX: Also check environment variables (especially auth token)
+        // TCP-only mode: No environment variables needed (no authentication)
         let currentEnvVars = getKanataEnvironmentVariables()
-        let expectedEnvVars = PreferencesService.communicationSnapshot().communicationEnvironmentVariables
-        let envVarsMatch = currentEnvVars == expectedEnvVars
+        let expectedEnvVars: [String: String] = [:] // TCP doesn't need env vars
+        let envVarsMatch = currentEnvVars.isEmpty // Should be empty for TCP
 
-        AppLogger.shared.log("  Current Env Vars: \(currentEnvVars.keys.sorted()) (token: \(currentEnvVars["KANATA_UDP_TOKEN"]?.isEmpty == false ? "present" : "missing"))")
-        AppLogger.shared.log("  Expected Env Vars: \(expectedEnvVars.keys.sorted()) (token: \(expectedEnvVars["KANATA_UDP_TOKEN"]?.isEmpty == false ? "present" : "missing"))")
+        AppLogger.shared.log("  Current Env Vars: \(currentEnvVars.keys.sorted())")
+        AppLogger.shared.log("  Expected Env Vars: none (TCP-only mode)")
         AppLogger.shared.log("  Env Vars Match: \(envVarsMatch)")
 
         let overallMatch = argsMatch && envVarsMatch

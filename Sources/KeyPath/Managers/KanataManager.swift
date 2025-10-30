@@ -429,29 +429,25 @@ class KanataManager {
             let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log("📁 [FileWatcher] Read \(configContent.count) characters from external file")
 
-            // Validate the configuration via UDP if possible
-            let commConfig = PreferencesService.communicationSnapshot()
-            if commConfig.udpEnabled {
-                if let validationResult = await configurationService.validateConfigViaUDP() {
-                    if !validationResult.isValid {
-                        AppLogger.shared.log("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
-                        Task { @MainActor in SoundManager.shared.playErrorSound() }
+            // Validate the configuration via CLI
+            let validationResult = await configurationService.validateConfiguration(configContent)
+            if !validationResult.isValid {
+                AppLogger.shared.log("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
+                Task { @MainActor in SoundManager.shared.playErrorSound() }
 
-                        await MainActor.run {
-                            saveStatus = .failed("Invalid config from external edit: \(validationResult.errors.first ?? "Unknown error")")
-                        }
-
-                        // Auto-reset status after delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                            self?.saveStatus = .idle
-                        }
-                        return
-                    }
+                await MainActor.run {
+                    saveStatus = .failed("Invalid config from external edit: \(validationResult.errors.first ?? "Unknown error")")
                 }
+
+                // Auto-reset status after delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                    self?.saveStatus = .idle
+                }
+                return
             }
 
-            // Trigger hot reload via UDP
-            let reloadResult = await triggerUDPReload()
+            // Trigger hot reload via TCP
+            let reloadResult = await triggerConfigReload()
 
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [FileWatcher] External config successfully reloaded")
@@ -531,8 +527,6 @@ class KanataManager {
         // Try starting Kanata normally
         await startKanata()
     }
-
-    // UDP reload result is now handled by the KanataUDPClient.UDPReloadResult enum
 
     /// Configuration management errors
     private enum ConfigError: Error, LocalizedError {
@@ -730,19 +724,6 @@ class KanataManager {
         await healthMonitor.recordStartAttempt(timestamp: Date())
         lastStartAttempt = Date()
 
-        // Hard requirement: UDP authentication token must exist (fail closed)
-        let ensuredToken = CommunicationSnapshot.ensureSharedUDPToken()
-        if ensuredToken.isEmpty {
-            AppLogger.shared.log("❌ [Start] Missing UDP auth token; aborting start to enforce authenticated UDP")
-            await MainActor.run {
-                self.currentState = .needsHelp
-                self.errorReason = "UDP authentication is required. Failed to create token."
-                self.launchFailureStatus = .configError("Missing UDP authentication token")
-                self.showWizard = true
-            }
-            return
-        }
-
         // Check if already starting (prevent concurrent operations)
         if isStartingKanata {
             AppLogger.shared.log("⚠️ [Start] Kanata is already starting - skipping concurrent start")
@@ -759,10 +740,10 @@ class KanataManager {
                 isRunning: launchDaemonStatus.isRunning,
                 pid: launchDaemonStatus.pid
             )
-            let udpClient = await createUDPClient(timeout: 1.0)
+            let tcpPort = PreferencesService.shared.tcpServerPort
             let healthStatus = await healthMonitor.checkServiceHealth(
                 processStatus: processStatus,
-                udpClient: udpClient
+                tcpPort: tcpPort
             )
 
             if healthStatus.isHealthy, !healthStatus.shouldRestart {
@@ -1445,18 +1426,18 @@ class KanataManager {
             Task { @MainActor in SoundManager.shared.playTinkSound() }
 
             // Trigger hot reload via UDP
-            let reloadResult = await triggerUDPReload()
+            let reloadResult = await triggerConfigReload()
             if reloadResult.isSuccess {
-                AppLogger.shared.log("✅ [KanataManager] UDP reload successful, config is active")
+                AppLogger.shared.log("✅ [KanataManager] TCP reload successful, config is active")
                 // Play glass sound asynchronously to avoid blocking completion
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
                 await MainActor.run {
                     saveStatus = .success
                 }
             } else {
-                // UDP reload failed - this is a critical error for validation-on-demand
+                // TCP reload failed - this is a critical error for validation-on-demand
                 let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
-                AppLogger.shared.log("❌ [KanataManager] UDP reload FAILED: \(errorMessage)")
+                AppLogger.shared.log("❌ [KanataManager] TCP reload FAILED: \(errorMessage)")
                 // Play error sound asynchronously
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
                 await MainActor.run {
@@ -1510,12 +1491,13 @@ class KanataManager {
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { @MainActor in SoundManager.shared.playTinkSound() }
 
-            // Attempt UDP reload and capture any errors
-            let reloadResult = await triggerUDPReload()
+            // Attempt TCP reload to validate config
+            AppLogger.shared.log("📡 [Config] Triggering TCP reload for validation")
+            let tcpResult = await triggerTCPReload()
 
-            if reloadResult.isSuccess {
-                // UDP reload succeeded - config is valid
-                AppLogger.shared.log("✅ [Config] UDP reload successful, config is valid")
+            if tcpResult.isSuccess {
+                // Reload succeeded - config is valid
+                AppLogger.shared.log("✅ [Config] Reload successful, config is valid")
 
                 // Play glass sound asynchronously to avoid blocking completion
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
@@ -1524,10 +1506,10 @@ class KanataManager {
                     saveStatus = .success
                 }
             } else {
-                // UDP reload failed - this is a critical error for validation-on-demand
-                let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
-                AppLogger.shared.log("❌ [Config] UDP reload FAILED: \(errorMessage)")
-                AppLogger.shared.log("❌ [Config] UDP server is required for validation-on-demand - restoring backup")
+                // TCP reload failed - this is a critical error for validation-on-demand
+                let errorMessage = tcpResult.errorMessage ?? "TCP server unresponsive"
+                AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
+                AppLogger.shared.log("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
 
                 // Play error sound asynchronously
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
@@ -1537,9 +1519,9 @@ class KanataManager {
 
                 // Set error status
                 await MainActor.run {
-                    saveStatus = .failed("UDP server required for hot reload failed: \(errorMessage)")
+                    saveStatus = .failed("TCP server reload failed: \(errorMessage)")
                 }
-                throw KeyPathError.configuration(.loadFailed(reason: "UDP server required for validation-on-demand failed: \(errorMessage)"))
+                throw KeyPathError.configuration(.loadFailed(reason: "TCP server required for validation-on-demand failed: \(errorMessage)"))
             }
 
             // Reset to idle after a delay
@@ -2317,7 +2299,7 @@ class KanataManager {
 
         // Trigger reload after restoration
         Task {
-            _ = await self.triggerUDPReload()
+            _ = await self.triggerConfigReload()
         }
     }
 
@@ -2335,10 +2317,10 @@ class KanataManager {
 
         AppLogger.shared.log("💾 [Config] Reset to default configuration")
 
-        // Apply changes immediately via UDP reload if service is running
+        // Apply changes immediately via TCP reload if service is running
         if isRunning {
             AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via UDP...")
-            let reloadResult = await triggerUDPReload()
+            let reloadResult = await triggerConfigReload()
 
             if reloadResult.isSuccess {
                 let response = reloadResult.response ?? "Success"
@@ -2350,9 +2332,9 @@ class KanataManager {
             } else {
                 let error = reloadResult.errorMessage ?? "Unknown error"
                 let response = reloadResult.response ?? "No response"
-                AppLogger.shared.log("⚠️ [Reset] UDP reload failed (\(error)), fallback restart initiated")
+                AppLogger.shared.log("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
                 AppLogger.shared.log("📝 [Reset] UDP response: \(response)")
-                // If UDP reload fails, fall back to service restart
+                // If TCP reload fails, fall back to service restart
                 await restartKanata()
             }
         }
@@ -2517,22 +2499,6 @@ class KanataManager {
         await configurationService.validateConfiguration(config)
     }
 
-    /// Get UDP port for validation if UDP server is enabled
-    private func getUDPPort() async -> Int? {
-        let commSnapshot = PreferencesService.communicationSnapshot()
-        guard commSnapshot.shouldUseUDP else {
-            return nil
-        }
-        return commSnapshot.udpPort
-    }
-
-    /// Create a UDP client for health checking
-    private func createUDPClient(timeout: TimeInterval = 1.0) async -> KanataUDPClient? {
-        guard let udpPort = await getUDPPort() else {
-            return nil
-        }
-        return KanataUDPClient(port: udpPort, timeout: timeout)
-    }
 
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
@@ -2587,39 +2553,8 @@ class KanataManager {
         AppLogger.shared.log("🔍 [DEBUG] Target config path: \(configPath)")
         AppLogger.shared.log("🔍 [DEBUG] Config size: \(config.count) characters")
 
-        // Perform final validation via UDP if available
-        let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseUDP, isRunning {
-            AppLogger.shared.log("📡 [SaveConfig] Performing final UDP validation before save")
-
-            let client = KanataUDPClient(port: commConfig.udpPort)
-            let validationResult = await client.validateConfig(config)
-
-            switch validationResult {
-            case .success:
-                AppLogger.shared.log("✅ [SaveConfig] UDP validation passed")
-            case let .failure(errors):
-                let errorMessages = errors.map(\.description).joined(separator: ", ")
-                AppLogger.shared.log("❌ [SaveConfig] UDP validation failed: \(errorMessages)")
-
-                // In testing environment, treat UDP validation failures as warnings rather than errors
-                let isInTestingEnvironment = NSClassFromString("XCTestCase") != nil
-                if isInTestingEnvironment {
-                    AppLogger.shared.log(
-                        "⚠️ [SaveConfig] UDP validation failed in test environment - proceeding with save")
-                } else {
-                    throw KeyPathError.configuration(.validationFailed(errors: errors.map(\.description)))
-                }
-            case let .networkError(message):
-                AppLogger.shared.log(
-                    "⚠️ [SaveConfig] UDP validation unavailable: \(message) - proceeding with save")
-            // Continue with save since UDP validation is optional
-            case .authenticationRequired:
-                AppLogger.shared.log(
-                    "⚠️ [SaveConfig] UDP authentication required - proceeding with save")
-                // Continue with save since UDP validation is optional
-            }
-        }
+        // Config validation is performed by caller before reaching here
+        AppLogger.shared.log("📡 [SaveConfig] Saving validated config (TCP-only mode)")
 
         let configDir = URL(fileURLWithPath: configDirectory)
         try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
@@ -2781,14 +2716,10 @@ class KanataManager {
     func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
         var arguments = ["--cfg", configPath]
 
-        // Add UDP communication arguments if enabled
-        let commConfig = PreferencesService.communicationSnapshot()
-        if commConfig.shouldUseUDP {
-            arguments.append(contentsOf: commConfig.communicationLaunchArguments)
-            AppLogger.shared.log("📡 [KanataArgs] UDP server enabled on port \(commConfig.udpPort)")
-        } else {
-            AppLogger.shared.log("📡 [KanataArgs] UDP server disabled")
-        }
+        // Add TCP port argument
+        let tcpPort = PreferencesService.shared.tcpServerPort
+        arguments.append(contentsOf: ["--port", "\(tcpPort)"])
+        AppLogger.shared.log("📡 [KanataArgs] TCP server enabled on port \(tcpPort)")
 
         if checkOnly {
             arguments.append("--check")

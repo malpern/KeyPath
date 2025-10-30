@@ -4,6 +4,7 @@ struct WizardKanataServicePage: View {
     @EnvironmentObject var kanataViewModel: KanataViewModel
     let systemState: WizardSystemState
     let issues: [WizardIssue]
+    let onRefresh: () -> Void
 
     // Access underlying KanataManager for business logic
     private var kanataManager: KanataManager {
@@ -294,12 +295,14 @@ struct WizardKanataServicePage: View {
                     }
                 }
 
-                // Primary done button (centered)
+                // Primary continue button (centered)
                 HStack {
                     Spacer()
-                    Button("Done") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User completing setup from Kanata Service page")
-                        navigateToNextPage()
+                    Button("Continue") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Service page")
+                        Task {
+                            await navigateToNextPage()
+                        }
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                     Spacer()
@@ -321,11 +324,32 @@ struct WizardKanataServicePage: View {
 
     // MARK: - Helper Methods
 
-    private func navigateToNextPage() {
-        // Return to Summary page from Kanata Service with backward navigation animation
-        // Use spring animation to suggest moving "back" in the navigation stack
-        navigationCoordinator.navigateToPage(.summary, animation: .spring(response: 0.4, dampingFraction: 0.8))
-        AppLogger.shared.log("⬅️ [Kanata Service] Navigated back to Summary page")
+    private func navigateToNextPage() async {
+        // Navigate to next page in sequence (Communication is after Service)
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex < allPages.count - 1
+        else { return }
+        let nextPage = allPages[currentIndex + 1]
+
+        // Show spinning cursor during state refresh
+        await MainActor.run {
+            NSCursor.operationNotAllowed.push()
+        }
+
+        // Pre-fetch state for pages that need async checks
+        if nextPage == .communication {
+            // Refresh state so Communication page has current data
+            onRefresh()
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds for refresh to complete
+        }
+
+        // Restore cursor and navigate
+        await MainActor.run {
+            NSCursor.pop()
+            navigationCoordinator.navigateToPage(nextPage)
+            AppLogger.shared.log("➡️ [Kanata Service] Navigated to next page: \(nextPage.displayName)")
+        }
     }
 
     // MARK: - Computed Properties
@@ -447,21 +471,23 @@ struct WizardKanataServicePage: View {
         )
 
         await MainActor.run {
-            switch processStatus {
-            case .running:
-                serviceStatus = .running
-                lastError = nil
-                AppLogger.shared.log("✅ [ServiceStatus] Service confirmed functional via shared evaluator")
+            withAnimation(.easeInOut(duration: 0.3)) {
+                switch processStatus {
+                case .running:
+                    serviceStatus = .running
+                    lastError = nil
+                    AppLogger.shared.log("✅ [ServiceStatus] Service confirmed functional via shared evaluator")
 
-            case let .failed(message):
-                serviceStatus = .crashed(error: message ?? "Permission or service issue detected")
-                lastError = message
-                AppLogger.shared.log("⚠️ [ServiceStatus] Service failed via shared evaluator: \(message ?? "unknown")")
+                case let .failed(message):
+                    serviceStatus = .crashed(error: message ?? "Permission or service issue detected")
+                    lastError = message
+                    AppLogger.shared.log("⚠️ [ServiceStatus] Service failed via shared evaluator: \(message ?? "unknown")")
 
-            case .stopped:
-                // Preserve existing crash log heuristic when stopped
-                checkForCrash()
-                AppLogger.shared.log("🔍 [ServiceStatus] Service stopped - checking for crash indicators")
+                case .stopped:
+                    // Preserve existing crash log heuristic when stopped
+                    checkForCrash()
+                    AppLogger.shared.log("🔍 [ServiceStatus] Service stopped - checking for crash indicators")
+                }
             }
         }
     }
@@ -547,7 +573,8 @@ struct WizardKanataServicePage_Previews: PreviewProvider {
 
         WizardKanataServicePage(
             systemState: .ready,
-            issues: []
+            issues: [],
+            onRefresh: {}
         )
         .environmentObject(viewModel)
     }

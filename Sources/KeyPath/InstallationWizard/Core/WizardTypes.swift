@@ -10,10 +10,10 @@ enum WizardPage: String, CaseIterable {
     case conflicts = "Resolve Conflicts"
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
-    case communication = "Communication"
     case karabinerComponents = "Karabiner Components"
     case kanataComponents = "Kanata Components"
     case service = "Start Service"
+    case communication = "Communication"
 
     /// User-friendly display name for accessibility and UI
     var displayName: String {
@@ -138,12 +138,12 @@ enum ComponentRequirement: Equatable {
     case launchDaemonServicesUnhealthy // Services loaded but crashed/failing
     case vhidDaemonMisconfigured
     case vhidDriverVersionMismatch // Karabiner driver version incompatible with kanata version
-    case kanataUDPServer // UDP server for Kanata communication and config validation
+    case kanataTCPServer // TCP server for Kanata communication and config validation
     case orphanedKanataProcess // Kanata running but not managed by LaunchDaemon
     case communicationServerConfiguration // Communication server enabled but not configured in service
     case communicationServerNotResponding // Communication server configured but not responding
-    case udpServerConfiguration // UDP enabled but not configured in service
-    case udpServerNotResponding // UDP configured but not responding
+    case tcpServerConfiguration // TCP enabled but not configured in service
+    case tcpServerNotResponding // TCP configured but not responding
     case logRotation // Log rotation service to manage Kanata logs
 }
 

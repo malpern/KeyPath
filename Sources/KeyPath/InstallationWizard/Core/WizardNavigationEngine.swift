@@ -58,8 +58,8 @@ class WizardNavigationEngine: WizardNavigating {
                 switch issue.identifier {
                 case .component(.communicationServerConfiguration),
                      .component(.communicationServerNotResponding),
-                     .component(.udpServerConfiguration),
-                     .component(.udpServerNotResponding):
+                     .component(.tcpServerConfiguration),
+                     .component(.tcpServerNotResponding):
                     return true
                 default:
                     return false
