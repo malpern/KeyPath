@@ -9,6 +9,10 @@ echo "🦀 Building bundled kanata..."
 # Build kanata from source (required for proper signing)
 ./Scripts/build-kanata.sh
 
+echo "🔐 Building privileged helper..."
+# Build and sign the helper tool
+./Scripts/build-helper.sh
+
 echo "🏗️  Building KeyPath..."
 # Build main app (disable whole-module optimization to avoid hang)
 swift build --configuration release --product KeyPath -Xswiftc -no-whole-module-optimization
@@ -33,6 +37,20 @@ cp "$BUILD_DIR/KeyPath" "$MACOS/"
 
 # Copy bundled kanata binary
 cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
+
+# Embed privileged helper for SMJobBless
+echo "📦 Embedding privileged helper..."
+LAUNCH_SERVICES="$CONTENTS/Library/LaunchServices"
+mkdir -p "$LAUNCH_SERVICES"
+
+# Copy signed helper executable
+cp "$BUILD_DIR/KeyPathHelper" "$LAUNCH_SERVICES/com.keypath.helper"
+
+# Copy helper's Info.plist and launchd.plist for SMJobBless
+cp "Sources/KeyPathHelper/Info.plist" "$LAUNCH_SERVICES/com.keypath.helper-Info.plist"
+cp "Sources/KeyPathHelper/launchd.plist" "$LAUNCH_SERVICES/com.keypath.helper-Launchd.plist"
+
+echo "✅ Helper embedded: $LAUNCH_SERVICES/com.keypath.helper"
 
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
@@ -73,6 +91,16 @@ EOF
 
 echo "✍️  Signing executables..."
 SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
+
+# Sign from innermost to outermost (helper -> kanata -> main app)
+
+# Sign privileged helper (already signed in build-helper.sh, but re-sign for consistency)
+HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
+codesign --force --options=runtime \
+    --identifier "com.keypath.helper" \
+    --entitlements "$HELPER_ENTITLEMENTS" \
+    --sign "$SIGNING_IDENTITY" \
+    "$LAUNCH_SERVICES/com.keypath.helper"
 
 # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
 codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS/Library/KeyPath/kanata"

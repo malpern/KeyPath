@@ -26,33 +26,32 @@ SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
 echo "1️⃣  Building helper executable..."
 swift build --configuration release --product "$HELPER_NAME" -Xswiftc -no-whole-module-optimization
 
-# Create helper bundle structure (required for SMJobBless)
-echo "2️⃣  Creating helper bundle structure..."
-rm -rf "$HELPER_BUILD_DIR"
-mkdir -p "$HELPER_BUILD_DIR"
+# The executable is at BUILD_DIR/HELPER_NAME (not in a subdirectory)
+HELPER_EXECUTABLE="$BUILD_DIR/$HELPER_NAME"
 
-# Copy executable
-cp "$BUILD_DIR/$HELPER_NAME" "$HELPER_BUILD_DIR/"
+if [ ! -f "$HELPER_EXECUTABLE" ]; then
+    echo "❌ ERROR: Helper executable not found at: $HELPER_EXECUTABLE"
+    exit 1
+fi
 
-# TODO: Embed Info.plist and launchd.plist
-# SMJobBless requires these to be embedded in specific locations
-# This might require a custom build phase or tool like PlistBuddy
-# For now, document the requirement
-
-echo "3️⃣  Signing helper..."
+echo "2️⃣  Signing helper..."
 HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
 
 if [ -f "$HELPER_ENTITLEMENTS" ]; then
     codesign --force --options=runtime \
+        --identifier "com.keypath.helper" \
         --entitlements "$HELPER_ENTITLEMENTS" \
         --sign "$SIGNING_IDENTITY" \
-        "$HELPER_BUILD_DIR/$HELPER_NAME"
+        "$HELPER_EXECUTABLE"
 else
     echo "❌ ERROR: Helper entitlements not found: $HELPER_ENTITLEMENTS"
     exit 1
 fi
 
-echo "4️⃣  Verifying helper signature..."
-codesign -dvvv "$HELPER_BUILD_DIR/$HELPER_NAME"
+echo "3️⃣  Verifying helper signature..."
+codesign -dvvv "$HELPER_EXECUTABLE"
 
-echo "✅ Helper build complete: $HELPER_BUILD_DIR/$HELPER_NAME"
+echo "✅ Helper build complete: $HELPER_EXECUTABLE"
+echo ""
+echo "📝 Note: Helper Info.plist and launchd.plist must be embedded for SMJobBless"
+echo "    These will be handled during app bundle creation"

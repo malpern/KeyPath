@@ -371,24 +371,26 @@ Application Code → Coordinator → Implementation (LaunchDaemonInstaller/VHIDD
 <string>com.keypath.helper</string>
 ```
 
-### Phase 3: Build Script Updates & Helper Embedding ⚠️ BLOCKED
+### Phase 3: Build Script Updates & Helper Embedding ✅ COMPLETE
 
 **Goal:** Support both dev and release workflows.
 
-**Status:** ⚠️ Blocked on Developer ID Certificate
+**Status:** ✅ Completed 2025-10-30
 
-**Blocker:** Requires Developer ID Application certificate ($99/year) to:
-- Sign the helper tool
-- Embed signed helper in app bundle
-- Test SMJobBless installation flow
-- Verify XPC communication works
+**Certificate Setup:** Developer ID Application certificate configured (Team ID: X2RKZ5TG99)
 
 **Completed Tasks:**
+- [x] Create Developer ID Application certificate
+- [x] Install certificate in Keychain
+- [x] Set up notarization credentials (KeyPath-Profile)
 - [x] Create entitlements files (KeyPath.app + Helper)
 - [x] Create helper LaunchDaemon plist (`Sources/KeyPathHelper/launchd.plist`)
 - [x] Create helper Info.plist (`Sources/KeyPathHelper/Info.plist`)
 - [x] Create `Scripts/build-dev-local.sh` (DEBUG, no helper, no cert needed)
-- [x] Create `Scripts/build-helper.sh` (helper build script template)
+- [x] Create `Scripts/build-helper.sh` (production helper build + sign)
+- [x] Update `Scripts/build-and-sign.sh` to build and embed helper
+- [x] Test helper build and signing (verified correct identifier: com.keypath.helper)
+- [x] Test full app bundle creation with embedded helper
 
 **Files Created:**
 
@@ -421,11 +423,33 @@ Application Code → Coordinator → Implementation (LaunchDaemonInstaller/VHIDD
    - Template for production builds
    - Requires Developer ID certificate
 
-**Pending Tasks (Requires Certificate):**
-- [ ] Update `Scripts/build-and-sign.sh` to call build-helper.sh
-- [ ] Embed signed helper in app bundle at Contents/Library/LaunchServices/
-- [ ] Test SMJobBless() installation flow
+**Implementation Details:**
+
+**Build Process:**
+1. `build-helper.sh` builds and signs KeyPathHelper with explicit identifier
+2. `build-and-sign.sh` embeds helper in app bundle at:
+   - `Contents/Library/LaunchServices/com.keypath.helper` (signed executable)
+   - `Contents/Library/LaunchServices/com.keypath.helper-Info.plist`
+   - `Contents/Library/LaunchServices/com.keypath.helper-Launchd.plist`
+3. All components signed with hardened runtime and notarized
+
+**Signing Configuration:**
+- Signing Identity: `Developer ID Application: Micah Alpern (X2RKZ5TG99)`
+- Helper Identifier: `com.keypath.helper` (explicit, matches entitlements)
+- Notarization Profile: `KeyPath-Profile`
+- Signing order: Helper → Kanata → Main App (inner to outer)
+
+**Test Results:**
+- ✅ Helper builds successfully (132 KB)
+- ✅ Helper signed with correct identifier (com.keypath.helper)
+- ✅ Helper embedded in app bundle at correct location
+- ✅ Full app bundle builds, signs, and notarizes successfully
+- ✅ Deployed to /Applications/KeyPath.app
+
+**Pending Tasks (Phase 4):**
+- [ ] Test SMJobBless() installation flow (requires running app)
 - [ ] Verify helper XPC communication
+- [ ] Implement remaining helper operations (18 stubs → full implementation)
 - [ ] Test privilege escalation flow
 
 **Build strategies:**
