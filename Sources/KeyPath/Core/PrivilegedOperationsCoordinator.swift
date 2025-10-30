@@ -247,6 +247,18 @@ final class PrivilegedOperationsCoordinator {
 
     // MARK: Generic Execute
 
+    /// Install the bundled Kanata binary to the system location
+    func installBundledKanata() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Installing bundled Kanata binary")
+
+        switch Self.operationMode {
+        case .privilegedHelper:
+            try await helperInstallBundledKanata()
+        case .directSudo:
+            try await sudoInstallBundledKanata()
+        }
+    }
+
     /// Execute a shell command with administrator privileges
     func executeCommand(_ command: String, description: String) async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Executing: \(description)")
@@ -327,6 +339,12 @@ final class PrivilegedOperationsCoordinator {
 
     private func helperRestartKarabinerDaemon() async throws {
         try await HelperManager.shared.restartKarabinerDaemon()
+    }
+
+    private func helperInstallBundledKanata() async throws {
+        // TODO: Implement XPC call for bundled kanata installation
+        // For now, fall back to sudo path
+        try await sudoInstallBundledKanata()
     }
 
     private func helperExecuteCommand(_ command: String, description: String) async throws {
@@ -498,6 +516,16 @@ final class PrivilegedOperationsCoordinator {
 
         // Wait for daemon to restart
         try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+    }
+
+    /// Install bundled Kanata binary using LaunchDaemonInstaller
+    private func sudoInstallBundledKanata() async throws {
+        let installer = LaunchDaemonInstaller()
+        let success = installer.installBundledKanataBinaryOnly()
+
+        if !success {
+            throw PrivilegedOperationError.operationFailed("Bundled Kanata installation failed")
+        }
     }
 
     /// Execute a shell command with administrator privileges using osascript

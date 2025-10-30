@@ -1942,15 +1942,13 @@ class KanataManager {
             // Install bundled kanata binary to system location
             AppLogger.shared.log("🔧 [Installation] Installing bundled Kanata binary to system location...")
 
-            let installer = LaunchDaemonInstaller()
-            let installSuccess = installer.installBundledKanataBinaryOnly()
-
-            if installSuccess {
+            do {
+                try await PrivilegedOperationsCoordinator.shared.installBundledKanata()
                 AppLogger.shared.log("✅ [Installation] Successfully installed bundled Kanata binary")
                 AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary installed and verified")
                 stepsCompleted += 1
-            } else {
-                AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Failed to install bundled Kanata binary")
+            } catch {
+                AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Failed to install bundled Kanata binary: \(error)")
                 AppLogger.shared.log("💡 [Installation] Check system permissions and try running KeyPath with administrator privileges")
                 stepsFailed += 1
             }
