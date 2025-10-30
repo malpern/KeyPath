@@ -41,7 +41,7 @@ final class RecordingCoordinator: ObservableObject {
 
     @Published private(set) var input = ChannelState()
     @Published private(set) var output = ChannelState()
-    @Published var isSequenceMode: Bool = false {
+    @Published var isSequenceMode: Bool = true {
         didSet {
             inputPlaceholderRequested = true
             outputPlaceholderRequested = true
@@ -460,9 +460,8 @@ final class RecordingCoordinator: ObservableObject {
             input.fieldText = sequence.displayString
         } else if input.isRecording {
             input.fieldText = recordingPromptText()
-        } else if inputPlaceholderRequested {
-            input.fieldText = idlePlaceholderText()
         } else {
+            // Empty when idle - placeholder only shows during recording
             input.fieldText = ""
         }
         updateButtonIcon(&input)
@@ -473,22 +472,20 @@ final class RecordingCoordinator: ObservableObject {
             output.fieldText = sequence.displayString
         } else if output.isRecording {
             output.fieldText = recordingPromptText()
-        } else if outputPlaceholderRequested {
-            output.fieldText = idlePlaceholderText()
         } else {
+            // Empty when idle - placeholder only shows during recording
             output.fieldText = ""
         }
         updateButtonIcon(&output)
     }
 
     private func idlePlaceholderText() -> String {
-        isSequenceMode ? "Press keys in sequence..." : "Press key combination..."
+        isSequenceMode ? "Press key sequence..." : "Press key combination..."
     }
 
     private func recordingPromptText() -> String {
-        let base = idlePlaceholderText()
-        let effective = FeatureFlags.captureListenOnlyEnabled && (kanataManager?.isRunning == true)
-        return effective ? base + " – Effective (mapped)" : base + " – Raw (direct)"
+        // Simple prompt without raw/effective indicators
+        return idlePlaceholderText()
     }
 
     private func updateButtonIcon(_ channel: inout ChannelState) {

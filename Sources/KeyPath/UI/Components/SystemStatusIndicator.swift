@@ -30,12 +30,12 @@ struct SystemStatusIndicator: View {
                         .fill(Color(NSColor.textBackgroundColor).opacity(0.95))
                         .frame(width: backgroundSize, height: backgroundSize)
                         .shadow(color: shadowColor, radius: isHovered ? 3 : 1, x: 0, y: 1)
-                        .overlay(Circle().stroke(borderColor, lineWidth: 1))
+                        .overlay(Circle().stroke(borderColor, lineWidth: 0.5))
                 } else {
                     AppGlassBackground(style: .chipBold, cornerRadius: backgroundSize / 2)
                         .frame(width: backgroundSize, height: backgroundSize)
                         .shadow(color: shadowColor, radius: isHovered ? 3 : 1, x: 0, y: 1)
-                        .overlay(Circle().stroke(borderColor, lineWidth: 1))
+                        .overlay(Circle().stroke(borderColor, lineWidth: 0.5))
                 }
                 // Status icon
                 iconView()
@@ -69,7 +69,8 @@ struct SystemStatusIndicator: View {
                     .onAppear { isAnimating = true }
                     .onDisappear { isAnimating = false }
             case .success:
-                Image(systemName: "checkmark")
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 28))  // Same size as white circle background
             case let .failed(blockingCount, _):
                 if blockingCount > 0 {
                     Image(systemName: "exclamationmark.triangle")

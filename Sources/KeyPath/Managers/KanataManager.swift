@@ -1403,6 +1403,23 @@ class KanataManager {
         }
 
         do {
+            // VALIDATE BEFORE SAVING - prevent writing broken configs
+            AppLogger.shared.log("🔍 [KanataManager] Validating generated config before save...")
+            let validation = await configurationService.validateConfiguration(configContent)
+
+            if !validation.isValid {
+                AppLogger.shared.log("❌ [KanataManager] Generated config validation failed: \(validation.errors.joined(separator: ", "))")
+                await MainActor.run {
+                    saveStatus = .failed("Invalid config: \(validation.errors.first ?? "Unknown error")")
+                }
+                throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
+            }
+
+            AppLogger.shared.log("✅ [KanataManager] Generated config validation passed")
+
+            // Backup current config before making changes
+            await backupCurrentConfig()
+
             // Ensure config directory exists
             let configDirectoryURL = URL(fileURLWithPath: configDirectory)
             try FileManager.default.createDirectory(at: configDirectoryURL, withIntermediateDirectories: true)
@@ -1436,12 +1453,18 @@ class KanataManager {
                 }
             } else {
                 // TCP reload failed - this is a critical error for validation-on-demand
-                let errorMessage = reloadResult.errorMessage ?? "UDP server unresponsive"
+                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
                 AppLogger.shared.log("❌ [KanataManager] TCP reload FAILED: \(errorMessage)")
+                AppLogger.shared.log("❌ [KanataManager] Restoring backup since config couldn't be verified")
+
                 // Play error sound asynchronously
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
+
+                // Restore backup since we can't verify the config was applied
+                try await restoreLastGoodConfig()
+
                 await MainActor.run {
-                    saveStatus = .failed("Config saved but reload failed: \(errorMessage)")
+                    saveStatus = .failed("Config reload failed: \(errorMessage)")
                 }
                 throw KeyPathError.configuration(.loadFailed(reason: "Hot reload failed: \(errorMessage)"))
             }
@@ -2304,6 +2327,10 @@ class KanataManager {
     }
 
     func resetToDefaultConfig() async throws {
+        // IMPORTANT: Reset should ALWAYS work - it's a recovery mechanism for broken configs
+        // DO NOT validate here - just force-write a known-good default config
+        AppLogger.shared.log("🔄 [Reset] Forcing reset to default config (no validation - recovery mode)")
+
         let defaultMapping = KeyMapping(input: "caps", output: "escape")
         let defaultConfig = KanataConfiguration.generateFromMappings([defaultMapping])
         let configURL = URL(fileURLWithPath: configPath)
@@ -2312,19 +2339,19 @@ class KanataManager {
         let configDir = URL(fileURLWithPath: configDirectory)
         try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
 
-        // Write the default config
+        // Write the default config (unconditionally)
         try defaultConfig.write(to: configURL, atomically: true, encoding: .utf8)
 
-        AppLogger.shared.log("💾 [Config] Reset to default configuration")
+        AppLogger.shared.log("💾 [Config] Reset to default configuration (caps → esc)")
 
         // Apply changes immediately via TCP reload if service is running
         if isRunning {
-            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via UDP...")
+            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via TCP...")
             let reloadResult = await triggerConfigReload()
 
             if reloadResult.isSuccess {
                 let response = reloadResult.response ?? "Success"
-                AppLogger.shared.log("✅ [Reset] Default config applied successfully via UDP: \(response)")
+                AppLogger.shared.log("✅ [Reset] Default config applied successfully via TCP: \(response)")
                 // Play happy chime on successful reset
                 await MainActor.run {
                     SoundManager.shared.playGlassSound()
@@ -2333,7 +2360,7 @@ class KanataManager {
                 let error = reloadResult.errorMessage ?? "Unknown error"
                 let response = reloadResult.response ?? "No response"
                 AppLogger.shared.log("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
-                AppLogger.shared.log("📝 [Reset] UDP response: \(response)")
+                AppLogger.shared.log("📝 [Reset] TCP response: \(response)")
                 // If TCP reload fails, fall back to service restart
                 await restartKanata()
             }

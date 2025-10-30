@@ -209,15 +209,109 @@ class ConfigurationServiceTests: XCTestCase {
 
     func testConvertToKanataSequence_SingleKey() {
         let result = KanataKeyConverter.convertToKanataSequence("esc")
-        XCTAssertEqual(result, "esc")
+        XCTAssertEqual(result, "esc", "Single key should NOT have parentheses")
+        XCTAssertFalse(result.hasPrefix("("), "Single key should NOT start with parenthesis")
+        XCTAssertFalse(result.hasSuffix(")"), "Single key should NOT end with parenthesis")
+    }
+
+    func testConvertToKanataSequence_SingleLongKey() {
+        // BUG FIX TEST: Keys longer than 4 chars should NOT be wrapped in parentheses
+        let result = KanataKeyConverter.convertToKanataSequence("escape")
+        XCTAssertEqual(result, "esc", "Long single key should convert but NOT wrap in parentheses")
+        XCTAssertFalse(result.hasPrefix("("), "Single key 'escape' should NOT have parentheses")
+        XCTAssertFalse(result.hasSuffix(")"), "Single key 'escape' should NOT have parentheses")
+    }
+
+    func testConvertToKanataSequence_SingleKeyVariants() {
+        // Test various single keys that should NEVER have parentheses
+        let testCases = [
+            ("tab", "tab"),
+            ("space", "spc"),
+            ("return", "ret"),
+            ("backspace", "bspc"),
+            ("delete", "del")
+        ]
+
+        for (input, expectedBase) in testCases {
+            let result = KanataKeyConverter.convertToKanataSequence(input)
+            XCTAssertFalse(result.hasPrefix("("), "\(input) should NOT be wrapped in parentheses")
+            XCTAssertFalse(result.hasSuffix(")"), "\(input) should NOT be wrapped in parentheses")
+            XCTAssertTrue(result.contains(expectedBase), "\(input) should convert to contain \(expectedBase)")
+        }
     }
 
     func testConvertToKanataSequence_MultipleKeys() {
         let result = KanataKeyConverter.convertToKanataSequence("cmd space")
-        XCTAssertTrue(result.hasPrefix("("), "Multi-key sequence should be wrapped in parentheses")
-        XCTAssertTrue(result.hasSuffix(")"), "Multi-key sequence should be wrapped in parentheses")
+        XCTAssertTrue(result.hasPrefix("("), "Multi-key sequence SHOULD be wrapped in parentheses")
+        XCTAssertTrue(result.hasSuffix(")"), "Multi-key sequence SHOULD be wrapped in parentheses")
         XCTAssertTrue(result.contains("lmet"), "Should convert cmd to lmet")
         XCTAssertTrue(result.contains("spc"), "Should convert space to spc")
+    }
+
+    func testConvertToKanataSequence_TextMacro_Numbers() {
+        // Test that "123" converts to (macro 1 2 3)
+        let result = KanataKeyConverter.convertToKanataSequence("123")
+        XCTAssertTrue(result.hasPrefix("(macro "), "Number sequence should be wrapped in macro")
+        XCTAssertTrue(result.contains("1"), "Should contain 1")
+        XCTAssertTrue(result.contains("2"), "Should contain 2")
+        XCTAssertTrue(result.contains("3"), "Should contain 3")
+        XCTAssertEqual(result, "(macro 1 2 3)", "Should generate correct macro syntax")
+    }
+
+    func testConvertToKanataSequence_TextMacro_Letters() {
+        // Test that "hello" converts to (macro h e l l o)
+        let result = KanataKeyConverter.convertToKanataSequence("hello")
+        XCTAssertTrue(result.hasPrefix("(macro "), "Letter sequence should be wrapped in macro")
+        XCTAssertEqual(result, "(macro h e l l o)", "Should generate correct macro syntax")
+    }
+
+    func testConvertToKanataSequence_KeyNameNotMacro() {
+        // Test that key names like "escape" don't get split into macros
+        let escapeResult = KanataKeyConverter.convertToKanataSequence("escape")
+        XCTAssertEqual(escapeResult, "esc", "escape should convert to esc, not macro")
+        XCTAssertFalse(escapeResult.contains("macro"), "Key names shouldn't become macros")
+
+        let tabResult = KanataKeyConverter.convertToKanataSequence("tab")
+        XCTAssertEqual(tabResult, "tab", "tab should stay as tab")
+
+        let spaceResult = KanataKeyConverter.convertToKanataSequence("space")
+        XCTAssertEqual(spaceResult, "spc", "space should convert to spc")
+    }
+
+    func testGeneratedConfigWithTextMacro() {
+        // Test that a mapping with text output generates correct macro in config
+        let mappings = [
+            KeyMapping(input: "1", output: "123")
+        ]
+
+        let config = KanataConfiguration.generateFromMappings(mappings)
+
+        // Check that deflayer contains the macro
+        XCTAssertTrue(config.contains("(macro 1 2 3)"), "Config should contain macro for text sequence")
+        XCTAssertTrue(config.contains("(defsrc"), "Config should have defsrc")
+        XCTAssertTrue(config.contains("(deflayer base"), "Config should have deflayer")
+    }
+
+    func testGeneratedConfigHasNoInvalidParentheses() {
+        // REGRESSION TEST: Ensure generated configs never have (esc) or other invalid single-key wrapping
+        let mappings = [
+            KeyMapping(input: "caps", output: "escape"),
+            KeyMapping(input: "tab", output: "backspace"),
+            KeyMapping(input: "a", output: "delete")
+        ]
+
+        let config = KanataConfiguration.generateFromMappings(mappings)
+
+        // Check that single keys are NOT wrapped in parentheses in deflayer
+        XCTAssertFalse(config.contains("(esc)"), "Config should NOT contain (esc) - single keys must not be wrapped")
+        XCTAssertFalse(config.contains("(bspc)"), "Config should NOT contain (bspc) - single keys must not be wrapped")
+        XCTAssertFalse(config.contains("(del)"), "Config should NOT contain (del) - single keys must not be wrapped")
+
+        // Check that they ARE present WITHOUT parentheses
+        let deflayerSection = config.components(separatedBy: "(deflayer base")[1]
+        XCTAssertTrue(deflayerSection.contains("esc"), "Should contain esc without parentheses")
+        XCTAssertTrue(deflayerSection.contains("bspc"), "Should contain bspc without parentheses")
+        XCTAssertTrue(deflayerSection.contains("del"), "Should contain del without parentheses")
     }
 
     // MARK: - Backup and Recovery Tests

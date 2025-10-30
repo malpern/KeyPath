@@ -189,7 +189,7 @@ class PermissionGrantCoordinator: ObservableObject {
                 logger.log("  • Duration: \(String(format: "%.2f", duration))s")
 
                 // Show success feedback
-                showUserFeedback("✅ Keyboard service restarted - \(permissionType.displayName) permissions active!")
+                showUserFeedback("Keyboard service restarted - \(permissionType.displayName) permissions active!")
 
                 // Clear the pending flag on successful restart
                 clearPendingFlag(for: permissionType)

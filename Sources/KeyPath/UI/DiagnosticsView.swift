@@ -538,8 +538,28 @@ struct ConfigStatusSection: View {
 
                     Button("Reset to Default") {
                         Task {
-                            try? await kanataManager.resetToDefaultConfig()
-                            validateConfig()
+                            do {
+                                try await kanataManager.resetToDefaultConfig()
+                                validateConfig()
+
+                                // Show success toast
+                                await MainActor.run {
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("ShowUserFeedback"),
+                                        object: nil,
+                                        userInfo: ["message": "Configuration reset to default"]
+                                    )
+                                }
+                            } catch {
+                                // Show error toast
+                                await MainActor.run {
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("ShowUserFeedback"),
+                                        object: nil,
+                                        userInfo: ["message": "❌ Failed to reset: \(error.localizedDescription)"]
+                                    )
+                                }
+                            }
                         }
                     }
                     .buttonStyle(.borderedProminent)

@@ -3,6 +3,8 @@ import SwiftUI
 
 @MainActor
 final class MainWindowController: NSWindowController {
+    private var topLeftBeforeResize: NSPoint?
+
     init(kanataManager: KanataManager) {
         // Phase 4: MVVM - Create ViewModel wrapper for KanataManager
         let viewModel = KanataViewModel(manager: kanataManager)
@@ -17,7 +19,7 @@ final class MainWindowController: NSWindowController {
 
         // Create window with proper styling
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 420),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -172,5 +174,28 @@ extension MainWindowController: NSWindowDelegate {
 
     func windowDidResignKey(_: Notification) {
         AppLogger.shared.log("🪟 [MainWindowController] Window resigned key")
+    }
+
+    func windowWillResize(_ sender: NSWindow, to _: NSSize) -> NSSize {
+        // Capture the top-left position before resize
+        let frame = sender.frame
+        topLeftBeforeResize = NSPoint(x: frame.minX, y: frame.maxY)
+        return sender.frame.size
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              let topLeft = topLeftBeforeResize else { return }
+
+        // Restore the top-left corner position after resize
+        // This makes the window shrink/grow from the bottom edge
+        let newFrame = window.frame
+        let newOrigin = NSPoint(
+            x: topLeft.x,
+            y: topLeft.y - newFrame.height
+        )
+
+        window.setFrameOrigin(newOrigin)
+        topLeftBeforeResize = nil
     }
 }

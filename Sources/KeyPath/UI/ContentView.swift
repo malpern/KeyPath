@@ -69,8 +69,11 @@ struct ContentView: View {
     @State private var saveDebounceTimer: Timer?
     private let saveDebounceDelay: TimeInterval = 0.5
 
+    @State private var statusMessageTimer: DispatchWorkItem?
+
     @State private var lastInputDisabledReason: String = ""
     @State private var lastOutputDisabledReason: String = ""
+    @State private var isInitialConfigLoad = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -99,7 +102,7 @@ struct ContentView: View {
                                 .scaleEffect(0.8)
                                 .frame(width: 16, height: 16)
                         }
-                        Text(kanataManager.saveStatus.message.isEmpty ? "Save" : kanataManager.saveStatus.message)
+                        Text("Save")
                     }
                     .frame(minWidth: 100)
                 }
@@ -108,7 +111,7 @@ struct ContentView: View {
                     recordingCoordinator.capturedOutputSequence() == nil ||
                     kanataManager.saveStatus.isActive)
                 .accessibilityIdentifier("save-mapping-button")
-                .accessibilityLabel(kanataManager.saveStatus.message.isEmpty ? "Save key mapping" : kanataManager.saveStatus.message)
+                .accessibilityLabel("Save key mapping")
                 .accessibilityHint("Save the input and output key mapping to your configuration")
             }
 
@@ -125,11 +128,6 @@ struct ContentView: View {
                 )
             }
 
-            // Status Message - Only show for success messages, errors use enhanced handler
-            StatusMessageView(message: statusMessage, isVisible: showStatusMessage && !statusMessage.contains("❌"))
-                .frame(height: (showStatusMessage && !statusMessage.contains("❌")) ? nil : 0)
-                .clipped()
-
             // Diagnostic Summary (show critical issues)
             if !kanataManager.diagnostics.isEmpty {
                 let criticalIssues = kanataManager.diagnostics.filter { $0.severity == .critical || $0.severity == .error }
@@ -139,10 +137,29 @@ struct ContentView: View {
                     }
                 }
             }
+
+            Spacer()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 40)
+        .padding(.bottom, 0)
         .frame(width: 500, alignment: .top)
-        .fixedSize(horizontal: false, vertical: true)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Fixed 80px space at bottom for toast - always present, stable layout
+            Group {
+                if showStatusMessage && !statusMessage.contains("❌") {
+                    StatusMessageView(message: statusMessage, isVisible: true)
+                        .padding(.horizontal)
+                        .padding(.bottom, 12)
+                        .transition(.opacity)
+                } else {
+                    Color.clear
+                        .frame(height: 0)
+                }
+            }
+            .frame(height: showStatusMessage ? 80 : 0)
+            .animation(.easeInOut(duration: 0.25), value: showStatusMessage)
+        }
         .sheet(isPresented: $showingInstallationWizard) {
             // Determine initial page if we're returning from permission granting
             let initialPage: WizardPage? = {
@@ -262,6 +279,12 @@ struct ContentView: View {
             AppLogger.shared.log("🔍 [ContentView] showingInstallationWizard set to: \(showingInstallationWizard)")
         }
         .onChange(of: kanataManager.lastConfigUpdate) { _, _ in
+            // Skip toast on initial config load at app startup
+            guard !isInitialConfigLoad else {
+                isInitialConfigLoad = false
+                return
+            }
+
             // Show status message when config is updated externally
             showStatusMessage(message: "Key mappings updated")
             // NOTE: Do NOT trigger validation here - causes validation spam during startup
@@ -345,17 +368,19 @@ struct ContentView: View {
                 enhancedErrorInfo = ErrorInfo.from(error)
             }
         } else {
+            // Cancel any existing timer to ensure consistent 5-second display
+            statusMessageTimer?.cancel()
+
             // Use traditional status message for success/info messages
             statusMessage = message
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                showStatusMessage = true
+            showStatusMessage = true
+
+            // Hide after 5 seconds with simple animation
+            let workItem = DispatchWorkItem {
+                showStatusMessage = false
             }
-            // Hide after 5 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    showStatusMessage = false
-                }
-            }
+            statusMessageTimer = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
         }
     }
 
@@ -496,6 +521,17 @@ struct ContentView: View {
         saveDebounceTimer?.invalidate()
         saveDebounceTimer = nil
 
+        // If Kanata is not running but we're recording, stop recording first (resumes Kanata)
+        if !kanataManager.isRunning && (recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording()) {
+            AppLogger.shared.log("🔄 [ContentView] Kanata paused during recording - resuming before save")
+            await MainActor.run {
+                recordingCoordinator.stopAllRecording()
+            }
+
+            // Wait briefly for Kanata to resume
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        }
+
         // Pre-flight check: Ensure kanata is running before attempting save
         guard kanataManager.isRunning else {
             AppLogger.shared.log("⚠️ [ContentView] Cannot save - kanata service is not running")
@@ -580,6 +616,11 @@ struct ContentView: View {
             return
         }
 
+        // Stop output recording if active before starting input
+        if recordingCoordinator.isOutputRecording() {
+            recordingCoordinator.toggleOutputRecording()
+        }
+
         recordingCoordinator.toggleInputRecording()
     }
 
@@ -592,6 +633,11 @@ struct ContentView: View {
         guard kanataManager.isCompletelyInstalled() else {
             showingInstallAlert = true
             return
+        }
+
+        // Stop input recording if active before starting output
+        if recordingCoordinator.isInputRecording() {
+            recordingCoordinator.toggleInputRecording()
         }
 
         recordingCoordinator.toggleOutputRecording()
@@ -648,7 +694,7 @@ struct ContentViewHeader: View {
     @EnvironmentObject var kanataManager: KanataViewModel // Phase 4: MVVM
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Button(action: {
                     AppLogger.shared.log(
@@ -666,6 +712,7 @@ struct ContentViewHeader: View {
 
                 Text("KeyPath")
                     .font(.largeTitle.weight(.bold))
+                    .fixedSize()
 
                 Spacer()
 
@@ -678,11 +725,13 @@ struct ContentViewHeader: View {
                     }
                 )
             }
+            .fixedSize(horizontal: false, vertical: true)
 
             Text("Record keyboard shortcuts and create custom key mappings")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-                .padding(.top, 0)
+                .fixedSize(horizontal: false, vertical: true)
+                .offset(y: 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
@@ -748,16 +797,25 @@ struct RecordingSection: View {
                 Button(action: {
                     coordinator.toggleSequenceMode()
                     coordinator.requestPlaceholders()
+
+                    // Show confirmation message
+                    let message = coordinator.isSequenceMode
+                        ? "Sequence mode\nCaptures keys pressed in order"
+                        : "Combo mode\nCaptures keys pressed together"
+                    onShowMessage(message)
                 }, label: {
                     Image(systemName: "list.number")
                         .font(.title2)
-                        .foregroundColor(.white)
+                        .foregroundColor(coordinator.isSequenceMode ? .white : .blue)
                 })
                 .buttonStyle(.plain)
                 .frame(width: 32, height: 32)
-                .appSolidGlassButton(tint: .blue, radius: 6)
+                .appSolidGlassButton(
+                    tint: coordinator.isSequenceMode ? .blue : Color(NSColor.textBackgroundColor),
+                    radius: 6
+                )
                 .cornerRadius(6)
-                .help(coordinator.isSequenceMode ? "Capture sequences of keys" : "Capture key combos")
+                .help(coordinator.isSequenceMode ? "Sequence Mode: ON\n\nCaptures keys pressed in order.\n\nClick to switch to Combo Mode (all keys at once)." : "Sequence Mode: OFF\n\nCaptures key combinations (all pressed together).\n\nClick to switch to Sequence Mode (one after another).")
                 .accessibilityIdentifier("sequence-mode-toggle")
                 .accessibilityLabel(coordinator.isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
                 .accessibilityHint("Toggle between combo capture and sequence capture modes")
@@ -1001,46 +1059,44 @@ struct StatusMessageView: View {
     let isVisible: Bool
 
     var body: some View {
-        Group {
-            if isVisible {
-                HStack(spacing: 12) {
-                    Image(systemName: iconName)
-                        .font(.title2)
-                        .foregroundColor(iconColor)
+        HStack(spacing: 12) {
+            // Icon with white circle background
+            ZStack {
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 28, height: 28)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(messageTitle)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-
-                        if let subtitle = messageSubtitle {
-                            Text(subtitle)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(backgroundColor)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(borderColor, lineWidth: 1)
-                        )
-                )
-                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                .transition(
-                    .asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .bottom).combined(with: .opacity)
-                    ))
+                Image(systemName: iconName)
+                    .font(.system(size: 28))
+                    .foregroundColor(iconColor)
             }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(messageTitle)
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                if let subtitle = messageSubtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+            }
+
+            Spacer()
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isVisible)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(backgroundColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(borderColor, lineWidth: 1)
+                )
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .transition(.opacity)
     }
 
     private var messageTitle: String {
@@ -1055,8 +1111,10 @@ struct StatusMessageView: View {
     private var iconName: String {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             "xmark.circle.fill"
+        } else if message.contains("paused") {
+            "pause.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
+            || message.contains("backed up")
         {
             "exclamationmark.triangle.fill"
         } else {
@@ -1078,25 +1136,25 @@ struct StatusMessageView: View {
 
     private var backgroundColor: Color {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
-            Color.red.opacity(0.1)
+            Color.red.opacity(0.85)
         } else if message.contains("⚠️") || message.contains("Config repaired")
             || message.contains("backed up") || message.contains("paused")
         {
-            Color.orange.opacity(0.1)
+            Color.orange.opacity(0.85)
         } else {
-            Color.green.opacity(0.1)
+            Color.green.opacity(0.85)
         }
     }
 
     private var borderColor: Color {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
-            Color.red.opacity(0.3)
+            Color.red.opacity(0.5)
         } else if message.contains("⚠️") || message.contains("Config repaired")
             || message.contains("backed up") || message.contains("paused")
         {
-            Color.orange.opacity(0.3)
+            Color.orange.opacity(0.5)
         } else {
-            Color.green.opacity(0.3)
+            Color.green.opacity(0.5)
         }
     }
 }

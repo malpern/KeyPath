@@ -23,7 +23,7 @@ struct WizardSummaryPage: View {
                 Group {
                     if isEverythingComplete {
                         WizardPageHeader(
-                            icon: "keyboard.badge.checkmark",
+                            icon: "checkmark.circle.fill",
                             title: "KeyPath Ready",
                             subtitle: "Your keyboard customization tool is fully configured",
                             status: .success
@@ -71,42 +71,17 @@ struct WizardSummaryPage: View {
     // MARK: - Helper Properties
 
     private var isEverythingComplete: Bool {
+        // CRITICAL: Trust the issues system - don't do additional file checks
+        // The SystemValidator/IssueGenerator is the single source of truth
+        // Any additional validation should be added there, not here
+
         // Check if system is active and running
         guard systemState == .active && kanataManager.isRunning else {
             return false
         }
 
         // Check that there are no issues
-        guard issues.isEmpty else {
-            return false
-        }
-
-        // Additional check: Verify TCP communication is properly configured
-        // NOTE: Kanata v1.9.0 TCP does NOT require authentication
-        // No token check needed - just verify service has TCP configuration
-
-        // Check if the LaunchDaemon plist exists and has TCP configuration
-        let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
-        let plistExists = FileManager.default.fileExists(atPath: plistPath)
-
-        guard plistExists else {
-            return false // Service plist doesn't exist
-        }
-
-        // Verify plist has TCP port argument
-        if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
-           let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String]
-        {
-            let hasTCPPort = args.contains("--port")
-            guard hasTCPPort else {
-                return false // Service uses old TCP configuration
-            }
-        } else {
-            return false // Can't read plist or parse arguments
-        }
-
-        // Everything is properly configured
-        return true
+        // If there are configuration problems, they will appear in the issues list
+        return issues.isEmpty
     }
 }

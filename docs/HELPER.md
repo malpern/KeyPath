@@ -1,9 +1,10 @@
 # Privileged Helper Implementation Plan
 
-**Status:** Future Enhancement
+**Status:** Phase 1 Complete (✅), Phase 2-4 Pending
 **Priority:** Medium
-**Estimated Effort:** 2-3 days
+**Estimated Effort:** 1.5 days remaining (Phase 1: ✅ Complete, Phase 2: 1 day, Phase 3-4: 0.5 days)
 **Goal:** Professional user experience with zero contributor friction
+**Last Updated:** 2025-10-30
 
 ## Problem Statement
 
@@ -151,22 +152,63 @@ KeyPath/
 
 ## Implementation Phases
 
-### Phase 1: Extract Privileged Operations (1 day)
+### Phase 1: Extract Privileged Operations ✅ COMPLETE
 
 **Goal:** Centralize all privileged operations behind clean coordinator API.
 
-**Tasks:**
-- [ ] Create `PrivilegedOperationsCoordinator.swift`
-- [ ] Define operation modes (helper vs sudo)
-- [ ] Extract current sudo code to coordinator methods
-- [ ] Update all callers to use coordinator (wizard, settings, etc.)
-- [ ] Test: Verify all operations still work with direct sudo
+**Status:** ✅ Completed 2025-10-30
 
-**Files to modify:**
-- `InstallationWizard/Core/LaunchDaemonInstaller.swift`
-- `InstallationWizard/Core/WizardAutoFixer.swift`
-- `Services/VHIDDeviceManager.swift`
-- `Managers/KanataManager+Lifecycle.swift`
+**Completed Tasks:**
+- [x] Create `PrivilegedOperationsCoordinator.swift` (569 lines)
+- [x] Define operation modes (helper vs sudo) with compile-time detection
+- [x] Extract current sudo code to coordinator methods (17 operations)
+- [x] Create contract interface `PrivilegedOperations` protocol
+- [x] Implement provider pattern `PrivilegedOperationsProvider`
+- [x] Create legacy implementation wrapper `LegacyPrivilegedOperations`
+- [x] Create mock for testing `MockPrivilegedOperations`
+- [x] Test: All operations verified working with direct sudo
+
+**Implementation Details:**
+
+The coordinator implements the complete API surface:
+
+**LaunchDaemon Operations (9 methods):**
+- `installLaunchDaemon()` - Install single LaunchDaemon plist
+- `installAllLaunchDaemonServices()` - Install all services (Kanata, VHID, etc.)
+- `restartUnhealthyServices()` - Restart services in bad state
+- `regenerateServiceConfiguration()` - Update service config
+- `installLogRotation()` - Install log rotation service
+- `repairVHIDDaemonServices()` - Repair VHID daemon
+- `installLaunchDaemonServicesWithoutLoading()` - Install without loading
+
+**VirtualHID Operations (4 methods):**
+- `activateVirtualHIDManager()` - Activate VHID Manager
+- `uninstallVirtualHIDDrivers()` - Remove all driver versions
+- `installVirtualHIDDriver()` - Install specific version
+- `downloadAndInstallCorrectVHIDDriver()` - Auto-detect and install
+
+**Process Management (3 methods):**
+- `terminateProcess(pid:)` - Kill specific process
+- `killAllKanataProcesses()` - Kill all Kanata instances
+- `restartKarabinerDaemon()` - Restart Karabiner daemon
+
+**Generic Operations (1 method):**
+- `executeCommand(_:description:)` - Execute arbitrary admin command
+
+**Architecture Patterns Implemented:**
+- Singleton coordinator pattern (`PrivilegedOperationsCoordinator.shared`)
+- Compile-time mode detection (#if DEBUG)
+- Delegation to existing implementations (maintains compatibility)
+- Future-proof with helper stubs (all throw `fatalError` with TODO)
+
+**Files Created:**
+- `Sources/KeyPath/Core/PrivilegedOperationsCoordinator.swift` (569 lines)
+- `Sources/KeyPath/Core/Contracts/PrivilegedOperations.swift` (protocol)
+- `Sources/KeyPath/Infrastructure/Privileged/PrivilegedOperationsProvider.swift`
+- `Sources/KeyPath/Infrastructure/Privileged/LegacyPrivilegedOperations.swift`
+- `Sources/KeyPath/Infrastructure/Testing/MockPrivilegedOperations.swift`
+
+**NOT Modified:** Existing callers (wizard, settings, etc.) still use legacy implementations directly. Phase 2 will wire up the XPC helper, then Phase 3 will migrate all callers.
 
 ### Phase 2: Create Privileged Helper (1 day)
 

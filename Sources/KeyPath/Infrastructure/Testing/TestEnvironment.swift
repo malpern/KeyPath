@@ -42,17 +42,33 @@ public enum TestEnvironment {
     }
 
     /// Force test mode (for manual testing)
-    @MainActor public static var forceTestMode: Bool = false {
-        didSet {
-            if forceTestMode {
+    /// Thread-safe: Uses atomic access pattern to avoid MainActor isolation issues
+    private static let _forceTestModeLock = NSLock()
+    private nonisolated(unsafe) static var _forceTestMode: Bool = false
+
+    @MainActor public static var forceTestMode: Bool {
+        get {
+            _forceTestModeLock.lock()
+            defer { _forceTestModeLock.unlock() }
+            return _forceTestMode
+        }
+        set {
+            _forceTestModeLock.lock()
+            _forceTestMode = newValue
+            _forceTestModeLock.unlock()
+
+            if newValue {
                 AppLogger.shared.log("🧪 [TestEnvironment] Force test mode enabled")
             }
         }
     }
 
     /// Combined check for any test-related behavior
+    /// Thread-safe: Can be called from any thread
     public static var isTestMode: Bool {
-        MainActor.assumeIsolated { forceTestMode } || isRunningTests
+        _forceTestModeLock.lock()
+        defer { _forceTestModeLock.unlock() }
+        return _forceTestMode || isRunningTests
     }
 
     /// Log test environment status

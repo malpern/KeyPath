@@ -219,8 +219,21 @@ public struct KanataConfiguration: Sendable {
     }
 
     /// Save configuration with key mappings
+    /// IMPORTANT: Validates config before saving - will throw on invalid config
     public func saveConfiguration(keyMappings: [KeyMapping]) async throws {
         let configContent = KanataConfiguration.generateFromMappings(keyMappings)
+
+        // VALIDATE BEFORE SAVING - prevent writing broken configs
+        AppLogger.shared.log("🔍 [ConfigService] Validating config before save...")
+        let validation = await validateConfiguration(configContent)
+
+        if !validation.isValid {
+            AppLogger.shared.log("❌ [ConfigService] Config validation failed: \(validation.errors.joined(separator: ", "))")
+            throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
+        }
+
+        AppLogger.shared.log("✅ [ConfigService] Config validation passed")
+
         try configContent.write(toFile: configurationPath, atomically: true, encoding: .utf8)
 
         // Update current configuration
@@ -671,22 +684,60 @@ public enum KanataKeyConverter {
 
     /// Convert KeyPath output sequence to Kanata output format
     public static func convertToKanataSequence(_ output: String) -> String {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+
         // Split on any whitespace
-        let tokens = output.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        let tokens = trimmed.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+
+        // Multiple whitespace-separated tokens (e.g., "cmd space") → chord/sequence
         if tokens.count > 1 {
             let kanataKeys = tokens.map { convertToKanataKey($0) }
             return "(\(kanataKeys.joined(separator: " ")))"
         }
 
-        // Single token: if it contains non-alphanumerics or is long, wrap as a sequence
-        let token = output
-        let isAlnumOnly = token.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) }
-        if !isAlnumOnly || token.count > 4 {
-            let safe = convertToKanataKey(token)
-            return "(\(safe))"
+        // Single token - check if it's a text sequence to type (e.g., "123", "hello")
+        let singleToken = tokens[0]
+
+        // If it's a multi-character string that looks like text to type (not a key name)
+        // Convert to macro for typing each character
+        if singleToken.count > 1 && shouldConvertToMacro(singleToken) {
+            // Split into individual characters and convert each to a key
+            let characters = Array(singleToken)
+            let keys = characters.map { String($0) }
+            return "(macro \(keys.joined(separator: " ")))"
         }
 
-        return convertToKanataKey(token)
+        // Single key: just convert the key name, no parentheses
+        return convertToKanataKey(singleToken)
+    }
+
+    /// Determine if a string should be converted to a macro (typed character by character)
+    /// vs treated as a single key name like "escape" or "tab"
+    private static func shouldConvertToMacro(_ token: String) -> Bool {
+        // Known key names that shouldn't be split into macros
+        let keyNames: Set<String> = [
+            "escape", "esc", "return", "ret", "enter",
+            "backspace", "bspc", "delete", "del",
+            "tab", "space", "spc",
+            "capslock", "caps", "capslk",
+            "leftshift", "lsft", "rightshift", "rsft",
+            "leftctrl", "lctl", "rightctrl", "rctl",
+            "leftalt", "lalt", "rightalt", "ralt",
+            "leftmeta", "lmet", "rightmeta", "rmet",
+            "leftcmd", "rightcmd", "cmd",
+            "up", "down", "left", "right",
+            "home", "end", "pageup", "pgup", "pagedown", "pgdn",
+            "f1", "f2", "f3", "f4", "f5", "f6",
+            "f7", "f8", "f9", "f10", "f11", "f12"
+        ]
+
+        // If it's a known key name, don't convert to macro
+        if keyNames.contains(token.lowercased()) {
+            return false
+        }
+
+        // If it contains multiple alphanumeric characters or symbols, treat as text to type
+        return token.count > 1
     }
 }
 

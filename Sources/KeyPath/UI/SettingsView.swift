@@ -867,8 +867,26 @@ struct SettingsView: View {
             do {
                 try await kanataManager.resetToDefaultConfig()
                 AppLogger.shared.log("✅ Successfully reset config to default")
+
+                // Show success toast
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("ShowUserFeedback"),
+                        object: nil,
+                        userInfo: ["message": "Configuration reset to default (Caps Lock → Escape)"]
+                    )
+                }
             } catch {
                 AppLogger.shared.log("❌ Failed to reset config: \(error)")
+
+                // Show error toast
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("ShowUserFeedback"),
+                        object: nil,
+                        userInfo: ["message": "❌ Failed to reset configuration: \(error.localizedDescription)"]
+                    )
+                }
             }
         }
     }

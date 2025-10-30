@@ -924,20 +924,10 @@ struct WizardPageHeader: View {
 
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.elementGap) {
-            // Icon circle
-            ZStack {
-                Circle()
-                    .fill(status.color.opacity(0.1))
-                    .frame(
-                        width: WizardDesign.Layout.statusCircleSize,
-                        height: WizardDesign.Layout.statusCircleSize
-                    )
-
-                Image(systemName: icon)
-                    .font(.system(size: 32)) // Reduced from iconSize (48)
-                    .foregroundColor(status.color)
-                    .symbolRenderingMode(.multicolor)
-            }
+            // Icon - green checkmark circle fills the space
+            Image(systemName: icon)
+                .font(.system(size: WizardDesign.Layout.statusCircleSize))
+                .foregroundColor(status.color)
 
             // Title
             Text(title)

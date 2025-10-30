@@ -437,6 +437,10 @@ public class KeyboardCapture: ObservableObject {
 
             lastKeyTime = now
 
+            // REAL-TIME UPDATE: Invoke callback immediately to show keys as they're pressed
+            let provisionalSequence = KeySequence(keys: capturedKeys, captureMode: .chord)
+            sequenceCallback?(provisionalSequence)
+
             // Reset chord timer
             chordTimer?.invalidate()
             chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { _ in
@@ -447,6 +451,10 @@ public class KeyboardCapture: ObservableObject {
             // Sequence capture - accumulate keys
             capturedKeys.append(keyPress)
             lastKeyTime = now
+
+            // REAL-TIME UPDATE: Invoke callback immediately to show keys as they're pressed
+            let provisionalSequence = KeySequence(keys: capturedKeys, captureMode: .sequence)
+            sequenceCallback?(provisionalSequence)
 
             // Reset sequence timer
             sequenceTimer?.invalidate()
