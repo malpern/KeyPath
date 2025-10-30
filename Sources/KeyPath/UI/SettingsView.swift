@@ -37,6 +37,11 @@ struct SettingsView: View {
     @State private var tempTCPTimeout = ""
     // Timer removed - now handled by SimpleKanataManager centrally
 
+    // Helper management state
+    @State private var helperStatus: String = "Checking..."
+    @State private var isInstallingHelper = false
+    @State private var helperError: String?
+
     private var kanataServiceStatus: String {
         switch kanataManager.currentState {
         case .running:
@@ -167,6 +172,8 @@ struct SettingsView: View {
                 configurationSection
                 Divider()
                 diagnosticsSection
+                Divider()
+                helperManagementSection
                 Divider()
                 notificationsSection
                 Divider()
@@ -322,6 +329,59 @@ struct SettingsView: View {
 
                 diagnosticSummaryView
             }
+        }
+    }
+
+    private var helperManagementSection: some View {
+        SettingsSection(title: "Privileged Helper") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Status:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text(helperStatus)
+                        .font(.subheadline)
+                        .foregroundColor(helperStatus == "Installed" ? .green : .secondary)
+                }
+
+                if let error = helperError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.vertical, 4)
+                }
+
+                SettingsButton(
+                    title: helperStatus == "Installed" ? "Reinstall Helper" : "Install Helper",
+                    systemImage: "shield.checkered",
+                    accessibilityId: "install-helper-button",
+                    accessibilityHint: "Install the privileged helper tool for secure system operations",
+                    action: {
+                        Task {
+                            await installHelper()
+                        }
+                    }
+                )
+                .disabled(isInstallingHelper)
+
+                if isInstallingHelper {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Text("Installing helper...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Text("The privileged helper enables secure system-level operations without repeated password prompts. Requires administrator authorization to install.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+        }
+        .onAppear {
+            checkHelperStatus()
         }
     }
 
@@ -1006,6 +1066,34 @@ struct SettingsView: View {
             }
         }
     }
+
+    // MARK: - Helper Management
+
+    private func checkHelperStatus() {
+        let isInstalled = HelperManager.shared.isHelperInstalled()
+        helperStatus = isInstalled ? "Installed" : "Not Installed"
+        AppLogger.shared.log("🔐 [Settings] Helper status: \(helperStatus)")
+    }
+
+    private func installHelper() async {
+        isInstallingHelper = true
+        helperError = nil
+        AppLogger.shared.log("🔐 [Settings] Starting helper installation...")
+
+        do {
+            try await HelperManager.shared.installHelper()
+            helperStatus = "Installed"
+            AppLogger.shared.log("✅ [Settings] Helper installed successfully")
+        } catch {
+            helperStatus = "Installation Failed"
+            helperError = error.localizedDescription
+            AppLogger.shared.log("❌ [Settings] Helper installation failed: \(error)")
+        }
+
+        isInstallingHelper = false
+    }
+
+    // MARK: - TCP Server Status
 
     @State private var tcpServerStatus = "Unknown"
 
