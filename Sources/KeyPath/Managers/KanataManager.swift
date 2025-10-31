@@ -578,8 +578,7 @@ class KanataManager {
 
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
-           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2")
-        {
+           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2") {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(
@@ -1252,8 +1251,7 @@ class KanataManager {
                     let components = line.components(separatedBy: "=")
                     if components.count >= 2,
                        let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
-                       let pid = Int(pidString)
-                    {
+                       let pid = Int(pidString) {
                         AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
                         return (true, pid)
                     }
@@ -1816,8 +1814,7 @@ class KanataManager {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -1825,14 +1822,12 @@ class KanataManager {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -1918,6 +1913,10 @@ class KanataManager {
 
     func startKarabinerDaemon() async -> Bool {
         await karabinerConflictService.startKarabinerDaemon()
+    }
+
+    func restartKarabinerDaemon() async -> Bool {
+        await karabinerConflictService.restartKarabinerDaemon()
     }
 
     func performTransparentInstallation() async -> Bool {
@@ -2197,7 +2196,7 @@ class KanataManager {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
                     }
                     self?.showingValidationAlert = false
-                },
+                }
             ]
 
             showingValidationAlert = true
@@ -2473,8 +2472,7 @@ class KanataManager {
 
         for line in lines {
             if line.contains("connect_failed asio.system:2")
-                || line.contains("connect_failed asio.system:61")
-            {
+                || line.contains("connect_failed asio.system:61") {
                 let shouldTriggerRecovery = await healthMonitor.recordConnectionFailure()
 
                 if shouldTriggerRecovery {
@@ -2524,11 +2522,9 @@ class KanataManager {
         await configurationService.validateConfiguration(config)
     }
 
-
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String
-    {
+        async throws -> String {
         // Try Claude API first, fallback to rule-based repair
         do {
             let prompt = """
@@ -2565,8 +2561,7 @@ class KanataManager {
 
     /// Fallback rule-based repair when Claude is not available
     private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String
-    {
+        async throws -> String {
         // Delegate to ConfigurationService for rule-based repair
         try await configurationService.repairConfiguration(config: config, errors: errors, mappings: mappings)
     }
@@ -2670,8 +2665,7 @@ class KanataManager {
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         // Delegate to ConfigurationService for backup and safe config application
         let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,
@@ -2767,7 +2761,9 @@ class KanataManager {
             throw NSError(domain: "ClaudeAPI", code: 1, userInfo: [NSLocalizedDescriptionKey: "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or store in Keychain."])
         }
 
-        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
+            throw NSError(domain: "ClaudeAPI", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid Claude API URL"])
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -2780,9 +2776,9 @@ class KanataManager {
             "messages": [
                 [
                     "role": "user",
-                    "content": prompt,
-                ],
-            ],
+                    "content": prompt
+                ]
+            ]
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -2822,7 +2818,7 @@ class KanataManager {
             kSecAttrService as String: "KeyPath",
             kSecAttrAccount as String: "claude-api-key",
             kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecMatchLimit as String: kSecMatchLimitOne
         ]
 
         var dataTypeRef: AnyObject?

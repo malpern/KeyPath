@@ -420,8 +420,8 @@ struct WizardKarabinerComponentsPage: View {
             }
 
             if success {
-                AppLogger.shared.log("✅ [Driver Repair] Automatic repair succeeded - refreshing status")
-                // Trigger status refresh
+                AppLogger.shared.log("✅ [Driver Repair] Automatic repair succeeded and verified")
+                // The restart method already verifies health, so just refresh UI
                 onRefresh()
             } else {
                 AppLogger.shared.log("❌ [Driver Repair] Automatic repair failed - showing installation guide")
@@ -439,7 +439,7 @@ struct WizardKarabinerComponentsPage: View {
             let success = await performAutoFix(.installLaunchDaemonServices)
 
             if success {
-                AppLogger.shared.log("✅ [Service Repair] Service repair succeeded - refreshing status")
+                AppLogger.shared.log("✅ [Service Repair] Service repair succeeded")
                 onRefresh()
             } else {
                 AppLogger.shared.log("❌ [Service Repair] Service repair failed - opening system settings")

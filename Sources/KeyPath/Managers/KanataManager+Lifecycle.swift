@@ -70,9 +70,14 @@ extension KanataManager {
         AppLogger.shared.log("🔧 [Recovery] Step 2: Waiting 2 seconds for keyboard release...")
         try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
-        // Step 3: Restart VirtualHID daemon
+        // Step 3: Restart VirtualHID daemon (uses new verified restart)
         AppLogger.shared.log("🔧 [Recovery] Step 3: Attempting to restart Karabiner daemon...")
-        await restartKarabinerDaemon()
+        let restartSuccess = await restartKarabinerDaemon()
+        if restartSuccess {
+            AppLogger.shared.log("✅ [Recovery] Karabiner daemon restart verified")
+        } else {
+            AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon restart failed or not verified")
+        }
 
         // Step 4: Wait before retry
         AppLogger.shared.log("🔧 [Recovery] Step 4: Waiting 3 seconds before retry...")
@@ -95,10 +100,11 @@ extension KanataManager {
         }
     }
 
-    func restartKarabinerDaemon() async {
+    /// Legacy coordinator-based restart - prefer the new bool-returning restartKarabinerDaemon()
+    func restartKarabinerDaemonLegacy() async {
         do {
             try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemon()
-            AppLogger.shared.log("🔧 [Recovery] Restarted Karabiner daemon")
+            AppLogger.shared.log("🔧 [Recovery] Restarted Karabiner daemon (legacy path)")
 
             // Wait a moment then check if it auto-restarts
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second

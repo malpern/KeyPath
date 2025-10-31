@@ -80,6 +80,10 @@ class WizardAutoFixer: AutoFixCapable {
 
     func canAutoFix(_ action: AutoFixAction) -> Bool {
         switch action {
+        case .installPrivilegedHelper:
+            true // We can always attempt to install the helper
+        case .reinstallPrivilegedHelper:
+            true // We can always attempt to reinstall the helper
         case .terminateConflictingProcesses:
             true // We can always attempt to terminate processes
         case .startKarabinerDaemon:
@@ -136,6 +140,10 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Attempting auto-fix: \(action)")
 
         switch action {
+        case .installPrivilegedHelper:
+            return await installPrivilegedHelper()
+        case .reinstallPrivilegedHelper:
+            return await reinstallPrivilegedHelper()
         case .terminateConflictingProcesses:
             return await terminateConflictingProcesses()
         case .startKarabinerDaemon:
@@ -177,6 +185,34 @@ class WizardAutoFixer: AutoFixCapable {
         case .fixDriverVersionMismatch:
             return await fixDriverVersionMismatch()
         }
+    }
+
+    // MARK: - Privileged Helper Management
+
+    private func installPrivilegedHelper() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Installing privileged helper")
+
+        do {
+            try await HelperManager.shared.installHelper()
+            AppLogger.shared.log("✅ [AutoFixer] Privileged helper installed successfully")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to install helper: \(error)")
+            return false
+        }
+    }
+
+    private func reinstallPrivilegedHelper() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Reinstalling privileged helper")
+
+        // First unregister if installed
+        if HelperManager.shared.isHelperInstalled() {
+            AppLogger.shared.log("ℹ️ [AutoFixer] Unregistering existing helper first")
+            await HelperManager.shared.disconnect()
+        }
+
+        // Then install
+        return await installPrivilegedHelper()
     }
 
     // MARK: - Driver Version Management
@@ -418,20 +454,24 @@ class WizardAutoFixer: AutoFixCapable {
         // Step 1: Try to clear Kanata log to reset connection health detection
         await clearKanataLog()
 
-        // Step 2: Prefer DriverKit daemon start; fall back to legacy restart if needed
-        AppLogger.shared.log("🔧 [AutoFixer] Attempting DriverKit daemon start")
-        var restartSuccess = await startKarabinerDaemon()
-        if !restartSuccess {
-            AppLogger.shared.log("⚠️ [AutoFixer] DriverKit start failed, using legacy restart")
-            restartSuccess = await legacyRestartVirtualHIDDaemon()
-        }
+        // Step 2: Use proper restart that kills all duplicates first
+        AppLogger.shared.log("🔧 [AutoFixer] Restarting VirtualHID daemon (kill duplicates + verify)")
+        let restartSuccess = await kanataManager.restartKarabinerDaemon()
 
         if restartSuccess {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully fixed VirtualHID connection health")
+            AppLogger.shared.log("✅ [AutoFixer] Successfully restarted VirtualHID daemon (verified healthy)")
             return true
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] VirtualHID daemon restart failed")
-            return false
+            AppLogger.shared.log("❌ [AutoFixer] VirtualHID daemon restart failed or verification failed")
+            // Fall back to legacy restart
+            AppLogger.shared.log("⚠️ [AutoFixer] Trying legacy restart as fallback")
+            let legacySuccess = await legacyRestartVirtualHIDDaemon()
+            if legacySuccess {
+                AppLogger.shared.log("✅ [AutoFixer] Legacy restart succeeded")
+            } else {
+                AppLogger.shared.log("❌ [AutoFixer] Legacy restart also failed")
+            }
+            return legacySuccess
         }
     }
 

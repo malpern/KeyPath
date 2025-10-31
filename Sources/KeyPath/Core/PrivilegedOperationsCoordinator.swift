@@ -1,11 +1,11 @@
-import Foundation
 import AppKit
+import Foundation
 
 /// Coordinates all privileged operations with hybrid approach (helper vs direct sudo)
 ///
 /// **Architecture:** This coordinator implements the hybrid strategy from HELPER.md
 /// - DEBUG builds: Use direct sudo (AuthorizationExecuteWithPrivileges)
-/// - RELEASE builds: Prefer privileged helper if available, fall back to sudo
+/// - RELEASE builds: Prefer privileged helper; fall back to sudo on failure
 ///
 /// **Usage:**
 /// ```swift
@@ -14,7 +14,6 @@ import AppKit
 /// ```
 @MainActor
 final class PrivilegedOperationsCoordinator {
-
     // MARK: - Singleton
 
     static let shared = PrivilegedOperationsCoordinator()
@@ -26,21 +25,18 @@ final class PrivilegedOperationsCoordinator {
     // MARK: - Operation Modes
 
     enum OperationMode {
-        case privilegedHelper  // XPC to root daemon (future: Phase 2)
-        case directSudo        // AuthorizationExecuteWithPrivileges (current)
+        case privilegedHelper // XPC to root daemon (future: Phase 2)
+        case directSudo // AuthorizationExecuteWithPrivileges (current)
     }
 
-    /// Determine which operation mode to use based on build configuration and helper availability
+    /// Determine which operation mode to use based on build configuration
     static var operationMode: OperationMode {
         #if DEBUG
-        // Debug builds always use direct sudo for easy contributor testing
-        return .directSudo
+            // Debug builds always use direct sudo for easy contributor testing
+            return .directSudo
         #else
-        // Release builds prefer helper if available, fall back to sudo
-        if HelperManager.shared.isHelperInstalled() {
+            // Release builds prefer helper by default; callers will fall back on errors
             return .privilegedHelper
-        }
-        return .directSudo
         #endif
     }
 
@@ -118,7 +114,12 @@ final class PrivilegedOperationsCoordinator {
 
         switch Self.operationMode {
         case .privilegedHelper:
-            try await helperRestartServices()
+            do {
+                try await helperRestartServices()
+            } catch {
+                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper restart failed; falling back to sudo path: \(error.localizedDescription)")
+                try await sudoRestartServices()
+            }
         case .directSudo:
             try await sudoRestartServices()
         }
@@ -130,7 +131,10 @@ final class PrivilegedOperationsCoordinator {
 
         switch Self.operationMode {
         case .privilegedHelper:
-            try await helperRegenerateConfig()
+            do { try await helperRegenerateConfig() } catch {
+                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper regenerate failed; falling back to sudo path: \(error.localizedDescription)")
+                try await sudoRegenerateConfig()
+            }
         case .directSudo:
             try await sudoRegenerateConfig()
         }
@@ -154,7 +158,10 @@ final class PrivilegedOperationsCoordinator {
 
         switch Self.operationMode {
         case .privilegedHelper:
-            try await helperRepairVHIDServices()
+            do { try await helperRepairVHIDServices() } catch {
+                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper repair VHID failed; falling back to sudo path: \(error.localizedDescription)")
+                try await sudoRepairVHIDServices()
+            }
         case .directSudo:
             try await sudoRepairVHIDServices()
         }
@@ -166,7 +173,10 @@ final class PrivilegedOperationsCoordinator {
 
         switch Self.operationMode {
         case .privilegedHelper:
-            try await helperInstallServicesWithoutLoading()
+            do { try await helperInstallServicesWithoutLoading() } catch {
+                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper install-without-loading failed; falling back to sudo path: \(error.localizedDescription)")
+                try await sudoInstallServicesWithoutLoading()
+            }
         case .directSudo:
             try await sudoInstallServicesWithoutLoading()
         }
@@ -249,15 +259,28 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Restart Karabiner VirtualHID daemon
+    /// Restart Karabiner VirtualHID daemon (legacy - no verification)
     func restartKarabinerDaemon() async throws {
-        AppLogger.shared.log("🔐 [PrivCoordinator] Restarting Karabiner daemon")
+        AppLogger.shared.log("🔐 [PrivCoordinator] Restarting Karabiner daemon (legacy)")
 
         switch Self.operationMode {
         case .privilegedHelper:
             try await helperRestartKarabinerDaemon()
         case .directSudo:
             try await sudoRestartKarabinerDaemon()
+        }
+    }
+
+    /// Restart Karabiner VirtualHID daemon with verification (kill all + start + verify)
+    /// Returns true if restart succeeded and daemon is healthy, false otherwise
+    func restartKarabinerDaemonVerified() async throws -> Bool {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Restarting Karabiner daemon (verified)")
+
+        switch Self.operationMode {
+        case .privilegedHelper:
+            return try await helperRestartKarabinerDaemonVerified()
+        case .directSudo:
+            return try await sudoRestartKarabinerDaemonVerified()
         }
     }
 
@@ -389,6 +412,13 @@ final class PrivilegedOperationsCoordinator {
         try await HelperManager.shared.restartKarabinerDaemon()
     }
 
+    private func helperRestartKarabinerDaemonVerified() async throws -> Bool {
+        // TODO: Implement verified restart via XPC helper
+        // For now, fall back to sudo implementation
+        AppLogger.shared.log("🔐 [PrivCoordinator] Helper verified restart not implemented, using sudo")
+        return try await sudoRestartKarabinerDaemonVerified()
+    }
+
     private func helperInstallBundledKanata() async throws {
         // TODO: Implement XPC call for bundled kanata installation
         // For now, fall back to sudo path
@@ -418,9 +448,9 @@ final class PrivilegedOperationsCoordinator {
     /// Install all LaunchDaemon services using consolidated single-prompt method
     /// This delegates to LaunchDaemonInstaller which has the complex multi-service logic
     private func sudoInstallAllServices(
-        kanataBinaryPath: String,
-        kanataConfigPath: String,
-        tcpPort: Int
+        kanataBinaryPath _: String,
+        kanataConfigPath _: String,
+        tcpPort _: Int
     ) async throws {
         // For now, this delegates to LaunchDaemonInstaller's existing implementation
         // Once we extract all the logic, we'll move it here
@@ -513,7 +543,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install VirtualHID driver using VHIDDeviceManager
-    private func sudoInstallDriver(version: String, downloadURL: String) async throws {
+    private func sudoInstallDriver(version _: String, downloadURL _: String) async throws {
         let vhidManager = VHIDDeviceManager()
         let success = await vhidManager.downloadAndInstallCorrectVersion()
 
@@ -553,13 +583,63 @@ final class PrivilegedOperationsCoordinator {
         try await sudoExecuteCommand(command, description: "Kill all Kanata processes")
     }
 
-    /// Restart Karabiner daemon
+    /// Restart Karabiner daemon (legacy - kill only, no verification)
     private func sudoRestartKarabinerDaemon() async throws {
         let killCommand = "/usr/bin/pkill -f Karabiner-VirtualHIDDevice-Daemon"
         try await sudoExecuteCommand(killCommand, description: "Restart Karabiner daemon")
 
         // Wait for daemon to restart
         try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+    }
+
+    /// Restart Karabiner daemon with verification (kill all + start + verify)
+    private func sudoRestartKarabinerDaemonVerified() async throws -> Bool {
+        let daemonPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+
+        // Step 1: Kill all daemon processes (SIGTERM → SIGKILL)
+        AppLogger.shared.log("🔐 [PrivCoordinator] Killing all VirtualHIDDevice daemon processes")
+        let killCommand = """
+        /usr/bin/pkill -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
+        sleep 0.3
+        /usr/bin/pkill -9 -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
+        """
+
+        do {
+            try await sudoExecuteCommand(killCommand, description: "Kill VirtualHIDDevice daemons")
+        } catch {
+            AppLogger.shared.log("⚠️ [PrivCoordinator] Kill failed (may be OK if no processes running): \(error)")
+        }
+
+        // Step 2: Wait for cleanup
+        try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+
+        // Step 3: Start exactly one new daemon (with proper path quoting)
+        AppLogger.shared.log("🔐 [PrivCoordinator] Starting VirtualHIDDevice daemon")
+        let startCommand = """
+        '\(daemonPath)' > /dev/null 2>&1 &
+        """
+
+        do {
+            try await sudoExecuteCommand(startCommand, description: "Start VirtualHIDDevice daemon")
+        } catch {
+            AppLogger.shared.log("❌ [PrivCoordinator] Failed to start daemon: \(error)")
+            return false
+        }
+
+        // Step 4: Wait for daemon to stabilize
+        try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+
+        // Step 5: Verify exactly one process is running
+        let vhidManager = VHIDDeviceManager()
+        let isHealthy = vhidManager.detectRunning()
+
+        if isHealthy {
+            AppLogger.shared.log("✅ [PrivCoordinator] Restart verified: daemon is healthy")
+            return true
+        } else {
+            AppLogger.shared.log("❌ [PrivCoordinator] Restart verification failed: daemon not healthy")
+            return false
+        }
     }
 
     /// Install bundled Kanata binary using LaunchDaemonInstaller
@@ -619,7 +699,7 @@ final class PrivilegedOperationsCoordinator {
 
     /// Escape a string for use in AppleScript
     private func escapeForAppleScript(_ string: String) -> String {
-        return string
+        string
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
             .replacingOccurrences(of: "\n", with: "\\n")
@@ -637,14 +717,14 @@ enum PrivilegedOperationError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .installationFailed(let message):
-            return "Installation failed: \(message)"
-        case .operationFailed(let message):
-            return "Operation failed: \(message)"
-        case .commandFailed(let description, let exitCode, let output):
-            return "Command failed (\(description)): exit code \(exitCode)\nOutput: \(output)"
-        case .executionError(let description, let error):
-            return "Execution error (\(description)): \(error.localizedDescription)"
+        case let .installationFailed(message):
+            "Installation failed: \(message)"
+        case let .operationFailed(message):
+            "Operation failed: \(message)"
+        case let .commandFailed(description, exitCode, output):
+            "Command failed (\(description)): exit code \(exitCode)\nOutput: \(output)"
+        case let .executionError(description, error):
+            "Execution error (\(description)): \(error.localizedDescription)"
         }
     }
 }

@@ -90,18 +90,21 @@ final class VHIDDeviceManager: @unchecked Sendable {
                 task.terminationStatus == 0
                     && !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
-            // Check for duplicate processes
+            // Check for duplicate processes - UNHEALTHY if more than one
             if isRunning {
                 let pids = output.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: .newlines)
                 let processCount = pids.filter { !$0.isEmpty }.count
                 if processCount > 1 {
-                    AppLogger.shared.log("⚠️ [VHIDManager] WARNING: Multiple VHIDDevice daemon processes detected (\(processCount)) - should only be 1")
-                    AppLogger.shared.log("⚠️ [VHIDManager] PIDs: \(pids.joined(separator: ", "))")
+                    AppLogger.shared.log("❌ [VHIDManager] UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount)) - should only be 1")
+                    AppLogger.shared.log("❌ [VHIDManager] PIDs: \(pids.joined(separator: ", "))")
+                    let duration = CFAbsoluteTimeGetCurrent() - startTime
+                    AppLogger.shared.log("🔍 [VHIDManager] VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)")
+                    return false // UNHEALTHY - duplicates must be fixed
                 }
             }
 
             let duration = CFAbsoluteTimeGetCurrent() - startTime
-            AppLogger.shared.log("🔍 [VHIDManager] VHIDDevice processes running: \(isRunning) (took \(String(format: "%.3f", duration))s)")
+            AppLogger.shared.log("🔍 [VHIDManager] VHIDDevice daemon health: \(isRunning ? "HEALTHY" : "NOT RUNNING") (took \(String(format: "%.3f", duration))s)")
             return isRunning
         } catch {
             AppLogger.shared.log("❌ [VHIDManager] Error checking VHIDDevice processes: \(error)")

@@ -59,8 +59,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
             let lines = output.components(separatedBy: .newlines)
             for line in lines {
                 if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"),
-                   line.contains("[activated enabled]")
-                {
+                   line.contains("[activated enabled]") {
                     AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
                     return true
                 }
@@ -243,7 +242,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         stopTask.arguments = [
             "-e",
-            "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\"",
+            "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\""
         ]
 
         do {
@@ -291,6 +290,25 @@ final class KarabinerConflictService: KarabinerConflictManaging {
             script: script,
             description: "Disable Karabiner Elements Services"
         )
+    }
+
+    /// Restarts the Karabiner daemon with verified kill + start + health check
+    /// Routes through PrivilegedOperationsCoordinator for unified privilege handling (helper-first, sudo fallback)
+    func restartKarabinerDaemon() async -> Bool {
+        AppLogger.shared.log("🔄 [Daemon] Restarting VirtualHIDDevice daemon (via coordinator)")
+
+        do {
+            let success = try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemonVerified()
+            if success {
+                AppLogger.shared.log("✅ [Daemon] Restart verified via coordinator")
+            } else {
+                AppLogger.shared.log("❌ [Daemon] Restart verification failed via coordinator")
+            }
+            return success
+        } catch {
+            AppLogger.shared.log("❌ [Daemon] Coordinator restart failed: \(error)")
+            return false
+        }
     }
 
     func startKarabinerDaemon() async -> Bool {
