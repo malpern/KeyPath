@@ -1,5 +1,6 @@
 import Foundation
 import os
+import SystemConfiguration
 
 /// Implementation of privileged operations for KeyPath
 ///
@@ -60,13 +61,11 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     func installAllLaunchDaemonServices(kanataBinaryPath: String, kanataConfigPath: String, tcpPort: Int, reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installAllLaunchDaemonServices requested (binary: \(kanataBinaryPath), port: \(tcpPort))")
+        NSLog("[KeyPathHelper] installAllLaunchDaemonServices requested (binary: \(kanataBinaryPath), cfg: \(kanataConfigPath), port: \(tcpPort))")
         executePrivilegedOperation(
             name: "installAllLaunchDaemonServices",
             operation: {
-                // TODO: Implement installation of all LaunchDaemon services
-                // Kanata, VHID Manager, VHID Daemon, etc.
-                throw HelperError.notImplemented("installAllLaunchDaemonServices")
+                try Self.installAllServices(kanataBinaryPath: kanataBinaryPath, kanataConfigPath: kanataConfigPath, tcpPort: tcpPort)
             },
             reply: reply
         )
@@ -77,8 +76,12 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installAllLaunchDaemonServicesWithPreferences",
             operation: {
-                // TODO: Implement installation using preferences
-                throw HelperError.notImplemented("installAllLaunchDaemonServicesWithPreferences")
+                let appBundle = Self.appBundlePathFromHelper()
+                let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+                let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root" // fallback
+                let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
+                let tcpPort = 37001
+                try Self.installAllServices(kanataBinaryPath: bundledKanata, kanataConfigPath: cfgPath, tcpPort: tcpPort)
             },
             reply: reply
         )
@@ -382,5 +385,182 @@ extension HelperService {
         </dict>
         </plist>
         """
+    }
+
+    // MARK: - LaunchDaemon service helpers
+    private static let kanataServiceID = "com.keypath.kanata"
+    private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
+    private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
+    private static let vhidDaemonPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+    private static let vhidManagerPath = "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
+
+    private static func appBundlePathFromHelper() -> String {
+        let exe = CommandLine.arguments.first ?? "/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper"
+        if let range = exe.range(of: "/Contents/Library/HelperTools/KeyPathHelper") {
+            return String(exe[..<range.lowerBound])
+        }
+        // Fallback to /Applications
+        return "/Applications/KeyPath.app"
+    }
+
+    private static func consoleUserHomeDirectory() -> String? {
+        var uid: uid_t = 0
+        var gid: gid_t = 0
+        if let name = SCDynamicStoreCopyConsoleUser(nil, &uid, &gid) as String? {
+            return "/Users/\(name)"
+        }
+        return nil
+    }
+
+    private static func kanataArguments(binaryPath: String, cfgPath: String, tcpPort: Int) -> [String] {
+        return [binaryPath, "--cfg", cfgPath, "--port", String(tcpPort), "--debug", "--log-layer-changes"]
+    }
+
+    private static func generateKanataPlist(binaryPath: String, cfgPath: String, tcpPort: Int) -> String {
+        let args = kanataArguments(binaryPath: binaryPath, cfgPath: cfgPath, tcpPort: tcpPort)
+        let argsXML = args.map { "                <string>\($0)</string>" }.joined(separator: "\n")
+        return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>\(kanataServiceID)</string>
+            <key>ProgramArguments</key>
+            <array>
+            \(argsXML)
+            </array>
+            <key>RunAtLoad</key>
+            <true/>
+            <key>KeepAlive</key>
+            <false/>
+            <key>StandardOutPath</key>
+            <string>/var/log/kanata.log</string>
+            <key>StandardErrorPath</key>
+            <string>/var/log/kanata.log</string>
+            <key>UserName</key>
+            <string>root</string>
+            <key>GroupName</key>
+            <string>wheel</string>
+            <key>ThrottleInterval</key>
+            <integer>10</integer>
+            <key>AssociatedBundleIdentifiers</key>
+            <array>
+                <string>com.keypath.KeyPath</string>
+            </array>
+        </dict>
+        </plist>
+        """
+    }
+
+    private static func generateVHIDDaemonPlist() -> String {
+        return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>\(vhidDaemonServiceID)</string>
+            <key>ProgramArguments</key>
+            <array>
+                <string>\(vhidDaemonPath)</string>
+            </array>
+            <key>RunAtLoad</key>
+            <true/>
+            <key>KeepAlive</key>
+            <true/>
+            <key>StandardOutPath</key>
+            <string>/var/log/karabiner-vhid-daemon.log</string>
+            <key>StandardErrorPath</key>
+            <string>/var/log/karabiner-vhid-daemon.log</string>
+            <key>UserName</key>
+            <string>root</string>
+            <key>GroupName</key>
+            <string>wheel</string>
+            <key>ThrottleInterval</key>
+            <integer>10</integer>
+        </dict>
+        </plist>
+        """
+    }
+
+    private static func generateVHIDManagerPlist() -> String {
+        return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>\(vhidManagerServiceID)</string>
+            <key>ProgramArguments</key>
+            <array>
+                <string>\(vhidManagerPath)</string>
+                <string>activate</string>
+            </array>
+            <key>RunAtLoad</key>
+            <true/>
+            <key>KeepAlive</key>
+            <false/>
+            <key>StandardOutPath</key>
+            <string>/var/log/karabiner-vhid-manager.log</string>
+            <key>StandardErrorPath</key>
+            <string>/var/log/karabiner-vhid-manager.log</string>
+            <key>UserName</key>
+            <string>root</string>
+            <key>GroupName</key>
+            <string>wheel</string>
+        </dict>
+        </plist>
+        """
+    }
+
+    static func installAllServices(kanataBinaryPath: String, kanataConfigPath: String, tcpPort: Int) throws {
+        // Write temp plists
+        let tmp = NSTemporaryDirectory()
+        let kanataPlist = generateKanataPlist(binaryPath: kanataBinaryPath, cfgPath: kanataConfigPath, tcpPort: tcpPort)
+        let vhidDPlist = generateVHIDDaemonPlist()
+        let vhidMPlist = generateVHIDManagerPlist()
+
+        let tKanata = (tmp as NSString).appendingPathComponent("\(kanataServiceID).plist")
+        let tVhidD = (tmp as NSString).appendingPathComponent("\(vhidDaemonServiceID).plist")
+        let tVhidM = (tmp as NSString).appendingPathComponent("\(vhidManagerServiceID).plist")
+        try kanataPlist.write(toFile: tKanata, atomically: true, encoding: .utf8)
+        try vhidDPlist.write(toFile: tVhidD, atomically: true, encoding: .utf8)
+        try vhidMPlist.write(toFile: tVhidM, atomically: true, encoding: .utf8)
+
+        let dstDir = "/Library/LaunchDaemons"
+        _ = run("/bin/mkdir", ["-p", dstDir])
+
+        let dKanata = (dstDir as NSString).appendingPathComponent("\(kanataServiceID).plist")
+        let dVhidD = (dstDir as NSString).appendingPathComponent("\(vhidDaemonServiceID).plist")
+        let dVhidM = (dstDir as NSString).appendingPathComponent("\(vhidManagerServiceID).plist")
+
+        for (src, dst) in [(tKanata, dKanata), (tVhidD, dVhidD), (tVhidM, dVhidM)] {
+            _ = run("/bin/rm", ["-f", dst])
+            let cp = run("/bin/cp", [src, dst])
+            if cp.status != 0 { throw HelperError.operationFailed("copy failed for \(dst): \(cp.out)") }
+            _ = run("/usr/sbin/chown", ["root:wheel", dst])
+            _ = run("/bin/chmod", ["644", dst])
+        }
+
+        // Register in dependency order
+        _ = run("/bin/launchctl", ["bootout", "system/\(vhidDaemonServiceID)"]) // ignore
+        _ = run("/bin/launchctl", ["bootout", "system/\(vhidManagerServiceID)"]) // ignore
+        _ = run("/bin/launchctl", ["bootout", "system/\(kanataServiceID)"]) // ignore
+
+        let bs1 = run("/bin/launchctl", ["bootstrap", "system", dVhidD])
+        if bs1.status != 0 { throw HelperError.operationFailed("bootstrap vhid-daemon failed: \(bs1.out)") }
+        let bs2 = run("/bin/launchctl", ["bootstrap", "system", dVhidM])
+        if bs2.status != 0 { throw HelperError.operationFailed("bootstrap vhid-manager failed: \(bs2.out)") }
+        let bs3 = run("/bin/launchctl", ["bootstrap", "system", dKanata])
+        if bs3.status != 0 { throw HelperError.operationFailed("bootstrap kanata failed: \(bs3.out)") }
+
+        _ = run("/bin/launchctl", ["enable", "system/\(vhidDaemonServiceID)"])
+        _ = run("/bin/launchctl", ["enable", "system/\(vhidManagerServiceID)"])
+        _ = run("/bin/launchctl", ["enable", "system/\(kanataServiceID)"])
+
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidDaemonServiceID)"])
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidManagerServiceID)"])
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(kanataServiceID)"])
     }
 }
