@@ -60,6 +60,22 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
+    /// Remove any installed SMJobBless helper and its daemon plist/logs (developer convenience)
+    func cleanupPrivilegedHelper() async throws {
+        AppLogger.shared.log("🧹 [PrivCoordinator] Cleaning up privileged helper (dev)")
+
+        // Use tolerant chain so cleanup succeeds even if some files are absent
+        let cmd = """
+        /bin/launchctl bootout system/com.keypath.helper || true; \
+        /bin/rm -f /Library/LaunchDaemons/com.keypath.helper.plist || true; \
+        /bin/rm -f /Library/PrivilegedHelperTools/com.keypath.helper || true; \
+        /bin/rm -f /var/log/com.keypath.helper.stdout.log /var/log/com.keypath.helper.stderr.log || true
+        """
+
+        try await sudoExecuteCommand(cmd, description: "Cleanup privileged helper")
+        AppLogger.shared.log("✅ [PrivCoordinator] Cleanup completed")
+    }
+
     /// Install all LaunchDaemon services with consolidated single-prompt method
     func installAllLaunchDaemonServices(
         kanataBinaryPath: String,

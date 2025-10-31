@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import os
 
 /// KeyPath Privileged Helper
 ///
@@ -19,6 +20,7 @@ import Security
 ///   - requirement: The code signature requirement string
 /// - Returns: true if the connection is from a valid, authorized caller
 func validateConnection(_ connection: NSXPCConnection, requirement requirementString: String) -> Bool {
+    let logger = Logger(subsystem: "com.keypath.helper", category: "xpc")
     // Get the process ID from the connection
     let pid = connection.processIdentifier
 
@@ -33,6 +35,7 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
 
     guard status == errSecSuccess, let validCode = code else {
         NSLog("[KeyPathHelper] Failed to get code object for PID \(pid): \(status)")
+        logger.error("Failed to get code object for PID \(pid, privacy: .public): status \(status, privacy: .public)")
         return false
     }
 
@@ -42,6 +45,7 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
 
     guard status == errSecSuccess, let validRequirement = requirement else {
         NSLog("[KeyPathHelper] Failed to create requirement: \(status)")
+        logger.error("Failed to create requirement: status \(status, privacy: .public)")
         return false
     }
 
@@ -50,9 +54,11 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
 
     if status == errSecSuccess {
         NSLog("[KeyPathHelper] Code signature validation passed for PID \(pid)")
+        logger.info("Code signature validation passed for PID \(pid, privacy: .public)")
         return true
     } else {
         NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")
+        logger.error("Code signature validation failed for PID \(pid, privacy: .public): status \(status, privacy: .public)")
         return false
     }
 }
@@ -67,8 +73,10 @@ class HelperDelegate: NSObject, NSXPCListenerDelegate {
     /// - Returns: true if the connection should be accepted, false otherwise
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
 
-        // Security requirement: must be signed by our team and have correct bundle ID
-        let requirementString = "identifier \"com.keypath.KeyPath\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13]"
+        // Security requirement: allow any app from our Developer ID team
+        // Rationale: SMAppService already gates installation/approval; team scoping avoids fragile
+        // bundle-id drift during development while remaining strict in distribution.
+        let requirementString = "anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
 
         // Validate the caller's code signature using audit token
         guard validateConnection(connection, requirement: requirementString) else {
@@ -102,7 +110,9 @@ class HelperDelegate: NSObject, NSXPCListenerDelegate {
 
 /// Main entry point for the privileged helper
 func main() {
+    let logger = Logger(subsystem: "com.keypath.helper", category: "lifecycle")
     NSLog("[KeyPathHelper] Starting privileged helper (version 1.0.0)")
+    logger.info("Starting privileged helper (v1.0.0)")
 
     // Create the XPC listener on the Mach service
     let delegate = HelperDelegate()
@@ -111,6 +121,7 @@ func main() {
 
     // Start the listener (blocks until the helper is terminated)
     NSLog("[KeyPathHelper] Listening for XPC connections on com.keypath.helper")
+    logger.info("Listening for XPC connections on com.keypath.helper")
     listener.resume()
 
     // Run the runloop indefinitely

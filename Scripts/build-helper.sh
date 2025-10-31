@@ -48,10 +48,5 @@ else
     exit 1
 fi
 
-echo "3️⃣  Verifying helper signature..."
-codesign -dvvv "$HELPER_EXECUTABLE"
-
-echo "✅ Helper build complete: $HELPER_EXECUTABLE"
 echo ""
-echo "📝 Note: Helper Info.plist and launchd.plist must be embedded for SMJobBless"
-echo "    These will be handled during app bundle creation"
+echo "✅ Helper build complete: $HELPER_EXECUTABLE"

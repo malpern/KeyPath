@@ -2,37 +2,25 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Bundle identifier (must match entitlements and LaunchDaemon) -->
+    <!-- Bundle identifier (must match LaunchDaemon Label and file name) -->
     <key>CFBundleIdentifier</key>
     <string>com.keypath.helper</string>
 
-    <!-- Bundle name -->
+    <!-- Helper name -->
     <key>CFBundleName</key>
     <string>KeyPathHelper</string>
 
-    <!-- Version (must match main app for upgrade detection) -->
+    <!-- Version (should match main app) -->
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
 
     <key>CFBundleVersion</key>
     <string>1</string>
 
-    <!-- Executable name -->
-    <key>CFBundleExecutable</key>
-    <string>KeyPathHelper</string>
-
-    <!-- Package type -->
-    <key>CFBundlePackageType</key>
-    <string>XPC!</string>
-
     <!-- Info dictionary version -->
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
 
-    <!-- SMJobBless: Clients that can install this helper -->
-    <key>SMAuthorizedClients</key>
-    <array>
-        <string>identifier "com.keypath.KeyPath" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13]</string>
-    </array>
+    <!-- SMAppService path: this helper is packaged inside the app bundle and registered by the host app. No SMAuthorizedClients needed. -->
 </dict>
 </plist>

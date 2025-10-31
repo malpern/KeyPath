@@ -6,13 +6,10 @@ import ServiceManagement
 /// This manager handles the XPC connection lifecycle and provides async/await wrappers
 /// around the helper's XPC protocol methods.
 ///
-/// **Architecture:**
-/// - Singleton pattern for app-wide access
-/// - Lazy connection establishment
-/// - Automatic reconnection on interruption
-/// - Thread-safe connection management
-@MainActor
-class HelperManager {
+/// Design:
+/// - Actor to serialize connection state without @unchecked Sendable.
+/// - SMJobBless calls hop to MainActor for Authorization UI safety.
+actor HelperManager {
 
     // MARK: - Singleton
 
@@ -23,14 +20,17 @@ class HelperManager {
     /// XPC connection to the privileged helper
     private var connection: NSXPCConnection?
 
-    /// Mach service name for the helper
-    private let helperMachServiceName = "com.keypath.helper"
+    /// Mach service name for the helper (type-level constant)
+    static let helperMachServiceName = "com.keypath.helper"
 
-    /// Bundle identifier for the helper
-    private let helperBundleIdentifier = "com.keypath.helper"
+    /// Bundle identifier / label for the helper (type-level constant)
+    static let helperBundleIdentifier = "com.keypath.helper"
+
+    /// LaunchDaemon plist name packaged inside the app bundle for SMAppService
+    static let helperPlistName = "com.keypath.helper.plist"
 
     /// Expected helper version (should match HelperService.version)
-    private let expectedHelperVersion = "1.0.0"
+    static let expectedHelperVersion = "1.0.0"
 
     /// Cached helper version (lazy loaded)
     private var cachedHelperVersion: String?
@@ -41,7 +41,7 @@ class HelperManager {
         AppLogger.shared.log("🔧 [HelperManager] Initialized")
     }
 
-    nonisolated deinit {
+    deinit {
         // Note: Cannot safely access MainActor-isolated connection from deinit
         // Connection will be invalidated when the XPC connection is deallocated
     }
@@ -58,26 +58,22 @@ class HelperManager {
         }
 
         // Create new connection
-        AppLogger.shared.log("🔗 [HelperManager] Creating XPC connection to \(helperMachServiceName)")
+        AppLogger.shared.log("🔗 [HelperManager] Creating XPC connection to \(Self.helperMachServiceName)")
 
-        let newConnection = NSXPCConnection(machServiceName: helperMachServiceName, options: .privileged)
+        let newConnection = NSXPCConnection(machServiceName: Self.helperMachServiceName, options: .privileged)
 
         // Set up the interface
         newConnection.remoteObjectInterface = NSXPCInterface(with: HelperProtocol.self)
 
         // Handle connection lifecycle
-        newConnection.invalidationHandler = { [weak self] in
+        newConnection.invalidationHandler = {
             AppLogger.shared.log("❌ [HelperManager] XPC connection invalidated")
-            Task { @MainActor in
-                self?.connection = nil
-            }
+            Task { await HelperManager.shared.clearConnection() }
         }
 
-        newConnection.interruptionHandler = { [weak self] in
+        newConnection.interruptionHandler = {
             AppLogger.shared.log("⚠️ [HelperManager] XPC connection interrupted - will reconnect")
-            Task { @MainActor in
-                self?.connection = nil
-            }
+            Task { await HelperManager.shared.clearConnection() }
         }
 
         // Start the connection
@@ -96,15 +92,18 @@ class HelperManager {
         connection = nil
     }
 
+    func clearConnection() {
+        connection?.invalidate()
+        connection = nil
+    }
+
     // MARK: - Helper Status
 
     /// Check if the privileged helper is installed and registered
     /// - Returns: true if helper is installed, false otherwise
     nonisolated func isHelperInstalled() -> Bool {
-        // Check if the helper is registered with SMJobBless
-        // This is a simplified check - in production we'd verify version and signature
-        let url = URL(fileURLWithPath: "/Library/PrivilegedHelperTools/\(helperBundleIdentifier)")
-        return FileManager.default.fileExists(atPath: url.path)
+        let svc = SMAppService.daemon(plistName: Self.helperPlistName)
+        return svc.status == .enabled
     }
 
     /// Get the version of the installed helper
@@ -122,20 +121,31 @@ class HelperManager {
         }
 
         do {
-            let proxy = try getRemoteProxy()
-
-            return await withCheckedContinuation { continuation in
+            let proxy = try getRemoteProxy { _ in /* proxy error handled by timeout path */ }
+            return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+                let sema = DispatchSemaphore(value: 0)
+                var gotVersion: String? = nil
                 proxy.getVersion { version, error in
                     if let version = version {
-                        AppLogger.shared.log("✅ [HelperManager] Helper version: \(version)")
-                        Task { @MainActor in
-                            self.cachedHelperVersion = version
-                        }
-                        continuation.resume(returning: version)
+                        gotVersion = version
                     } else {
-                        let errorMsg = error ?? "Unknown error"
-                        AppLogger.shared.log("❌ [HelperManager] Failed to get helper version: \(errorMsg)")
+                        let msg = error ?? "Unknown error"
+                        AppLogger.shared.log("❌ [HelperManager] getVersion callback error: \(msg)")
+                    }
+                    sema.signal()
+                }
+                DispatchQueue.global(qos: .utility).async {
+                    let waited = sema.wait(timeout: .now() + 3)
+                    if waited == .timedOut {
+                        AppLogger.shared.log("⚠️ [HelperManager] getVersion timed out")
                         continuation.resume(returning: nil)
+                    } else {
+                        if let v = gotVersion {
+                            AppLogger.shared.log("✅ [HelperManager] Helper version: \(v)")
+                            continuation.resume(returning: v)
+                        } else {
+                            continuation.resume(returning: nil)
+                        }
                     }
                 }
             }
@@ -152,11 +162,91 @@ class HelperManager {
             return false
         }
 
-        let compatible = helperVersion == expectedHelperVersion
+        let compatible = helperVersion == Self.expectedHelperVersion
         if !compatible {
-            AppLogger.shared.log("⚠️ [HelperManager] Version mismatch - expected: \(expectedHelperVersion), got: \(helperVersion)")
+            AppLogger.shared.log("⚠️ [HelperManager] Version mismatch - expected: \(Self.expectedHelperVersion), got: \(helperVersion)")
         }
         return compatible
+    }
+
+    // MARK: - Diagnostics
+
+    func runBlessDiagnostics() -> String {
+        let report = BlessDiagnostics.run()
+        return report.summarizedText()
+    }
+
+    // MARK: - Helper log surface (for UX when XPC fails)
+
+    /// Fetch the last N helper log messages (message text only)
+    /// Uses `log show` with a tight window to avoid heavy queries.
+    func lastHelperLogs(count: Int = 3, windowSeconds: Int = 300) -> [String] {
+        // First: if launchctl has no record of the job, surface that clearly.
+        do {
+            let p = Process()
+            p.launchPath = "/bin/launchctl"
+            p.arguments = ["print", "system/com.keypath.helper"]
+            let out = Pipe(); p.standardOutput = out; let err = Pipe(); p.standardError = err
+            try p.run(); p.waitUntilExit()
+            if p.terminationStatus != 0 {
+                let errData = err.fileHandleForReading.readDataToEndOfFile()
+                let errStr = String(data: errData, encoding: .utf8) ?? ""
+                if errStr.contains("Could not find service") || errStr.contains("Bad request") {
+                    return ["Helper not registered: launchctl has no job 'system/com.keypath.helper'", "Click ‘Install Helper’, then Test XPC again."]
+                }
+            }
+        } catch {
+            // Ignore; fall through to unified-log path
+        }
+        func fetch(_ seconds: Int) -> [String] {
+            let p = Process()
+            p.launchPath = "/usr/bin/log"
+            p.arguments = [
+                "show",
+                "--last", "\(seconds)s",
+                "--style", "syslog",
+                "--predicate",
+                "process == 'KeyPathHelper' OR processImagePath CONTAINS[c] 'KeyPathHelper'"
+            ]
+            let out = Pipe(); p.standardOutput = out; p.standardError = Pipe()
+            do { try p.run() } catch { return [] }
+            p.waitUntilExit()
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            guard let s = String(data: data, encoding: .utf8), !s.isEmpty else { return [] }
+            return s.split(separator: "\n").map(String.init)
+        }
+        // Try progressively larger windows
+        let windows = [max(60, windowSeconds), 1800, 86400]
+        var collected: [String] = []
+        for w in windows {
+            let lines = fetch(w)
+            // Extract message part after the first ': '
+            let messages = lines.compactMap { line -> String? in
+                guard let range = line.range(of: ": ") else { return nil }
+                let msg = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                return msg.isEmpty ? nil : msg
+            }
+            collected.append(contentsOf: messages)
+            if collected.count >= count { break }
+        }
+        if !collected.isEmpty {
+            return Array(collected.suffix(count))
+        }
+        // Fallback: check file logs if present
+        let fileCandidates = [
+            "/var/log/com.keypath.helper.stdout.log",
+            "/var/log/com.keypath.helper.stderr.log"
+        ]
+        for path in fileCandidates {
+            if FileManager.default.fileExists(atPath: path),
+               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) {
+                let data = try? handle.readToEnd()
+                let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                let lines = s.split(separator: "\n").map(String.init)
+                if !lines.isEmpty { return Array(lines.suffix(count)) }
+            }
+        }
+        return []
     }
 
     /// Check if helper needs upgrade (installed but wrong version)
@@ -174,45 +264,54 @@ class HelperManager {
     /// Install the privileged helper using SMJobBless
     /// - Throws: HelperManagerError if installation fails
     func installHelper() async throws {
-        AppLogger.shared.log("🔧 [HelperManager] Installing privileged helper")
+        AppLogger.shared.log("🔧 [HelperManager] Registering privileged helper via SMAppService")
+        guard #available(macOS 13, *) else {
+            throw HelperManagerError.installationFailed("Requires macOS 13+ for SMAppService")
+        }
 
-        // SMJobBless must be called from the main thread
-        return try await withCheckedThrowingContinuation { continuation in
-            var authRef: AuthorizationRef?
-
-            // Create authorization reference
-            let authStatus = AuthorizationCreate(
-                nil,
-                nil,
-                [.interactionAllowed, .extendRights, .preAuthorize],
-                &authRef
-            )
-
-            guard authStatus == errAuthorizationSuccess, let authRef = authRef else {
-                AppLogger.shared.log("❌ [HelperManager] Failed to create authorization")
-                continuation.resume(throwing: HelperManagerError.installationFailed("Authorization failed"))
+        let svc = SMAppService.daemon(plistName: Self.helperPlistName)
+        switch svc.status {
+        case .enabled:
+            // Enabled means the app has background-item approval, not necessarily that
+            // the daemon is registered. Attempt an idempotent register to ensure the
+            // system copies are installed. Treat enabled-after-call as success.
+            do {
+                try svc.register()
+                AppLogger.shared.log("✅ [HelperManager] Helper registered (was Enabled prior)")
                 return
+            } catch {
+                if svc.status == .enabled {
+                    AppLogger.shared.log("ℹ️ [HelperManager] Helper already Enabled; proceeding")
+                    return
+                }
+                throw HelperManagerError.installationFailed("SMAppService register (enabled path) failed: \(error.localizedDescription)")
             }
-
-            // Install the helper using SMJobBless
-            var error: Unmanaged<CFError>?
-            let success = SMJobBless(
-                kSMDomainSystemLaunchd,
-                helperBundleIdentifier as CFString,
-                authRef,
-                &error
-            )
-
-            // Free the authorization
-            AuthorizationFree(authRef, [])
-
-            if success {
-                AppLogger.shared.log("✅ [HelperManager] Privileged helper installed successfully")
-                continuation.resume()
-            } else {
-                let errorDescription = error?.takeRetainedValue().localizedDescription ?? "Unknown error"
-                AppLogger.shared.log("❌ [HelperManager] Failed to install helper: \(errorDescription)")
-                continuation.resume(throwing: HelperManagerError.installationFailed(errorDescription))
+        case .requiresApproval:
+            throw HelperManagerError.installationFailed("Approval required in System Settings → Login Items.")
+        case .notRegistered:
+            do {
+                try svc.register()
+                AppLogger.shared.log("✅ [HelperManager] Helper registered (status: \(svc.status))")
+                return
+            } catch {
+                // If another thread already registered or approval raced, treat Enabled as success
+                if svc.status == .enabled {
+                    AppLogger.shared.log("✅ [HelperManager] Helper became Enabled during registration race; treating as success")
+                    return
+                }
+                if svc.status == .requiresApproval {
+                    throw HelperManagerError.installationFailed("Approval required in System Settings → Login Items.")
+                }
+                throw HelperManagerError.installationFailed("SMAppService register failed: \(error.localizedDescription)")
+            }
+        case .notFound:
+            throw HelperManagerError.installationFailed("Helper plist not found in bundle; please reinstall KeyPath.")
+        @unknown default:
+            do {
+                try svc.register()
+                return
+            } catch {
+                throw HelperManagerError.installationFailed("SMAppService register failed: \(error.localizedDescription)")
             }
         }
     }
@@ -220,32 +319,26 @@ class HelperManager {
     /// Uninstall the privileged helper
     /// - Throws: HelperManagerError if uninstallation fails
     func uninstallHelper() async throws {
-        AppLogger.shared.log("🗑️ [HelperManager] Uninstalling privileged helper")
-
-        // Use launchctl to unload and remove the helper
-        let unloadCommand = "sudo launchctl unload /Library/LaunchDaemons/\(helperBundleIdentifier).plist"
-        let removeCommand = "sudo rm -f /Library/LaunchDaemons/\(helperBundleIdentifier).plist /Library/PrivilegedHelperTools/\(helperBundleIdentifier)"
-
-        // This would need proper authorization - for now, just a placeholder
-        // In production, this would use executeCommand or a similar mechanism
-        AppLogger.shared.log("⚠️ [HelperManager] Helper uninstall not yet implemented")
-        throw HelperManagerError.operationFailed("Helper uninstall not yet implemented")
+        AppLogger.shared.log("🗑️ [HelperManager] Unregistering privileged helper via SMAppService")
+        guard #available(macOS 13, *) else {
+            throw HelperManagerError.operationFailed("Requires macOS 13+ for SMAppService")
+        }
+        let svc = SMAppService.daemon(plistName: Self.helperPlistName)
+        do { try await svc.unregister() }
+        catch { throw HelperManagerError.operationFailed("SMAppService unregister failed: \(error.localizedDescription)") }
     }
 
     // MARK: - XPC Protocol Wrappers
 
-    /// Get the remote object proxy with proper error handling
-    /// - Returns: The remote object proxy conforming to HelperProtocol
-    /// - Throws: HelperError if connection fails
-    private func getRemoteProxy() throws -> HelperProtocol {
+    /// Get the remote object proxy with a per-call error handler so callers can resume awaits
+    private func getRemoteProxy(errorHandler: @escaping (Error) -> Void) throws -> HelperProtocol {
         let connection = try getConnection()
-
-        guard let proxy = connection.remoteObjectProxyWithErrorHandler({ error in
-            AppLogger.shared.log("❌ [HelperManager] XPC proxy error: \(error.localizedDescription)")
+        guard let proxy = connection.remoteObjectProxyWithErrorHandler({ err in
+            AppLogger.shared.log("❌ [HelperManager] XPC proxy error: \(err.localizedDescription)")
+            errorHandler(err)
         }) as? HelperProtocol else {
             throw HelperManagerError.connectionFailed("Failed to create remote proxy")
         }
-
         return proxy
     }
 
@@ -260,7 +353,7 @@ class HelperManager {
     ) async throws {
         AppLogger.shared.log("📤 [HelperManager] Calling \(name)")
 
-        let proxy = try getRemoteProxy()
+        let proxy = try getRemoteProxy { _ in }
 
         return try await withCheckedThrowingContinuation { continuation in
             call(proxy) { success, errorMessage in
@@ -357,7 +450,7 @@ class HelperManager {
     func terminateProcess(_ pid: Int32) async throws {
         AppLogger.shared.log("📤 [HelperManager] Calling terminateProcess(\(pid))")
 
-        let proxy = try getRemoteProxy()
+        let proxy = try getRemoteProxy { _ in }
 
         return try await withCheckedThrowingContinuation { continuation in
             proxy.terminateProcess(pid) { success, errorMessage in

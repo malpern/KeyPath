@@ -39,18 +39,19 @@ cp "$BUILD_DIR/KeyPath" "$MACOS/"
 cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 
 # Embed privileged helper for SMJobBless
-echo "📦 Embedding privileged helper..."
-LAUNCH_SERVICES="$CONTENTS/Library/LaunchServices"
-mkdir -p "$LAUNCH_SERVICES"
+echo "📦 Embedding privileged helper (SMAppService layout)..."
+HELPER_TOOLS="$CONTENTS/Library/HelperTools"
+LAUNCH_DAEMONS="$CONTENTS/Library/LaunchDaemons"
+mkdir -p "$HELPER_TOOLS" "$LAUNCH_DAEMONS"
 
-# Copy signed helper executable
-cp "$BUILD_DIR/KeyPathHelper" "$LAUNCH_SERVICES/com.keypath.helper"
+# Copy helper binary into bundle-local HelperTools
+cp "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
 
-# Copy helper's Info.plist and launchd.plist for SMJobBless
-cp "Sources/KeyPathHelper/Info.plist" "$LAUNCH_SERVICES/com.keypath.helper-Info.plist"
-cp "Sources/KeyPathHelper/launchd.plist" "$LAUNCH_SERVICES/com.keypath.helper-Launchd.plist"
+# Copy daemon plist into bundle-local LaunchDaemons with final name
+cp "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
 
-echo "✅ Helper embedded: $LAUNCH_SERVICES/com.keypath.helper"
+echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
+echo "✅ Daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
 
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
@@ -94,13 +95,13 @@ SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
 
 # Sign from innermost to outermost (helper -> kanata -> main app)
 
-# Sign privileged helper (already signed in build-helper.sh, but re-sign for consistency)
+# Sign privileged helper (bundle-local binary)
 HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
 codesign --force --options=runtime \
     --identifier "com.keypath.helper" \
     --entitlements "$HELPER_ENTITLEMENTS" \
     --sign "$SIGNING_IDENTITY" \
-    "$LAUNCH_SERVICES/com.keypath.helper"
+    "$HELPER_TOOLS/KeyPathHelper"
 
 # Sign bundled kanata binary (already signed in build-kanata.sh, but ensure consistency)
 codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS/Library/KeyPath/kanata"

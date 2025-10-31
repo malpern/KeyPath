@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.keypath.helper</string>
+
+    <!-- SMAppService: program path relative to the app bundle root -->
+    <key>BundleProgram</key>
+    <string>Contents/Library/HelperTools/KeyPathHelper</string>
+
+    <key>MachServices</key>
+    <dict>
+        <key>com.keypath.helper</key>
+        <true/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/var/log/com.keypath.helper.stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/var/log/com.keypath.helper.stderr.log</string>
+</dict>
+</plist>

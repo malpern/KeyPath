@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Implementation of privileged operations for KeyPath
 ///
@@ -10,11 +11,13 @@ class HelperService: NSObject, HelperProtocol {
 
     /// Helper version (must match app version for compatibility)
     private static let version = "1.0.0"
+    private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
 
     // MARK: - Version Management
 
     func getVersion(reply: @escaping (String?, String?) -> Void) {
         NSLog("[KeyPathHelper] getVersion requested")
+        logger.info("getVersion requested")
         reply(Self.version, nil)
     }
 
@@ -25,9 +28,32 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installLaunchDaemon",
             operation: {
-                // TODO: Implement LaunchDaemon installation
-                // Copy plistPath to /Library/LaunchDaemons/\(serviceID).plist
-                throw HelperError.notImplemented("installLaunchDaemon")
+                let fm = FileManager.default
+                let dest = "/Library/LaunchDaemons/\(serviceID).plist"
+
+                guard fm.fileExists(atPath: plistPath) else {
+                    throw HelperError.invalidArgument("plist not found: \(plistPath)")
+                }
+
+                // Ensure destination dir exists
+                try fm.createDirectory(atPath: "/Library/LaunchDaemons", withIntermediateDirectories: true)
+
+                // Copy into place (overwrite if exists)
+                if fm.fileExists(atPath: dest) { try fm.removeItem(atPath: dest) }
+                try fm.copyItem(atPath: plistPath, toPath: dest)
+
+                // Permissions and ownership
+                _ = Self.run("/bin/chmod", ["644", dest])
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", dest])
+
+                // Bootstrap (idempotent), then enable and kickstart
+                _ = Self.run("/bin/launchctl", ["bootout", "system/\(serviceID)"]) // ignore failure
+                let bs = Self.run("/bin/launchctl", ["bootstrap", "system", dest])
+                if bs.status != 0 {
+                    throw HelperError.operationFailed("launchctl bootstrap failed (status=\(bs.status)): \(bs.out)")
+                }
+                _ = Self.run("/bin/launchctl", ["enable", "system/\(serviceID)"])
+                _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(serviceID)"])
             },
             reply: reply
         )
@@ -87,8 +113,33 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installLogRotation",
             operation: {
-                // TODO: Implement log rotation service installation
-                throw HelperError.notImplemented("installLogRotation")
+                let scriptPath = "/usr/local/bin/keypath-logrotate.sh"
+                let plistPath = "/Library/LaunchDaemons/com.keypath.logrotate.plist"
+
+                let script = Self.generateLogRotationScript()
+                let plist = Self.generateLogRotationPlist(scriptPath: scriptPath)
+
+                // Write temp files then install atomically
+                let tmpDir = NSTemporaryDirectory()
+                let tmpScript = (tmpDir as NSString).appendingPathComponent("keypath-logrotate.sh")
+                let tmpPlist = (tmpDir as NSString).appendingPathComponent("com.keypath.logrotate.plist")
+                try script.write(toFile: tmpScript, atomically: true, encoding: .utf8)
+                try plist.write(toFile: tmpPlist, atomically: true, encoding: .utf8)
+
+                _ = Self.run("/bin/mkdir", ["-p", "/usr/local/bin"])
+                _ = Self.run("/bin/cp", [tmpScript, scriptPath])
+                _ = Self.run("/bin/chmod", ["755", scriptPath])
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", scriptPath])
+
+                _ = Self.run("/bin/cp", [tmpPlist, plistPath])
+                _ = Self.run("/bin/chmod", ["644", plistPath])
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", plistPath])
+
+                _ = Self.run("/bin/launchctl", ["bootout", "system/com.keypath.logrotate"]) // ignore failures
+                let bs = Self.run("/bin/launchctl", ["bootstrap", "system", plistPath])
+                if bs.status != 0 {
+                    throw HelperError.operationFailed("bootstrap logrotate failed (status=\(bs.status)): \(bs.out)")
+                }
             },
             reply: reply
         )
@@ -227,12 +278,15 @@ class HelperService: NSObject, HelperProtocol {
         do {
             try operation()
             NSLog("[KeyPathHelper] ✅ \(name) succeeded")
+            logger.info("\(name, privacy: .public) succeeded")
             reply(true, nil)
         } catch let error as HelperError {
             NSLog("[KeyPathHelper] ❌ \(name) failed: \(error.localizedDescription)")
+            logger.error("\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             reply(false, error.localizedDescription)
         } catch {
             NSLog("[KeyPathHelper] ❌ \(name) failed: \(error.localizedDescription)")
+            logger.error("\(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             reply(false, error.localizedDescription)
         }
     }
@@ -255,5 +309,78 @@ enum HelperError: Error, LocalizedError {
         case .invalidArgument(let reason):
             return "Invalid argument: \(reason)"
         }
+    }
+}
+
+// MARK: - Helpers
+extension HelperService {
+    @discardableResult
+    static func run(_ launchPath: String, _ args: [String]) -> (status: Int32, out: String) {
+        let p = Process()
+        p.launchPath = launchPath
+        p.arguments = args
+        let outPipe = Pipe(); p.standardOutput = outPipe; p.standardError = outPipe
+        do { try p.run() } catch { return (127, "run failed: \(error)") }
+        p.waitUntilExit()
+        let data = outPipe.fileHandleForReading.readDataToEndOfFile()
+        let s = String(data: data, encoding: .utf8) ?? ""
+        return (p.terminationStatus, s)
+    }
+
+    static func generateLogRotationScript() -> String {
+        return """
+        #!/bin/bash
+        set -euo pipefail
+        LOG_DIR="/Library/Logs/KeyPath"
+        mkdir -p "$LOG_DIR"
+        MAX_SIZE_BYTES=$((10 * 1024 * 1024))
+
+        rotate_log() {
+            local logfile="$1"
+            if [[ -f "$logfile" ]]; then
+                local size=$(stat -f%z "$logfile" 2>/dev/null || echo 0)
+                if [[ $size -gt $MAX_SIZE_BYTES ]]; then
+                    echo "$(date): Rotating $logfile (size: $size bytes)"
+                    [[ -f "$logfile.1" ]] && rm -f "$logfile.1"
+                    mv "$logfile" "$logfile.1"
+                    touch "$logfile" && chmod 644 "$logfile" && chown root:wheel "$logfile" 2>/dev/null || true
+                    echo "$(date): Log rotation completed for $logfile"
+                fi
+            fi
+        }
+
+        rotate_log "$LOG_DIR/kanata.log"
+        for logfile in "$LOG_DIR"/keypath*.log; do
+            [[ -f "$logfile" ]] && rotate_log "$logfile"
+        done
+        """
+    }
+
+    static func generateLogRotationPlist(scriptPath: String) -> String {
+        return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>com.keypath.logrotate</string>
+            <key>ProgramArguments</key>
+            <array>
+                <string>\(scriptPath)</string>
+            </array>
+            <key>StartCalendarInterval</key>
+            <dict>
+                <key>Minute</key>
+                <integer>0</integer>
+            </dict>
+            <key>StandardOutPath</key>
+            <string>/var/log/keypath-logrotate.log</string>
+            <key>StandardErrorPath</key>
+            <string>/var/log/keypath-logrotate.log</string>
+            <key>UserName</key>
+            <string>root</string>
+        </dict>
+        </plist>
+        """
     }
 }

@@ -42,6 +42,11 @@ let package = Package(
             name: "KeyPathHelper",
             dependencies: [],
             path: "Sources/KeyPathHelper",
+            exclude: [
+                "Info.plist",
+                "com.keypath.helper.plist",
+                "KeyPathHelper.entitlements"
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))

@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 
 // MARK: - File Navigation (1,352 lines)
 
@@ -41,6 +42,11 @@ struct SettingsView: View {
     @State private var helperStatus: String = "Checking..."
     @State private var isInstallingHelper = false
     @State private var helperError: String?
+    @State private var helperFailureDetail: String? = nil
+    @State private var helperLogLines: [String] = []
+    @State private var helperLogsExpanded: Bool = false
+    @State private var helperSuccessDetail: String? = nil
+    @State private var needsHelperUpgradeFlag: Bool = false
 
     private var kanataServiceStatus: String {
         switch kanataManager.currentState {
@@ -344,6 +350,28 @@ struct SettingsView: View {
                         .foregroundColor(helperStatus == "Installed" ? .green : .secondary)
                 }
 
+                HStack(spacing: 6) {
+                    Text("Background Item:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(backgroundItemStatus)
+                        .font(.caption)
+                        .foregroundColor(backgroundItemNeedsApproval ? .orange : (backgroundItemStatus == "Enabled" ? .green : .secondary))
+                    if backgroundItemNeedsApproval {
+                        Text("(Requires approval)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                        Button("Open Login Items") {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+                                NSWorkspace.shared.open(url)
+                                AppLogger.shared.log("🔗 [Settings] Opened Login Items from inline hint")
+                            }
+                        }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                    }
+                }
+
                 if let error = helperError {
                     Text(error)
                         .font(.caption)
@@ -352,7 +380,7 @@ struct SettingsView: View {
                 }
 
                 SettingsButton(
-                    title: helperStatus == "Installed" ? "Reinstall Helper" : "Install Helper",
+                    title: needsHelperUpgradeFlag ? "Reinstall Helper" : "Install Helper",
                     systemImage: "shield.checkered",
                     accessibilityId: "install-helper-button",
                     accessibilityHint: "Install the privileged helper tool for secure system operations",
@@ -364,11 +392,160 @@ struct SettingsView: View {
                 )
                 .disabled(isInstallingHelper)
 
+                SettingsButton(
+                    title: "Run Helper Diagnostics",
+                    systemImage: "wrench.and.screwdriver",
+                    accessibilityId: "run-helper-diagnostics",
+                    accessibilityHint: "Check packaging, signatures, and installation state for the privileged helper",
+                    action: {
+                        Task {
+                            let summary = await HelperManager.shared.runBlessDiagnostics()
+                            AppLogger.shared.log("🔎 [Settings] Bless diagnostics:\n\(summary)")
+                            helperError = summary
+                        }
+                    }
+                )
+
+                // Two buttons per row, then Test XPC on its own row
+                HStack(spacing: 12) {
+                    SettingsButton(
+                        title: "Open Login Items",
+                        systemImage: "gear",
+                        accessibilityId: "open-login-items",
+                        accessibilityHint: "Open System Settings to Login Items to approve background item",
+                        action: {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+                                NSWorkspace.shared.open(url)
+                                AppLogger.shared.log("🔗 [Settings] Opened Login Items in System Settings")
+                            }
+                        }
+                    )
+                    .frame(maxWidth: .infinity)
+                    if backgroundItemNeedsApproval {
+                        SettingsButton(
+                            title: "Retry",
+                            systemImage: "arrow.clockwise",
+                            accessibilityId: "retry-helper-registration",
+                            accessibilityHint: "Retry registering the helper after granting approval",
+                            action: {
+                                Task {
+                                    do {
+                                        try await HelperManager.shared.installHelper()
+                                        AppLogger.shared.log("✅ [Settings] Helper registration retried successfully")
+                                        checkHelperStatus()
+                                    } catch {
+                                        helperError = error.localizedDescription
+                                        AppLogger.shared.log("❌ [Settings] Retry registration failed: \(error.localizedDescription)")
+                                    }
+                                }
+                            }
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+
+                SettingsButton(
+                    title: "Test XPC",
+                    systemImage: "link",
+                    accessibilityId: "test-xpc",
+                    accessibilityHint: "Attempt an XPC getVersion() call to the helper",
+                    action: {
+                        Task {
+                            await MainActor.run {
+                                helperStatus = "Testing XPC…"
+                                helperFailureDetail = nil
+                                helperLogLines = []
+                                helperLogsExpanded = false
+                                helperSuccessDetail = nil
+                            }
+                            if let version = await HelperManager.shared.getHelperVersion() {
+                                await MainActor.run {
+                                    helperStatus = "Installed (v\(version))"
+                                    helperSuccessDetail = "XPC connection OK (v\(version))"
+                                }
+                                AppLogger.shared.log("✅ [Settings] XPC test succeeded – helper v\(version)")
+                            } else {
+                                await MainActor.run { helperStatus = "Installed (XPC failed)" }
+                                AppLogger.shared.log("❌ [Settings] XPC test failed")
+                                let lines = await HelperManager.shared.lastHelperLogs(count: 3)
+                                let body = lines.isEmpty ? "No recent helper logs" : lines.joined(separator: "\n")
+                                await MainActor.run {
+                                    helperLogLines = lines
+                                    helperFailureDetail = "Last helper log(s):\n\(body)"
+                                }
+                            }
+                        }
+                    }
+                )
+                .frame(maxWidth: .infinity)
+                if let ok = helperSuccessDetail {
+                    Text(ok)
+                        .font(.caption)
+                        .foregroundColor(.green)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if let detail = helperFailureDetail, !detail.isEmpty {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // Expander for additional helper logs when troubleshooting
+                    if !helperLogLines.isEmpty {
+                        HStack {
+                            Spacer()
+                            Button(helperLogsExpanded ? "Show less" : "Show more…") {
+                                Task { @MainActor in
+                                    helperLogsExpanded.toggle()
+                                    let count = helperLogsExpanded ? 10 : 3
+                                    let lines = await HelperManager.shared.lastHelperLogs(count: count)
+                                    helperLogLines = lines
+                                    let body = lines.isEmpty ? "No recent helper logs" : lines.joined(separator: "\n")
+                                    helperFailureDetail = "Last helper log(s):\n\(body)"
+                                }
+                            }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                        }
+                    }
+                }
+
+                SettingsButton(
+                    title: "Cleanup Stale Helper",
+                    systemImage: "trash",
+                    accessibilityId: "cleanup-helper-dev",
+                    accessibilityHint: "Remove installed helper, plist, and logs with admin rights",
+                    action: {
+                        Task { @MainActor in
+                            do {
+                                try await PrivilegedOperationsCoordinator.shared.cleanupPrivilegedHelper()
+                                helperStatus = "Not Installed"
+                                AppLogger.shared.log("🧹 [Settings] Cleanup done; refreshing status")
+                                checkHelperStatus()
+                            } catch {
+                                helperError = error.localizedDescription
+                                AppLogger.shared.log("❌ [Settings] Cleanup failed: \(error.localizedDescription)")
+                            }
+                        }
+                    }
+                )
+
                 if isInstallingHelper {
                     HStack {
                         ProgressView()
                             .scaleEffect(0.7)
                         Text("Installing helper...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                if isWaitingForApproval {
+                    HStack {
+                        ProgressView().scaleEffect(0.7)
+                        Text("Waiting for approval in Login Items…")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -380,9 +557,8 @@ struct SettingsView: View {
                     .multilineTextAlignment(.leading)
             }
         }
-        .onAppear {
-            checkHelperStatus()
-        }
+        .onAppear { checkHelperStatus() }
+        .onDisappear { autoApprovalTask?.cancel(); autoApprovalTask = nil }
     }
 
     private var notificationsSection: some View {
@@ -1070,9 +1246,150 @@ struct SettingsView: View {
     // MARK: - Helper Management
 
     private func checkHelperStatus() {
-        let isInstalled = HelperManager.shared.isHelperInstalled()
-        helperStatus = isInstalled ? "Installed" : "Not Installed"
-        AppLogger.shared.log("🔐 [Settings] Helper status: \(helperStatus)")
+        // Prefer SMAppService status first (authoritative for install state)
+        if #available(macOS 13.0, *) {
+            let svc = SMAppService.daemon(plistName: "com.keypath.helper.plist")
+            let status = svc.status
+            switch status {
+            case .enabled:
+                // Treat as installed and probe XPC for version
+                Task {
+                    if let version = await HelperManager.shared.getHelperVersion() {
+                        await MainActor.run {
+                            helperStatus = "Installed (v\(version))"
+                            AppLogger.shared.log("🔐 [Settings] Helper status: \(helperStatus) - XPC communication working!")
+                        }
+                    } else {
+                        await MainActor.run {
+                            helperStatus = "Installed (XPC failed)"
+                            AppLogger.shared.log("⚠️ [Settings] Helper installed but XPC communication failed")
+                        }
+                    }
+                }
+            case .requiresApproval:
+                helperStatus = "Not Installed"
+            case .notRegistered:
+                helperStatus = "Not Installed"
+            case .notFound:
+                helperStatus = "Not Installed"
+            @unknown default:
+                helperStatus = "Not Installed"
+            }
+        } else {
+            let isInstalled = HelperManager.shared.isHelperInstalled()
+
+            if isInstalled {
+                // Test XPC communication by getting version
+                Task {
+                    if let version = await HelperManager.shared.getHelperVersion() {
+                        await MainActor.run {
+                            helperStatus = "Installed (v\(version))"
+                            AppLogger.shared.log("🔐 [Settings] Helper status: \(helperStatus) - XPC communication working!")
+                        }
+                    } else {
+                        await MainActor.run {
+                            helperStatus = "Installed (XPC failed)"
+                            AppLogger.shared.log("⚠️ [Settings] Helper installed but XPC communication failed")
+                        }
+                    }
+                }
+            } else {
+                helperStatus = "Not Installed"
+                AppLogger.shared.log("🔐 [Settings] Helper status: \(helperStatus)")
+            }
+        }
+
+        // Also refresh SMAppService registration status
+        refreshHelperRegistrationStatus()
+
+        // Determine if helper needs upgrade (for Reinstall button visibility)
+        Task {
+            let needs = await HelperManager.shared.needsHelperUpgrade()
+            await MainActor.run { needsHelperUpgradeFlag = needs }
+        }
+    }
+
+    @State private var backgroundItemStatus: String = "Unknown"
+    @State private var backgroundItemNeedsApproval: Bool = false
+    @State private var autoApprovalTask: Task<Void, Never>? = nil
+    @State private var isWaitingForApproval: Bool = false
+
+    private func refreshHelperRegistrationStatus() {
+        if #available(macOS 13.0, *) {
+            let svc = SMAppService.daemon(plistName: "com.keypath.helper.plist")
+            let status = svc.status
+            switch status {
+            case .enabled:
+                backgroundItemStatus = "Enabled"
+                backgroundItemNeedsApproval = false
+                isWaitingForApproval = false
+                autoApprovalTask?.cancel(); autoApprovalTask = nil
+            case .requiresApproval:
+                backgroundItemStatus = "Requires Approval"
+                backgroundItemNeedsApproval = true
+                if autoApprovalTask == nil {
+                    startAutoApprovalWatcher()
+                }
+            case .notRegistered:
+                backgroundItemStatus = "Not Registered"
+                backgroundItemNeedsApproval = false
+            case .notFound:
+                backgroundItemStatus = "Not Found"
+                backgroundItemNeedsApproval = false
+            @unknown default:
+                backgroundItemStatus = String(describing: status)
+                backgroundItemNeedsApproval = false
+            }
+        } else {
+            backgroundItemStatus = "Unsupported"
+            backgroundItemNeedsApproval = false
+        }
+    }
+
+    private func startAutoApprovalWatcher() {
+        guard autoApprovalTask == nil else { return }
+        isWaitingForApproval = true
+        autoApprovalTask = Task {
+            if #available(macOS 13.0, *) {
+                let svc = SMAppService.daemon(plistName: "com.keypath.helper.plist")
+                let deadline = Date().addingTimeInterval(60)
+                var lastStatus = svc.status
+                while !Task.isCancelled && Date() < deadline {
+                    let status = svc.status
+                    await MainActor.run {
+                        switch status {
+                        case .enabled:
+                            backgroundItemStatus = "Enabled"
+                            backgroundItemNeedsApproval = false
+                            isWaitingForApproval = false
+                        case .requiresApproval:
+                            backgroundItemStatus = "Requires Approval"
+                            backgroundItemNeedsApproval = true
+                        case .notRegistered:
+                            backgroundItemStatus = "Not Registered"
+                            backgroundItemNeedsApproval = false
+                        case .notFound:
+                            backgroundItemStatus = "Not Found"
+                            backgroundItemNeedsApproval = false
+                        @unknown default:
+                            backgroundItemStatus = String(describing: status)
+                            backgroundItemNeedsApproval = false
+                        }
+                    }
+                    if status == .enabled {
+                        await checkHelperStatus()
+                        break
+                    }
+                    if lastStatus == .requiresApproval && status == .notRegistered {
+                        // Approval likely granted; attempt registration automatically
+                        do { try await HelperManager.shared.installHelper() } catch { }
+                    }
+                    lastStatus = status
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                }
+            }
+            await MainActor.run { isWaitingForApproval = false; autoApprovalTask = nil }
+        }
     }
 
     private func installHelper() async {
@@ -1082,12 +1399,15 @@ struct SettingsView: View {
 
         do {
             try await HelperManager.shared.installHelper()
-            helperStatus = "Installed"
             AppLogger.shared.log("✅ [Settings] Helper installed successfully")
+            // Test XPC communication
+            checkHelperStatus()
         } catch {
             helperStatus = "Installation Failed"
             helperError = error.localizedDescription
             AppLogger.shared.log("❌ [Settings] Helper installation failed: \(error)")
+            // If approval is needed, start watcher
+            refreshHelperRegistrationStatus()
         }
 
         isInstallingHelper = false

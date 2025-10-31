@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Local release build script - signs but doesn't notarize
-# For testing helper functionality before distribution
+# Local release build script — signs (Developer ID) but doesn't notarize
+# For testing SMAppService helper functionality before distribution
 
 set -e  # Exit on any error
 
@@ -28,6 +28,8 @@ rm -rf "$DIST_DIR"
 mkdir -p "$MACOS"
 mkdir -p "$RESOURCES"
 mkdir -p "$CONTENTS/Library/KeyPath"
+mkdir -p "$CONTENTS/Library/HelperTools"
+mkdir -p "$CONTENTS/Library/LaunchDaemons"
 
 # Copy main executable
 cp "$BUILD_DIR/KeyPath" "$MACOS/"
@@ -35,19 +37,13 @@ cp "$BUILD_DIR/KeyPath" "$MACOS/"
 # Copy bundled kanata binary
 cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 
-# Embed privileged helper for SMJobBless
-echo "📦 Embedding privileged helper..."
-LAUNCH_SERVICES="$CONTENTS/Library/LaunchServices"
-mkdir -p "$LAUNCH_SERVICES"
-
-# Copy signed helper executable
-cp "$BUILD_DIR/KeyPathHelper" "$LAUNCH_SERVICES/com.keypath.helper"
-
-# Copy helper's Info.plist and launchd.plist for SMJobBless
-cp "Sources/KeyPathHelper/Info.plist" "$LAUNCH_SERVICES/com.keypath.helper-Info.plist"
-cp "Sources/KeyPathHelper/launchd.plist" "$LAUNCH_SERVICES/com.keypath.helper-Launchd.plist"
-
-echo "✅ Helper embedded: $LAUNCH_SERVICES/com.keypath.helper"
+echo "📦 Embedding privileged helper (SMAppService layout)..."
+# Copy helper binary into bundle-local HelperTools
+cp "$BUILD_DIR/KeyPathHelper" "$CONTENTS/Library/HelperTools/KeyPathHelper"
+# Copy daemon plist into bundle-local LaunchDaemons with final name
+cp "Sources/KeyPathHelper/com.keypath.helper.plist" "$CONTENTS/Library/LaunchDaemons/com.keypath.helper.plist"
+echo "✅ Helper embedded: $CONTENTS/Library/HelperTools/KeyPathHelper"
+echo "✅ Daemon plist embedded: $CONTENTS/Library/LaunchDaemons/com.keypath.helper.plist"
 
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
@@ -86,24 +82,21 @@ cat > "$RESOURCES/BuildInfo.plist" <<EOF
 </plist>
 EOF
 
-echo "✍️  Signing executables (ad-hoc for local testing)..."
+echo "✍️  Signing executables (Developer ID for SMAppService testing)..."
+SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
 
-# Sign with ad-hoc signature (no Developer ID needed)
-# This allows local testing without notarization
-
-# Sign privileged helper
-codesign --force --sign - \
+# Sign privileged helper (bundle-local binary)
+codesign --force --options=runtime \
     --identifier "com.keypath.helper" \
     --entitlements "Sources/KeyPathHelper/KeyPathHelper.entitlements" \
-    "$LAUNCH_SERVICES/com.keypath.helper"
+    --sign "$SIGNING_IDENTITY" \
+    "$CONTENTS/Library/HelperTools/KeyPathHelper"
 
 # Sign bundled kanata binary
-codesign --force --sign - "$CONTENTS/Library/KeyPath/kanata"
+codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$CONTENTS/Library/KeyPath/kanata"
 
 # Sign main app WITH entitlements
-codesign --force --deep --sign - \
-    --entitlements "KeyPath.entitlements" \
-    "$APP_BUNDLE"
+codesign --force --options=runtime --entitlements "KeyPath.entitlements" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
 
 echo "✅ Verifying signatures..."
 codesign -dvvv "$APP_BUNDLE"
@@ -122,5 +115,4 @@ else
     echo "⚠️ WARNING: Failed to copy $APP_NAME to /Applications. You may need to rerun this step with sudo." >&2
 fi
 
-echo "✨ Ready for local testing!"
-echo "⚠️ NOTE: This build uses ad-hoc signing and cannot be distributed"
+echo "✨ Ready for local testing (SMAppService) — no notarization performed"
