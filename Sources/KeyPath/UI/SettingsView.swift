@@ -41,6 +41,7 @@ struct SettingsView: View {
     // Helper management state
     @State private var helperStatus: String = "Checking..."
     @State private var isInstallingHelper = false
+    @State private var isInstallingServices = false
     @State private var helperError: String?
     @State private var helperFailureDetail: String? = nil
     @State private var helperLogLines: [String] = []
@@ -478,6 +479,30 @@ struct SettingsView: View {
                     }
                 )
                 .frame(maxWidth: .infinity)
+                // Install system services via helper (one-click)
+                SettingsButton(
+                    title: "Install System Services (via helper)",
+                    systemImage: "wrench.and.screwdriver",
+                    accessibilityId: "install-services-helper",
+                    accessibilityHint: "Install Kanata and related LaunchDaemons using the privileged helper",
+                    action: {
+                        Task { @MainActor in
+                            isInstallingServices = true
+                            helperError = nil
+                            AppLogger.shared.log("🔧 [Settings] Installing system services via helper…")
+                            do {
+                                try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()
+                                AppLogger.shared.log("✅ [Settings] Installed system services via helper")
+                            } catch {
+                                helperError = error.localizedDescription
+                                AppLogger.shared.log("❌ [Settings] Service installation failed: \(error.localizedDescription)")
+                            }
+                            isInstallingServices = false
+                        }
+                    }
+                )
+                .disabled(isInstallingHelper || backgroundItemNeedsApproval)
+                .opacity(backgroundItemNeedsApproval ? 0.6 : 1.0)
                 if let ok = helperSuccessDetail {
                     Text(ok)
                         .font(.caption)
@@ -537,6 +562,14 @@ struct SettingsView: View {
                         ProgressView()
                             .scaleEffect(0.7)
                         Text("Installing helper...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                if isInstallingServices {
+                    HStack {
+                        ProgressView().scaleEffect(0.7)
+                        Text("Installing system services…")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

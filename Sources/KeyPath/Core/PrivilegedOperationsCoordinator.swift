@@ -301,8 +301,8 @@ final class PrivilegedOperationsCoordinator {
         do {
             try await HelperManager.shared.installAllLaunchDaemonServicesWithPreferences()
         } catch {
-            let msg = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            if msg?.localizedCaseInsensitiveContains("not yet implemented") == true {
+            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            if msg.localizedCaseInsensitiveContains("not yet implemented") {
                 AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper method not yet implemented; falling back to sudo path")
                 try await sudoInstallAllServicesWithPreferences()
             } else {
@@ -319,8 +319,8 @@ final class PrivilegedOperationsCoordinator {
         do {
             try await HelperManager.shared.regenerateServiceConfiguration()
         } catch {
-            let msg = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            if msg?.localizedCaseInsensitiveContains("not yet implemented") == true {
+            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            if msg.localizedCaseInsensitiveContains("not yet implemented") {
                 AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper method not yet implemented; falling back to sudo path")
                 try await sudoRegenerateConfig()
             } else {
@@ -333,8 +333,8 @@ final class PrivilegedOperationsCoordinator {
         do {
             try await HelperManager.shared.installLogRotation()
         } catch {
-            let msg = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            if msg?.localizedCaseInsensitiveContains("not yet implemented") == true {
+            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            if msg.localizedCaseInsensitiveContains("not yet implemented") {
                 AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper method not yet implemented; falling back to sudo path")
                 try await sudoInstallLogRotation()
             } else {
@@ -347,8 +347,8 @@ final class PrivilegedOperationsCoordinator {
         do {
             try await HelperManager.shared.repairVHIDDaemonServices()
         } catch {
-            let msg = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            if msg?.localizedCaseInsensitiveContains("not yet implemented") == true {
+            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            if msg.localizedCaseInsensitiveContains("not yet implemented") {
                 AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper method not yet implemented; falling back to sudo path")
                 try await sudoRepairVHIDServices()
             } else {
