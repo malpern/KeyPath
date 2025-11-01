@@ -315,89 +315,18 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     func startKarabinerDaemon() async -> Bool {
-        // Prefer launchctl kickstart if a managed LaunchDaemon is present
-        if FileManager.default.fileExists(atPath: vhidDaemonPlist) {
-            AppLogger.shared.log("🔄 [Daemon] LaunchDaemon detected - starting via kickstart")
-            let script = """
-            /bin/launchctl enable system/\(vhidDaemonLabel) 2>/dev/null || true
-            /bin/launchctl kickstart -k system/\(vhidDaemonLabel)
-            exit $?
-            """
-            let ok = await executeScriptWithSudo(script: script, description: "Start VHID daemon service")
+        // Route through coordinator to prefer the privileged helper in RELEASE builds
+        AppLogger.shared.log("🔄 [Daemon] Starting VHID daemon via coordinator (helper-first)")
+        do {
+            let ok = try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemonVerified()
             if ok {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                return isKarabinerDaemonRunning()
+                AppLogger.shared.log("✅ [Daemon] VHID daemon start verified via coordinator")
             } else {
-                AppLogger.shared.log("❌ [Daemon] Failed to kickstart LaunchDaemon \(vhidDaemonLabel)")
-                AppLogger.shared.log("🚫 [Daemon] Refusing direct exec because LaunchDaemon exists — prevent duplicate owners")
-                return false
+                AppLogger.shared.log("❌ [Daemon] VHID daemon start failed verification")
             }
-        }
-
-        guard FileManager.default.fileExists(atPath: daemonPath) else {
-            AppLogger.shared.log("❌ [Daemon] VirtualHIDDevice-Daemon not found at \(daemonPath)")
-            return false
-        }
-
-        // First try to start without admin privileges
-        AppLogger.shared.log("🔄 [Daemon] Attempting to start daemon without admin privileges...")
-        let userTask = Process()
-        userTask.executableURL = URL(fileURLWithPath: daemonPath)
-
-        let userPipe = Pipe()
-        userTask.standardOutput = userPipe
-        userTask.standardError = userPipe
-
-        do {
-            try userTask.run()
-            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-            if isKarabinerDaemonRunning() {
-                AppLogger.shared.log("✅ [Daemon] Successfully started daemon without admin privileges")
-                return true
-            } else {
-                userTask.terminate()
-                let userData = userPipe.fileHandleForReading.readDataToEndOfFile()
-                let userOutput = String(data: userData, encoding: .utf8) ?? ""
-                AppLogger.shared.log(
-                    "⚠️ [Daemon] User-mode start failed, trying with admin privileges. Error: \(userOutput)"
-                )
-            }
+            return ok
         } catch {
-            AppLogger.shared.log(
-                "⚠️ [Daemon] User-mode start failed: \(error), trying with admin privileges"
-            )
-        }
-
-        // Fallback: Use admin privileges via AppleScript
-        AppLogger.shared.log("🔄 [Daemon] Starting daemon with admin privileges...")
-        let adminScript =
-            "do shell script \"\(daemonPath) > /dev/null 2>&1 &\" with administrator privileges with prompt \"KeyPath needs to start the virtual keyboard daemon.\""
-
-        let adminTask = Process()
-        adminTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        adminTask.arguments = ["-e", adminScript]
-
-        let adminPipe = Pipe()
-        adminTask.standardOutput = adminPipe
-        adminTask.standardError = adminPipe
-
-        do {
-            try adminTask.run()
-            adminTask.waitUntilExit()
-
-            if adminTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [Daemon] Started daemon with admin privileges")
-                try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-                return isKarabinerDaemonRunning()
-            } else {
-                let adminData = adminPipe.fileHandleForReading.readDataToEndOfFile()
-                let adminOutput = String(data: adminData, encoding: .utf8) ?? ""
-                AppLogger.shared.log("❌ [Daemon] Failed to start with admin privileges: \(adminOutput)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.log("❌ [Daemon] Failed to start VirtualHIDDevice-Daemon: \(error)")
+            AppLogger.shared.log("❌ [Daemon] Coordinator error: \(error)")
             return false
         }
     }

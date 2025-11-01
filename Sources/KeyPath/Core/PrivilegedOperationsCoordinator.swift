@@ -413,10 +413,48 @@ final class PrivilegedOperationsCoordinator {
     // Removed: legacy helper restart. Verified path must be used.
 
     private func helperRestartKarabinerDaemonVerified() async throws -> Bool {
-        // TODO: Implement verified restart via XPC helper
-        // For now, fall back to sudo implementation
-        AppLogger.shared.log("🔐 [PrivCoordinator] Helper verified restart not implemented, using sudo")
-        return try await sudoRestartKarabinerDaemonVerified()
+        AppLogger.shared.log("🔐 [PrivCoordinator] Helper path: verified restart of Karabiner daemon")
+
+        // 1) Kill any running VirtualHIDDevice daemons via helper (root)
+        do {
+            try await HelperManager.shared.restartKarabinerDaemon()
+        } catch {
+            AppLogger.shared.log("⚠️ [PrivCoordinator] Helper kill phase returned error (continuing): \(error.localizedDescription)")
+        }
+
+        // 2) Ask helper to restart unhealthy services or install if missing
+        do {
+            try await HelperManager.shared.restartUnhealthyServices()
+        } catch {
+            AppLogger.shared.log("⚠️ [PrivCoordinator] Helper restartUnhealthyServices failed: \(error.localizedDescription)")
+        }
+
+        // 3) Sustain verification loop (up to 3s) using our VHID manager health check
+        let vhidManager = VHIDDeviceManager()
+        let start = Date()
+        while Date().timeIntervalSince(start) < 3.0 {
+            if vhidManager.detectRunning() {
+                AppLogger.shared.log("✅ [PrivCoordinator] Verified: VirtualHIDDevice daemon healthy after helper restart")
+                return true
+            }
+            try await Task.sleep(nanoseconds: 120_000_000) // 120ms
+        }
+
+        // 4) As a last resort, try a repair pass (installs/refreshes plists) then one more quick verify
+        do {
+            try await HelperManager.shared.repairVHIDDaemonServices()
+        } catch {
+            AppLogger.shared.log("ℹ️ [PrivCoordinator] repairVHIDDaemonServices errored (may be okay): \(error.localizedDescription)")
+        }
+
+        try await Task.sleep(nanoseconds: 300_000_000)
+        if vhidManager.detectRunning() {
+            AppLogger.shared.log("✅ [PrivCoordinator] Verified after repair: daemon healthy")
+            return true
+        }
+
+        AppLogger.shared.log("❌ [PrivCoordinator] Helper verified restart failed (daemon not healthy)")
+        return false
     }
 
     private func helperInstallBundledKanata() async throws {
