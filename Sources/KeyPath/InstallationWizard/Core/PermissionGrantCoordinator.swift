@@ -361,30 +361,35 @@ class PermissionGrantCoordinator: ObservableObject {
         logger.log("🔄 [ServiceBounce] Bounce flag cleared")
     }
 
-    /// Perform the service bounce using launchctl kickstart with admin privileges
+    /// Perform the service bounce using the privileged helper; fallback to AppleScript with explicit logs
     func performServiceBounce() async -> Bool {
-        logger.log("🔄 [ServiceBounce] Starting Kanata service bounce with launchctl kickstart")
+        logger.log("🔄 [ServiceBounce] Helper-first bounce: restartUnhealthyServices")
+        do {
+            try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
+            logger.log("✅ [ServiceBounce] Helper bounce completed successfully")
+            return true
+        } catch {
+            logger.log("🚨 [ServiceBounce] FALLBACK: helper restartUnhealthyServices failed: \(error.localizedDescription). Using AppleScript path.")
+            let script = """
+            do shell script "launchctl kickstart -k system/com.keypath.kanata" with administrator privileges with prompt "KeyPath needs admin access to restart the keyboard service after permission changes."
+            """
+            return await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let appleScript = NSAppleScript(source: script)
+                    var error: NSDictionary?
+                    _ = appleScript?.executeAndReturnError(&error)
 
-        let script = """
-        do shell script "launchctl kickstart -k system/com.keypath.kanata" with administrator privileges with prompt "KeyPath needs admin access to restart the keyboard service after permission changes."
-        """
-
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let appleScript = NSAppleScript(source: script)
-                var error: NSDictionary?
-                _ = appleScript?.executeAndReturnError(&error)
-
-                if let error {
-                    Task { @MainActor in
-                        self.logger.log("❌ [ServiceBounce] Failed to bounce service: \(error)")
+                    if let error {
+                        Task { @MainActor in
+                            self.logger.log("❌ [ServiceBounce] AppleScript bounce failed: \(error)")
+                        }
+                        continuation.resume(returning: false)
+                    } else {
+                        Task { @MainActor in
+                            self.logger.log("✅ [ServiceBounce] AppleScript bounce completed successfully")
+                        }
+                        continuation.resume(returning: true)
                     }
-                    continuation.resume(returning: false)
-                } else {
-                    Task { @MainActor in
-                        self.logger.log("✅ [ServiceBounce] Service bounce completed successfully")
-                    }
-                    continuation.resume(returning: true)
                 }
             }
         }
