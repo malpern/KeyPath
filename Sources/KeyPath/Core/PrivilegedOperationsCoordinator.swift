@@ -463,6 +463,13 @@ final class PrivilegedOperationsCoordinator {
         try await sudoInstallBundledKanata()
     }
 
+    // MARK: - Karabiner Conflict Management
+
+    func disableKarabinerGrabber() async throws {
+        AppLogger.shared.log("🔐 [PrivCoordinator] Disabling Karabiner grabber via helper")
+        try await HelperManager.shared.disableKarabinerGrabber()
+    }
+
     // MARK: - Direct Sudo Path (Current Implementation)
 
     /// Install LaunchDaemon plist using osascript with admin privileges

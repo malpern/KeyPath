@@ -212,65 +212,20 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     // MARK: - Resolution Methods
 
     func killKarabinerGrabber() async -> Bool {
-        AppLogger.shared.log("🔧 [Conflict] Attempting to stop Karabiner conflicting services")
-
-        let stopScript = """
-        # Stop old Karabiner Elements system LaunchDaemon (runs as root)
-        launchctl bootout system \\
-            "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Privileged Daemons.app/Contents/Library/LaunchDaemons/org.pqrs.service.daemon.karabiner_grabber.plist" \\
-            2>/dev/null || true
-
-        # Stop old Karabiner Elements user LaunchAgent
-        launchctl bootout gui/$(id -u) \\
-            "/Library/Application Support/org.pqrs/Karabiner-Elements/Karabiner-Elements Non-Privileged Agents.app/Contents/Library/LaunchAgents/org.pqrs.service.agent.karabiner_grabber.plist" \\
-            2>/dev/null || true
-
-        # Kill old karabiner_grabber processes
-        pkill -f karabiner_grabber 2>/dev/null || true
-
-        # Kill VirtualHIDDevice processes that conflict with Kanata
-        pkill -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
-        pkill -f "Karabiner-DriverKit-VirtualHIDDevice" 2>/dev/null || true
-
-        # Wait for processes to terminate
-        sleep 2
-
-        # Final cleanup - force kill any stubborn processes
-        pkill -9 -f karabiner_grabber 2>/dev/null || true
-        pkill -9 -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
-        pkill -9 -f "Karabiner-DriverKit-VirtualHIDDevice" 2>/dev/null || true
-        """
-
-        let stopTask = Process()
-        stopTask.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        stopTask.arguments = [
-            "-e",
-            "do shell script \"\(stopScript)\" with administrator privileges with prompt \"KeyPath needs to stop conflicting keyboard services.\""
-        ]
-
+        AppLogger.shared.log("🔧 [Conflict] Stopping Karabiner conflicting services via helper")
         do {
-            try stopTask.run()
-            stopTask.waitUntilExit()
-            AppLogger.shared.log("🔧 [Conflict] Attempted to stop all Karabiner grabber services")
-
-            // Wait a moment for cleanup
-            try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-
-            // Verify no conflicting processes are still running
+            try await PrivilegedOperationsCoordinator.shared.disableKarabinerGrabber()
+            // Verify no conflicting processes remain
+            try? await Task.sleep(nanoseconds: 500_000_000)
             let success = await verifyConflictingProcessesStopped()
-
             if success {
-                AppLogger.shared.log(
-                    "✅ [Conflict] All conflicting Karabiner processes successfully stopped"
-                )
+                AppLogger.shared.log("✅ [Conflict] Karabiner grabber disabled and processes stopped")
             } else {
                 AppLogger.shared.log("⚠️ [Conflict] Some conflicting processes may still be running")
             }
-
             return success
-
         } catch {
-            AppLogger.shared.log("❌ [Conflict] Failed to stop Karabiner grabber: \(error)")
+            AppLogger.shared.log("❌ [Conflict] Helper disable failed: \(error)")
             return false
         }
     }
@@ -285,14 +240,14 @@ final class KarabinerConflictService: KarabinerConflictManaging {
             return false
         }
 
-        // Get the disable script
-        let script = getDisableKarabinerElementsScript()
-
-        // Execute with elevated privileges
-        return await executeScriptWithSudo(
-            script: script,
-            description: "Disable Karabiner Elements Services"
-        )
+        do {
+            try await PrivilegedOperationsCoordinator.shared.disableKarabinerGrabber()
+            await verifyKarabinerGrabberRemoval()
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [Karabiner] Helper-based disable failed: \(error)")
+            return false
+        }
     }
 
     /// Restarts the Karabiner daemon with verified kill + start + health check

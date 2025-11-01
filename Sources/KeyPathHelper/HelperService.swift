@@ -409,6 +409,47 @@ class HelperService: NSObject, HelperProtocol {
         )
     }
 
+    // MARK: - Karabiner Conflict Management
+
+    func disableKarabinerGrabber(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] disableKarabinerGrabber requested")
+        executePrivilegedOperation(
+            name: "disableKarabinerGrabber",
+            operation: {
+                // Determine console user and uid for GUI launchctl domain
+                var uid: uid_t = 0
+                var gid: gid_t = 0
+                let consoleName = SCDynamicStoreCopyConsoleUser(nil, &uid, &gid) as String? ?? ""
+
+                // 1) Stop processes
+                _ = Self.run("/usr/bin/pkill", ["-f", "karabiner_grabber"]) // ignore
+                _ = Self.run("/usr/bin/pkill", ["-f", "VirtualHIDDevice"]) // ignore
+                usleep(200_000)
+                _ = Self.run("/usr/bin/pkill", ["-9", "-f", "karabiner_grabber"]) // force
+                _ = Self.run("/usr/bin/pkill", ["-9", "-f", "VirtualHIDDevice"]) // force
+
+                // 2) Disable and bootout LaunchAgent/Daemon for karabiner_grabber
+                if uid != 0 {
+                    _ = Self.run("/bin/launchctl", ["disable", "gui/\(uid)/org.pqrs.service.agent.karabiner_grabber"])
+                    _ = Self.run("/bin/launchctl", ["bootout", "gui/\(uid)", "org.pqrs.service.agent.karabiner_grabber"]) // ignore status
+                }
+                _ = Self.run("/bin/launchctl", ["disable", "system/org.pqrs.service.daemon.karabiner_grabber"]) // ignore
+                _ = Self.run("/bin/launchctl", ["bootout", "system", "org.pqrs.service.daemon.karabiner_grabber"]) // ignore
+
+                // 3) Create marker file in console user's home to tell app to skip grabber checks
+                if !consoleName.isEmpty, let home = Self.consoleUserHomeDirectory() {
+                    let dir = (home as NSString).appendingPathComponent(".keypath")
+                    let marker = (dir as NSString).appendingPathComponent("karabiner-grabber-disabled")
+                    _ = Self.run("/bin/mkdir", ["-p", dir])
+                    _ = Self.run("/usr/bin/touch", [marker])
+                    // Adjust ownership to console user
+                    _ = Self.run("/usr/sbin/chown", ["\(consoleName)", marker])
+                }
+            },
+            reply: reply
+        )
+    }
+
     // Note: executeCommand removed for security. Use explicit operations only.
 
     // MARK: - Helper Methods

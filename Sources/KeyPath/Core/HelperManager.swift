@@ -557,6 +557,12 @@ actor HelperManager {
         }
     }
 
+    func disableKarabinerGrabber() async throws {
+        try await executeXPCCall("disableKarabinerGrabber") { proxy, reply in
+            proxy.disableKarabinerGrabber(reply: reply)
+        }
+    }
+
     // Note: executeCommand removed for security. Use explicit operations only.
 }
 
