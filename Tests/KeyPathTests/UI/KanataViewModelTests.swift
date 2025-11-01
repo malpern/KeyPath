@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 /// Tests for KanataViewModel Phase 4 MVVM refactoring
 ///

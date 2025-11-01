@@ -252,11 +252,11 @@ class MockEnvironmentKanataManager: ObservableObject {
         ])
 
         if result.exitCode == 0 {
-            self.isRunning = true
-            self.lastError = nil
+            isRunning = true
+            lastError = nil
         } else {
-            self.isRunning = false
-            self.lastError = "Failed to start: \(result.output)"
+            isRunning = false
+            lastError = "Failed to start: \(result.output)"
         }
     }
 
@@ -264,10 +264,10 @@ class MockEnvironmentKanataManager: ObservableObject {
         let result = mockEnvironment.mockLaunchctlResult(command: ["kill", "system/com.keypath.kanata"])
 
         if result.exitCode == 0 {
-            self.isRunning = false
-            self.lastError = nil
+            isRunning = false
+            lastError = nil
         } else {
-            self.lastError = "Failed to stop: \(result.output)"
+            lastError = "Failed to stop: \(result.output)"
         }
     }
 
@@ -277,8 +277,8 @@ class MockEnvironmentKanataManager: ObservableObject {
     }
 
     func emergencyStop() async {
-        self.isRunning = false
-        self.lastError = nil
+        isRunning = false
+        lastError = nil
     }
 
     func cleanup() async {

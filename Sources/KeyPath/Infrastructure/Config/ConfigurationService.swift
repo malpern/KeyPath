@@ -388,8 +388,7 @@ public struct KanataConfiguration: Sendable {
 
     /// Backs up a failed config and applies safe default, returning backup path
     public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist
@@ -451,8 +450,7 @@ public struct KanataConfiguration: Sendable {
 
     /// Repair configuration using rule-based strategies
     public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies
@@ -659,7 +657,7 @@ public enum KanataKeyConverter {
             "right option": "ralt",
             "ralt": "ralt",
             "(": "lpar",
-            ")": "rpar",
+            ")": "rpar"
         ]
 
         let lowercased = input.lowercased()
@@ -689,6 +687,11 @@ public enum KanataKeyConverter {
         // Split on any whitespace
         let tokens = trimmed.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
 
+        // No tokens -> nothing to emit (avoid indexing empty array)
+        if tokens.isEmpty {
+            return ""
+        }
+
         // Multiple whitespace-separated tokens (e.g., "cmd space") → chord/sequence
         if tokens.count > 1 {
             let kanataKeys = tokens.map { convertToKanataKey($0) }
@@ -700,7 +703,7 @@ public enum KanataKeyConverter {
 
         // If it's a multi-character string that looks like text to type (not a key name)
         // Convert to macro for typing each character
-        if singleToken.count > 1 && shouldConvertToMacro(singleToken) {
+        if singleToken.count > 1, shouldConvertToMacro(singleToken) {
             // Split into individual characters and convert each to a key
             let characters = Array(singleToken)
             let keys = characters.map { String($0) }

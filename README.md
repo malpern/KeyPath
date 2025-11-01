@@ -133,7 +133,7 @@ KeyPath needs two permissions to work:
 The setup wizard will guide you through granting these permissions.
 
 ### What KeyPath Does NOT Do
-- ❌ No internet connection required or used
+- ❌ No internet connection required (offline by default; optional AI config generation contacts Anthropic if ANTHROPIC_API_KEY is present)
 - ❌ No data collection or telemetry
 - ❌ No modification of system files
 - ❌ No kernel extensions
@@ -153,6 +153,7 @@ The setup wizard will guide you through granting these permissions.
 ### Need More Help?
 - Check the [FAQ](docs/FAQ.md)
 - Read the [Debugging Guide](docs/DEBUGGING_KANATA.md)
+- Investigate helper install errors: [SMAppService Codesigning Error (-67028)](docs/troubleshooting-helper.md)
 - Open an [Issue](https://github.com/yourusername/KeyPath/issues)
 
 ### Xcode 26 beta test runner crash (Swift 6.2)

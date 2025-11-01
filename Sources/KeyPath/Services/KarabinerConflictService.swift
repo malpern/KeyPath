@@ -17,6 +17,7 @@ protocol KarabinerConflictManaging: AnyObject {
     func killKarabinerGrabber() async -> Bool
     func disableKarabinerElementsPermanently() async -> Bool
     func startKarabinerDaemon() async -> Bool
+    func restartKarabinerDaemon() async -> Bool
 
     // Utilities
     func getKillKarabinerCommand() -> String
@@ -32,6 +33,8 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     private let driverPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
     private let daemonPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
     private let disabledMarkerPath = "\(NSHomeDirectory())/.keypath/karabiner-grabber-disabled"
+    private let vhidDaemonLabel = "com.keypath.karabiner-vhiddaemon"
+    private let vhidDaemonPlist = "/Library/LaunchDaemons/com.keypath.karabiner-vhiddaemon.plist"
 
     // MARK: - Detection Methods
 
@@ -312,6 +315,25 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     }
 
     func startKarabinerDaemon() async -> Bool {
+        // Prefer launchctl kickstart if a managed LaunchDaemon is present
+        if FileManager.default.fileExists(atPath: vhidDaemonPlist) {
+            AppLogger.shared.log("🔄 [Daemon] LaunchDaemon detected - starting via kickstart")
+            let script = """
+            /bin/launchctl enable system/\(vhidDaemonLabel) 2>/dev/null || true
+            /bin/launchctl kickstart -k system/\(vhidDaemonLabel)
+            exit $?
+            """
+            let ok = await executeScriptWithSudo(script: script, description: "Start VHID daemon service")
+            if ok {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                return isKarabinerDaemonRunning()
+            } else {
+                AppLogger.shared.log("❌ [Daemon] Failed to kickstart LaunchDaemon \(vhidDaemonLabel)")
+                AppLogger.shared.log("🚫 [Daemon] Refusing direct exec because LaunchDaemon exists — prevent duplicate owners")
+                return false
+            }
+        }
+
         guard FileManager.default.fileExists(atPath: daemonPath) else {
             AppLogger.shared.log("❌ [Daemon] VirtualHIDDevice-Daemon not found at \(daemonPath)")
             return false

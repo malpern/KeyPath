@@ -10,7 +10,12 @@ import ServiceManagement
 /// - Actor to serialize connection state without @unchecked Sendable.
 /// - SMJobBless calls hop to MainActor for Authorization UI safety.
 actor HelperManager {
-
+    // MARK: - SMAppService indirection for testability
+    // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
+    // Default implementation wraps Apple's `SMAppService`.
+    nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+        NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
+    }
     // MARK: - Singleton
 
     static let shared = HelperManager()
@@ -53,7 +58,7 @@ actor HelperManager {
     /// - Throws: HelperError if connection cannot be established
     private func getConnection() throws -> NSXPCConnection {
         // Return existing connection if still valid
-        if let connection = connection {
+        if let connection {
             return connection
         }
 
@@ -79,7 +84,7 @@ actor HelperManager {
         // Start the connection
         newConnection.resume()
 
-        self.connection = newConnection
+        connection = newConnection
         AppLogger.shared.log("✅ [HelperManager] XPC connection established")
 
         return newConnection
@@ -99,11 +104,35 @@ actor HelperManager {
 
     // MARK: - Helper Status
 
-    /// Check if the privileged helper is installed and registered
-    /// - Returns: true if helper is installed, false otherwise
+    /// Check if the privileged helper is installed and registered (SMAppService path)
+    /// - Returns: true if SMAppService reports `.enabled` OR launchctl has the job
+    ///
+    /// On macOS 13+, the helper binary remains embedded inside the app bundle and is
+    /// invoked via `BundleProgram` in the plist; there is no binary at
+    /// `/Library/PrivilegedHelperTools` as with legacy SMJobBless.
     nonisolated func isHelperInstalled() -> Bool {
-        let svc = SMAppService.daemon(plistName: Self.helperPlistName)
-        return svc.status == .enabled
+        let svc = Self.smServiceFactory(Self.helperPlistName)
+        if svc.status == .enabled { return true }
+
+        // Best-effort check: does launchd know about the job?
+        do {
+            let p = Process()
+            p.launchPath = "/bin/launchctl"
+            p.arguments = ["print", "system/\(Self.helperBundleIdentifier)"]
+            let out = Pipe(); p.standardOutput = out; let err = Pipe(); p.standardError = err
+            try p.run(); p.waitUntilExit()
+            if p.terminationStatus == 0 {
+                let data = out.fileHandleForReading.readDataToEndOfFile()
+                let s = String(data: data, encoding: .utf8) ?? ""
+                if s.contains("program") || s.contains("state =") || s.contains("pid =") {
+                    AppLogger.shared.log("ℹ️ [HelperManager] launchctl reports helper present while SMAppService status=\(svc.status)")
+                    return true
+                }
+            }
+        } catch {
+            // Ignore; treated as not installed
+        }
+        return false
     }
 
     /// Get the version of the installed helper
@@ -124,9 +153,9 @@ actor HelperManager {
             let proxy = try getRemoteProxy { _ in /* proxy error handled by timeout path */ }
             return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
                 let sema = DispatchSemaphore(value: 0)
-                var gotVersion: String? = nil
+                var gotVersion: String?
                 proxy.getVersion { version, error in
-                    if let version = version {
+                    if let version {
                         gotVersion = version
                     } else {
                         let msg = error ?? "Unknown error"
@@ -169,9 +198,36 @@ actor HelperManager {
         return compatible
     }
 
+    /// Test if the helper is actually functional (can communicate via XPC)
+    /// - Returns: true if helper responds to XPC calls, false otherwise
+    ///
+    /// **Use Case:** This is the definitive test for helper functionality.
+    /// - Returns true ONLY if XPC connection succeeds AND helper responds
+    /// - Returns false for phantom registrations, connection failures, timeouts
+    /// - Should be used by wizard to verify helper is truly working
+    func testHelperFunctionality() async -> Bool {
+        AppLogger.shared.log("🧪 [HelperManager] Testing helper functionality via XPC ping")
+
+        // Pre-flight check: Must be installed first
+        guard isHelperInstalled() else {
+            AppLogger.shared.log("❌ [HelperManager] Functionality test failed: Not installed")
+            return false
+        }
+
+        // Test actual XPC communication by getting version
+        // This tests: XPC connection, helper process, message handling
+        guard let version = await getHelperVersion() else {
+            AppLogger.shared.log("❌ [HelperManager] Functionality test failed: XPC communication failed")
+            return false
+        }
+
+        AppLogger.shared.log("✅ [HelperManager] Functionality test passed: Helper v\(version) responding")
+        return true
+    }
+
     // MARK: - Diagnostics
 
-    func runBlessDiagnostics() -> String {
+    nonisolated func runBlessDiagnostics() -> String {
         let report = BlessDiagnostics.run()
         return report.summarizedText()
     }
@@ -180,7 +236,7 @@ actor HelperManager {
 
     /// Fetch the last N helper log messages (message text only)
     /// Uses `log show` with a tight window to avoid heavy queries.
-    func lastHelperLogs(count: Int = 3, windowSeconds: Int = 300) -> [String] {
+    nonisolated func lastHelperLogs(count: Int = 3, windowSeconds: Int = 300) -> [String] {
         // First: if launchctl has no record of the job, surface that clearly.
         do {
             let p = Process()
@@ -253,10 +309,10 @@ actor HelperManager {
     /// - Returns: true if upgrade needed, false otherwise
     func needsHelperUpgrade() async -> Bool {
         guard isHelperInstalled() else {
-            return false  // Not installed, not an upgrade case
+            return false // Not installed, not an upgrade case
         }
 
-        return !(await isHelperVersionCompatible())
+        return await !isHelperVersionCompatible()
     }
 
     // MARK: - Helper Installation
@@ -269,7 +325,20 @@ actor HelperManager {
             throw HelperManagerError.installationFailed("Requires macOS 13+ for SMAppService")
         }
 
-        let svc = SMAppService.daemon(plistName: Self.helperPlistName)
+        // Diagnostic logging
+        if let bundlePath = Bundle.main.bundlePath as String? {
+            AppLogger.shared.log("📦 [HelperManager] App bundle: \(bundlePath)")
+            let infoPlistPath = "\(bundlePath)/Contents/Info.plist"
+            if let infoDict = NSDictionary(contentsOfFile: infoPlistPath) {
+                let hasSMPrivileged = infoDict["SMPrivilegedExecutables"] != nil
+                AppLogger.shared.log("📋 [HelperManager] Info.plist has SMPrivilegedExecutables: \(hasSMPrivileged)")
+            } else {
+                AppLogger.shared.log("⚠️ [HelperManager] Could not read Info.plist")
+            }
+        }
+
+        let svc = Self.smServiceFactory(Self.helperPlistName)
+        AppLogger.shared.log("🔍 [HelperManager] SMAppService status: \(svc.status.rawValue) (0=notRegistered, 1=enabled, 2=requiresApproval, 3=notFound)")
         switch svc.status {
         case .enabled:
             // Enabled means the app has background-item approval, not necessarily that
@@ -305,7 +374,18 @@ actor HelperManager {
                 throw HelperManagerError.installationFailed("SMAppService register failed: \(error.localizedDescription)")
             }
         case .notFound:
-            throw HelperManagerError.installationFailed("Helper plist not found in bundle; please reinstall KeyPath.")
+            // .notFound means the system hasn't seen the helper yet, but registration might still work
+            // Try to register to get the actual error message
+            AppLogger.shared.log("⚠️ [HelperManager] Helper status is .notFound - attempting registration anyway to get detailed error")
+            do {
+                try svc.register()
+                AppLogger.shared.log("✅ [HelperManager] Helper registered successfully despite initial .notFound status")
+                return
+            } catch {
+                // Now we have the real error from SMAppService
+                AppLogger.shared.log("❌ [HelperManager] Registration failed with detailed error: \(error)")
+                throw HelperManagerError.installationFailed("SMAppService register failed: \(error.localizedDescription)")
+            }
         @unknown default:
             do {
                 try svc.register()
@@ -323,9 +403,8 @@ actor HelperManager {
         guard #available(macOS 13, *) else {
             throw HelperManagerError.operationFailed("Requires macOS 13+ for SMAppService")
         }
-        let svc = SMAppService.daemon(plistName: Self.helperPlistName)
-        do { try await svc.unregister() }
-        catch { throw HelperManagerError.operationFailed("SMAppService unregister failed: \(error.localizedDescription)") }
+        let svc = Self.smServiceFactory(Self.helperPlistName)
+        do { try await svc.unregister() } catch { throw HelperManagerError.operationFailed("SMAppService unregister failed: \(error.localizedDescription)") }
     }
 
     // MARK: - XPC Protocol Wrappers
@@ -481,6 +560,22 @@ actor HelperManager {
     // Note: executeCommand removed for security. Use explicit operations only.
 }
 
+// MARK: - SMAppService test seam
+
+protocol SMAppServiceProtocol {
+    var status: ServiceManagement.SMAppService.Status { get }
+    func register() throws
+    func unregister() async throws
+}
+
+struct NativeSMAppService: SMAppServiceProtocol {
+    private let wrapped: ServiceManagement.SMAppService
+    init(wrapped: ServiceManagement.SMAppService) { self.wrapped = wrapped }
+    var status: ServiceManagement.SMAppService.Status { wrapped.status }
+    func register() throws { try wrapped.register() }
+    func unregister() async throws { if #available(macOS 13, *) { try await wrapped.unregister() } }
+}
+
 // MARK: - Error Types
 
 /// Errors that can occur in HelperManager
@@ -493,13 +588,13 @@ enum HelperManagerError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notInstalled:
-            return "Privileged helper is not installed"
-        case .connectionFailed(let reason):
-            return "Failed to connect to helper: \(reason)"
-        case .operationFailed(let reason):
-            return "Helper operation failed: \(reason)"
-        case .installationFailed(let reason):
-            return "Failed to install helper: \(reason)"
+            "Privileged helper is not installed"
+        case let .connectionFailed(reason):
+            "Failed to connect to helper: \(reason)"
+        case let .operationFailed(reason):
+            "Helper operation failed: \(reason)"
+        case let .installationFailed(reason):
+            "Failed to install helper: \(reason)"
         }
     }
 }

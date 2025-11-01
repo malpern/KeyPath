@@ -165,8 +165,7 @@ actor KanataTCPClient {
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let authResponseDict = json["Authenticated"] as? [String: Any],
                let success = authResponseDict["success"] as? Bool,
-               let sessionId = authResponseDict["session_id"] as? String
-            {
+               let sessionId = authResponseDict["session_id"] as? String {
                 if success {
                     authToken = token
                     self.sessionId = sessionId
@@ -301,8 +300,7 @@ actor KanataTCPClient {
             let responseData = try await send(requestData)
 
             if let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String, status == "Ok"
-            {
+               let status = json["status"] as? String, status == "Ok" {
                 AppLogger.shared.log("✅ [TCP] Kanata restart request sent")
                 return true
             }
@@ -382,8 +380,7 @@ actor KanataTCPClient {
     private func extractError(from response: String) -> String {
         if let data = response.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let error = json["error"] as? String
-        {
+           let error = json["error"] as? String {
             return error
         }
         return "Unknown error"

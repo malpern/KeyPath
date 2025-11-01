@@ -222,12 +222,24 @@ final class PrivilegedOperationsCoordinator {
 
     /// Download and install correct VirtualHID driver version (convenience method)
     /// Uses VHIDDeviceManager to determine the correct version automatically
+    ///
+    /// **Automatic Fallback:** In release mode, attempts helper first, then falls back
+    /// to sudo if helper fails. This handles phantom registrations and XPC issues gracefully.
     func downloadAndInstallCorrectVHIDDriver() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Downloading and installing correct VHID driver version")
 
         switch Self.operationMode {
         case .privilegedHelper:
-            try await helperInstallCorrectDriver()
+            do {
+                // Try helper first
+                try await helperInstallCorrectDriver()
+                AppLogger.shared.log("✅ [PrivCoordinator] Helper successfully installed driver")
+            } catch {
+                AppLogger.shared.log("⚠️ [PrivCoordinator] Helper failed (\(error)), falling back to sudo")
+                // Automatic fallback to sudo - catches phantom registrations and XPC failures
+                try await sudoInstallCorrectDriver()
+                AppLogger.shared.log("✅ [PrivCoordinator] Sudo fallback successfully installed driver")
+            }
         case .directSudo:
             try await sudoInstallCorrectDriver()
         }
@@ -259,17 +271,7 @@ final class PrivilegedOperationsCoordinator {
         }
     }
 
-    /// Restart Karabiner VirtualHID daemon (legacy - no verification)
-    func restartKarabinerDaemon() async throws {
-        AppLogger.shared.log("🔐 [PrivCoordinator] Restarting Karabiner daemon (legacy)")
-
-        switch Self.operationMode {
-        case .privilegedHelper:
-            try await helperRestartKarabinerDaemon()
-        case .directSudo:
-            try await sudoRestartKarabinerDaemon()
-        }
-    }
+    // Removed: legacy non-verified restart. Use restartKarabinerDaemonVerified() instead.
 
     /// Restart Karabiner VirtualHID daemon with verification (kill all + start + verify)
     /// Returns true if restart succeeded and daemon is healthy, false otherwise
@@ -408,9 +410,7 @@ final class PrivilegedOperationsCoordinator {
         try await HelperManager.shared.killAllKanataProcesses()
     }
 
-    private func helperRestartKarabinerDaemon() async throws {
-        try await HelperManager.shared.restartKarabinerDaemon()
-    }
+    // Removed: legacy helper restart. Verified path must be used.
 
     private func helperRestartKarabinerDaemonVerified() async throws -> Bool {
         // TODO: Implement verified restart via XPC helper
@@ -583,63 +583,101 @@ final class PrivilegedOperationsCoordinator {
         try await sudoExecuteCommand(command, description: "Kill all Kanata processes")
     }
 
-    /// Restart Karabiner daemon (legacy - kill only, no verification)
-    private func sudoRestartKarabinerDaemon() async throws {
-        let killCommand = "/usr/bin/pkill -f Karabiner-VirtualHIDDevice-Daemon"
-        try await sudoExecuteCommand(killCommand, description: "Restart Karabiner daemon")
+    // Removed: legacy sudo restart. Verified path must be used.
 
-        // Wait for daemon to restart
-        try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-    }
-
-    /// Restart Karabiner daemon with verification (kill all + start + verify)
+    /// Restart Karabiner daemon with verification (kill all + start managed if possible + sustained verify)
     private func sudoRestartKarabinerDaemonVerified() async throws -> Bool {
         let daemonPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+        let vhidLabel = "com.keypath.karabiner-vhiddaemon"
+        let vhidPlist = "/Library/LaunchDaemons/\(vhidLabel).plist"
 
-        // Step 1: Kill all daemon processes (SIGTERM → SIGKILL)
+        // Determine if a LaunchDaemon is installed; prefer managed restart to prevent duplicates
+        let hasService = FileManager.default.fileExists(atPath: vhidPlist)
+        AppLogger.shared.log("🔐 [PrivCoordinator] VHID LaunchDaemon installed: \(hasService)")
+
+        // Log current PIDs before any action (for diagnostics)
+        let beforePIDs = Self.getDaemonPIDs()
+        AppLogger.shared.log("🔎 [PrivCoordinator] VHID PIDs before restart: \(beforePIDs.joined(separator: ", "))")
+
+        // If present, boot it out to avoid KeepAlive race
+        if hasService {
+            let bootout = """
+            /bin/launchctl bootout system/\(vhidLabel) 2>/dev/null || true
+            /bin/launchctl disable system/\(vhidLabel) 2>/dev/null || true
+            """
+            do {
+                try await sudoExecuteCommand(bootout, description: "Bootout VHID daemon service")
+            } catch {
+                AppLogger.shared.log("⚠️ [PrivCoordinator] Bootout returned error (continuing): \(error)")
+            }
+        }
+
+        // Kill remaining processes (SIGTERM → SIGKILL)
         AppLogger.shared.log("🔐 [PrivCoordinator] Killing all VirtualHIDDevice daemon processes")
         let killCommand = """
         /usr/bin/pkill -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
-        sleep 0.3
+        /bin/sleep 0.3
         /usr/bin/pkill -9 -f "Karabiner-VirtualHIDDevice-Daemon" 2>/dev/null || true
         """
-
         do {
             try await sudoExecuteCommand(killCommand, description: "Kill VirtualHIDDevice daemons")
         } catch {
             AppLogger.shared.log("⚠️ [PrivCoordinator] Kill failed (may be OK if no processes running): \(error)")
         }
 
-        // Step 2: Wait for cleanup
-        try await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        // Small settle
+        try await Task.sleep(nanoseconds: 300_000_000)
 
-        // Step 3: Start exactly one new daemon (with proper path quoting)
-        AppLogger.shared.log("🔐 [PrivCoordinator] Starting VirtualHIDDevice daemon")
-        let startCommand = """
-        '\(daemonPath)' > /dev/null 2>&1 &
-        """
-
-        do {
-            try await sudoExecuteCommand(startCommand, description: "Start VirtualHIDDevice daemon")
-        } catch {
-            AppLogger.shared.log("❌ [PrivCoordinator] Failed to start daemon: \(error)")
-            return false
-        }
-
-        // Step 4: Wait for daemon to stabilize
-        try await Task.sleep(nanoseconds: 500_000_000) // 500ms
-
-        // Step 5: Verify exactly one process is running
-        let vhidManager = VHIDDeviceManager()
-        let isHealthy = vhidManager.detectRunning()
-
-        if isHealthy {
-            AppLogger.shared.log("✅ [PrivCoordinator] Restart verified: daemon is healthy")
-            return true
+        // Start via kickstart if service exists; otherwise start directly
+        if hasService {
+            AppLogger.shared.log("🔐 [PrivCoordinator] Starting VHID via launchctl kickstart")
+            let kickstart = """
+            /bin/launchctl enable system/\(vhidLabel) 2>/dev/null || true
+            /bin/launchctl kickstart -k system/\(vhidLabel)
+            """
+            do {
+                try await sudoExecuteCommand(kickstart, description: "Kickstart VHID daemon service")
+            } catch {
+                AppLogger.shared.log("❌ [PrivCoordinator] Kickstart failed: \(error)")
+                return false
+            }
         } else {
-            AppLogger.shared.log("❌ [PrivCoordinator] Restart verification failed: daemon not healthy")
-            return false
+            AppLogger.shared.log("🔐 [PrivCoordinator] LaunchDaemon missing - starting VHID by direct exec")
+            let startCommand = """
+            '\(daemonPath)' > /dev/null 2>&1 &
+            """
+            do {
+                try await sudoExecuteCommand(startCommand, description: "Start VirtualHIDDevice daemon")
+            } catch {
+                AppLogger.shared.log("❌ [PrivCoordinator] Failed to start daemon: \(error)")
+                return false
+            }
         }
+
+        // Log PIDs after kill, before start (for diagnostics)
+        let afterKillPIDs = Self.getDaemonPIDs()
+        AppLogger.shared.log("🔎 [PrivCoordinator] VHID PIDs after kill: \(afterKillPIDs.joined(separator: ", "))")
+
+        // Sustained verification: poll up to 3s for exactly one instance
+        let vhidManager = VHIDDeviceManager()
+        let startTime = Date()
+        while Date().timeIntervalSince(startTime) < 3.0 {
+            if vhidManager.detectRunning() {
+                AppLogger.shared.log("✅ [PrivCoordinator] Restart verified: daemon is healthy (single instance)")
+                return true
+            }
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+
+        // Final diagnostics
+        let pids = Self.getDaemonPIDs()
+        AppLogger.shared.log("🔎 [PrivCoordinator] VHID PIDs after start: \(pids.joined(separator: ", "))")
+        if pids.isEmpty {
+            AppLogger.shared.log("❌ [PrivCoordinator] Verification failed: daemon not running")
+        } else {
+            AppLogger.shared.log("❌ [PrivCoordinator] Verification failed: duplicates (\(pids.count)) PIDs=\(pids.joined(separator: ", "))")
+        }
+        return false
     }
 
     /// Install bundled Kanata binary using LaunchDaemonInstaller
@@ -704,6 +742,23 @@ final class PrivilegedOperationsCoordinator {
             .replacingOccurrences(of: "\"", with: "\\\"")
             .replacingOccurrences(of: "\n", with: "\\n")
             .replacingOccurrences(of: "\r", with: "\\r")
+    }
+
+    /// Helper: current VHID daemon PIDs (best-effort, no throw)
+    private static func getDaemonPIDs() -> [String] {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do {
+            try task.run(); task.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            return output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        } catch {
+            return []
+        }
     }
 }
 

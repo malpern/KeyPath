@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class KeyboardCaptureListenOnlyTests: XCTestCase {
@@ -59,4 +59,3 @@ final class KeyboardCaptureListenOnlyTests: XCTestCase {
         FeatureFlags.setCaptureListenOnlyEnabled(true) // cleanup
     }
 }
-

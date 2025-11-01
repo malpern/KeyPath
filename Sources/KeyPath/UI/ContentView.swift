@@ -147,7 +147,7 @@ struct ContentView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Fixed 80px space at bottom for toast - always present, stable layout
             Group {
-                if showStatusMessage && !statusMessage.contains("❌") {
+                if showStatusMessage, !statusMessage.contains("❌") {
                     StatusMessageView(message: statusMessage, isVisible: true)
                         .padding(.horizontal)
                         .padding(.bottom, 12)
@@ -522,7 +522,7 @@ struct ContentView: View {
         saveDebounceTimer = nil
 
         // If Kanata is not running but we're recording, stop recording first (resumes Kanata)
-        if !kanataManager.isRunning && (recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording()) {
+        if !kanataManager.isRunning, recordingCoordinator.isInputRecording() || recordingCoordinator.isOutputRecording() {
             AppLogger.shared.log("🔄 [ContentView] Kanata paused during recording - resuming before save")
             await MainActor.run {
                 recordingCoordinator.stopAllRecording()
@@ -1114,8 +1114,7 @@ struct StatusMessageView: View {
         } else if message.contains("paused") {
             "pause.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
-        {
+            || message.contains("backed up") {
             "exclamationmark.triangle.fill"
         } else {
             "checkmark.circle.fill"
@@ -1126,8 +1125,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             .orange
         } else {
             .green
@@ -1138,8 +1136,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.85)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             Color.orange.opacity(0.85)
         } else {
             Color.green.opacity(0.85)
@@ -1150,8 +1147,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.5)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             Color.orange.opacity(0.5)
         } else {
             Color.green.opacity(0.5)

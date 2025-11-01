@@ -11,7 +11,6 @@ import Foundation
 /// **Note:** This protocol is duplicated in both KeyPath and KeyPathHelper targets.
 /// Any changes must be synchronized between both copies.
 @objc protocol HelperProtocol {
-
     // MARK: - Version Management
 
     /// Get the helper version

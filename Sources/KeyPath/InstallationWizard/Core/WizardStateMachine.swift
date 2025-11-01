@@ -124,9 +124,14 @@ class WizardStateMachine: ObservableObject {
 
     private func determineNextPage(from current: WizardPage, state: SystemSnapshot) -> WizardPage {
         // Simple linear flow with intelligent skipping
+        // NOTE: Helper ALWAYS checked first after summary (required for privileged operations)
         switch current {
         case .summary:
-            // Check for conflicts first
+            // Check helper first - it's required for system operations
+            if !state.helper.isReady {
+                return .helper
+            }
+            // Then check for conflicts
             if state.conflicts.hasConflicts {
                 return .conflicts
             }
@@ -142,8 +147,19 @@ class WizardStateMachine: ObservableObject {
             if !state.components.hasAllRequired {
                 return .karabinerComponents
             }
-            // Finally service
+            // All checks passed, go to service
             return .service
+
+        case .helper:
+            // After helper, check conflicts
+            if state.conflicts.hasConflicts {
+                return .conflicts
+            }
+            // Then permissions
+            if !state.permissions.keyPath.hasAllPermissions {
+                return .inputMonitoring
+            }
+            return .accessibility
 
         case .fullDiskAccess:
             // FDA is optional, proceed to conflicts
@@ -181,7 +197,7 @@ class WizardStateMachine: ObservableObject {
             return .kanataComponents
 
         case .kanataComponents:
-            // After components, start service
+            // After all components, go to service
             return .service
 
         case .communication:
@@ -199,10 +215,12 @@ class WizardStateMachine: ObservableObject {
         switch current {
         case .summary:
             .summary // First page
+        case .helper:
+            .summary // Helper is first after summary
         case .fullDiskAccess:
-            .summary
+            .helper
         case .conflicts:
-            .summary
+            .helper
         case .inputMonitoring:
             .conflicts
         case .accessibility:
@@ -214,7 +232,7 @@ class WizardStateMachine: ObservableObject {
         case .communication:
             .kanataComponents
         case .service:
-            .communication
+            .kanataComponents // Service comes after all components
         }
     }
 

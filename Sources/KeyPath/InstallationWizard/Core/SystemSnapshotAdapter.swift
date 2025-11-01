@@ -197,12 +197,22 @@ struct SystemSnapshotAdapter {
                 )
 
             case let .componentMissing(name, autoFix):
-                let comp: ComponentRequirement = if name.contains("Kanata") {
-                    .kanataBinaryMissing
+                // Map component name to ComponentRequirement
+                let comp: ComponentRequirement
+                let fixAction: AutoFixAction?
+
+                if name.contains("Privileged Helper") {
+                    comp = .privilegedHelper
+                    fixAction = autoFix ? .installPrivilegedHelper : nil
+                } else if name.contains("Kanata") {
+                    comp = .kanataBinaryMissing
+                    fixAction = autoFix ? .installMissingComponents : nil
                 } else if name.contains("Karabiner driver") {
-                    .karabinerDriver
+                    comp = .karabinerDriver
+                    fixAction = autoFix ? .installMissingComponents : nil
                 } else {
-                    .vhidDeviceRunning
+                    comp = .vhidDeviceRunning
+                    fixAction = autoFix ? .installMissingComponents : nil
                 }
 
                 return WizardIssue(
@@ -211,18 +221,32 @@ struct SystemSnapshotAdapter {
                     category: .installation,
                     title: issue.title,
                     description: "Install \(name)",
-                    autoFixAction: autoFix ? .installMissingComponents : nil,
+                    autoFixAction: fixAction,
                     userAction: "Install via wizard"
                 )
 
             case let .componentUnhealthy(name, autoFix):
+                // Map component name to ComponentRequirement and appropriate fix
+                let comp: ComponentRequirement
+                let fixAction: AutoFixAction?
+
+                if name.contains("Privileged Helper") {
+                    comp = .privilegedHelperUnhealthy
+                    fixAction = autoFix ? .reinstallPrivilegedHelper : nil
+                } else {
+                    // Default to VirtualHID for other components
+                    comp = .vhidDeviceRunning
+                    // Use verified restart to avoid user-mode duplicates when LaunchDaemon exists
+                    fixAction = autoFix ? .restartVirtualHIDDaemon : nil
+                }
+
                 return WizardIssue(
-                    identifier: .component(.vhidDeviceRunning),
+                    identifier: .component(comp),
                     severity: .error,
                     category: .installation,
                     title: issue.title,
                     description: "Restart \(name)",
-                    autoFixAction: autoFix ? .startKarabinerDaemon : nil,
+                    autoFixAction: fixAction,
                     userAction: "Restart component"
                 )
 

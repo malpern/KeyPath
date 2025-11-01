@@ -146,9 +146,15 @@ struct WizardToastView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                Image(systemName: toast.icon)
-                    .foregroundColor(toast.color)
-                    .font(.system(size: 16, weight: .medium))
+                // Icon with white circle background
+                ZStack {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 16, height: 16)
+                    Image(systemName: toast.icon)
+                        .foregroundColor(toast.color)
+                        .font(.system(size: 16, weight: .medium))
+                }
 
                 Text(toast.message)
                     .font(.system(size: 14, weight: .medium))
@@ -180,10 +186,6 @@ struct WizardToastView: View {
         .padding(.horizontal, WizardDesign.Spacing.cardPadding)
         .padding(.vertical, WizardDesign.Spacing.itemGap)
         .wizardToastCard()
-        .overlay {
-            RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
-                .stroke(toast.color.opacity(0.3), lineWidth: 1)
-        }
         .scaleEffect(isVisible ? 1.0 : 0.95)
         .opacity(isVisible ? 1.0 : 0.0)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isVisible)

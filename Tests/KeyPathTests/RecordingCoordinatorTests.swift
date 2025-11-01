@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class RecordingCoordinatorTests: XCTestCase {
@@ -15,7 +15,7 @@ final class RecordingCoordinatorTests: XCTestCase {
             kanataManager: kanataManager,
             statusHandler: { [weak self] message in self?.statusMessages.append(message) },
             permissionProvider: permissionProvider,
-            keyboardCaptureFactory: { [unowned self] in self.captureStub }
+            keyboardCaptureFactory: { [unowned self] in captureStub }
         )
         return c
     }()
@@ -108,7 +108,7 @@ private final class StubRecordingCapture: RecordingCapture {
     private var callback: ((KeySequence) -> Void)?
     var autoFire = true
 
-    func setEventRouter(_ router: EventRouter?, kanataManager: KanataManager?) {
+    func setEventRouter(_: EventRouter?, kanataManager _: KanataManager?) {
         // No-op in tests
     }
 

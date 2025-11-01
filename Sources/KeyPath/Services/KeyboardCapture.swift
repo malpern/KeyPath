@@ -388,8 +388,7 @@ public class KeyboardCapture: ObservableObject {
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
                last.modifiers == keyPress.modifiers,
-               now.timeIntervalSince(lastAt) <= dedupWindow
-            {
+               now.timeIntervalSince(lastAt) <= dedupWindow {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
                 return
             }
@@ -502,7 +501,7 @@ public class KeyboardCapture: ObservableObject {
             30: "]", 31: "o", 32: "u", 33: "[", 34: "i", 35: "p", 36: "return",
             37: "l", 38: "j", 39: "'", 40: "k", 41: ";", 42: "\\", 43: ",",
             44: "/", 45: "n", 46: "m", 47: ".", 48: "tab", 49: "space",
-            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps",
+            50: "`", 51: "delete", 53: "escape", 58: "caps", 59: "caps"
         ]
 
         if let keyName = keyMap[keyCode] {
@@ -614,8 +613,7 @@ public class KeyboardCapture: ObservableObject {
             // Check if all three keys are pressed simultaneously
             if pressedKeys.contains(leftControlKey),
                pressedKeys.contains(spaceKey),
-               pressedKeys.contains(escapeKey)
-            {
+               pressedKeys.contains(escapeKey) {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
                 DispatchQueue.main.async {

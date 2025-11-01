@@ -171,6 +171,14 @@ actor PermissionOracle {
     func currentSnapshot() async -> Snapshot {
         // Fast-path for unit tests: avoid heavy OS calls and network timeouts
         if TestEnvironment.isRunningTests {
+            // Honor cache semantics in tests to keep behavior deterministic
+            if let cachedTime = lastSnapshotTime,
+               let cached = lastSnapshot,
+               Date().timeIntervalSince(cachedTime) < cacheTTL {
+                AppLogger.shared.log("🔮 [Oracle] (Test) Returning cached snapshot")
+                return cached
+            }
+
             let now = Date()
             let placeholder = PermissionSet(
                 accessibility: .unknown,
@@ -189,8 +197,7 @@ actor PermissionOracle {
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,
-           Date().timeIntervalSince(cachedTime) < cacheTTL
-        {
+           Date().timeIntervalSince(cachedTime) < cacheTTL {
             AppLogger.shared.log("🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)")
             return cached
         }
@@ -316,81 +323,38 @@ actor PermissionOracle {
 
         let kanataPath = resolveKanataExecutablePath()
 
-        // 1) PRIMARY: Apple API check from GUI context (MOST RELIABLE - TRUST DEFINITIVE RESULTS)
-        let inputMonitoring = checkBinaryInputMonitoring(at: kanataPath)
+        // IMPORTANT: IOHIDCheckAccess() reflects the calling process only and
+        // cannot be used to check another binary's Input Monitoring permission.
+        // For Kanata, use TCC for both AX and IM.
 
-        // 2) ALWAYS check TCC database for Accessibility (no Apple API alternative exists)
-        AppLogger.shared.log("🔮 [Oracle] Checking TCC database for kanata permissions (required for Accessibility)")
+        AppLogger.shared.log("🔮 [Oracle] Checking TCC database for Kanata (AX + IM)")
         let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
 
-        // Accessibility: Always use TCC (no other option)
         let accessibility: Status = tccAX ?? .unknown
+        let inputMonitoring: Status = tccIM ?? .unknown
 
-        // Input Monitoring: Prefer Apple API, use TCC only if API returns .unknown
-        var finalInputMonitoring = inputMonitoring
         var sourceParts: [String] = []
         var confidence: Confidence = .high
 
-        // 3) Use TCC for Input Monitoring if Apple API returned .unknown
-        if case .unknown = inputMonitoring, let im = tccIM {
-            finalInputMonitoring = im
-            sourceParts.append("tcc-im")
-        } else if case .granted = inputMonitoring {
-            sourceParts.append("api-im")
-        }
+        switch accessibility { case .granted, .denied: sourceParts.append("tcc-ax"); default: break }
+        switch inputMonitoring { case .granted, .denied: sourceParts.append("tcc-im"); default: break }
 
-        // Accessibility always from TCC
-        if case .granted = accessibility {
-            sourceParts.append("tcc-ax")
-        }
-
-        if sourceParts.isEmpty {
-            sourceParts = ["unknown"]
-            confidence = .low
-        }
+        if sourceParts.isEmpty { sourceParts = ["unknown"]; confidence = .low }
 
         let source = "kanata.\(sourceParts.joined(separator: "+"))"
-        AppLogger.shared.log("🔮 [Oracle] Kanata permissions: AX=\(accessibility), IM=\(finalInputMonitoring) via \(source)")
+        AppLogger.shared.log("🔮 [Oracle] Kanata permissions (TCC): AX=\(accessibility), IM=\(inputMonitoring) via \(source)")
 
         return PermissionSet(
             accessibility: accessibility,
-            inputMonitoring: finalInputMonitoring,
+            inputMonitoring: inputMonitoring,
             source: source,
             confidence: confidence,
             timestamp: Date()
         )
     }
 
-    /// Check kanata binary Input Monitoring permission from GUI context (AUTHORITATIVE)
-    ///
-    /// 🚨 CRITICAL: This is THE definitive permission check - DO NOT BYPASS WITH TCC DATABASE
-    ///
-    /// Why this works reliably:
-    /// - IOHIDCheckAccess from GUI context can check permissions for ANY binary path
-    /// - Apple's official API, not a workaround or heuristic
-    /// - Returns definitive .granted/.denied status (never .unknown in practice)
-    /// - Works regardless of whether the target binary is currently running
-    ///
-    /// Why we trust this over TCC database:
-    /// - TCC database can be stale/inconsistent after permission grants
-    /// - This API reflects the ACTUAL current permission state
-    /// - GUI context has reliable access to permission subsystem
-    private func checkBinaryInputMonitoring(at kanataPath: String) -> Status {
-        // First check if the binary exists
-        guard FileManager.default.fileExists(atPath: kanataPath) else {
-            AppLogger.shared.log("🔮 [Oracle] Kanata binary not found at \(kanataPath)")
-            return .error("Kanata binary not found")
-        }
-
-        // 🔮 THE ORACLE SPEAKS: This is the authoritative permission check
-        // IOHIDCheckAccess from GUI context is the official Apple method
-        // and works reliably for checking permissions of any executable path
-        let hasPermission = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-
-        AppLogger.shared.log("🔮 [Oracle] AUTHORITATIVE Apple API check for kanata binary: \(hasPermission ? "GRANTED" : "DENIED")")
-
-        return hasPermission ? .granted : .denied
-    }
+    // NOTE: Removed incorrect IOHIDCheckAccess-based Kanata IM check. IOHIDCheckAccess()
+    // returns the current process status (KeyPath), not an arbitrary binary.
 
     /// Functional verification disabled in TCP-only mode
     /// TCP connectivity check would require protocol implementation
@@ -419,7 +383,6 @@ actor PermissionOracle {
             return result
         }
     }
-
 
     // MARK: - Utilities
 
@@ -514,7 +477,7 @@ actor PermissionOracle {
 
         let queries = [
             "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY auth_value DESC LIMIT 1;",
-            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;",
+            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escExec)' AND client_type=1 ORDER BY allowed DESC LIMIT 1;"
         ]
 
         for (index, sql) in queries.enumerated() {
@@ -573,7 +536,6 @@ actor PermissionOracle {
             }
         }
     }
-
 }
 
 // MARK: - Status Display Helpers

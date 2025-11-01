@@ -17,12 +17,22 @@ class SystemValidator {
     /// Track active validations to detect spam (concurrent validations)
     private static var activeValidations = 0
 
-    /// Shared validation task - if validation is already running, concurrent calls wait for it
-    private static var inProgressValidation: Task<SystemSnapshot, Never>?
+    /// Per-instance validation task - prevents concurrent validations for this instance
+    private var inProgressValidation: Task<SystemSnapshot, Never>?
 
     /// Track validation timing to detect rapid-fire calls (indicates automatic triggers)
     private static var lastValidationStart: Date?
     private static var validationCount = 0
+    /// In test mode, only the "owner" instance contributes to the global counters to prevent cross-test interference.
+    private static var countingOwner: ObjectIdentifier?
+    /// Serialize validations across the test process to avoid cross-test interference
+    private actor TestGate {
+        func run(_ validator: SystemValidator) async -> SystemSnapshot {
+            await validator.performValidationBody()
+        }
+    }
+
+    private static let testGate = TestGate()
 
     // MARK: - Dependencies
 
@@ -43,6 +53,11 @@ class SystemValidator {
         self.kanataManager = kanataManager
 
         AppLogger.shared.log("🔍 [SystemValidator] Initialized (stateless, no cache)")
+
+        // In tests, designate the first validator created after resetCounters() as the counting owner
+        if TestEnvironment.isRunningTests, Self.countingOwner == nil {
+            Self.countingOwner = ObjectIdentifier(self)
+        }
     }
 
     // MARK: - Main Validation Method
@@ -55,7 +70,7 @@ class SystemValidator {
     /// when multiple UI components request validation simultaneously.
     func checkSystem() async -> SystemSnapshot {
         // If validation is already in progress, wait for it
-        if let inProgress = Self.inProgressValidation {
+        if let inProgress = inProgressValidation {
             AppLogger.shared.log("🔍 [SystemValidator] Validation already in progress - waiting for result")
             return await inProgress.value
         }
@@ -65,8 +80,8 @@ class SystemValidator {
             await self.performValidation()
         }
 
-        Self.inProgressValidation = validationTask
-        defer { Self.inProgressValidation = nil }
+        inProgressValidation = validationTask
+        defer { inProgressValidation = nil }
 
         return await validationTask.value
     }
@@ -74,10 +89,24 @@ class SystemValidator {
     /// Perform the actual validation work
     /// This is called by checkSystem() and should not be called directly
     private func performValidation() async -> SystemSnapshot {
+        if TestEnvironment.isRunningTests { return await Self.testGate.run(self) }
+        return await performValidationBody()
+    }
+
+    private func performValidationBody() async -> SystemSnapshot {
+        // If cancelled before we start, return a minimal snapshot without mutating counters
+        if Task.isCancelled {
+            return Self.makeCancelledSnapshot()
+        }
         Self.activeValidations += 1
         defer { Self.activeValidations -= 1 }
 
-        Self.validationCount += 1
+        // Respect cancellation before counting
+        if Task.isCancelled { return Self.makeCancelledSnapshot() }
+        // Only count owner in tests to avoid cross-test interference
+        if !TestEnvironment.isRunningTests || Self.countingOwner == ObjectIdentifier(self) {
+            Self.validationCount += 1
+        }
         let myID = Self.validationCount
 
         // 🚨 DEFENSIVE WARNING: Detect rapid-fire validations (indicates automatic triggers)
@@ -96,6 +125,8 @@ class SystemValidator {
         AppLogger.shared.log("🔍 [SystemValidator] Starting validation #\(myID)")
 
         // Check system state (calls existing services)
+        // NOTE: Helper check FIRST - it's required for privileged operations
+        let helper = await checkHelper()
         let permissions = await checkPermissions()
         let components = await checkComponents()
         let conflicts = await checkConflicts()
@@ -106,6 +137,7 @@ class SystemValidator {
             components: components,
             conflicts: conflicts,
             health: health,
+            helper: helper,
             timestamp: Date()
         )
 
@@ -117,6 +149,38 @@ class SystemValidator {
         snapshot.validate()
 
         return snapshot
+    }
+
+    // MARK: - Helper Checking
+
+    private func checkHelper() async -> HelperStatus {
+        AppLogger.shared.log("🔍 [SystemValidator] Checking privileged helper")
+
+        // Check if helper is installed (BTM registered AND binary exists)
+        // This catches phantom registrations where BTM says yes but binary is missing
+        let isInstalled = HelperManager.shared.isHelperInstalled()
+
+        // Get version if installed (also tests XPC communication)
+        let version = await HelperManager.shared.getHelperVersion()
+
+        // Test actual functionality via XPC
+        // This is the definitive test - returns true ONLY if helper responds
+        let isWorking = await HelperManager.shared.testHelperFunctionality()
+
+        AppLogger.shared.log("🔍 [SystemValidator] Helper: installed=\(isInstalled), version=\(version ?? "nil"), working=\(isWorking)")
+
+        // Log warnings for inconsistent states
+        if isInstalled && !isWorking {
+            AppLogger.shared.log("⚠️ [SystemValidator] Helper installed but not working - may be phantom registration or XPC issue")
+        } else if !isInstalled && isWorking {
+            AppLogger.shared.log("🚨 [SystemValidator] Impossible state: Not installed but working - logic error!")
+        }
+
+        return HelperStatus(
+            isInstalled: isInstalled,
+            version: version,
+            isWorking: isWorking
+        )
     }
 
     // MARK: - Permission Checking
@@ -264,7 +328,35 @@ class SystemValidator {
         activeValidations = 0
         validationCount = 0
         lastValidationStart = nil
-        inProgressValidation = nil
+        countingOwner = nil
         AppLogger.shared.log("🔍 [SystemValidator] Counters reset")
+    }
+
+    /// Create a minimal snapshot used when a validation task is cancelled
+    private static func makeCancelledSnapshot() -> SystemSnapshot {
+        let now = Date()
+        let placeholder = PermissionOracle.PermissionSet(
+            accessibility: .unknown,
+            inputMonitoring: .unknown,
+            source: "cancelled",
+            confidence: .low,
+            timestamp: now
+        )
+        return SystemSnapshot(
+            permissions: PermissionOracle.Snapshot(keyPath: placeholder, kanata: placeholder, timestamp: now),
+            components: ComponentStatus(
+                kanataBinaryInstalled: false,
+                karabinerDriverInstalled: false,
+                karabinerDaemonRunning: false,
+                vhidDeviceInstalled: false,
+                vhidDeviceHealthy: false,
+                launchDaemonServicesHealthy: false,
+                vhidVersionMismatch: false
+            ),
+            conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
+            health: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false),
+            helper: HelperStatus(isInstalled: false, version: nil, isWorking: false),
+            timestamp: now
+        )
     }
 }

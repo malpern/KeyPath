@@ -1,12 +1,11 @@
-import Testing
 import Foundation
 @testable import KeyPath
+import Testing
 
 /// Tests for UserNotificationService - notification management and deduplication
 @Suite("User Notification Service Tests")
 @MainActor
 struct UserNotificationServiceTests {
-
     // MARK: - Category Tests
 
     @Test("Category raw values are correctly formatted")
@@ -65,7 +64,6 @@ struct UserNotificationServiceTests {
 /// Tests for deduplication key generation
 @Suite("Notification Deduplication Tests")
 struct NotificationDeduplicationTests {
-
     @Test("Different failure messages generate different keys")
     func differentKeysForDifferentMessages() {
         let status1 = LaunchFailureStatus.permissionDenied("Accessibility required")

@@ -36,8 +36,7 @@ actor LaunchDaemonPIDCache {
         // Check if cache is still valid
         if let lastUpdate,
            let cachedPID,
-           Date().timeIntervalSince(lastUpdate) < cacheTimeout
-        {
+           Date().timeIntervalSince(lastUpdate) < cacheTimeout {
             AppLogger.shared.log("💾 [PIDCache] Using cached PID: \(cachedPID) (age: \(Int(Date().timeIntervalSince(lastUpdate)))s)")
             return cachedPID
         }
@@ -101,7 +100,10 @@ actor LaunchDaemonPIDCache {
             }
 
             // Wait for first result (either success or timeout)
-            let result = try await group.next()!
+            guard let result = try await group.next() else {
+                group.cancelAll()
+                throw TimeoutError()
+            }
             group.cancelAll()
             return result
         }

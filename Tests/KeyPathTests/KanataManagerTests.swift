@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 final class KanataManagerTests: XCTestCase {
-    lazy var manager: KanataManager = KanataManager()
+    lazy var manager: KanataManager = .init()
 
     func testInitialState() async {
         // Test initial published properties

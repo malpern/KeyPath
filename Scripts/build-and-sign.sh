@@ -91,7 +91,7 @@ cat > "$RESOURCES/BuildInfo.plist" <<EOF
 EOF
 
 echo "✍️  Signing executables..."
-SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
+SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 
 # Sign from innermost to outermost (helper -> kanata -> main app)
 
@@ -125,8 +125,9 @@ ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip"
 cd ..
 
 echo "📋 Submitting for notarization..."
+NOTARY_PROFILE="${NOTARY_PROFILE:-KeyPath-Profile}"
 xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" \
-    --keychain-profile "KeyPath-Profile" \
+    --keychain-profile "$NOTARY_PROFILE" \
     --wait
 
 echo "🔖 Stapling notarization..."

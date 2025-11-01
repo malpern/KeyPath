@@ -1,12 +1,11 @@
-import Testing
 import Foundation
 @testable import KeyPath
+import Testing
 
 /// Tests for MainAppStateController - main app validation coordination
 @Suite("Main App State Controller Tests")
 @MainActor
 struct MainAppStateControllerTests {
-
     // MARK: - ValidationState Tests
 
     @Test("ValidationState.isSuccess returns true only for success")
@@ -32,11 +31,11 @@ struct MainAppStateControllerTests {
         #expect(MainAppStateController.ValidationState.checking == .checking)
         #expect(
             MainAppStateController.ValidationState.failed(blockingCount: 1, totalCount: 2) ==
-            MainAppStateController.ValidationState.failed(blockingCount: 1, totalCount: 2)
+                MainAppStateController.ValidationState.failed(blockingCount: 1, totalCount: 2)
         )
         #expect(
             MainAppStateController.ValidationState.failed(blockingCount: 1, totalCount: 2) !=
-            MainAppStateController.ValidationState.failed(blockingCount: 2, totalCount: 2)
+                MainAppStateController.ValidationState.failed(blockingCount: 2, totalCount: 2)
         )
         #expect(MainAppStateController.ValidationState.success != .checking)
     }
@@ -85,7 +84,6 @@ struct MainAppStateControllerTests {
 @Suite("Validation State Transition Tests")
 @MainActor
 struct ValidationStateTransitionTests {
-
     @Test("Typical successful validation flow")
     func successfulValidationFlow() {
         let controller = MainAppStateController()

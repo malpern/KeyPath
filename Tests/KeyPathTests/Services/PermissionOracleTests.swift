@@ -1,11 +1,10 @@
-import Testing
 import Foundation
 @testable import KeyPath
+import Testing
 
 /// Comprehensive tests for PermissionOracle - the single source of truth for permissions
 @Suite("Permission Oracle Tests")
 struct PermissionOracleTests {
-
     // MARK: - Status Tests
 
     @Test("Status.isReady returns true only for granted")
@@ -260,7 +259,7 @@ struct PermissionOracleTests {
     // MARK: - Test Mode Behavior
 
     @Test("Oracle returns placeholder snapshot in test mode")
-    func testModeSnapshot() async {
+    func modeSnapshot() async {
         // This test verifies the Oracle behaves correctly in test environment
         let oracle = PermissionOracle.shared
         let snapshot = await oracle.currentSnapshot()

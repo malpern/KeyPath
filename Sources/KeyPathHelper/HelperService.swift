@@ -7,7 +7,6 @@ import SystemConfiguration
 /// This service runs as root and executes privileged operations requested by KeyPath.app.
 /// All operations are logged to the system log for audit purposes.
 class HelperService: NSObject, HelperProtocol {
-
     // MARK: - Constants
 
     /// Helper version (must match app version for compatibility)
@@ -92,8 +91,34 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "restartUnhealthyServices",
             operation: {
-                // TODO: Implement service health checking and restart
-                throw HelperError.notImplemented("restartUnhealthyServices")
+                // Assess service health and restart as needed; install if missing
+                let services = [Self.vhidDaemonServiceID, Self.vhidManagerServiceID, Self.kanataServiceID]
+                var needsInstall = false
+                var toRestart: [String] = []
+
+                for id in services {
+                    if !Self.isServiceLoaded(id) {
+                        needsInstall = true
+                        continue
+                    }
+                    if !Self.isServiceHealthy(id) {
+                        toRestart.append(id)
+                    }
+                }
+
+                if needsInstall {
+                    let appBundle = Self.appBundlePathFromHelper()
+                    let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+                    let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
+                    let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
+                    let tcpPort = 37001
+                    try Self.installAllServices(kanataBinaryPath: bundledKanata, kanataConfigPath: cfgPath, tcpPort: tcpPort)
+                    return
+                }
+
+                for id in toRestart {
+                    _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(id)"])
+                }
             },
             reply: reply
         )
@@ -104,8 +129,29 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "regenerateServiceConfiguration",
             operation: {
-                // TODO: Implement service configuration regeneration
-                throw HelperError.notImplemented("regenerateServiceConfiguration")
+                // Re-generate Kanata plist using default paths and reload
+                let appBundle = Self.appBundlePathFromHelper()
+                let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+                let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
+                let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
+                let tcpPort = 37001
+
+                let plist = Self.generateKanataPlist(binaryPath: bundledKanata, cfgPath: cfgPath, tcpPort: tcpPort)
+                let tmp = NSTemporaryDirectory()
+                let tKanata = (tmp as NSString).appendingPathComponent("\(Self.kanataServiceID).plist")
+                try plist.write(toFile: tKanata, atomically: true, encoding: .utf8)
+
+                let dst = "/Library/LaunchDaemons/\(Self.kanataServiceID).plist"
+                _ = Self.run("/bin/mkdir", ["-p", "/Library/LaunchDaemons"])
+                _ = Self.run("/bin/cp", [tKanata, dst])
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", dst])
+                _ = Self.run("/bin/chmod", ["644", dst])
+
+                _ = Self.run("/bin/launchctl", ["bootout", "system/\(Self.kanataServiceID)"])
+                let bs = Self.run("/bin/launchctl", ["bootstrap", "system", dst])
+                if bs.status != 0 { throw HelperError.operationFailed("bootstrap failed: \(bs.out)") }
+                _ = Self.run("/bin/launchctl", ["enable", "system/\(Self.kanataServiceID)"])
+                _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(Self.kanataServiceID)"])
             },
             reply: reply
         )
@@ -153,8 +199,41 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "repairVHIDDaemonServices",
             operation: {
-                // TODO: Implement VHID daemon repair
-                throw HelperError.notImplemented("repairVHIDDaemonServices")
+                // Boot out existing jobs (ignore failures)
+                _ = Self.run("/bin/launchctl", ["bootout", "system/\(Self.vhidDaemonServiceID)"])
+                _ = Self.run("/bin/launchctl", ["bootout", "system/\(Self.vhidManagerServiceID)"])
+
+                // Generate repaired plists
+                let vhidDPlist = Self.generateVHIDDaemonPlist()
+                let vhidMPlist = Self.generateVHIDManagerPlist()
+
+                let tmp = NSTemporaryDirectory()
+                let tVhidD = (tmp as NSString).appendingPathComponent("\(Self.vhidDaemonServiceID).plist")
+                let tVhidM = (tmp as NSString).appendingPathComponent("\(Self.vhidManagerServiceID).plist")
+                try vhidDPlist.write(toFile: tVhidD, atomically: true, encoding: .utf8)
+                try vhidMPlist.write(toFile: tVhidM, atomically: true, encoding: .utf8)
+
+                // Install to LaunchDaemons
+                let dstDir = "/Library/LaunchDaemons"
+                _ = Self.run("/bin/mkdir", ["-p", dstDir])
+                let dVhidD = (dstDir as NSString).appendingPathComponent("\(Self.vhidDaemonServiceID).plist")
+                let dVhidM = (dstDir as NSString).appendingPathComponent("\(Self.vhidManagerServiceID).plist")
+                _ = Self.run("/bin/cp", [tVhidD, dVhidD])
+                _ = Self.run("/bin/cp", [tVhidM, dVhidM])
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", dVhidD])
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", dVhidM])
+                _ = Self.run("/bin/chmod", ["644", dVhidD])
+                _ = Self.run("/bin/chmod", ["644", dVhidM])
+
+                // Bootstrap and kickstart
+                let bs1 = Self.run("/bin/launchctl", ["bootstrap", "system", dVhidD])
+                if bs1.status != 0 { throw HelperError.operationFailed("bootstrap vhid-daemon failed: \(bs1.out)") }
+                let bs2 = Self.run("/bin/launchctl", ["bootstrap", "system", dVhidM])
+                if bs2.status != 0 { throw HelperError.operationFailed("bootstrap vhid-manager failed: \(bs2.out)") }
+                _ = Self.run("/bin/launchctl", ["enable", "system/\(Self.vhidDaemonServiceID)"])
+                _ = Self.run("/bin/launchctl", ["enable", "system/\(Self.vhidManagerServiceID)"])
+                _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(Self.vhidDaemonServiceID)"])
+                _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(Self.vhidManagerServiceID)"])
             },
             reply: reply
         )
@@ -165,8 +244,37 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installLaunchDaemonServicesWithoutLoading",
             operation: {
-                // TODO: Implement LaunchDaemon installation without loading
-                throw HelperError.notImplemented("installLaunchDaemonServicesWithoutLoading")
+                // Install plist files only, without loading/starting services
+                let appBundle = Self.appBundlePathFromHelper()
+                let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+                let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
+                let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
+                let tcpPort = 37001
+
+                let kanataPlist = Self.generateKanataPlist(binaryPath: bundledKanata, cfgPath: cfgPath, tcpPort: tcpPort)
+                let vhidDPlist = Self.generateVHIDDaemonPlist()
+                let vhidMPlist = Self.generateVHIDManagerPlist()
+
+                let tmp = NSTemporaryDirectory()
+                let tKanata = (tmp as NSString).appendingPathComponent("\(Self.kanataServiceID).plist")
+                let tVhidD = (tmp as NSString).appendingPathComponent("\(Self.vhidDaemonServiceID).plist")
+                let tVhidM = (tmp as NSString).appendingPathComponent("\(Self.vhidManagerServiceID).plist")
+                try kanataPlist.write(toFile: tKanata, atomically: true, encoding: .utf8)
+                try vhidDPlist.write(toFile: tVhidD, atomically: true, encoding: .utf8)
+                try vhidMPlist.write(toFile: tVhidM, atomically: true, encoding: .utf8)
+
+                let dstDir = "/Library/LaunchDaemons"
+                _ = Self.run("/bin/mkdir", ["-p", dstDir])
+                let dKanata = (dstDir as NSString).appendingPathComponent("\(Self.kanataServiceID).plist")
+                let dVhidD = (dstDir as NSString).appendingPathComponent("\(Self.vhidDaemonServiceID).plist")
+                let dVhidM = (dstDir as NSString).appendingPathComponent("\(Self.vhidManagerServiceID).plist")
+
+                for (src, dst) in [(tKanata, dKanata), (tVhidD, dVhidD), (tVhidM, dVhidM)] {
+                    _ = Self.run("/bin/rm", ["-f", dst])
+                    _ = Self.run("/bin/cp", [src, dst])
+                    _ = Self.run("/usr/sbin/chown", ["root:wheel", dst])
+                    _ = Self.run("/bin/chmod", ["644", dst])
+                }
             },
             reply: reply
         )
@@ -179,8 +287,12 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "activateVirtualHIDManager",
             operation: {
-                // TODO: Implement VHID Manager activation
-                throw HelperError.notImplemented("activateVirtualHIDManager")
+                let r = Self.run(Self.vhidManagerPath, ["activate"])
+                if r.status != 0 {
+                    throw HelperError.operationFailed("VHID Manager activation failed: \(r.out)")
+                }
+                // Give daemon a moment and consider success
+                usleep(500_000)
             },
             reply: reply
         )
@@ -191,8 +303,16 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "uninstallVirtualHIDDrivers",
             operation: {
-                // TODO: Implement VHID driver uninstallation
-                throw HelperError.notImplemented("uninstallVirtualHIDDrivers")
+                // Attempt to uninstall via systemextensionsctl; ignore if not installed
+                _ = Self.run("/usr/bin/systemextensionsctl", ["list"]) // warm up (informational)
+                let u = Self.run("/usr/bin/systemextensionsctl", [
+                    "uninstall", Self.karabinerTeamID, Self.karabinerDriverBundleID
+                ])
+                if u.status != 0 {
+                    // Not fatal; this can fail if not installed or requires user approval
+                    NSLog("[KeyPathHelper] uninstallVirtualHIDDrivers non-zero status: %d: %@", u.status, u.out)
+                }
+                usleep(500_000)
             },
             reply: reply
         )
@@ -203,8 +323,20 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installVirtualHIDDriver",
             operation: {
-                // TODO: Implement VHID driver installation
-                throw HelperError.notImplemented("installVirtualHIDDriver")
+                let tmp = NSTemporaryDirectory()
+                let pkg = (tmp as NSString).appendingPathComponent("Karabiner-VirtualHID-\(version).pkg")
+                // Download with curl to avoid async URLSession in XPC sync path
+                let d = Self.run("/usr/bin/curl", ["-L", "-f", "-o", pkg, downloadURL])
+                if d.status != 0 { throw HelperError.operationFailed("Download failed: \(d.out)") }
+                let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"])
+                // Clean up regardless
+                _ = try? FileManager.default.removeItem(atPath: pkg)
+                if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
+                // Activate after install
+                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                if a.status != 0 {
+                    NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
+                }
             },
             reply: reply
         )
@@ -215,8 +347,19 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "downloadAndInstallCorrectVHIDDriver",
             operation: {
-                // TODO: Implement auto-detection and installation of correct VHID driver
-                throw HelperError.notImplemented("downloadAndInstallCorrectVHIDDriver")
+                let version = Self.requiredVHIDVersion
+                let url = "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v\(version)/Karabiner-DriverKit-VirtualHIDDevice-\(version).pkg"
+                let tmp = NSTemporaryDirectory()
+                let pkg = (tmp as NSString).appendingPathComponent("Karabiner-VirtualHID-\(version).pkg")
+                let d = Self.run("/usr/bin/curl", ["-L", "-f", "-o", pkg, url])
+                if d.status != 0 { throw HelperError.operationFailed("Download failed: \(d.out)") }
+                let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"])
+                _ = try? FileManager.default.removeItem(atPath: pkg)
+                if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
+                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                if a.status != 0 {
+                    NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
+                }
             },
             reply: reply
         )
@@ -245,8 +388,10 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "killAllKanataProcesses",
             operation: {
-                // TODO: Implement killing all Kanata processes
-                throw HelperError.notImplemented("killAllKanataProcesses")
+                // Try graceful then force
+                _ = Self.run("/usr/bin/pkill", ["-f", "kanata"]) // may return non-zero if none
+                let still = Self.run("/usr/bin/pgrep", ["-f", "kanata"]).status == 0
+                if still { _ = Self.run("/usr/bin/pkill", ["-9", "-f", "kanata"]) }
             },
             reply: reply
         )
@@ -257,8 +402,8 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "restartKarabinerDaemon",
             operation: {
-                // TODO: Implement Karabiner daemon restart
-                throw HelperError.notImplemented("restartKarabinerDaemon")
+                _ = Self.run("/usr/bin/pkill", ["-f", "Karabiner-VirtualHIDDevice-Daemon"]) // ignore status
+                usleep(800_000)
             },
             reply: reply
         )
@@ -305,17 +450,18 @@ enum HelperError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notImplemented(let operation):
-            return "Operation not yet implemented: \(operation)"
-        case .operationFailed(let reason):
-            return "Operation failed: \(reason)"
-        case .invalidArgument(let reason):
-            return "Invalid argument: \(reason)"
+        case let .notImplemented(operation):
+            "Operation not yet implemented: \(operation)"
+        case let .operationFailed(reason):
+            "Operation failed: \(reason)"
+        case let .invalidArgument(reason):
+            "Invalid argument: \(reason)"
         }
     }
 }
 
 // MARK: - Helpers
+
 extension HelperService {
     @discardableResult
     static func run(_ launchPath: String, _ args: [String]) -> (status: Int32, out: String) {
@@ -330,8 +476,49 @@ extension HelperService {
         return (p.terminationStatus, s)
     }
 
+    // Basic service inspection helpers (minimal parsing of `launchctl print`)
+    static func isServiceLoaded(_ serviceID: String) -> Bool {
+        let r = run("/bin/launchctl", ["print", "system/\(serviceID)"])
+        return r.status == 0
+    }
+
+    static func isServiceHealthy(_ serviceID: String) -> Bool {
+        let r = run("/bin/launchctl", ["print", "system/\(serviceID)"])
+        guard r.status == 0 else { return false }
+        let out = r.out
+        let state = firstMatch(#"state\s*=\s*([A-Za-z]+)"#, in: out)?.lowercased()
+        let pidStr = firstMatch(#"\bpid\s*=\s*([0-9]+)"#, in: out) ?? firstMatch(#""PID"\s*=\s*([0-9]+)"#, in: out)
+        let lastExit = firstInt(#"last exit (?:status|code)\s*=\s*(-?\d+)"#, in: out) ?? firstInt(#""LastExitStatus"\s*=\s*(-?\d+)"#, in: out)
+
+        let isOneShot = (serviceID == Self.vhidManagerServiceID)
+        let runningLike = (state == "running" || state == "launching")
+        let hasPID = (pidStr != nil)
+
+        if isOneShot {
+            // one-shot is healthy if last exit was 0, or currently running/launching
+            if let le = lastExit, le == 0 { return true }
+            if runningLike || hasPID { return true }
+            return false
+        } else {
+            // keepalive jobs should be running (allow launching)
+            return runningLike || hasPID
+        }
+    }
+
+    private static func firstMatch(_ pattern: String, in text: String) -> String? {
+        guard let r = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
+        let range = NSRange(text.startIndex ..< text.endIndex, in: text)
+        guard let m = r.firstMatch(in: text, options: [], range: range), m.numberOfRanges >= 2,
+              let gr = Range(m.range(at: 1), in: text) else { return nil }
+        return String(text[gr])
+    }
+
+    private static func firstInt(_ pattern: String, in text: String) -> Int? {
+        firstMatch(pattern, in: text).flatMap { Int($0) }
+    }
+
     static func generateLogRotationScript() -> String {
-        return """
+        """
         #!/bin/bash
         set -euo pipefail
         LOG_DIR="/Library/Logs/KeyPath"
@@ -360,7 +547,7 @@ extension HelperService {
     }
 
     static func generateLogRotationPlist(scriptPath: String) -> String {
-        return """
+        """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -388,11 +575,15 @@ extension HelperService {
     }
 
     // MARK: - LaunchDaemon service helpers
+
     private static let kanataServiceID = "com.keypath.kanata"
     private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
     private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
     private static let vhidDaemonPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
     private static let vhidManagerPath = "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
+    private static let karabinerTeamID = "G43BCU2T37"
+    private static let karabinerDriverBundleID = "org.pqrs.driver.Karabiner-DriverKit-VirtualHIDDevice"
+    private static let requiredVHIDVersion = "5.0.0"
 
     private static func appBundlePathFromHelper() -> String {
         let exe = CommandLine.arguments.first ?? "/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper"
@@ -413,7 +604,7 @@ extension HelperService {
     }
 
     private static func kanataArguments(binaryPath: String, cfgPath: String, tcpPort: Int) -> [String] {
-        return [binaryPath, "--cfg", cfgPath, "--port", String(tcpPort), "--debug", "--log-layer-changes"]
+        [binaryPath, "--cfg", cfgPath, "--port", String(tcpPort), "--debug", "--log-layer-changes"]
     }
 
     private static func generateKanataPlist(binaryPath: String, cfgPath: String, tcpPort: Int) -> String {
@@ -454,7 +645,7 @@ extension HelperService {
     }
 
     private static func generateVHIDDaemonPlist() -> String {
-        return """
+        """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -485,7 +676,7 @@ extension HelperService {
     }
 
     private static func generateVHIDManagerPlist() -> String {
-        return """
+        """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">

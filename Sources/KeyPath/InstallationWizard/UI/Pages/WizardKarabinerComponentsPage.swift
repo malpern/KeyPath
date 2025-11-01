@@ -391,40 +391,44 @@ struct WizardKarabinerComponentsPage: View {
     /// Attempts automatic repair of Karabiner driver issues
     private func performAutomaticDriverRepair() {
         Task { @MainActor in
-            // Use the wizard's auto-fix capability
+            // Fix Session envelope for traceability
+            let session = UUID().uuidString
+            let t0 = Date()
+            AppLogger.shared.log("🧭 [FIX-VHID \(session)] START Karabiner driver repair")
 
-            // Check what specific issues we need to fix
-            let vhidIssues = issues.filter { issue in
-                issue.identifier.isVHIDRelated
-            }
+            // Determine issues involved
+            let vhidIssues = issues.filter { $0.identifier.isVHIDRelated }
+            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Issues: \(vhidIssues.map { String(describing: $0.identifier) }.joined(separator: ", "))")
 
             var success = false
 
-            // ⭐ Check for driver version mismatch FIRST (root cause of other issues)
+            // Always fix version mismatch and daemon misconfig first (structural), then perform a verified restart.
             if vhidIssues.contains(where: { $0.identifier == .component(.vhidDriverVersionMismatch) }) {
-                // Fix driver version mismatch
-                AppLogger.shared.log("🔧 [Driver Repair] Fixing driver version mismatch (v6 → v5)")
+                AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: fixDriverVersionMismatch")
                 success = await performAutoFix(.fixDriverVersionMismatch)
             } else if vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) {
-                // Fix misconfigured daemon plist
-                AppLogger.shared.log("🔧 [Driver Repair] Repairing misconfigured VHID daemon services")
+                AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices")
                 success = await performAutoFix(.repairVHIDDaemonServices)
             } else if vhidIssues.contains(where: { $0.identifier == .component(.launchDaemonServices) }) {
-                // Install missing services
-                AppLogger.shared.log("🔧 [Driver Repair] Installing missing LaunchDaemon services")
+                AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: installLaunchDaemonServices")
                 success = await performAutoFix(.installLaunchDaemonServices)
-            } else {
-                // General VHID issues - try restarting daemon
-                AppLogger.shared.log("🔧 [Driver Repair] Restarting VirtualHID daemon")
-                success = await performAutoFix(.restartVirtualHIDDaemon)
             }
 
+            // Always run a verified restart last to ensure single-owner state
+            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: restartVirtualHIDDaemon (verified)")
+            let restartOk = await performAutoFix(.restartVirtualHIDDaemon)
+            success = success || restartOk
+
+            // Post-repair diagnostic
+            let detail = kanataManager.getVirtualHIDBreakageSummary()
+            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Diagnostic after repair:\n\(detail)")
+
+            let elapsed = String(format: "%.3f", Date().timeIntervalSince(t0))
+            AppLogger.shared.log("🧭 [FIX-VHID \(session)] END (success=\(success)) in \(elapsed)s")
+
             if success {
-                AppLogger.shared.log("✅ [Driver Repair] Automatic repair succeeded and verified")
-                // The restart method already verifies health, so just refresh UI
                 onRefresh()
             } else {
-                AppLogger.shared.log("❌ [Driver Repair] Automatic repair failed - showing installation guide")
                 showingInstallationGuide = true
             }
         }

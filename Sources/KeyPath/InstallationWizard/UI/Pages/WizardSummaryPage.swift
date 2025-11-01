@@ -73,7 +73,7 @@ struct WizardSummaryPage: View {
         // Any additional validation should be added there, not here
 
         // Check if system is active and running
-        guard systemState == .active && kanataManager.isRunning else {
+        guard systemState == .active, kanataManager.isRunning else {
             return false
         }
 

@@ -14,6 +14,9 @@ final class VHIDDeviceManager: @unchecked Sendable {
         "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/Info.plist"
     private static let vhidDeviceRunningCheck = "Karabiner-VirtualHIDDevice-Daemon"
 
+    // Test seam: allow injecting PID provider during unit tests
+    nonisolated(unsafe) static var testPIDProvider: (() -> [String])?
+
     // Version compatibility for kanata
     // NOTE: Kanata v1.9.0 requires Karabiner-DriverKit-VirtualHIDDevice v5.0.0
     // Kanata v1.10 will support v6.0.0+ but is currently in pre-release (as of Oct 2025)
@@ -54,6 +57,26 @@ final class VHIDDeviceManager: @unchecked Sendable {
         if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
             AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze")
             return false // Assume not running during startup
+        }
+
+        // Test seam: allow mocked PID list in tests
+        if TestEnvironment.isRunningTests, let provider = Self.testPIDProvider {
+            let startTime = CFAbsoluteTimeGetCurrent()
+            let pids = provider().filter { !$0.isEmpty }
+            let processCount = pids.count
+            if processCount == 0 {
+                AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: NOT RUNNING")
+                return false
+            }
+            if processCount > 1 {
+                AppLogger.shared.log("❌ [VHIDManager] (test) UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount))")
+                AppLogger.shared.log("❌ [VHIDManager] (test) PIDs: \(pids.joined(separator: ", "))")
+                let duration = CFAbsoluteTimeGetCurrent() - startTime
+                AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)")
+                return false
+            }
+            AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: HEALTHY (single instance)")
+            return true
         }
 
         let task = Process()

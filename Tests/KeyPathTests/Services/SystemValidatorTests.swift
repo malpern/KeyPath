@@ -1,13 +1,12 @@
 import Foundation
-import Testing
 @testable import KeyPath
+import Testing
 
 @MainActor
 @Suite("SystemValidator Tests")
 struct SystemValidatorTests {
-
     @Test("SystemValidator can be instantiated")
-    func testInstantiation() async {
+    func instantiation() async {
         // Reset counters before test
         SystemValidator.resetCounters()
 
@@ -23,7 +22,7 @@ struct SystemValidatorTests {
     }
 
     @Test("SystemValidator tracks validation count")
-    func testValidationCount() async {
+    func validationCount() async {
         // Reset counters
         SystemValidator.resetCounters()
 
@@ -46,7 +45,7 @@ struct SystemValidatorTests {
     }
 
     @Test("SystemSnapshot has fresh timestamp")
-    func testSnapshotFreshness() async {
+    func snapshotFreshness() async {
         let processManager = ProcessLifecycleManager(kanataManager: nil)
         let validator = SystemValidator(processLifecycleManager: processManager)
 
@@ -60,7 +59,7 @@ struct SystemValidatorTests {
     }
 
     @Test("SystemSnapshot validates staleness")
-    func testSnapshotStalenessDetection() async {
+    func snapshotStalenessDetection() async {
         // Create a snapshot with old timestamp
         let oldTimestamp = Date(timeIntervalSinceNow: -35)
 

@@ -6,8 +6,7 @@ class IssueGenerator {
     // MARK: - Issue Creation
 
     func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult)
-        -> [WizardIssue]
-    {
+        -> [WizardIssue] {
         var issues: [WizardIssue] = []
 
         // Create issues for each compatibility problem
@@ -81,8 +80,7 @@ class IssueGenerator {
     }
 
     private func createGroupedConflictDescription(conflictType: String, conflicts: [SystemConflict])
-        -> String
-    {
+        -> String {
         let count = conflicts.count
         let plural = count > 1 ? "es" : ""
 
@@ -313,6 +311,8 @@ class IssueGenerator {
 
     private func componentTitle(for component: ComponentRequirement) -> String {
         switch component {
+        case .privilegedHelper: "Privileged Helper Not Installed"
+        case .privilegedHelperUnhealthy: "Privileged Helper Not Working"
         case .kanataBinaryMissing: WizardConstants.Titles.kanataBinaryMissing
         case .kanataService: "Kanata Service Missing"
         case .karabinerDriver: WizardConstants.Titles.karabinerDriverMissing
@@ -336,6 +336,10 @@ class IssueGenerator {
 
     private func componentDescription(for component: ComponentRequirement) -> String {
         switch component {
+        case .privilegedHelper:
+            "The privileged helper allows system-level operations without repeated sudo password prompts. Install it to streamline setup and maintenance tasks."
+        case .privilegedHelperUnhealthy:
+            "The privileged helper is installed but not responding. Try reinstalling it to restore functionality."
         case .kanataBinaryMissing:
             "The kanata binary needs to be installed to system location from KeyPath's bundled Developer ID signed version. This ensures proper code signing for Input Monitoring permission."
         case .kanataService:

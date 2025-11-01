@@ -13,7 +13,7 @@ import SwiftUI
 class MainAppStateController: ObservableObject {
     // MARK: - Published State (Compatible with existing UI)
 
-    @Published var validationState: ValidationState? = nil // nil = not yet validated, show nothing
+    @Published var validationState: ValidationState? // nil = not yet validated, show nothing
     @Published var issues: [WizardIssue] = []
     @Published var lastValidationDate: Date?
 
@@ -85,8 +85,7 @@ class MainAppStateController: ObservableObject {
         // Verify plist has TCP port argument
         if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
            let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String]
-        {
+           let args = plist["ProgramArguments"] as? [String] {
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
                 AppLogger.shared.log("⚠️ [MainAppStateController] TCP check failed: Service missing --port argument")
@@ -229,7 +228,7 @@ class MainAppStateController: ObservableObject {
             // Also verify TCP communication is properly configured (matches wizard logic)
             let tcpConfigured = await checkTCPConfiguration()
 
-            if blockingIssues.isEmpty && tcpConfigured {
+            if blockingIssues.isEmpty, tcpConfigured {
                 validationState = .success
                 AppLogger.shared.log("✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues, TCP configured")
             } else {

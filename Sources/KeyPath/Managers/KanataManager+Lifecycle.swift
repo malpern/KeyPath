@@ -100,11 +100,11 @@ extension KanataManager {
         }
     }
 
-    /// Legacy coordinator-based restart - prefer the new bool-returning restartKarabinerDaemon()
+    /// Legacy coordinator-based restart - now delegates to verified restart for safety
     func restartKarabinerDaemonLegacy() async {
         do {
-            try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemon()
-            AppLogger.shared.log("🔧 [Recovery] Restarted Karabiner daemon (legacy path)")
+            let ok = try await PrivilegedOperationsCoordinator.shared.restartKarabinerDaemonVerified()
+            AppLogger.shared.log("🔧 [Recovery] Restarted Karabiner daemon (legacy path via verified): \(ok)")
 
             // Wait a moment then check if it auto-restarts
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second

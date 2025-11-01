@@ -529,8 +529,7 @@ struct TechnicalDetailsView: View {
 
                                 // Only display lines that actually contain PID information
                                 if processText.contains("PID: "),
-                                   processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil
-                                {
+                                   processText.range(of: #"PID: \d+"#, options: .regularExpression) != nil {
                                     let (processName, processDescription, pid) = parseProcessInfo(processText)
                                     ProcessRow(
                                         processName: processName,

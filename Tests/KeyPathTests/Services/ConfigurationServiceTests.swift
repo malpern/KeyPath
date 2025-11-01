@@ -11,7 +11,8 @@ class ConfigurationServiceTests: XCTestCase {
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }()
-    lazy var configService: ConfigurationService = ConfigurationService(configDirectory: tempDirectory.path)
+
+    lazy var configService: ConfigurationService = .init(configDirectory: tempDirectory.path)
 
     // MARK: - Configuration Generation Tests
 

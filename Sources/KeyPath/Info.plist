@@ -27,5 +27,12 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 
+	<!-- SMAppService: Declare privileged helper for system operations -->
+	<key>SMPrivilegedExecutables</key>
+	<dict>
+		<key>com.keypath.helper</key>
+		<string>identifier "com.keypath.helper" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = X2RKZ5TG99</string>
+	</dict>
+
 </dict>
 </plist>

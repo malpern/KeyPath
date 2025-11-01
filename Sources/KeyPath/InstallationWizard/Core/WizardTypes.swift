@@ -6,6 +6,7 @@ import SwiftUI
 /// Represents the current page in the installation wizard
 enum WizardPage: String, CaseIterable {
     case summary = "Summary"
+    case helper = "Privileged Helper"
     case fullDiskAccess = "Full Disk Access"
     case conflicts = "Resolve Conflicts"
     case inputMonitoring = "Input Monitoring"
@@ -19,6 +20,7 @@ enum WizardPage: String, CaseIterable {
     var displayName: String {
         switch self {
         case .summary: "Setup Overview"
+        case .helper: "Privileged Helper Installation"
         case .fullDiskAccess: "Full Disk Access (Optional)"
         case .conflicts: "Resolve System Conflicts"
         case .inputMonitoring: "Input Monitoring Permission"
@@ -40,6 +42,7 @@ enum WizardPage: String, CaseIterable {
         case .accessibility: "accessibility"
         case .karabinerComponents: "karabiner-components"
         case .kanataComponents: "kanata-components"
+        case .helper: "privileged-helper"
         case .communication: "communication"
         case .service: "service"
         }
@@ -48,9 +51,11 @@ enum WizardPage: String, CaseIterable {
 
 // Explicit, user-facing ordering for wizard navigation and bullets.
 // This matches the Summary order shown in WizardSystemStatusOverview.
+// NOTE: Helper is FIRST (after summary) because it's required for privileged operations
 extension WizardPage {
     static let orderedPages: [WizardPage] = [
         .summary,
+        .helper,
         .fullDiskAccess,
         .conflicts,
         .inputMonitoring,
@@ -58,7 +63,7 @@ extension WizardPage {
         .karabinerComponents,
         .kanataComponents,
         .service,
-        .communication,
+        .communication
     ]
 }
 
@@ -67,6 +72,7 @@ enum InstallationStatus {
     case notStarted
     case inProgress
     case completed
+    case warning // Partial success or degraded state (e.g., installed but unhealthy)
     case failed
 }
 
@@ -80,14 +86,15 @@ enum LaunchFailureStatus: Equatable {
 
     var shortMessage: String {
         switch self {
-        case .permissionDenied:
-            "Kanata needs permissions"
-        case .configError:
-            "Configuration error"
-        case .serviceFailure:
-            "Kanata service failed"
-        case .missingDependency:
-            "Kanata not installed"
+        case let .permissionDenied(reason):
+            // Preserve specific reason when provided for better deduping; fallback to generic
+            reason.isEmpty ? "Kanata needs permissions" : reason
+        case let .configError(reason):
+            reason.isEmpty ? "Configuration error" : reason
+        case let .serviceFailure(reason):
+            reason.isEmpty ? "Kanata service failed" : reason
+        case let .missingDependency(detail):
+            detail.isEmpty ? "Kanata not installed" : detail
         }
     }
 }
@@ -127,6 +134,8 @@ enum PermissionRequirement: Equatable {
 
 /// Component requirements that need installation
 enum ComponentRequirement: Equatable {
+    case privilegedHelper // Privileged helper for system-level operations
+    case privilegedHelperUnhealthy // Helper installed but not responding/working
     case kanataBinaryMissing // Kanata binary needs to be installed to system location
     case kanataService
     case karabinerDriver
@@ -149,6 +158,8 @@ enum ComponentRequirement: Equatable {
 
 /// Actions that can be automatically fixed by the wizard
 enum AutoFixAction: Equatable {
+    case installPrivilegedHelper // Install and register privileged helper
+    case reinstallPrivilegedHelper // Reinstall helper if unhealthy
     case terminateConflictingProcesses
     case startKarabinerDaemon
     case restartVirtualHIDDaemon

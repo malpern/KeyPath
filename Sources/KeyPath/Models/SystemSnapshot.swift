@@ -7,13 +7,15 @@ struct SystemSnapshot {
     let components: ComponentStatus
     let conflicts: ConflictStatus
     let health: HealthStatus
+    let helper: HelperStatus
     let timestamp: Date
 
     // MARK: - Computed Properties for UI
 
     /// System is ready when all critical components are operational
     var isReady: Bool {
-        permissions.isSystemReady &&
+        helper.isReady &&
+            permissions.isSystemReady &&
             !conflicts.hasConflicts &&
             components.hasAllRequired &&
             health.isHealthy
@@ -22,6 +24,13 @@ struct SystemSnapshot {
     /// Issues that prevent the system from working
     var blockingIssues: [Issue] {
         var issues: [Issue] = []
+
+        // Helper issues (check first - required for system operations)
+        if !helper.isInstalled {
+            issues.append(.componentMissing(name: "Privileged Helper", autoFix: true))
+        } else if !helper.isWorking {
+            issues.append(.componentUnhealthy(name: "Privileged Helper", autoFix: true))
+        }
 
         // Permission issues
         if !permissions.keyPath.hasAllPermissions {
@@ -156,6 +165,22 @@ struct HealthStatus {
 
     var isHealthy: Bool {
         kanataRunning && karabinerDaemonRunning && vhidHealthy
+    }
+}
+
+// MARK: - Helper Status
+
+struct HelperStatus {
+    let isInstalled: Bool
+    let version: String?
+    let isWorking: Bool
+
+    var isReady: Bool {
+        isInstalled && isWorking
+    }
+
+    var displayVersion: String {
+        version ?? "Unknown"
     }
 }
 

@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class KeyboardCaptureTests: XCTestCase {
-    lazy var capture: KeyboardCapture = KeyboardCapture()
+    lazy var capture: KeyboardCapture = .init()
     var receivedNotifications: [Notification] = []
 
     override func setUp() {

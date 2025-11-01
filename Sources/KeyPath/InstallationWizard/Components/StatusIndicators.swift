@@ -41,6 +41,7 @@ struct SummaryItemView: View {
         switch status {
         case .completed: WizardDesign.Colors.success
         case .inProgress: WizardDesign.Colors.inProgress
+        case .warning: WizardDesign.Colors.warning
         case .failed: WizardDesign.Colors.error
         case .notStarted: WizardDesign.Colors.secondaryText
         }
@@ -56,6 +57,10 @@ struct SummaryItemView: View {
         case .inProgress:
             ProgressView()
                 .scaleEffect(0.7)
+        case .warning:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(WizardDesign.Colors.warning)
+                .font(WizardDesign.Typography.subsectionTitle)
         case .failed:
             Image(systemName: "xmark.circle.fill")
                 .foregroundColor(WizardDesign.Colors.error)
@@ -118,6 +123,10 @@ struct InstallationItemView: View {
                 .font(WizardDesign.Typography.sectionTitle)
         case .inProgress:
             ProgressView()
+        case .warning:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(WizardDesign.Colors.warning)
+                .font(WizardDesign.Typography.sectionTitle)
         case .failed:
             Image(systemName: "xmark.circle.fill")
                 .foregroundColor(WizardDesign.Colors.error)
@@ -271,10 +280,13 @@ struct PageDotsIndicator: View {
 
     var body: some View {
         let pages = WizardPage.orderedPages
+        let helperInstalled = HelperManager.shared.isHelperInstalled()
         HStack(spacing: WizardDesign.Spacing.labelGap) {
             ForEach(Array(pages.enumerated()), id: \.1) { index, page in
+                let deemphasized = (page == .helper && helperInstalled)
                 PageDot(
                     isCurrent: currentPage == page,
+                    isDeemphasized: deemphasized,
                     page: page,
                     index: index,
                     total: pages.count,
@@ -296,6 +308,7 @@ struct PageDotsIndicator: View {
 
 private struct PageDot: View {
     let isCurrent: Bool
+    let isDeemphasized: Bool
     let page: WizardPage
     let index: Int
     let total: Int
@@ -303,15 +316,37 @@ private struct PageDot: View {
 
     var body: some View {
         Circle()
-            .fill(isCurrent ? WizardDesign.Colors.primaryAction : WizardDesign.Colors.secondaryText.opacity(0.4))
-            .frame(width: 8, height: 8)
+            .fill(dotFill)
+            .frame(width: isDeemphasized ? 7 : 8, height: isDeemphasized ? 7 : 8)
+            .overlay(
+                Circle()
+                    .stroke(isDeemphasized ? WizardDesign.Colors.secondaryText.opacity(0.25) : .clear, lineWidth: 1)
+            )
             .scaleEffect(isCurrent ? 1.2 : 1.0)
             .animation(WizardDesign.Animation.buttonFeedback, value: isCurrent)
             .onTapGesture { onTap() }
+            .help(helpText)
             .accessibilityLabel("Navigate to \(page.displayName)")
-            .accessibilityValue(isCurrent ? "Current page" : "Page \(index + 1) of \(total)")
+            .accessibilityValue(accessibilityValue)
             .accessibilityAddTraits(isCurrent ? [.isSelected, .isButton] : .isButton)
             .accessibilityHint("Double-tap to go to \(page.displayName) setup step")
             .accessibilityIdentifier("wizard-step-\(index + 1)-\(page.accessibilityIdentifier)")
+    }
+
+    private var dotFill: Color {
+        if isCurrent { return WizardDesign.Colors.primaryAction }
+        if isDeemphasized { return WizardDesign.Colors.secondaryText.opacity(0.18) }
+        return WizardDesign.Colors.secondaryText.opacity(0.4)
+    }
+
+    private var helpText: String {
+        if page == .helper, isDeemphasized { return "Optional step: Helper already installed" }
+        return "Navigate to \(page.displayName)"
+    }
+
+    private var accessibilityValue: String {
+        var value = isCurrent ? "Current page" : "Page \(index + 1) of \(total)"
+        if page == .helper, isDeemphasized { value += ", optional" }
+        return value
     }
 }

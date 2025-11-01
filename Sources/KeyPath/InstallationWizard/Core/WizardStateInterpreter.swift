@@ -8,8 +8,7 @@ struct WizardStateInterpreter {
 
     /// Get the status of a specific permission requirement
     func getPermissionStatus(_ permission: PermissionRequirement, in issues: [WizardIssue])
-        -> InstallationStatus
-    {
+        -> InstallationStatus {
         let hasIssue = issues.contains { $0.identifier == .permission(permission) }
         return hasIssue ? .failed : .completed
     }
@@ -33,8 +32,7 @@ struct WizardStateInterpreter {
 
     /// Get the status of a specific component requirement
     func getComponentStatus(_ component: ComponentRequirement, in issues: [WizardIssue])
-        -> InstallationStatus
-    {
+        -> InstallationStatus {
         let hasIssue = issues.contains { $0.identifier == .component(component) }
         return hasIssue ? .failed : .completed
     }
@@ -179,6 +177,8 @@ struct WizardStateInterpreter {
                 }
                 return false
             }
+        case .helper:
+            [] // Helper page shows helper status/actions directly
         case .communication:
             // Communication Server issues
             issues.filter { issue in
@@ -225,6 +225,8 @@ struct WizardStateInterpreter {
             .secondary
         case .inProgress:
             .blue
+        case .warning:
+            .orange
         case .completed:
             .green
         case .failed:
@@ -239,10 +241,20 @@ struct WizardStateInterpreter {
             "circle"
         case .inProgress:
             "clock"
+        case .warning:
+            "exclamationmark.triangle.fill"
         case .completed:
             "checkmark.circle.fill"
         case .failed:
             "xmark.circle.fill"
         }
+    }
+
+    // MARK: - UI Prompts
+
+    /// Whether we should surface the Helper CTA on Summary.
+    /// Extracted for testability; default provider checks real helper install state.
+    func shouldShowHelperCTA(helperInstalledProvider: () -> Bool = { HelperManager.shared.isHelperInstalled() }) -> Bool {
+        !helperInstalledProvider()
     }
 }

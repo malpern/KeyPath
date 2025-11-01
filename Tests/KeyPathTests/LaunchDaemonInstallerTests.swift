@@ -1,11 +1,10 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 /// Tests for LaunchDaemonInstaller to ensure proper service dependency ordering
 final class LaunchDaemonInstallerTests: XCTestCase {
-    
     // MARK: - Service Order Constants
-    
+
     /// The correct dependency order for services
     /// 1. VirtualHID Daemon first (provides the base VirtualHID framework)
     /// 2. VirtualHID Manager second (manages VirtualHID devices)
@@ -15,14 +14,14 @@ final class LaunchDaemonInstallerTests: XCTestCase {
         "com.keypath.karabiner-vhidmanager",
         "com.keypath.kanata"
     ]
-    
+
     // MARK: - Test Helpers
-    
+
     /// Extract bootstrap commands from a script in order
     private func extractBootstrapOrder(from script: String) -> [String] {
         let lines = script.components(separatedBy: .newlines)
         var bootstrapServices: [String] = []
-        
+
         for line in lines {
             // Match lines like: launchctl bootstrap system '/Library/LaunchDaemons/com.keypath.*.plist'
             // or with Swift interpolation: launchctl bootstrap system '\(vhidDaemonFinal)'
@@ -33,10 +32,10 @@ final class LaunchDaemonInstallerTests: XCTestCase {
                 }
             }
         }
-        
+
         return bootstrapServices
     }
-    
+
     /// Extract service name from a launchctl bootstrap line with Swift interpolation
     private func extractServiceNameFromBootstrap(from line: String) -> String? {
         // Handle Swift interpolation patterns like '\(vhidDaemonFinal)'
@@ -47,34 +46,34 @@ final class LaunchDaemonInstallerTests: XCTestCase {
         } else if line.contains("kanataFinal") {
             return "com.keypath.kanata"
         }
-        
+
         // Also check for direct service names
         return extractServiceName(from: line)
     }
-    
+
     /// Extract service name from a launchctl bootstrap line
     private func extractServiceName(from line: String) -> String? {
         // Look for patterns like com.keypath.kanata, com.keypath.karabiner-vhiddaemon, etc.
         let patterns = [
             "com.keypath.kanata",
-            "com.keypath.karabiner-vhiddaemon", 
+            "com.keypath.karabiner-vhiddaemon",
             "com.keypath.karabiner-vhidmanager"
         ]
-        
+
         for pattern in patterns {
             if line.contains(pattern) {
                 return pattern
             }
         }
-        
+
         return nil
     }
-    
+
     /// Extract kickstart commands from a script in order
     private func extractKickstartOrder(from script: String) -> [String] {
         let lines = script.components(separatedBy: .newlines)
         var kickstartServices: [String] = []
-        
+
         for line in lines {
             // Match lines like: launchctl kickstart -k system/com.keypath.*
             // or with Swift interpolation: launchctl kickstart -k system/\(Self.kanataServiceID)
@@ -91,103 +90,105 @@ final class LaunchDaemonInstallerTests: XCTestCase {
                 }
             }
         }
-        
+
         return kickstartServices
     }
-    
+
     // MARK: - Tests
-    
+
     /// Test that the executeConsolidatedInstallationWithAuthServices method respects dependency order
     func testAuthServicesInstallationRespectsServiceDependencyOrder() throws {
         // Read the LaunchDaemonInstaller source file
         let sourcePath = FileManager.default.currentDirectoryPath + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
-        
+
         // Find the executeConsolidatedInstallationWithAuthServices method
         guard let methodStart = sourceCode.range(of: "executeConsolidatedInstallationWithAuthServices")?.lowerBound else {
             XCTFail("Could not find executeConsolidatedInstallationWithAuthServices method")
             return
         }
-        
+
         // Extract the script content from this method
         let methodSection = String(sourceCode[methodStart...])
-        
+
         // Find the script content between triple quotes
         guard let scriptStart = methodSection.range(of: "#!/bin/bash")?.lowerBound,
-              let scriptEnd = methodSection.range(of: "\"\"\"", range: scriptStart..<methodSection.endIndex)?.lowerBound else {
+              let scriptEnd = methodSection.range(of: "\"\"\"", range: scriptStart ..< methodSection.endIndex)?.lowerBound
+        else {
             XCTFail("Could not extract script from executeConsolidatedInstallationWithAuthServices")
             return
         }
-        
-        let script = String(methodSection[scriptStart..<scriptEnd])
-        
+
+        let script = String(methodSection[scriptStart ..< scriptEnd])
+
         // Extract bootstrap order
         let bootstrapOrder = extractBootstrapOrder(from: script)
-        
+
         // Verify bootstrap order
         XCTAssertEqual(bootstrapOrder, correctServiceOrder,
-                      "Bootstrap order must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
-        
+                       "Bootstrap order must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
+
         // Extract kickstart order
         let kickstartOrder = extractKickstartOrder(from: script)
-        
+
         // Verify kickstart order
         XCTAssertEqual(kickstartOrder, correctServiceOrder,
-                      "Kickstart order must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
+                       "Kickstart order must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
     }
-    
+
     /// Test that the executeConsolidatedInstallationImproved method respects dependency order
     func testImprovedOsascriptInstallationRespectsServiceDependencyOrder() throws {
         // Read the LaunchDaemonInstaller source file
         let sourcePath = FileManager.default.currentDirectoryPath + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
-        
+
         // Find the executeConsolidatedInstallationImproved method
         guard let methodStart = sourceCode.range(of: "executeConsolidatedInstallationImproved")?.lowerBound else {
             XCTFail("Could not find executeConsolidatedInstallationImproved method")
             return
         }
-        
+
         // Extract the script content from this method
         let methodSection = String(sourceCode[methodStart...])
-        
+
         // Find the script content - look for the command variable assignment starting with set -ex
         guard let commandStart = methodSection.range(of: "set -ex")?.lowerBound,
-              let commandEnd = methodSection.range(of: "echo \"Installation completed successfully\"")?.upperBound else {
+              let commandEnd = methodSection.range(of: "echo \"Installation completed successfully\"")?.upperBound
+        else {
             XCTFail("Could not extract command script from executeConsolidatedInstallationImproved")
             return
         }
-        
-        let script = String(methodSection[commandStart..<commandEnd])
-        
+
+        let script = String(methodSection[commandStart ..< commandEnd])
+
         // Extract bootstrap order
         let bootstrapOrder = extractBootstrapOrder(from: script)
-        
+
         // Verify bootstrap order
         XCTAssertEqual(bootstrapOrder, correctServiceOrder,
-                      "Bootstrap order in improved method must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
-        
+                       "Bootstrap order in improved method must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
+
         // Extract kickstart order
         let kickstartOrder = extractKickstartOrder(from: script)
-        
+
         // Verify kickstart order
         XCTAssertEqual(kickstartOrder, correctServiceOrder,
-                      "Kickstart order in improved method must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
+                       "Kickstart order in improved method must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
     }
-    
+
     /// Test that inline script methods also respect dependency order
     func testInlineScriptRespectsServiceDependencyOrder() throws {
         // Read the LaunchDaemonInstaller source file
         let sourcePath = FileManager.default.currentDirectoryPath + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
-        
+
         // Look for the inline version that has the three services in a row
         // This typically appears in simplified installation scripts
         let lines = sourceCode.components(separatedBy: .newlines)
-        
+
         var foundInlineBootstrap = false
         var inlineBootstrapOrder: [String] = []
-        
+
         for line in lines {
             // Look for consecutive bootstrap commands
             if line.contains("/bin/launchctl bootstrap system") {
@@ -195,12 +196,12 @@ final class LaunchDaemonInstallerTests: XCTestCase {
                     inlineBootstrapOrder.append(serviceName)
                     foundInlineBootstrap = true
                 }
-                
+
                 // Check if we've found all three services in sequence
                 if inlineBootstrapOrder.count == 3 {
                     break
                 }
-            } else if foundInlineBootstrap && !line.contains("launchctl bootstrap") {
+            } else if foundInlineBootstrap, !line.contains("launchctl bootstrap") {
                 // If we were collecting bootstrap commands and hit a non-bootstrap line,
                 // check if we have a complete set
                 if inlineBootstrapOrder.count == 3 {
@@ -208,30 +209,30 @@ final class LaunchDaemonInstallerTests: XCTestCase {
                 }
             }
         }
-        
+
         // Only verify if we found inline bootstrap commands
-        if foundInlineBootstrap && inlineBootstrapOrder.count == 3 {
+        if foundInlineBootstrap, inlineBootstrapOrder.count == 3 {
             XCTAssertEqual(inlineBootstrapOrder, correctServiceOrder,
-                          "Inline bootstrap order must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
+                           "Inline bootstrap order must be: VirtualHID Daemon → VirtualHID Manager → Kanata")
         }
     }
-    
+
     /// Test that no installation method violates the dependency order
     func testNoInstallationMethodViolatesDependencyOrder() throws {
         // Read the LaunchDaemonInstaller source file
         let sourcePath = FileManager.default.currentDirectoryPath + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
-        
+
         let lines = sourceCode.components(separatedBy: .newlines)
-        
+
         // Track consecutive bootstrap commands
         var currentBootstrapSequence: [String] = []
-        
+
         for line in lines {
             if line.contains("launchctl bootstrap system") {
                 if let serviceName = extractServiceName(from: line) {
                     currentBootstrapSequence.append(serviceName)
-                    
+
                     // If we have kanata but not vhid services before it, that's wrong
                     if serviceName == "com.keypath.kanata" {
                         if currentBootstrapSequence.count == 1 {
@@ -239,31 +240,31 @@ final class LaunchDaemonInstallerTests: XCTestCase {
                         }
                     }
                 }
-            } else if !line.contains("launchctl bootstrap") && !currentBootstrapSequence.isEmpty {
+            } else if !line.contains("launchctl bootstrap"), !currentBootstrapSequence.isEmpty {
                 // End of a bootstrap sequence, reset
                 if currentBootstrapSequence.count >= 3 {
                     // Verify this sequence
                     XCTAssertEqual(currentBootstrapSequence, correctServiceOrder,
-                                  "Found incorrect bootstrap sequence: \(currentBootstrapSequence)")
+                                   "Found incorrect bootstrap sequence: \(currentBootstrapSequence)")
                 }
                 currentBootstrapSequence = []
             }
         }
     }
-    
+
     /// Test documentation to ensure dependency requirements are documented
     func testDependencyOrderIsDocumented() throws {
         // Read the LaunchDaemonInstaller source file
         let sourcePath = FileManager.default.currentDirectoryPath + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
         let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
-        
+
         // Look for comments mentioning dependencies
         let hasDepComment = sourceCode.contains("DEPENDENCIES FIRST") ||
-                           sourceCode.contains("VirtualHID") && sourceCode.contains("depends") ||
-                           sourceCode.contains("dependency order")
-        
+            sourceCode.contains("VirtualHID") && sourceCode.contains("depends") ||
+            sourceCode.contains("dependency order")
+
         XCTAssertTrue(hasDepComment,
-                     "LaunchDaemonInstaller should document the dependency order requirement")
+                      "LaunchDaemonInstaller should document the dependency order requirement")
     }
 }
 

@@ -120,6 +120,14 @@ class WizardNavigationEngine: WizardNavigating {
             return .kanataComponents
         }
 
+        // 6. Privileged Helper — recommend installing before service management to avoid repeated prompts
+        // Only surface this step if the helper isn’t installed yet. This is non-blocking but improves UX.
+        let helperInstalled = HelperManager.shared.isHelperInstalled()
+        if !helperInstalled {
+            AppLogger.shared.log("🔍 [NavigationEngine] → .helper (helper not installed)")
+            return .helper
+        }
+
         // 6. Service state check (directly from WizardSystemState)
         switch state {
         case .serviceNotRunning:
@@ -174,8 +182,7 @@ class WizardNavigationEngine: WizardNavigating {
         // If the target page is ahead of us in the flow and different from current, jump to it
         if let targetIndex = pageOrder.firstIndex(of: targetPage),
            targetIndex > currentIndex,
-           targetPage != current
-        {
+           targetPage != current {
             return targetPage
         }
 
@@ -209,18 +216,12 @@ class WizardNavigationEngine: WizardNavigating {
 
     // MARK: - Page Ordering Logic
 
-    /// Returns the typical ordering of pages for a complete setup flow
+    /// Returns the typical ordering of pages for a complete setup flow.
+    /// Uses the static orderedPages array to ensure consistent navigation.
     func getPageOrder() -> [WizardPage] {
-        [
-            .summary, // Overview
-            .fullDiskAccess, // Optional FDA for better diagnostics
-            .conflicts, // Must resolve conflicts first
-            .inputMonitoring, // Input Monitoring permission
-            .accessibility, // Accessibility permission
-            .karabinerComponents, // Karabiner driver and VirtualHID setup
-            .kanataComponents, // Kanata binary and service setup
-            .service, // Start keyboard service
-        ]
+        // Use the static orderedPages array for consistent navigation
+        // This ensures "Continue" buttons move through pages in a predictable order
+        WizardPage.orderedPages
     }
 
     /// Returns the index of a page in the typical flow
@@ -236,6 +237,8 @@ class WizardNavigationEngine: WizardNavigating {
             true // Cannot proceed with conflicts
         case .karabinerComponents, .kanataComponents:
             true // Cannot use without components
+        case .helper:
+            false // Optional but recommended to avoid prompts
         case .inputMonitoring, .accessibility:
             false // Can proceed but functionality limited
         case .service:
@@ -282,6 +285,8 @@ class WizardNavigationEngine: WizardNavigating {
             "Install Karabiner Components"
         case .kanataComponents:
             "Install Kanata Components"
+        case .helper:
+            HelperManager.shared.isHelperInstalled() ? "Manage Helper" : "Install Helper"
         case .communication:
             "Check TCP Server"
         case .service:
@@ -321,6 +326,8 @@ class WizardNavigationEngine: WizardNavigating {
                 return !missing.isEmpty
             }
             return true // Can always try to install components
+        case .helper:
+            return true
         case .communication:
             return true // Can always check TCP server
         case .service:

@@ -91,7 +91,7 @@ public struct KeyPathApp: App {
                             ),
                             NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
                             NSApplication.AboutPanelOptionKey.applicationVersion: info.version,
-                            NSApplication.AboutPanelOptionKey.version: "Build \(info.build)",
+                            NSApplication.AboutPanelOptionKey.version: "Build \(info.build)"
                         ]
                     )
                 }

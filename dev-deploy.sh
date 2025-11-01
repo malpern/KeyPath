@@ -44,12 +44,29 @@ cat > dist/KeyPath.app/Contents/Info.plist << EOF
 </plist>
 EOF
 
-# Deploy to ~/Applications (user directory - no permissions needed)
-echo "🚀 Deploying to ~/Applications..."
-rm -rf ~/Applications/KeyPath.app
-cp -r dist/KeyPath.app ~/Applications/
+# Graceful shutdown of a running instance (best effort)
+echo "🛑 Stopping running KeyPath (if any)..."
+osascript -e 'tell application "KeyPath" to quit' >/dev/null 2>&1 || true
+pkill -f "/KeyPath.app/Contents/MacOS/KeyPath" >/dev/null 2>&1 || true
+
+# Remove any user-local copy that could confuse TCC grants
+if [ -d "$HOME/Applications/KeyPath.app" ]; then
+  echo "🧹 Removing user-local copy: $HOME/Applications/KeyPath.app"
+  rm -rf "$HOME/Applications/KeyPath.app"
+fi
+
+# Deploy to /Applications (system Applications)
+echo "🚀 Deploying to /Applications..."
+if rm -rf /Applications/KeyPath.app 2>/dev/null && cp -R dist/KeyPath.app /Applications/; then
+  echo "✅ Deployed to /Applications/KeyPath.app"
+else
+  echo "⚠️  Permission denied copying to /Applications — retrying with sudo"
+  sudo rm -rf /Applications/KeyPath.app || true
+  sudo cp -R dist/KeyPath.app /Applications/
+  echo "✅ Deployed (sudo) to /Applications/KeyPath.app"
+fi
 
 echo "✅ Done! Build time: $(date '+%H:%M:%S')"
-echo "📍 Deployed to: ~/Applications/KeyPath.app"
+echo "📍 Deployed to: /Applications/KeyPath.app"
 echo ""
-echo "To launch: open ~/Applications/KeyPath.app"
+echo "To launch: open /Applications/KeyPath.app"

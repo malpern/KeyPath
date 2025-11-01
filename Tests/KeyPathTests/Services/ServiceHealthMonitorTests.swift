@@ -20,8 +20,8 @@ actor MockKanataUDPClient {
 
 @MainActor
 class ServiceHealthMonitorTests: XCTestCase {
-    lazy var processLifecycle: ProcessLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
-    lazy var monitor: ServiceHealthMonitor = ServiceHealthMonitor(processLifecycle: processLifecycle)
+    lazy var processLifecycle: ProcessLifecycleManager = .init(kanataManager: nil)
+    lazy var monitor: ServiceHealthMonitor = .init(processLifecycle: processLifecycle)
 
     // MARK: - Health Check Tests
 
@@ -126,7 +126,7 @@ class ServiceHealthMonitorTests: XCTestCase {
     // MARK: - Connection Failure Tracking Tests
 
     func testRecordConnectionFailure_CountsFailures() async {
-        for i in 1...5 {
+        for i in 1 ... 5 {
             let shouldTrigger = await monitor.recordConnectionFailure()
             XCTAssertFalse(shouldTrigger, "Should not trigger recovery at \(i) failures")
         }
@@ -134,7 +134,7 @@ class ServiceHealthMonitorTests: XCTestCase {
 
     func testRecordConnectionFailure_TriggersRecoveryAtMax() async {
         // Record 9 failures
-        for _ in 1...9 {
+        for _ in 1 ... 9 {
             _ = await monitor.recordConnectionFailure()
         }
 
@@ -183,7 +183,7 @@ class ServiceHealthMonitorTests: XCTestCase {
 
     func testDetermineRecoveryAction_MaxAttemptsReached() async {
         // Exceed max start attempts
-        for _ in 1...3 {
+        for _ in 1 ... 3 {
             await monitor.recordStartAttempt(timestamp: Date().addingTimeInterval(-10))
             await monitor.recordStartFailure()
         }
@@ -191,7 +191,7 @@ class ServiceHealthMonitorTests: XCTestCase {
         let healthStatus = ServiceHealthStatus.unhealthy(reason: "Test", shouldRestart: true)
         let action = await monitor.determineRecoveryAction(healthStatus: healthStatus)
 
-        if case .giveUp(let reason) = action {
+        if case let .giveUp(reason) = action {
             XCTAssertTrue(reason.contains("attempts"), "Should mention attempts in reason")
         } else {
             XCTFail("Should give up after max attempts")
@@ -200,7 +200,7 @@ class ServiceHealthMonitorTests: XCTestCase {
 
     func testDetermineRecoveryAction_ConnectionFailures() async {
         // Trigger max connection failures
-        for _ in 1...10 {
+        for _ in 1 ... 10 {
             _ = await monitor.recordConnectionFailure()
         }
 

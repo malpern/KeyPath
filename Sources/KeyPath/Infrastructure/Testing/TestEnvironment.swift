@@ -81,7 +81,7 @@ public enum TestEnvironment {
             let testIndicators = [
                 "XCTest class exists: \(NSClassFromString("XCTestCase") != nil)",
                 "SWIFT_TEST env: \(ProcessInfo.processInfo.environment["SWIFT_TEST"] != nil)",
-                "CI env detected: \(["CI", "GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"].contains { ProcessInfo.processInfo.environment[$0] != nil })",
+                "CI env detected: \(["CI", "GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"].contains { ProcessInfo.processInfo.environment[$0] != nil })"
             ]
             AppLogger.shared.log("🧪 [TestEnvironment] Test indicators: \(testIndicators.joined(separator: ", "))")
         }

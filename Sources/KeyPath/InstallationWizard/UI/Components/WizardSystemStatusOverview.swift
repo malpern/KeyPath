@@ -70,7 +70,53 @@ struct WizardSystemStatusOverview: View {
     private var statusItems: [StatusItemModel] {
         var items: [StatusItemModel] = []
 
-        // 1. Full Disk Access (Optional but recommended)
+        // 1. Privileged Helper (FIRST - required for system operations)
+        let helperIssues = issues.filter { issue in
+            if case let .component(req) = issue.identifier {
+                return req == .privilegedHelper || req == .privilegedHelperUnhealthy
+            }
+            return false
+        }
+        let helperStatus: InstallationStatus = {
+            if systemState == .initializing {
+                return .notStarted
+            }
+
+            // Check for specific issue types to determine status color
+            let hasNotInstalledIssue = helperIssues.contains { issue in
+                if case let .component(req) = issue.identifier {
+                    return req == .privilegedHelper
+                }
+                return false
+            }
+            let hasUnhealthyIssue = helperIssues.contains { issue in
+                if case let .component(req) = issue.identifier {
+                    return req == .privilegedHelperUnhealthy
+                }
+                return false
+            }
+
+            // RED if not installed, ORANGE if installed but unhealthy, GREEN if working
+            if hasNotInstalledIssue {
+                return .failed // Red - not installed
+            } else if hasUnhealthyIssue {
+                return .warning // Orange - installed but not working
+            } else {
+                return .completed // Green - installed and working
+            }
+        }()
+        items.append(
+            StatusItemModel(
+                id: "privileged-helper",
+                icon: "shield.checkered",
+                title: "Privileged Helper",
+                status: helperStatus,
+                isNavigable: true,
+                targetPage: .helper,
+                relatedIssues: helperIssues
+            ))
+
+        // 2. Full Disk Access (Optional but recommended)
         let hasFullDiskAccess = checkFullDiskAccess()
         let fullDiskAccessStatus: InstallationStatus = {
             if systemState == .initializing {
@@ -88,7 +134,7 @@ struct WizardSystemStatusOverview: View {
                 targetPage: .fullDiskAccess
             ))
 
-        // 2. System Conflicts
+        // 3. System Conflicts
         let conflictIssues = issues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = {
             if systemState == .initializing {
@@ -107,7 +153,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: conflictIssues
             ))
 
-        // 3. Input Monitoring Permission
+        // 4. Input Monitoring Permission
         let inputMonitoringStatus = getInputMonitoringStatus()
         let inputMonitoringIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
@@ -126,7 +172,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: inputMonitoringIssues
             ))
 
-        // 4. Accessibility Permission
+        // 5. Accessibility Permission
         let accessibilityStatus = getAccessibilityStatus()
         let accessibilityIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
@@ -145,7 +191,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: accessibilityIssues
             ))
 
-        // 5. Karabiner Driver Setup
+        // 6. Karabiner Driver Setup
         let karabinerStatus = getKarabinerComponentsStatus()
         let karabinerIssues = issues.filter { issue in
             // Filter for installation issues related to Karabiner driver
@@ -165,7 +211,7 @@ struct WizardSystemStatusOverview: View {
         // Check dependency requirements for remaining items
         let prerequisitesMet = shouldShowDependentItems()
 
-        // 6. Kanata Engine Setup (hidden if Karabiner Driver not completed)
+        // 7. Kanata Engine Setup (hidden if Karabiner Driver not completed)
         if prerequisitesMet.showKanataEngineItem {
             let kanataComponentsStatus = getKanataComponentsStatus()
             let kanataComponentsIssues = issues.filter { issue in
@@ -187,7 +233,7 @@ struct WizardSystemStatusOverview: View {
                 ))
         }
 
-        // 7. Start Keyboard Service (hidden if Kanata Engine Setup not completed)
+        // 8. Start Keyboard Service (hidden if Kanata Engine Setup not completed)
         if prerequisitesMet.showServiceItem {
             let serviceStatus = getServiceStatus()
             let serviceNavigation = getServiceNavigationTarget()
@@ -208,7 +254,7 @@ struct WizardSystemStatusOverview: View {
                 ))
         }
 
-        // 8. Communication Server (hidden if dependencies not met)
+        // 9. Communication Server (hidden if dependencies not met)
         if prerequisitesMet.showCommunicationItem {
             let commServerStatus = getCommunicationServerStatus()
             // Communication server issues (no specific category, use empty for now)
@@ -391,8 +437,7 @@ struct WizardSystemStatusOverview: View {
         // Try to read plist and check for TCP port argument
         if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
            let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String]
-        {
+           let args = plist["ProgramArguments"] as? [String] {
             // Check if --port argument exists (TCP configuration)
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
@@ -495,7 +540,7 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
                     description: "Test conflict",
                     autoFixAction: .terminateConflictingProcesses,
                     userAction: nil
-                ),
+                )
             ],
             stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: { _ in },

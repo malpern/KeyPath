@@ -20,7 +20,7 @@ echo "🔐 Building KeyPathHelper (privileged helper)..."
 HELPER_NAME="KeyPathHelper"
 BUILD_DIR=".build/arm64-apple-macosx/release"
 HELPER_BUILD_DIR="${BUILD_DIR}/${HELPER_NAME}"
-SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
+SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 
 # Build helper
 echo "1️⃣  Building helper executable..."

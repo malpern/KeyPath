@@ -193,88 +193,95 @@ struct InstallationWizardView: View {
     @ViewBuilder
     private func pageContent() -> some View {
         ZStack {
-            Group {
-                switch navigationCoordinator.currentPage {
-                case .summary:
-                    WizardSummaryPage(
-                        systemState: systemState,
-                        issues: currentIssues,
-                        stateInterpreter: stateInterpreter,
-                        onStartService: startKanataService,
-                        onDismiss: { dismissAndRefreshMainScreen() },
-                        onNavigateToPage: { page in
-                            navigationCoordinator.navigateToPage(page)
-                        },
-                        isInitializing: isInitializing
-                    )
-                case .fullDiskAccess:
-                    WizardFullDiskAccessPage()
-                case .conflicts:
-                    WizardConflictsPage(
-                        issues: currentIssues.filter { $0.category == .conflicts },
-                        isFixing: asyncOperationManager.hasRunningOperations,
-                        onAutoFix: performAutoFix,
-                        onRefresh: { refreshState() },
-                        kanataManager: kanataManager
-                    )
-                case .inputMonitoring:
-                    WizardInputMonitoringPage(
-                        systemState: systemState,
-                        issues: currentIssues.filter { $0.category == .permissions },
-                        stateInterpreter: stateInterpreter,
-                        onRefresh: { refreshState() },
-                        onNavigateToPage: { page in
-                            navigationCoordinator.navigateToPage(page)
-                        },
-                        onDismiss: {
-                            dismissAndRefreshMainScreen()
-                        },
-                        kanataManager: kanataManager
-                    )
-                case .accessibility:
-                    WizardAccessibilityPage(
-                        systemState: systemState,
-                        issues: currentIssues.filter { $0.category == .permissions },
-                        onRefresh: { refreshState() },
-                        onNavigateToPage: { page in
-                            navigationCoordinator.navigateToPage(page)
-                        },
-                        onDismiss: {
-                            dismissAndRefreshMainScreen()
-                        },
-                        kanataManager: kanataManager
-                    )
-                case .karabinerComponents:
-                    WizardKarabinerComponentsPage(
-                        systemState: systemState,
-                        issues: currentIssues,
-                        isFixing: asyncOperationManager.hasRunningOperations,
-                        onAutoFix: performAutoFix,
-                        onRefresh: { refreshState() },
-                        kanataManager: kanataManager
-                    )
-                case .kanataComponents:
-                    WizardKanataComponentsPage(
-                        issues: currentIssues,
-                        isFixing: asyncOperationManager.hasRunningOperations,
-                        onAutoFix: performAutoFix,
-                        onRefresh: { refreshState() },
-                        kanataManager: kanataManager
-                    )
-                case .communication:
-                    WizardCommunicationPage(
-                        onAutoFix: performAutoFix
-                    )
-                case .service:
-                    WizardKanataServicePage(
-                        systemState: systemState,
-                        issues: currentIssues,
-                        onRefresh: { refreshState() }
-                    )
-                }
+            switch navigationCoordinator.currentPage {
+            case .summary:
+                WizardSummaryPage(
+                    systemState: systemState,
+                    issues: currentIssues,
+                    stateInterpreter: stateInterpreter,
+                    onStartService: startKanataService,
+                    onDismiss: { dismissAndRefreshMainScreen() },
+                    onNavigateToPage: { page in
+                        navigationCoordinator.navigateToPage(page)
+                    },
+                    isInitializing: isInitializing
+                )
+            case .fullDiskAccess:
+                WizardFullDiskAccessPage()
+            case .conflicts:
+                WizardConflictsPage(
+                    issues: currentIssues.filter { $0.category == .conflicts },
+                    isFixing: asyncOperationManager.hasRunningOperations,
+                    onAutoFix: performAutoFix,
+                    onRefresh: { refreshState() },
+                    kanataManager: kanataManager
+                )
+            case .inputMonitoring:
+                WizardInputMonitoringPage(
+                    systemState: systemState,
+                    issues: currentIssues.filter { $0.category == .permissions },
+                    stateInterpreter: stateInterpreter,
+                    onRefresh: { refreshState() },
+                    onNavigateToPage: { page in
+                        navigationCoordinator.navigateToPage(page)
+                    },
+                    onDismiss: {
+                        dismissAndRefreshMainScreen()
+                    },
+                    kanataManager: kanataManager
+                )
+            case .accessibility:
+                WizardAccessibilityPage(
+                    systemState: systemState,
+                    issues: currentIssues.filter { $0.category == .permissions },
+                    onRefresh: { refreshState() },
+                    onNavigateToPage: { page in
+                        navigationCoordinator.navigateToPage(page)
+                    },
+                    onDismiss: {
+                        dismissAndRefreshMainScreen()
+                    },
+                    kanataManager: kanataManager
+                )
+            case .karabinerComponents:
+                WizardKarabinerComponentsPage(
+                    systemState: systemState,
+                    issues: currentIssues,
+                    isFixing: asyncOperationManager.hasRunningOperations,
+                    onAutoFix: performAutoFix,
+                    onRefresh: { refreshState() },
+                    kanataManager: kanataManager
+                )
+            case .kanataComponents:
+                WizardKanataComponentsPage(
+                    issues: currentIssues,
+                    isFixing: asyncOperationManager.hasRunningOperations,
+                    onAutoFix: performAutoFix,
+                    onRefresh: { refreshState() },
+                    kanataManager: kanataManager
+                )
+            case .helper:
+                WizardHelperPage(
+                    systemState: systemState,
+                    issues: currentIssues,
+                    isFixing: asyncOperationManager.hasRunningOperations,
+                    onAutoFix: performAutoFix,
+                    onRefresh: { refreshState() },
+                    kanataManager: kanataManager
+                )
+            case .communication:
+                WizardCommunicationPage(
+                    onAutoFix: performAutoFix
+                )
+            case .service:
+                WizardKanataServicePage(
+                    systemState: systemState,
+                    issues: currentIssues,
+                    onRefresh: { refreshState() }
+                )
             }
-            .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
         }
+        .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
         .animation(.easeInOut(duration: 0.3), value: navigationCoordinator.currentPage)
     }
 
@@ -377,6 +384,14 @@ struct InstallationWizardView: View {
             )
             AppLogger.shared.log(
                 "🔍 [Wizard] Issue details: \(result.issues.map { "\($0.category)-\($0.title)" })")
+
+            // Targeted auto-navigation: if helper isn’t installed, go to Helper page first
+            let recommended = navigationCoordinator.navigationEngine
+                .determineCurrentPage(for: result.state, issues: result.issues)
+            if recommended == .helper, navigationCoordinator.currentPage == .summary {
+                AppLogger.shared.log("🔍 [Wizard] Auto-navigating to Helper page (helper missing)")
+                navigationCoordinator.navigateToPage(.helper)
+            }
         }
     }
 
@@ -492,6 +507,12 @@ struct InstallationWizardView: View {
                         AppLogger.shared.log("❌ [Wizard] AutoFixer not configured - skipping auto-fix")
                         continue
                     }
+                    // Start Fix Session for VHID-related actions to make the path explicit
+                    let fixSession = UUID().uuidString
+                    if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
+                        AppLogger.shared.log("🧭 [FIX-VHID \(fixSession)] START bulk action: \(action)")
+                    }
+
                     let operation = WizardOperations.autoFix(action: action, autoFixer: actualAutoFixer)
                     let actionDescription = getAutoFixActionDescription(action)
 
@@ -504,6 +525,24 @@ struct InstallationWizardView: View {
                             Task { @MainActor in
                                 toastManager.showSuccess("\(actionDescription) completed successfully")
                             }
+                            // Follow-up: if this was a daemon action, re-check and emit diagnostic toast if still unhealthy
+                            if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
+                                Task {
+                                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                                    let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
+                                        systemState: systemState,
+                                        issues: currentIssues
+                                    )
+                                    AppLogger.shared.log("🔍 [Wizard] Post-fix (bulk) health check: karabinerStatus=\(karabinerStatus)")
+                                    if karabinerStatus != .completed {
+                                        let detail = kanataManager.getVirtualHIDBreakageSummary()
+                                        AppLogger.shared.log("❌ [Wizard] Post-fix (bulk) failed; showing diagnostic toast")
+                                        await MainActor.run {
+                                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)")
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             Task { @MainActor in
                                 AppLogger.shared.log("❌ [Wizard] Auto-fix FAILED for action: \(action)")
@@ -514,6 +553,11 @@ struct InstallationWizardView: View {
                                 AppLogger.shared.log("❌ [Wizard] Generated error message: \(errorMessage)")
                                 toastManager.showError(errorMessage)
                             }
+                        }
+
+                        if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
+                            let diag = kanataManager.getVirtualHIDBreakageSummary()
+                            AppLogger.shared.log("🧭 [FIX-VHID \(fixSession)] END bulk action: \(action) success=\(success)\n\(diag)")
                         }
                     }
                 }
@@ -580,6 +624,23 @@ struct InstallationWizardView: View {
                                 NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
                                 AppLogger.shared.log("🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix")
 
+                                // Schedule a follow-up health check; if still red, show a diagnostic error toast
+                                Task {
+                                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0 seconds to allow state to settle
+                                    let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
+                                        systemState: systemState,
+                                        issues: currentIssues
+                                    )
+                                    AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
+                                    if (action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon), karabinerStatus != .completed {
+                                        let detail = kanataManager.getVirtualHIDBreakageSummary()
+                                        AppLogger.shared.log("❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
+                                        await MainActor.run {
+                                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)")
+                                        }
+                                    }
+                                }
+
                                 continuation.resume(returning: success)
                             }
                         } else {
@@ -615,6 +676,10 @@ struct InstallationWizardView: View {
         AppLogger.shared.log("🔍 [ActionDescription] getAutoFixActionDescription called for: \(action)")
 
         let description = switch action {
+        case .installPrivilegedHelper:
+            "Install privileged helper for system operations"
+        case .reinstallPrivilegedHelper:
+            "Reinstall privileged helper to restore functionality"
         case .terminateConflictingProcesses:
             "Terminate conflicting processes"
         case .startKarabinerDaemon:
@@ -869,12 +934,11 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 
-        let message = switch action {
+        var message = switch action {
         case .installLaunchDaemonServices:
             "Failed to install system services. Check that you provided admin password and try again."
         case .activateVHIDDeviceManager:
@@ -882,17 +946,25 @@ struct InstallationWizardView: View {
         case .installBundledKanata:
             "Failed to install Kanata binary. Check admin permissions and try again."
         case .startKarabinerDaemon:
-            "Failed to start system daemon. Check System Settings > Privacy & Security > System Extensions."
+            "Failed to start system daemon."
         case .createConfigDirectories:
             "Failed to create configuration directories. Check file system permissions."
         case .restartVirtualHIDDaemon:
-            "Failed to restart Virtual HID daemon. Try manually in System Settings > Privacy & Security."
+            "Failed to restart Virtual HID daemon."
         case .restartUnhealthyServices:
             "Failed to restart system services. This usually means:\n\n• Admin password was not provided when prompted\n" +
                 "• Missing services could not be installed\n• System permission denied for service restart\n\n" +
                 "Try the Fix button again and provide admin password when prompted."
         default:
             "Failed to \(actionDescription.lowercased()). Check logs for details and try again."
+        }
+
+        // Enrich daemon-related errors with a succinct diagnosis
+        if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
+            let detail = kanataManager.getVirtualHIDBreakageSummary()
+            if !detail.isEmpty {
+                message += "\n\n" + detail
+            }
         }
 
         AppLogger.shared.log("🔍 [ErrorMessage] Returning message: \(message)")

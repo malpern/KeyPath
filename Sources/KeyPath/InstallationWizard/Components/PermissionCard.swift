@@ -62,6 +62,11 @@ struct PermissionCard: View {
             ProgressView()
                 .scaleEffect(0.7)
                 .accessibilityLabel("Checking")
+        case .warning:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+                .font(.system(size: 16, weight: .semibold))
+                .accessibilityLabel("Warning")
         case .failed:
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundColor(.red)
@@ -119,8 +124,7 @@ struct PermissionCard: View {
             // Small delay to ensure wizard closes before opening settings
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 if let url = URL(
-                    string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-                {
+                    string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
                     NSWorkspace.shared.open(url)
                 }
 
@@ -132,8 +136,7 @@ struct PermissionCard: View {
         } else if permissionType == "Accessibility" {
             // For Accessibility, open settings immediately without closing wizard
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
         } else if permissionType == "Background Services" {

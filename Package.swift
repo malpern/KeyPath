@@ -26,7 +26,8 @@ let package = Package(
             dependencies: [],
             path: "Sources/KeyPath",
             exclude: [
-                "Info.plist"
+                "Info.plist",
+                "InstallationWizard/README.md"
             ],
             resources: [
                 .process("Resources")
@@ -34,7 +35,7 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 // Surface concurrency issues clearly in Debug builds
-                .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         ),
         // Privileged helper executable
@@ -49,7 +50,7 @@ let package = Package(
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         ),
         // Tests
@@ -59,7 +60,7 @@ let package = Package(
             path: "Tests/KeyPathTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend","-warn-concurrency","-Xfrontend","-strict-concurrency=complete"], .when(configuration: .debug))
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         )
     ]

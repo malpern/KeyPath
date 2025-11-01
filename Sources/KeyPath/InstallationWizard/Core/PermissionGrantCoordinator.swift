@@ -41,8 +41,7 @@ class PermissionGrantCoordinator: ObservableObject {
 
     func initiatePermissionGrant(for permissionType: CoordinatorPermissionType,
                                  instructions: String,
-                                 onComplete: (() -> Void)? = nil)
-    {
+                                 onComplete: (() -> Void)? = nil) {
         logger.log("SAVING wizard state for \(permissionType.displayName) restart:")
 
         // Reset completion guard for new permission grant flow
@@ -81,8 +80,7 @@ class PermissionGrantCoordinator: ObservableObject {
 
     private func showInstructionsDialog(for permissionType: CoordinatorPermissionType,
                                         instructions: String,
-                                        onComplete: @escaping () -> Void)
-    {
+                                        onComplete: @escaping () -> Void) {
         if TestEnvironment.isRunningTests {
             WizardLogger.shared.log("🧪 [PermissionGrant] Suppressing NSAlert in test environment")
             onComplete()
@@ -154,8 +152,7 @@ class PermissionGrantCoordinator: ObservableObject {
 
     func performPermissionRestart(for permissionType: CoordinatorPermissionType,
                                   kanataManager: KanataManager,
-                                  completion: @escaping (Bool) -> Void)
-    {
+                                  completion: @escaping (Bool) -> Void) {
         let timestamp = UserDefaults.standard.double(forKey: permissionType.timestampKey)
         let originalDate = Date(timeIntervalSince1970: timestamp)
         let timeSince = Date().timeIntervalSince1970 - timestamp

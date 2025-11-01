@@ -7,7 +7,7 @@ import XCTest
 /// Tests the save operation debouncing added in Phase 1.3 to prevent rapid successive saves
 @MainActor
 class ContentViewDebounceTests: XCTestCase {
-    lazy var testManager: KanataManager = KanataManager()
+    lazy var testManager: KanataManager = .init()
 
     // MARK: - Debounce Logic Tests (Non-UI)
 

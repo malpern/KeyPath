@@ -60,24 +60,43 @@ struct SystemStatusIndicator: View {
 
     @ViewBuilder
     private func iconView() -> some View {
-        if let state = validator.validationState {
-            switch state {
-            case .checking:
-                Image(systemName: "gear")
-                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                    .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
-                    .onAppear { isAnimating = true }
-                    .onDisappear { isAnimating = false }
-            case .success:
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 28))  // Same size as white circle background
-            case let .failed(blockingCount, _):
-                if blockingCount > 0 {
-                    Image(systemName: "exclamationmark.triangle")
-                } else {
-                    Image(systemName: "exclamationmark")
+        // Fixed frame to prevent layout shifts
+        ZStack {
+            if let state = validator.validationState {
+                switch state {
+                case .checking:
+                    Image(systemName: "gear")
+                        .rotationEffect(.degrees(isAnimating ? 360 : 0))
+                        .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
+                        .onAppear { isAnimating = true }
+                        .onDisappear { isAnimating = false }
+                        .transition(.opacity)
+                case .success:
+                    Image(systemName: "checkmark.circle.fill")
+                        .transition(.opacity)
+                case let .failed(blockingCount, _):
+                    Group {
+                        if blockingCount > 0 {
+                            Image(systemName: "exclamationmark.triangle")
+                        } else {
+                            Image(systemName: "exclamationmark")
+                        }
+                    }
+                    .transition(.opacity)
                 }
             }
+        }
+        .frame(width: indicatorSize, height: indicatorSize) // Fixed size to prevent jumps
+        .animation(.easeInOut(duration: 0.3), value: iconIdentifier) // Smooth animation between states
+    }
+
+    /// Unique identifier for the current icon state to trigger animations
+    private var iconIdentifier: String {
+        guard let state = validator.validationState else { return "none" }
+        switch state {
+        case .checking: return "checking"
+        case .success: return "success"
+        case let .failed(blockingCount, _): return blockingCount > 0 ? "error" : "warning"
         }
     }
 

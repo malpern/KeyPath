@@ -4,8 +4,8 @@ import XCTest
 
 @MainActor
 final class ErrorHandlingTests: XCTestCase {
-    lazy var manager: KanataManager = KanataManager()
-    lazy var capture: KeyboardCapture = KeyboardCapture()
+    lazy var manager: KanataManager = .init()
+    lazy var capture: KeyboardCapture = .init()
 
     // MARK: - Key Mapping Error Handling Tests
 

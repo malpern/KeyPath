@@ -267,6 +267,7 @@ enum WizardDesign {
                 switch status {
                 case .notStarted: WizardDesign.Colors.secondaryText
                 case .inProgress: WizardDesign.Colors.inProgress
+                case .warning: WizardDesign.Colors.warning
                 case .completed: WizardDesign.Colors.success
                 case .failed: WizardDesign.Colors.error
                 }
@@ -804,6 +805,7 @@ struct WizardStatusItem: View {
         switch status {
         case .notStarted: "Not Started"
         case .inProgress: "In Progress"
+        case .warning: "Warning"
         case .completed: "Completed"
         case .failed: "Failed"
         }
@@ -829,21 +831,20 @@ struct AnimatedStatusIcon: View {
             if showInitialClock, status == .completed || status == .failed {
                 // Clock-to-final-state animation for completed/failed items
                 if hasAnimated {
-                    // Final state
-                    Image(systemName: finalStateIcon)
-                        .foregroundColor(finalStateColor)
-                        .font(.system(size: 16))
-                        .background(
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 18, height: 18)
-                        )
-                        .modifier(AvailabilitySymbolBounce())
-                        .modifier(AvailabilitySymbolBounce(repeating: isFinalStatus))
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.8)),
-                            removal: .opacity
-                        ))
+                    // Final state with white circle background
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 16, height: 16)
+                        Image(systemName: finalStateIcon)
+                            .foregroundColor(finalStateColor)
+                            .font(.system(size: 16))
+                    }
+                    .modifier(AvailabilitySymbolBounce())
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.8)),
+                        removal: .opacity
+                    ))
                 } else {
                     // Initial clock state
                     Image(systemName: "clock.fill")
@@ -871,30 +872,41 @@ struct AnimatedStatusIcon: View {
                         .foregroundColor(WizardDesign.Colors.inProgress)
                         .font(.system(size: 16))
 
+                case .warning:
+                    // Orange warning triangle with white circle background
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 16, height: 16)
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(WizardDesign.Colors.warning)
+                            .font(.system(size: 16))
+                    }
+                    .modifier(AvailabilitySymbolBounce())
+
                 case .completed:
-                    // Direct green checkmark
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(WizardDesign.Colors.success)
-                        .font(.system(size: 16))
-                        .background(
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 18, height: 18)
-                        )
-                        .modifier(AvailabilitySymbolBounce())
-                        .modifier(AvailabilitySymbolBounce(repeating: isFinalStatus))
+                    // Green checkmark with white circle background
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 16, height: 16)
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(WizardDesign.Colors.success)
+                            .font(.system(size: 16))
+                    }
+                    .modifier(AvailabilitySymbolBounce())
 
                 case .failed:
-                    // Direct red X
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(WizardDesign.Colors.error)
-                        .font(.system(size: 16))
-                        .background(
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 18, height: 18)
-                        )
-                        .modifier(AvailabilitySymbolBounce())
+                    // Red X with white circle background
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 16, height: 16)
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(WizardDesign.Colors.error)
+                            .font(.system(size: 16))
+                    }
+                    .modifier(AvailabilitySymbolBounce())
                 }
             }
         }

@@ -163,10 +163,10 @@ final class DiagnosticsServiceTests: XCTestCase {
         // Create a temporary log file with permission error
         let tempPath = NSTemporaryDirectory() + "test-kanata-\(UUID().uuidString).log"
         let logContent = """
-            [INFO] Kanata starting...
-            [ERROR] IOHIDDeviceOpen error: exclusive access denied
-            [INFO] Shutting down
-            """
+        [INFO] Kanata starting...
+        [ERROR] IOHIDDeviceOpen error: exclusive access denied
+        [INFO] Shutting down
+        """
         try? logContent.write(toFile: tempPath, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(atPath: tempPath) }
 
@@ -183,10 +183,10 @@ final class DiagnosticsServiceTests: XCTestCase {
         // Create a temporary log file with connection error
         let tempPath = NSTemporaryDirectory() + "test-kanata-\(UUID().uuidString).log"
         let logContent = """
-            [INFO] Kanata starting...
-            [ERROR] connect_failed asio.system:61 Connection refused
-            [INFO] Shutting down
-            """
+        [INFO] Kanata starting...
+        [ERROR] connect_failed asio.system:61 Connection refused
+        [INFO] Shutting down
+        """
         try? logContent.write(toFile: tempPath, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(atPath: tempPath) }
 
@@ -204,10 +204,10 @@ final class DiagnosticsServiceTests: XCTestCase {
         // Create a temporary log file with generic error
         let tempPath = NSTemporaryDirectory() + "test-kanata-\(UUID().uuidString).log"
         let logContent = """
-            [INFO] Kanata starting...
-            [ERROR] Something went wrong
-            [INFO] Shutting down
-            """
+        [INFO] Kanata starting...
+        [ERROR] Something went wrong
+        [INFO] Shutting down
+        """
         try? logContent.write(toFile: tempPath, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(atPath: tempPath) }
 
@@ -224,10 +224,10 @@ final class DiagnosticsServiceTests: XCTestCase {
         // Create a temporary log file with no errors
         let tempPath = NSTemporaryDirectory() + "test-kanata-\(UUID().uuidString).log"
         let logContent = """
-            [INFO] Kanata starting...
-            [INFO] Configuration loaded successfully
-            [INFO] Running normally
-            """
+        [INFO] Kanata starting...
+        [INFO] Configuration loaded successfully
+        [INFO] Running normally
+        """
         try? logContent.write(toFile: tempPath, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(atPath: tempPath) }
 

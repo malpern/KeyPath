@@ -71,7 +71,7 @@ cat > "$CONTENTS_DIR/Info.plist" << EOF
 EOF
 
 # REQUIRED: Sign with stable Developer ID for TCC persistence
-SIGNING_IDENTITY="Developer ID Application: Micah Alpern (X2RKZ5TG99)"
+SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 if command -v codesign >/dev/null 2>&1; then
     echo "Signing app bundle with stable Developer ID..."
     # Sign kanata binary first for stable identity

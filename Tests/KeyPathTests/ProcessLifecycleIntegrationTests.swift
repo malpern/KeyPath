@@ -107,7 +107,7 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         let error = KeyPathError.process(.noManager)
 
         // Test that we can pattern match on the new error type
-        if case .process(let processError) = error {
+        if case let .process(processError) = error {
             switch processError {
             case .noManager:
                 XCTAssertTrue(true, "NoManager error exists")

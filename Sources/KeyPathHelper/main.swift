@@ -1,6 +1,6 @@
 import Foundation
-import Security
 import os
+import Security
 
 /// KeyPath Privileged Helper
 ///
@@ -65,14 +65,12 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
 
 /// Delegate for the XPC listener
 class HelperDelegate: NSObject, NSXPCListenerDelegate {
-
     /// Handle incoming XPC connections
     /// - Parameters:
     ///   - listener: The XPC listener receiving the connection
     ///   - connection: The new connection to validate and accept
     /// - Returns: true if the connection should be accepted, false otherwise
-    func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
-
+    func listener(_: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
         // Security requirement: allow any app from our Developer ID team
         // Rationale: SMAppService already gates installation/approval; team scoping avoids fragile
         // bundle-id drift during development while remaining strict in distribution.

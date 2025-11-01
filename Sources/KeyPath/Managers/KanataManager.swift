@@ -1919,6 +1919,67 @@ class KanataManager {
         await karabinerConflictService.restartKarabinerDaemon()
     }
 
+    /// Diagnostic summary explaining why VirtualHID service is considered broken
+    /// Used to surface a helpful error toast in the wizard
+    func getVirtualHIDBreakageSummary() -> String {
+        // Gather PIDs
+        let pids: [String] = {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            task.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
+            let pipe = Pipe(); task.standardOutput = pipe
+            do { try task.run(); task.waitUntilExit() } catch {}
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            return output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        }()
+        // Owner attribution
+        var owners: [String] = []
+        for pid in pids {
+            let ps = Process()
+            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
+            ps.arguments = ["-o", "pid,ppid,user,command", "-p", pid]
+            let pp = Pipe(); ps.standardOutput = pp
+            if (try? ps.run()) != nil { ps.waitUntilExit(); let d = pp.fileHandleForReading.readDataToEndOfFile(); if let s = String(data: d, encoding: .utf8) { owners.append(s.trimmingCharacters(in: .whitespacesAndNewlines)) } }
+        }
+
+        // LaunchDaemon presence/state
+        let label = "com.keypath.karabiner-vhiddaemon"
+        let plistPath = "/Library/LaunchDaemons/\(label).plist"
+        let serviceInstalled = FileManager.default.fileExists(atPath: plistPath)
+        var serviceState = "unknown"
+        if serviceInstalled {
+            let t = Process(); t.executableURL = URL(fileURLWithPath: "/bin/launchctl"); t.arguments = ["print", "system/\(label)"]
+            let p = Pipe(); t.standardOutput = p; t.standardError = p
+            if (try? t.run()) != nil { t.waitUntilExit(); let d = p.fileHandleForReading.readDataToEndOfFile(); let s = String(data: d, encoding: .utf8) ?? ""; if let line = s.split(separator: "\n").first(where: { $0.contains("state =") }) { serviceState = String(line).trimmingCharacters(in: .whitespaces) } }
+        }
+
+        // Driver extension + version
+        let driverEnabled = isKarabinerDriverExtensionEnabled()
+        let vhid = VHIDDeviceManager()
+        let installedVersion = vhid.getInstalledVersion() ?? "unknown"
+        let hasMismatch = vhid.hasVersionMismatch()
+
+        var lines: [String] = []
+        if pids.count > 1 {
+            lines.append("Reason: Multiple VirtualHID daemons detected (\(pids.count)).")
+            lines.append("PIDs: \(pids.joined(separator: ", "))")
+            if !owners.isEmpty { lines.append("Owners:\n\(owners.joined(separator: "\n"))") }
+        } else if pids.isEmpty {
+            lines.append("Reason: VirtualHID daemon not running.")
+        } else {
+            lines.append("Reason: Daemon unhealthy.")
+            if !owners.isEmpty { lines.append("Owner:\n\(owners.joined(separator: "\n"))") }
+        }
+        lines.append("LaunchDaemon: \(serviceInstalled ? "installed" : "not installed")\(serviceInstalled ? ", \(serviceState)" : "")")
+        lines.append("Driver extension: \(driverEnabled ? "enabled" : "disabled")")
+        lines.append("Driver version: \(installedVersion)\(hasMismatch ? " (incompatible with current Kanata)" : "")")
+        let summary = lines.joined(separator: "\n")
+        AppLogger.shared.log("🔎 [VHID-DIAG] Diagnostic summary:\n\(summary)")
+        AppLogger.shared.log("🔎 [RestartOutcome] \(pids.count == 1 ? "single-owner" : (pids.isEmpty ? "not-running" : "duplicate")) PIDs=\(pids.joined(separator: ", "))")
+        return summary
+    }
+
     func performTransparentInstallation() async -> Bool {
         AppLogger.shared.log("🔧 [Installation] Starting transparent installation...")
 
