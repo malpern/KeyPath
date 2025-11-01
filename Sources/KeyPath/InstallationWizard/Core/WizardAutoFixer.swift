@@ -221,13 +221,46 @@ class WizardAutoFixer: AutoFixCapable {
 
     // MARK: - Driver Version Management
 
+    private struct VHIDSnapshot {
+        let serviceLoaded: Bool
+        let serviceHealthy: Bool
+        let daemonRunning: Bool
+        let driverVersion: String?
+    }
+
+    private func captureVHIDSnapshot() -> VHIDSnapshot {
+        let installer = LaunchDaemonInstaller()
+        let loaded = installer.isServiceLoaded(serviceID: "com.keypath.karabiner-vhiddaemon")
+        let healthy = installer.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
+        let running = vhidDeviceManager.detectRunning()
+        let version = vhidDeviceManager.getInstalledVersion()
+        return VHIDSnapshot(serviceLoaded: loaded, serviceHealthy: healthy, daemonRunning: running, driverVersion: version)
+    }
+
+    private func snapshotJSON(_ s: VHIDSnapshot) -> String {
+        let ver = s.driverVersion ?? "null"
+        return "{\"loaded\":\(s.serviceLoaded),\"healthy\":\(s.serviceHealthy),\"running\":\(s.daemonRunning),\"version\":\"\(ver)\"}"
+    }
+
+    private func logFixSessionSummary(session: String, action: String, success: Bool, start: Date, pre: VHIDSnapshot, post: VHIDSnapshot) {
+        let elapsed = String(format: "%.3f", Date().timeIntervalSince(start))
+        let json = "{\"event\":\"VHIDFixSummary\",\"session\":\"\(session)\",\"action\":\"\(action)\",\"success\":\(success),\"elapsed_s\":\(elapsed),\"pre\":\(snapshotJSON(pre)),\"post\":\(snapshotJSON(post))}"
+        AppLogger.shared.log(json)
+    }
+
     private func installCorrectVHIDDriver() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Installing required Karabiner VirtualHID driver (helper-first)")
+
+        let session = UUID().uuidString
+        let t0 = Date()
+        let pre = captureVHIDSnapshot()
 
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
         } catch {
             AppLogger.shared.log("❌ [AutoFixer] Failed to auto-install driver via helper: \(error)")
+            let post = captureVHIDSnapshot()
+            logFixSessionSummary(session: session, action: "installCorrectVHIDDriver", success: false, start: t0, pre: pre, post: post)
             return false
         }
 
@@ -240,7 +273,8 @@ class WizardAutoFixer: AutoFixCapable {
 
         let restartOk = await restartVirtualHIDDaemon()
         AppLogger.shared.log("🔧 [AutoFixer] Post-install restart verified: \(restartOk)")
-
+        let post = captureVHIDSnapshot()
+        logFixSessionSummary(session: session, action: "installCorrectVHIDDriver", success: restartOk, start: t0, pre: pre, post: post)
         return true
     }
 
@@ -272,6 +306,9 @@ class WizardAutoFixer: AutoFixCapable {
         }
 
         // Download and install the correct version using coordinator
+        let session = UUID().uuidString
+        let t0 = Date()
+        let pre = captureVHIDSnapshot()
         let success: Bool
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
@@ -323,7 +360,8 @@ class WizardAutoFixer: AutoFixCapable {
                 alert.runModal()
             }
         }
-
+        let post = captureVHIDSnapshot()
+        logFixSessionSummary(session: session, action: "fixDriverVersionMismatch", success: success, start: t0, pre: pre, post: post)
         return success
     }
 
