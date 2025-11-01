@@ -170,18 +170,14 @@ struct WizardCommunicationPage: View {
 
             Spacer()
 
-            // Bottom Done button - navigates back to summary
-            HStack {
-                Spacer()
-                Button("Done") {
+            // Bottom buttons - HIG compliant button order
+            WizardButtonBar(
+                cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                primary: WizardButtonBar.PrimaryButton(title: "Done") {
                     AppLogger.shared.log("ℹ️ [Wizard] User completing wizard from Communication page")
                     navigationCoordinator.navigateToPage(.summary)
                 }
-                .buttonStyle(WizardDesign.Component.PrimaryButton())
-                Spacer()
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -190,6 +186,18 @@ struct WizardCommunicationPage: View {
                 await checkCommunicationStatus()
             }
         }
+    }
+
+    // MARK: - Helper Methods
+    
+    private func navigateToPreviousPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex > 0
+        else { return }
+        let previousPage = allPages[currentIndex - 1]
+        navigationCoordinator.navigateToPage(previousPage)
+        AppLogger.shared.log("⬅️ [Communication] Navigated to previous page: \(previousPage.displayName)")
     }
 
     // MARK: - Communication Status Check (Using Shared SystemStatusChecker)

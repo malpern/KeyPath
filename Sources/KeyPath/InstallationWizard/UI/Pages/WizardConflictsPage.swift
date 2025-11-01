@@ -76,7 +76,6 @@ struct WizardConflictsPage: View {
                             Button("Reset Everything") {
                                 Task { @MainActor in
                                     isScanning = true
-                                    let toastManager = WizardToastManager() // Temporary instance for reset operation
                                     let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
                                     _ = await autoFixer.resetEverything()
                                     onRefresh()
@@ -150,19 +149,22 @@ struct WizardConflictsPage: View {
                 .frame(height: WizardDesign.Spacing.sectionGap)
 
             // Primary Continue button for no-conflict state, existing buttons for conflict state
-            VStack {
-                if issues.isEmpty {
-                    // No conflicts - show only Continue button centered
-                    Button("Continue") {
+            if issues.isEmpty {
+                // No conflicts - Back (left) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Conflicts page")
                         navigateToNextPage()
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                } else {
-                    // Conflicts detected - show existing button pattern
-                    HStack(spacing: WizardDesign.Spacing.itemGap) {
-                        // Existing buttons on the left/center
-                        Button(action: {
+                )
+            } else {
+                // Conflicts detected - Back (left) | Check Again, Reset Everything (middle) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    secondary: WizardButtonBar.SecondaryButton(
+                        title: "Check Again",
+                        action: {
                             isScanning = true
                             onRefresh()
                             // Keep spinner visible for a moment so user sees the action
@@ -170,51 +172,18 @@ struct WizardConflictsPage: View {
                                 try? await Task.sleep(nanoseconds: 500_000_000)
                                 isScanning = false
                             }
-                        }) {
-                            HStack(spacing: 4) {
-                                if isScanning {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                }
-                                Text(
-                                    isScanning
-                                        ? "Scanning..." : "Check Again"
-                                )
-                            }
-                        }
-                        .buttonStyle(WizardDesign.Component.SecondaryButton())
-                        .disabled(isFixing || isScanning)
-
-                        // Reset button for nuclear option
-                        Button("Reset Everything") {
-                            Task { @MainActor in
-                                isScanning = true
-                                let toastManager = WizardToastManager() // Temporary instance for reset operation
-                                let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
-                                _ = await autoFixer.resetEverything()
-                                onRefresh()
-                                isScanning = false
-                            }
-                        }
-                        .buttonStyle(WizardDesign.Component.SecondaryButton())
-                        .foregroundColor(.red)
-                        .disabled(isFixing || isScanning)
-                        .help("Kill all processes, clear PID files, and reset to clean state")
-
-                        Spacer()
-
-                        // Primary continue button (always present, far right)
-                        Button("Continue") {
+                        },
+                        isEnabled: !isFixing && !isScanning
+                    ),
+                    primary: WizardButtonBar.PrimaryButton(
+                        title: "Continue",
+                        action: {
                             AppLogger.shared.log("ℹ️ [Wizard] User continuing from Conflicts page")
                             navigateToNextPage()
                         }
-                        .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    }
-                }
+                    )
+                )
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -234,6 +203,16 @@ struct WizardConflictsPage: View {
         let nextPage = allPages[currentIndex + 1]
         navigationCoordinator.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [Conflicts] Navigated to next page: \(nextPage.displayName)")
+    }
+    
+    private func navigateToPreviousPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex > 0
+        else { return }
+        let previousPage = allPages[currentIndex - 1]
+        navigationCoordinator.navigateToPage(previousPage)
+        AppLogger.shared.log("⬅️ [Conflicts] Navigated to previous page: \(previousPage.displayName)")
     }
 }
 

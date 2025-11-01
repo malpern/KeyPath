@@ -219,36 +219,28 @@ struct WizardInputMonitoringPage: View {
 
             Spacer()
 
-            // Bottom buttons - primary action changes based on state
-            HStack {
-                Spacer()
-
-                if hasInputMonitoringIssues {
-                    // When permissions needed, Grant Permission is primary
-                    Button("Grant Permission") {
-                        openInputMonitoringSettings()
-                    }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-
-                    Button("Continue Anyway") {
+            // Bottom buttons - HIG compliant button order
+            if hasInputMonitoringIssues {
+                // When permissions needed: Cancel (left) | Continue Anyway (middle) | Grant Permission (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    secondary: WizardButtonBar.SecondaryButton(title: "Continue Anyway") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Input Monitoring page despite issues")
                         navigationCoordinator.userInteractionMode = true
                         navigateToNextPage()
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                } else {
-                    // When permissions granted, Continue is primary
-                    Button("Continue") {
+                    },
+                    primary: WizardButtonBar.PrimaryButton(title: "Grant Permission", action: openInputMonitoringSettings)
+                )
+            } else {
+                // When permissions granted: Cancel (left) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Input Monitoring page")
                         navigateToNextPage()
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                }
-
-                Spacer()
+                )
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -268,6 +260,16 @@ struct WizardInputMonitoringPage: View {
             AppLogger.shared.log("ℹ️ [Input Monitoring] No next page determined by NavigationEngine")
             onDismiss?()
         }
+    }
+    
+    private func navigateToPreviousPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex > 0
+        else { return }
+        let previousPage = allPages[currentIndex - 1]
+        navigationCoordinator.navigateToPage(previousPage)
+        AppLogger.shared.log("⬅️ [Input Monitoring] Navigated to previous page: \(previousPage.displayName)")
     }
 
     // MARK: - Computed Properties

@@ -98,21 +98,16 @@ struct WizardFullDiskAccessPage: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // No component details - FDA is optional and never needs fixing
             Spacer()
-                .frame(height: WizardDesign.Spacing.sectionGap)
 
-            // Action buttons (anchored to bottom)
-            // Standard pattern: Existing buttons on left/center, Continue button on far right
-            HStack(spacing: WizardDesign.Spacing.itemGap) {
-                // Existing buttons on the left/center
-                if !hasFullDiskAccess {
-                    Button("Grant Full Disk Access") {
+            // Bottom buttons - HIG compliant button order
+            if !hasFullDiskAccess {
+                // When FDA not granted: Back (left) | Grant Full Disk Access (middle) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    secondary: WizardButtonBar.SecondaryButton(title: "Grant Full Disk Access") {
                         AppLogger.shared.log("🔒 [FDA Page] Grant Full Disk Access button clicked")
-
-                        // Open System Settings for Full Disk Access
                         openFullDiskAccessSettings()
-
                         // Close Settings windows if they're open
                         for window in NSApplication.shared.windows {
                             let windowTitle = window.title
@@ -121,29 +116,25 @@ struct WizardFullDiskAccessPage: View {
                                 window.close()
                             }
                         }
-
                         // Dismiss the wizard using SwiftUI's dismiss action
                         AppLogger.shared.log("🔒 [FDA Page] Dismissing wizard")
                         dismiss()
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                }
-
-                Spacer()
-
-                // Primary continue button (centered)
-                HStack {
-                    Spacer()
-                    Button("Continue") {
+                    },
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Full Disk Access page")
                         navigateToNextPage()
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    Spacer()
-                }
+                )
+            } else {
+                // When FDA granted: Back (left) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Full Disk Access page")
+                        navigateToNextPage()
+                    }
+                )
             }
-            .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-            .padding(.bottom, WizardDesign.Spacing.pageVertical)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -204,6 +195,16 @@ struct WizardFullDiskAccessPage: View {
         let nextPage = allPages[currentIndex + 1]
         navigationCoordinator.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [FDA] Navigated to next page: \(nextPage.displayName)")
+    }
+    
+    private func navigateToPreviousPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex > 0
+        else { return }
+        let previousPage = allPages[currentIndex - 1]
+        navigationCoordinator.navigateToPage(previousPage)
+        AppLogger.shared.log("⬅️ [FDA] Navigated to previous page: \(previousPage.displayName)")
     }
 
     private func checkFullDiskAccess() {

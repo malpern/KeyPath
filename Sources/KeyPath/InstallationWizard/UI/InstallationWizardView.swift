@@ -121,6 +121,7 @@ struct InstallationWizardView: View {
                 forceInstantClose()
                 performBackgroundCleanup()
             }
+            .keyboardShortcut(.defaultAction) // Return key for destructive action
         } message: {
             let criticalCount = currentIssues.filter { $0.severity == .critical }.count
             Text(
@@ -148,31 +149,10 @@ struct InstallationWizardView: View {
 
                 Spacer()
 
-                // Build timestamp and close button
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Build: \(getBuildTimestamp())")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-
-                    Button("✕") {
-                        // NUCLEAR OPTION: Immediate close, bypass everything
-                        AppLogger.shared.log("🔴 [X-BUTTON] CLICKED at \(Date())")
-                        AppLogger.shared.log("🔴 [X-BUTTON] Starting nuclear close sequence")
-                        AppLogger.shared.flushBuffer() // Force immediate write
-                        forciblyCloseWizard()
-                    }
-                    .buttonStyle(.plain)
-                    .font(.title3) // Smaller close button
+                // Build timestamp (close button handled by SwiftUI sheet)
+                Text("Build: \(getBuildTimestamp())")
+                    .font(.caption2)
                     .foregroundColor(.secondary)
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityLabel("Close setup wizard")
-                    .disabled(false) // Always allow closing
-                    .onAppear {
-                        AppLogger.shared.log("🔴 [X-BUTTON] Button appeared - ready for clicks")
-                        AppLogger.shared.flushBuffer()
-                    }
-                }
-                .accessibilityHint("Close the KeyPath setup wizard")
             }
 
             PageDotsIndicator(currentPage: navigationCoordinator.currentPage) { page in

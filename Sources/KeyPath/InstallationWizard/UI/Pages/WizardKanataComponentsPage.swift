@@ -228,30 +228,33 @@ struct WizardKanataComponentsPage: View {
 
             Spacer()
 
-            // Bottom buttons
-            VStack(spacing: WizardDesign.Spacing.elementGap) {
-                if needsManualInstallation, kanataRelatedIssues.count > 0 || componentStatus(for: "Kanata Binary") != .completed {
-                    Button("Install Kanata") {
+            // Bottom buttons - HIG compliant button order
+            if needsManualInstallation, kanataRelatedIssues.count > 0 || componentStatus(for: "Kanata Binary") != .completed {
+                // When installation needed: Back (left) | Install Kanata (middle) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    secondary: WizardButtonBar.SecondaryButton(title: "Install Kanata") {
                         installBundledKanata()
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                }
-
-                // Centered Continue button (always present)
-                HStack {
-                    Spacer()
-                    Button("Continue") {
+                    },
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Components page")
                         Task {
                             await navigateToNextPage()
                         }
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    Spacer()
-                }
+                )
+            } else {
+                // When everything installed: Back (left) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Components page")
+                        Task {
+                            await navigateToNextPage()
+                        }
+                    }
+                )
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -284,6 +287,16 @@ struct WizardKanataComponentsPage: View {
             navigationCoordinator.navigateToPage(nextPage)
             AppLogger.shared.log("➡️ [Kanata Components] Navigated to next page: \(nextPage.displayName)")
         }
+    }
+    
+    private func navigateToPreviousPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex > 0
+        else { return }
+        let previousPage = allPages[currentIndex - 1]
+        navigationCoordinator.navigateToPage(previousPage)
+        AppLogger.shared.log("⬅️ [Kanata Components] Navigated to previous page: \(previousPage.displayName)")
     }
 
     private var kanataRelatedIssues: [WizardIssue] {

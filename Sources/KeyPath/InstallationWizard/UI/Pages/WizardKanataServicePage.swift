@@ -249,67 +249,39 @@ struct WizardKanataServicePage: View {
 
             Spacer()
 
-            // Centered buttons
-            VStack(spacing: WizardDesign.Spacing.elementGap) {
-                // Service control buttons - only show for non-running states
-                if serviceStatus != .running {
-                    HStack(spacing: WizardDesign.Spacing.itemGap) {
-                        Button(action: startService) {
-                            HStack(spacing: 4) {
-                                if serviceStatus == .starting {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                }
-                                Text("Start")
+            // Bottom buttons - HIG compliant button order
+            if serviceStatus != .running {
+                // When service not running: Back (left) | Start (middle) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    secondary: WizardButtonBar.SecondaryButton(
+                        title: serviceStatus == .starting ? "Starting..." : "Start",
+                        action: startService,
+                        isEnabled: !isPerformingAction && serviceStatus != .running
+                    ),
+                    primary: WizardButtonBar.PrimaryButton(
+                        title: "Continue",
+                        action: {
+                            AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Service page")
+                            Task {
+                                await navigateToNextPage()
                             }
-                        }
-                        .buttonStyle(WizardDesign.Component.SecondaryButton())
-                        .disabled(isPerformingAction || serviceStatus == .running)
-
-                        Button(action: restartService) {
-                            HStack(spacing: 4) {
-                                if serviceStatus == .stopping || serviceStatus == .starting {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                }
-                                Text("Restart")
-                            }
-                        }
-                        .buttonStyle(WizardDesign.Component.SecondaryButton())
-                        .disabled(isPerformingAction)
-
-                        Button(action: stopService) {
-                            HStack(spacing: 4) {
-                                if serviceStatus == .stopping {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                }
-                                Text("Stop")
-                            }
-                        }
-                        .buttonStyle(WizardDesign.Component.SecondaryButton())
-                        .disabled(isPerformingAction || serviceStatus == .stopped)
-                    }
-                }
-
-                // Primary continue button (centered)
-                HStack {
-                    Spacer()
-                    Button("Continue") {
+                        },
+                        isLoading: serviceStatus == .starting
+                    )
+                )
+            } else {
+                // When service running: Back (left) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Service page")
                         Task {
                             await navigateToNextPage()
                         }
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    Spacer()
-                }
+                )
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -350,6 +322,16 @@ struct WizardKanataServicePage: View {
             navigationCoordinator.navigateToPage(nextPage)
             AppLogger.shared.log("➡️ [Kanata Service] Navigated to next page: \(nextPage.displayName)")
         }
+    }
+    
+    private func navigateToPreviousPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex > 0
+        else { return }
+        let previousPage = allPages[currentIndex - 1]
+        navigationCoordinator.navigateToPage(previousPage)
+        AppLogger.shared.log("⬅️ [Kanata Service] Navigated to previous page: \(previousPage.displayName)")
     }
 
     // MARK: - Computed Properties

@@ -227,30 +227,29 @@ struct WizardKarabinerComponentsPage: View {
 
             Spacer()
 
-            // Bottom buttons - primary action changes based on state
-            HStack {
-                Spacer()
+            Spacer()
 
-                if hasKarabinerIssues {
-                    // When issues exist, continue anyway as secondary
-                    Button("Continue Anyway") {
+            // Bottom buttons - HIG compliant button order
+            if hasKarabinerIssues {
+                // When issues exist: Back (left) | Continue Anyway (middle) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    secondary: WizardButtonBar.SecondaryButton(title: "Continue Anyway") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Karabiner Components page despite issues")
                         navigateToNextPage()
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                } else {
-                    // When all components are working, Continue is primary
-                    Button("Continue") {
+                    },
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue", action: navigateToNextPage)
+                )
+            } else {
+                // When all components are working: Back (left) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Karabiner Components page")
                         navigateToNextPage()
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                }
-
-                Spacer()
+                )
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -277,6 +276,16 @@ struct WizardKarabinerComponentsPage: View {
         let nextPage = allPages[currentIndex + 1]
         navigationCoordinator.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [Karabiner Components] Navigated to next page: \(nextPage.displayName)")
+    }
+    
+    private func navigateToPreviousPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex > 0
+        else { return }
+        let previousPage = allPages[currentIndex - 1]
+        navigationCoordinator.navigateToPage(previousPage)
+        AppLogger.shared.log("⬅️ [Karabiner Components] Navigated to previous page: \(previousPage.displayName)")
     }
 
     private var karabinerRelatedIssues: [WizardIssue] {

@@ -232,37 +232,31 @@ struct WizardAccessibilityPage: View {
 
             Spacer()
 
-            // Bottom buttons - primary action changes based on state
-            HStack {
-                Spacer()
-
-                if hasAccessibilityIssues {
-                    // When permissions needed, Grant Permission is primary
-                    Button("Grant Permission") {
+            // Bottom buttons - HIG compliant button order
+            if hasAccessibilityIssues {
+                // When permissions needed: Cancel (left) | Continue Anyway (middle) | Grant Permission (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    secondary: WizardButtonBar.SecondaryButton(title: "Continue Anyway") {
+                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page despite issues")
+                        navigateToNextPage()
+                    },
+                    primary: WizardButtonBar.PrimaryButton(title: "Grant Permission") {
                         // Set service bounce flag before showing permission grant
                         PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Accessibility permission grant via primary button")
                         openAccessibilityPermissionGrant()
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-
-                    Button("Continue Anyway") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page despite issues")
-                        navigateToNextPage()
-                    }
-                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                } else {
-                    // When permissions granted, Continue is primary
-                    Button("Continue") {
+                )
+            } else {
+                // When permissions granted: Cancel (left) | Continue (right, primary)
+                WizardButtonBar(
+                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
+                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page")
                         navigateToNextPage()
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                }
-
-                Spacer()
+                )
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
@@ -278,6 +272,16 @@ struct WizardAccessibilityPage: View {
         let nextPage = allPages[currentIndex + 1]
         navigationCoordinator.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [Accessibility] Navigated to next page: \(nextPage.displayName)")
+    }
+    
+    private func navigateToPreviousPage() {
+        let allPages = WizardPage.allCases
+        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
+              currentIndex > 0
+        else { return }
+        let previousPage = allPages[currentIndex - 1]
+        navigationCoordinator.navigateToPage(previousPage)
+        AppLogger.shared.log("⬅️ [Accessibility] Navigated to previous page: \(previousPage.displayName)")
     }
 
     // MARK: - Computed Properties
