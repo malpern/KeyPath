@@ -2,15 +2,16 @@ import Foundation
 import os
 import Security
 
-/// KeyPath Privileged Helper
-///
-/// This helper tool runs as root and provides privileged operations to KeyPath.app
-/// via XPC communication. It is installed using SMJobBless() and runs as a LaunchDaemon.
-///
-/// **Security:**
-/// - Only accepts connections from KeyPath.app (com.keypath.KeyPath)
-/// - Validates code signature via audit token before accepting connections
-/// - All operations are logged to system log for audit trail
+// KeyPath Privileged Helper
+//
+// This helper tool runs as root and provides privileged operations to KeyPath.app
+// via XPC communication. It is registered via SMAppService and runs on-demand
+// as a LaunchDaemon Mach service.
+//
+// Security:
+// - Only accepts connections from KeyPath.app (com.keypath.KeyPath) in release builds
+// - Validates code signature via audit token before accepting connections
+// - All operations are logged to system log for audit trail
 
 // MARK: - Security Validation
 
@@ -71,10 +72,14 @@ class HelperDelegate: NSObject, NSXPCListenerDelegate {
     ///   - connection: The new connection to validate and accept
     /// - Returns: true if the connection should be accepted, false otherwise
     func listener(_: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
-        // Security requirement: allow any app from our Developer ID team
-        // Rationale: SMAppService already gates installation/approval; team scoping avoids fragile
-        // bundle-id drift during development while remaining strict in distribution.
+        // Security requirement:
+        // - DEBUG: allow any app from our Developer ID team for contributor convenience
+        // - RELEASE: require the exact app bundle identifier for strict production security
+        #if DEBUG
         let requirementString = "anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
+        #else
+        let requirementString = "identifier \"com.keypath.KeyPath\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
+        #endif
 
         // Validate the caller's code signature using audit token
         guard validateConnection(connection, requirement: requirementString) else {

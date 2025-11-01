@@ -273,7 +273,6 @@ struct WizardAccessibilityPage: View {
         navigationCoordinator.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [Accessibility] Navigated to next page: \(nextPage.displayName)")
     }
-    
     private func navigateToPreviousPage() {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
@@ -360,7 +359,10 @@ struct WizardAccessibilityPage: View {
 
 struct WizardAccessibilityPage_Previews: PreviewProvider {
     static var previews: some View {
-        WizardAccessibilityPage(
+        let manager = KanataManager()
+        let viewModel = KanataViewModel(manager: manager)
+
+        return WizardAccessibilityPage(
             systemState: .missingPermissions(missing: [.keyPathAccessibility]),
             issues: [
                 WizardIssue(
@@ -376,8 +378,9 @@ struct WizardAccessibilityPage_Previews: PreviewProvider {
             onRefresh: {},
             onNavigateToPage: nil,
             onDismiss: nil,
-            kanataManager: KanataManager()
+            kanataManager: manager
         )
         .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .environmentObject(viewModel)
     }
 }

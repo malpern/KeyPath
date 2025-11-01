@@ -238,6 +238,13 @@ struct WizardHelperPage: View {
                         .foregroundColor(lastError.contains("successfully") ? .green : .orange)
                         .padding(.horizontal, 40)
                         .multilineTextAlignment(.center)
+                    // If approval is required, offer a quick link to System Settings
+                    if lastError.localizedCaseInsensitiveContains("approval required") {
+                        Button("Open System Settings → Login Items") {
+                            openSystemSettings()
+                        }
+                        .buttonStyle(WizardDesign.Component.SecondaryButton())
+                    }
                 }
             }
             .padding(.horizontal, 60)
@@ -294,7 +301,7 @@ struct WizardHelperPage: View {
         let nextPage = allPages[currentIndex + 1]
         navigationCoordinator.navigateToPage(nextPage)
     }
-    
+
     private func navigateToPreviousPage() {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
@@ -309,5 +316,11 @@ struct WizardHelperPage: View {
         await MainActor.run { isWorking = true; lastError = nil }
         defer { Task { await MainActor.run { isWorking = false } } }
         await body()
+    }
+
+    private func openSystemSettings() {
+        // Best-effort: open System Settings; deep-linking to Login Items is OS-version dependent
+        let url = URL(fileURLWithPath: "/System/Applications/System Settings.app")
+        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
     }
 }

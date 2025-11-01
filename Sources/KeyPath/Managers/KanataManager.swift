@@ -133,6 +133,26 @@ enum SimpleKanataState: String, CaseIterable {
 /// KanataManager is **not** an ObservableObject. UI state is handled by `KanataViewModel`,
 /// which reads snapshots via `getCurrentUIState()`. This separation keeps business logic
 /// independent of SwiftUI reactivity.
+///
+/// ## Public API (Views → ViewModel → Manager)
+/// The UI should call ONLY the following methods via `KanataViewModel`:
+/// - Lifecycle
+///   - `startAutoLaunch(presentWizardOnFailure:)`
+///   - `manualStart()` / `manualStop()`
+///   - `startKanata()` / `stopKanata()`
+///   - `forceRefreshStatus()`
+/// - Wizard
+///   - `requestWizardPresentation(initialPage:)`
+///   - `onWizardClosed()`
+/// - UI State
+///   - `getCurrentUIState()` (snapshot for ViewModel sync)
+/// - Configuration (UI-level operations)
+///   - `createDefaultUserConfigIfMissing()`
+///   - `backupFailedConfigAndApplySafe(failedConfig:mappings:)`
+///   - `validateConfigFile()`
+///   - `resetToDefaultConfig()`
+///
+/// All other methods are internal implementation details and may change.
 
 /// Actions available in validation error dialogs
 struct ValidationAlertAction {
@@ -167,7 +187,7 @@ enum SaveStatus {
 
     var isActive: Bool {
         switch self {
-        case .idle: false
+        case .idle, .success: false
         default: true
         }
     }
@@ -1701,34 +1721,9 @@ class KanataManager {
     }
 
     private func checkExternalKanataProcess() async -> Bool {
-        // Use more specific search for actual kanata binary processes
-        // instead of any process with "kanata" in command line (which can match KeyPath's own processes)
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        // Look for processes where the executable name is kanata, not just command lines containing kanata
-        task.arguments = ["-x", "kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            let isRunning = !trimmed.isEmpty
-
-            // Debug logging removed - fix confirmed working
-
-            return isRunning
-        } catch {
-            AppLogger.shared.log(
-                "🔍 [KanataManager] checkExternalKanataProcess() - pgrep failed: \(error)")
-            return false
-        }
+        // Delegate to ProcessLifecycleManager for conflict detection
+        let conflicts = await processLifecycleManager.detectConflicts()
+        return !conflicts.externalProcesses.isEmpty
     }
 
     // MARK: - Installation and Permissions
