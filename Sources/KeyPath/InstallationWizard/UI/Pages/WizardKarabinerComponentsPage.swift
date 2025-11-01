@@ -366,19 +366,33 @@ struct WizardKarabinerComponentsPage: View {
             AppLogger.shared.log("🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
             performAutomaticDriverRepair()
         } else {
-            // Karabiner not installed - attempt automatic install via helper first
-            AppLogger.shared.log("🔧 [Karabiner Fix] Driver not installed - attempting automatic install via helper")
+            // Karabiner not installed - attempt automatic install via helper (up to 2 attempts) before manual
+            AppLogger.shared.log("🔧 [Karabiner Fix] Driver not installed - attempting automatic install via helper (up to 2 attempts)")
             Task { @MainActor in
-                let ok = await performAutoFix(.installCorrectVHIDDriver)
+                let ok = await attemptAutoInstallDriver(maxAttempts: 2)
                 if ok {
                     AppLogger.shared.log("✅ [Karabiner Fix] Automatic driver install succeeded")
                     onRefresh()
                 } else {
-                    AppLogger.shared.log("❌ [Karabiner Fix] Automatic driver install failed - showing manual guide")
+                    AppLogger.shared.log("❌ [Karabiner Fix] Automatic driver install failed twice - showing manual guide")
                     showingInstallationGuide = true
                 }
             }
         }
+    }
+
+    /// Try helper-based driver installation up to N attempts before falling back to manual sheet
+    @MainActor
+    private func attemptAutoInstallDriver(maxAttempts: Int) async -> Bool {
+        let attempts = max(1, maxAttempts)
+        for i in 1...attempts {
+            AppLogger.shared.log("🧪 [Karabiner Fix] Auto-install attempt #\(i)")
+            let ok = await performAutoFix(.installCorrectVHIDDriver)
+            if ok { return true }
+            // Small delay before retry to allow systemextensionsctl to settle
+            try? await Task.sleep(nanoseconds: 400_000_000)
+        }
+        return false
     }
 
     /// Smart handler for Background Services Fix button

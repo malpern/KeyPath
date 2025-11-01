@@ -48,6 +48,7 @@ struct SettingsView: View {
     @State private var showingHelperUninstallConfirm = false
     @State private var showingHelperLogs = false
     @State private var helperLogLines: [String] = []
+    @State private var disableGrabberInProgress = false
 
     // Toasts
     @State private var settingsToastManager = WizardToastManager()
@@ -332,6 +333,26 @@ struct SettingsView: View {
                         accessibilityHint: "Open Kanata service log files",
                         action: {
                             openKanataLogs()
+                        }
+                    )
+                    
+                    SettingsButton(
+                        title: "Disable Karabiner Grabber",
+                        systemImage: "nosign",
+                        disabled: disableGrabberInProgress,
+                        accessibilityId: "disable-karabiner-grabber-button",
+                        accessibilityHint: "Use the privileged helper to disable Karabiner's grabber services",
+                        action: {
+                            Task { @MainActor in
+                                disableGrabberInProgress = true
+                                do {
+                                    try await PrivilegedOperationsCoordinator.shared.disableKarabinerGrabber()
+                                    settingsToastManager.showSuccess("Disabled Karabiner grabber via helper")
+                                } catch {
+                                    settingsToastManager.showError("Failed to disable grabber: \(error.localizedDescription)")
+                                }
+                                disableGrabberInProgress = false
+                            }
                         }
                     )
                 }
