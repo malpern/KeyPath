@@ -12,6 +12,7 @@ struct WizardKarabinerComponentsPage: View {
     // Track which specific issues are being fixed
     @State private var fixingIssues: Set<UUID> = []
     @State private var showingInstallationGuide = false
+    @State private var lastDriverFixNote: String?
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
@@ -172,6 +173,13 @@ struct WizardKarabinerComponentsPage: View {
                                 }
                             }
                             .help(driverIssues.asTooltipText())
+
+                            if let note = lastDriverFixNote, componentStatus(for: .driver) != .completed {
+                                Text("Last fix: \(note)")
+                                    .font(.footnote)
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 28)
+                            }
 
                             HStack(spacing: 12) {
                                 Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -372,9 +380,11 @@ struct WizardKarabinerComponentsPage: View {
                 let ok = await attemptAutoInstallDriver(maxAttempts: 2)
                 if ok {
                     AppLogger.shared.log("✅ [Karabiner Fix] Automatic driver install succeeded")
+                    lastDriverFixNote = formattedStatus(success: true)
                     onRefresh()
                 } else {
                     AppLogger.shared.log("❌ [Karabiner Fix] Automatic driver install failed twice - showing manual guide")
+                    lastDriverFixNote = formattedStatus(success: false)
                     showingInstallationGuide = true
                 }
             }
@@ -393,6 +403,11 @@ struct WizardKarabinerComponentsPage: View {
             try? await Task.sleep(nanoseconds: 400_000_000)
         }
         return false
+    }
+
+    private func formattedStatus(success: Bool) -> String {
+        let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        return success ? "succeeded at \(ts)" : "failed at \(ts) — see Logs"
     }
 
     /// Smart handler for Background Services Fix button

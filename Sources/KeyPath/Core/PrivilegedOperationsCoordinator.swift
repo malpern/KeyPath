@@ -415,6 +415,11 @@ final class PrivilegedOperationsCoordinator {
     private func helperRestartKarabinerDaemonVerified() async throws -> Bool {
         AppLogger.shared.log("🔐 [PrivCoordinator] Helper path: verified restart of Karabiner daemon")
 
+        // Snapshot PRE state
+        let preLoaded = LaunchDaemonInstaller().isServiceLoaded(serviceID: "com.keypath.karabiner-vhiddaemon")
+        let preHealth = LaunchDaemonInstaller().isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
+        AppLogger.shared.log("🔎 [PrivCoordinator] PRE: vhiddaemon loaded=\(preLoaded), healthy=\(preHealth)")
+
         // 1) Kill any running VirtualHIDDevice daemons via helper (root)
         do {
             try await HelperManager.shared.restartKarabinerDaemon()
@@ -448,6 +453,9 @@ final class PrivilegedOperationsCoordinator {
         }
 
         try await Task.sleep(nanoseconds: 300_000_000)
+        let postLoaded = LaunchDaemonInstaller().isServiceLoaded(serviceID: "com.keypath.karabiner-vhiddaemon")
+        let postHealth = LaunchDaemonInstaller().isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
+        AppLogger.shared.log("🔎 [PrivCoordinator] POST: vhiddaemon loaded=\(postLoaded), healthy=\(postHealth)")
         if vhidManager.detectRunning() {
             AppLogger.shared.log("✅ [PrivCoordinator] Verified after repair: daemon healthy")
             return true

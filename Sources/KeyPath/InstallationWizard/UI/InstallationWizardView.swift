@@ -523,7 +523,7 @@ struct InstallationWizardView: View {
                         // Show toast notification
                         if success {
                             Task { @MainActor in
-                                toastManager.showSuccess("\(actionDescription) completed successfully")
+                                toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
                             }
                             // Follow-up: if this was a daemon action, re-check and emit diagnostic toast if still unhealthy
                             if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
@@ -538,7 +538,7 @@ struct InstallationWizardView: View {
                                         let detail = kanataManager.getVirtualHIDBreakageSummary()
                                         AppLogger.shared.log("❌ [Wizard] Post-fix (bulk) failed; showing diagnostic toast")
                                         await MainActor.run {
-                                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)")
+                                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0)
                                         }
                                     }
                                 }
@@ -551,7 +551,7 @@ struct InstallationWizardView: View {
                                     for: action, actionDescription: actionDescription
                                 )
                                 AppLogger.shared.log("❌ [Wizard] Generated error message: \(errorMessage)")
-                                toastManager.showError(errorMessage)
+                                toastManager.showError(errorMessage, duration: 7.0)
                             }
                         }
 
@@ -612,7 +612,7 @@ struct InstallationWizardView: View {
                         // Show toast notification
                         if success {
                             Task { @MainActor in
-                                toastManager.showSuccess("\(actionDescription) completed successfully")
+                                toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
                             }
                             // Refresh system state after successful auto-fix, then return success
                             Task {
@@ -636,7 +636,7 @@ struct InstallationWizardView: View {
                                         let detail = kanataManager.getVirtualHIDBreakageSummary()
                                         AppLogger.shared.log("❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
                                         await MainActor.run {
-                                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)")
+                                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0)
                                         }
                                     }
                                 }
@@ -650,7 +650,7 @@ struct InstallationWizardView: View {
                                 let errorMessage = getDetailedErrorMessage(
                                     for: action, actionDescription: actionDescription
                                 )
-                                toastManager.showError(errorMessage)
+                                toastManager.showError(errorMessage, duration: 7.0)
                             }
                             continuation.resume(returning: success)
                         }
