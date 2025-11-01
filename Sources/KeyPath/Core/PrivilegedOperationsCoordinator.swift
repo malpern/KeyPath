@@ -117,7 +117,7 @@ final class PrivilegedOperationsCoordinator {
             do {
                 try await helperRestartServices()
             } catch {
-                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper restart failed; falling back to sudo path: \(error.localizedDescription)")
+                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper restartUnhealthyServices failed: \(error.localizedDescription). Using AppleScript/sudo path.")
                 try await sudoRestartServices()
             }
         case .directSudo:
@@ -132,7 +132,7 @@ final class PrivilegedOperationsCoordinator {
         switch Self.operationMode {
         case .privilegedHelper:
             do { try await helperRegenerateConfig() } catch {
-                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper regenerate failed; falling back to sudo path: \(error.localizedDescription)")
+                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper regenerateServiceConfiguration failed: \(error.localizedDescription). Using AppleScript/sudo path.")
                 try await sudoRegenerateConfig()
             }
         case .directSudo:
@@ -159,7 +159,7 @@ final class PrivilegedOperationsCoordinator {
         switch Self.operationMode {
         case .privilegedHelper:
             do { try await helperRepairVHIDServices() } catch {
-                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper repair VHID failed; falling back to sudo path: \(error.localizedDescription)")
+                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper repairVHIDDaemonServices failed: \(error.localizedDescription). Using AppleScript/sudo path.")
                 try await sudoRepairVHIDServices()
             }
         case .directSudo:
@@ -174,7 +174,7 @@ final class PrivilegedOperationsCoordinator {
         switch Self.operationMode {
         case .privilegedHelper:
             do { try await helperInstallServicesWithoutLoading() } catch {
-                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper install-without-loading failed; falling back to sudo path: \(error.localizedDescription)")
+                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper installLaunchDaemonServicesWithoutLoading failed: \(error.localizedDescription). Using AppleScript/sudo path.")
                 try await sudoInstallServicesWithoutLoading()
             }
         case .directSudo:
@@ -328,7 +328,7 @@ final class PrivilegedOperationsCoordinator {
         } catch {
             let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
             if msg.localizedCaseInsensitiveContains("not yet implemented") {
-                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper method not yet implemented; falling back to sudo path")
+                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper installAllLaunchDaemonServicesWithPreferences not implemented. Using AppleScript/sudo path.")
                 try await sudoInstallAllServicesWithPreferences()
             } else {
                 throw error
@@ -346,7 +346,7 @@ final class PrivilegedOperationsCoordinator {
         } catch {
             let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
             if msg.localizedCaseInsensitiveContains("not yet implemented") {
-                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper method not yet implemented; falling back to sudo path")
+                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper regenerateServiceConfiguration not implemented. Using AppleScript/sudo path.")
                 try await sudoRegenerateConfig()
             } else {
                 throw error
@@ -360,7 +360,7 @@ final class PrivilegedOperationsCoordinator {
         } catch {
             let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
             if msg.localizedCaseInsensitiveContains("not yet implemented") {
-                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper method not yet implemented; falling back to sudo path")
+                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper installLogRotation not implemented. Using AppleScript/sudo path.")
                 try await sudoInstallLogRotation()
             } else {
                 throw error
@@ -374,7 +374,7 @@ final class PrivilegedOperationsCoordinator {
         } catch {
             let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
             if msg.localizedCaseInsensitiveContains("not yet implemented") {
-                AppLogger.shared.log("ℹ️ [PrivCoordinator] Helper method not yet implemented; falling back to sudo path")
+                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper repairVHIDDaemonServices not implemented. Using AppleScript/sudo path.")
                 try await sudoRepairVHIDServices()
             } else {
                 throw error

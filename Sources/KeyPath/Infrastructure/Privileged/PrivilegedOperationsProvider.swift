@@ -9,6 +9,6 @@ public enum PrivilegedOperationsProvider: Sendable {
         if TestEnvironment.isTestMode {
             return MockPrivilegedOperations()
         }
-        return LegacyPrivilegedOperations()
+        return HelperBackedPrivilegedOperations()
     }()
 }
