@@ -2431,36 +2431,33 @@ class KanataManager {
     func pauseMappings() async -> Bool {
         AppLogger.shared.log("⏸️ [Mappings] Attempting to pause mappings for recording...")
 
-        // First, try UDP pause command (if Kanata supports it in the future)
-        // For now, we'll stop the service as a fallback
-
-        if isRunning {
-            AppLogger.shared.log("🛑 [Mappings] Stopping Kanata service to pause mappings...")
-            await stopKanata()
-            // Small delay to ensure service is fully stopped
+        // Preferred: use privileged helper to kill Kanata processes (no admin prompt)
+        do {
+            try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
+            // Small settle to ensure processes exit
             try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            AppLogger.shared.log("🛑 [Mappings] Paused by killing Kanata processes via helper")
             return true
+        } catch {
+            AppLogger.shared.log("⚠️ [Mappings] Helper killAllKanataProcesses failed: \(error)")
+            return false
         }
-
-        AppLogger.shared.log("ℹ️ [Mappings] Service already stopped, no need to pause")
-        return false
     }
 
     /// Resume mappings after recording
     func resumeMappings() async -> Bool {
         AppLogger.shared.log("▶️ [Mappings] Attempting to resume mappings after recording...")
 
-        // Start the service if it was paused
-        if !isRunning {
-            AppLogger.shared.log("🚀 [Mappings] Starting Kanata service to resume mappings...")
-            await startKanata()
-            // Small delay to ensure service is fully started
-            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
+        do {
+            try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
+            // Give it a brief moment to come up
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            AppLogger.shared.log("🚀 [Mappings] Resumed by restarting unhealthy services via helper")
             return true
+        } catch {
+            AppLogger.shared.log("⚠️ [Mappings] Helper restartUnhealthyServices failed: \(error)")
+            return false
         }
-
-        AppLogger.shared.log("ℹ️ [Mappings] Service already running, mappings active")
-        return false
     }
 
     func convertToKanataKey(_ key: String) -> String {
