@@ -589,6 +589,8 @@ extension AutoFixAction {
             "Restart TCP Server"
         case .fixDriverVersionMismatch:
             "Fix Karabiner Driver Version"
+        case .installCorrectVHIDDriver:
+            "Install Karabiner Driver"
         }
     }
 }

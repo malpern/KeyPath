@@ -720,6 +720,8 @@ struct InstallationWizardView: View {
             "Restart Service with Authentication"
         case .fixDriverVersionMismatch:
             "Fix Karabiner driver version (v6 → v5)"
+        case .installCorrectVHIDDriver:
+            "Install Karabiner VirtualHID driver"
         }
 
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")

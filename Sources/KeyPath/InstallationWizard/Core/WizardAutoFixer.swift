@@ -124,6 +124,8 @@ class WizardAutoFixer: AutoFixCapable {
             true // We can always attempt to restart communication server
         case .fixDriverVersionMismatch:
             vhidDeviceManager.hasVersionMismatch() // Only if there's a version mismatch
+        case .installCorrectVHIDDriver:
+            true // Attempt auto-install when driver missing
         }
     }
 
@@ -184,6 +186,8 @@ class WizardAutoFixer: AutoFixCapable {
             return await restartCommServer()
         case .fixDriverVersionMismatch:
             return await fixDriverVersionMismatch()
+        case .installCorrectVHIDDriver:
+            return await installCorrectVHIDDriver()
         }
     }
 
@@ -216,6 +220,29 @@ class WizardAutoFixer: AutoFixCapable {
     }
 
     // MARK: - Driver Version Management
+
+    private func installCorrectVHIDDriver() async -> Bool {
+        AppLogger.shared.log("🔧 [AutoFixer] Installing required Karabiner VirtualHID driver (helper-first)")
+
+        do {
+            try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Failed to auto-install driver via helper: \(error)")
+            return false
+        }
+
+        // Try to activate manager and verify daemon
+        do {
+            try await PrivilegedOperationsCoordinator.shared.activateVirtualHIDManager()
+        } catch {
+            AppLogger.shared.log("⚠️ [AutoFixer] activateVirtualHIDManager returned error (continuing): \(error)")
+        }
+
+        let restartOk = await restartVirtualHIDDaemon()
+        AppLogger.shared.log("🔧 [AutoFixer] Post-install restart verified: \(restartOk)")
+
+        return true
+    }
 
     private func fixDriverVersionMismatch() async -> Bool {
         AppLogger.shared.log("🔧 [AutoFixer] Fixing driver version mismatch")

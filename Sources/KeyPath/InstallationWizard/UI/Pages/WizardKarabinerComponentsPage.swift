@@ -366,9 +366,18 @@ struct WizardKarabinerComponentsPage: View {
             AppLogger.shared.log("🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
             performAutomaticDriverRepair()
         } else {
-            // Karabiner not installed - show installation guide
-            AppLogger.shared.log("💡 [Karabiner Fix] Driver not installed - showing installation guide")
-            showingInstallationGuide = true
+            // Karabiner not installed - attempt automatic install via helper first
+            AppLogger.shared.log("🔧 [Karabiner Fix] Driver not installed - attempting automatic install via helper")
+            Task { @MainActor in
+                let ok = await performAutoFix(.installCorrectVHIDDriver)
+                if ok {
+                    AppLogger.shared.log("✅ [Karabiner Fix] Automatic driver install succeeded")
+                    onRefresh()
+                } else {
+                    AppLogger.shared.log("❌ [Karabiner Fix] Automatic driver install failed - showing manual guide")
+                    showingInstallationGuide = true
+                }
+            }
         }
     }
 
