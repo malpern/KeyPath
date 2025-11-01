@@ -187,7 +187,7 @@ enum SaveStatus {
 
     var isActive: Bool {
         switch self {
-        case .idle: false
+        case .idle, .success: false
         default: true
         }
     }

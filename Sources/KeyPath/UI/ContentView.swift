@@ -67,7 +67,7 @@ struct ContentView: View {
     @State private var showingKanataNotRunningAlert = false
 
     @State private var saveDebounceTimer: Timer?
-    private let saveDebounceDelay: TimeInterval = 0.5
+    private let saveDebounceDelay: TimeInterval = 0.1
 
     @State private var statusMessageTimer: DispatchWorkItem?
 
@@ -101,6 +101,8 @@ struct ContentView: View {
                             ProgressView()
                                 .scaleEffect(0.8)
                                 .frame(width: 16, height: 16)
+                            Text(kanataManager.saveStatus.message)
+                                .font(.caption)
                         }
                         Text("Save")
                     }

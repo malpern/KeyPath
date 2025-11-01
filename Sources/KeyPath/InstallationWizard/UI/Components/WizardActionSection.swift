@@ -15,9 +15,11 @@ struct WizardActionSection: View {
                     .foregroundColor(statusColor)
                     .font(.system(size: 20))
 
-                Text(statusMessage)
-                    .font(WizardDesign.Typography.status)
-                    .foregroundColor(statusColor)
+                if !statusMessage.isEmpty {
+                    Text(statusMessage)
+                        .font(WizardDesign.Typography.status)
+                        .foregroundColor(statusColor)
+                }
             }
 
             // Description text (if needed)
@@ -83,7 +85,8 @@ struct WizardActionSection: View {
     private var statusMessage: String {
         // Check full configuration first - only show "Active" if EVERYTHING is working
         if systemState == .active, isFullyConfigured {
-            return "KeyPath is Active"
+            // Redundant with top icon and system status - omit label
+            return ""
         }
 
         // If active but not fully configured, show issues message

@@ -629,7 +629,7 @@ launchctl list | grep -i karabiner
 
 **🟢 All Active (Green):**
 - All components installed AND Kanata service running
-- Shows "KeyPath is Active" with "Close Setup" button
+- Shows green check icon with "Close Setup" button (no status text)
 
 **🟠 Ready but Not Running (Orange):**
 - All components installed but Kanata service not running
