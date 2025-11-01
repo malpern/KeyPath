@@ -691,7 +691,7 @@ swift test --filter WizardNavigationEngineTests
 **Chosen Direction:**
 - Main UI (KeyPath.app): UI‑only. Never runs with `--headless` or `.accessory`. Finder/Dock always starts this process; first activation fronts the window deterministically.
 - Background helper (KeyPathAgent, user-level LaunchAgent): owns non‑UI background tasks (config watching, light health checks, notifications/orchestration). No windows; no activation.
-- Privileged helper (optional, SMJobBless): very small, async, and bounded surface for admin operations (install/update LaunchDaemons, privileged file writes, kickstarts). Replaces AppleScript prompts and reduces focus‑stealing during first launch.
+- Privileged helper (SMAppService-based): very small, async, and bounded surface for admin operations (install/update LaunchDaemons, privileged file writes, kickstarts). Replaces AppleScript prompts and reduces focus‑stealing during first launch.
 
 **Consequences:**
 - Deterministic Finder/Dock behavior; main window appears reliably without extra clicks.
@@ -706,7 +706,7 @@ swift test --filter WizardNavigationEngineTests
 **Migration Plan (Phased):**
 1) Short term: Disable the LaunchAgent that runs the UI binary headless. If automatic UI at login is desired, add a Login Item (SMAppService) for the UI app. Keep LaunchDaemon for kanata.
 2) Medium term: Introduce a small KeyPathAgent (user-level) for background conveniences; communicate via DistributedNotifications/XPC/file signals.
-3) Long term (optional): Add a minimal SMJobBless privileged helper for admin flows; keep the API surface tiny and asynchronous to avoid the XPC pitfalls called out earlier in this document.
+3) Long term (optional): Maintain a minimal SMAppService privileged helper for admin flows; keep the API surface tiny and asynchronous to avoid the XPC pitfalls called out earlier in this document.
 
 **Risks & Mitigations:**
 - XPC/SMJobBless complexity: mitigate by keeping the helper’s API minimal, time‑bounded, and non‑blocking; use Authorization Services interim if needed.

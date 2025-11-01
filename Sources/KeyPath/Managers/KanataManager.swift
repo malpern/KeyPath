@@ -133,6 +133,26 @@ enum SimpleKanataState: String, CaseIterable {
 /// KanataManager is **not** an ObservableObject. UI state is handled by `KanataViewModel`,
 /// which reads snapshots via `getCurrentUIState()`. This separation keeps business logic
 /// independent of SwiftUI reactivity.
+///
+/// ## Public API (Views → ViewModel → Manager)
+/// The UI should call ONLY the following methods via `KanataViewModel`:
+/// - Lifecycle
+///   - `startAutoLaunch(presentWizardOnFailure:)`
+///   - `manualStart()` / `manualStop()`
+///   - `startKanata()` / `stopKanata()`
+///   - `forceRefreshStatus()`
+/// - Wizard
+///   - `requestWizardPresentation(initialPage:)`
+///   - `onWizardClosed()`
+/// - UI State
+///   - `getCurrentUIState()` (snapshot for ViewModel sync)
+/// - Configuration (UI-level operations)
+///   - `createDefaultUserConfigIfMissing()`
+///   - `backupFailedConfigAndApplySafe(failedConfig:mappings:)`
+///   - `validateConfigFile()`
+///   - `resetToDefaultConfig()`
+///
+/// All other methods are internal implementation details and may change.
 
 /// Actions available in validation error dialogs
 struct ValidationAlertAction {

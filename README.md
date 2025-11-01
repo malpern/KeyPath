@@ -50,6 +50,9 @@ open ~/Applications/KeyPath.app
 
 If you didn’t use the command above, double‑click `~/Applications/KeyPath.app` to launch. The setup wizard will guide you through everything.
 
+#### Privileged Helper (production-like builds)
+KeyPath includes a small privileged helper installed via Apple's SMAppService to perform root-required tasks (installing launchd services, managing drivers) without repeated prompts. On first install, macOS may require you to approve KeyPath under System Settings → Login Items → Allow in the Background. The Wizard will surface this and provide a quick button to open System Settings if needed.
+
 ### 3. Create Your First Mapping
 
 1. Click the record button next to "Input Key"

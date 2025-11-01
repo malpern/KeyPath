@@ -62,6 +62,9 @@ actor HelperManager {
             return connection
         }
 
+        // Best-effort: verify embedded helper signature/requirement before connecting
+        self.verifyEmbeddedHelperSignature()
+
         // Create new connection
         AppLogger.shared.log("🔗 [HelperManager] Creating XPC connection to \(Self.helperMachServiceName)")
 
@@ -570,6 +573,72 @@ actor HelperManager {
     func installBundledKanataBinaryOnly() async throws {
         try await executeXPCCall("installBundledKanataBinaryOnly") { proxy, reply in
             proxy.installBundledKanataBinaryOnly(reply: reply)
+        }
+    }
+}
+
+// MARK: - Helper signature verification (best-effort warnings only)
+
+extension HelperManager {
+    /// Verify the embedded helper's designated requirement roughly matches expectations.
+    /// Logs warnings on mismatch; does not block connection (to avoid false positives during dev).
+    nonisolated private func verifyEmbeddedHelperSignature() {
+        let fm = FileManager.default
+        let bundlePath = Bundle.main.bundlePath
+        let helperPath = bundlePath + "/Contents/Library/HelperTools/KeyPathHelper"
+        guard fm.fileExists(atPath: helperPath) else {
+            AppLogger.shared.log("⚠️ [HelperManager] Embedded helper not found at \(helperPath)")
+            return
+        }
+
+        // Extract designated requirement using codesign
+        let cs = Process()
+        cs.launchPath = "/usr/bin/codesign"
+        cs.arguments = ["-d", "-r-", helperPath]
+        let out = Pipe(); let err = Pipe(); cs.standardOutput = out; cs.standardError = err
+        do { try cs.run() } catch {
+            AppLogger.shared.log("⚠️ [HelperManager] Could not run codesign: \(error.localizedDescription)")
+            return
+        }
+        cs.waitUntilExit()
+        let outStr = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let errStr = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let combined = outStr + "\n" + errStr
+        guard let req = combined.components(separatedBy: "designated =>").last?.trimmingCharacters(in: .whitespacesAndNewlines), !req.isEmpty else {
+            AppLogger.shared.log("⚠️ [HelperManager] Could not parse helper designated requirement")
+            return
+        }
+
+        // Minimal checks
+        var warnings: [String] = []
+        if !req.contains("identifier \"com.keypath.helper\"") {
+            warnings.append("missing identifier 'com.keypath.helper'")
+        }
+        if !req.contains("1.2.840.113635.100.6.2.6") { // Developer ID CA
+            warnings.append("missing Developer ID CA marker")
+        }
+        if !req.contains("1.2.840.113635.100.6.1.13") { // Developer ID Application
+            warnings.append("missing Developer ID Application marker")
+        }
+
+        // Compare with SMPrivilegedExecutables requirement (if present)
+        var plistRequirement: String?
+        if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
+           let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier] as? String {
+            plistRequirement = sm
+            if !req.contains("com.keypath.helper") {
+                warnings.append("helper req does not show expected identifier, while Info.plist declares it")
+            }
+        }
+
+        if warnings.isEmpty {
+            AppLogger.shared.log("🔒 [HelperManager] Embedded helper signature looks valid")
+        } else {
+            AppLogger.shared.log("⚠️ [HelperManager] Embedded helper signature warnings: \(warnings.joined(separator: "; "))")
+            if let plistRequirement {
+                AppLogger.shared.log("ℹ️ [HelperManager] App Info.plist SMPrivilegedExecutables[\(Self.helperBundleIdentifier)] = \(plistRequirement)")
+            }
+            AppLogger.shared.log("ℹ️ [HelperManager] codesign designated => \(req)")
         }
     }
 }

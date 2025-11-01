@@ -261,7 +261,6 @@ struct WizardInputMonitoringPage: View {
             onDismiss?()
         }
     }
-    
     private func navigateToPreviousPage() {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
@@ -473,7 +472,10 @@ struct CleanupStep: View {
 
 struct WizardInputMonitoringPage_Previews: PreviewProvider {
     static var previews: some View {
-        WizardInputMonitoringPage(
+        let manager = KanataManager()
+        let viewModel = KanataViewModel(manager: manager)
+
+        return WizardInputMonitoringPage(
             systemState: .missingPermissions(missing: [.keyPathInputMonitoring]),
             issues: [
                 WizardIssue(
@@ -490,8 +492,9 @@ struct WizardInputMonitoringPage_Previews: PreviewProvider {
             onRefresh: {},
             onNavigateToPage: nil,
             onDismiss: nil,
-            kanataManager: KanataManager()
+            kanataManager: manager
         )
         .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .environmentObject(viewModel)
     }
 }
