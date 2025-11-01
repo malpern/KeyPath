@@ -1301,12 +1301,13 @@ class KanataManager {
 
             for processInfo in allProcesses {
                 AppLogger.shared.log("⚠️ [Conflict] Process PID \(processInfo.pid): \(processInfo.command)")
+            }
 
-                // Kill non-LaunchDaemon processes
-                if !processInfo.command.contains("launchd"), !processInfo.command.contains("system/com.keypath.kanata") {
-                    AppLogger.shared.log("🔄 [Conflict] Killing non-LaunchDaemon process: \(processInfo.pid)")
-                    await killProcess(pid: Int(processInfo.pid))
-                }
+            // Terminate only external processes via lifecycle manager
+            do {
+                try await processLifecycleManager.terminateExternalProcesses()
+            } catch {
+                AppLogger.shared.log("⚠️ [Conflict] Failed to terminate external processes: \(error)")
             }
         } else {
             AppLogger.shared.log("✅ [Conflict] No conflicting processes found")
