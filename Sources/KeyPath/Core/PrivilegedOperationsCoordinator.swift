@@ -477,9 +477,13 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func helperInstallBundledKanata() async throws {
-        // TODO: Implement XPC call for bundled kanata installation
-        // For now, fall back to sudo path
-        try await sudoInstallBundledKanata()
+        do {
+            try await HelperManager.shared.installBundledKanataBinaryOnly()
+        } catch {
+            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            AppLogger.shared.log("🚨 [PrivCoordinator] Helper installBundledKanataBinaryOnly failed: \(msg). Falling back to sudo path.")
+            try await sudoInstallBundledKanata()
+        }
     }
 
     // MARK: - Karabiner Conflict Management
