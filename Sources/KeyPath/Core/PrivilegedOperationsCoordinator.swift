@@ -406,6 +406,17 @@ final class PrivilegedOperationsCoordinator {
         try await HelperManager.shared.terminateProcess(pid)
     }
 
+    /// Terminate a process (helper-first; fallback to sudo with explicit logs)
+    func terminateProcess(_ pid: Int32) async throws {
+        do {
+            AppLogger.shared.log("🔐 [PrivCoordinator] Helper-first terminate PID=\(pid)")
+            try await helperTerminateProcess(pid: pid)
+        } catch {
+            AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper terminateProcess failed for PID=\(pid): \(error.localizedDescription). Using AppleScript/sudo path.")
+            try await sudoTerminateProcess(pid: pid)
+        }
+    }
+
     private func helperKillAllKanata() async throws {
         try await HelperManager.shared.killAllKanataProcesses()
     }
@@ -466,9 +477,13 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func helperInstallBundledKanata() async throws {
-        // TODO: Implement XPC call for bundled kanata installation
-        // For now, fall back to sudo path
-        try await sudoInstallBundledKanata()
+        do {
+            try await HelperManager.shared.installBundledKanataBinaryOnly()
+        } catch {
+            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            AppLogger.shared.log("🚨 [PrivCoordinator] Helper installBundledKanataBinaryOnly failed: \(msg). Falling back to sudo path.")
+            try await sudoInstallBundledKanata()
+        }
     }
 
     // MARK: - Karabiner Conflict Management

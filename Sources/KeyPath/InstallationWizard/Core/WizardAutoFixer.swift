@@ -228,13 +228,22 @@ class WizardAutoFixer: AutoFixCapable {
         let driverVersion: String?
     }
 
-    private func captureVHIDSnapshot() -> VHIDSnapshot {
-        let installer = LaunchDaemonInstaller()
-        let loaded = installer.isServiceLoaded(serviceID: "com.keypath.karabiner-vhiddaemon")
-        let healthy = installer.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
+    private func captureVHIDSnapshot() async -> VHIDSnapshot {
+        let installerRef = launchDaemonInstaller
+        let (loaded, healthy) = await MainActor.run {
+            (
+                installerRef.isServiceLoaded(serviceID: "com.keypath.karabiner-vhiddaemon"),
+                installerRef.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
+            )
+        }
         let running = vhidDeviceManager.detectRunning()
         let version = vhidDeviceManager.getInstalledVersion()
-        return VHIDSnapshot(serviceLoaded: loaded, serviceHealthy: healthy, daemonRunning: running, driverVersion: version)
+        return VHIDSnapshot(
+            serviceLoaded: loaded,
+            serviceHealthy: healthy,
+            daemonRunning: running,
+            driverVersion: version
+        )
     }
 
     private func snapshotJSON(_ s: VHIDSnapshot) -> String {
@@ -253,13 +262,13 @@ class WizardAutoFixer: AutoFixCapable {
 
         let session = UUID().uuidString
         let t0 = Date()
-        let pre = captureVHIDSnapshot()
+        let pre = await captureVHIDSnapshot()
 
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
         } catch {
             AppLogger.shared.log("❌ [AutoFixer] Failed to auto-install driver via helper: \(error)")
-            let post = captureVHIDSnapshot()
+            let post = await captureVHIDSnapshot()
             logFixSessionSummary(session: session, action: "installCorrectVHIDDriver", success: false, start: t0, pre: pre, post: post)
             return false
         }
@@ -273,7 +282,7 @@ class WizardAutoFixer: AutoFixCapable {
 
         let restartOk = await restartVirtualHIDDaemon()
         AppLogger.shared.log("🔧 [AutoFixer] Post-install restart verified: \(restartOk)")
-        let post = captureVHIDSnapshot()
+        let post = await captureVHIDSnapshot()
         logFixSessionSummary(session: session, action: "installCorrectVHIDDriver", success: restartOk, start: t0, pre: pre, post: post)
         return true
     }
@@ -308,7 +317,7 @@ class WizardAutoFixer: AutoFixCapable {
         // Download and install the correct version using coordinator
         let session = UUID().uuidString
         let t0 = Date()
-        let pre = captureVHIDSnapshot()
+        let pre = await captureVHIDSnapshot()
         let success: Bool
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
@@ -360,7 +369,7 @@ class WizardAutoFixer: AutoFixCapable {
                 alert.runModal()
             }
         }
-        let post = captureVHIDSnapshot()
+        let post = await captureVHIDSnapshot()
         logFixSessionSummary(session: session, action: "fixDriverVersionMismatch", success: success, start: t0, pre: pre, post: post)
         return success
     }
@@ -441,43 +450,26 @@ class WizardAutoFixer: AutoFixCapable {
         return false
     }
 
-    /// Try to kill a process by PID with a non-privileged signal; fallback to admin if needed
+    /// Try to kill a process by PID (helper-first; no AppleScript unless helper fails inside coordinator)
     private func killProcessByPID(_ pid: pid_t) async -> Bool {
-        AppLogger.shared.log("🔧 [AutoFixer] Killing process PID=\(pid)")
-
-        // First try without sudo
-        if runCommand("/bin/kill", ["-TERM", String(pid)]) == 0 {
-            AppLogger.shared.log("✅ [AutoFixer] Sent SIGTERM to PID=\(pid)")
-        } else {
-            // Fallback with admin privileges via osascript
-            let script =
-                "do shell script \"/bin/kill -TERM \(pid)\" with administrator privileges with prompt \"KeyPath needs to stop a conflicting Kanata process.\""
-            if runCommand("/usr/bin/osascript", ["-e", script]) == 0 {
-                AppLogger.shared.log("✅ [AutoFixer] Sent SIGTERM (admin) to PID=\(pid)")
-            } else {
-                AppLogger.shared.log("❌ [AutoFixer] Failed to signal PID=\(pid)")
-                return false
-            }
+        AppLogger.shared.log("🔧 [AutoFixer] Terminating process via helper PID=\(pid)")
+        do {
+            try await PrivilegedOperationsCoordinator.shared.terminateProcess(pid)
+        } catch {
+            AppLogger.shared.log("❌ [AutoFixer] Helper terminateProcess failed for PID=\(pid): \(error.localizedDescription)")
+            return false
         }
 
-        // Wait a bit and verify it exited
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        let verify = runCommand("/bin/kill", ["-0", String(pid)])
-        if verify != 0 {
-            AppLogger.shared.log("✅ [AutoFixer] PID=\(pid) no longer running")
+        // Verify exit
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        let still = runCommand("/bin/kill", ["-0", String(pid)]) == 0
+        if still {
+            AppLogger.shared.log("⚠️ [AutoFixer] PID=\(pid) still appears alive after helper termination")
+            return false
+        } else {
+            AppLogger.shared.log("✅ [AutoFixer] PID=\(pid) no longer running after helper termination")
             return true
         }
-
-        // Force kill
-        _ = runCommand("/bin/kill", ["-9", String(pid)])
-        try? await Task.sleep(nanoseconds: 300_000_000)
-        let still = runCommand("/bin/kill", ["-0", String(pid)])
-        let success = still != 0
-        AppLogger.shared.log(
-            success
-                ? "✅ [AutoFixer] Force killed PID=\(pid)"
-                : "❌ [AutoFixer] PID=\(pid) still running after SIGKILL")
-        return success
     }
 
     private func runCommand(_ path: String, _ args: [String]) -> Int32 {

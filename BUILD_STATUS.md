@@ -31,58 +31,26 @@
 
 ## ⚠️ Remaining Issues
 
-### Root Cause: Package.swift Split-Module Architecture
+### Package Layout (Updated per ADR-010)
 
-The `Package.swift` splits `Sources/KeyPath` into two targets:
-- **KeyPath** (library) - Excludes UI/, App.swift, Resources
-- **KeyPathApp** (executable) - Excludes Core/, Managers/, Services/, etc.
+`Package.swift` now uses a single executable target for `Sources/KeyPath` (see ADR-010). Prior split‑module visibility issues should be resolved, and UI/Core access should not require broad `public` modifiers. If a module split is reintroduced in the future, ensure explicit public APIs and verify UI/Core boundaries.
 
-This creates ongoing issues where core types aren't accessible to UI without being explicitly marked `public`.
-
-### Still Failing:
-- `AppLogger` not accessible in UI (needs public modifier)
-- `ForEach` type inference error in ContentView.swift
-- Potentially 50+ more types need `public` modifiers
-
-## 📋 Recommendations
-
-### Option 1: Complete the Public API (Quick Fix - 30-60 min)
-Make all Core types used by UI explicitly `public`:
-```bash
-# Make these classes/structs/enums public:
-- AppLogger
-- PreferencesService  
-- LaunchAgentManager
-- KanataConfigManager
-- ConfigurationService
-- DiagnosticsService
-- (and ~40 more)
-```
-
-### Option 2: Restructure Package.swift (Clean Fix - 2-3 hours)
-Either:
-1. Consolidate back to single target (simpler)
-2. Properly separate into distinct modules with explicit public APIs
-
-### Option 3: Remove Package Split (Simplest - 15 min)
-Remove the executableTarget split, go back to single module:
-```swift
-.executableTarget(
-    name: "KeyPath",
-    dependencies: [],
-    path: "Sources/KeyPath"
-)
-```
+### Items to Verify
+- Confirm `AppLogger` and other services are accessible to UI without extra `public` changes
+- Resolve any lingering SwiftUI type inference warnings in UI files
 
 ## 🧪 Test Status
 
-**Not run yet** - Project doesn't compile. Tests will likely need similar `public` fixes.
+Run regularly via:
+```bash
+./Scripts/run-tests.sh
+```
+Ensure both dev and production-like builds pass tests.
 
 ## 📝 Other Findings
 
-1. **Uncommitted file**: `KanataConfigManager.swift` appears to be incomplete Phase 4 work
-2. **Deprecation warnings**: 23 warnings about `KeyMapping` being deprecated
-3. **macOS 15 deprecations**: `String(contentsOfFile:)` deprecated (3 instances)
+1. Review any incomplete WIP files (e.g., `KanataConfigManager.swift`) before merging
+2. Address deprecations where practical (e.g., `KeyMapping`, `String(contentsOfFile:)`)
 
 ## ⏱️ Time Investment So Far
 

@@ -101,4 +101,9 @@ import Foundation
     // Note: executeCommand removed for security reasons.
     // All privileged operations must be explicitly defined with proper validation.
     // Arbitrary shell command execution creates too broad an attack surface.
+
+    // MARK: - Bundled Kanata Installation
+    /// Install only the bundled kanata binary to the system location (/Library/KeyPath/bin/kanata)
+    /// - Parameter reply: Completion handler with (success, errorMessage)
+    func installBundledKanataBinaryOnly(reply: @escaping (Bool, String?) -> Void)
 }

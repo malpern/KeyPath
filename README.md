@@ -26,19 +26,29 @@ KeyPath is the easiest way to remap your keyboard on macOS. Whether you want to 
 
 ## 🚀 Getting Started
 
-### 1. Download & Install
+### 1. Download & Install (Recommended)
 
 Download the latest release from the [Releases page](https://github.com/yourusername/KeyPath/releases) or build from source:
 
 ```bash
 git clone https://github.com/yourusername/KeyPath.git
 cd KeyPath
+
+# Build & sign the app (production-like)
 ./Scripts/build-and-sign.sh
+
+# Deploy to your user Applications folder
+mkdir -p ~/Applications
+cp -R dist/KeyPath.app ~/Applications/
+
+# Quit any running instance, then launch the new build
+osascript -e 'tell application "KeyPath" to quit' || true
+open ~/Applications/KeyPath.app
 ```
 
 ### 2. Launch KeyPath
 
-Double-click KeyPath.app to launch. The setup wizard will guide you through everything.
+If you didn’t use the command above, double‑click `~/Applications/KeyPath.app` to launch. The setup wizard will guide you through everything.
 
 ### 3. Create Your First Mapping
 
@@ -55,6 +65,15 @@ Double-click KeyPath.app to launch. The setup wizard will guide you through ever
 5. Click Save
 
 That's it! Your mapping is now active.
+
+### Development-only quick run
+
+For a fast developer preview, you can run the unsigned debug build. Note this may not reflect real permissions/signing behavior; for accurate testing use the recommended flow above.
+
+```bash
+swift build
+open .build/debug/KeyPath.app
+```
 
 ## 🚀 Powered by Kanata
 
@@ -201,12 +220,15 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 git clone https://github.com/yourusername/KeyPath.git
 cd KeyPath
 
-# Build and test
+# Build and test (dev)
 swift build
 swift test
 
-# Production build
+# Production-like build & deploy (recommended for real testing)
 ./Scripts/build-and-sign.sh
+mkdir -p ~/Applications && cp -R dist/KeyPath.app ~/Applications/
+osascript -e 'tell application "KeyPath" to quit' || true
+open ~/Applications/KeyPath.app
 ```
 
 ## 📚 Documentation

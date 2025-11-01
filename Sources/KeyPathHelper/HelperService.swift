@@ -46,6 +46,21 @@ class HelperService: NSObject, HelperProtocol {
                 _ = Self.run("/bin/chmod", ["644", dest])
                 _ = Self.run("/usr/sbin/chown", ["root:wheel", dest])
 
+                // Guard against bundled path usage by rewriting to system path if detected
+                do {
+                    let original = try String(contentsOfFile: dest, encoding: .utf8)
+                    if original.contains("/Contents/Library/KeyPath/kanata") {
+                        let rewritten = original.replacingOccurrences(
+                            of: "/Contents/Library/KeyPath/kanata",
+                            with: "/Library/KeyPath/bin/kanata"
+                        )
+                        try rewritten.write(toFile: dest, atomically: true, encoding: .utf8)
+                        NSLog("[KeyPathHelper] Rewrote bundled kanata path to system path in \(dest)")
+                    }
+                } catch {
+                    NSLog("[KeyPathHelper] Warning: failed to validate/rewrite kanata path in plist: \(error.localizedDescription)")
+                }
+
                 // Bootstrap (idempotent), then enable and kickstart
                 _ = Self.run("/bin/launchctl", ["bootout", "system/\(serviceID)"]) // ignore failure
                 let bs = Self.run("/bin/launchctl", ["bootstrap", "system", dest])
@@ -77,10 +92,26 @@ class HelperService: NSObject, HelperProtocol {
             operation: {
                 let appBundle = Self.appBundlePathFromHelper()
                 let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+
+                // Copy bundled kanata to system location (/Library/KeyPath/bin/kanata)
+                // This path has TCC Input Monitoring permissions, bundled path does not
+                let systemKanataDir = "/Library/KeyPath/bin"
+                let systemKanataPath = "\(systemKanataDir)/kanata"
+
+                _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
+                let cpResult = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
+                if cpResult.status != 0 {
+                    throw HelperError.operationFailed("Failed to copy kanata to system location: \(cpResult.out)")
+                }
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
+                _ = Self.run("/bin/chmod", ["755", systemKanataPath])
+
                 let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root" // fallback
                 let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
                 let tcpPort = 37001
-                try Self.installAllServices(kanataBinaryPath: bundledKanata, kanataConfigPath: cfgPath, tcpPort: tcpPort)
+
+                // Use system path (not bundled path) so TCC permissions apply
+                try Self.installAllServices(kanataBinaryPath: systemKanataPath, kanataConfigPath: cfgPath, tcpPort: tcpPort)
             },
             reply: reply
         )
@@ -109,10 +140,22 @@ class HelperService: NSObject, HelperProtocol {
                 if needsInstall {
                     let appBundle = Self.appBundlePathFromHelper()
                     let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+
+                    // Copy to system location with TCC permissions
+                    let systemKanataDir = "/Library/KeyPath/bin"
+                    let systemKanataPath = "\(systemKanataDir)/kanata"
+                    _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
+                    let cpResult = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
+                    if cpResult.status != 0 {
+                        throw HelperError.operationFailed("Failed to copy kanata to system location: \(cpResult.out)")
+                    }
+                    _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
+                    _ = Self.run("/bin/chmod", ["755", systemKanataPath])
+
                     let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
                     let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
                     let tcpPort = 37001
-                    try Self.installAllServices(kanataBinaryPath: bundledKanata, kanataConfigPath: cfgPath, tcpPort: tcpPort)
+                    try Self.installAllServices(kanataBinaryPath: systemKanataPath, kanataConfigPath: cfgPath, tcpPort: tcpPort)
                     return
                 }
 
@@ -129,14 +172,23 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "regenerateServiceConfiguration",
             operation: {
-                // Re-generate Kanata plist using default paths and reload
+                // Re-generate Kanata plist and ensure system path (with TCC) is used
                 let appBundle = Self.appBundlePathFromHelper()
                 let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+                let systemKanataDir = "/Library/KeyPath/bin"
+                let systemKanataPath = "\(systemKanataDir)/kanata"
+                _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
+                let cpResult = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
+                if cpResult.status != 0 {
+                    throw HelperError.operationFailed("Failed to copy kanata to system location: \(cpResult.out)")
+                }
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
+                _ = Self.run("/bin/chmod", ["755", systemKanataPath])
                 let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
                 let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
                 let tcpPort = 37001
 
-                let plist = Self.generateKanataPlist(binaryPath: bundledKanata, cfgPath: cfgPath, tcpPort: tcpPort)
+                let plist = Self.generateKanataPlist(binaryPath: systemKanataPath, cfgPath: cfgPath, tcpPort: tcpPort)
                 let tmp = NSTemporaryDirectory()
                 let tKanata = (tmp as NSString).appendingPathComponent("\(Self.kanataServiceID).plist")
                 try plist.write(toFile: tKanata, atomically: true, encoding: .utf8)
@@ -247,11 +299,23 @@ class HelperService: NSObject, HelperProtocol {
                 // Install plist files only, without loading/starting services
                 let appBundle = Self.appBundlePathFromHelper()
                 let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+
+                // Copy to system location with TCC permissions
+                let systemKanataDir = "/Library/KeyPath/bin"
+                let systemKanataPath = "\(systemKanataDir)/kanata"
+                _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
+                let cpResult = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
+                if cpResult.status != 0 {
+                    throw HelperError.operationFailed("Failed to copy kanata to system location: \(cpResult.out)")
+                }
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
+                _ = Self.run("/bin/chmod", ["755", systemKanataPath])
+
                 let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
                 let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
                 let tcpPort = 37001
 
-                let kanataPlist = Self.generateKanataPlist(binaryPath: bundledKanata, cfgPath: cfgPath, tcpPort: tcpPort)
+                let kanataPlist = Self.generateKanataPlist(binaryPath: systemKanataPath, cfgPath: cfgPath, tcpPort: tcpPort)
                 let vhidDPlist = Self.generateVHIDDaemonPlist()
                 let vhidMPlist = Self.generateVHIDManagerPlist()
 
@@ -451,6 +515,34 @@ class HelperService: NSObject, HelperProtocol {
     }
 
     // Note: executeCommand removed for security. Use explicit operations only.
+
+    // MARK: - Bundled Kanata Installation
+
+    func installBundledKanataBinaryOnly(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] installBundledKanataBinaryOnly requested")
+        executePrivilegedOperation(
+            name: "installBundledKanataBinaryOnly",
+            operation: {
+                let appBundle = Self.appBundlePathFromHelper()
+                let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
+
+                guard FileManager.default.fileExists(atPath: bundledKanata) else {
+                    throw HelperError.invalidArgument("Bundled kanata not found at: \(bundledKanata)")
+                }
+
+                let systemKanataDir = "/Library/KeyPath/bin"
+                let systemKanataPath = "\(systemKanataDir)/kanata"
+
+                _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
+                let cp = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
+                if cp.status != 0 { throw HelperError.operationFailed("copy failed: \(cp.out)") }
+                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
+                _ = Self.run("/bin/chmod", ["755", systemKanataPath])
+                _ = Self.run("/usr/bin/xattr", ["-d", "com.apple.quarantine", systemKanataPath])
+            },
+            reply: reply
+        )
+    }
 
     // MARK: - Helper Methods
 

@@ -5,17 +5,26 @@ Welcome! KeyPath is a macOS keyboard remapping app that makes Kanata easy to use
 ## Quick Start (5 minutes)
 
 ```bash
-# 1. Clone and build
+# 1. Clone
 git clone https://github.com/malpern/KeyPath.git
 cd KeyPath
+
+# 2. Build & sign (recommended for accurate testing)
+./Scripts/build-and-sign.sh
+
+# 3. Deploy & run
+mkdir -p ~/Applications
+cp -R dist/KeyPath.app ~/Applications/
+osascript -e 'tell application "KeyPath" to quit' || true
+open ~/Applications/KeyPath.app
+```
+
+### Dev-only quick preview
+If you just want a fast local preview (unsigned), you can run the debug app. Note this may not reflect real permissions/signing behavior.
+
+```bash
 swift build
-
-# 2. Run the app
 open .build/debug/KeyPath.app
-
-# 3. Make a change and see it
-# Edit Sources/KeyPath/UI/ContentView.swift
-swift build && open .build/debug/KeyPath.app
 ```
 
 That's it! You're ready to contribute.
@@ -61,7 +70,7 @@ Services handle specific responsibilities: `ConfigurationService` manages config
 Views (`ContentView`, `InstallationWizardView`) talk to `KanataViewModel`, which talks to `KanataManager`. **Pattern:** Views never access KanataManager directly—they go through the ViewModel.
 
 ### 3. Kanata Integration
-KeyPath starts Kanata as a LaunchDaemon service, communicates via UDP for live config reloads, and uses file watching for hot-reload. **Pattern:** UDP for commands, file system for config changes.
+KeyPath starts Kanata as a LaunchDaemon service and supports live config reloads. File watching enables hot‑reload.
 
 ## Common Patterns
 
@@ -225,7 +234,7 @@ Sources/KeyPath/
 ├── Services/           # Business logic services
 │   ├── ConfigurationService.swift
 │   ├── PermissionOracle.swift
-│   ├── KanataUDPClient.swift
+│   ├── (Kanata client/IPC implementation)
 │   └── ...
 ├── Managers/           # Coordinators (being refactored)
 │   └── KanataManager.swift  # Main coordinator
@@ -271,6 +280,13 @@ Tests/KeyPathTests/     # Test files
 ### ⚠️ Current Known Issues
 - **KanataManager:** 2,828 lines (being refactored to ~800 lines)
 - **Build Issue:** Karabiner extraction causing emit-module error (under investigation)
+
+### 🧩 Open Work (tracked as issues/TODOs)
+- Privileged helper/XPC path: implement `helperInstallBundledKanata()` (currently falls back to sudo)
+- Wizard operations factory: move Core factory to UI layer to avoid Core→UI references
+- Wizard critical surfacing: show a blocking issue when the bundled kanata binary is missing
+- ADR-012 wiring: connect driver version “Fix” button, show mismatch dialog, update required version when appropriate
+- UI help bubble: switch Core→UI call to a notification-based implementation
 
 ### 🚫 Don't Do These
 1. **Don't check permissions directly** - Use `PermissionOracle` only

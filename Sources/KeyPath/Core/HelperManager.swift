@@ -564,6 +564,14 @@ actor HelperManager {
     }
 
     // Note: executeCommand removed for security. Use explicit operations only.
+
+    // MARK: - Bundled Kanata Installation
+
+    func installBundledKanataBinaryOnly() async throws {
+        try await executeXPCCall("installBundledKanataBinaryOnly") { proxy, reply in
+            proxy.installBundledKanataBinaryOnly(reply: reply)
+        }
+    }
 }
 
 // MARK: - SMAppService test seam
