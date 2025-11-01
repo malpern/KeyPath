@@ -1721,34 +1721,9 @@ class KanataManager {
     }
 
     private func checkExternalKanataProcess() async -> Bool {
-        // Use more specific search for actual kanata binary processes
-        // instead of any process with "kanata" in command line (which can match KeyPath's own processes)
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        // Look for processes where the executable name is kanata, not just command lines containing kanata
-        task.arguments = ["-x", "kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            let isRunning = !trimmed.isEmpty
-
-            // Debug logging removed - fix confirmed working
-
-            return isRunning
-        } catch {
-            AppLogger.shared.log(
-                "🔍 [KanataManager] checkExternalKanataProcess() - pgrep failed: \(error)")
-            return false
-        }
+        // Delegate to ProcessLifecycleManager for conflict detection
+        let conflicts = await processLifecycleManager.detectConflicts()
+        return !conflicts.externalProcesses.isEmpty
     }
 
     // MARK: - Installation and Permissions
