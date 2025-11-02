@@ -255,7 +255,7 @@ actor PermissionOracle {
         // Skip during startup if this is the first call to avoid UI freezing
         var inputMonitoring: Status = .unknown
 
-        if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+        if FeatureFlags.shared.startupModeActive {
             // During startup, skip the potentially blocking IOHIDCheckAccess call
             AppLogger.shared.log("🔮 [Oracle] Startup mode - skipping IOHIDCheckAccess to prevent UI freeze")
             inputMonitoring = .unknown

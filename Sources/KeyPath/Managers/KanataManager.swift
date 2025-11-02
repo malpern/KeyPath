@@ -11,13 +11,8 @@ actor ProcessSynchronizationActor {
     }
 }
 
-/// Errors related to configuration management
-/// Configuration validation and repair errors
-///
-/// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
 /// Represents a simple key mapping from input to output
-@available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
-
+/// Used throughout the codebase for representing user-configured key remappings
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let input: String
@@ -298,6 +293,7 @@ class KanataManager {
     // MARK: - Service Dependencies (Milestone 4)
 
     let configurationService: ConfigurationService
+    let engineClient: EngineClient
     let healthMonitor: ServiceHealthMonitorProtocol
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     private let karabinerConflictService: KarabinerConflictManaging
@@ -350,6 +346,7 @@ class KanataManager {
 
         // Initialize service dependencies
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
+        engineClient = TCPEngineClient()
 
         // Initialize process lifecycle manager
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
@@ -2098,54 +2095,24 @@ class KanataManager {
 
     // MARK: - Configuration Management
 
-    /// Load and validate existing configuration with fallback to default
+    /// Load existing configuration with ConfigurationService
     private func loadExistingMappings() async {
-        AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION BEGIN ==========")
+        AppLogger.shared.log("📂 [Config] Loading existing configuration via ConfigurationService")
         keyMappings.removeAll()
 
         guard FileManager.default.fileExists(atPath: configPath) else {
-            AppLogger.shared.log("ℹ️ [Validation] No existing config file found at: \(configPath)")
-            AppLogger.shared.log("ℹ️ [Validation] Starting with empty mappings")
-            AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
+            AppLogger.shared.log("ℹ️ [Config] No existing config file found at: \(configPath)")
             return
         }
 
         do {
-            AppLogger.shared.log("📖 [Validation] Reading config file from: \(configPath)")
-            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            AppLogger.shared.log("📖 [Validation] Config file size: \(configContent.count) characters")
-
-            // Validate the existing config before loading
-            AppLogger.shared.log("🔍 [Validation] Starting validation of existing configuration...")
-            let validationStart = Date()
-            let validation = await validateGeneratedConfig(configContent)
-            let validationDuration = Date().timeIntervalSince(validationStart)
-            AppLogger.shared.log("⏱️ [Validation] Validation completed in \(String(format: "%.3f", validationDuration)) seconds")
-
-            if validation.isValid {
-                // Config is valid, load mappings normally
-                AppLogger.shared.log("✅ [Validation] Config validation PASSED")
-                keyMappings = parseKanataConfig(configContent)
-                AppLogger.shared.log("✅ [Validation] Successfully loaded \(keyMappings.count) existing mappings:")
-                for (index, mapping) in keyMappings.enumerated() {
-                    AppLogger.shared.log("   \(index + 1). \(mapping.input) → \(mapping.output)")
-                }
-            } else {
-                // Config is invalid, handle with fallback
-                AppLogger.shared.log("❌ [Validation] Config validation FAILED with \(validation.errors.count) errors:")
-                for (index, error) in validation.errors.enumerated() {
-                    AppLogger.shared.log("   Error \(index + 1): \(error)")
-                }
-                AppLogger.shared.log("🔄 [Validation] Initiating fallback to default configuration...")
-                await handleInvalidStartupConfig(configContent: configContent, errors: validation.errors)
-            }
+            let config = try await configurationService.reload()
+            keyMappings = config.keyMappings
+            AppLogger.shared.log("✅ [Config] Loaded \(keyMappings.count) mappings from configuration")
         } catch {
-            AppLogger.shared.log("❌ [Validation] Failed to load existing config: \(error)")
-            AppLogger.shared.log("❌ [Validation] Error type: \(type(of: error))")
+            AppLogger.shared.log("❌ [Config] Failed to load configuration: \(error)")
             keyMappings = []
         }
-
-        AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
     }
 
     /// Handle invalid startup configuration with backup and fallback

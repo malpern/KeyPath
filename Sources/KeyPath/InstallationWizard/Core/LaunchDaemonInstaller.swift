@@ -1788,7 +1788,7 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log("🔍 [LaunchDaemon] Analyzing Kanata logs for error patterns...")
 
         do {
-            let logContent = try String(contentsOfFile: "/var/log/kanata.log")
+            let logContent = try String(contentsOfFile: "/var/log/kanata.log", encoding: .utf8)
             let lastLines = logContent.components(separatedBy: .newlines).suffix(50).joined(
                 separator: "\n")
 
@@ -1936,7 +1936,7 @@ class LaunchDaemonInstaller {
 
         // TCP-only mode: No environment variables needed (no authentication)
         let currentEnvVars = getKanataEnvironmentVariables()
-        let expectedEnvVars: [String: String] = [:] // TCP doesn't need env vars
+        // TCP doesn't need env vars - should be empty
         let envVarsMatch = currentEnvVars.isEmpty // Should be empty for TCP
 
         AppLogger.shared.log("  Current Env Vars: \(currentEnvVars.keys.sorted())")

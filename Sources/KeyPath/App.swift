@@ -21,24 +21,15 @@ public struct KeyPathApp: App {
         AppLogger.shared.log("🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)")
         AppLogger.shared.log("📦 [Bundle] Path: \(Bundle.main.bundlePath)")
 
-        // Enable auto-trigger recording when launched with --autotrigger
+        // Enable auto-trigger recording when launched with --autotrigger (in-memory flag)
         if args.contains("--autotrigger") {
-            setenv("KEYPATH_AUTOTRIGGER", "1", 1)
+            FeatureFlags.shared.setAutoTriggerEnabled(true)
             AppLogger.shared.log("🧪 [App] Auto-trigger flag detected (--autotrigger)")
         }
 
-        // Set startup mode to prevent blocking operations during app launch
-        setenv("KEYPATH_STARTUP_MODE", "1", 1)
-        AppLogger.shared.log("🔍 [App] Startup mode set - IOHIDCheckAccess calls will be skipped")
-
-        // Schedule a fallback clear of startup mode after 5 seconds
-        // This ensures the flag doesn't stay set indefinitely if validation fails
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-            if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
-                unsetenv("KEYPATH_STARTUP_MODE")
-                AppLogger.shared.log("🔍 [App] Startup mode cleared via fallback timer (5s)")
-            }
-        }
+        // Set startup mode to prevent blocking operations during app launch (in-memory flag)
+        FeatureFlags.shared.activateStartupMode(timeoutSeconds: 5.0)
+        AppLogger.shared.log("🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped")
 
         // Phase 4: MVVM - Initialize KanataManager and ViewModel
         let manager = KanataManager()
@@ -127,55 +118,9 @@ public struct KeyPathApp: App {
 
 @MainActor
 func openConfigInEditor(viewModel: KanataViewModel) {
-    let configPath = viewModel.configPath
-
-    // Try to open with Zed first
-    let zedProcess = Process()
-    zedProcess.launchPath = "/usr/local/bin/zed"
-    zedProcess.arguments = [configPath]
-
-    do {
-        try zedProcess.run()
-        AppLogger.shared.log("📝 Opened config in Zed")
-        return
-    } catch {
-        // Try Homebrew path for Zed
-        let homebrewZedProcess = Process()
-        homebrewZedProcess.launchPath = "/opt/homebrew/bin/zed"
-        homebrewZedProcess.arguments = [configPath]
-
-        do {
-            try homebrewZedProcess.run()
-            AppLogger.shared.log("📝 Opened config in Zed (Homebrew)")
-            return
-        } catch {
-            // Try using 'open' command with Zed
-            let openZedProcess = Process()
-            openZedProcess.launchPath = "/usr/bin/open"
-            openZedProcess.arguments = ["-a", "Zed", configPath]
-
-            do {
-                try openZedProcess.run()
-                AppLogger.shared.log("📝 Opened config in Zed (via open)")
-                return
-            } catch {
-                // Fallback: open with default text editor
-                let fallbackProcess = Process()
-                fallbackProcess.launchPath = "/usr/bin/open"
-                fallbackProcess.arguments = ["-t", configPath]
-
-                do {
-                    try fallbackProcess.run()
-                    AppLogger.shared.log("📝 Opened config in default text editor")
-                } catch {
-                    // Last resort: open containing folder
-                    let folderPath = (configPath as NSString).deletingLastPathComponent
-                    NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
-                    AppLogger.shared.log("📁 Opened config folder")
-                }
-            }
-        }
-    }
+    let url = URL(fileURLWithPath: viewModel.configPath)
+    NSWorkspace.shared.open(url)
+    AppLogger.shared.log("📝 Opened config with default application")
 }
 
 @MainActor
@@ -299,8 +244,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Defer all window fronting until the first applicationDidBecomeActive event
             // to avoid AppKit display-cycle reentrancy during initial layout.
 
-            // Kick off boring, phased startup once the window is created.
-            StartupCoordinator.shared.start()
+            // Simple sequential startup (no timers/notifications fan-out)
+            Task { @MainActor in
+                // Respect permission-grant return to avoid resetting wizard state
+                let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
+                if !result.shouldRestart {
+                    AppLogger.shared.log("🚀 [AppDelegate] Starting auto-launch sequence (simple)")
+                    await manager.startAutoLaunch(presentWizardOnFailure: false)
+                    AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
+                } else {
+                    AppLogger.shared.log("⏭️ [AppDelegate] Skipping auto-launch (returning from permission grant)")
+                }
+
+                // Trigger validation once after auto-launch attempt
+                NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
+            }
         } else {
             AppLogger.shared.log("🤖 [AppDelegate] Headless mode - skipping window management")
         }

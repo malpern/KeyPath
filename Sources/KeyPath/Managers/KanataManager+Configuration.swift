@@ -77,14 +77,8 @@ extension KanataManager {
             return .networkError("Test environment - TCP disabled")
         }
 
-        let tcpPort = PreferencesService.shared.tcpServerPort
-        AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via TCP on port \(tcpPort)")
-
-        let client = KanataTCPClient(port: tcpPort, timeout: 5.0)
-
-        // NOTE: Kanata v1.9.0 TCP does NOT require authentication (see ADR-013)
-        // Just send reload command directly
-        return await client.reloadConfig()
+        AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
+        return await engineClient.reloadConfig()
     }
 
     /// Main reload method that should be used by new code

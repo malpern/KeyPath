@@ -54,7 +54,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// Checks if VirtualHIDDevice processes are currently running
     func detectRunning() -> Bool {
         // Skip daemon check during startup to prevent blocking
-        if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+        if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze")
             return false // Assume not running during startup
         }

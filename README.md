@@ -34,8 +34,8 @@ Download the latest release from the [Releases page](https://github.com/youruser
 git clone https://github.com/yourusername/KeyPath.git
 cd KeyPath
 
-# Build & sign the app (production-like)
-./Scripts/build-and-sign.sh
+# Build & sign the app (canonical)
+./build.sh
 
 # Deploy to your user Applications folder
 mkdir -p ~/Applications
@@ -237,7 +237,7 @@ swift build
 swift test
 
 # Production-like build & deploy (recommended for real testing)
-./Scripts/build-and-sign.sh
+./build.sh
 mkdir -p ~/Applications && cp -R dist/KeyPath.app ~/Applications/
 osascript -e 'tell application "KeyPath" to quit' || true
 open ~/Applications/KeyPath.app

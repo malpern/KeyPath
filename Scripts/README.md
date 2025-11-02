@@ -1,12 +1,12 @@
 # Scripts
 
 ## Supported commands (recommended)
-- `./Scripts/build-and-sign.sh` — Build & sign a production-like app
+- `./build.sh` — Canonical build & sign entry
 - `./Scripts/run-tests.sh` — Run the full test suite
 
 ## Production-like build & deploy
 ```bash
-./Scripts/build-and-sign.sh
+./build.sh
 mkdir -p ~/Applications
 cp -R dist/KeyPath.app ~/Applications/
 osascript -e 'tell application "KeyPath" to quit' || true
@@ -14,8 +14,7 @@ open ~/Applications/KeyPath.app
 ```
 
 ## Build & Release
-- `build-and-sign.sh` - Production build with signing
-- `build.sh` - Debug build
+- `build.sh` - Canonical build (signing included)
 
 ## Testing
 - `run-tests.sh` - All tests
@@ -39,6 +38,6 @@ Run `./setup-passwordless-testing.sh` for testing setup. Grant Accessibility and
 All scripts should be run from the project root:
 
 ```bash
-./Scripts/build-and-sign.sh
+./build.sh
 ./Scripts/run-tests.sh
 ```
