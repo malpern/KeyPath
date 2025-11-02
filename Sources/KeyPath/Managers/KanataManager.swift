@@ -334,7 +334,7 @@ class KanataManager {
         configurationService.configurationPath
     }
 
-    init() {
+    init(engineClient: EngineClient? = nil) {
         // Check if running in headless mode
         isHeadlessMode =
             ProcessInfo.processInfo.arguments.contains("--headless")
@@ -346,7 +346,7 @@ class KanataManager {
 
         // Initialize service dependencies
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
-        engineClient = TCPEngineClient()
+        self.engineClient = engineClient ?? TCPEngineClient()
 
         // Initialize process lifecycle manager
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
