@@ -44,13 +44,39 @@ Scope: strictly 1:1 key remaps (e.g., `caps → esc`, `a → b`) on the `base` l
 - If sentinel block doesn’t exist, append it at the end of the primary user config with a section header.
 - Preserve whitespace/formatting; idempotent writes.
 
-### Instant apply pipeline
-1) Debounce/coalesce 150–300 ms to group rapid toggles.
-2) Compile effective config in memory from source: copy all content, but exclude lines with `# KP:DISABLED` inside our block.
-3) Validate: run Kanata parse/dry-run (or minimal boot) to catch syntax errors.
-4) Atomic swap: write to `effective.kbd.tmp`, then rename to `effective.kbd`.
-5) Live reload: use `KanataTCPClient` where available; fallback to controlled restart via `LaunchAgentManager`.
-6) Health check: `ServiceHealthMonitor` verifies readiness; on failure, rollback to last-known-good `effective.kbd` and revert the toggle UI state.
+### Config Apply Pipeline (planned)
+We will centralize the apply flow in an actor `ConfigApplyPipeline`:
+
+API
+- `apply(command: ConfigEditCommand) async -> ApplyResult`
+- Commands: `.add(fromKey:toKey:)`, `.remove(id:)`, `.toggle(id:enabled:)`
+
+Stages
+1) Debounce/coalesce 150–300 ms (service-level), then pipeline serializes via actor (one in-flight apply)
+2) Build target mappings from current state provider
+3) Pre-write validation on the effective config string
+4) Transactional write via `ConfigurationManager` (temp file → atomic rename, file-watcher suppression)
+5) Post-write CLI validation on disk
+6) Live reload (TCP). Prefer engine response; otherwise wait-for-ready using log `driver_connected 1` within timeout
+7) Health check; rollback on any failure; return structured diagnostics
+
+Results
+```swift
+struct ApplyResult {
+  let success: Bool
+  let rolledBack: Bool
+  let errors: [ConfigError]
+  let diagnostics: ConfigDiagnostics
+}
+```
+
+Observability
+- `os.Logger` with subsystem `app.keypath` and categories `config.apply`, `config.validate`, `config.write`, `config.reload`
+- Include durations, counts, file paths
+
+UI
+- Success toast only when `success && !rolledBack`
+- Error toast on rollback with details (copy-to-clipboard diagnostics)
 
 Concurrency
 - Single-flight apply: serialize apply operations; latest state wins.

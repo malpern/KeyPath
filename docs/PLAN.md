@@ -641,4 +641,27 @@ KanataManager is the heart of the application. Breaking it up will:
 **Date:** September 29, 2025
 
 
+## Config Apply Pipeline (New Work)
+- Introduce `ConfigApplyPipeline` actor as single entry point for edits
+- Pre-/post-write validation; transactional writes via `ConfigurationManager`
+- Hot reload (TCP) then wait-for-ready (engine response or log `driver_connected 1`) with timeout
+- Typed error model (`ConfigError`) and structured `ConfigDiagnostics`
+- UI: success toast only on non-rollback; error toast with copyable diagnostics on rollback
+- Observability: `os.Logger` categories (`config.apply`, `config.validate`, `config.write`, `config.reload`)
+- Migration: `SimpleModsService` becomes thin adapter; writing centralized
+- Tests: unit tests for parser/writer/pipeline; integration tests for reload/rollback
+
+### Implementation Steps
+1) Create `docs/CONFIG_APPLY_PIPELINE.md` (design doc) ✅
+2) Add types: `ConfigEditCommand`, `ConfigError`, `ConfigDiagnostics`, `ApplyResult` (in Core)
+3) Implement `ConfigApplyPipeline` (actor) with staged flow
+4) Move disk writing into `ConfigurationManager` atomic write API
+5) Expose short-lived log watcher utility for `driver_connected 1`
+6) Refactor `SimpleModsService` to call pipeline; remove direct writes/health checks
+7) Introduce `os.Logger` instrumentation (subsystem/categories)
+8) Update UI to use `ApplyResult`; ensure rollback errors produce red toast with details
+9) Tests: unit and integration (mock TCP + log watcher)
+10) Rollout guarded behind feature flag; default on after validation
+
+
 
