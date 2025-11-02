@@ -2095,24 +2095,42 @@ class KanataManager {
 
     // MARK: - Configuration Management
 
-    /// Load existing configuration with ConfigurationService
+    /// Load and strictly validate existing configuration with fallback to default
     private func loadExistingMappings() async {
-        AppLogger.shared.log("📂 [Config] Loading existing configuration via ConfigurationService")
+        AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION BEGIN ==========")
         keyMappings.removeAll()
 
         guard FileManager.default.fileExists(atPath: configPath) else {
-            AppLogger.shared.log("ℹ️ [Config] No existing config file found at: \(configPath)")
+            AppLogger.shared.log("ℹ️ [Validation] No existing config file found at: \(configPath)")
+            AppLogger.shared.log("ℹ️ [Validation] Starting with empty mappings")
+            AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
             return
         }
 
         do {
-            let config = try await configurationService.reload()
-            keyMappings = config.keyMappings
-            AppLogger.shared.log("✅ [Config] Loaded \(keyMappings.count) mappings from configuration")
+            AppLogger.shared.log("📖 [Validation] Reading config file from: \(configPath)")
+            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
+            AppLogger.shared.log("📖 [Validation] Config file size: \(configContent.count) characters")
+
+            // Strict CLI validation to match engine behavior on startup
+            AppLogger.shared.log("🔍 [Validation] Running CLI validation of existing configuration...")
+            let cli = configurationService.validateConfigViaFile()
+            if cli.isValid {
+                AppLogger.shared.log("✅ [Validation] CLI validation PASSED")
+                let config = try await configurationService.reload()
+                keyMappings = config.keyMappings
+                AppLogger.shared.log("✅ [Validation] Successfully loaded \(keyMappings.count) existing mappings")
+            } else {
+                AppLogger.shared.log("❌ [Validation] CLI validation FAILED with \(cli.errors.count) errors")
+                await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
+            }
         } catch {
-            AppLogger.shared.log("❌ [Config] Failed to load configuration: \(error)")
+            AppLogger.shared.log("❌ [Validation] Failed to load existing config: \(error)")
+            AppLogger.shared.log("❌ [Validation] Error type: \(type(of: error))")
             keyMappings = []
         }
+
+        AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
     }
 
     /// Handle invalid startup configuration with backup and fallback

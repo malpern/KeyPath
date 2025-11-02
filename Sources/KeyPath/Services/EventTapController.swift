@@ -4,6 +4,7 @@ import Foundation
 /// Controller for CGEvent/IOHID concerns. Provides a narrow surface for
 /// installing a passive event tap and delegating emergency monitoring via
 /// KeyboardCapture.
+@MainActor
 final class EventTapController: EventTapping {
     private var currentTap: TapHandle?
     private var keyboardCapture: KeyboardCapture?
