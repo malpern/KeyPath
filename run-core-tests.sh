@@ -67,7 +67,7 @@ fi
 echo ""
 
 # 2. Core Tests (essential functionality)
-if run_test_suite "Core Tests" "CoreTestSuite" 90; then
+if run_test_suite "Core Tests" "UnitTestSuite" 90; then
     echo "  Core tests passed ✅"
 else
     echo "  Core tests failed ❌"
@@ -79,7 +79,7 @@ echo ""
 # 3. Basic Integration Tests (only if enabled)
 if [ "$CI_INTEGRATION_TESTS" = "true" ]; then
     echo "🔗 Integration tests enabled"
-    if run_test_suite "Integration Tests" "BasicIntegrationTestSuite" 120; then
+    if run_test_suite "Integration Tests" "IntegrationTestSuite" 120; then
         echo "  Integration tests passed ✅"
     else
         echo "  Integration tests failed ❌"
