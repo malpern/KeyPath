@@ -154,6 +154,15 @@ KeyPath needs two permissions to work:
 
 The setup wizard will guide you through granting these permissions.
 
+### Kanata binary location (LaunchDaemon)
+For stable TCC permissions, LaunchDaemon services use the system-installed kanata binary:
+
+```
+/Library/KeyPath/bin/kanata
+```
+
+The helper keeps this binary updated from the bundled copy when needed and ensures proper ownership/permissions. The bundled binary inside `KeyPath.app` is not used by LaunchDaemons.
+
 ### What KeyPath Does NOT Do
 - ❌ No internet connection required (offline by default; optional AI config generation contacts Anthropic if ANTHROPIC_API_KEY is present)
 - ❌ No data collection or telemetry

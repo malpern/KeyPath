@@ -99,10 +99,7 @@ class HelperService: NSObject, HelperProtocol {
                 let systemKanataPath = "\(systemKanataDir)/kanata"
 
                 _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                let cpResult = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
-                if cpResult.status != 0 {
-                    throw HelperError.operationFailed("Failed to copy kanata to system location: \(cpResult.out)")
-                }
+                _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
                 _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
                 _ = Self.run("/bin/chmod", ["755", systemKanataPath])
 
@@ -145,10 +142,7 @@ class HelperService: NSObject, HelperProtocol {
                     let systemKanataDir = "/Library/KeyPath/bin"
                     let systemKanataPath = "\(systemKanataDir)/kanata"
                     _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                    let cpResult = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
-                    if cpResult.status != 0 {
-                        throw HelperError.operationFailed("Failed to copy kanata to system location: \(cpResult.out)")
-                    }
+                    _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
                     _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
                     _ = Self.run("/bin/chmod", ["755", systemKanataPath])
 
@@ -178,10 +172,7 @@ class HelperService: NSObject, HelperProtocol {
                 let systemKanataDir = "/Library/KeyPath/bin"
                 let systemKanataPath = "\(systemKanataDir)/kanata"
                 _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                let cpResult = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
-                if cpResult.status != 0 {
-                    throw HelperError.operationFailed("Failed to copy kanata to system location: \(cpResult.out)")
-                }
+                _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
                 _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
                 _ = Self.run("/bin/chmod", ["755", systemKanataPath])
                 let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
@@ -304,10 +295,7 @@ class HelperService: NSObject, HelperProtocol {
                 let systemKanataDir = "/Library/KeyPath/bin"
                 let systemKanataPath = "\(systemKanataDir)/kanata"
                 _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                let cpResult = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
-                if cpResult.status != 0 {
-                    throw HelperError.operationFailed("Failed to copy kanata to system location: \(cpResult.out)")
-                }
+                _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
                 _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
                 _ = Self.run("/bin/chmod", ["755", systemKanataPath])
 
@@ -534,8 +522,7 @@ class HelperService: NSObject, HelperProtocol {
                 let systemKanataPath = "\(systemKanataDir)/kanata"
 
                 _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                let cp = Self.run("/bin/cp", ["-f", bundledKanata, systemKanataPath])
-                if cp.status != 0 { throw HelperError.operationFailed("copy failed: \(cp.out)") }
+                _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
                 _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
                 _ = Self.run("/bin/chmod", ["755", systemKanataPath])
                 _ = Self.run("/usr/bin/xattr", ["-d", "com.apple.quarantine", systemKanataPath])
@@ -596,6 +583,24 @@ enum HelperError: Error, LocalizedError {
 // MARK: - Helpers
 
 extension HelperService {
+    /// Copy file only if content differs (quick MD5 check). Returns true if a copy occurred.
+    @discardableResult
+    static func copyIfDifferent(src: String, dst: String) -> Bool {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: dst) {
+            let srcHash = run("/sbin/md5", ["-q", src]).out.trimmingCharacters(in: .whitespacesAndNewlines)
+            let dstHash = run("/sbin/md5", ["-q", dst]).out.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !srcHash.isEmpty, srcHash == dstHash {
+                NSLog("[KeyPathHelper] Skipping copy; kanata unchanged (")
+                return false
+            }
+        }
+        let cp = run("/bin/cp", ["-f", src, dst])
+        if cp.status != 0 {
+            NSLog("[KeyPathHelper] copyIfDifferent: cp failed: \(cp.out)")
+        }
+        return cp.status == 0
+    }
     @discardableResult
     static func run(_ launchPath: String, _ args: [String]) -> (status: Int32, out: String) {
         let p = Process()

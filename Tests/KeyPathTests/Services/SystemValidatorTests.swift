@@ -13,8 +13,8 @@ struct SystemValidatorTests {
         let processManager = ProcessLifecycleManager(kanataManager: nil)
         let validator = SystemValidator(processLifecycleManager: processManager)
 
-        // Should not crash
-        #expect(validator != nil)
+        // Should not crash - validator is non-optional
+        _ = validator
 
         let stats = SystemValidator.getValidationStats()
         #expect(stats.activeCount == 0)
@@ -95,6 +95,11 @@ struct SystemValidatorTests {
                 kanataRunning: false,
                 karabinerDaemonRunning: false,
                 vhidHealthy: false
+            ),
+            helper: HelperStatus(
+                isInstalled: false,
+                version: nil,
+                isWorking: false
             ),
             timestamp: oldTimestamp
         )

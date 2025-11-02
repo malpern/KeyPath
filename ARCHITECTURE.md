@@ -289,7 +289,7 @@ macOS Input System
 <string>com.keypath.kanata</string>
 <key>ProgramArguments</key>
 <array>
-    <string>/usr/local/bin/kanata</string>
+    <string>/Library/KeyPath/bin/kanata</string>
     <string>--cfg</string>
     <string>/Users/.../KeyPath/keypath.kbd</string>
     <string>--port</string>
@@ -357,6 +357,20 @@ class KanataManager: ObservableObject {
 **Migration Complete:** The gradual replacement strategy was successful - SimpleKanataManager no longer exists.
 
 ---
+
+### Update (Nov 2025): Lifecycle Delegation
+
+- Process conflict detection and termination are centralized in `ProcessLifecycleManager`.
+- `KanataManager` now delegates:
+  - External process checks to `processLifecycleManager.detectConflicts()`
+  - External process termination to `processLifecycleManager.terminateExternalProcesses()`
+  - Crash/orphan recovery during initialization to `processLifecycleManager.recoverFromCrash()`
+- Benefit: clearer boundaries; `KanataManager` focuses on orchestration and UI-facing state while lifecycle details live in a dedicated manager.
+
+Related files:
+- `Sources/KeyPath/Managers/ProcessLifecycleManager.swift`
+- `Sources/KeyPath/Managers/KanataManager+Lifecycle.swift`
+- `Sources/KeyPath/Managers/KanataManager.swift`
 
 ## 🚫 Critical Anti-Patterns to Avoid
 

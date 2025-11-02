@@ -298,7 +298,7 @@ class KanataManager {
     // MARK: - Service Dependencies (Milestone 4)
 
     let configurationService: ConfigurationService
-    private let healthMonitor: ServiceHealthMonitorProtocol
+    let healthMonitor: ServiceHealthMonitorProtocol
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     private let karabinerConflictService: KarabinerConflictManaging
     private var isStartingKanata = false
@@ -326,7 +326,7 @@ class KanataManager {
     private var lastServiceKickstart: Date? // Still used for grace period tracking
 
     // Real-time log monitoring for VirtualHID connection failures
-    private var logMonitorTask: Task<Void, Never>?
+    var logMonitorTask: Task<Void, Never>?
 
     // Configuration file watching for hot reload
     private var configFileWatcher: ConfigFileWatcher?
@@ -1918,37 +1918,8 @@ class KanataManager {
     /// Diagnostic summary explaining why VirtualHID service is considered broken
     /// Used to surface a helpful error toast in the wizard
     func getVirtualHIDBreakageSummary() -> String {
-        // Gather PIDs
-        let pids: [String] = {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            task.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
-            let pipe = Pipe(); task.standardOutput = pipe
-            do { try task.run(); task.waitUntilExit() } catch {}
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            return output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        }()
-        // Owner attribution
-        var owners: [String] = []
-        for pid in pids {
-            let ps = Process()
-            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
-            ps.arguments = ["-o", "pid,ppid,user,command", "-p", pid]
-            let pp = Pipe(); ps.standardOutput = pp
-            if (try? ps.run()) != nil { ps.waitUntilExit(); let d = pp.fileHandleForReading.readDataToEndOfFile(); if let s = String(data: d, encoding: .utf8) { owners.append(s.trimmingCharacters(in: .whitespacesAndNewlines)) } }
-        }
-
-        // LaunchDaemon presence/state
-        let label = "com.keypath.karabiner-vhiddaemon"
-        let plistPath = "/Library/LaunchDaemons/\(label).plist"
-        let serviceInstalled = FileManager.default.fileExists(atPath: plistPath)
-        var serviceState = "unknown"
-        if serviceInstalled {
-            let t = Process(); t.executableURL = URL(fileURLWithPath: "/bin/launchctl"); t.arguments = ["print", "system/\(label)"]
-            let p = Pipe(); t.standardOutput = p; t.standardError = p
-            if (try? t.run()) != nil { t.waitUntilExit(); let d = p.fileHandleForReading.readDataToEndOfFile(); let s = String(data: d, encoding: .utf8) ?? ""; if let line = s.split(separator: "\n").first(where: { $0.contains("state =") }) { serviceState = String(line).trimmingCharacters(in: .whitespaces) } }
-        }
+        // Gather low-level daemon state via DiagnosticsService
+        let status = diagnosticsService.virtualHIDDaemonStatus()
 
         // Driver extension + version
         let driverEnabled = isKarabinerDriverExtensionEnabled()
@@ -1957,22 +1928,22 @@ class KanataManager {
         let hasMismatch = vhid.hasVersionMismatch()
 
         var lines: [String] = []
-        if pids.count > 1 {
-            lines.append("Reason: Multiple VirtualHID daemons detected (\(pids.count)).")
-            lines.append("PIDs: \(pids.joined(separator: ", "))")
-            if !owners.isEmpty { lines.append("Owners:\n\(owners.joined(separator: "\n"))") }
-        } else if pids.isEmpty {
+        if status.pids.count > 1 {
+            lines.append("Reason: Multiple VirtualHID daemons detected (\(status.pids.count)).")
+            lines.append("PIDs: \(status.pids.joined(separator: ", "))")
+            if !status.owners.isEmpty { lines.append("Owners:\n\(status.owners.joined(separator: "\n"))") }
+        } else if status.pids.isEmpty {
             lines.append("Reason: VirtualHID daemon not running.")
         } else {
             lines.append("Reason: Daemon unhealthy.")
-            if !owners.isEmpty { lines.append("Owner:\n\(owners.joined(separator: "\n"))") }
+            if !status.owners.isEmpty { lines.append("Owner:\n\(status.owners.joined(separator: "\n"))") }
         }
-        lines.append("LaunchDaemon: \(serviceInstalled ? "installed" : "not installed")\(serviceInstalled ? ", \(serviceState)" : "")")
+        lines.append("LaunchDaemon: \(status.serviceInstalled ? "installed" : "not installed")\(status.serviceInstalled ? ", \(status.serviceState)" : "")")
         lines.append("Driver extension: \(driverEnabled ? "enabled" : "disabled")")
         lines.append("Driver version: \(installedVersion)\(hasMismatch ? " (incompatible with current Kanata)" : "")")
         let summary = lines.joined(separator: "\n")
         AppLogger.shared.log("🔎 [VHID-DIAG] Diagnostic summary:\n\(summary)")
-        AppLogger.shared.log("🔎 [RestartOutcome] \(pids.count == 1 ? "single-owner" : (pids.isEmpty ? "not-running" : "duplicate")) PIDs=\(pids.joined(separator: ", "))")
+        AppLogger.shared.log("🔎 [RestartOutcome] \(status.pids.count == 1 ? "single-owner" : (status.pids.isEmpty ? "not-running" : "duplicate")) PIDs=\(status.pids.joined(separator: ", "))")
         return summary
     }
 
@@ -2466,76 +2437,20 @@ class KanataManager {
 
     // MARK: - Real-Time VirtualHID Connection Monitoring
 
-    /// Start monitoring Kanata logs for VirtualHID connection failures
-    private func startLogMonitoring() {
-        // Cancel any existing monitoring
-        logMonitorTask?.cancel()
+    // startLogMonitoring/stopLogMonitoring moved to KanataManager+Output.swift
 
-        logMonitorTask = Task.detached { [weak self] in
-            guard let self else { return }
-
-            let logPath = "/var/log/kanata.log"
-            guard FileManager.default.fileExists(atPath: logPath) else {
-                AppLogger.shared.log("⚠️ [LogMonitor] Kanata log file not found at \(logPath)")
-                return
-            }
-
-            AppLogger.shared.log("🔍 [LogMonitor] Starting real-time VirtualHID connection monitoring")
-
-            // Monitor log file for connection failures
-            var lastPosition: UInt64 = 0
-
-            while !Task.isCancelled {
-                do {
-                    let fileHandle = try FileHandle(forReadingFrom: URL(fileURLWithPath: logPath))
-                    defer { fileHandle.closeFile() }
-
-                    let fileSize = fileHandle.seekToEndOfFile()
-                    if fileSize > lastPosition {
-                        fileHandle.seek(toFileOffset: lastPosition)
-                        let newData = fileHandle.readDataToEndOfFile()
-                        lastPosition = fileSize
-
-                        if let logContent = String(data: newData, encoding: .utf8) {
-                            await analyzeLogContent(logContent)
-                        }
-                    }
-
-                    // Check every 2 seconds
-                    try await Task.sleep(nanoseconds: 2_000_000_000)
-                } catch {
-                    AppLogger.shared.log("⚠️ [LogMonitor] Error reading log file: \(error)")
-                    try? await Task.sleep(nanoseconds: 5_000_000_000) // Wait 5 seconds before retry
-                }
-            }
-
-            AppLogger.shared.log("🔍 [LogMonitor] Stopped log monitoring")
-        }
-    }
-
-    /// Stop log monitoring
-    private func stopLogMonitoring() {
-        logMonitorTask?.cancel()
-        logMonitorTask = nil
-        Task { await healthMonitor.recordConnectionSuccess() } // Reset on stop
-    }
-
-    /// Analyze new log content for VirtualHID connection issues
-    private func analyzeLogContent(_ content: String) async {
-        let lines = content.components(separatedBy: .newlines)
-
-        for line in lines {
-            if line.contains("connect_failed asio.system:2")
-                || line.contains("connect_failed asio.system:61") {
+    /// Analyze new log content for VirtualHID connection issues (delegates parsing to DiagnosticsService)
+    func analyzeLogContent(_ content: String) async {
+        let events = diagnosticsService.analyzeKanataLogChunk(content)
+        for event in events {
+            switch event {
+            case .virtualHIDConnectionFailed:
                 let shouldTriggerRecovery = await healthMonitor.recordConnectionFailure()
-
                 if shouldTriggerRecovery {
-                    AppLogger.shared.log(
-                        "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery")
+                    AppLogger.shared.log("🚨 [LogMonitor] Maximum connection failures reached - triggering recovery")
                     await triggerVirtualHIDRecovery()
                 }
-            } else if line.contains("driver_connected 1") {
-                // Reset failure count on successful connection
+            case .virtualHIDConnected:
                 await healthMonitor.recordConnectionSuccess()
             }
         }
