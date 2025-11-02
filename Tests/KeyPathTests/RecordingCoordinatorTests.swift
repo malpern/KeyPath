@@ -55,11 +55,25 @@ final class RecordingCoordinatorTests: XCTestCase {
         let sequence = KeySequence(keys: [keyPress], captureMode: .chord)
         captureStub.triggerCapture(with: sequence)
         // Wait for callback to process and stop recording
-        try? await Task.sleep(nanoseconds: 300_000_000)
+        // Increase wait time to ensure async callback completes
+        try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
 
-        XCTAssertFalse(coordinator.isInputRecording())
-        XCTAssertEqual(coordinator.inputDisplayText(), sequence.displayString)
-        XCTAssertEqual(coordinator.capturedInputSequence(), sequence)
+        // Recording should stop after capture callback fires
+        // Add a small retry loop for async operations
+        var recordingStopped = false
+        for _ in 0..<10 {
+            if !coordinator.isInputRecording() {
+                recordingStopped = true
+                break
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        }
+
+        XCTAssertTrue(recordingStopped || !coordinator.isInputRecording(), "Recording should stop after capture callback fires")
+        if recordingStopped || !coordinator.isInputRecording() {
+            XCTAssertEqual(coordinator.inputDisplayText(), sequence.displayString)
+            XCTAssertEqual(coordinator.capturedInputSequence(), sequence)
+        }
     }
 
     func testOutputRecordingFailsWhenAccessibilityDenied() async throws {

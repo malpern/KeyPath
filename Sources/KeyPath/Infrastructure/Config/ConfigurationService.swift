@@ -35,10 +35,10 @@ public struct KanataConfiguration: Sendable {
         ;; \(mappings.count) key mapping(s) configured
         ;;
         ;; SAFETY FEATURES:
-        ;; - process-unmapped-keys yes: Unmapped keys pass through (safer defaults)
+        ;; - process-unmapped-keys no: Only process explicitly mapped keys
 
         (defcfg
-          process-unmapped-keys yes
+          process-unmapped-keys no
         )
 
         (defsrc
@@ -56,10 +56,10 @@ public struct KanataConfiguration: Sendable {
     ;; No key mappings configured
     ;;
     ;; SAFETY FEATURES:
-    ;; - process-unmapped-keys yes: Unmapped keys pass through (safer defaults)
+    ;; - process-unmapped-keys no: Only process explicitly mapped keys
 
     (defcfg
-      process-unmapped-keys yes
+      process-unmapped-keys no
     )
 
     (defsrc)
@@ -651,6 +651,7 @@ public enum KanataKeyConverter {
             "rshift": "rsft",
             "left control": "lctl",
             "lctrl": "lctl",
+            "ctrl": "lctl",
             "right control": "rctl",
             "rctrl": "rctl",
             "left option": "lalt",
@@ -725,14 +726,15 @@ public enum KanataKeyConverter {
             "tab", "space", "spc",
             "capslock", "caps", "capslk",
             "leftshift", "lsft", "rightshift", "rsft",
-            "leftctrl", "lctl", "rightctrl", "rctl",
+            "leftctrl", "lctl", "rightctrl", "rctl", "ctrl",
             "leftalt", "lalt", "rightalt", "ralt",
             "leftmeta", "lmet", "rightmeta", "rmet",
             "leftcmd", "rightcmd", "cmd",
             "up", "down", "left", "right",
             "home", "end", "pageup", "pgup", "pagedown", "pgdn",
             "f1", "f2", "f3", "f4", "f5", "f6",
-            "f7", "f8", "f9", "f10", "f11", "f12"
+            "f7", "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
+            "f16", "f17", "f18", "f19", "f20"
         ]
 
         // If it's a known key name, don't convert to macro

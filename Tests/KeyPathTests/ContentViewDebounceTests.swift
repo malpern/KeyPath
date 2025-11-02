@@ -30,7 +30,8 @@ class ContentViewDebounceTests: XCTestCase {
         let mapping = KeyMapping(input: finalInput, output: finalOutput)
         let config = KanataConfiguration.generateFromMappings([mapping])
         XCTAssertTrue(config.contains(finalInput), "Configuration should contain final input mapping")
-        XCTAssertTrue(config.contains(finalOutput), "Configuration should contain final output mapping")
+        // Output "ctrl" is converted to "lctl" in Kanata format
+        XCTAssertTrue(config.contains("lctl"), "Configuration should contain converted output mapping (ctrl -> lctl)")
 
         AppLogger.shared.log("✅ [Test] Configuration debouncing behavior verified")
     }
@@ -132,7 +133,7 @@ class Phase1LoggingTests: XCTestCase {
 
         // Verify the actual config generation worked (tests business logic)
         XCTAssertTrue(config.contains("(defsrc f1)"), "Config should contain source key definition")
-        XCTAssertTrue(config.contains("f13"), "Config should contain target key mapping")
+        XCTAssertTrue(config.contains("f13"), "Config should contain target key mapping (f13 is a valid key name)")
 
         // The logging system should be capturing these operations in real usage
         AppLogger.shared.log("✅ [Test] Logging captures actual business operations")
