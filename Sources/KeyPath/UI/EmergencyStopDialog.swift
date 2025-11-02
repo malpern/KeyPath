@@ -4,161 +4,148 @@ struct EmergencyStopDialog: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 32) {
             // Header
-            VStack(spacing: 12) {
+            VStack(spacing: 16) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 48))
+                    .font(.system(size: 64))
                     .foregroundColor(.orange)
 
                 Text("Emergency Stop")
-                    .font(.title2)
+                    .font(.system(size: 32, weight: .bold))
+
+                Text("For Kanata (the keyboard remapper) the emergency stop shortcut is Left Control + Space + Escape (using their physical key positions, not after any remapping).")
+                    .font(.body)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
+            Divider()
+
+            // Big visual key buttons
+            VStack(spacing: 24) {
+                Text("Press these 3 keys simultaneously:")
+                    .font(.title3)
                     .fontWeight(.semibold)
 
-                Text("If Kanata stops responding or you need to disable all keyboard remapping immediately")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            Divider()
-
-            // Key combination explanation
-            VStack(spacing: 20) {
-                Text("Press these 3 keys simultaneously:")
-                    .font(.headline)
-
-                // Visual key representation
-                HStack(spacing: 12) {
-                    EmergencyStopKeyView(
+                HStack(spacing: 24) {
+                    EmergencyStopKeyButton(
                         keyLabel: "Left Control",
                         keySymbol: "⌃",
-                        description: "Left Control key\n(bottom-left corner)"
+                        description: "Bottom-left corner"
                     )
 
                     Text("+")
-                        .font(.title2)
-                        .fontWeight(.medium)
+                        .font(.system(size: 36, weight: .bold))
                         .foregroundColor(.secondary)
+                        .padding(.vertical)
 
-                    EmergencyStopKeyView(
+                    EmergencyStopKeyButton(
                         keyLabel: "Space",
                         keySymbol: "⎵",
-                        description: "Space bar\n(bottom center)"
+                        description: "Bottom center"
                     )
 
                     Text("+")
-                        .font(.title2)
-                        .fontWeight(.medium)
+                        .font(.system(size: 36, weight: .bold))
                         .foregroundColor(.secondary)
+                        .padding(.vertical)
 
-                    EmergencyStopKeyView(
+                    EmergencyStopKeyButton(
                         keyLabel: "Escape",
                         keySymbol: "⎋",
-                        description: "Escape key\n(top-left corner)"
+                        description: "Top-left corner"
                     )
                 }
 
-                // Sequence explanation
+                // Important note
                 VStack(spacing: 12) {
-                    HStack {
+                    HStack(spacing: 12) {
                         Image(systemName: "info.circle.fill")
+                            .font(.title3)
                             .foregroundColor(.blue)
-                        Text("Hold all three keys at the same time")
-                            .font(.subheadline)
+                        Text("Important: Use physical key positions, not after any remapping")
+                            .font(.headline)
+                            .foregroundColor(.primary)
                         Spacer()
                     }
 
-                    HStack {
+                    HStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
+                            .font(.title3)
                             .foregroundColor(.green)
                         Text("Kanata will immediately stop all remapping")
-                            .font(.subheadline)
+                            .font(.body)
                         Spacer()
                     }
 
-                    HStack {
+                    HStack(spacing: 12) {
                         Image(systemName: "arrow.clockwise.circle.fill")
+                            .font(.title3)
                             .foregroundColor(.orange)
                         Text("Restart KeyPath to re-enable remapping")
-                            .font(.subheadline)
+                            .font(.body)
                         Spacer()
                     }
                 }
-                .padding(.horizontal)
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(12)
             }
-
-            Divider()
-
-            // Safety note
-            VStack(spacing: 8) {
-                HStack {
-                    Image(systemName: "shield.fill")
-                        .foregroundColor(.blue)
-                    Text("Safety Feature")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Spacer()
-                }
-
-                Text("This emergency stop works even when Kanata is completely frozen or unresponsive. It's built into the keyboard monitoring system itself.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
-            }
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(8)
 
             // OK button
-            HStack {
-                Spacer()
-                Button("OK") {
-                    dismiss()
-                }
-                .keyboardShortcut(.return)
-                .buttonStyle(.borderedProminent)
+            Button(action: {
+                dismiss()
+            }) {
+                Text("Got it")
+                    .font(.headline)
+                    .frame(minWidth: 200)
+                    .padding(.vertical, 12)
             }
+            .keyboardShortcut(.return)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
-        .padding(24)
-        .frame(width: 540)
+        .padding(32)
+        .frame(width: 700)
         .background(.regularMaterial)
     }
 }
 
-struct EmergencyStopKeyView: View {
+struct EmergencyStopKeyButton: View {
     let keyLabel: String
     let keySymbol: String
     let description: String
 
     var body: some View {
-        VStack(spacing: 8) {
-            // Key cap
-            VStack(spacing: 4) {
+        VStack(spacing: 12) {
+            // Large key cap
+            VStack(spacing: 8) {
                 Text(keySymbol)
-                    .font(.title)
-                    .fontWeight(.medium)
+                    .font(.system(size: 48, weight: .medium))
                     .foregroundColor(.primary)
 
                 Text(keyLabel)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .font(.headline)
+                    .foregroundColor(.primary)
             }
-            .frame(width: 80, height: 60)
-            .background(.quaternary)
-            .cornerRadius(8)
+            .frame(width: 140, height: 100)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(NSColor.controlBackgroundColor))
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(.tertiary, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(.secondary, lineWidth: 2)
             )
 
             // Description
             Text(description)
-                .font(.caption2)
+                .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(2)
         }
     }
 }
