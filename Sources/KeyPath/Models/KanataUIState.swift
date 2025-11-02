@@ -29,4 +29,6 @@ struct KanataUIState {
     let validationAlertMessage: String
     let validationAlertActions: [ValidationAlertAction]
     let saveStatus: SaveStatus
+    let batteryLevel: Double?
+    let isLowPowerPaused: Bool
 }

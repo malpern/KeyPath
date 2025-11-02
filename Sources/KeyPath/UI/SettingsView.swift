@@ -63,7 +63,18 @@ struct SettingsView: View {
             "Needs Help"
         case .stopped:
             "Stopped"
+        case .pausedLowPower:
+            if let level = formattedBatteryLevel(kanataManager.batteryLevel) {
+                return "Paused (Low Power, \(level))"
+            }
+            return "Paused (Low Power)"
         }
+    }
+
+    private func formattedBatteryLevel(_ level: Double?) -> String? {
+        guard let level else { return nil }
+        let percent = Int((level * 100).rounded())
+        return "\(max(0, min(100, percent)))%"
     }
 
     var body: some View {
@@ -204,7 +215,7 @@ struct SettingsView: View {
             StatusRow(
                 label: "Kanata Service",
                 status: kanataServiceStatus,
-                isActive: kanataServiceStatus == "Running"
+                isActive: kanataManager.currentState == .running
             )
 
             StatusRow(
@@ -212,6 +223,13 @@ struct SettingsView: View {
                 status: kanataManager.isCompletelyInstalled() ? "Installed" : "Not Installed",
                 isActive: kanataManager.isCompletelyInstalled()
             )
+
+            if kanataManager.isLowPowerPaused {
+                Text("KeyPath paused automatically due to low battery. It will resume when power is above 5%.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .accessibilityIdentifier("low-power-paused-note")
+            }
         }
     }
 
@@ -610,7 +628,7 @@ struct SettingsView: View {
                          StatusRow(
                              label: "Kanata Service",
                              status: kanataServiceStatus,
-                             isActive: kanataServiceStatus == "Running"
+                             isActive: kanataManager.currentState == .running
                          )
 
                          StatusRow(
@@ -618,6 +636,13 @@ struct SettingsView: View {
                              status: kanataManager.isCompletelyInstalled() ? "Installed" : "Not Installed",
                              isActive: kanataManager.isCompletelyInstalled()
                          )
+
+                         if kanataManager.isLowPowerPaused {
+                             Text("KeyPath paused automatically due to low battery. It will resume when power is above 5%.")
+                                 .font(.footnote)
+                                 .foregroundColor(.secondary)
+                                 .accessibilityIdentifier("low-power-paused-note")
+                         }
                      }
 
                      Divider()

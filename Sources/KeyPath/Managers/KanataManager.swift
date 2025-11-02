@@ -47,6 +47,7 @@ enum SimpleKanataState: String, CaseIterable {
     case running // Kanata is running successfully
     case needsHelp = "needs_help" // Auto-start failed, user intervention required
     case stopped // User manually stopped
+    case pausedLowPower = "paused_low_power" // Paused due to critically low battery
 
     var displayName: String {
         switch self {
@@ -54,6 +55,7 @@ enum SimpleKanataState: String, CaseIterable {
         case .running: "Running"
         case .needsHelp: "Needs Help"
         case .stopped: "Stopped"
+        case .pausedLowPower: "Paused (Low Power)"
         }
     }
 
@@ -62,7 +64,7 @@ enum SimpleKanataState: String, CaseIterable {
     }
 
     var needsUserAction: Bool {
-        self == .needsHelp
+        self == .needsHelp || self == .pausedLowPower
     }
 }
 
@@ -250,6 +252,19 @@ class KanataManager {
     // Save progress feedback
     var saveStatus: SaveStatus = .idle
 
+#if os(macOS)
+    // Battery monitoring
+    private var batteryMonitor: BatteryMonitor?
+    private var batteryLevel: Double?
+    private var lowPowerWarningActive = false
+    private var lowPowerPauseActive = false
+    private var lowPowerPausedAt: Date?
+    private var lastLowPowerResumeAttempt: Date?
+    private var lowPowerNotificationObserver: NSObjectProtocol?
+    private let lowPowerThreshold: Double = 0.05
+    private let lowPowerResumeThreshold: Double = 0.06
+#endif
+
     // MARK: - UI State Snapshot (Phase 4: MVVM)
 
     /// Returns a snapshot of current UI state for ViewModel synchronization
@@ -258,6 +273,14 @@ class KanataManager {
         // Sync diagnostics from DiagnosticsManager
         diagnostics = diagnosticsManager.getDiagnostics()
         
+        #if os(macOS)
+        let currentBatteryLevel = batteryLevel
+        let lowPowerPaused = lowPowerPauseActive
+        #else
+        let currentBatteryLevel: Double? = nil
+        let lowPowerPaused = false
+        #endif
+
         return KanataUIState(
             isRunning: isRunning,
             lastError: lastError,
@@ -285,7 +308,9 @@ class KanataManager {
             validationAlertTitle: validationAlertTitle,
             validationAlertMessage: validationAlertMessage,
             validationAlertActions: validationAlertActions,
-            saveStatus: saveStatus
+            saveStatus: saveStatus,
+            batteryLevel: currentBatteryLevel,
+            isLowPowerPaused: lowPowerPaused
         )
     }
 
@@ -407,6 +432,24 @@ class KanataManager {
         } else {
             AppLogger.shared.log("🧪 [KanataManager] Skipping background initialization in test environment")
         }
+
+#if os(macOS)
+        if !TestEnvironment.isRunningTests {
+            startBatteryMonitoring()
+
+            lowPowerNotificationObserver = NotificationCenter.default.addObserver(
+                forName: .pauseForLowPower,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    await self?.handleLowPowerPauseRequest()
+                }
+            }
+        } else {
+            AppLogger.shared.log("🧪 [KanataManager] Skipping battery monitoring in test environment")
+        }
+#endif
 
         if isHeadlessMode {
             AppLogger.shared.log("🤖 [KanataManager] Initialized in headless mode")
@@ -1663,6 +1706,16 @@ class KanataManager {
         // The LaunchDaemon service will handle process lifecycle automatically
         AppLogger.shared.log("ℹ️ [Cleanup] LaunchDaemon service will handle process cleanup automatically")
 
+#if os(macOS)
+        batteryMonitor?.stop()
+        batteryMonitor = nil
+
+        if let observer = lowPowerNotificationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            lowPowerNotificationObserver = nil
+        }
+#endif
+
         // Clean up PID file
         try? PIDFileManager.removePID()
         AppLogger.shared.log("✅ [Cleanup] Synchronous cleanup complete")
@@ -1673,6 +1726,153 @@ class KanataManager {
         let conflicts = await processLifecycleManager.detectConflicts()
         return !conflicts.externalProcesses.isEmpty
     }
+
+    deinit {
+#if os(macOS)
+        batteryMonitor?.stop()
+
+        if let observer = lowPowerNotificationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+#endif
+    }
+
+#if os(macOS)
+    // MARK: - Battery Monitoring
+
+    private func startBatteryMonitoring() {
+        guard batteryMonitor == nil else { return }
+
+        AppLogger.shared.log("🔋 [Battery] Starting battery monitor")
+        let monitor = BatteryMonitor()
+        batteryMonitor = monitor
+
+        monitor.start { [weak self] reading in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.processBatteryReading(reading)
+            }
+        }
+    }
+
+    @MainActor
+    private func processBatteryReading(_ reading: BatteryReading?) async {
+        batteryLevel = reading?.level
+
+        guard let reading else { return }
+
+        let level = reading.level
+
+        if lowPowerPauseActive {
+            updateLowPowerErrorReason(for: level)
+        }
+
+        if level < lowPowerThreshold {
+            if !lowPowerWarningActive && !lowPowerPauseActive {
+                lowPowerWarningActive = true
+                let percent = formattedBatteryPercentage(level)
+                AppLogger.shared.log("🪫 [Battery] Level at \(percent)% - prompting user to pause service")
+                UserNotificationService.shared.notifyLowPowerWarning(batteryPercentage: percent)
+            }
+        } else {
+            lowPowerWarningActive = false
+        }
+
+        if lowPowerPauseActive && level >= lowPowerResumeThreshold {
+            let now = Date()
+            if lastLowPowerResumeAttempt == nil || now.timeIntervalSince(lastLowPowerResumeAttempt!) >= 30 {
+                lastLowPowerResumeAttempt = now
+                await resumeFromLowPower(triggeredByBatteryRecovery: true)
+            }
+        }
+    }
+
+    private func formattedBatteryPercentage(_ level: Double?) -> Int {
+        guard let level else { return 5 }
+        return max(0, min(100, Int((level * 100).rounded())))
+    }
+
+    @MainActor
+    private func updateLowPowerErrorReason(for level: Double?) {
+        guard lowPowerPauseActive else {
+            errorReason = nil
+            return
+        }
+
+        let percent = formattedBatteryPercentage(level)
+        errorReason = "Paused automatically due to low battery (\(percent)%)"
+    }
+
+    @MainActor
+    private func handleLowPowerPauseRequest() async {
+        AppLogger.shared.log("🪫 [Battery] Low-power pause requested via notification action")
+        await pauseServiceForLowBattery()
+    }
+
+    /// Exposed for UI/notification actions to pause the service.
+    @MainActor
+    func pauseServiceForLowBattery() async {
+        if lowPowerPauseActive {
+            AppLogger.shared.log("🪫 [Battery] Low-power pause already active; ignoring duplicate request")
+            return
+        }
+
+        lowPowerPauseActive = true
+        lowPowerWarningActive = true
+        lowPowerPausedAt = Date()
+        let previousState = currentState
+
+        await stopKanata()
+        await updateStatus()
+
+        if isRunning {
+            AppLogger.shared.log("⚠️ [Battery] Failed to stop service for low-power pause")
+            lowPowerPauseActive = false
+            lowPowerPausedAt = nil
+            currentState = previousState
+            return
+        }
+
+        currentState = .pausedLowPower
+        updateLowPowerErrorReason(for: batteryLevel)
+
+        let percent = formattedBatteryPercentage(batteryLevel)
+        UserNotificationService.shared.notifyLowPowerPaused(batteryPercentage: percent)
+        postLowPowerStatusMessage("🪫 KeyPath paused due to low battery. Charge above 5% to resume automatically.")
+    }
+
+    @MainActor
+    private func resumeFromLowPower(triggeredByBatteryRecovery: Bool) async {
+        guard lowPowerPauseActive else { return }
+
+        AppLogger.shared.log("🔋 [Battery] Attempting automatic resume (batteryRecovery=\(triggeredByBatteryRecovery))")
+
+        await manualStart()
+        await refreshStatus()
+
+        if isRunning {
+            lowPowerPauseActive = false
+            lowPowerPausedAt = nil
+            lowPowerWarningActive = false
+            lastLowPowerResumeAttempt = nil
+            errorReason = nil
+
+            UserNotificationService.shared.notifyLowPowerRecovered()
+            postLowPowerStatusMessage("🔋 Battery recovered. KeyPath resumed.")
+        } else {
+            AppLogger.shared.log("⚠️ [Battery] Automatic resume failed; will retry on subsequent battery updates")
+        }
+    }
+
+    @MainActor
+    private func postLowPowerStatusMessage(_ message: String) {
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowUserFeedback"),
+            object: nil,
+            userInfo: ["message": message]
+        )
+    }
+#endif
 
     // MARK: - Installation and Permissions
 

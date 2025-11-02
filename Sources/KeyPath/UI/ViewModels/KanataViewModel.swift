@@ -34,6 +34,8 @@ class KanataViewModel: ObservableObject {
     @Published private(set) var lastHealthCheck: Date?
     @Published private(set) var retryCount: Int = 0
     @Published private(set) var isRetryingAfterFix: Bool = false
+    @Published private(set) var batteryLevel: Double?
+    @Published private(set) var isLowPowerPaused: Bool = false
 
     // Lifecycle State Properties (from KanataLifecycleManager)
     @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
@@ -131,6 +133,8 @@ class KanataViewModel: ObservableObject {
         validationAlertMessage = state.validationAlertMessage
         validationAlertActions = state.validationAlertActions
         saveStatus = state.saveStatus
+        batteryLevel = state.batteryLevel
+        isLowPowerPaused = state.isLowPowerPaused
     }
 
     // MARK: - Action Delegation to KanataManager
