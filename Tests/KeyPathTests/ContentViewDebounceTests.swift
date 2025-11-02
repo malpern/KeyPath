@@ -125,7 +125,7 @@ class ContentViewDebounceTests: XCTestCase {
 class Phase1LoggingTests: XCTestCase {
     func testLoggingCapturesActualOperations() async {
         // Test that logging captures important operational information
-        _ = await KanataManager()
+        _ = KanataManager()
 
         // Test that we can generate a config and logging reflects the operation
         let mapping = KeyMapping(input: "f1", output: "f13")
