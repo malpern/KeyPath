@@ -5,7 +5,7 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SUDOERS_SOURCE="$PROJECT_ROOT/sudoers-keypath-deployment"
+SUDOERS_SOURCE="$PROJECT_ROOT/Scripts/sudoers/sudoers-keypath-deployment"
 SUDOERS_TARGET="/etc/sudoers.d/keypath-deployment"
 
 echo "🚀 Applying KeyPath deployment sudoers configuration..."

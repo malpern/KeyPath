@@ -72,7 +72,7 @@ public struct KanataConfiguration: Sendable {
 ///
 /// This service handles all configuration-related operations:
 /// - Loading and saving configuration files
-/// - Validation via UDP and file-based checks
+/// - Validation via TCP and file-based checks
 /// - File watching and change detection
 /// - Key mapping generation and conversion
 @MainActor public final class ConfigurationService: FileConfigurationProviding {

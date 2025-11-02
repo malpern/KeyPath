@@ -19,27 +19,13 @@ extension KanataManager {
     /// Public wrapper to ensure a default user config exists.
     /// Returns true if the config exists after this call.
     func createDefaultUserConfigIfMissing() async -> Bool {
-        AppLogger.shared.log("🛠️ [Config] Ensuring default user config at \(configurationService.configurationPath)")
-        await createInitialConfigIfNeeded()
-        let exists = FileManager.default.fileExists(atPath: configurationService.configurationPath)
-        if exists {
-            AppLogger.shared.log("✅ [Config] Verified user config exists at \(configurationService.configurationPath)")
-        } else {
-            AppLogger.shared.log("❌ [Config] User config still missing at \(configurationService.configurationPath)")
-        }
-        return exists
+        return await configurationManager.createDefaultIfMissing()
     }
 
     // MARK: - Configuration Validation
 
     func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
-        guard FileManager.default.fileExists(atPath: configurationService.configurationPath) else {
-            return (false, ["Config file does not exist at: \(configurationService.configurationPath)"])
-        }
-
-        // Use CLI validation (TCP-only mode)
-        AppLogger.shared.log("📄 [Validation] Using file-based validation")
-        return configurationService.validateConfigViaFile()
+        return await configurationManager.validateConfigFile()
     }
 
     // MARK: - Hot Reload via TCP
@@ -77,14 +63,18 @@ extension KanataManager {
             return .networkError("Test environment - TCP disabled")
         }
 
-        let tcpPort = PreferencesService.shared.tcpServerPort
-        AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via TCP on port \(tcpPort)")
+        AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
+        let res = await engineClient.reloadConfig()
+        return mapEngineToTCP(res)
+    }
 
-        let client = KanataTCPClient(port: tcpPort, timeout: 5.0)
-
-        // NOTE: Kanata v1.9.0 TCP does NOT require authentication (see ADR-013)
-        // Just send reload command directly
-        return await client.reloadConfig()
+    private func mapEngineToTCP(_ result: EngineReloadResult) -> TCPReloadResult {
+        switch result {
+        case let .success(response: resp): .success(response: resp)
+        case let .failure(error: err, response: resp): .failure(error: err, response: resp)
+        case .authenticationRequired: .authenticationRequired
+        case let .networkError(err): .networkError(err)
+        }
     }
 
     /// Main reload method that should be used by new code
@@ -99,7 +89,7 @@ extension KanataManager {
 
 // MARK: - Result Types
 
-/// UDP reload result
+/// TCP reload result
 struct ReloadResult {
     let success: Bool
     let response: String?

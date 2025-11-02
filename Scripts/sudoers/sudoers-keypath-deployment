@@ -1,0 +1,107 @@
+# KeyPath Deployment - Comprehensive Passwordless Sudo Configuration
+# Generated on 2025-08-05
+# User: malpern
+# 
+# This configuration enables passwordless sudo for ALL commands required during
+# KeyPath deployment, testing, and operation to eliminate the ~20 password prompts
+
+# ==============================================================================
+# CORE DEPLOYMENT COMMANDS
+# ==============================================================================
+
+# Kanata binary execution (requires root for low-level keyboard access)
+malpern ALL=(ALL) NOPASSWD: /opt/homebrew/bin/kanata
+malpern ALL=(ALL) NOPASSWD: /usr/local/bin/kanata
+malpern ALL=(ALL) NOPASSWD: /opt/homebrew/bin/kanata *
+malpern ALL=(ALL) NOPASSWD: /usr/local/bin/kanata *
+
+# Process management - killing processes
+malpern ALL=(ALL) NOPASSWD: /usr/bin/pkill
+malpern ALL=(ALL) NOPASSWD: /usr/bin/pkill *
+malpern ALL=(ALL) NOPASSWD: /bin/kill
+malpern ALL=(ALL) NOPASSWD: /bin/kill *
+
+# LaunchDaemon management
+malpern ALL=(ALL) NOPASSWD: /bin/launchctl
+malpern ALL=(ALL) NOPASSWD: /bin/launchctl *
+
+# ==============================================================================
+# FILE SYSTEM OPERATIONS
+# ==============================================================================
+
+# Directory creation and management
+malpern ALL=(ALL) NOPASSWD: /bin/mkdir
+malpern ALL=(ALL) NOPASSWD: /bin/mkdir *
+malpern ALL=(ALL) NOPASSWD: /usr/sbin/chown
+malpern ALL=(ALL) NOPASSWD: /usr/sbin/chown *
+malpern ALL=(ALL) NOPASSWD: /bin/chmod
+malpern ALL=(ALL) NOPASSWD: /bin/chmod *
+
+# File operations
+malpern ALL=(ALL) NOPASSWD: /bin/cp * /Library/LaunchDaemons/*
+malpern ALL=(ALL) NOPASSWD: /bin/rm /Library/LaunchDaemons/*
+malpern ALL=(ALL) NOPASSWD: /bin/rm -f /Library/LaunchDaemons/*
+malpern ALL=(ALL) NOPASSWD: /bin/mv * /Library/LaunchDaemons/*
+
+# ==============================================================================
+# KARABINER CONFLICT RESOLUTION
+# ==============================================================================
+
+# Karabiner LaunchDaemon operations
+malpern ALL=(ALL) NOPASSWD: /bin/launchctl unload /Library/LaunchDaemons/org.pqrs.karabiner.karabiner_grabber.plist
+malpern ALL=(ALL) NOPASSWD: /bin/launchctl load /Library/LaunchDaemons/org.pqrs.karabiner.karabiner_grabber.plist
+malpern ALL=(ALL) NOPASSWD: /bin/launchctl bootout *
+malpern ALL=(ALL) NOPASSWD: /bin/launchctl disable *
+
+# ==============================================================================
+# INSTALLATION WIZARD OPERATIONS
+# ==============================================================================
+
+# LaunchDaemon installation and removal
+malpern ALL=(ALL) NOPASSWD: /bin/rm -f /Library/LaunchDaemons/com.keypath.*
+malpern ALL=(ALL) NOPASSWD: /bin/rm -f /Library/LaunchDaemons/org.pqrs.*
+
+# System directory setup
+malpern ALL=(ALL) NOPASSWD: /bin/mkdir -p /usr/local/etc/kanata*
+malpern ALL=(ALL) NOPASSWD: /bin/mkdir -p /var/log/keypath*
+malpern ALL=(ALL) NOPASSWD: /usr/sbin/chown * /usr/local/etc/kanata*
+malpern ALL=(ALL) NOPASSWD: /usr/sbin/chown * /var/log/keypath*
+malpern ALL=(ALL) NOPASSWD: /bin/chmod * /usr/local/etc/kanata*
+malpern ALL=(ALL) NOPASSWD: /bin/chmod * /var/log/keypath*
+
+# ==============================================================================
+# TESTING AND VERIFICATION COMMANDS
+# ==============================================================================
+
+# Process listing and monitoring
+malpern ALL=(ALL) NOPASSWD: /bin/ps
+malpern ALL=(ALL) NOPASSWD: /bin/ps *
+malpern ALL=(ALL) NOPASSWD: /usr/bin/pgrep
+malpern ALL=(ALL) NOPASSWD: /usr/bin/pgrep *
+
+# TCC database access (for permission verification)
+malpern ALL=(ALL) NOPASSWD: /usr/bin/sqlite3 /Library/Application\ Support/com.apple.TCC/TCC.db *
+
+# osascript for admin privilege prompts (used in conflict resolution)
+malpern ALL=(ALL) NOPASSWD: /usr/bin/osascript
+malpern ALL=(ALL) NOPASSWD: /usr/bin/osascript *
+
+# ==============================================================================
+# WRAPPER SCRIPTS (if they exist)
+# ==============================================================================
+
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Scripts/test-launchctl.sh
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Scripts/test-launchctl.sh *
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Scripts/test-process-manager.sh
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Scripts/test-process-manager.sh *
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Scripts/test-file-manager.sh
+malpern ALL=(ALL) NOPASSWD: /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Scripts/test-file-manager.sh *
+
+# ==============================================================================
+# HOMEBREW OPERATIONS (for package management)
+# ==============================================================================
+
+malpern ALL=(ALL) NOPASSWD: /usr/sbin/chown -R * /opt/homebrew
+malpern ALL=(ALL) NOPASSWD: /usr/sbin/chown -R * /usr/local
+
+

@@ -1,6 +1,56 @@
 import Foundation
 
-enum FeatureFlags {
+/// Centralized runtime flags for the current process.
+///
+/// Avoids using environment variables for intra-process feature switches,
+/// preventing accidental inheritance by child processes and racey global state.
+final class FeatureFlags {
+    static let shared = FeatureFlags()
+
+    private let stateQueue = DispatchQueue(label: "com.keypath.featureflags.state", qos: .userInitiated)
+
+    // MARK: - Startup Mode
+
+    private var _startupModeActive: Bool = false
+
+    /// True while we want to avoid potentially-blocking permission checks during early startup.
+    var startupModeActive: Bool { stateQueue.sync { _startupModeActive } }
+
+    /// Activate startup mode, optionally auto-deactivating after a timeout.
+    func activateStartupMode(timeoutSeconds: Double = 5.0) {
+        stateQueue.sync { _startupModeActive = true }
+        if timeoutSeconds > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeoutSeconds) { [weak self] in
+                guard let self else { return }
+                if self.startupModeActive {
+                    self.deactivateStartupMode()
+                }
+            }
+        }
+    }
+
+    /// Deactivate startup mode.
+    func deactivateStartupMode() {
+        stateQueue.sync { _startupModeActive = false }
+    }
+
+    // MARK: - Auto Trigger (currently in-process only)
+
+    private var _autoTriggerEnabled: Bool = false
+
+    var autoTriggerEnabled: Bool { stateQueue.sync { _autoTriggerEnabled } }
+
+    func setAutoTriggerEnabled(_ enabled: Bool) {
+        stateQueue.sync { _autoTriggerEnabled = enabled }
+    }
+}
+
+// FeatureFlags manages its own synchronization.
+// Mark unchecked to silence Swift 6 Sendable warnings for cross-actor access.
+extension FeatureFlags: @unchecked Sendable {}
+
+// MARK: - Persisted flags (UserDefaults-backed)
+extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
 
     static var captureListenOnlyEnabled: Bool {

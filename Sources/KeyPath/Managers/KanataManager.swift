@@ -11,13 +11,8 @@ actor ProcessSynchronizationActor {
     }
 }
 
-/// Errors related to configuration management
-/// Configuration validation and repair errors
-///
-/// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
 /// Represents a simple key mapping from input to output
-@available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
-
+/// Used throughout the codebase for representing user-configured key remappings
 public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let input: String
@@ -100,7 +95,7 @@ enum SimpleKanataState: String, CaseIterable {
 ///
 /// **KanataManager+Engine.swift** (~300 lines)
 /// - Kanata engine communication
-/// - UDP/TCP protocol handling
+/// - TCP protocol handling
 /// - Config reload and layer management
 ///
 /// **KanataManager+EventTaps.swift** (~200 lines)
@@ -260,7 +255,10 @@ class KanataManager {
     /// Returns a snapshot of current UI state for ViewModel synchronization
     /// This method allows KanataViewModel to read UI state without @Published properties
     func getCurrentUIState() -> KanataUIState {
-        KanataUIState(
+        // Sync diagnostics from DiagnosticsManager
+        diagnostics = diagnosticsManager.getDiagnostics()
+        
+        return KanataUIState(
             isRunning: isRunning,
             lastError: lastError,
             keyMappings: keyMappings,
@@ -295,14 +293,26 @@ class KanataManager {
     let configDirectory = "\(NSHomeDirectory())/.config/keypath"
     let configFileName = "keypath.kbd"
 
-    // MARK: - Service Dependencies (Milestone 4)
+    // MARK: - Manager Dependencies (Refactored Architecture)
 
+    let processManager: ProcessManaging
+    let configurationManager: ConfigurationManaging
+    let diagnosticsManager: DiagnosticsManaging
+    
+    // Manager dependencies (exposed for extensions that need direct access)
+    let engineClient: EngineClient
+    
+    // Legacy dependencies (kept for backward compatibility during transition)
     let configurationService: ConfigurationService
+    let processLifecycleManager: ProcessLifecycleManager
+    
+    // Additional dependencies needed by extensions
     private let healthMonitor: ServiceHealthMonitorProtocol
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     private let karabinerConflictService: KarabinerConflictManaging
+    private let configBackupManager: ConfigBackupManager
+    
     private var isStartingKanata = false
-    private let processLifecycleManager: ProcessLifecycleManager
     var isInitializing = false
     private let isHeadlessMode: Bool
 
@@ -325,49 +335,66 @@ class KanataManager {
     private var lastStartAttempt: Date? // Still used for backward compatibility
     private var lastServiceKickstart: Date? // Still used for grace period tracking
 
-    // Real-time log monitoring for VirtualHID connection failures
-    private var logMonitorTask: Task<Void, Never>?
-
     // Configuration file watching for hot reload
     private var configFileWatcher: ConfigFileWatcher?
 
-    // Configuration backup management
-    private let configBackupManager: ConfigBackupManager
-
     var configPath: String {
-        configurationService.configurationPath
+        configurationManager.configPath
     }
 
-    init() {
+    init(engineClient: EngineClient? = nil) {
         // Check if running in headless mode
         isHeadlessMode =
             ProcessInfo.processInfo.arguments.contains("--headless")
                 || ProcessInfo.processInfo.environment["KEYPATH_HEADLESS"] == "1"
 
-        // Initialize UDP server grace period timestamp at app startup
+        // Initialize TCP server grace period timestamp at app startup
         // This prevents immediate admin requests on launch
         lastServiceKickstart = Date()
 
-        // Initialize service dependencies
+        // Initialize legacy service dependencies (for backward compatibility)
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
-
-        // Initialize process lifecycle manager
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
-
-        // Initialize Karabiner conflict service
-        karabinerConflictService = KarabinerConflictService()
-
-        // Initialize diagnostics service
-        diagnosticsService = DiagnosticsService(processLifecycleManager: processLifecycleManager)
-
-        // Initialize health monitor
-        healthMonitor = ServiceHealthMonitor(processLifecycle: processLifecycleManager)
-
+        
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
-
+        
         // Initialize configuration backup manager
-        configBackupManager = ConfigBackupManager(configPath: "\(NSHomeDirectory())/.config/keypath/keypath.kbd")
+        let configBackupManager = ConfigBackupManager(configPath: "\(NSHomeDirectory())/.config/keypath/keypath.kbd")
+        
+        // Initialize manager dependencies
+        let karabinerConflictService = KarabinerConflictService()
+        let diagnosticsService = DiagnosticsService(processLifecycleManager: processLifecycleManager)
+        let healthMonitor = ServiceHealthMonitor(processLifecycle: processLifecycleManager)
+        
+        // Store for extensions
+        self.healthMonitor = healthMonitor
+        self.diagnosticsService = diagnosticsService
+        self.karabinerConflictService = karabinerConflictService
+        self.configBackupManager = configBackupManager
+        
+        // Initialize ProcessManager
+        processManager = ProcessManager(
+            processLifecycleManager: processLifecycleManager,
+            karabinerConflictService: karabinerConflictService
+        )
+        
+        // Initialize ConfigurationManager
+        configurationManager = ConfigurationManager(
+            configurationService: configurationService,
+            configBackupManager: configBackupManager,
+            configFileWatcher: configFileWatcher
+        )
+        
+        // Initialize DiagnosticsManager
+        diagnosticsManager = DiagnosticsManager(
+            diagnosticsService: diagnosticsService,
+            healthMonitor: healthMonitor,
+            processLifecycleManager: processLifecycleManager
+        )
+        
+        // Initialize EngineClient
+        self.engineClient = engineClient ?? TCPEngineClient()
 
         // Dispatch heavy initialization work to background thread (skip during unit tests)
         // Use Task.detached to ensure this runs off the main thread even with @MainActor
@@ -389,14 +416,14 @@ class KanataManager {
     // MARK: - Diagnostics
 
     func addDiagnostic(_ diagnostic: KanataDiagnostic) {
-        diagnostics.append(diagnostic)
-        AppLogger.shared.log(
-            "\(diagnostic.severity.emoji) [Diagnostic] \(diagnostic.title): \(diagnostic.description)")
+        diagnosticsManager.addDiagnostic(diagnostic)
+        // Update local diagnostics array for UI state
+        diagnostics = diagnosticsManager.getDiagnostics()
+    }
 
-        // Keep only last 50 diagnostics to prevent memory bloat
-        if diagnostics.count > 50 {
-            diagnostics.removeFirst(diagnostics.count - 50)
-        }
+    func clearDiagnostics() {
+        diagnosticsManager.clearDiagnostics()
+        diagnostics = []
     }
 
     // MARK: - Configuration File Watching
@@ -525,10 +552,6 @@ class KanataManager {
         }
     }
 
-    func clearDiagnostics() {
-        diagnostics.removeAll()
-    }
-
     /// Attempts to recover from zombie keyboard capture when VirtualHID connection fails
 
     /// Starts Kanata with VirtualHID connection validation
@@ -594,7 +617,7 @@ class KanataManager {
     }
 
     func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
-        let diagnostics = diagnosticsService.diagnoseKanataFailure(exitCode: exitCode, output: output)
+        let diagnostics = diagnosticsManager.diagnoseFailure(exitCode: exitCode, output: output)
 
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
@@ -646,7 +669,7 @@ class KanataManager {
     }
 
     func getSystemDiagnostics() async -> [KanataDiagnostic] {
-        await diagnosticsService.getSystemDiagnostics()
+        await diagnosticsManager.getSystemDiagnostics()
     }
 
     // Check if permission issues should trigger the wizard
@@ -733,14 +756,14 @@ class KanataManager {
         AppLogger.shared.log("🚀 [Start] Starting Kanata with synchronization lock...")
 
         // Check restart cooldown
-        let cooldownState = await healthMonitor.canRestartService()
+        let cooldownState = await diagnosticsManager.canRestartService()
         if !cooldownState.canRestart {
             AppLogger.shared.log("⚠️ [Start] Restart cooldown active: \(String(format: "%.1f", cooldownState.remainingCooldown))s remaining")
             return
         }
 
         // Record this start attempt
-        await healthMonitor.recordStartAttempt(timestamp: Date())
+        await diagnosticsManager.recordStartAttempt(timestamp: Date())
         lastStartAttempt = Date()
 
         // Check if already starting (prevent concurrent operations)
@@ -753,14 +776,14 @@ class KanataManager {
         if isRunning {
             AppLogger.shared.log("🔍 [Start] Kanata is already running - checking health before restart")
 
-            // Check health via health monitor
+            // Check health via DiagnosticsManager
             let launchDaemonStatus = await checkLaunchDaemonStatus()
             let processStatus = ProcessHealthStatus(
                 isRunning: launchDaemonStatus.isRunning,
                 pid: launchDaemonStatus.pid
             )
             let tcpPort = PreferencesService.shared.tcpServerPort
-            let healthStatus = await healthMonitor.checkServiceHealth(
+            let healthStatus = await diagnosticsManager.checkHealth(
                 processStatus: processStatus,
                 tcpPort: tcpPort
             )
@@ -788,7 +811,7 @@ class KanataManager {
 
             if success {
                 AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via kickstart")
-                await healthMonitor.recordStartSuccess()
+                await diagnosticsManager.recordStartSuccess()
                 // Update service status after restart
                 let serviceStatus = await checkLaunchDaemonStatus()
                 if let pid = serviceStatus.pid {
@@ -923,7 +946,7 @@ class KanataManager {
 
                 AppLogger.shared.log("✅ [Start] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
                 AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
-                await healthMonitor.recordStartSuccess()
+                await diagnosticsManager.recordStartSuccess()
 
             } else {
                 // Service started but no PID found - may still be initializing
@@ -1242,104 +1265,17 @@ class KanataManager {
 
     /// Check the status of the LaunchDaemon service
     private func checkLaunchDaemonStatus() async -> (isRunning: Bool, pid: Int?) {
-        // Skip actual system calls in test environment
-        if TestEnvironment.shouldSkipAdminOperations {
-            AppLogger.shared.log("🧪 [TestEnvironment] Skipping launchctl check - returning mock data")
-            return (true, nil) // Mock: service loaded but not running
-        }
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        task.arguments = ["print", "system/com.keypath.kanata"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            // Parse the output to find the PID
-            if task.terminationStatus == 0 {
-                // Look for "pid = XXXX" in the output
-                let lines = output.components(separatedBy: .newlines)
-                for line in lines where line.contains("pid =") {
-                    let components = line.components(separatedBy: "=")
-                    if components.count >= 2,
-                       let pidString = components[1].trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces).first,
-                       let pid = Int(pidString) {
-                        AppLogger.shared.log("🔍 [LaunchDaemon] Service running with PID: \(pid)")
-                        return (true, pid)
-                    }
-                }
-                // Service loaded but no PID found (may be starting)
-                AppLogger.shared.log("🔍 [LaunchDaemon] Service loaded but PID not found")
-                return (true, nil)
-            } else {
-                AppLogger.shared.log("🔍 [LaunchDaemon] Service not loaded or failed - FIXED VERSION")
-                return (false, nil)
-            }
-        } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Failed to check service status: \(error)")
-            return (false, nil)
-        }
+        await processManager.status()
     }
 
     /// Resolve any conflicting Kanata processes before starting
     private func resolveProcessConflicts() async {
-        AppLogger.shared.log("🔍 [Conflict] Checking for conflicting Kanata processes...")
-
-        let conflicts = await processLifecycleManager.detectConflicts()
-        let allProcesses = conflicts.managedProcesses + conflicts.externalProcesses
-
-        if !allProcesses.isEmpty {
-            AppLogger.shared.log("⚠️ [Conflict] Found \(allProcesses.count) existing Kanata processes")
-
-            for processInfo in allProcesses {
-                AppLogger.shared.log("⚠️ [Conflict] Process PID \(processInfo.pid): \(processInfo.command)")
-            }
-
-            // Terminate only external processes via lifecycle manager
-            do {
-                try await processLifecycleManager.terminateExternalProcesses()
-            } catch {
-                AppLogger.shared.log("⚠️ [Conflict] Failed to terminate external processes: \(error)")
-            }
-        } else {
-            AppLogger.shared.log("✅ [Conflict] No conflicting processes found")
-        }
+        await processManager.resolveConflicts()
     }
 
     /// Verify no process conflicts exist after starting
     private func verifyNoProcessConflicts() async {
-        // Wait a moment for any conflicts to surface
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-        let conflicts = await processLifecycleManager.detectConflicts()
-        let managedProcesses = conflicts.managedProcesses
-        let conflictProcesses = conflicts.externalProcesses
-
-        AppLogger.shared.log("🔍 [Verify] Process status: \(managedProcesses.count) managed, \(conflictProcesses.count) conflicts")
-
-        // Show managed processes (should be our LaunchDaemon)
-        for processInfo in managedProcesses {
-            AppLogger.shared.log("✅ [Verify] Managed LaunchDaemon process: PID \(processInfo.pid)")
-        }
-
-        // Show any conflicting processes (these are the problem)
-        for processInfo in conflictProcesses {
-            AppLogger.shared.log("⚠️ [Verify] Conflicting process: PID \(processInfo.pid) - \(processInfo.command)")
-        }
-
-        if conflictProcesses.isEmpty {
-            AppLogger.shared.log("✅ [Verify] Clean single-process architecture confirmed - no conflicts")
-        } else {
-            AppLogger.shared.log("⚠️ [Verify] WARNING: \(conflictProcesses.count) conflicting processes detected!")
-        }
+        await processManager.verifyNoConflicts()
     }
 
     /// Stop the Kanata LaunchDaemon service via privileged operations facade
@@ -1378,17 +1314,14 @@ class KanataManager {
     func stopKanata() async {
         AppLogger.shared.log("🛑 [Stop] Stopping Kanata LaunchDaemon service...")
 
-        // Stop the LaunchDaemon service
-        let success = await stopLaunchDaemonService()
+        // Stop the service via ProcessManager
+        let success = await processManager.stopService()
 
         if success {
             AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata LaunchDaemon service")
 
-            // Unregister from lifecycle manager
-            await processLifecycleManager.unregisterProcess()
-
             // Stop log monitoring when Kanata stops
-            stopLogMonitoring()
+            diagnosticsManager.stopLogMonitoring()
 
             updateInternalState(
                 isRunning: false,
@@ -1405,8 +1338,22 @@ class KanataManager {
 
     func restartKanata() async {
         AppLogger.shared.log("🔄 [Restart] Restarting Kanata...")
-        await stopKanata()
-        await startKanata()
+        let configPath = configurationManager.configPath
+        let arguments = configurationManager.buildKanataArguments(checkOnly: false)
+        let success = await processManager.restartService(configPath: configPath, arguments: arguments)
+        
+        if success {
+            // Start log monitoring
+            diagnosticsManager.startLogMonitoring()
+            
+            // Update state
+            updateInternalState(
+                isRunning: true,
+                lastProcessExitCode: nil,
+                lastError: nil,
+                shouldClearDiagnostics: true
+            )
+        }
     }
 
     /// Save a complete generated configuration (for Claude API generated configs)
@@ -1461,7 +1408,7 @@ class KanataManager {
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { @MainActor in SoundManager.shared.playTinkSound() }
 
-            // Trigger hot reload via UDP
+            // Trigger hot reload via TCP
             let reloadResult = await triggerConfigReload()
             if reloadResult.isSuccess {
                 AppLogger.shared.log("✅ [KanataManager] TCP reload successful, config is active")
@@ -1918,37 +1865,8 @@ class KanataManager {
     /// Diagnostic summary explaining why VirtualHID service is considered broken
     /// Used to surface a helpful error toast in the wizard
     func getVirtualHIDBreakageSummary() -> String {
-        // Gather PIDs
-        let pids: [String] = {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            task.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
-            let pipe = Pipe(); task.standardOutput = pipe
-            do { try task.run(); task.waitUntilExit() } catch {}
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            return output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        }()
-        // Owner attribution
-        var owners: [String] = []
-        for pid in pids {
-            let ps = Process()
-            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
-            ps.arguments = ["-o", "pid,ppid,user,command", "-p", pid]
-            let pp = Pipe(); ps.standardOutput = pp
-            if (try? ps.run()) != nil { ps.waitUntilExit(); let d = pp.fileHandleForReading.readDataToEndOfFile(); if let s = String(data: d, encoding: .utf8) { owners.append(s.trimmingCharacters(in: .whitespacesAndNewlines)) } }
-        }
-
-        // LaunchDaemon presence/state
-        let label = "com.keypath.karabiner-vhiddaemon"
-        let plistPath = "/Library/LaunchDaemons/\(label).plist"
-        let serviceInstalled = FileManager.default.fileExists(atPath: plistPath)
-        var serviceState = "unknown"
-        if serviceInstalled {
-            let t = Process(); t.executableURL = URL(fileURLWithPath: "/bin/launchctl"); t.arguments = ["print", "system/\(label)"]
-            let p = Pipe(); t.standardOutput = p; t.standardError = p
-            if (try? t.run()) != nil { t.waitUntilExit(); let d = p.fileHandleForReading.readDataToEndOfFile(); let s = String(data: d, encoding: .utf8) ?? ""; if let line = s.split(separator: "\n").first(where: { $0.contains("state =") }) { serviceState = String(line).trimmingCharacters(in: .whitespaces) } }
-        }
+        // Gather low-level daemon state via DiagnosticsService
+        let status = diagnosticsService.virtualHIDDaemonStatus()
 
         // Driver extension + version
         let driverEnabled = isKarabinerDriverExtensionEnabled()
@@ -1957,22 +1875,22 @@ class KanataManager {
         let hasMismatch = vhid.hasVersionMismatch()
 
         var lines: [String] = []
-        if pids.count > 1 {
-            lines.append("Reason: Multiple VirtualHID daemons detected (\(pids.count)).")
-            lines.append("PIDs: \(pids.joined(separator: ", "))")
-            if !owners.isEmpty { lines.append("Owners:\n\(owners.joined(separator: "\n"))") }
-        } else if pids.isEmpty {
+        if status.pids.count > 1 {
+            lines.append("Reason: Multiple VirtualHID daemons detected (\(status.pids.count)).")
+            lines.append("PIDs: \(status.pids.joined(separator: ", "))")
+            if !status.owners.isEmpty { lines.append("Owners:\n\(status.owners.joined(separator: "\n"))") }
+        } else if status.pids.isEmpty {
             lines.append("Reason: VirtualHID daemon not running.")
         } else {
             lines.append("Reason: Daemon unhealthy.")
-            if !owners.isEmpty { lines.append("Owner:\n\(owners.joined(separator: "\n"))") }
+            if !status.owners.isEmpty { lines.append("Owner:\n\(status.owners.joined(separator: "\n"))") }
         }
-        lines.append("LaunchDaemon: \(serviceInstalled ? "installed" : "not installed")\(serviceInstalled ? ", \(serviceState)" : "")")
+        lines.append("LaunchDaemon: \(status.serviceInstalled ? "installed" : "not installed")\(status.serviceInstalled ? ", \(status.serviceState)" : "")")
         lines.append("Driver extension: \(driverEnabled ? "enabled" : "disabled")")
         lines.append("Driver version: \(installedVersion)\(hasMismatch ? " (incompatible with current Kanata)" : "")")
         let summary = lines.joined(separator: "\n")
         AppLogger.shared.log("🔎 [VHID-DIAG] Diagnostic summary:\n\(summary)")
-        AppLogger.shared.log("🔎 [RestartOutcome] \(pids.count == 1 ? "single-owner" : (pids.isEmpty ? "not-running" : "duplicate")) PIDs=\(pids.joined(separator: ", "))")
+        AppLogger.shared.log("🔎 [RestartOutcome] \(status.pids.count == 1 ? "single-owner" : (status.pids.isEmpty ? "not-running" : "duplicate")) PIDs=\(status.pids.joined(separator: ", "))")
         return summary
     }
 
@@ -2127,7 +2045,7 @@ class KanataManager {
 
     // MARK: - Configuration Management
 
-    /// Load and validate existing configuration with fallback to default
+    /// Load and strictly validate existing configuration with fallback to default
     private func loadExistingMappings() async {
         AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION BEGIN ==========")
         keyMappings.removeAll()
@@ -2144,29 +2062,17 @@ class KanataManager {
             let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log("📖 [Validation] Config file size: \(configContent.count) characters")
 
-            // Validate the existing config before loading
-            AppLogger.shared.log("🔍 [Validation] Starting validation of existing configuration...")
-            let validationStart = Date()
-            let validation = await validateGeneratedConfig(configContent)
-            let validationDuration = Date().timeIntervalSince(validationStart)
-            AppLogger.shared.log("⏱️ [Validation] Validation completed in \(String(format: "%.3f", validationDuration)) seconds")
-
-            if validation.isValid {
-                // Config is valid, load mappings normally
-                AppLogger.shared.log("✅ [Validation] Config validation PASSED")
-                keyMappings = parseKanataConfig(configContent)
-                AppLogger.shared.log("✅ [Validation] Successfully loaded \(keyMappings.count) existing mappings:")
-                for (index, mapping) in keyMappings.enumerated() {
-                    AppLogger.shared.log("   \(index + 1). \(mapping.input) → \(mapping.output)")
-                }
+            // Strict CLI validation to match engine behavior on startup
+            AppLogger.shared.log("🔍 [Validation] Running CLI validation of existing configuration...")
+            let cli = configurationService.validateConfigViaFile()
+            if cli.isValid {
+                AppLogger.shared.log("✅ [Validation] CLI validation PASSED")
+                let config = try await configurationService.reload()
+                keyMappings = config.keyMappings
+                AppLogger.shared.log("✅ [Validation] Successfully loaded \(keyMappings.count) existing mappings")
             } else {
-                // Config is invalid, handle with fallback
-                AppLogger.shared.log("❌ [Validation] Config validation FAILED with \(validation.errors.count) errors:")
-                for (index, error) in validation.errors.enumerated() {
-                    AppLogger.shared.log("   Error \(index + 1): \(error)")
-                }
-                AppLogger.shared.log("🔄 [Validation] Initiating fallback to default configuration...")
-                await handleInvalidStartupConfig(configContent: configContent, errors: validation.errors)
+                AppLogger.shared.log("❌ [Validation] CLI validation FAILED with \(cli.errors.count) errors")
+                await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
             }
         } catch {
             AppLogger.shared.log("❌ [Validation] Failed to load existing config: \(error)")
@@ -2382,7 +2288,7 @@ class KanataManager {
 
     func resetToDefaultConfig() async throws {
         // IMPORTANT: Reset should ALWAYS work - it's a recovery mechanism for broken configs
-        // DO NOT validate here - just force-write a known-good default config
+        // Intentionally bypass validation here: force-write a known-good default config (enforced by tests)
         AppLogger.shared.log("🔄 [Reset] Forcing reset to default config (no validation - recovery mode)")
 
         let defaultMapping = KeyMapping(input: "caps", output: "escape")
@@ -2466,76 +2372,20 @@ class KanataManager {
 
     // MARK: - Real-Time VirtualHID Connection Monitoring
 
-    /// Start monitoring Kanata logs for VirtualHID connection failures
-    private func startLogMonitoring() {
-        // Cancel any existing monitoring
-        logMonitorTask?.cancel()
+    // startLogMonitoring/stopLogMonitoring moved to KanataManager+Output.swift
 
-        logMonitorTask = Task.detached { [weak self] in
-            guard let self else { return }
-
-            let logPath = "/var/log/kanata.log"
-            guard FileManager.default.fileExists(atPath: logPath) else {
-                AppLogger.shared.log("⚠️ [LogMonitor] Kanata log file not found at \(logPath)")
-                return
-            }
-
-            AppLogger.shared.log("🔍 [LogMonitor] Starting real-time VirtualHID connection monitoring")
-
-            // Monitor log file for connection failures
-            var lastPosition: UInt64 = 0
-
-            while !Task.isCancelled {
-                do {
-                    let fileHandle = try FileHandle(forReadingFrom: URL(fileURLWithPath: logPath))
-                    defer { fileHandle.closeFile() }
-
-                    let fileSize = fileHandle.seekToEndOfFile()
-                    if fileSize > lastPosition {
-                        fileHandle.seek(toFileOffset: lastPosition)
-                        let newData = fileHandle.readDataToEndOfFile()
-                        lastPosition = fileSize
-
-                        if let logContent = String(data: newData, encoding: .utf8) {
-                            await analyzeLogContent(logContent)
-                        }
-                    }
-
-                    // Check every 2 seconds
-                    try await Task.sleep(nanoseconds: 2_000_000_000)
-                } catch {
-                    AppLogger.shared.log("⚠️ [LogMonitor] Error reading log file: \(error)")
-                    try? await Task.sleep(nanoseconds: 5_000_000_000) // Wait 5 seconds before retry
-                }
-            }
-
-            AppLogger.shared.log("🔍 [LogMonitor] Stopped log monitoring")
-        }
-    }
-
-    /// Stop log monitoring
-    private func stopLogMonitoring() {
-        logMonitorTask?.cancel()
-        logMonitorTask = nil
-        Task { await healthMonitor.recordConnectionSuccess() } // Reset on stop
-    }
-
-    /// Analyze new log content for VirtualHID connection issues
-    private func analyzeLogContent(_ content: String) async {
-        let lines = content.components(separatedBy: .newlines)
-
-        for line in lines {
-            if line.contains("connect_failed asio.system:2")
-                || line.contains("connect_failed asio.system:61") {
+    /// Analyze new log content for VirtualHID connection issues (delegates parsing to DiagnosticsService)
+    func analyzeLogContent(_ content: String) async {
+        let events = diagnosticsService.analyzeKanataLogChunk(content)
+        for event in events {
+            switch event {
+            case .virtualHIDConnectionFailed:
                 let shouldTriggerRecovery = await healthMonitor.recordConnectionFailure()
-
                 if shouldTriggerRecovery {
-                    AppLogger.shared.log(
-                        "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery")
+                    AppLogger.shared.log("🚨 [LogMonitor] Maximum connection failures reached - triggering recovery")
                     await triggerVirtualHIDRecovery()
                 }
-            } else if line.contains("driver_connected 1") {
-                // Reset failure count on successful connection
+            case .virtualHIDConnected:
                 await healthMonitor.recordConnectionSuccess()
             }
         }
@@ -2572,7 +2422,7 @@ class KanataManager {
 
     /// Validates a generated config string using Kanata's --check command
     private func validateGeneratedConfig(_ config: String) async -> (isValid: Bool, errors: [String]) {
-        // Delegate to ConfigurationService for combined UDP+CLI validation
+        // Delegate to ConfigurationService for combined TCP+CLI validation
         await configurationService.validateConfiguration(config)
     }
 
@@ -2734,76 +2584,15 @@ class KanataManager {
 
     /// Opens a file in Zed editor with fallback options
     func openFileInZed(_ filePath: String) {
-        // Try to open with Zed first
-        let zedProcess = Process()
-        zedProcess.launchPath = "/usr/local/bin/zed"
-        zedProcess.arguments = [filePath]
-
-        do {
-            try zedProcess.run()
-            AppLogger.shared.log("📝 [Config] Opened file in Zed: \(filePath)")
-            return
-        } catch {
-            // Try Homebrew path for Zed
-            let homebrewZedProcess = Process()
-            homebrewZedProcess.launchPath = "/opt/homebrew/bin/zed"
-            homebrewZedProcess.arguments = [filePath]
-
-            do {
-                try homebrewZedProcess.run()
-                AppLogger.shared.log("📝 [Config] Opened file in Zed (Homebrew): \(filePath)")
-                return
-            } catch {
-                // Try using 'open' command with Zed
-                let openZedProcess = Process()
-                openZedProcess.launchPath = "/usr/bin/open"
-                openZedProcess.arguments = ["-a", "Zed", filePath]
-
-                do {
-                    try openZedProcess.run()
-                    AppLogger.shared.log("📝 [Config] Opened file in Zed (via open): \(filePath)")
-                    return
-                } catch {
-                    // Fallback: Try to open with default text editor
-                    let fallbackProcess = Process()
-                    fallbackProcess.launchPath = "/usr/bin/open"
-                    fallbackProcess.arguments = ["-t", filePath]
-
-                    do {
-                        try fallbackProcess.run()
-                        AppLogger.shared.log("📝 [Config] Opened file in default text editor: \(filePath)")
-                    } catch {
-                        // Last resort: Open containing folder
-                        let folderPath = URL(fileURLWithPath: filePath).deletingLastPathComponent().path
-                        NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
-                        AppLogger.shared.log("📁 [Config] Opened containing folder: \(folderPath)")
-                    }
-                }
-            }
-        }
+        configurationManager.openInEditor(filePath)
     }
 
     // MARK: - Kanata Arguments Builder
 
     /// Builds Kanata command line arguments including TCP port when enabled
     func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
-        var arguments = ["--cfg", configPath]
-
-        // Add TCP port argument
-        let tcpPort = PreferencesService.shared.tcpServerPort
-        arguments.append(contentsOf: ["--port", "\(tcpPort)"])
-        AppLogger.shared.log("📡 [KanataArgs] TCP server enabled on port \(tcpPort)")
-
-        if checkOnly {
-            arguments.append("--check")
-        } else {
-            // Note: --watch removed - we use TCP reload commands for config changes
-            arguments.append("--debug")
-            arguments.append("--log-layer-changes")
-        }
-
-        AppLogger.shared.log("🔧 [KanataArgs] Built arguments: \(arguments.joined(separator: " "))")
-        return arguments
+        // Delegate to ConfigurationManager
+        return configurationManager.buildKanataArguments(checkOnly: checkOnly)
     }
 
     // MARK: - Claude API Integration

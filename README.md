@@ -5,8 +5,8 @@
   
   **Remap any key to any other key with a simple, native macOS app**
   
-  [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue.svg)](https://www.apple.com/macos/)
-  [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org)
+  [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
+  [![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
 
@@ -34,16 +34,8 @@ Download the latest release from the [Releases page](https://github.com/youruser
 git clone https://github.com/yourusername/KeyPath.git
 cd KeyPath
 
-# Build & sign the app (production-like)
-./Scripts/build-and-sign.sh
-
-# Deploy to your user Applications folder
-mkdir -p ~/Applications
-cp -R dist/KeyPath.app ~/Applications/
-
-# Quit any running instance, then launch the new build
-osascript -e 'tell application "KeyPath" to quit' || true
-open ~/Applications/KeyPath.app
+# Canonical build (builds, signs, notarizes, deploys to ~/Applications, restarts app)
+./build.sh
 ```
 
 ### 2. Launch KeyPath
@@ -154,6 +146,15 @@ KeyPath needs two permissions to work:
 
 The setup wizard will guide you through granting these permissions.
 
+### Kanata binary location (LaunchDaemon)
+For stable TCC permissions, LaunchDaemon services use the system-installed kanata binary:
+
+```
+/Library/KeyPath/bin/kanata
+```
+
+The helper keeps this binary updated from the bundled copy when needed and ensures proper ownership/permissions. The bundled binary inside `KeyPath.app` is not used by LaunchDaemons.
+
 ### What KeyPath Does NOT Do
 - ❌ No internet connection required (offline by default; optional AI config generation contacts Anthropic if ANTHROPIC_API_KEY is present)
 - ❌ No data collection or telemetry
@@ -228,7 +229,7 @@ swift build
 swift test
 
 # Production-like build & deploy (recommended for real testing)
-./Scripts/build-and-sign.sh
+./build.sh
 mkdir -p ~/Applications && cp -R dist/KeyPath.app ~/Applications/
 osascript -e 'tell application "KeyPath" to quit' || true
 open ~/Applications/KeyPath.app

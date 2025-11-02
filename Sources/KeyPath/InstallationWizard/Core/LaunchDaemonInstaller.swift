@@ -895,18 +895,26 @@ class LaunchDaemonInstaller {
         launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
         launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
 
-        # CRITICAL: Use bundled kanata directly - DO NOT copy to /Library/KeyPath/bin
-        # Copying breaks TCC identity and Input Monitoring permissions
-        echo "Using bundled kanata binary at: \(WizardSystemPaths.bundledKanataPath)"
-
-        # Verify bundled kanata exists and is executable
-        if [ ! -f '\(WizardSystemPaths.bundledKanataPath)' ]; then
+        # Ensure system kanata exists and is up-to-date for TCC permissions
+        echo "Ensuring system kanata at: /Library/KeyPath/bin/kanata"
+        mkdir -p '/Library/KeyPath/bin'
+        if [ -f '\(WizardSystemPaths.bundledKanataPath)' ]; then
+            if [ -f '/Library/KeyPath/bin/kanata' ]; then
+                src_md5=$(/sbin/md5 -q '\(WizardSystemPaths.bundledKanataPath)' 2>/dev/null || echo '')
+                dst_md5=$(/sbin/md5 -q '/Library/KeyPath/bin/kanata' 2>/dev/null || echo 'different')
+                if [ "$src_md5" != "$dst_md5" ]; then
+                    cp -f '\(WizardSystemPaths.bundledKanataPath)' '/Library/KeyPath/bin/kanata'
+                fi
+            else
+                cp -f '\(WizardSystemPaths.bundledKanataPath)' '/Library/KeyPath/bin/kanata'
+            fi
+            chown root:wheel '/Library/KeyPath/bin/kanata'
+            chmod 755 '/Library/KeyPath/bin/kanata'
+            /usr/bin/xattr -d com.apple.quarantine '/Library/KeyPath/bin/kanata' 2>/dev/null || true
+        else
             echo "ERROR: Bundled kanata not found at \(WizardSystemPaths.bundledKanataPath)"
             exit 1
         fi
-
-        # Clear any quarantine attributes on the bundled binary
-        /usr/bin/xattr -d com.apple.quarantine '\(WizardSystemPaths.bundledKanataPath)' 2>/dev/null || true
 
         # Enable services in case previously disabled
         echo "Enabling services..."
@@ -919,10 +927,10 @@ class LaunchDaemonInstaller {
         launchctl bootstrap system '\(vhidManagerFinal)'
         launchctl bootstrap system '\(kanataFinal)' || {
             echo "Bootstrap failed for kanata. Collecting diagnostics..."
-            echo "Checking if kanata exists at bundled path:"
-            /bin/ls -la '\(WizardSystemPaths.bundledKanataPath)' || echo "Kanata not found at bundled path"
+            echo "Checking system kanata exists:"
+            /bin/ls -la '/Library/KeyPath/bin/kanata' || echo "Kanata not found at system path"
             echo "Checking spctl acceptance:"
-            /usr/sbin/spctl -a -vvv -t execute '\(WizardSystemPaths.bundledKanataPath)' || echo "spctl rejected kanata binary"
+            /usr/sbin/spctl -a -vvv -t execute '/Library/KeyPath/bin/kanata' || echo "spctl rejected kanata binary"
             echo "Checking file attributes:"
             /usr/bin/xattr -l '/Library/KeyPath/bin/kanata' || true
             echo "Checking launchctl status:"
@@ -1125,8 +1133,8 @@ class LaunchDaemonInstaller {
         launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
         launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
 
-        # CRITICAL: Use bundled kanata directly - DO NOT copy to /Library/KeyPath/bin
-        # Copying breaks TCC identity and Input Monitoring permissions
+        # Use bundled kanata directly in this path (avoids TCC identity issues)
+        # Note: This behavior is covered by safety lints/tests to prevent regressions
         echo "Using bundled kanata binary at: \(WizardSystemPaths.bundledKanataPath)"
 
         # Verify bundled kanata exists and is executable
@@ -1780,7 +1788,7 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log("🔍 [LaunchDaemon] Analyzing Kanata logs for error patterns...")
 
         do {
-            let logContent = try String(contentsOfFile: "/var/log/kanata.log")
+            let logContent = try String(contentsOfFile: "/var/log/kanata.log", encoding: .utf8)
             let lastLines = logContent.components(separatedBy: .newlines).suffix(50).joined(
                 separator: "\n")
 
@@ -1909,7 +1917,7 @@ class LaunchDaemonInstaller {
         return arguments
     }
 
-    /// Checks if the current service configuration matches the expected UDP settings (both arguments and environment variables)
+    /// Checks if the current service configuration matches the expected TCP settings (both arguments and environment variables)
     func isServiceConfigurationCurrent() -> Bool {
         guard let currentArgs = getKanataProgramArguments() else {
             AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check TCP configuration - plist unreadable")
@@ -1921,14 +1929,14 @@ class LaunchDaemonInstaller {
         // Compare argument arrays for exact match
         let argsMatch = currentArgs == expectedArgs
 
-        AppLogger.shared.log("🔍 [LaunchDaemon] UDP Configuration Check:")
+        AppLogger.shared.log("🔍 [LaunchDaemon] TCP Configuration Check:")
         AppLogger.shared.log("  Current Args:  \(currentArgs.joined(separator: " "))")
         AppLogger.shared.log("  Expected Args: \(expectedArgs.joined(separator: " "))")
         AppLogger.shared.log("  Args Match: \(argsMatch)")
 
         // TCP-only mode: No environment variables needed (no authentication)
         let currentEnvVars = getKanataEnvironmentVariables()
-        let expectedEnvVars: [String: String] = [:] // TCP doesn't need env vars
+        // TCP doesn't need env vars - should be empty
         let envVarsMatch = currentEnvVars.isEmpty // Should be empty for TCP
 
         AppLogger.shared.log("  Current Env Vars: \(currentEnvVars.keys.sorted())")
@@ -2048,7 +2056,7 @@ class LaunchDaemonInstaller {
 
     // MARK: - Argument Building
 
-    /// Builds Kanata command line arguments for LaunchDaemon plist including UDP port when enabled
+    /// Builds Kanata command line arguments for LaunchDaemon plist including TCP port when enabled
     private func buildKanataPlistArguments(binaryPath: String) -> [String] {
         var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
 

@@ -132,8 +132,8 @@ class MainAppStateController: ObservableObject {
 
             // Clear startup mode flag now that services are ready
             // This ensures Oracle runs full permission checks for accurate results
-            if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
-                unsetenv("KEYPATH_STARTUP_MODE")
+            if FeatureFlags.shared.startupModeActive {
+                FeatureFlags.shared.deactivateStartupMode()
                 AppLogger.shared.log("🔍 [MainAppStateController] Cleared startup mode flag for accurate validation")
 
                 // Invalidate Oracle cache so it runs fresh permission checks without startup mode

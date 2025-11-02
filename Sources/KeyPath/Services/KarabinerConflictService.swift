@@ -157,7 +157,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
 
     func isKarabinerDaemonRunning() -> Bool {
         // Skip daemon check during startup to prevent blocking
-        if ProcessInfo.processInfo.environment["KEYPATH_STARTUP_MODE"] == "1" {
+        if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log(
                 "🔍 [Daemon] Startup mode - skipping VirtualHIDDevice-Daemon check to prevent UI freeze"
             )

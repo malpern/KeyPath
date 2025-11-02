@@ -7,7 +7,15 @@ import SwiftUI
 // MARK: - KanataManager Output Extension
 
 extension KanataManager {
-    // MARK: - Event synthesis and output methods will be moved here
+    // MARK: - Log Monitoring
 
-    // This extension will contain CGEvent posting, output synthesis, and VirtualHID interaction
+    /// Start monitoring Kanata logs for VirtualHID connection failures
+    func startLogMonitoring() {
+        diagnosticsManager.startLogMonitoring()
+    }
+
+    /// Stop log monitoring
+    func stopLogMonitoring() {
+        diagnosticsManager.stopLogMonitoring()
+    }
 }

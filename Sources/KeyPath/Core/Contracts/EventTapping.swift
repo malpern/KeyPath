@@ -50,6 +50,7 @@ public struct TapHandle {
 /// Event tap installation requires appropriate system permissions (Accessibility
 /// or Input Monitoring). Implementations should provide clear error messages
 /// when permissions are insufficient.
+@MainActor
 protocol EventTapping {
     /// Indicates whether an event tap is currently installed and active.
     ///

@@ -21,7 +21,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2025 KeyPath. All rights reserved.</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>13.0</string>
+	<string>15.0</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>LSApplicationCategoryType</key>

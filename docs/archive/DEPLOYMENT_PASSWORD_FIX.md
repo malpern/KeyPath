@@ -16,7 +16,7 @@ I've created a comprehensive sudoers configuration that enables passwordless sud
 
 ### Files Created
 
-1. **`sudoers-keypath-deployment`** - The complete sudoers configuration
+1. **`Scripts/sudoers/sudoers-keypath-deployment`** - The complete sudoers configuration
 2. **`Scripts/create-deployment-sudoers.sh`** - Automated setup script (requires initial password)
 3. **`Scripts/apply-sudoers.sh`** - Manual application script (requires one password to install)
 
@@ -36,7 +36,7 @@ cd /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath
 
 ```bash
 # Copy the configuration file to system location
-sudo cp sudoers-keypath-deployment /etc/sudoers.d/keypath-deployment
+sudo cp Scripts/sudoers/sudoers-keypath-deployment /etc/sudoers.d/keypath-deployment
 
 # Validate the configuration
 sudo visudo -c -f /etc/sudoers.d/keypath-deployment

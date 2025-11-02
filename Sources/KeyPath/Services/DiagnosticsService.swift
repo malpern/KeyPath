@@ -53,6 +53,12 @@ protocol DiagnosticsServiceProtocol: Sendable {
 
     /// Analyze log file for issues
     func analyzeLogFile(path: String) async -> [KanataDiagnostic]
+
+    /// Low-level status for Karabiner VirtualHID daemon used in summaries/toasts
+    func virtualHIDDaemonStatus() -> (pids: [String], owners: [String], serviceInstalled: Bool, serviceState: String)
+
+    /// Analyze a chunk of kanata log content and emit structured events
+    func analyzeKanataLogChunk(_ content: String) -> [DiagnosticsService.LogEvent]
 }
 
 // MARK: - Implementation
@@ -317,6 +323,81 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
 
         return diagnostics
+    }
+
+    // MARK: - VirtualHID Daemon Status
+
+    func virtualHIDDaemonStatus() -> (pids: [String], owners: [String], serviceInstalled: Bool, serviceState: String) {
+        // pgrep VirtualHID daemon
+        let pids: [String] = {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            task.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
+            let pipe = Pipe(); task.standardOutput = pipe
+            do { try task.run(); task.waitUntilExit() } catch {}
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            return output
+                .split(separator: "\n")
+                .map { String($0).trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }()
+
+        // ps owners
+        var owners: [String] = []
+        for pid in pids {
+            let ps = Process()
+            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
+            ps.arguments = ["-o", "pid,ppid,user,command", "-p", pid]
+            let pp = Pipe(); ps.standardOutput = pp
+            if (try? ps.run()) != nil {
+                ps.waitUntilExit()
+                let d = pp.fileHandleForReading.readDataToEndOfFile()
+                if let s = String(data: d, encoding: .utf8) {
+                    owners.append(s.trimmingCharacters(in: .whitespacesAndNewlines))
+                }
+            }
+        }
+
+        // launchctl state
+        let label = "com.keypath.karabiner-vhiddaemon"
+        let plistPath = "/Library/LaunchDaemons/\(label).plist"
+        let serviceInstalled = FileManager.default.fileExists(atPath: plistPath)
+        var serviceState = "unknown"
+        if serviceInstalled {
+            let t = Process(); t.executableURL = URL(fileURLWithPath: "/bin/launchctl"); t.arguments = ["print", "system/\(label)"]
+            let p = Pipe(); t.standardOutput = p; t.standardError = p
+            if (try? t.run()) != nil {
+                t.waitUntilExit()
+                let d = p.fileHandleForReading.readDataToEndOfFile()
+                let s = String(data: d, encoding: .utf8) ?? ""
+                if let line = s.split(separator: "\n").first(where: { $0.contains("state =") }) {
+                    serviceState = String(line).trimmingCharacters(in: .whitespaces)
+                }
+            }
+        }
+
+        return (pids, owners, serviceInstalled, serviceState)
+    }
+
+    // MARK: - Log Parsing
+
+    enum LogEvent: Sendable, Equatable {
+        case virtualHIDConnectionFailed
+        case virtualHIDConnected
+    }
+
+    func analyzeKanataLogChunk(_ content: String) -> [LogEvent] {
+        var events: [LogEvent] = []
+        let lines = content.components(separatedBy: .newlines)
+        for line in lines {
+            if line.contains("connect_failed asio.system:2") || line.contains("connect_failed asio.system:61") {
+                events.append(.virtualHIDConnectionFailed)
+            } else if line.contains("driver_connected 1") {
+                events.append(.virtualHIDConnected)
+            }
+        }
+        return events
     }
 
     // MARK: - Process Conflict Checking
