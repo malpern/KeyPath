@@ -2,6 +2,15 @@
 
 **DO NOT REWRITE THIS SYSTEM** - This document describes the carefully designed architecture that solves complex permission detection and system integration challenges.
 
+## TL;DR (Principles You Must Keep)
+
+- **Single source of truth for permissions**: Use `PermissionOracle.shared.currentSnapshot()` only; never call `IOHIDCheckAccess`/`AXIsProcessTrusted` directly.
+- **Apple API precedence**: When Apple APIs return `.granted/.denied`, treat them as authoritative; use TCC only for `.unknown` cases.
+- **State-driven wizard**: Pure detection → issues → deterministic page selection; no manual overrides.
+- **LaunchDaemon split**: Separate services for kanata and VirtualHID to enable granular health checks and recovery.
+- **No event taps in UI**: Root daemon owns taps; GUI records via IPC to avoid conflicts.
+- **Recovery safety**: Auto-fix actions are atomic and idempotent; cooldowns prevent restart loops.
+
 ## System Overview
 
 KeyPath is a macOS keyboard remapping application with a sophisticated multi-tier architecture designed for reliability, security, and maintainability. The system integrates deeply with macOS security frameworks and provides automated installation and recovery capabilities.

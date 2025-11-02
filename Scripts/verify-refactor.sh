@@ -74,7 +74,7 @@ echo "============================="
 
 # Check that key files exist
 check "KanataManager exists" "[ -f '$PROJECT_DIR/Sources/KeyPath/Managers/KanataManager.swift' ]"
-check "PLAN.md exists" "[ -f '$PROJECT_DIR/PLAN.md' ]"
+check "PLAN.md exists" "[ -f '$PROJECT_DIR/docs/PLAN.md' ]"
 check "MANAGERS.md exists" "[ -f '$PROJECT_DIR/MANAGERS.md' ]"
 
 # Check KanataManager line count (refactoring target)

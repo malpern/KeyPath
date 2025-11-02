@@ -142,13 +142,18 @@ spctl -a -vvv "$APP_BUNDLE"
 
 echo "✨ Ready for distribution!"
 
-echo "📂 Deploying to /Applications..."
-APP_DEST="/Applications/${APP_NAME}.app"
-if [ -d "$APP_DEST" ]; then
-    rm -rf "$APP_DEST"
-fi
+echo "📂 Deploying to ~/Applications..."
+USER_APPS_DIR="$HOME/Applications"
+APP_DEST="$USER_APPS_DIR/${APP_NAME}.app"
+mkdir -p "$USER_APPS_DIR"
+rm -rf "$APP_DEST"
 if ditto "$APP_BUNDLE" "$APP_DEST"; then
     echo "✅ Deployed latest $APP_NAME to $APP_DEST"
 else
-    echo "⚠️ WARNING: Failed to copy $APP_NAME to /Applications. You may need to rerun this step with sudo." >&2
+    echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
 fi
+
+echo "🚪 Restarting app..."
+osascript -e 'tell application "KeyPath" to quit' || true
+sleep 1
+open "$APP_DEST"

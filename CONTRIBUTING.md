@@ -316,7 +316,7 @@ We're currently working on:
 2. **Fixing build issues** (Karabiner service extraction)
 3. **Improving documentation**
 
-See [OVERENGINEERED.md](OVERENGINEERED.md) for detailed roadmap.
+See [OVERENGINEERED.md](docs/OVERENGINEERED.md) for detailed roadmap.
 
 ---
 

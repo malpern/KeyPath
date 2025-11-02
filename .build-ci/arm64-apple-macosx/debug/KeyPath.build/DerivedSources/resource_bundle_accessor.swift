@@ -3,7 +3,7 @@ import Foundation
 extension Foundation.Bundle {
     static let module: Bundle = {
         let mainPath = Bundle.main.bundleURL.appendingPathComponent("KeyPath_KeyPath.bundle").path
-        let buildPath = "/Volumes/FlashGordon/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath_KeyPath.bundle"
+        let buildPath = "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath_KeyPath.bundle"
 
         let preferredBundle = Bundle(path: mainPath)
 
