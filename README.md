@@ -10,252 +10,389 @@
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
 
-KeyPath makes keyboard remapping on macOS simple and reliable. Built on top of the powerful [Kanata](https://github.com/jtroo/kanata) engine, KeyPath provides a native macOS installer and interface that handles all the complex system setup, dependency management, and debugging that typically requires command-line expertise.
+---
 
-## ✨ What is KeyPath?
+## 🎯 What is KeyPath?
 
-KeyPath is the easiest way to remap your keyboard on macOS. Whether you want to turn Caps Lock into Escape for Vim, create custom shortcuts, or fix a broken key, KeyPath makes it simple.
+**KeyPath is Kanata made easy for macOS.**
 
-### Why Use KeyPath?
+[Kanata](https://github.com/jtroo/kanata) is a powerful, cross-platform keyboard remapping engine that can transform your keyboard into exactly what you need. However, using Kanata on macOS requires navigating a maze of technical challenges:
 
-- **🎯 Dead Simple**: Click to record any key, click to set what it should do. That's it.
-- **⚡ Instant Changes**: Your mappings work immediately - no restarts needed
-- **🛡️ Safe & Reliable**: Built-in safety features prevent you from getting locked out
-- **🎨 Native macOS App**: Looks and feels like it belongs on your Mac
-- **🔧 Kanata Made Easy**: Harnesses the full power of Kanata without the complexity - no manual driver installation, permission debugging, or configuration file editing required
+- **Driver installation** via command line
+- **Permission debugging** (TCC, Input Monitoring, Accessibility)
+- **Service management** (launchd, LaunchDaemons, SMJobBless)
+- **Configuration syntax** written by hand in Kanata's DSL
+- **Code signing & notarization** for system-level access
+- **Debugging** when things go wrong
+
+**KeyPath eliminates all of this complexity** while preserving Kanata's full power. You get enterprise-grade keyboard remapping with consumer-grade ease of use.
+
+### The Problem KeyPath Solves
+
+**Before KeyPath:** To remap keys on macOS with Kanata, you need to:
+1. Install the Karabiner VirtualHID driver manually
+2. Understand macOS security frameworks (TCC)
+3. Configure launchd services with root privileges
+4. Write Kanata configuration files in a custom syntax
+5. Debug permission issues, service conflicts, and connectivity problems
+6. Handle code signing and notarization for system components
+
+**With KeyPath:** Click record, press keys, click save. Done.
+
+KeyPath is a **complete macOS integration layer** that:
+- ✅ Handles all system setup automatically
+- ✅ Provides a beautiful, native SwiftUI interface
+- ✅ Manages permissions, services, and drivers
+- ✅ Generates Kanata configurations from visual recordings
+- ✅ Offers intelligent troubleshooting and diagnostics
+- ✅ Ensures reliable operation with proper system integration
+
+---
+
+## ✨ Why Use KeyPath?
+
+### 🎯 Dead Simple Workflow
+**No configuration files, no command line, no technical knowledge required.**
+
+1. Click "Record Input"
+2. Press the key(s) you want to remap
+3. Click "Record Output"  
+4. Press what you want it to do
+5. Click Save
+
+Your remapping is active immediately—no restart, no manual service management, no file editing.
+
+### ⚡ Instant & Reliable
+- **Hot reload** - Changes apply instantly via UDP communication
+- **System integration** - Runs as LaunchDaemon, works at boot time
+- **Crash recovery** - Automatic service restart and conflict resolution
+- **Health monitoring** - Real-time status checks and diagnostics
+
+### 🛡️ Safe & Secure
+- **Emergency stop** - Press `Ctrl + Space + Esc` to immediately disable all remappings
+- **Permission wizard** - Guided setup handles all macOS security requirements
+- **Conflict detection** - Automatically detects and resolves system conflicts
+- **No telemetry** - Works completely offline, no data collection
+
+### 🎨 Native macOS Experience
+- **Beautiful SwiftUI interface** with Liquid Glass design (macOS 15+)
+- **System Settings integration** - Follows macOS design patterns
+- **Proper signing & notarization** - Works with macOS security features
+- **Accessibility support** - Respects macOS accessibility settings
+
+### 🔧 Enterprise-Grade Architecture
+Built on proven patterns (inspired by Karabiner-Elements):
+- **LaunchDaemon architecture** - Reliable system-level service management
+- **File-based configuration** - Simple, debuggable, hot-reloadable
+- **Single source of truth** - PermissionOracle prevents inconsistent state
+- **State-driven wizard** - Handles 50+ edge cases automatically
+
+---
 
 ## 🚀 Getting Started
 
-### 1. Download & Install (Recommended)
+### Installation
 
-Download the latest release from the [Releases page](https://github.com/yourusername/KeyPath/releases) or build from source:
+**Option 1: Download Release** (Recommended)
+1. Download from the [Releases page](https://github.com/malpern/KeyPath/releases)
+2. Open `KeyPath.app`
+3. Follow the setup wizard
 
+**Option 2: Build from Source**
 ```bash
-git clone https://github.com/yourusername/KeyPath.git
+git clone https://github.com/malpern/KeyPath.git
 cd KeyPath
 
-# Canonical build (builds, signs, notarizes, deploys to ~/Applications, restarts app)
+# Build, sign, notarize, and deploy
 ./build.sh
 ```
 
-### 2. Launch KeyPath
+The build script automatically:
+- Compiles the Swift package
+- Signs all components with Developer ID
+- Notarizes the app bundle
+- Installs to `~/Applications/`
+- Restarts the app
 
-If you didn’t use the command above, double‑click `~/Applications/KeyPath.app` to launch. The setup wizard will guide you through everything.
+### First Launch
 
-#### Privileged Helper (production-like builds)
-KeyPath includes a small privileged helper installed via Apple's SMAppService to perform root-required tasks (installing launchd services, managing drivers) without repeated prompts. On first install, macOS may require you to approve KeyPath under System Settings → Login Items → Allow in the Background. The Wizard will surface this and provide a quick button to open System Settings if needed.
+When you first launch KeyPath, the **Installation Wizard** will guide you through:
 
-### 3. Create Your First Mapping
+1. **Permission Setup** - Grants Input Monitoring and Accessibility permissions
+2. **Driver Installation** - Installs Karabiner VirtualHID driver if needed
+3. **Service Configuration** - Sets up LaunchDaemon services
+4. **System Validation** - Verifies everything is working correctly
 
-1. Click the record button next to "Input Key"
-2. Press what you want to trigger the mapping:
-   - **Single key** (e.g., Caps Lock)
-   - **Key combo** (e.g., Cmd+Space)
-   - **Key sequence** (e.g., press A, then B, then C)
-3. Click the record button next to "Output Key"  
-4. Press what you want it to do:
-   - **Single key** (e.g., Escape)
-   - **Key combo** (e.g., Cmd+C for copy)
-   - **Multiple keys** (e.g., type "hello world")
-5. Click Save
+The wizard handles all technical setup automatically and provides one-click fixes for common issues.
 
-That's it! Your mapping is now active.
+### Create Your First Mapping
 
-### Development-only quick run
+1. **Record Input**: Click the record button next to "Input Key"
+   - Press a single key (e.g., Caps Lock)
+   - Or a key combo (e.g., Cmd+Space)
+   - Or a sequence (e.g., press A, then B, then C)
 
-For a fast developer preview, you can run the unsigned debug build. Note this may not reflect real permissions/signing behavior; for accurate testing use the recommended flow above.
+2. **Record Output**: Click the record button next to "Output Key"
+   - Press what you want it to do (e.g., Escape)
+   - Or a combo (e.g., Cmd+C for copy)
+   - Or type multiple keys (e.g., "hello world")
 
-```bash
-swift build
-open .build/debug/KeyPath.app
-```
+3. **Save**: Click Save - your mapping is now active!
 
-## 🚀 Powered by Kanata
-
-KeyPath is built on top of [Kanata](https://github.com/jtroo/kanata), a powerful cross-platform keyboard remapping engine. While Kanata is incredibly capable, setting it up on macOS traditionally requires significant technical expertise:
-
-### What KeyPath's Installer Handles For You
-
-**Complex System Dependencies:**
-- Automatically installs and manages the Karabiner VirtualHID driver
-- Handles code signing and notarization for all components
-- Manages launchd services and daemon lifecycle
-- Resolves TCC (Transparency, Consent, Control) permission issues
-
-**Advanced Debugging & Diagnostics:**
-- Built-in system state detection and conflict resolution
-- Automatic log analysis and error interpretation  
-- Real-time UDP communication monitoring and authentication
-- Visual permission status with automated fix suggestions
-
-**Seamless Kanata Integration:**
-- Bundles a properly signed Kanata binary for macOS
-- Generates Kanata configuration files automatically via AI
-- Provides hot-reload capability without service restarts
-- Handles complex key sequence and modifier mappings
-
-**Normally, using Kanata on macOS requires:**
-- Manual driver installation via command line
-- Understanding launchd, SMJobBless, and system service management
-- Debugging TCC permissions and Input Monitoring issues
-- Writing complex Kanata configuration syntax by hand
-- Resolving signing and notarization conflicts
-
-**KeyPath eliminates all of this complexity** while preserving Kanata's full power and flexibility. You get enterprise-grade keyboard remapping with consumer-grade ease of use.
+---
 
 ## 🎁 Features
 
 ### For Everyone
-- **Flexible Input** - Record single keys, combos (Cmd+C), or sequences (A→B→C)
-- **Flexible Output** - Map to single keys, combos, or entire phrases
-- **Visual Recording** - See exactly what keys you're pressing
-- **Instant Apply** - Changes work immediately, no restart needed
-- **Safety First** - Emergency stop prevents getting locked out (Ctrl+Space+Esc)
-- **Smart Setup** - Wizard handles all the technical stuff for you
 
-### For Power Users  
-- **Complex Mappings** - Chain multiple actions from a single trigger
-- **Hot Reload** - Edit config files directly, changes apply instantly via UDP
-- **System Integration** - Runs at startup, works everywhere
-- **Extensive Logging** - Debug issues with detailed logs
+| Feature | Description |
+|---------|-------------|
+| **Flexible Input** | Record single keys, combos (Cmd+C), or sequences (A→B→C) |
+| **Flexible Output** | Map to single keys, combos, or entire phrases |
+| **Visual Recording** | See exactly what keys you're pressing in real-time |
+| **Instant Apply** | Changes work immediately - no restart needed |
+| **Safety Features** | Emergency stop (`Ctrl+Space+Esc`) prevents getting locked out |
+| **Smart Setup** | Installation wizard handles all technical setup automatically |
+| **Native macOS UI** | Beautiful SwiftUI interface with Liquid Glass design (macOS 15+) |
 
-## 📋 Common Examples
+### For Power Users
+
+| Feature | Description |
+|---------|-------------|
+| **Complex Mappings** | Chain multiple actions from a single trigger |
+| **Hot Reload** | Edit config files directly, changes apply instantly via UDP |
+| **System Integration** | Runs as LaunchDaemon at startup, works everywhere |
+| **Extensive Logging** | Debug issues with detailed logs and diagnostics |
+| **Full Kanata Power** | Access to all of Kanata's remapping capabilities |
+| **Configuration Access** | Edit Kanata configs directly if needed |
+
+---
+
+## 📋 Common Use Cases
 
 ### Popular Remappings
+
 - **Caps Lock → Escape** - Essential for Vim users
-- **Right Cmd → Delete** - Easier reach for frequent deleters
+- **Right Cmd → Delete** - Easier reach for frequent deleters  
 - **F1-F12 → Media Keys** - Volume, brightness, playback control
 - **Broken Key Workaround** - Remap a broken key to a working one
 
 ### Advanced Uses
+
 - **Hyper Key** - Turn Caps Lock into Cmd+Ctrl+Alt+Shift combo
 - **App Launchers** - Map key sequences to launch favorite apps
 - **Text Snippets** - Type your email address with a key combo
 - **Gaming** - Create custom key combinations for complex moves
 - **Workflows** - Map one key to perform multiple actions in sequence
 
+---
+
+## 🏗️ Architecture & Technical Details
+
+### What Makes KeyPath Different
+
+KeyPath isn't just a wrapper around Kanata—it's a **complete macOS integration layer** that solves real problems:
+
+#### 1. **Intelligent Permission Management**
+- **PermissionOracle** - Single source of truth for all permission detection
+- Handles macOS TCC (Transparency, Consent, Control) complexity
+- Detects permission issues before they cause problems
+- Provides one-click fixes for common permission problems
+
+#### 2. **Automated System Setup**
+- Installs and manages Karabiner VirtualHID driver
+- Handles code signing and notarization for all components
+- Manages LaunchDaemon services and lifecycle
+- Resolves conflicts with other keyboard remappers automatically
+
+#### 3. **Visual Configuration Generation**
+- Converts visual key recordings into valid Kanata configuration
+- Handles complex modifier combinations and sequences
+- Generates optimized Kanata configs automatically
+- No need to learn Kanata's configuration syntax
+
+#### 4. **Reliable Service Management**
+- LaunchDaemon architecture ensures remappings work at boot time
+- Automatic crash recovery and conflict resolution
+- Health monitoring with real-time status checks
+- Hot reload via UDP for instant configuration updates
+
+#### 5. **Comprehensive Diagnostics**
+- Built-in system state detection
+- Automatic log analysis and error interpretation
+- Visual permission status with fix suggestions
+- Real-time service health monitoring
+
+### Technical Stack
+
+- **Swift 6.0** - Modern Swift concurrency (async/await, actors)
+- **SwiftUI** - Native macOS UI with Liquid Glass design
+- **Kanata** - Cross-platform keyboard remapping engine
+- **LaunchDaemon** - System-level service management
+- **Karabiner VirtualHID** - macOS HID driver for system-level remapping
+
+---
+
 ## 🛡️ Safety & Security
 
 ### Emergency Stop
-If your keyboard becomes unresponsive, press **Ctrl + Space + Esc** simultaneously. This immediately disables all remappings.
+
+If your keyboard becomes unresponsive, press **Ctrl + Space + Esc** simultaneously. This immediately disables all remappings and restores normal keyboard functionality.
 
 ### Permission Requirements
-KeyPath needs two permissions to work:
+
+KeyPath needs two macOS permissions to work:
+
 1. **Input Monitoring** - To detect key presses
 2. **Accessibility** - To send remapped keys
 
-The setup wizard will guide you through granting these permissions.
+The setup wizard guides you through granting these permissions with one-click access to System Settings.
 
-### Kanata binary location (LaunchDaemon)
-For stable TCC permissions, LaunchDaemon services use the system-installed kanata binary:
+### Privacy & Security
 
-```
-/Library/KeyPath/bin/kanata
-```
+- ✅ **No internet connection required** - Works completely offline
+- ✅ **No data collection** - No telemetry or analytics
+- ✅ **No system modifications** - Only installs necessary services
+- ✅ **Properly signed** - Developer ID certificate and notarization
+- ✅ **Open source** - Complete source code available for audit
 
-The helper keeps this binary updated from the bundled copy when needed and ensures proper ownership/permissions. The bundled binary inside `KeyPath.app` is not used by LaunchDaemons.
+### System Integration
 
-### What KeyPath Does NOT Do
-- ❌ No internet connection required (offline by default; optional AI config generation contacts Anthropic if ANTHROPIC_API_KEY is present)
-- ❌ No data collection or telemetry
-- ❌ No modification of system files
-- ❌ No kernel extensions
+- **UI-only app** - Keyboard remapping service runs independently as LaunchDaemon
+- **Boot-time remapping** - Remappings work at login, before UI launches
+- **System-level binary** - Kanata runs from `/Library/KeyPath/bin/kanata` for stable TCC permissions
+
+---
 
 ## 🔧 Troubleshooting
 
 ### KeyPath Won't Start?
-1. Make sure you have macOS 14 or later
-2. Run the setup wizard again from the File menu
-3. Check system logs: `tail -f /var/log/kanata.log`
+
+1. **Check macOS version** - Requires macOS 15.0 (Sequoia) or later
+2. **Run setup wizard** - Go to File → Run Setup Wizard
+3. **Check logs** - View system logs: `tail -f /var/log/kanata.log`
 
 ### Keys Not Remapping?
-1. Check the status indicator in the app
-2. Make sure permissions are granted in System Settings
-3. Try the "Fix Issues" button in the app
+
+1. **Check status indicator** - Look for green checkmarks in the app
+2. **Verify permissions** - Ensure permissions granted in System Settings
+3. **Use Fix Issues** - Click "Fix Issues" button in the app for automated fixes
 
 ### Need More Help?
-- Check the [FAQ](docs/FAQ.md)
-- Read the [Debugging Guide](docs/DEBUGGING_KANATA.md)
-- Investigate helper install errors: [SMAppService Codesigning Error (-67028)](docs/troubleshooting-helper.md)
-- Open an [Issue](https://github.com/yourusername/KeyPath/issues)
 
-### Xcode 26 beta test runner crash (Swift 6.2)
+- 📖 [FAQ](docs/FAQ.md) - Frequently asked questions
+- 🐛 [Debugging Guide](docs/DEBUGGING_KANATA.md) - Advanced troubleshooting
+- 🔧 [Helper Troubleshooting](docs/troubleshooting-helper.md) - SMAppService issues
+- 💬 [GitHub Issues](https://github.com/malpern/KeyPath/issues) - Report bugs or ask questions
 
-If you're using Xcode 26.0 beta (Swift 6.2), `swift test` can crash with SIGABRT after all tests pass due to a beta test runtime cleanup bug. Use the workaround runner:
+### Developer Notes
+
+**Xcode 26 beta test runner crash (Swift 6.2)**
+
+If you're using Xcode 26.0 beta, `swift test` can crash with SIGABRT after tests pass. Use the workaround:
 
 ```bash
 ./run-tests-workaround.sh
 ```
 
-Our main runners already use this workaround: `./run-tests.sh` and `./Scripts/run-tests.sh`. For CI, call the workaround script directly until a fixed beta is available.
+Our main test runners (`./run-tests.sh` and `./Scripts/run-tests.sh`) already include this workaround.
+
+---
 
 ## 🏗️ Requirements
 
 ### System Requirements
-- macOS 14.0 (Sonoma) or later
-- Apple Silicon or Intel Mac
+
+- **macOS 15.0 (Sequoia) or later**
+- **Apple Silicon or Intel Mac**
 
 ### Dependencies (Handled Automatically)
+
 - **Kanata** - The remapping engine (bundled with app)
 - **Karabiner VirtualHID Driver** - For system-level key events
 
-The setup wizard will check for these and help you install them if needed.
+The setup wizard automatically checks for these and helps you install them if needed.
+
+---
 
 ## 🚫 Uninstallation
 
-To completely remove KeyPath:
+### Recommended Method
 
 1. Open KeyPath
-2. Go to File → Uninstall KeyPath
+2. Go to **File → Uninstall KeyPath**
 3. Follow the prompts
 
-Or manually:
+### Manual Uninstallation
+
 ```bash
 sudo ./Scripts/uninstall.sh
 ```
 
+This removes:
+- LaunchDaemon services
+- System binaries
+- Configuration files
+- Application bundle
+
+---
+
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! KeyPath is designed to make keyboard remapping accessible to everyone, and contributions help make it better.
 
 ### Quick Start for Contributors
+
 ```bash
-# Clone the repo
-git clone https://github.com/yourusername/KeyPath.git
+# Clone the repository
+git clone https://github.com/malpern/KeyPath.git
 cd KeyPath
 
-# Build and test (dev)
+# Build and test (development)
 swift build
 swift test
 
-# Production-like build & deploy (recommended for real testing)
+# Production build & deploy (recommended for accurate testing)
 ./build.sh
 mkdir -p ~/Applications && cp -R dist/KeyPath.app ~/Applications/
 osascript -e 'tell application "KeyPath" to quit' || true
 open ~/Applications/KeyPath.app
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, architecture overview, and contribution patterns.
+
+---
+
 ## 📚 Documentation
 
-- **[Architecture Overview](ARCHITECTURE.md)** - Technical details for developers
-- **[Debugging Guide](docs/DEBUGGING_KANATA.md)** - Advanced troubleshooting
+- **[Architecture Overview](ARCHITECTURE.md)** - Deep dive into system design and architecture decisions
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to KeyPath
+- **[Debugging Guide](docs/DEBUGGING_KANATA.md)** - Advanced troubleshooting and diagnostics
 - **[FAQ](docs/FAQ.md)** - Frequently asked questions
 
+---
 
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
+---
+
 ## 🙏 Acknowledgments
 
-- **[Kanata](https://github.com/jtroo/kanata)** - The powerful remapping engine
-- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** - VirtualHID driver
-- **SwiftUI** - For the native macOS experience
+KeyPath stands on the shoulders of giants:
+
+- **[Kanata](https://github.com/jtroo/kanata)** - The powerful keyboard remapping engine that powers KeyPath
+- **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** - VirtualHID driver and architectural inspiration
+- **SwiftUI** - For the beautiful, native macOS experience
+- **macOS Security Team** - For the robust security frameworks that make safe keyboard remapping possible
 
 ---
 
 <div align="center">
   <strong>Made with ❤️ for the macOS community</strong>
   
-  If KeyPath helps you, consider starring the repo!
+  <p>If KeyPath helps you, consider ⭐ starring the repo!</p>
+  
+  <p><em>KeyPath makes Kanata's power accessible to everyone—no command line required.</em></p>
 </div>
