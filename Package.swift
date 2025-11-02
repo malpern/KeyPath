@@ -36,6 +36,9 @@ let package = Package(
                 .swiftLanguageMode(.v6),
                 // Surface concurrency issues clearly in Debug builds
                 .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ],
+            linkerSettings: [
+                .linkedFramework("IOKit")
             ]
         ),
         // Privileged helper executable
