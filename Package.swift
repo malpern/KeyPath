@@ -64,6 +64,9 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ],
+            linkerSettings: [
+                .linkedFramework("IOKit")
             ]
         )
     ]

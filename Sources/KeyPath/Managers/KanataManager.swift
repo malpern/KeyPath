@@ -272,7 +272,7 @@ class KanataManager {
     func getCurrentUIState() -> KanataUIState {
         // Sync diagnostics from DiagnosticsManager
         diagnostics = diagnosticsManager.getDiagnostics()
-        
+
         #if os(macOS)
         let currentBatteryLevel = batteryLevel
         let lowPowerPaused = lowPowerPauseActive
@@ -323,20 +323,20 @@ class KanataManager {
     let processManager: ProcessManaging
     let configurationManager: ConfigurationManaging
     let diagnosticsManager: DiagnosticsManaging
-    
+
     // Manager dependencies (exposed for extensions that need direct access)
     let engineClient: EngineClient
-    
+
     // Legacy dependencies (kept for backward compatibility during transition)
     let configurationService: ConfigurationService
     let processLifecycleManager: ProcessLifecycleManager
-    
+
     // Additional dependencies needed by extensions
     private let healthMonitor: ServiceHealthMonitorProtocol
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     private let karabinerConflictService: KarabinerConflictManaging
     private let configBackupManager: ConfigBackupManager
-    
+
     private var isStartingKanata = false
     var isInitializing = false
     private let isHeadlessMode: Bool
@@ -380,44 +380,44 @@ class KanataManager {
         // Initialize legacy service dependencies (for backward compatibility)
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
         processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
-        
+
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
-        
+
         // Initialize configuration backup manager
         let configBackupManager = ConfigBackupManager(configPath: "\(NSHomeDirectory())/.config/keypath/keypath.kbd")
-        
+
         // Initialize manager dependencies
         let karabinerConflictService = KarabinerConflictService()
         let diagnosticsService = DiagnosticsService(processLifecycleManager: processLifecycleManager)
         let healthMonitor = ServiceHealthMonitor(processLifecycle: processLifecycleManager)
-        
+
         // Store for extensions
         self.healthMonitor = healthMonitor
         self.diagnosticsService = diagnosticsService
         self.karabinerConflictService = karabinerConflictService
         self.configBackupManager = configBackupManager
-        
+
         // Initialize ProcessManager
         processManager = ProcessManager(
             processLifecycleManager: processLifecycleManager,
             karabinerConflictService: karabinerConflictService
         )
-        
+
         // Initialize ConfigurationManager
         configurationManager = ConfigurationManager(
             configurationService: configurationService,
             configBackupManager: configBackupManager,
             configFileWatcher: configFileWatcher
         )
-        
+
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(
             diagnosticsService: diagnosticsService,
             healthMonitor: healthMonitor,
             processLifecycleManager: processLifecycleManager
         )
-        
+
         // Initialize EngineClient
         self.engineClient = engineClient ?? TCPEngineClient()
 
@@ -1384,11 +1384,11 @@ class KanataManager {
         let configPath = configurationManager.configPath
         let arguments = configurationManager.buildKanataArguments(checkOnly: false)
         let success = await processManager.restartService(configPath: configPath, arguments: arguments)
-        
+
         if success {
             // Start log monitoring
             diagnosticsManager.startLogMonitoring()
-            
+
             // Update state
             updateInternalState(
                 isRunning: true,
