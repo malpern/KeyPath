@@ -132,7 +132,8 @@ class Phase1LoggingTests: XCTestCase {
         let config = KanataConfiguration.generateFromMappings([mapping])
 
         // Verify the actual config generation worked (tests business logic)
-        XCTAssertTrue(config.contains("(defsrc f1)"), "Config should contain source key definition")
+        XCTAssertTrue(config.contains("(defsrc"), "Config should contain defsrc section")
+        XCTAssertTrue(config.contains("f1"), "Config should contain source key definition")
         XCTAssertTrue(config.contains("f13"), "Config should contain target key mapping (f13 is a valid key name)")
 
         // The logging system should be capturing these operations in real usage

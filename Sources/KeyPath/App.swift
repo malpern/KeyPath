@@ -92,24 +92,28 @@ public struct KeyPathApp: App {
 
             // Add File menu with Open Config
             CommandGroup(replacing: .newItem) {
-                Button("Open Config") {
-                    openConfigInEditor(viewModel: viewModel)
+                Button(action: {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowSimpleMods"), object: nil)
+                }) {
+                    Label("Simple key mappings...", systemImage: "keyboard")
                 }
-                .keyboardShortcut("o", modifiers: .command)
+                .keyboardShortcut("k", modifiers: .command)
 
                 Divider()
 
-                Button("Show Installation Wizard") {
+                Button("Install wizard...") {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
 
                 Divider()
 
-                Button("Simple key mappings...") {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowSimpleMods"), object: nil)
+                Button(action: {
+                    openConfigInEditor(viewModel: viewModel)
+                }) {
+                    Label("Edit Config", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
-                .keyboardShortcut("k", modifiers: .command)
+                .keyboardShortcut("o", modifiers: .command)
 
                 Divider()
 

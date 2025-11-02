@@ -114,13 +114,6 @@
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelperProtocol.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelperProtocol.dia"
   },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Core/KeyPathError.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyPathError.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyPathError.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyPathError~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyPathError.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeyPathError.dia"
-  },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Core/PrivilegedOperationsCoordinator.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsCoordinator.d",
     "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsCoordinator.swift.o",
@@ -162,13 +155,6 @@
     "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MockPrivilegedOperations~partial.swiftmodule",
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MockPrivilegedOperations.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MockPrivilegedOperations.dia"
-  },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Infrastructure/Testing/TestEnvironment.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/TestEnvironment.dia"
   },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Components/HelpSheets.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/HelpSheets.d",
@@ -337,20 +323,6 @@
     "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateManager~partial.swiftmodule",
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateManager.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardStateManager.dia"
-  },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardSystemPaths.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardSystemPaths.dia"
-  },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/Core/WizardTypes.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardTypes.dia"
   },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Components/FDADetectionModals.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FDADetectionModals.d",
@@ -569,33 +541,12 @@
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentManager.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchAgentManager.dia"
   },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/LaunchDaemonPIDCache.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonPIDCache.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonPIDCache.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonPIDCache~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonPIDCache.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LaunchDaemonPIDCache.dia"
-  },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/LifecycleStateMachine.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine.dia"
-  },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/Process/ProcessManager.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.d",
     "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.swift.o",
     "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager~partial.swiftmodule",
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.dia"
-  },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/ProcessLifecycleManager.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.dia"
   },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KanataUIState.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataUIState.d",
@@ -611,12 +562,12 @@
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeySequence.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KeySequence.dia"
   },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/SystemSnapshot.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshot.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshot.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshot~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshot.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SystemSnapshot.dia"
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/SimpleModsModels.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsModels.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsModels.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsModels.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsModels.dia"
   },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/ConfigBackupManager.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigBackupManager.d",
@@ -688,20 +639,6 @@
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MainAppStateController.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/MainAppStateController.dia"
   },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/PIDFileManager.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PIDFileManager.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PIDFileManager.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PIDFileManager~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PIDFileManager.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PIDFileManager.dia"
-  },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/PermissionOracle.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionOracle.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionOracle.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionOracle~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionOracle.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionOracle.dia"
-  },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/PermissionService.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionService.d",
     "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PermissionService.swift.o",
@@ -722,6 +659,34 @@
     "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceHealthMonitor~partial.swiftmodule",
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceHealthMonitor.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceHealthMonitor.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/SimpleModsCatalog.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsCatalog.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsCatalog.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsCatalog~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsCatalog.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsCatalog.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/SimpleModsParser.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsParser.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsParser.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsParser~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsParser.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsParser.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/SimpleModsService.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsService.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsService.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsService~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsService.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsService.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/SimpleModsWriter.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsWriter.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsWriter.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsWriter~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsWriter.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsWriter.dia"
   },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Services/StartupCoordinator.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/StartupCoordinator.d",
@@ -856,6 +821,13 @@
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SettingsView.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SettingsView.dia"
   },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/UI/SimpleModsView.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsView.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsView.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsView.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/SimpleModsView.dia"
+  },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/UI/Style/AppGlass.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppGlass.d",
     "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/AppGlass.swift.o",
@@ -890,20 +862,6 @@
     "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DependencyInjection~partial.swiftmodule",
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DependencyInjection.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DependencyInjection.dia"
-  },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/FeatureFlags.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FeatureFlags.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FeatureFlags.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FeatureFlags~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FeatureFlags.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/FeatureFlags.dia"
-  },
-  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Logger.swift": {
-    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logger.d",
-    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logger.swift.o",
-    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logger~partial.swiftmodule",
-    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logger.swiftdeps",
-    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Logger.dia"
   },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Utilities/Notifications.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/Notifications.d",

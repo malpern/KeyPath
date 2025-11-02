@@ -63,7 +63,7 @@ class WizardStateMachine: ObservableObject {
     /// Refresh system state (explicit user action only)
     func refresh() async {
         guard let validator else {
-            AppLogger.shared.log("⚠️ [WizardStateMachine] Cannot refresh - not configured")
+            AppLogger.shared.warn("⚠️ [WizardStateMachine] Cannot refresh - not configured")
             return
         }
 
@@ -82,7 +82,7 @@ class WizardStateMachine: ObservableObject {
         refreshCount += 1
         let myID = refreshCount
 
-        AppLogger.shared.log("🔄 [WizardStateMachine] Refresh #\(myID) starting")
+        AppLogger.shared.info("🔄 [WizardStateMachine] Refresh #\(myID) starting")
 
         isRefreshing = true
 
@@ -93,7 +93,7 @@ class WizardStateMachine: ObservableObject {
         systemSnapshot = snapshot
         lastRefreshTime = Date()
 
-        AppLogger.shared.log("🔄 [WizardStateMachine] Refresh #\(myID) complete - ready=\(snapshot.isReady), issues=\(snapshot.blockingIssues.count)")
+        AppLogger.shared.info("🔄 [WizardStateMachine] Refresh #\(myID) complete - ready=\(snapshot.isReady), issues=\(snapshot.blockingIssues.count)")
     }
 
     // MARK: - Navigation
@@ -101,7 +101,7 @@ class WizardStateMachine: ObservableObject {
     /// Navigate to next appropriate page based on system state
     func nextPage() {
         guard let snapshot = systemSnapshot else {
-            AppLogger.shared.log("⚠️ [WizardStateMachine] Cannot navigate - no system state")
+            AppLogger.shared.warn("⚠️ [WizardStateMachine] Cannot navigate - no system state")
             return
         }
 

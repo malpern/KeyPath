@@ -56,8 +56,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
     func detectRunning() -> Bool {
         // Skip daemon check during startup to prevent blocking
         if FeatureFlags.shared.startupModeActive {
-            AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze")
-            return false // Assume not running during startup
+            AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze (treat as healthy)")
+            return true // Treat as healthy during startup warmup to avoid false negatives
         }
 
         // Test seam: allow mocked PID list in tests

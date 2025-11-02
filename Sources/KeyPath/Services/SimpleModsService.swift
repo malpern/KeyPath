@@ -4,7 +4,8 @@ import KeyPathCore
 /// Main service for managing simple modifications
 @MainActor
 public final class SimpleModsService: ObservableObject {
-    @Published public private(set) var mappings: [SimpleMapping] = []
+    @Published public private(set) var installedMappings: [SimpleMapping] = []
+    @Published public private(set) var availablePresets: [SimpleModPreset] = []
     @Published public private(set) var conflicts: [MappingConflict] = []
     @Published public private(set) var isApplying = false
     @Published public private(set) var lastError: String?
@@ -28,7 +29,7 @@ public final class SimpleModsService: ObservableObject {
     }
     
     /// Set dependencies for apply pipeline
-    public func setDependencies(
+    func setDependencies(
         kanataManager: KanataManager?
     ) {
         self.kanataManager = kanataManager
@@ -39,44 +40,76 @@ public final class SimpleModsService: ObservableObject {
         let (block, allMappings, detectedConflicts) = try parser.parse()
         self.conflicts = detectedConflicts
         
-        // Merge presets with actual mappings
-        var mergedMappings: [SimpleMapping] = []
-        let presets = catalog.getAllPresets()
+        // Installed mappings are those that exist in the config file
+        self.installedMappings = allMappings
         
-        for preset in presets {
-            // Check if this preset is already mapped
-            if let existing = allMappings.first(where: { $0.fromKey == preset.fromKey && $0.toKey == preset.toKey }) {
-                mergedMappings.append(existing)
-            } else {
-                // Add as available but disabled
-                mergedMappings.append(SimpleMapping(
-                    fromKey: preset.fromKey,
-                    toKey: preset.toKey,
-                    enabled: false,
-                    filePath: configPath
-                ))
-            }
+        // Available presets are those NOT in the config file
+        let installedKeys = Set(allMappings.map { "\($0.fromKey)->\($0.toKey)" })
+        let allPresets = catalog.getAllPresets()
+        self.availablePresets = allPresets.filter { preset in
+            !installedKeys.contains("\(preset.fromKey)->\(preset.toKey)")
         }
         
-        // Add any custom mappings not in presets
-        for mapping in allMappings {
-            if !presets.contains(where: { $0.fromKey == mapping.fromKey && $0.toKey == mapping.toKey }) {
-                mergedMappings.append(mapping)
-            }
-        }
-        
-        self.mappings = mergedMappings
         self.lastError = nil
+    }
+    
+    /// Add a preset to the config (installed mappings)
+    public func addMapping(fromKey: String, toKey: String, enabled: Bool = true) {
+        // Check if already installed
+        if installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey }) {
+            lastError = "Mapping already installed"
+            return
+        }
+        
+        let newMapping = SimpleMapping(
+            fromKey: fromKey,
+            toKey: toKey,
+            enabled: enabled,
+            filePath: configPath
+        )
+        
+        installedMappings.append(newMapping)
+        
+        // Remove from available presets
+        availablePresets.removeAll { $0.fromKey == fromKey && $0.toKey == toKey }
+        
+        // Apply changes
+        applyDebounceTask?.cancel()
+        applyDebounceTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            await applyChanges()
+        }
+    }
+    
+    /// Remove a mapping from the config entirely
+    public func removeMapping(id: UUID) {
+        guard let index = installedMappings.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+        
+        let removed = installedMappings.remove(at: index)
+        
+        // Add back to available presets if it's a preset
+        if let preset = catalog.findPreset(fromKey: removed.fromKey, toKey: removed.toKey) {
+            availablePresets.append(preset)
+        }
+        
+        // Apply changes
+        applyDebounceTask?.cancel()
+        applyDebounceTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            await applyChanges()
+        }
     }
     
     /// Toggle a mapping on/off with instant apply
     public func toggleMapping(id: UUID, enabled: Bool) {
-        guard let index = mappings.firstIndex(where: { $0.id == id }) else {
+        guard let index = installedMappings.firstIndex(where: { $0.id == id }) else {
             return
         }
         
         // Optimistic update
-        mappings[index].enabled = enabled
+        installedMappings[index].enabled = enabled
         isApplying = true
         
         // Debounce apply
@@ -106,8 +139,8 @@ public final class SimpleModsService: ObservableObject {
                 return
             }
             
-            // Write block with current mappings
-            try writer.writeBlock(mappings: mappings)
+            // Write block with only installed mappings
+            try writer.writeBlock(mappings: installedMappings)
             
             // Reload Kanata via manager
             if let manager = kanataManager {

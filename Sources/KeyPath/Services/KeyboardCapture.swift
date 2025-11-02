@@ -281,7 +281,7 @@ public class KeyboardCapture: ObservableObject {
     private func setupEventTap(at location: CGEventTapLocation = .cgSessionEventTap) {
         // In tests (including CI), avoid creating CGEvent taps to prevent hangs and permission prompts
         if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [KeyboardCapture] Test environment detected – skipping CGEvent tap setup")
+            AppLogger.shared.debug("🧪 [KeyboardCapture] Test environment detected – skipping CGEvent tap setup")
             return
         }
         let eventMask = (1 << CGEventType.keyDown.rawValue)
@@ -323,7 +323,7 @@ public class KeyboardCapture: ObservableObject {
         )
 
         guard let eventTap else {
-            AppLogger.shared.log("❌ [KeyboardCapture] Failed to create event tap (options=\(tapOptions == .listenOnly ? "listenOnly" : "defaultTap"))")
+            AppLogger.shared.error("❌ [KeyboardCapture] Failed to create event tap (options=\(tapOptions == .listenOnly ? "listenOnly" : "defaultTap"))")
 
             // Cleanly end capture state so UI doesn't appear stuck
             isCapturing = false
@@ -352,7 +352,7 @@ public class KeyboardCapture: ObservableObject {
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
         let tapDesc = suppressEvents ? "defaultTap/suppress" : "listenOnly"
-        AppLogger.shared.log("✅ [KeyboardCapture] Event tap created (location=\(location), options=\(tapDesc))")
+        AppLogger.shared.info("✅ [KeyboardCapture] Event tap created (location=\(location), options=\(tapDesc))")
     }
 
     private func reinstallTap(to newLocation: CGEventTapLocation) {
@@ -532,14 +532,14 @@ public class KeyboardCapture: ObservableObject {
 
         // Avoid event taps in test/CI to prevent hangs
         if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [KeyboardCapture] Test environment – skipping emergency monitoring tap")
+            AppLogger.shared.debug("🧪 [KeyboardCapture] Test environment – skipping emergency monitoring tap")
             return
         }
 
         // Safety check: avoid CGEvent tap conflicts when Kanata is running
         // Per ADR-006, emergency monitoring should also respect the single tap rule
         if let kanataManager, kanataManager.isRunning {
-            AppLogger.shared.log("⚠️ [KeyboardCapture] Emergency monitoring disabled - Kanata is running (ADR-006 compliance)")
+            AppLogger.shared.warn("⚠️ [KeyboardCapture] Emergency monitoring disabled - Kanata is running (ADR-006 compliance)")
             return
         }
 
@@ -591,7 +591,7 @@ public class KeyboardCapture: ObservableObject {
         )
 
         guard let eventTap = emergencyEventTap else {
-            AppLogger.shared.log("❌ [KeyboardCapture] Failed to create emergency event tap")
+            AppLogger.shared.error("❌ [KeyboardCapture] Failed to create emergency event tap")
             return
         }
 

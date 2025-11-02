@@ -592,14 +592,12 @@ public struct KanataConfiguration: Sendable {
         var errors: [String] = []
         let lines = output.components(separatedBy: .newlines)
 
-        for line in lines {
-            if line.contains("[ERROR]") {
-                // Extract the actual error message
-                if let errorRange = line.range(of: "[ERROR]") {
-                    let errorMessage = String(line[errorRange.upperBound...]).trimmingCharacters(
-                        in: .whitespaces)
-                    errors.append(errorMessage)
-                }
+        for line in lines where line.contains("[ERROR]") {
+            // Extract the actual error message
+            if let errorRange = line.range(of: "[ERROR]") {
+                let errorMessage = String(line[errorRange.upperBound...]).trimmingCharacters(
+                    in: .whitespaces)
+                errors.append(errorMessage)
             }
         }
 
@@ -729,7 +727,7 @@ public enum KanataKeyConverter {
             "leftctrl", "lctl", "rightctrl", "rctl", "ctrl",
             "leftalt", "lalt", "rightalt", "ralt",
             "leftmeta", "lmet", "rightmeta", "rmet",
-            "leftcmd", "rightcmd", "cmd",
+            "leftcmd", "rightcmd", "cmd", "command", "lcmd", "rcmd",
             "up", "down", "left", "right",
             "home", "end", "pageup", "pgup", "pagedown", "pgdn",
             "f1", "f2", "f3", "f4", "f5", "f6",

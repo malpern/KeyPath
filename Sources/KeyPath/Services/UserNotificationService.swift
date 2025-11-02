@@ -41,7 +41,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
         if TestEnvironment.isRunningTests {
             center = nil
             super.init()
-            AppLogger.shared.log("🧪 [UserNotificationService] Initialized in test mode - notifications disabled")
+            AppLogger.shared.debug("🧪 [UserNotificationService] Initialized in test mode - notifications disabled")
             return
         }
 

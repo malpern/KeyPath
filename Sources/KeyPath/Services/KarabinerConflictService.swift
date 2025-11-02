@@ -160,9 +160,9 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         // Skip daemon check during startup to prevent blocking
         if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log(
-                "🔍 [Daemon] Startup mode - skipping VirtualHIDDevice-Daemon check to prevent UI freeze"
+                "🔍 [Daemon] Startup mode - skipping VirtualHIDDevice-Daemon check to prevent UI freeze (treat as healthy)"
             )
-            return false
+            return true
         }
 
         let task = Process()

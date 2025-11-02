@@ -201,10 +201,10 @@ class WizardAutoFixer: AutoFixCapable {
 
         do {
             try await HelperManager.shared.installHelper()
-            AppLogger.shared.log("✅ [AutoFixer] Privileged helper installed successfully")
+            AppLogger.shared.info("✅ [AutoFixer] Privileged helper installed successfully")
             return true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to install helper: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to install helper: \(error)")
             return false
         }
     }
@@ -270,7 +270,7 @@ class WizardAutoFixer: AutoFixCapable {
         do {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to auto-install driver via helper: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to auto-install driver via helper: \(error)")
             let post = await captureVHIDSnapshot()
             logFixSessionSummary(session: session, action: "installCorrectVHIDDriver", success: false, start: t0, pre: pre, post: post)
             return false
@@ -280,7 +280,7 @@ class WizardAutoFixer: AutoFixCapable {
         do {
             try await PrivilegedOperationsCoordinator.shared.activateVirtualHIDManager()
         } catch {
-            AppLogger.shared.log("⚠️ [AutoFixer] activateVirtualHIDManager returned error (continuing): \(error)")
+            AppLogger.shared.warn("⚠️ [AutoFixer] activateVirtualHIDManager returned error (continuing): \(error)")
         }
 
         let restartOk = await restartVirtualHIDDaemon()
@@ -295,7 +295,7 @@ class WizardAutoFixer: AutoFixCapable {
 
         // Show dialog explaining the version downgrade
         guard let versionMessage = vhidDeviceManager.getVersionMismatchMessage() else {
-            AppLogger.shared.log("⚠️ [AutoFixer] No version mismatch message available")
+            AppLogger.shared.warn("⚠️ [AutoFixer] No version mismatch message available")
             return false
         }
 
@@ -326,21 +326,21 @@ class WizardAutoFixer: AutoFixCapable {
             try await PrivilegedOperationsCoordinator.shared.downloadAndInstallCorrectVHIDDriver()
             success = true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Coordinator failed to install driver: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Coordinator failed to install driver: \(error)")
             success = false
         }
 
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully fixed driver version mismatch")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully fixed driver version mismatch")
 
             // Try to force macOS to reload the driver by restarting VHID daemon processes
-            AppLogger.shared.log("🔄 [AutoFixer] Restarting VirtualHID processes to reload driver...")
+            AppLogger.shared.info("🔄 [AutoFixer] Restarting VirtualHID processes to reload driver...")
             let killTask = Process()
             killTask.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
             killTask.arguments = ["/usr/bin/pkill", "-9", "Karabiner-VirtualHIDDevice"]
             try? killTask.run()
             killTask.waitUntilExit()
-            AppLogger.shared.log("🔄 [AutoFixer] VirtualHID processes restarted")
+            AppLogger.shared.info("🔄 [AutoFixer] VirtualHID processes restarted")
 
             // Show success message
             await MainActor.run {
@@ -360,7 +360,7 @@ class WizardAutoFixer: AutoFixCapable {
                 alert.runModal()
             }
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to fix driver version mismatch")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to fix driver version mismatch")
 
             // Show error message
             await MainActor.run {
@@ -393,7 +393,7 @@ class WizardAutoFixer: AutoFixCapable {
             task.waitUntilExit()
             AppLogger.shared.log("💥 [AutoFixer] Killed all kanata processes")
         } catch {
-            AppLogger.shared.log("⚠️ [AutoFixer] Failed to kill processes: \(error)")
+            AppLogger.shared.warn("⚠️ [AutoFixer] Failed to kill processes: \(error)")
         }
 
         // 2. Remove PID file
@@ -407,12 +407,12 @@ class WizardAutoFixer: AutoFixCapable {
         await kanataManager.stopKanata()
         kanataManager.lastError = nil
         kanataManager.diagnostics.removeAll()
-        AppLogger.shared.log("🔄 [AutoFixer] Reset KanataManager state")
+        AppLogger.shared.info("🔄 [AutoFixer] Reset KanataManager state")
 
         // 5. Wait for system to settle
         try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
-        AppLogger.shared.log("✅ [AutoFixer] Reset complete - system should be in clean state")
+        AppLogger.shared.info("✅ [AutoFixer] Reset complete - system should be in clean state")
         return true
     }
 
@@ -426,7 +426,7 @@ class WizardAutoFixer: AutoFixCapable {
         let conflicts = await processManager.detectConflicts()
 
         if conflicts.externalProcesses.isEmpty {
-            AppLogger.shared.log("✅ [AutoFixer] No external kanata processes to terminate")
+            AppLogger.shared.info("✅ [AutoFixer] No external kanata processes to terminate")
             return true
         }
 
@@ -443,7 +443,7 @@ class WizardAutoFixer: AutoFixCapable {
         let remaining = after.externalProcesses.count
 
         if remaining == 0 {
-            AppLogger.shared.log("✅ [AutoFixer] Conflicting kanata processes terminated")
+            AppLogger.shared.info("✅ [AutoFixer] Conflicting kanata processes terminated")
             return true
         }
 
@@ -459,7 +459,7 @@ class WizardAutoFixer: AutoFixCapable {
         do {
             try await PrivilegedOperationsCoordinator.shared.terminateProcess(pid)
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Helper terminateProcess failed for PID=\(pid): \(error.localizedDescription)")
+            AppLogger.shared.error("❌ [AutoFixer] Helper terminateProcess failed for PID=\(pid): \(error.localizedDescription)")
             return false
         }
 
@@ -467,10 +467,10 @@ class WizardAutoFixer: AutoFixCapable {
         try? await Task.sleep(nanoseconds: 400_000_000)
         let still = runCommand("/bin/kill", ["-0", String(pid)]) == 0
         if still {
-            AppLogger.shared.log("⚠️ [AutoFixer] PID=\(pid) still appears alive after helper termination")
+            AppLogger.shared.warn("⚠️ [AutoFixer] PID=\(pid) still appears alive after helper termination")
             return false
         } else {
-            AppLogger.shared.log("✅ [AutoFixer] PID=\(pid) no longer running after helper termination")
+            AppLogger.shared.info("✅ [AutoFixer] PID=\(pid) no longer running after helper termination")
             return true
         }
     }
@@ -500,9 +500,9 @@ class WizardAutoFixer: AutoFixCapable {
         let success = await kanataManager.startKarabinerDaemon()
 
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully started Karabiner daemon")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully started Karabiner daemon")
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to start Karabiner daemon")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to start Karabiner daemon")
         }
 
         return success
@@ -519,17 +519,17 @@ class WizardAutoFixer: AutoFixCapable {
         let restartSuccess = await kanataManager.restartKarabinerDaemon()
 
         if restartSuccess {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully restarted VirtualHID daemon (verified healthy)")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully restarted VirtualHID daemon (verified healthy)")
             return true
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] VirtualHID daemon restart failed or verification failed")
+            AppLogger.shared.error("❌ [AutoFixer] VirtualHID daemon restart failed or verification failed")
             // Fall back to legacy restart
-            AppLogger.shared.log("⚠️ [AutoFixer] Trying legacy restart as fallback")
+            AppLogger.shared.warn("⚠️ [AutoFixer] Trying legacy restart as fallback")
             let legacySuccess = await legacyRestartVirtualHIDDaemon()
             if legacySuccess {
-                AppLogger.shared.log("✅ [AutoFixer] Legacy restart succeeded")
+                AppLogger.shared.info("✅ [AutoFixer] Legacy restart succeeded")
             } else {
-                AppLogger.shared.log("❌ [AutoFixer] Legacy restart also failed")
+                AppLogger.shared.error("❌ [AutoFixer] Legacy restart also failed")
             }
             return legacySuccess
         }
@@ -539,10 +539,10 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Repairing VHID LaunchDaemon services")
         do {
             try await PrivilegedOperationsCoordinator.shared.repairVHIDDaemonServices()
-            AppLogger.shared.log("✅ [AutoFixer] Repaired VHID LaunchDaemon services")
+            AppLogger.shared.info("✅ [AutoFixer] Repaired VHID LaunchDaemon services")
             return true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to repair VHID LaunchDaemon services: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to repair VHID LaunchDaemon services: \(error)")
             return false
         }
     }
@@ -563,13 +563,13 @@ class WizardAutoFixer: AutoFixCapable {
             truncateTask.waitUntilExit()
 
             if truncateTask.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [AutoFixer] Successfully cleared Kanata log")
+                AppLogger.shared.info("✅ [AutoFixer] Successfully cleared Kanata log")
             } else {
                 AppLogger.shared.log(
                     "⚠️ [AutoFixer] Could not clear Kanata log (may require admin privileges)")
             }
         } catch {
-            AppLogger.shared.log("⚠️ [AutoFixer] Error clearing Kanata log: \(error)")
+            AppLogger.shared.warn("⚠️ [AutoFixer] Error clearing Kanata log: \(error)")
         }
     }
 
@@ -581,7 +581,7 @@ class WizardAutoFixer: AutoFixCapable {
             "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
 
         guard FileManager.default.fileExists(atPath: managerPath) else {
-            AppLogger.shared.log("❌ [AutoFixer] VirtualHID Manager not found at expected path")
+            AppLogger.shared.error("❌ [AutoFixer] VirtualHID Manager not found at expected path")
             return false
         }
 
@@ -629,7 +629,7 @@ class WizardAutoFixer: AutoFixCapable {
                     if shouldResume {
                         let success = process.terminationStatus == 0
                         if success {
-                            AppLogger.shared.log("✅ [AutoFixer] VirtualHID Manager force activation completed")
+                            AppLogger.shared.info("✅ [AutoFixer] VirtualHID Manager force activation completed")
                         } else {
                             AppLogger.shared.log(
                                 "❌ [AutoFixer] VirtualHID Manager force activation failed with status: \(process.terminationStatus)")
@@ -653,7 +653,7 @@ class WizardAutoFixer: AutoFixCapable {
                     }
 
                     if shouldResume {
-                        AppLogger.shared.log("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
+                        AppLogger.shared.error("❌ [AutoFixer] Error starting VirtualHID Manager: \(error)")
                         continuation.resume(returning: false)
                     }
                 }
@@ -681,15 +681,15 @@ class WizardAutoFixer: AutoFixCapable {
             let startSuccess = await startKarabinerDaemon()
 
             if startSuccess {
-                AppLogger.shared.log("✅ [AutoFixer] Legacy VirtualHID daemon restart completed")
+                AppLogger.shared.info("✅ [AutoFixer] Legacy VirtualHID daemon restart completed")
             } else {
-                AppLogger.shared.log("❌ [AutoFixer] Legacy VirtualHID daemon restart failed")
+                AppLogger.shared.error("❌ [AutoFixer] Legacy VirtualHID daemon restart failed")
             }
 
             return startSuccess
 
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Error in legacy VirtualHID daemon restart: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Error in legacy VirtualHID daemon restart: \(error)")
             return false
         }
     }
@@ -700,9 +700,9 @@ class WizardAutoFixer: AutoFixCapable {
         let success = await kanataManager.performTransparentInstallation()
 
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully installed missing components")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully installed missing components")
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to install missing components")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to install missing components")
         }
 
         return success
@@ -720,11 +720,11 @@ class WizardAutoFixer: AutoFixCapable {
                 attributes: nil
             )
 
-            AppLogger.shared.log("✅ [AutoFixer] Successfully created config directories")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully created config directories")
             return true
 
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to create config directories: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to create config directories: \(error)")
             return false
         }
     }
@@ -738,12 +738,12 @@ class WizardAutoFixer: AutoFixCapable {
             try await PrivilegedOperationsCoordinator.shared.activateVirtualHIDManager()
             success = true
         } catch {
-            AppLogger.shared.log("⚠️ [AutoFixer] Coordinator activation failed: \(error)")
+            AppLogger.shared.warn("⚠️ [AutoFixer] Coordinator activation failed: \(error)")
             success = false
         }
 
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully activated VHIDDevice Manager")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully activated VHIDDevice Manager")
             return true
         } else {
             AppLogger.shared.log(
@@ -751,7 +751,7 @@ class WizardAutoFixer: AutoFixCapable {
 
             // Show dialog to guide user through manual driver extension activation
             if TestEnvironment.isRunningTests {
-                AppLogger.shared.log("🧪 [AutoFixer] Suppressing driver extension dialog in test environment")
+                AppLogger.shared.debug("🧪 [AutoFixer] Suppressing driver extension dialog in test environment")
             } else {
                 await showDriverExtensionDialog()
             }
@@ -763,7 +763,7 @@ class WizardAutoFixer: AutoFixCapable {
             let manualSuccess = vhidDeviceManager.detectActivation()
 
             if manualSuccess {
-                AppLogger.shared.log("✅ [AutoFixer] VHIDDevice Manager activated after user intervention")
+                AppLogger.shared.info("✅ [AutoFixer] VHIDDevice Manager activated after user intervention")
                 return true
             } else {
                 AppLogger.shared.log(
@@ -834,7 +834,7 @@ class WizardAutoFixer: AutoFixCapable {
                 "✅ [AutoFixer] LaunchDaemon installation completed successfully with single admin prompt")
             return true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] LaunchDaemon installation failed: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] LaunchDaemon installation failed: \(error)")
             return false
         }
     }
@@ -851,10 +851,10 @@ class WizardAutoFixer: AutoFixCapable {
         let signingStatus = await bundledManager.bundledKanataSigningStatus()
 
         guard signingStatus.isDeveloperID else {
-            AppLogger.shared.log("❌ [AutoFixer] Step 1 FAILED: Bundled kanata binary is not properly signed: \(signingStatus)")
+            AppLogger.shared.error("❌ [AutoFixer] Step 1 FAILED: Bundled kanata binary is not properly signed: \(signingStatus)")
             return false
         }
-        AppLogger.shared.log("✅ [AutoFixer] Step 1 SUCCESS: Bundled kanata binary is properly signed")
+        AppLogger.shared.info("✅ [AutoFixer] Step 1 SUCCESS: Bundled kanata binary is properly signed")
         stepsCompleted += 1
 
         // Step 2: Install bundled binary to system location
@@ -863,10 +863,10 @@ class WizardAutoFixer: AutoFixCapable {
 
         if installSuccess {
             stepsCompleted += 1
-            AppLogger.shared.log("✅ [AutoFixer] Step 2 SUCCESS: Bundled kanata binary installed successfully")
+            AppLogger.shared.info("✅ [AutoFixer] Step 2 SUCCESS: Bundled kanata binary installed successfully")
 
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Step 2 FAILED: Failed to install bundled kanata binary")
+            AppLogger.shared.error("❌ [AutoFixer] Step 2 FAILED: Failed to install bundled kanata binary")
             return false
         }
 
@@ -904,19 +904,19 @@ class WizardAutoFixer: AutoFixCapable {
 
                 if checkTask.terminationStatus != 0 {
                     // Process is gone
-                    AppLogger.shared.log("✅ [AutoFixer] Process \(pid) terminated gracefully")
+                    AppLogger.shared.info("✅ [AutoFixer] Process \(pid) terminated gracefully")
                     return true
                 } else {
                     // Process still running, try SIGKILL
-                    AppLogger.shared.log("⚠️ [AutoFixer] Process \(pid) still running, using SIGKILL")
+                    AppLogger.shared.warn("⚠️ [AutoFixer] Process \(pid) still running, using SIGKILL")
                     return await forceTerminateProcess(pid: pid)
                 }
             } else {
-                AppLogger.shared.log("❌ [AutoFixer] Failed to send SIGTERM to process \(pid)")
+                AppLogger.shared.error("❌ [AutoFixer] Failed to send SIGTERM to process \(pid)")
                 return await forceTerminateProcess(pid: pid)
             }
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Error terminating process \(pid): \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Error terminating process \(pid): \(error)")
             return false
         }
     }
@@ -933,14 +933,14 @@ class WizardAutoFixer: AutoFixCapable {
 
             let success = killTask.terminationStatus == 0
             if success {
-                AppLogger.shared.log("✅ [AutoFixer] Force terminated process \(pid)")
+                AppLogger.shared.info("✅ [AutoFixer] Force terminated process \(pid)")
             } else {
-                AppLogger.shared.log("❌ [AutoFixer] Failed to force terminate process \(pid)")
+                AppLogger.shared.error("❌ [AutoFixer] Failed to force terminate process \(pid)")
             }
             return success
 
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Error force terminating process \(pid): \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Error force terminating process \(pid): \(error)")
             return false
         }
     }
@@ -967,7 +967,7 @@ class WizardAutoFixer: AutoFixCapable {
 
             // Check if source file exists
             guard FileManager.default.fileExists(atPath: userConfigPath) else {
-                AppLogger.shared.log("❌ [AutoFixer] Source config file does not exist at \(userConfigPath)")
+                AppLogger.shared.error("❌ [AutoFixer] Source config file does not exist at \(userConfigPath)")
                 return false
             }
 
@@ -985,7 +985,7 @@ class WizardAutoFixer: AutoFixCapable {
             _ = appleScript?.executeAndReturnError(&error)
 
             if let error {
-                AppLogger.shared.log("❌ [AutoFixer] AppleScript error: \(error)")
+                AppLogger.shared.error("❌ [AutoFixer] AppleScript error: \(error)")
                 return false
             }
 
@@ -995,20 +995,20 @@ class WizardAutoFixer: AutoFixCapable {
                 let success = systemContent == configContent
 
                 if success {
-                    AppLogger.shared.log("✅ [AutoFixer] Config successfully synchronized to system location")
-                    AppLogger.shared.log("🔄 [AutoFixer] Config synchronized - changes will be applied via TCP reload commands")
+                    AppLogger.shared.info("✅ [AutoFixer] Config successfully synchronized to system location")
+                    AppLogger.shared.info("🔄 [AutoFixer] Config synchronized - changes will be applied via TCP reload commands")
                 } else {
-                    AppLogger.shared.log("❌ [AutoFixer] Config content mismatch after copy")
+                    AppLogger.shared.error("❌ [AutoFixer] Config content mismatch after copy")
                 }
 
                 return success
             } else {
-                AppLogger.shared.log("❌ [AutoFixer] System config file was not created")
+                AppLogger.shared.error("❌ [AutoFixer] System config file was not created")
                 return false
             }
 
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Error synchronizing config paths: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Error synchronizing config paths: \(error)")
             return false
         }
     }
@@ -1054,9 +1054,9 @@ class WizardAutoFixer: AutoFixCapable {
             )
             do {
                 try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()
-                AppLogger.shared.log("✅ [AutoFixer] Installed missing services")
+                AppLogger.shared.info("✅ [AutoFixer] Installed missing services")
             } catch {
-                AppLogger.shared.log("❌ [AutoFixer] Failed to install missing services: \(error)")
+                AppLogger.shared.error("❌ [AutoFixer] Failed to install missing services: \(error)")
                 return false
             }
         } else {
@@ -1075,7 +1075,7 @@ class WizardAutoFixer: AutoFixCapable {
             try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
             restartSuccess = true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Coordinator restart failed: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Coordinator restart failed: \(error)")
             restartSuccess = false
         }
 
@@ -1099,13 +1099,13 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] - All services healthy: \(finalStatus.allServicesHealthy)")
 
         if restartSuccess {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully fixed unhealthy LaunchDaemon services")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully fixed unhealthy LaunchDaemon services")
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to fix unhealthy services - analyzing cause...")
-            AppLogger.shared.log("❌ [AutoFixer] This usually means:")
-            AppLogger.shared.log("❌ [AutoFixer] 1. Admin password was not provided when prompted")
-            AppLogger.shared.log("❌ [AutoFixer] 2. Missing services installation failed")
-            AppLogger.shared.log("❌ [AutoFixer] 3. launchctl restart commands were denied by system")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to fix unhealthy services - analyzing cause...")
+            AppLogger.shared.error("❌ [AutoFixer] This usually means:")
+            AppLogger.shared.error("❌ [AutoFixer] 1. Admin password was not provided when prompted")
+            AppLogger.shared.error("❌ [AutoFixer] 2. Missing services installation failed")
+            AppLogger.shared.error("❌ [AutoFixer] 3. launchctl restart commands were denied by system")
             AppLogger.shared.log(
                 "❌ [AutoFixer] 4. Services restarted but are still unhealthy (permission/config issues)")
             AppLogger.shared.log(
@@ -1132,37 +1132,37 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔗 [AutoFixer] Installing LaunchDaemon service files for future management")
         do {
             try await PrivilegedOperationsCoordinator.shared.installLaunchDaemonServicesWithoutLoading()
-            AppLogger.shared.log("✅ [AutoFixer] Successfully adopted orphaned Kanata process")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully adopted orphaned Kanata process")
             return true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to adopt orphaned process: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to adopt orphaned process: \(error)")
             return false
         }
     }
 
     /// Replace an orphaned Kanata process with a properly managed one
     private func replaceOrphanedProcess() async -> Bool {
-        AppLogger.shared.log("🔄 [AutoFixer] Starting orphaned process replacement")
+        AppLogger.shared.info("🔄 [AutoFixer] Starting orphaned process replacement")
 
         // Step 1: Kill existing process
-        AppLogger.shared.log("🔄 [AutoFixer] Step 1: Terminating orphaned Kanata process")
+        AppLogger.shared.info("🔄 [AutoFixer] Step 1: Terminating orphaned Kanata process")
 
         let terminateSuccess = await terminateConflictingProcesses()
 
         if !terminateSuccess {
-            AppLogger.shared.log("⚠️ [AutoFixer] Warning: Failed to cleanly terminate orphaned process")
+            AppLogger.shared.warn("⚠️ [AutoFixer] Warning: Failed to cleanly terminate orphaned process")
         }
 
         // Step 2: Install and start managed service
-        AppLogger.shared.log("🔄 [AutoFixer] Step 2: Installing and starting managed Kanata service")
+        AppLogger.shared.info("🔄 [AutoFixer] Step 2: Installing and starting managed Kanata service")
 
         let installSuccess = await installLaunchDaemonServices()
 
         if installSuccess {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully replaced orphaned process with managed service")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully replaced orphaned process with managed service")
             return true
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to start managed service")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to start managed service")
             return false
         }
     }
@@ -1175,10 +1175,10 @@ class WizardAutoFixer: AutoFixCapable {
 
         do {
             try await PrivilegedOperationsCoordinator.shared.installLogRotation()
-            AppLogger.shared.log("✅ [AutoFixer] Successfully installed log rotation service")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully installed log rotation service")
             return true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to install log rotation service: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to install log rotation service: \(error)")
             return false
         }
     }
@@ -1189,16 +1189,16 @@ class WizardAutoFixer: AutoFixCapable {
         let success = await bundledKanataManager.replaceBinaryWithBundled()
 
         if success {
-            AppLogger.shared.log("✅ [AutoFixer] Successfully replaced system kanata with bundled version")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully replaced system kanata with bundled version")
 
             // Restart the kanata service to use the new binary
-            AppLogger.shared.log("🔄 [AutoFixer] Restarting kanata service to use new binary")
+            AppLogger.shared.info("🔄 [AutoFixer] Restarting kanata service to use new binary")
             await kanataManager.restartKanata()
-            AppLogger.shared.log("✅ [AutoFixer] Restarted kanata service with new binary")
+            AppLogger.shared.info("✅ [AutoFixer] Restarted kanata service with new binary")
 
             return true
         } else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to replace kanata binary")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to replace kanata binary")
             return false
         }
     }
@@ -1220,7 +1220,7 @@ class WizardAutoFixer: AutoFixCapable {
         var randomBytes = [UInt8](repeating: 0, count: 32)
         let result = SecRandomCopyBytes(kSecRandomDefault, 32, &randomBytes)
         guard result == errSecSuccess else {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to generate secure random token")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to generate secure random token")
             return false
         }
 
@@ -1238,14 +1238,14 @@ class WizardAutoFixer: AutoFixCapable {
             // Regenerate service configuration with new token
             let regenSuccess = await regenerateCommServiceConfiguration()
             guard regenSuccess else {
-                AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate service configuration")
+                AppLogger.shared.error("❌ [AutoFixer] Failed to regenerate service configuration")
                 return false
             }
 
             // Restart server to adopt new token
             let restartSuccess = await restartCommServer()
             guard restartSuccess else {
-                AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server")
+                AppLogger.shared.error("❌ [AutoFixer] Failed to restart communication server")
                 return false
             }
 
@@ -1254,14 +1254,14 @@ class WizardAutoFixer: AutoFixCapable {
             let client = KanataTCPClient(port: port, timeout: 5.0)
 
             if await client.authenticate(token: newToken) {
-                AppLogger.shared.log("✅ [AutoFixer] TCP authentication setup successful")
+                AppLogger.shared.info("✅ [AutoFixer] TCP authentication setup successful")
                 return true
             } else {
-                AppLogger.shared.log("❌ [AutoFixer] TCP authentication test failed")
+                AppLogger.shared.error("❌ [AutoFixer] TCP authentication test failed")
                 return false
             }
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to setup TCP authentication: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to setup TCP authentication: \(error)")
             return false
         }
     }
@@ -1271,10 +1271,10 @@ class WizardAutoFixer: AutoFixCapable {
 
         do {
             try await PrivilegedOperationsCoordinator.shared.regenerateServiceConfiguration()
-            AppLogger.shared.log("✅ [AutoFixer] Successfully regenerated communication service configuration")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully regenerated communication service configuration")
             return true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to regenerate communication service configuration: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to regenerate communication service configuration: \(error)")
             return false
         }
     }
@@ -1284,10 +1284,10 @@ class WizardAutoFixer: AutoFixCapable {
 
         do {
             try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
-            AppLogger.shared.log("✅ [AutoFixer] Successfully restarted communication server")
+            AppLogger.shared.info("✅ [AutoFixer] Successfully restarted communication server")
             return true
         } catch {
-            AppLogger.shared.log("❌ [AutoFixer] Failed to restart communication server: \(error)")
+            AppLogger.shared.error("❌ [AutoFixer] Failed to restart communication server: \(error)")
             return false
         }
     }

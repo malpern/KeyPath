@@ -89,7 +89,7 @@ actor HelperManager {
         newConnection.resume()
 
         connection = newConnection
-        AppLogger.shared.log("✅ [HelperManager] XPC connection established")
+        AppLogger.shared.info("✅ [HelperManager] XPC connection established")
 
         return newConnection
     }
@@ -174,7 +174,7 @@ actor HelperManager {
                         continuation.resume(returning: nil)
                     } else {
                         if let v = gotVersion {
-                            AppLogger.shared.log("✅ [HelperManager] Helper version: \(v)")
+                            AppLogger.shared.info("✅ [HelperManager] Helper version: \(v)")
                             continuation.resume(returning: v)
                         } else {
                             continuation.resume(returning: nil)
@@ -225,7 +225,7 @@ actor HelperManager {
             return false
         }
 
-        AppLogger.shared.log("✅ [HelperManager] Functionality test passed: Helper v\(version) responding")
+        AppLogger.shared.info("✅ [HelperManager] Functionality test passed: Helper v\(version) responding")
         return true
     }
 
@@ -350,7 +350,7 @@ actor HelperManager {
             // system copies are installed. Treat enabled-after-call as success.
             do {
                 try svc.register()
-                AppLogger.shared.log("✅ [HelperManager] Helper registered (was Enabled prior)")
+                AppLogger.shared.info("✅ [HelperManager] Helper registered (was Enabled prior)")
                 return
             } catch {
                 if svc.status == .enabled {
@@ -364,12 +364,12 @@ actor HelperManager {
         case .notRegistered:
             do {
                 try svc.register()
-                AppLogger.shared.log("✅ [HelperManager] Helper registered (status: \(svc.status))")
+                AppLogger.shared.info("✅ [HelperManager] Helper registered (status: \(svc.status))")
                 return
             } catch {
                 // If another thread already registered or approval raced, treat Enabled as success
                 if svc.status == .enabled {
-                    AppLogger.shared.log("✅ [HelperManager] Helper became Enabled during registration race; treating as success")
+                    AppLogger.shared.info("✅ [HelperManager] Helper became Enabled during registration race; treating as success")
                     return
                 }
                 if svc.status == .requiresApproval {
@@ -383,7 +383,7 @@ actor HelperManager {
             AppLogger.shared.log("⚠️ [HelperManager] Helper status is .notFound - attempting registration anyway to get detailed error")
             do {
                 try svc.register()
-                AppLogger.shared.log("✅ [HelperManager] Helper registered successfully despite initial .notFound status")
+                AppLogger.shared.info("✅ [HelperManager] Helper registered successfully despite initial .notFound status")
                 return
             } catch {
                 // Now we have the real error from SMAppService
@@ -441,7 +441,7 @@ actor HelperManager {
         return try await withCheckedThrowingContinuation { continuation in
             call(proxy) { success, errorMessage in
                 if success {
-                    AppLogger.shared.log("✅ [HelperManager] \(name) succeeded")
+                    AppLogger.shared.info("✅ [HelperManager] \(name) succeeded")
                     continuation.resume()
                 } else {
                     let error = errorMessage ?? "Unknown error"
@@ -538,7 +538,7 @@ actor HelperManager {
         return try await withCheckedThrowingContinuation { continuation in
             proxy.terminateProcess(pid) { success, errorMessage in
                 if success {
-                    AppLogger.shared.log("✅ [HelperManager] terminateProcess succeeded")
+                    AppLogger.shared.info("✅ [HelperManager] terminateProcess succeeded")
                     continuation.resume()
                 } else {
                     let error = errorMessage ?? "Unknown error"

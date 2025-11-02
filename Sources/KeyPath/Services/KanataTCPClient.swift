@@ -155,7 +155,7 @@ actor KanataTCPClient {
 
     /// Authenticate with the Kanata TCP server
     func authenticate(token: String, clientName: String = "KeyPath") async -> Bool {
-        AppLogger.shared.log("🔐 [TCP] Authenticating as '\(clientName)'")
+        AppLogger.shared.debug("🔐 [TCP] Authenticating as '\(clientName)'")
 
         do {
             let request = TCPAuthRequest(token: token, client_name: clientName)
@@ -170,15 +170,15 @@ actor KanataTCPClient {
                 if success {
                     authToken = token
                     self.sessionId = sessionId
-                    AppLogger.shared.log("✅ [TCP] Authentication successful, session: \(sessionId)")
+                    AppLogger.shared.info("✅ [TCP] Authentication successful, session: \(sessionId)")
                     return true
                 }
             }
 
-            AppLogger.shared.log("❌ [TCP] Authentication failed")
+            AppLogger.shared.warn("❌ [TCP] Authentication failed")
             return false
         } catch {
-            AppLogger.shared.log("❌ [TCP] Authentication error: \(error)")
+            AppLogger.shared.error("❌ [TCP] Authentication error: \(error)")
             return false
         }
     }
@@ -187,7 +187,7 @@ actor KanataTCPClient {
     func clearAuthentication() {
         authToken = nil
         sessionId = nil
-        AppLogger.shared.log("🧹 [TCP] Authentication cleared")
+        AppLogger.shared.debug("🧹 [TCP] Authentication cleared")
     }
 
     /// Check if authenticated, try to restore from shared token if not
@@ -207,7 +207,7 @@ actor KanataTCPClient {
 
     /// Cancel any ongoing operations and close connection
     func cancelInflightAndCloseConnection() {
-        AppLogger.shared.log("🔌 [TCP] Closing connection")
+        AppLogger.shared.debug("🔌 [TCP] Closing connection")
         closeConnection()
         clearAuthentication()
     }
@@ -216,7 +216,7 @@ actor KanataTCPClient {
 
     /// Check if TCP server is available
     func checkServerStatus(authToken: String? = nil) async -> Bool {
-        AppLogger.shared.log("🌐 [TCP] Checking server status for \(host):\(port)")
+        AppLogger.shared.debug("🌐 [TCP] Checking server status for \(host):\(port)")
 
         do {
             // Use RequestCurrentLayerName as a simple ping
@@ -224,7 +224,7 @@ actor KanataTCPClient {
             let responseData = try await send(pingData)
 
             if let responseString = String(data: responseData, encoding: .utf8) {
-                AppLogger.shared.log("✅ [TCP] Server is responding: \(responseString.prefix(100))")
+                AppLogger.shared.debug("✅ [TCP] Server is responding: \(responseString.prefix(100))")
 
                 // Try authentication if token provided
                 let token: String? = if let provided = authToken {
@@ -242,15 +242,15 @@ actor KanataTCPClient {
 
             return false
         } catch {
-            AppLogger.shared.log("❌ [TCP] Server check failed: \(error)")
+            AppLogger.shared.warn("❌ [TCP] Server check failed: \(error)")
             return false
         }
     }
 
     /// Validate configuration (currently not supported by kanata TCP server)
     func validateConfig(_ configContent: String) async -> TCPValidationResult {
-        AppLogger.shared.log("📝 [TCP] Config validation requested (\(configContent.count) bytes)")
-        AppLogger.shared.log("📝 [TCP] Note: ValidateConfig not supported by kanata - will validate on file load")
+        AppLogger.shared.debug("📝 [TCP] Config validation requested (\(configContent.count) bytes)")
+        AppLogger.shared.debug("📝 [TCP] Note: ValidateConfig not supported by kanata - will validate on file load")
         return .success
     }
 
