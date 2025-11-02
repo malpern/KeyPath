@@ -1,0 +1,136 @@
+import Foundation
+
+/// Writer for managing simple modifications sentinel blocks
+@MainActor
+public final class SimpleModsWriter {
+    private let configPath: String
+    
+    public init(configPath: String) {
+        self.configPath = configPath
+    }
+    
+    /// Write or update the sentinel block with the given mappings
+    public func writeBlock(mappings: [SimpleMapping]) throws {
+        // Read current content
+        let content: String
+        if FileManager.default.fileExists(atPath: configPath) {
+            content = try String(contentsOfFile: configPath, encoding: .utf8)
+        } else {
+            content = ""
+        }
+        
+        let lines = content.components(separatedBy: .newlines)
+        
+        // Find existing block
+        let parser = SimpleModsParser(configPath: configPath)
+        let (existingBlock, _, _) = try parser.parse()
+        
+        let blockId = existingBlock?.id ?? UUID().uuidString
+        let blockVersion = existingBlock?.version ?? 1
+        
+        // Generate mapping lines
+        var mappingLines: [String] = []
+        mappingLines.append("  ;; Simple Modifications (managed by KeyPath)")
+        
+        // Deduplicate: keep only last mapping per fromKey
+        var seenFromKeys: Set<String> = []
+        var uniqueMappings: [SimpleMapping] = []
+        for mapping in mappings.reversed() {
+            if !seenFromKeys.contains(mapping.fromKey) {
+                uniqueMappings.insert(mapping, at: 0)
+                seenFromKeys.insert(mapping.fromKey)
+            }
+        }
+        
+        for mapping in uniqueMappings {
+            let disabledMarker = mapping.enabled ? "" : " # KP:DISABLED"
+            mappingLines.append("  \(mapping.fromKey) \(mapping.toKey)\(disabledMarker)")
+        }
+        
+        // Generate block content
+        let blockContent = """
+        # KP:BEGIN simple_mods id=\(blockId) version=\(blockVersion)
+        (deflayermap (base)
+        \(mappingLines.joined(separator: "\n"))
+        )
+        # KP:END id=\(blockId)
+        """
+        
+        // Insert or replace block
+        var newLines: [String] = []
+        
+        if let existing = existingBlock {
+            // Replace existing block
+            for (index, line) in lines.enumerated() {
+                let lineNumber = index + 1
+                if lineNumber < existing.startLine || lineNumber > existing.endLine {
+                    newLines.append(line)
+                } else if lineNumber == existing.startLine {
+                    // Insert new block at start position
+                    newLines.append(contentsOf: blockContent.components(separatedBy: .newlines))
+                }
+            }
+        } else {
+            // Append new block
+            newLines = lines
+            if !newLines.isEmpty && !newLines.last!.isEmpty {
+                newLines.append("")
+            }
+            newLines.append("")
+            newLines.append(contentsOf: blockContent.components(separatedBy: .newlines))
+        }
+        
+        // Write back
+        let newContent = newLines.joined(separator: "\n")
+        try newContent.write(toFile: configPath, atomically: true, encoding: .utf8)
+    }
+    
+    /// Generate effective config content (source config with disabled lines filtered out)
+    public func generateEffectiveConfig() throws -> String {
+        let content = try String(contentsOfFile: configPath, encoding: .utf8)
+        let lines = content.components(separatedBy: .newlines)
+        
+        let parser = SimpleModsParser(configPath: configPath)
+        let (block, _, _) = try parser.parse()
+        
+        guard let block = block else {
+            // No block means no filtering needed
+            return content
+        }
+        
+        // Filter out disabled lines within the block
+        var effectiveLines: [String] = []
+        var inBlock = false
+        
+        for (index, line) in lines.enumerated() {
+            let lineNumber = index + 1
+            
+            // Check if entering block
+            if lineNumber == block.startLine {
+                inBlock = true
+                effectiveLines.append(line)
+                continue
+            }
+            
+            // Check if exiting block
+            if lineNumber == block.endLine {
+                inBlock = false
+                effectiveLines.append(line)
+                continue
+            }
+            
+            // Inside block - filter disabled lines
+            if inBlock {
+                if line.contains("# KP:DISABLED") {
+                    // Skip this line entirely
+                    continue
+                }
+            }
+            
+            effectiveLines.append(line)
+        }
+        
+        return effectiveLines.joined(separator: "\n")
+    }
+}
+

@@ -68,6 +68,7 @@ struct ContentView: View {
     @State private var failedConfigBackupPath = ""
     @State private var showingInstallAlert = false
     @State private var showingKanataNotRunningAlert = false
+    @State private var showingSimpleMods = false
 
     @State private var saveDebounceTimer: Timer?
     private let saveDebounceDelay: TimeInterval = 0.1
@@ -204,6 +205,10 @@ struct ContentView: View {
                 }
                 .environmentObject(kanataManager)
         }
+        .sheet(isPresented: $showingSimpleMods) {
+            SimpleModsView(configPath: kanataManager.configPath)
+                .environmentObject(kanataManager)
+        }
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
             AppLogger.shared.log(
@@ -312,6 +317,9 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowWizard"))) { _ in
             showingInstallationWizard = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowSimpleMods"))) { _ in
+            showingSimpleMods = true
         }
         .onChange(of: showingInstallationWizard) { _, showing in
             // When wizard closes, try to start emergency monitoring if we now have permissions
