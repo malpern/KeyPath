@@ -37,6 +37,8 @@ extension KanataManager {
         AppLogger.shared.debug("📡 [Reload] Attempting TCP reload")
         let tcpResult = await triggerTCPReload()
         if tcpResult.isSuccess {
+            // Successful reload -> clear stale diagnostics (e.g., Invalid Configuration)
+            clearDiagnostics()
             return ReloadResult(
                 success: true,
                 response: tcpResult.response ?? "",
@@ -48,6 +50,8 @@ extension KanataManager {
             // Fall back to service restart
             AppLogger.shared.warn("⚠️ [Reload] Falling back to service restart")
             await restartKanata()
+            // After a successful restart, clear stale diagnostics
+            clearDiagnostics()
             return ReloadResult(
                 success: true,
                 response: "Service restarted (TCP reload failed)",

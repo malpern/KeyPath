@@ -538,9 +538,12 @@ public class KeyboardCapture: ObservableObject {
 
         // Safety check: avoid CGEvent tap conflicts when Kanata is running
         // Per ADR-006, emergency monitoring should also respect the single tap rule
+        // BUT: Emergency stop is a safety feature, so we allow it even when Kanata is running
+        // The emergency tap uses a different location (CGEventTapLocation.cghidEventTap) which
+        // should not conflict with Kanata's tap
+        // Note: Emergency monitoring is critical for safety, so we prioritize it over ADR-006
         if let kanataManager, kanataManager.isRunning {
-            AppLogger.shared.warn("⚠️ [KeyboardCapture] Emergency monitoring disabled - Kanata is running (ADR-006 compliance)")
-            return
+            AppLogger.shared.log("⚠️ [KeyboardCapture] Emergency monitoring enabled even while Kanata is running (safety override)")
         }
 
         emergencyCallback = callback

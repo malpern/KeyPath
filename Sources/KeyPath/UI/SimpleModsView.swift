@@ -5,9 +5,14 @@ struct SimpleModsView: View {
     @StateObject private var service: SimpleModsService
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
-    @State private var uiError: String? = nil
-    @State private var selectedCategory: String? = nil
+    @State private var uiError: String?
+    @State private var selectedCategory: String?
     @State private var selectedTab: TabSelection = .installed
+    @State private var showErrorMessage = false
+    @State private var showSuccessMessage = false
+    @State private var statusMessage = ""
+    @State private var statusMessageTimer: DispatchWorkItem?
+    @State private var previousMappingCount = 0
     
     enum TabSelection {
         case installed
@@ -95,11 +100,22 @@ struct SimpleModsView: View {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         if selectedTab == .installed {
                             if filteredInstalledMappings.isEmpty {
-                                EmptyStateView(
-                                    icon: "keyboard",
-                                    title: "No mappings installed",
-                                    message: "Add mappings from the Available tab to get started."
-                                )
+                                VStack(spacing: 12) {
+                                    EmptyStateView(
+                                        icon: "keyboard",
+                                        title: "No mappings installed",
+                                        message: "Add mappings from the Available tab to get started."
+                                    )
+
+                                    Button(action: { selectedTab = .available }, label: {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "arrow.right.circle")
+                                            Text("Browse available presets")
+                                        }
+                                    })
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
                             } else {
                                 ForEach(filteredInstalledMappings) { mapping in
                                     InstalledMappingRow(
@@ -127,18 +143,23 @@ struct SimpleModsView: View {
                     }
                     .padding()
                 }
-                
-                if let error = uiError ?? service.lastError {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                // Toast notification area (similar to ContentView)
+                Group {
+                    if showErrorMessage || showSuccessMessage {
+                        StatusMessageView(message: statusMessage, isVisible: true)
+                            .padding(.horizontal)
+                            .padding(.bottom, 12)
+                            .transition(.opacity)
+                    } else {
+                        Color.clear
+                            .frame(height: 0)
                     }
-                    .padding()
-                    .background(Color(NSColor.controlBackgroundColor))
                 }
+                .frame(height: (showErrorMessage || showSuccessMessage) ? 80 : 0)
+                .animation(.easeInOut(duration: 0.25), value: showErrorMessage)
+                .animation(.easeInOut(duration: 0.25), value: showSuccessMessage)
             }
             .navigationTitle("Simple Key Mappings")
             .toolbar {
@@ -158,14 +179,58 @@ struct SimpleModsView: View {
                 // Load mappings
                 do {
                     try service.load()
+                    previousMappingCount = service.installedMappings.count
                 } catch {
                     uiError = "Failed to load mappings: \(error.localizedDescription)"
                 }
             }
+            // Show toast notifications for errors and success
+            .onChange(of: service.lastError) { _, newValue in
+                if let error = newValue {
+                    // Check if this is a rollback scenario
+                    if let rollbackReason = service.lastRollbackReason {
+                        let details = service.lastRollbackDetails ?? ""
+                        let fullMessage = "❌ Configuration Error\n\(rollbackReason)\n\nDetails:\n\(details)"
+                        showToast(fullMessage, isError: true)
+                    } else {
+                        showToast("❌ \(error)", isError: true)
+                    }
+                    uiError = error
+                } else {
+                    // Success - clear errors
+                    uiError = nil
+                    showErrorMessage = false
+                }
+            }
             .onChange(of: service.installedMappings.count) { oldCount, newCount in
-                // Switch to installed tab when a mapping is added
-                if newCount > oldCount && selectedTab == .available {
-                    selectedTab = .installed
+                // Track previous count
+                previousMappingCount = oldCount
+                
+                // Only show success toast if NOT a rollback (no error state)
+                if service.lastError == nil && service.lastRollbackReason == nil {
+                    // Switch to installed tab when a mapping is added
+                    if newCount > oldCount && selectedTab == .available {
+                        selectedTab = .installed
+                        showToast("✅ Mapping added successfully", isError: false)
+                    } else if newCount < oldCount {
+                        // Only show success if user-initiated (not rollback)
+                        showToast("✅ Mapping removed successfully", isError: false)
+                    }
+                }
+            }
+            .onChange(of: service.lastRollbackReason) { _, rollbackReason in
+                if let reason = rollbackReason {
+                    // This is a rollback - show error toast with details
+                    let details = service.lastRollbackDetails ?? "No additional details available"
+                    let fullMessage = "❌ Configuration Error\n\(reason)\n\nChanges have been rolled back.\n\n\(details)"
+                    showToast(fullMessage, isError: true)
+                }
+            }
+            .onChange(of: service.isApplying) { _, isApplying in
+                // When applying starts, clear any existing messages
+                if isApplying {
+                    showErrorMessage = false
+                    showSuccessMessage = false
                 }
             }
         }
@@ -215,6 +280,21 @@ struct SimpleModsView: View {
     private func findViewModel() -> KanataViewModel {
         return kanataViewModel
     }
+    
+    private func showToast(_ message: String, isError: Bool) {
+        statusMessageTimer?.cancel()
+        statusMessage = message
+        showErrorMessage = isError
+        showSuccessMessage = !isError
+        
+        // Auto-dismiss after duration
+        let workItem = DispatchWorkItem {
+            showErrorMessage = false
+            showSuccessMessage = false
+        }
+        statusMessageTimer = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + (isError ? 5.0 : 3.0), execute: workItem)
+    }
 }
 
 /// Tab button for switching between Installed and Available
@@ -225,7 +305,7 @@ private struct TabButton: View {
     let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
+        Button(action: action, label: {
             HStack(spacing: 6) {
                 Text(title)
                     .font(.headline)
@@ -243,7 +323,7 @@ private struct TabButton: View {
             .background(isSelected ? Color.accentColor : Color.clear)
             .foregroundColor(isSelected ? .white : .primary)
             .cornerRadius(8)
-        }
+        })
         .buttonStyle(.plain)
     }
 }
@@ -298,12 +378,17 @@ private struct InstalledMappingRow: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(mappingName)
-                    .font(.headline)
-                Text("\(mapping.fromKey) → \(mapping.toKey)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 6) {
+                if let name = mappingDisplayName {
+                    Text(name)
+                        .font(.headline)
+                }
+                HStack(spacing: 8) {
+                    KeyCapChip(text: mapping.fromKey)
+                    Text("→")
+                        .foregroundColor(.secondary)
+                    KeyCapChip(text: mapping.toKey)
+                }
             }
             
             Spacer()
@@ -319,10 +404,10 @@ private struct InstalledMappingRow: View {
             
             Button(action: {
                 service.removeMapping(id: mapping.id)
-            }) {
+            }, label: {
                 Image(systemName: "trash")
                     .foregroundColor(.red)
-            }
+            })
             .buttonStyle(.plain)
             .disabled(service.isApplying)
         }
@@ -331,9 +416,19 @@ private struct InstalledMappingRow: View {
         .cornerRadius(8)
     }
     
-    private var mappingName: String {
+    private var mappingDisplayName: String? {
         let presets = service.getPresetsByCategory().values.flatMap { $0 }
-        return presets.first(where: { $0.fromKey == mapping.fromKey && $0.toKey == mapping.toKey })?.name ?? "\(mapping.fromKey) → \(mapping.toKey)"
+        if let name = presets.first(where: { $0.fromKey == mapping.fromKey && $0.toKey == mapping.toKey })?.name {
+            // Hide trivial labels that just restate the mapping
+            let trivial1 = "\(mapping.fromKey) → \(mapping.toKey)"
+            let trivial2 = "\(mapping.fromKey) to \(mapping.toKey)"
+            if name.caseInsensitiveCompare(trivial1) == .orderedSame ||
+                name.caseInsensitiveCompare(trivial2) == .orderedSame {
+                return nil
+            }
+            return name
+        }
+        return nil
     }
 }
 
@@ -344,22 +439,29 @@ private struct AvailablePresetRow: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(preset.name)
-                    .font(.headline)
-                Text(preset.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text("\(preset.fromKey) → \(preset.toKey)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary.opacity(0.7))
+            VStack(alignment: .leading, spacing: 6) {
+                if let title = titleText {
+                    Text(title)
+                        .font(.headline)
+                }
+                HStack(spacing: 8) {
+                    KeyCapChip(text: preset.fromKey)
+                    Text("→")
+                        .foregroundColor(.secondary)
+                    KeyCapChip(text: preset.toKey)
+                }
+                if let tip = helpfulDescription {
+                    Text(tip)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Spacer()
             
             Button(action: {
                 service.addMapping(fromKey: preset.fromKey, toKey: preset.toKey, enabled: true)
-            }) {
+            }, label: {
                 HStack(spacing: 4) {
                     Image(systemName: "plus.circle.fill")
                     Text("Add")
@@ -370,12 +472,65 @@ private struct AvailablePresetRow: View {
                 .padding(.vertical, 6)
                 .background(Color.accentColor)
                 .cornerRadius(6)
-            }
+            })
             .buttonStyle(.plain)
             .disabled(service.isApplying)
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
+    }
+
+    // MARK: - Display helpers
+    private var titleText: String? {
+        let trivial1 = "\(preset.fromKey) → \(preset.toKey)"
+        let trivial2 = "\(preset.fromKey) to \(preset.toKey)"
+        if preset.name.caseInsensitiveCompare(trivial1) == .orderedSame ||
+            preset.name.caseInsensitiveCompare(trivial2) == .orderedSame {
+            return nil
+        }
+        return preset.name
+    }
+
+    private var helpfulDescription: String? {
+        let desc = preset.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        if desc.isEmpty { return nil }
+
+        // Hide if description just restates the mapping
+        let mappingStrings = [
+            "\(preset.fromKey) → \(preset.toKey)",
+            "\(preset.fromKey)->\(preset.toKey)",
+            "\(preset.fromKey) to \(preset.toKey)"
+        ]
+        if mappingStrings.contains(where: { desc.caseInsensitiveCompare($0) == .orderedSame }) {
+            return nil
+        }
+        // If description contains both keys and nothing else meaningful, hide
+        let lower = desc.lowercased()
+        let tokens = [preset.fromKey.lowercased(), preset.toKey.lowercased()]
+        let alnum = lower.replacingOccurrences(of: "[^a-z0-9 ]", with: "", options: .regularExpression)
+        if tokens.allSatisfy({ alnum.contains($0) }) && !lower.contains("useful") && !lower.contains("vim") && !lower.contains("tip") && !lower.contains("recommend") {
+            return nil
+        }
+        return desc
+    }
+}
+
+// MARK: - KeyCap styling for key labels
+private struct KeyCapChip: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(red: 0.96, green: 0.95, blue: 0.90)) // beige
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color(red: 0.88, green: 0.86, blue: 0.80), lineWidth: 1)
+            )
     }
 }

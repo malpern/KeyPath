@@ -100,7 +100,7 @@ struct ContentView: View {
 
             HStack {
                 Spacer()
-                Button(action: { debouncedSave() }) {
+                Button(action: { debouncedSave() }, label: {
                     HStack {
                         if kanataManager.saveStatus.isActive {
                             ProgressView()
@@ -112,7 +112,7 @@ struct ContentView: View {
                         Text("Save")
                     }
                     .frame(minWidth: 100)
-                }
+                })
                 .buttonStyle(.borderedProminent)
                 .disabled(recordingCoordinator.capturedInputSequence() == nil ||
                     recordingCoordinator.capturedOutputSequence() == nil ||
@@ -126,6 +126,19 @@ struct ContentView: View {
 
             // Enhanced Error Display - persistent and actionable
             EnhancedErrorHandler(errorInfo: $enhancedErrorInfo)
+
+            // Emergency Stop Pause Card (similar to low battery pause)
+            if kanataManager.emergencyStopActivated {
+                EmergencyStopPauseCard(
+                    onRestart: {
+                        Task { @MainActor in
+                            kanataManager.emergencyStopActivated = false
+                            await kanataManager.startKanata()
+                            await kanataManager.updateStatus()
+                        }
+                    }
+                )
+            }
 
             // Legacy Error Section (only show if there's an error and no enhanced error)
             if let error = kanataManager.lastError, !kanataManager.isRunning, enhancedErrorInfo == nil {
@@ -211,7 +224,7 @@ struct ContentView: View {
                 .environmentObject(kanataManager)
         }
         .sheet(isPresented: $showingEmergencyStopDialog) {
-            EmergencyStopDialog()
+            EmergencyStopDialog(isActivated: kanataManager.emergencyStopActivated)
         }
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
@@ -425,10 +438,20 @@ struct ContentView: View {
 
         // We have permissions, start monitoring
         capture.startEmergencyMonitoring {
-            showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
-            // Surface a system notification if app is not frontmost
-            UserNotificationService.shared.notifyLaunchFailure(.serviceFailure("Emergency stop activated"))
-            showingEmergencyAlert = true
+            // Stop Kanata when emergency stop is detected
+            Task { @MainActor in
+                await kanataManager.stopKanata()
+                kanataManager.emergencyStopActivated = true
+                showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
+                // Surface a system notification if app is not frontmost
+                UserNotificationService.shared.notifyLaunchFailure(.serviceFailure("Emergency stop activated"))
+                showingEmergencyAlert = true
+
+                // Update dialog if it's showing
+                if showingEmergencyStopDialog {
+                    // Dialog will observe the state change
+                }
+            }
         }
     }
 

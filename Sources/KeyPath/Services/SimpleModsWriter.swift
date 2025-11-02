@@ -43,17 +43,44 @@ public final class SimpleModsWriter {
         }
         
         for mapping in uniqueMappings {
-            let disabledMarker = mapping.enabled ? "" : " # KP:DISABLED"
-            mappingLines.append("  \(mapping.fromKey) \(mapping.toKey)\(disabledMarker)")
+            if mapping.enabled {
+                mappingLines.append("  \(mapping.fromKey) \(mapping.toKey)")
+            } else {
+                // Commented-out disabled line; still tracked by our parser
+                mappingLines.append("  ; \(mapping.fromKey) \(mapping.toKey)  ; KP:DISABLED")
+            }
         }
-        
+
+        // If no mappings remain, remove the entire sentinel block if it exists
+        if uniqueMappings.isEmpty {
+            var newLines: [String] = []
+            if let existing = existingBlock {
+                for (index, line) in lines.enumerated() {
+                    let lineNumber = index + 1
+                    if lineNumber < existing.startLine || lineNumber > existing.endLine {
+                        newLines.append(line)
+                    }
+                }
+                // Trim trailing empties
+                while let last = newLines.last, last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    newLines.removeLast()
+                }
+                let newContent = newLines.joined(separator: "\n") + "\n"
+                try newContent.write(toFile: configPath, atomically: true, encoding: .utf8)
+                return
+            } else {
+                // Nothing to do if there is no block
+                return
+            }
+        }
+
         // Generate block content
         let blockContent = """
-        # KP:BEGIN simple_mods id=\(blockId) version=\(blockVersion)
+        ;; KP:BEGIN simple_mods id=\(blockId) version=\(blockVersion)
         (deflayermap (base)
         \(mappingLines.joined(separator: "\n"))
         )
-        # KP:END id=\(blockId)
+        ;; KP:END id=\(blockId)
         """
         
         // Insert or replace block
@@ -61,7 +88,7 @@ public final class SimpleModsWriter {
         
         if let existing = existingBlock {
             // Replace existing block
-            for (index, line) in lines.enumerated() {
+        for (index, line) in lines.enumerated() {
                 let lineNumber = index + 1
                 if lineNumber < existing.startLine || lineNumber > existing.endLine {
                     newLines.append(line)
@@ -107,21 +134,21 @@ public final class SimpleModsWriter {
             
             // Check if entering block
             if lineNumber == block.startLine {
+                // Do NOT include sentinel begin line in effective config
                 inBlock = true
-                effectiveLines.append(line)
                 continue
             }
             
             // Check if exiting block
             if lineNumber == block.endLine {
+                // Do NOT include sentinel end line in effective config
                 inBlock = false
-                effectiveLines.append(line)
                 continue
             }
             
-            // Inside block - filter disabled lines
+            // Inside block - filter disabled lines (commented with ';' and/or carrying KP:DISABLED marker)
             if inBlock {
-                if line.contains("# KP:DISABLED") {
+                if line.contains("KP:DISABLED") || line.trimmingCharacters(in: .whitespaces).hasPrefix(";") {
                     // Skip this line entirely
                     continue
                 }

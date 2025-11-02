@@ -39,8 +39,8 @@ public final class SimpleModsParser {
             let lineNumber = index + 1
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             
-            // Check for KP:BEGIN
-            if trimmed.hasPrefix("# KP:BEGIN") {
+            // Check for KP:BEGIN (accept both '#' and ';' comment styles)
+            if trimmed.hasPrefix("# KP:BEGIN") || trimmed.hasPrefix("; KP:BEGIN") || trimmed.hasPrefix(";; KP:BEGIN") {
                 if inBlock {
                     // Nested block - not expected but handle gracefully
                     continue
@@ -57,8 +57,8 @@ public final class SimpleModsParser {
                 continue
             }
             
-            // Check for KP:END
-            if trimmed.hasPrefix("# KP:END") {
+            // Check for KP:END (accept both '#' and ';' comment styles)
+            if trimmed.hasPrefix("# KP:END") || trimmed.hasPrefix("; KP:END") || trimmed.hasPrefix(";; KP:END") {
                 if inBlock {
                     let endId = parseAttributes(from: trimmed)["id"]
                     if endId == blockId {
@@ -134,18 +134,26 @@ public final class SimpleModsParser {
     private func parseMappingLine(_ line: String, at lineNumber: Int) -> SimpleMapping? {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
         
-        // Skip comments and empty lines
-        if trimmed.isEmpty || trimmed.hasPrefix(";") || trimmed.hasPrefix("#") {
+        // Handle disabled/commented mapping lines beginning with ';'
+        var disabled = false
+        var content = trimmed
+        if trimmed.hasPrefix(";") {
+            // Strip leading ';' and any following spaces to parse mapping tokens
+            disabled = true
+            content = String(trimmed.drop(while: { $0 == ";" || $0 == " " }))
+        }
+        
+        if content.isEmpty || content.hasPrefix("#") {
             return nil
         }
         
         // Skip deflayermap declaration line
-        if trimmed.contains("(deflayermap") || trimmed == ")" {
+        if content.contains("(deflayermap") || content == ")" {
             return nil
         }
         
         // Parse key pair
-        let parts = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        let parts = content.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
         guard parts.count >= 2 else {
             return nil
         }
@@ -153,8 +161,8 @@ public final class SimpleModsParser {
         let fromKey = parts[0]
         let toKey = parts[1]
         
-        // Check if disabled
-        let isDisabled = trimmed.contains("# KP:DISABLED")
+        // Check if disabled marker present anywhere
+        let isDisabled = disabled || trimmed.contains("KP:DISABLED")
         
         // Validate keys (basic check)
         if !isValidKanataKey(fromKey) || !isValidKanataKey(toKey) {
