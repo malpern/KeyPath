@@ -365,7 +365,7 @@ class IssueGenerator {
         case .launchDaemonServicesUnhealthy:
             "LaunchDaemon services are loaded but crashing or failing. This usually indicates a configuration problem or permission issue that can be fixed by restarting the services."
         case .kanataTCPServer:
-            "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with UDP enabled."
+            "Kanata TCP server is not responding on the configured port. This is used for config validation and external integration. Service may need restart with TCP enabled."
         case .orphanedKanataProcess:
             """
             Kanata is running outside of LaunchDaemon management. This prevents reliable lifecycle control and hot-reload functionality.
@@ -390,9 +390,9 @@ class IssueGenerator {
             """
         case .tcpServerConfiguration:
             """
-            The TCP server is enabled in KeyPath preferences but the system service is not configured with the current UDP settings.
+            The TCP server is enabled in KeyPath preferences but the system service is not configured with the current TCP settings.
 
-            This happens when UDP preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current UDP port and authentication configuration.
+            This happens when TCP preferences are changed but the service hasn't been updated. The service needs to be regenerated with the current TCP port configuration.
             """
         case .tcpServerNotResponding:
             """
@@ -459,7 +459,7 @@ class IssueGenerator {
         case .tcpServerConfiguration:
             "Click 'Fix' to enable TCP server"
         case .tcpServerNotResponding:
-            "Click 'Fix' to restart the service with UDP functionality"
+            "Click 'Fix' to restart the service with TCP functionality"
         case .logRotation:
             "Click 'Fix' to install log rotation service"
         default:

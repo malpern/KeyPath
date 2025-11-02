@@ -1133,8 +1133,8 @@ class LaunchDaemonInstaller {
         launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
         launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
 
-        # CRITICAL: Use bundled kanata directly - DO NOT copy to /Library/KeyPath/bin
-        # Copying breaks TCC identity and Input Monitoring permissions
+        # Use bundled kanata directly in this path (avoids TCC identity issues)
+        # Note: This behavior is covered by safety lints/tests to prevent regressions
         echo "Using bundled kanata binary at: \(WizardSystemPaths.bundledKanataPath)"
 
         # Verify bundled kanata exists and is executable
@@ -1917,7 +1917,7 @@ class LaunchDaemonInstaller {
         return arguments
     }
 
-    /// Checks if the current service configuration matches the expected UDP settings (both arguments and environment variables)
+    /// Checks if the current service configuration matches the expected TCP settings (both arguments and environment variables)
     func isServiceConfigurationCurrent() -> Bool {
         guard let currentArgs = getKanataProgramArguments() else {
             AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check TCP configuration - plist unreadable")
@@ -1929,7 +1929,7 @@ class LaunchDaemonInstaller {
         // Compare argument arrays for exact match
         let argsMatch = currentArgs == expectedArgs
 
-        AppLogger.shared.log("🔍 [LaunchDaemon] UDP Configuration Check:")
+        AppLogger.shared.log("🔍 [LaunchDaemon] TCP Configuration Check:")
         AppLogger.shared.log("  Current Args:  \(currentArgs.joined(separator: " "))")
         AppLogger.shared.log("  Expected Args: \(expectedArgs.joined(separator: " "))")
         AppLogger.shared.log("  Args Match: \(argsMatch)")
@@ -2056,7 +2056,7 @@ class LaunchDaemonInstaller {
 
     // MARK: - Argument Building
 
-    /// Builds Kanata command line arguments for LaunchDaemon plist including UDP port when enabled
+    /// Builds Kanata command line arguments for LaunchDaemon plist including TCP port when enabled
     private func buildKanataPlistArguments(binaryPath: String) -> [String] {
         var arguments = [binaryPath, "--cfg", Self.kanataConfigPath]
 
