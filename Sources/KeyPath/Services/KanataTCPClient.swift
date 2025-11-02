@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import KeyPathCore
 
 /// Simple completion flag for thread-safe continuation handling
 private final class CompletionFlag: @unchecked Sendable {

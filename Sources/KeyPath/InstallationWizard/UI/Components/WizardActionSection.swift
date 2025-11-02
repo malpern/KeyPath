@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Simplified action section for the summary page
 struct WizardActionSection: View {
@@ -9,16 +11,18 @@ struct WizardActionSection: View {
 
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.itemGap) {
-            // Status indicator
-            HStack(spacing: WizardDesign.Spacing.labelGap) {
-                Image(systemName: statusIcon)
-                    .foregroundColor(statusColor)
-                    .font(.system(size: 20))
-
-                if !statusMessage.isEmpty {
-                    Text(statusMessage)
-                        .font(WizardDesign.Typography.status)
+            // Status indicator (hidden in full success state)
+            if !(systemState == .active && isFullyConfigured) {
+                HStack(spacing: WizardDesign.Spacing.labelGap) {
+                    Image(systemName: statusIcon)
                         .foregroundColor(statusColor)
+                        .font(.system(size: 20))
+
+                    if !statusMessage.isEmpty {
+                        Text(statusMessage)
+                            .font(WizardDesign.Typography.status)
+                            .foregroundColor(statusColor)
+                    }
                 }
             }
 

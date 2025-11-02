@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Simplified ProcessLifecycleManager using PID files for deterministic process ownership
 ///
@@ -6,28 +7,22 @@ import Foundation
 /// - When we start kanata, we write a PID file
 /// - When checking conflicts, we read the PID file to know what we own
 /// - No more guessing based on command patterns
-///
-/// - Deprecated: Use `KeyPathError.process(...)` instead for consistent error handling
-@available(*, deprecated, message: "Use KeyPathError.process(...) instead")
 @MainActor
+public final class ProcessLifecycleManager: @unchecked Sendable {
+    // MARK: - Intent
 
-enum ProcessIntent {
-    case shouldBeRunning(source: String)
-    case shouldBeStopped
-}
-
-final class ProcessLifecycleManager: @unchecked Sendable {
-    // MARK: - State Variables
+    public enum ProcessIntent {
+        case shouldBeRunning(source: String)
+        case shouldBeStopped
+    }
 
     private var currentIntent: ProcessIntent?
 
-    // MARK: - Intent Handling
-
-    func setIntent(_ intent: ProcessIntent) {
+    public func setIntent(_ intent: ProcessIntent) {
         currentIntent = intent
     }
 
-    func reconcileWithIntent() async throws {
+    public func reconcileWithIntent() async throws {
         guard let intent = currentIntent else {
             AppLogger.shared.log("❌ [ProcessLifecycleManager] No intent set")
             return
@@ -35,72 +30,62 @@ final class ProcessLifecycleManager: @unchecked Sendable {
 
         switch intent {
         case let .shouldBeRunning(source):
-            // Logic for ensuring process is running
             AppLogger.shared.log(
                 "🚀 [ProcessLifecycleManager] Ensuring process running (source: \(source))")
-    // Add actual process start logic here
-
+            // Add actual process start logic here
         case .shouldBeStopped:
-            // Logic for ensuring process is stopped
             AppLogger.shared.log("🛑 [ProcessLifecycleManager] Ensuring process is stopped")
             // Add actual process stop logic here
         }
     }
 
-    func recoverFromCrash() async {
-        // Default implementation to clean up orphaned processes
-        AppLogger.shared.log("🧹 [ProcessLifecycleManager] Attempting to recover from crash")
-        await cleanupOrphanedProcesses()
+    public init() {
+        AppLogger.shared.log(
+            "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking and caching")
     }
 
     // MARK: - Types
 
-    struct ProcessInfo {
-        let pid: pid_t
-        let command: String
-        let executable: String
+    public struct ProcessInfo: Sendable {
+        public let pid: pid_t
+        public let command: String
+        public let executable: String
 
-        init(pid: pid_t, command: String) {
+        public init(pid: pid_t, command: String) {
             self.pid = pid
             self.command = command
             executable = command.components(separatedBy: " ").first ?? ""
         }
     }
 
-    struct ConflictResolution {
-        let externalProcesses: [ProcessInfo]
-        let managedProcesses: [ProcessInfo]
-        let canAutoResolve: Bool
+    public struct ConflictResolution: Sendable {
+        public let externalProcesses: [ProcessInfo]
+        public let managedProcesses: [ProcessInfo]
+        public let canAutoResolve: Bool
 
-        var hasConflicts: Bool {
-            !externalProcesses.isEmpty
+        public init(externalProcesses: [ProcessInfo], managedProcesses: [ProcessInfo], canAutoResolve: Bool) {
+            self.externalProcesses = externalProcesses
+            self.managedProcesses = managedProcesses
+            self.canAutoResolve = canAutoResolve
         }
 
-        var totalProcesses: Int {
-            externalProcesses.count + managedProcesses.count
-        }
+        public var hasConflicts: Bool { !externalProcesses.isEmpty }
+        public var totalProcesses: Int { externalProcesses.count + managedProcesses.count }
     }
 
     // MARK: - State
 
-    private(set) var ownedPID: pid_t?
-    private(set) var lastConflictCheck: Date?
+    public private(set) var ownedPID: pid_t?
+    public private(set) var lastConflictCheck: Date?
 
     // MARK: - Dependencies
 
-    private let kanataManager: KanataManager?
     private let pidCache = LaunchDaemonPIDCache()
-
-    init(kanataManager: KanataManager? = nil) {
-        self.kanataManager = kanataManager
-        AppLogger.shared.log(
-            "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking and caching")
-    }
 
     // MARK: - Public API
 
     /// Register that we started a kanata process
-    func registerStartedProcess(pid: pid_t, command: String) async {
+    public func registerStartedProcess(pid: pid_t, command: String) async {
         do {
             try PIDFileManager.writePID(pid, command: command)
             ownedPID = pid
@@ -113,7 +98,7 @@ final class ProcessLifecycleManager: @unchecked Sendable {
     }
 
     /// Unregister our process (on stop or cleanup)
-    func unregisterProcess() async {
+    public func unregisterProcess() async {
         do {
             try PIDFileManager.removePID()
             ownedPID = nil
@@ -126,7 +111,7 @@ final class ProcessLifecycleManager: @unchecked Sendable {
     }
 
     /// Check for conflicts (external kanata processes)
-    func detectConflicts() async -> ConflictResolution {
+    public func detectConflicts() async -> ConflictResolution {
         AppLogger.shared.log("🔍 [ProcessLifecycleManager] Detecting conflicts...")
 
         // Skip process detection in test environment
@@ -189,7 +174,7 @@ final class ProcessLifecycleManager: @unchecked Sendable {
     }
 
     /// Kill all external kanata processes
-    func terminateExternalProcesses() async throws {
+    public func terminateExternalProcesses() async throws {
         let conflicts = await detectConflicts()
 
         for process in conflicts.externalProcesses {
@@ -212,7 +197,7 @@ final class ProcessLifecycleManager: @unchecked Sendable {
     }
 
     /// Clean up orphaned processes on app startup
-    func cleanupOrphanedProcesses() async {
+    public func cleanupOrphanedProcesses() async {
         AppLogger.shared.log("🧹 [ProcessLifecycleManager] Checking for orphaned processes...")
 
         // Check if we have a PID file from a previous run
@@ -234,7 +219,7 @@ final class ProcessLifecycleManager: @unchecked Sendable {
 
     /// Force refresh of LaunchDaemon PID cache
     /// Useful when external processes modify service state
-    func invalidatePIDCache() async {
+    public func invalidatePIDCache() async {
         await pidCache.invalidateCache()
         AppLogger.shared.log("🔄 [ProcessLifecycleManager] PID cache invalidated externally")
     }
@@ -344,3 +329,5 @@ final class ProcessLifecycleManager: @unchecked Sendable {
         return isThisProcessManaged
     }
 }
+
+

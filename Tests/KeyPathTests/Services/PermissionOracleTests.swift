@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPath
+@testable import KeyPathPermissions
 import Testing
 
 /// Comprehensive tests for PermissionOracle - the single source of truth for permissions

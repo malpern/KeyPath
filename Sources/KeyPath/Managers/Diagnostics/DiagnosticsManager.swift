@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathCore
+import KeyPathDaemonLifecycle
 
 /// Protocol for managing diagnostics, health monitoring, and log monitoring
 @preconcurrency

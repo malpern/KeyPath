@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathWizardCore
+import KeyPathCore
 
 // MARK: - Karabiner Component Types
 

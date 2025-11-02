@@ -1,19 +1,38 @@
 import Foundation
+import KeyPathCore
+import KeyPathPermissions
+import KeyPathDaemonLifecycle
 
 /// Complete snapshot of system state at a point in time
 /// This is a pure data structure with no side effects - just state and computed properties
-struct SystemSnapshot {
-    let permissions: PermissionOracle.Snapshot
-    let components: ComponentStatus
-    let conflicts: ConflictStatus
-    let health: HealthStatus
-    let helper: HelperStatus
-    let timestamp: Date
+public struct SystemSnapshot: Sendable {
+    public let permissions: PermissionOracle.Snapshot
+    public let components: ComponentStatus
+    public let conflicts: ConflictStatus
+    public let health: HealthStatus
+    public let helper: HelperStatus
+    public let timestamp: Date
+
+    public init(
+        permissions: PermissionOracle.Snapshot,
+        components: ComponentStatus,
+        conflicts: ConflictStatus,
+        health: HealthStatus,
+        helper: HelperStatus,
+        timestamp: Date
+    ) {
+        self.permissions = permissions
+        self.components = components
+        self.conflicts = conflicts
+        self.health = health
+        self.helper = helper
+        self.timestamp = timestamp
+    }
 
     // MARK: - Computed Properties for UI
 
     /// System is ready when all critical components are operational
-    var isReady: Bool {
+    public var isReady: Bool {
         helper.isReady &&
             permissions.isSystemReady &&
             !conflicts.hasConflicts &&
@@ -22,7 +41,7 @@ struct SystemSnapshot {
     }
 
     /// Issues that prevent the system from working
-    var blockingIssues: [Issue] {
+    public var blockingIssues: [Issue] {
         var issues: [Issue] = []
 
         // Helper issues (check first - required for system operations)
@@ -98,19 +117,19 @@ struct SystemSnapshot {
     }
 
     /// All issues including non-blocking warnings
-    var allIssues: [Issue] {
+    public var allIssues: [Issue] {
         // For now, same as blocking issues
         // Could add warnings here later
         blockingIssues
     }
 
     /// Age of this snapshot (for staleness detection)
-    var age: TimeInterval {
+    public var age: TimeInterval {
         Date().timeIntervalSince(timestamp)
     }
 
     /// Validate snapshot freshness - catches stale state bugs
-    func validate() {
+    public func validate() {
         // Assertion: Catch stale state in UI
         assert(age < 30.0, "🚨 STALE STATE: Snapshot is \(String(format: "%.1f", age))s old - UI showing outdated state!")
 
@@ -121,72 +140,92 @@ struct SystemSnapshot {
 }
 
 // MARK: - Component Status
+public struct ComponentStatus: Sendable {
+    public let kanataBinaryInstalled: Bool
+    public let karabinerDriverInstalled: Bool
+    public let karabinerDaemonRunning: Bool
+    public let vhidDeviceInstalled: Bool
+    public let vhidDeviceHealthy: Bool
+    public let launchDaemonServicesHealthy: Bool
+    public let vhidVersionMismatch: Bool
 
-struct ComponentStatus {
-    let kanataBinaryInstalled: Bool
-    let karabinerDriverInstalled: Bool
-    let karabinerDaemonRunning: Bool
-    let vhidDeviceInstalled: Bool
-    let vhidDeviceHealthy: Bool
-    let launchDaemonServicesHealthy: Bool
-    let vhidVersionMismatch: Bool
+    public init(
+        kanataBinaryInstalled: Bool,
+        karabinerDriverInstalled: Bool,
+        karabinerDaemonRunning: Bool,
+        vhidDeviceInstalled: Bool,
+        vhidDeviceHealthy: Bool,
+        launchDaemonServicesHealthy: Bool,
+        vhidVersionMismatch: Bool
+    ) {
+        self.kanataBinaryInstalled = kanataBinaryInstalled
+        self.karabinerDriverInstalled = karabinerDriverInstalled
+        self.karabinerDaemonRunning = karabinerDaemonRunning
+        self.vhidDeviceInstalled = vhidDeviceInstalled
+        self.vhidDeviceHealthy = vhidDeviceHealthy
+        self.launchDaemonServicesHealthy = launchDaemonServicesHealthy
+        self.vhidVersionMismatch = vhidVersionMismatch
+    }
 
-    var hasAllRequired: Bool {
+    public var hasAllRequired: Bool {
         kanataBinaryInstalled &&
             karabinerDriverInstalled &&
             karabinerDaemonRunning &&
             vhidDeviceHealthy &&
             launchDaemonServicesHealthy &&
-            !vhidVersionMismatch // Version must match (false means no mismatch)
+            !vhidVersionMismatch
     }
 }
 
 // MARK: - Conflict Status
+public struct ConflictStatus: Sendable {
+    public let conflicts: [SystemConflict]
+    public let canAutoResolve: Bool
 
-struct ConflictStatus {
-    let conflicts: [SystemConflict]
-    let canAutoResolve: Bool
-
-    var hasConflicts: Bool {
-        !conflicts.isEmpty
+    public init(conflicts: [SystemConflict], canAutoResolve: Bool) {
+        self.conflicts = conflicts
+        self.canAutoResolve = canAutoResolve
     }
 
-    var conflictCount: Int {
-        conflicts.count
-    }
+    public var hasConflicts: Bool { !conflicts.isEmpty }
+    public var conflictCount: Int { conflicts.count }
 }
 
 // MARK: - Health Status
+public struct HealthStatus: Sendable {
+    public let kanataRunning: Bool
+    public let karabinerDaemonRunning: Bool
+    public let vhidHealthy: Bool
 
-struct HealthStatus {
-    let kanataRunning: Bool
-    let karabinerDaemonRunning: Bool
-    let vhidHealthy: Bool
+    public init(kanataRunning: Bool, karabinerDaemonRunning: Bool, vhidHealthy: Bool) {
+        self.kanataRunning = kanataRunning
+        self.karabinerDaemonRunning = karabinerDaemonRunning
+        self.vhidHealthy = vhidHealthy
+    }
 
-    var isHealthy: Bool {
+    public var isHealthy: Bool {
         kanataRunning && karabinerDaemonRunning && vhidHealthy
     }
 }
 
 // MARK: - Helper Status
+public struct HelperStatus: Sendable {
+    public let isInstalled: Bool
+    public let version: String?
+    public let isWorking: Bool
 
-struct HelperStatus {
-    let isInstalled: Bool
-    let version: String?
-    let isWorking: Bool
-
-    var isReady: Bool {
-        isInstalled && isWorking
+    public init(isInstalled: Bool, version: String?, isWorking: Bool) {
+        self.isInstalled = isInstalled
+        self.version = version
+        self.isWorking = isWorking
     }
 
-    var displayVersion: String {
-        version ?? "Unknown"
-    }
+    public var isReady: Bool { isInstalled && isWorking }
+    public var displayVersion: String { version ?? "Unknown" }
 }
 
 // MARK: - Issue Types
-
-enum Issue: Equatable {
+public enum Issue: Equatable {
     case permissionMissing(app: String, permission: String, action: String)
     case componentMissing(name: String, autoFix: Bool)
     case componentUnhealthy(name: String, autoFix: Bool)
@@ -194,7 +233,7 @@ enum Issue: Equatable {
     case serviceNotRunning(name: String, autoFix: Bool)
     case conflict(SystemConflict)
 
-    var title: String {
+    public var title: String {
         switch self {
         case let .permissionMissing(app, permission, _):
             "\(app) needs \(permission) permission"
@@ -222,7 +261,7 @@ enum Issue: Equatable {
         }
     }
 
-    var canAutoFix: Bool {
+    public var canAutoFix: Bool {
         switch self {
         case .permissionMissing:
             false // User must grant permissions
@@ -236,7 +275,7 @@ enum Issue: Equatable {
         }
     }
 
-    var action: String {
+    public var action: String {
         switch self {
         case let .permissionMissing(_, _, action):
             action
@@ -253,3 +292,5 @@ enum Issue: Equatable {
         }
     }
 }
+
+

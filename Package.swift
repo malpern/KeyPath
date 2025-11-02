@@ -20,10 +20,54 @@ let package = Package(
         // Add any dependencies here
     ],
     targets: [
-        // Single executable target with all code
+        // Core library with shared types/utilities
+        .target(
+            name: "KeyPathCore",
+            path: "Sources/KeyPathCore",
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ]
+        ),
+        // Permissions library (Oracle)
+        .target(
+            name: "KeyPathPermissions",
+            dependencies: ["KeyPathCore"],
+            path: "Sources/KeyPathPermissions",
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ]
+        ),
+        // Daemon lifecycle library
+        .target(
+            name: "KeyPathDaemonLifecycle",
+            dependencies: ["KeyPathCore"],
+            path: "Sources/KeyPathDaemonLifecycle",
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ]
+        ),
+        // Wizard core library (pure models/types)
+        .target(
+            name: "KeyPathWizardCore",
+            dependencies: ["KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle"],
+            path: "Sources/KeyPathWizardCore",
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ]
+        ),
+        // Single executable target with app code
         .executableTarget(
             name: "KeyPath",
-            dependencies: [],
+            dependencies: [
+                "KeyPathCore",
+                "KeyPathPermissions",
+                "KeyPathDaemonLifecycle",
+                "KeyPathWizardCore"
+            ],
             path: "Sources/KeyPath",
             exclude: [
                 "Info.plist",
@@ -56,7 +100,7 @@ let package = Package(
         // Tests
         .testTarget(
             name: "KeyPathTests",
-            dependencies: ["KeyPath"],
+            dependencies: ["KeyPath", "KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
             path: "Tests/KeyPathTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6),

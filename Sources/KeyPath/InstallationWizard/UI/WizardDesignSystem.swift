@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Comprehensive design system for the Installation Wizard
 /// Provides consistent spacing, colors, typography, and component styling

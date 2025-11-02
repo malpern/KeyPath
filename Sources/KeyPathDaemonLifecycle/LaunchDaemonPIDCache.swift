@@ -1,12 +1,13 @@
 import Foundation
+import KeyPathCore
 
 /// Cache for LaunchDaemon PID lookups to prevent repeated expensive launchctl calls
 /// Solves race condition where rapid process checks cause inconsistent conflict detection
-actor LaunchDaemonPIDCache {
+public actor LaunchDaemonPIDCache {
     // MARK: - State
 
     private var cachedPID: pid_t?
-    private(set) var lastUpdate: Date?
+    public private(set) var lastUpdate: Date?
     private let cacheTimeout: TimeInterval = 10.0 // 10 second cache
     private let launchctlTimeout: TimeInterval = 3.0 // 3 second launchctl timeout
 
@@ -14,7 +15,7 @@ actor LaunchDaemonPIDCache {
 
     /// Get cached PID or fetch fresh one with timeout protection
     /// Returns tuple of (pid, confidence) where confidence indicates reliability
-    func getCachedPIDWithConfidence() async -> (pid: pid_t?, confidence: CacheConfidence) {
+    public func getCachedPIDWithConfidence() async -> (pid: pid_t?, confidence: CacheConfidence) {
         let result = await getCachedPID()
 
         if let lastUpdate {
@@ -32,7 +33,7 @@ actor LaunchDaemonPIDCache {
     }
 
     /// Get cached PID or fetch fresh one with timeout protection
-    func getCachedPID() async -> pid_t? {
+    public func getCachedPID() async -> pid_t? {
         // Check if cache is still valid
         if let lastUpdate,
            let cachedPID,
@@ -77,29 +78,24 @@ actor LaunchDaemonPIDCache {
     }
 
     /// Invalidate cache to force fresh lookup on next access
-    func invalidateCache() {
+    public func invalidateCache() {
         cachedPID = nil
         lastUpdate = nil
         AppLogger.shared.log("🗑️ [PIDCache] Cache invalidated")
     }
 
     // MARK: - Private Implementation
-
-    /// Fetch PID from launchctl with timeout protection
     private func fetchLaunchDaemonPIDWithTimeout() async throws -> pid_t? {
         try await withThrowingTaskGroup(of: pid_t?.self) { group in
-            // Add the actual launchctl task
             group.addTask {
                 try await self.runLaunchctlPrint()
             }
 
-            // Add timeout task
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(self.launchctlTimeout * 1_000_000_000))
                 throw TimeoutError()
             }
 
-            // Wait for first result (either success or timeout)
             guard let result = try await group.next() else {
                 group.cancelAll()
                 throw TimeoutError()
@@ -109,7 +105,6 @@ actor LaunchDaemonPIDCache {
         }
     }
 
-    /// Execute launchctl print command to get LaunchDaemon PID
     private func runLaunchctlPrint() async throws -> pid_t? {
         try await withCheckedThrowingContinuation { continuation in
             let task = Process()
@@ -120,7 +115,6 @@ actor LaunchDaemonPIDCache {
             task.standardOutput = pipe
             task.standardError = Pipe() // Discard error output
 
-            // Set up completion handler
             task.terminationHandler = { task in
                 if task.terminationStatus == 0 {
                     let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -140,7 +134,6 @@ actor LaunchDaemonPIDCache {
         }
     }
 
-    /// Extract PID from launchctl print output
     private nonisolated func extractPIDFromLaunchctlOutput(_ output: String) -> pid_t? {
         // Look for pattern like "pid = 97324"
         if let pidRange = output.range(of: "pid = ") {
@@ -168,14 +161,16 @@ actor LaunchDaemonPIDCache {
 }
 
 /// Timeout error for launchctl operations
-struct TimeoutError: Error {
-    let message = "launchctl operation timed out"
+public struct TimeoutError: Error {
+    public let message = "launchctl operation timed out"
 }
 
 /// Confidence level for cached PID data
-enum CacheConfidence {
+public enum CacheConfidence: Sendable {
     case high // Fresh cache (< 5s old)
     case medium // Valid cache (5-10s old)
     case low // Stale cache (> 10s old) or error fallback
     case none // No cache available
 }
+
+

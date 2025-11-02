@@ -6,11 +6,13 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/BundledKanataManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigBackupManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigFileWatcher.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationProviding.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationService.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ContentView.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DefaultEventProcessor.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DependencyInjection.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsService.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsView.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DraggableAreaView.swift.o
@@ -77,6 +79,7 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsCoordinator.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsProvider.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RecordingCoordinator.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RootView.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceHealthMonitor.swift.o
@@ -137,6 +140,7 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/HelperManagerTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/IntegrationTestSuite.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/KanataManagerPublicAPITests.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/KanataManagerResetTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/KanataManagerTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/KanataViewModelTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/KeyPathErrorTests.swift.o
@@ -147,6 +151,8 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/MainAppStateControllerTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/MockSystemEnvironment.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/PackageManagerTests.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/PermissionOracleFastModeTests.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/PermissionOraclePolicyTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/PermissionOracleTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/ProcessLifecycleIntegrationTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/ProcessLifecycleManagerTests.swift.o
@@ -162,5 +168,6 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/UtilitiesTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/VHIDDeviceManagerTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/WizardNavigationEngineTests.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/WizardStateMachineDeterminismTests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/WizardSummaryCTATests.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathTests.build/WizardTriggeringTests.swift.o

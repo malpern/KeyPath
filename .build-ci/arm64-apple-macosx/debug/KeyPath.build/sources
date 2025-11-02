@@ -69,6 +69,8 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/Pages/WizardSummaryPage.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardDesignSystem.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/InstallationWizard/UI/WizardToastManager.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/Configuration/ConfigurationManager.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/Diagnostics/DiagnosticsManager.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataConfigManager.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager+Configuration.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataManager+Engine.swift
@@ -79,6 +81,7 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/LaunchAgentManager.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/LaunchDaemonPIDCache.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/LifecycleStateMachine.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/Process/ProcessManager.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/ProcessLifecycleManager.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KanataUIState.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Models/KeySequence.swift

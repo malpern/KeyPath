@@ -1,8 +1,10 @@
 import XCTest
 @testable import KeyPath
+@testable import KeyPathCore
+@testable import KeyPathPermissions
 
 @MainActor
-final class PermissionOracleTests: XCTestCase {
+final class PermissionOracleFastModeTests: XCTestCase {
     override func setUp() async throws {
         TestEnvironment.forceTestMode = true
     }

@@ -1,5 +1,8 @@
 import ApplicationServices
 import Foundation
+import KeyPathCore
+import KeyPathPermissions
+import KeyPathDaemonLifecycle
 import IOKit.hidsystem
 import Network
 import SwiftUI
@@ -22,8 +25,8 @@ extension KanataManager {
         await updateStatus()
 
         // First, adopt any existing KeyPath-looking kanata processes before deciding to auto-start
-        let lifecycle = ProcessLifecycleManager(kanataManager: self)
-        await lifecycle.recoverFromCrash()
+        let lifecycle = ProcessLifecycleManager()
+        await lifecycle.cleanupOrphanedProcesses()
         await updateStatus()
         // Try to start Kanata automatically on launch if all requirements are met
         let status = await getSystemRequirementsStatus()

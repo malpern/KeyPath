@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KeyPathCore
 
 /// Manages LaunchAgent for KeyPath to ensure proper lifecycle management
 /// LaunchAgent starts KeyPath in headless mode, which then manages kanata subprocess

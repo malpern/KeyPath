@@ -1,6 +1,8 @@
 import Combine
 import Foundation
 import SwiftUI
+import KeyPathDaemonLifecycle
+import KeyPathWizardCore
 
 /// MVVM ViewModel for KanataManager
 ///

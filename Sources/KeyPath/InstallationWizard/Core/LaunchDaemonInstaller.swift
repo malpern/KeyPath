@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import Security
 
 /// Manages LaunchDaemon installation and configuration for KeyPath services

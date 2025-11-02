@@ -1,11 +1,7 @@
 import Foundation
 
-/// Centralized runtime flags for the current process.
-///
-/// Avoids using environment variables for intra-process feature switches,
-/// preventing accidental inheritance by child processes and racey global state.
-final class FeatureFlags {
-    static let shared = FeatureFlags()
+public final class FeatureFlags {
+    public static let shared = FeatureFlags()
 
     private let stateQueue = DispatchQueue(label: "com.keypath.featureflags.state", qos: .userInitiated)
 
@@ -14,10 +10,10 @@ final class FeatureFlags {
     private var _startupModeActive: Bool = false
 
     /// True while we want to avoid potentially-blocking permission checks during early startup.
-    var startupModeActive: Bool { stateQueue.sync { _startupModeActive } }
+    public var startupModeActive: Bool { stateQueue.sync { _startupModeActive } }
 
     /// Activate startup mode, optionally auto-deactivating after a timeout.
-    func activateStartupMode(timeoutSeconds: Double = 5.0) {
+    public func activateStartupMode(timeoutSeconds: Double = 5.0) {
         stateQueue.sync { _startupModeActive = true }
         if timeoutSeconds > 0 {
             DispatchQueue.main.asyncAfter(deadline: .now() + timeoutSeconds) { [weak self] in
@@ -30,7 +26,7 @@ final class FeatureFlags {
     }
 
     /// Deactivate startup mode.
-    func deactivateStartupMode() {
+    public func deactivateStartupMode() {
         stateQueue.sync { _startupModeActive = false }
     }
 
@@ -38,9 +34,9 @@ final class FeatureFlags {
 
     private var _autoTriggerEnabled: Bool = false
 
-    var autoTriggerEnabled: Bool { stateQueue.sync { _autoTriggerEnabled } }
+    public var autoTriggerEnabled: Bool { stateQueue.sync { _autoTriggerEnabled } }
 
-    func setAutoTriggerEnabled(_ enabled: Bool) {
+    public func setAutoTriggerEnabled(_ enabled: Bool) {
         stateQueue.sync { _autoTriggerEnabled = enabled }
     }
 }
@@ -50,7 +46,7 @@ final class FeatureFlags {
 extension FeatureFlags: @unchecked Sendable {}
 
 // MARK: - Persisted flags (UserDefaults-backed)
-extension FeatureFlags {
+public extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
 
     static var captureListenOnlyEnabled: Bool {
@@ -64,3 +60,5 @@ extension FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
     }
 }
+
+

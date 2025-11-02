@@ -24,6 +24,10 @@ SCRATCH_PATH=${SCRATCH_PATH:-.build-ci}
 export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
 echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 
+# 1) Architecture safety lints
+echo "🔎 Running safety lints..."
+"$(dirname "$0")/lint-architecture.sh"
+
 # 2) Build tests
 echo "🔨 Building tests..."
 swift build --build-tests --scratch-path "$SCRATCH_PATH"

@@ -1,5 +1,9 @@
 import Foundation
 import SwiftUI
+import KeyPathCore
+import KeyPathWizardCore
+import KeyPathPermissions
+import KeyPathDaemonLifecycle
 
 /// Main app state controller using SystemValidator
 ///
@@ -52,7 +56,7 @@ class MainAppStateController: ObservableObject {
         self.kanataManager = kanataManager
 
         // Create validator
-        let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
+        let processManager = ProcessLifecycleManager()
         validator = SystemValidator(
             processLifecycleManager: processManager,
             kanataManager: kanataManager

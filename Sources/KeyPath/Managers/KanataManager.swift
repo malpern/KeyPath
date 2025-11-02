@@ -1,5 +1,9 @@
 import ApplicationServices
 import Foundation
+import KeyPathCore
+import KeyPathPermissions
+import KeyPathDaemonLifecycle
+import KeyPathWizardCore
 import IOKit.hidsystem
 import Network
 import SwiftUI
@@ -354,7 +358,7 @@ class KanataManager {
 
         // Initialize legacy service dependencies (for backward compatibility)
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
-        processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
+        processLifecycleManager = ProcessLifecycleManager()
         
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()

@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import KeyPathCore
 
 /// Default event processor that wraps existing KeyPath event handling logic
 ///

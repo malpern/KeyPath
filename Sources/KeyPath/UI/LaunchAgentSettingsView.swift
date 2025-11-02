@@ -1,4 +1,5 @@
 import SwiftUI
+import KeyPathCore
 
 /// Settings view for managing LaunchAgent (start at login)
 struct LaunchAgentSettingsView: View {
@@ -15,23 +16,33 @@ struct LaunchAgentSettingsView: View {
 
             Divider()
 
-            // Launch at login toggle
-            Toggle(isOn: $isLaunchAgentEnabled) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Start KeyPath at Login")
-                        .font(.body)
-                    Text("Automatically start keyboard remapping when you log in")
+            // Legacy LaunchAgent control (deprecated)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Legacy Launch Agent (Deprecated)")
+                    .font(.body)
+                    .fontWeight(.semibold)
+
+                Text("KeyPath no longer uses a headless LaunchAgent. The app is UI-only; if a legacy agent was previously enabled, you can disable it below.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    Button("Disable Legacy Agent") {
+                        toggleLaunchAgent(enable: false)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isCheckingStatus || !(LaunchAgentManager.isInstalled() && LaunchAgentManager.isLoaded()))
+
+                    if LaunchAgentManager.isInstalled() {
+                        Text(
+                            LaunchAgentManager.isLoaded()
+                                ? "Status: Active (will be disabled)" : "Status: Installed (not active)"
+                        )
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    }
                 }
             }
-            .disabled(isCheckingStatus)
-            .onChange(
-                of: isLaunchAgentEnabled,
-                { _, newValue in
-                    toggleLaunchAgent(enable: newValue)
-                }
-            )
 
             // Status indicator
             if isCheckingStatus {
@@ -57,7 +68,7 @@ struct LaunchAgentSettingsView: View {
 
             // Additional info
             Text(
-                "Note: When enabled, KeyPath will run in the background and manage the keyboard remapping service."
+                "Note: Startup at login will be provided via a Login Item in a future update if needed."
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -67,6 +78,13 @@ struct LaunchAgentSettingsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .task {
             await checkLaunchAgentStatus()
+            // Proactively disable if still active
+            if isLaunchAgentEnabled {
+                await MainActor.run { isCheckingStatus = true }
+                defer { isCheckingStatus = false }
+                try? await LaunchAgentManager.disable()
+                await checkLaunchAgentStatus()
+            }
         }
         .alert("Launch Agent Error", isPresented: $showError) {
             Button("OK") {

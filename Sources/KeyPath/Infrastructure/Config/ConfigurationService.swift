@@ -3,6 +3,7 @@ import Foundation
 import IOKit.hidsystem
 import Network
 import SwiftUI
+import KeyPathCore
 
 // MARK: - Kanata Configuration Model
 

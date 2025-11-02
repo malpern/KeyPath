@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathCore
+import KeyPathWizardCore
 import OSLog
 
 /// Handles wizard navigation logic based on system state

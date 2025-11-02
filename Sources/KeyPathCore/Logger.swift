@@ -1,7 +1,7 @@
 import Foundation
 
-class AppLogger {
-    static let shared = AppLogger()
+public final class AppLogger {
+    public static let shared = AppLogger()
 
     // MARK: - Configuration
 
@@ -23,7 +23,7 @@ class AppLogger {
     private let bufferQueue = DispatchQueue(label: "com.keypath.logger", qos: .utility)
     private var flushTimer: Timer?
 
-    private init() {
+    public init() {
         // Use standard macOS app logs directory
         logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
 
@@ -60,7 +60,7 @@ class AppLogger {
 
     // MARK: - Public Interface
 
-    func log(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+    public func log(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
         let timestamp = dateFormatter.string(from: Date())
         let fileName = (file as NSString).lastPathComponent
         let logMessage = "[\(timestamp)] [\(fileName):\(line) \(function)] \(message)"
@@ -75,7 +75,7 @@ class AppLogger {
     }
 
     /// Force flush all buffered messages to disk
-    func flushBuffer() {
+    public func flushBuffer() {
         bufferQueue.async {
             self.flushBufferUnsafe()
         }
@@ -184,8 +184,7 @@ class AppLogger {
 
     // MARK: - Utility Methods
 
-    /// Get current log file size in bytes
-    func getCurrentLogSize() -> Int {
+    public func getCurrentLogSize() -> Int {
         guard FileManager.default.fileExists(atPath: logPath) else { return 0 }
 
         do {
@@ -196,8 +195,7 @@ class AppLogger {
         }
     }
 
-    /// Get total size of all log files (current + rotated)
-    func getTotalLogSize() -> Int {
+    public func getTotalLogSize() -> Int {
         var totalSize = getCurrentLogSize()
 
         for backupIndex in 1 ..< maxLogFiles {
@@ -215,8 +213,7 @@ class AppLogger {
         return totalSize
     }
 
-    /// Clear all log files (useful for testing or manual cleanup)
-    func clearAllLogs() {
+    public func clearAllLogs() {
         bufferQueue.async {
             // Clear buffer first
             self.messageBuffer.removeAll()
@@ -244,3 +241,5 @@ class AppLogger {
 
 // AppLogger coordinates its own internal synchronization; mark as unchecked Sendable for Swift 6.
 extension AppLogger: @unchecked Sendable {}
+
+

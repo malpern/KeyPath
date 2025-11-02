@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Service for generating Kanata configuration using Claude API
 public class KanataConfigGenerator {

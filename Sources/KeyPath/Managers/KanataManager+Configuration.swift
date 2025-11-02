@@ -1,4 +1,5 @@
 import ApplicationServices
+import KeyPathCore
 import Foundation
 import IOKit.hidsystem
 import SwiftUI

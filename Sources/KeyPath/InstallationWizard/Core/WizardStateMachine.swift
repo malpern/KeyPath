@@ -1,4 +1,7 @@
 import SwiftUI
+import KeyPathCore
+import KeyPathWizardCore
+import KeyPathDaemonLifecycle
 
 /// Simple wizard state machine using SystemValidator
 ///
@@ -46,7 +49,7 @@ class WizardStateMachine: ObservableObject {
         self.kanataManager = kanataManager
 
         // Create validator with process manager
-        let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
+        let processManager = ProcessLifecycleManager()
         validator = SystemValidator(
             processLifecycleManager: processManager,
             kanataManager: kanataManager

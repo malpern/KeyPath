@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// A token representing a configuration observation that can be cancelled.
 public struct ConfigurationObservationToken {

@@ -6,11 +6,13 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/BundledKanataManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigBackupManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigFileWatcher.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationProviding.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationService.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ContentView.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DefaultEventProcessor.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DependencyInjection.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsService.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsView.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DraggableAreaView.swift.o
@@ -77,6 +79,7 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsCoordinator.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/PrivilegedOperationsProvider.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.swift.o
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RecordingCoordinator.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/RootView.swift.o
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ServiceHealthMonitor.swift.o

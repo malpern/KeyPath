@@ -78,10 +78,15 @@ public enum TestEnvironment {
         AppLogger.shared.log("🧪 [TestEnvironment] Process name: \(ProcessInfo.processInfo.processName)")
 
         if isRunningTests {
+            let xctestExists = NSClassFromString("XCTestCase") != nil
+            let swiftTestEnv = ProcessInfo.processInfo.environment["SWIFT_TEST"] != nil
+            let ciDetected = ["CI", "GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"].contains {
+                ProcessInfo.processInfo.environment[$0] != nil
+            }
             let testIndicators = [
-                "XCTest class exists: \(NSClassFromString("XCTestCase") != nil)",
-                "SWIFT_TEST env: \(ProcessInfo.processInfo.environment["SWIFT_TEST"] != nil)",
-                "CI env detected: \(["CI", "GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"].contains { ProcessInfo.processInfo.environment[$0] != nil })"
+                "XCTest class exists: \(xctestExists)",
+                "SWIFT_TEST env: \(swiftTestEnv)",
+                "CI env detected: \(ciDetected)"
             ]
             AppLogger.shared.log("🧪 [TestEnvironment] Test indicators: \(testIndicators.joined(separator: ", "))")
         }
@@ -142,3 +147,5 @@ public enum MockSystemData {
     /// Mock permission status
     public static let mockHasPermissions = true
 }
+
+

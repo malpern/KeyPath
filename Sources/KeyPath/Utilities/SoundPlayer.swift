@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KeyPathCore
 
 @MainActor
 class SoundPlayer {

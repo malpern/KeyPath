@@ -499,6 +499,20 @@
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardToastManager.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/WizardToastManager.dia"
   },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/Configuration/ConfigurationManager.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationManager.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationManager.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationManager.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ConfigurationManager.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/Diagnostics/DiagnosticsManager.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsManager.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsManager.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsManager.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/DiagnosticsManager.dia"
+  },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/KanataConfigManager.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataConfigManager.d",
     "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/KanataConfigManager.swift.o",
@@ -568,6 +582,13 @@
     "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine~partial.swiftmodule",
     "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine.swiftdeps",
     "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/LifecycleStateMachine.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/Process/ProcessManager.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessManager.dia"
   },
   "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPath/Managers/ProcessLifecycleManager.swift": {
     "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPath.build/ProcessLifecycleManager.d",

@@ -1,10 +1,11 @@
 import Foundation
 import SwiftUI
+import KeyPathDaemonLifecycle
 
 // MARK: - Core Types
 
 /// Represents the current page in the installation wizard
-enum WizardPage: String, CaseIterable {
+public enum WizardPage: String, CaseIterable {
     case summary = "Summary"
     case helper = "Privileged Helper"
     case fullDiskAccess = "Full Disk Access"
@@ -17,7 +18,7 @@ enum WizardPage: String, CaseIterable {
     case communication = "Communication"
 
     /// User-friendly display name for accessibility and UI
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .summary: "Setup Overview"
         case .helper: "Privileged Helper Installation"
@@ -33,7 +34,7 @@ enum WizardPage: String, CaseIterable {
     }
 
     /// Stable identifier for automation and testing tools
-    var accessibilityIdentifier: String {
+    public var accessibilityIdentifier: String {
         switch self {
         case .summary: "overview"
         case .fullDiskAccess: "full-disk-access"
@@ -52,8 +53,8 @@ enum WizardPage: String, CaseIterable {
 // Explicit, user-facing ordering for wizard navigation and bullets.
 // This matches the Summary order shown in WizardSystemStatusOverview.
 // NOTE: Helper is FIRST (after summary) because it's required for privileged operations
-extension WizardPage {
-    static let orderedPages: [WizardPage] = [
+public extension WizardPage {
+    nonisolated(unsafe) static let orderedPages: [WizardPage] = [
         .summary,
         .helper,
         .fullDiskAccess,
@@ -68,7 +69,7 @@ extension WizardPage {
 }
 
 /// Status of individual installation or check components
-enum InstallationStatus {
+public enum InstallationStatus {
     case notStarted
     case inProgress
     case completed
@@ -78,13 +79,13 @@ enum InstallationStatus {
 
 /// Launch failure status for Kanata service failures
 /// Decoupled from manager types to avoid UI-Manager coupling
-enum LaunchFailureStatus: Equatable {
+public enum LaunchFailureStatus: Equatable {
     case permissionDenied(String)
     case configError(String)
     case serviceFailure(String)
     case missingDependency(String)
 
-    var shortMessage: String {
+    public var shortMessage: String {
         switch self {
         case let .permissionDenied(reason):
             // Preserve specific reason when provided for better deduping; fallback to generic
@@ -102,7 +103,7 @@ enum LaunchFailureStatus: Equatable {
 // MARK: - Consolidated State Models
 
 /// Represents the overall system state for the wizard
-enum WizardSystemState: Equatable {
+public enum WizardSystemState: Equatable, Sendable {
     case initializing
     case conflictsDetected(conflicts: [SystemConflict])
     case missingPermissions(missing: [PermissionRequirement])
@@ -114,7 +115,7 @@ enum WizardSystemState: Equatable {
 }
 
 /// Types of system conflicts that prevent Kanata from running
-enum SystemConflict: Equatable {
+public enum SystemConflict: Equatable, Sendable {
     case kanataProcessRunning(pid: Int, command: String)
     case karabinerGrabberRunning(pid: Int)
     case karabinerVirtualHIDDeviceRunning(pid: Int, processName: String)
@@ -123,7 +124,7 @@ enum SystemConflict: Equatable {
 }
 
 /// Permission requirements for the system
-enum PermissionRequirement: Equatable {
+public enum PermissionRequirement: Equatable, Sendable {
     case kanataInputMonitoring
     case kanataAccessibility
     case keyPathInputMonitoring
@@ -133,7 +134,7 @@ enum PermissionRequirement: Equatable {
 }
 
 /// Component requirements that need installation
-enum ComponentRequirement: Equatable {
+public enum ComponentRequirement: Equatable, Sendable {
     case privilegedHelper // Privileged helper for system-level operations
     case privilegedHelperUnhealthy // Helper installed but not responding/working
     case kanataBinaryMissing // Kanata binary needs to be installed to system location
@@ -157,7 +158,7 @@ enum ComponentRequirement: Equatable {
 }
 
 /// Actions that can be automatically fixed by the wizard
-enum AutoFixAction: Equatable {
+public enum AutoFixAction: Equatable, Sendable {
     case installPrivilegedHelper // Install and register privileged helper
     case reinstallPrivilegedHelper // Reinstall helper if unhealthy
     case terminateConflictingProcesses
@@ -184,38 +185,38 @@ enum AutoFixAction: Equatable {
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
-enum IssueIdentifier: Equatable {
+public enum IssueIdentifier: Equatable, Sendable {
     case permission(PermissionRequirement)
     case component(ComponentRequirement)
     case conflict(SystemConflict)
     case daemon
 
     /// Check if this identifier represents a conflict
-    var isConflict: Bool {
+    public var isConflict: Bool {
         if case .conflict = self { return true }
         return false
     }
 
     /// Check if this identifier represents a permission issue
-    var isPermission: Bool {
+    public var isPermission: Bool {
         if case .permission = self { return true }
         return false
     }
 
     /// Check if this identifier represents a component issue
-    var isComponent: Bool {
+    public var isComponent: Bool {
         if case .component = self { return true }
         return false
     }
 
     /// Check if this identifier represents a daemon issue
-    var isDaemon: Bool {
+    public var isDaemon: Bool {
         if case .daemon = self { return true }
         return false
     }
 
     /// Check if this identifier is related to VirtualHIDDevice issues
-    var isVHIDRelated: Bool {
+    public var isVHIDRelated: Bool {
         switch self {
         case let .component(component):
             switch component {
@@ -231,23 +232,41 @@ enum IssueIdentifier: Equatable {
 }
 
 /// Issue detected by the wizard that requires attention
-struct WizardIssue: Identifiable {
-    let id = UUID()
-    let identifier: IssueIdentifier
-    let severity: IssueSeverity
-    let category: IssueCategory
-    let title: String
-    let description: String
-    let autoFixAction: AutoFixAction?
-    let userAction: String?
+public struct WizardIssue: Identifiable, Sendable {
+    public let id = UUID()
+    public let identifier: IssueIdentifier
+    public let severity: IssueSeverity
+    public let category: IssueCategory
+    public let title: String
+    public let description: String
+    public let autoFixAction: AutoFixAction?
+    public let userAction: String?
 
-    enum IssueSeverity {
+    public init(
+        identifier: IssueIdentifier,
+        severity: IssueSeverity,
+        category: IssueCategory,
+        title: String,
+        description: String,
+        autoFixAction: AutoFixAction?,
+        userAction: String?
+    ) {
+        self.identifier = identifier
+        self.severity = severity
+        self.category = category
+        self.title = title
+        self.description = description
+        self.autoFixAction = autoFixAction
+        self.userAction = userAction
+    }
+
+    public enum IssueSeverity: Sendable {
         case info
         case warning
         case error
         case critical
 
-        var color: Color {
+        public var color: Color {
             switch self {
             case .info: .blue
             case .warning: .orange
@@ -256,7 +275,7 @@ struct WizardIssue: Identifiable {
             }
         }
 
-        var icon: String {
+        public var icon: String {
             switch self {
             case .info: "info.circle"
             case .warning: "exclamationmark.triangle"
@@ -266,7 +285,7 @@ struct WizardIssue: Identifiable {
         }
     }
 
-    enum IssueCategory {
+    public enum IssueCategory: Sendable {
         case conflicts
         case permissions
         case backgroundServices
@@ -277,44 +296,55 @@ struct WizardIssue: Identifiable {
 }
 
 /// Navigation state for the wizard
-struct WizardNavigationState {
-    let currentPage: WizardPage
-    let availablePages: [WizardPage]
-    let canNavigateNext: Bool
-    let canNavigatePrevious: Bool
-    let shouldAutoNavigate: Bool
+public struct WizardNavigationState {
+    public let currentPage: WizardPage
+    public let availablePages: [WizardPage]
+    public let canNavigateNext: Bool
+    public let canNavigatePrevious: Bool
+    public let shouldAutoNavigate: Bool
+
+    public init(currentPage: WizardPage, availablePages: [WizardPage], canNavigateNext: Bool, canNavigatePrevious: Bool, shouldAutoNavigate: Bool) {
+        self.currentPage = currentPage
+        self.availablePages = availablePages
+        self.canNavigateNext = canNavigateNext
+        self.canNavigatePrevious = canNavigatePrevious
+        self.shouldAutoNavigate = shouldAutoNavigate
+    }
 }
 
 // MARK: - Detection Results
 
 /// Result of system state detection
-struct SystemStateResult {
-    let state: WizardSystemState
-    let issues: [WizardIssue]
-    let autoFixActions: [AutoFixAction]
-    let detectionTimestamp: Date
+public struct SystemStateResult: Sendable {
+    public let state: WizardSystemState
+    public let issues: [WizardIssue]
+    public let autoFixActions: [AutoFixAction]
+    public let detectionTimestamp: Date
 
-    var hasBlockingIssues: Bool {
+    public init(state: WizardSystemState, issues: [WizardIssue], autoFixActions: [AutoFixAction], detectionTimestamp: Date) {
+        self.state = state
+        self.issues = issues
+        self.autoFixActions = autoFixActions
+        self.detectionTimestamp = detectionTimestamp
+    }
+
+    public var hasBlockingIssues: Bool {
         issues.contains { $0.severity == .critical || $0.severity == .error }
     }
 
-    var canAutoFix: Bool {
+    public var canAutoFix: Bool {
         !autoFixActions.isEmpty
     }
 }
 
 /// Result of conflict detection
-struct ConflictDetectionResult {
-    let conflicts: [SystemConflict]
-    let canAutoResolve: Bool
-    let description: String
-    let managedProcesses: [ProcessLifecycleManager.ProcessInfo]
+public struct ConflictDetectionResult {
+    public let conflicts: [SystemConflict]
+    public let canAutoResolve: Bool
+    public let description: String
+    public let managedProcesses: [ProcessLifecycleManager.ProcessInfo]
 
-    var hasConflicts: Bool {
-        !conflicts.isEmpty
-    }
-
-    init(
+    public init(
         conflicts: [SystemConflict], canAutoResolve: Bool, description: String,
         managedProcesses: [ProcessLifecycleManager.ProcessInfo] = []
     ) {
@@ -323,100 +353,122 @@ struct ConflictDetectionResult {
         self.description = description
         self.managedProcesses = managedProcesses
     }
+
+    public var hasConflicts: Bool {
+        !conflicts.isEmpty
+    }
 }
 
 /// Result of permission checks
-struct PermissionCheckResult {
-    let missing: [PermissionRequirement]
-    let granted: [PermissionRequirement]
-    let needsUserAction: Bool
+public struct PermissionCheckResult {
+    public let missing: [PermissionRequirement]
+    public let granted: [PermissionRequirement]
+    public let needsUserAction: Bool
 
-    var allGranted: Bool {
+    public init(missing: [PermissionRequirement], granted: [PermissionRequirement], needsUserAction: Bool) {
+        self.missing = missing
+        self.granted = granted
+        self.needsUserAction = needsUserAction
+    }
+
+    public var allGranted: Bool {
         missing.isEmpty
     }
 }
 
 /// Result of component installation checks
-struct ComponentCheckResult {
-    let missing: [ComponentRequirement]
-    let installed: [ComponentRequirement]
-    let canAutoInstall: Bool
+public struct ComponentCheckResult {
+    public let missing: [ComponentRequirement]
+    public let installed: [ComponentRequirement]
+    public let canAutoInstall: Bool
 
-    var allInstalled: Bool {
+    public init(missing: [ComponentRequirement], installed: [ComponentRequirement], canAutoInstall: Bool) {
+        self.missing = missing
+        self.installed = installed
+        self.canAutoInstall = canAutoInstall
+    }
+
+    public var allInstalled: Bool {
         missing.isEmpty
     }
 }
 
 /// Result of config path mismatch detection
-struct ConfigPathMismatchResult {
-    let mismatches: [ConfigPathMismatch]
-    let canAutoResolve: Bool
+public struct ConfigPathMismatchResult {
+    public let mismatches: [ConfigPathMismatch]
+    public let canAutoResolve: Bool
 
-    var hasMismatches: Bool {
+    public init(mismatches: [ConfigPathMismatch], canAutoResolve: Bool) {
+        self.mismatches = mismatches
+        self.canAutoResolve = canAutoResolve
+    }
+
+    public var hasMismatches: Bool {
         !mismatches.isEmpty
     }
 }
 
 /// Represents a config path mismatch between Kanata process and KeyPath expectations
-struct ConfigPathMismatch {
-    let processPID: pid_t
-    let processCommand: String
-    let actualConfigPath: String
-    let expectedConfigPath: String
+public struct ConfigPathMismatch {
+    public let processPID: pid_t
+    public let processCommand: String
+    public let actualConfigPath: String
+    public let expectedConfigPath: String
+
+    public init(processPID: pid_t, processCommand: String, actualConfigPath: String, expectedConfigPath: String) {
+        self.processPID = processPID
+        self.processCommand = processCommand
+        self.actualConfigPath = actualConfigPath
+        self.expectedConfigPath = expectedConfigPath
+    }
 }
 
 // MARK: - Constants
-
-/// Constants for consistent wizard titles and messages
-enum WizardConstants {
-    enum Titles {
-        static let inputMonitoring = "Input Monitoring"
-        static let accessibility = "Accessibility"
-        static let kanataInputMonitoring = "Kanata Input Monitoring"
-        static let kanataAccessibility = "Kanata Accessibility"
-        static let conflictingProcesses = "Conflicting Processes Detected"
-        static let karabinerGrabberConflict = "Karabiner Grabber Conflict"
-        static let daemonNotRunning = "Karabiner Daemon Not Running"
-        static let driverExtensionDisabled = "Driver Extension Disabled"
-        static let backgroundServicesDisabled = "Background Services Disabled"
-        static let kanataBinaryMissing = "Kanata Binary Missing"
-        static let karabinerDriverMissing = "Karabiner Driver Missing"
+public enum WizardConstants {
+    public enum Titles {
+        public static let inputMonitoring = "Input Monitoring"
+        public static let accessibility = "Accessibility"
+        public static let kanataInputMonitoring = "Kanata Input Monitoring"
+        public static let kanataAccessibility = "Kanata Accessibility"
+        public static let conflictingProcesses = "Conflicting Processes Detected"
+        public static let karabinerGrabberConflict = "Karabiner Grabber Conflict"
+        public static let daemonNotRunning = "Karabiner Daemon Not Running"
+        public static let driverExtensionDisabled = "Driver Extension Disabled"
+        public static let backgroundServicesDisabled = "Background Services Disabled"
+        public static let kanataBinaryMissing = "Kanata Binary Missing"
+        public static let karabinerDriverMissing = "Karabiner Driver Missing"
     }
 
-    enum Messages {
-        static let permissionRequired = "Permission required for keyboard remapping"
-        static let conflictDetected = "Conflicting process detected"
-        static let componentMissing = "Required component is missing"
-        static let daemonRequired = "Daemon required for virtual HID functionality"
+    public enum Messages {
+        public static let permissionRequired = "Permission required for keyboard remapping"
+        public static let conflictDetected = "Conflicting process detected"
+        public static let componentMissing = "Required component is missing"
+        public static let daemonRequired = "Daemon required for virtual HID functionality"
     }
 
-    enum Actions {
-        static let fixInSetup = "Fix in Setup"
+    public enum Actions {
+        public static let fixInSetup = "Fix in Setup"
     }
 }
 
 // MARK: - Protocols
 
-// SystemStateDetecting protocol removed - SystemStatusChecker is now the single detection system
-
 /// Protocol for objects that can automatically fix issues
-protocol AutoFixCapable {
+public protocol AutoFixCapable {
     func canAutoFix(_ action: AutoFixAction) -> Bool
     func performAutoFix(_ action: AutoFixAction) async -> Bool
 }
 
 /// Protocol for wizard navigation management
-protocol WizardNavigating {
+public protocol WizardNavigating {
     /// Primary navigation method using structured issue identifiers for type-safe navigation
     func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage
     func canNavigate(from: WizardPage, to: WizardPage, given state: WizardSystemState) -> Bool
-    func nextPage(from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue])
-        -> WizardPage?
+    func nextPage(from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue]) -> WizardPage?
 }
 
 // MARK: - Helper Extensions
-
-extension [WizardIssue] {
+public extension Array where Element == WizardIssue {
     /// Formats issues into a tooltip-friendly string for hover text
     /// Returns empty string if no issues, single issue details if one issue,
     /// or numbered list if multiple issues
@@ -443,3 +495,5 @@ extension [WizardIssue] {
             .joined(separator: "\n\n")
     }
 }
+
+

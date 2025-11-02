@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Centralized service for detecting kanata binary status across all UI components
 ///

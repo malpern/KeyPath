@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Phase 2: Centralized State Machine for Kanata Lifecycle Management
 ///
@@ -6,11 +7,11 @@ import Foundation
 /// by ensuring only valid state transitions can occur. All Kanata lifecycle operations
 /// must go through this state machine.
 @MainActor
-class LifecycleStateMachine: ObservableObject {
+public final class LifecycleStateMachine: ObservableObject {
     // MARK: - State Definition
 
     /// Comprehensive state enumeration covering all possible Kanata states
-    enum KanataState: String, CaseIterable, Equatable {
+    public enum KanataState: String, CaseIterable, Equatable {
         case uninitialized
         case initializing
         case requirementsCheck = "requirements_check"
@@ -27,7 +28,7 @@ class LifecycleStateMachine: ObservableObject {
         case configurationError = "configuration_error"
 
         /// Human-readable description for UI display
-        var displayName: String {
+        public var displayName: String {
             switch self {
             case .uninitialized: "Not Started"
             case .initializing: "Initializing..."
@@ -47,7 +48,7 @@ class LifecycleStateMachine: ObservableObject {
         }
 
         /// Whether this state indicates Kanata is operational
-        var isOperational: Bool {
+        public var isOperational: Bool {
             switch self {
             case .running: true
             default: false
@@ -55,7 +56,7 @@ class LifecycleStateMachine: ObservableObject {
         }
 
         /// Whether this state indicates an error condition
-        var isError: Bool {
+        public var isError: Bool {
             switch self {
             case .requirementsFailed, .installationFailed, .error, .configurationError:
                 true
@@ -65,7 +66,7 @@ class LifecycleStateMachine: ObservableObject {
         }
 
         /// Whether this state indicates a transitional operation in progress
-        var isTransitioning: Bool {
+        public var isTransitioning: Bool {
             switch self {
             case .initializing, .requirementsCheck, .installing, .starting, .stopping, .restarting,
                  .configuring:
@@ -76,7 +77,7 @@ class LifecycleStateMachine: ObservableObject {
         }
 
         /// Whether the user can initiate actions from this state
-        var allowsUserActions: Bool {
+        public var allowsUserActions: Bool {
             !isTransitioning
         }
     }
@@ -84,7 +85,7 @@ class LifecycleStateMachine: ObservableObject {
     // MARK: - Events
 
     /// Events that can trigger state transitions
-    enum LifecycleEvent: String, CaseIterable {
+    public enum LifecycleEvent: String, CaseIterable {
         case initialize
         case checkRequirements = "check_requirements"
         case requirementsPassed = "requirements_passed"
@@ -107,11 +108,11 @@ class LifecycleStateMachine: ObservableObject {
 
     // MARK: - State Machine Properties
 
-    @Published private(set) var currentState: KanataState = .uninitialized
-    @Published private(set) var lastEvent: LifecycleEvent?
-    @Published private(set) var lastTransition: Date?
-    @Published private(set) var errorMessage: String?
-    @Published private(set) var stateContext: [String: Any] = [:]
+    @Published public private(set) var currentState: KanataState = .uninitialized
+    @Published public private(set) var lastEvent: LifecycleEvent?
+    @Published public private(set) var lastTransition: Date?
+    @Published public private(set) var errorMessage: String?
+    @Published public private(set) var stateContext: [String: Any] = [:]
 
     // MARK: - State Machine Logic
 
@@ -204,7 +205,8 @@ class LifecycleStateMachine: ObservableObject {
     ///   - event: The event to process
     ///   - context: Additional context data for the transition
     /// - Returns: True if the transition was successful, false if invalid
-    func sendEvent(_ event: LifecycleEvent, context: [String: Any] = [:]) -> Bool {
+    @discardableResult
+    public func sendEvent(_ event: LifecycleEvent, context: [String: Any] = [:]) -> Bool {
         let correlationId = UUID().uuidString.prefix(8)
 
         AppLogger.shared.log(
@@ -246,24 +248,24 @@ class LifecycleStateMachine: ObservableObject {
     }
 
     /// Set an error message and transition to error state
-    func setError(_ message: String) {
+    public func setError(_ message: String) {
         errorMessage = message
         _ = sendEvent(.errorOccurred, context: ["error": message])
     }
 
     /// Check if a specific event is valid from the current state
-    func canSendEvent(_ event: LifecycleEvent) -> Bool {
+    public func canSendEvent(_ event: LifecycleEvent) -> Bool {
         stateTransitions[currentState]?[event] != nil
     }
 
     /// Get all valid events from the current state
-    func validEvents() -> [LifecycleEvent] {
+    public func validEvents() -> [LifecycleEvent] {
         guard let transitions = stateTransitions[currentState] else { return [] }
         return Array(transitions.keys)
     }
 
     /// Reset to initial state
-    func reset() {
+    public func reset() {
         AppLogger.shared.log("🔄 [StateMachine] Resetting to uninitialized state")
         currentState = .uninitialized
         lastEvent = nil
@@ -274,7 +276,7 @@ class LifecycleStateMachine: ObservableObject {
     }
 
     /// Get current state information for debugging/monitoring
-    func getStateInfo() -> [String: Any] {
+    public func getStateInfo() -> [String: Any] {
         var info: [String: Any] = [
             "currentState": currentState.rawValue,
             "displayName": currentState.displayName,
@@ -304,78 +306,21 @@ class LifecycleStateMachine: ObservableObject {
 }
 
 // MARK: - Convenience Properties
-
-extension LifecycleStateMachine {
+public extension LifecycleStateMachine {
     /// Whether Kanata is currently running and operational
-    var isRunning: Bool {
-        currentState.isOperational
-    }
+    var isRunning: Bool { currentState.isOperational }
 
     /// Whether the system is currently in an error state
-    var hasError: Bool {
-        currentState.isError
-    }
+    var hasError: Bool { currentState.isError }
 
     /// Whether the system is currently performing an operation
-    var isBusy: Bool {
-        currentState.isTransitioning
-    }
+    var isBusy: Bool { currentState.isTransitioning }
 
     /// Whether user can perform actions
-    var canPerformActions: Bool {
-        currentState.allowsUserActions
-    }
+    var canPerformActions: Bool { currentState.allowsUserActions }
 
     /// Current state display string for UI
-    var stateDisplay: String {
-        currentState.displayName
-    }
+    var stateDisplay: String { currentState.displayName }
 }
 
-// MARK: - Debug Support
 
-extension LifecycleStateMachine {
-    /// Generate a state transition diagram for debugging
-    func generateTransitionDiagram() -> String {
-        var diagram = "# Kanata Lifecycle State Machine\n\n"
-
-        for (fromState, transitions) in stateTransitions.sorted(by: {
-            $0.key.rawValue < $1.key.rawValue
-        }) {
-            diagram += "## \(fromState.rawValue) (\(fromState.displayName))\n"
-
-            for (event, toState) in transitions.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
-                diagram += "- \(event.rawValue) → \(toState.rawValue)\n"
-            }
-
-            diagram += "\n"
-        }
-
-        return diagram
-    }
-
-    /// Validate the state machine configuration
-    func validateStateMachine() -> [String] {
-        var issues: [String] = []
-
-        // Check that all states have at least one valid transition
-        let allStates = Set(KanataState.allCases)
-        let reachableStates = Set(stateTransitions.keys)
-
-        for state in allStates {
-            if !reachableStates.contains(state), state != .uninitialized {
-                issues.append("State \(state.rawValue) has no outgoing transitions")
-            }
-        }
-
-        // Check for unreachable states
-        let targetStates = Set(stateTransitions.values.flatMap(\.values))
-        for state in allStates {
-            if !targetStates.contains(state), state != .uninitialized {
-                issues.append("State \(state.rawValue) is not reachable from any other state")
-            }
-        }
-
-        return issues
-    }
-}

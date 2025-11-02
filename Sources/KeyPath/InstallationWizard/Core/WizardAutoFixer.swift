@@ -1,6 +1,9 @@
 import AppKit
 import Foundation
 import os
+import KeyPathCore
+import KeyPathWizardCore
+import KeyPathDaemonLifecycle
 
 /// Handles automatic fixing of detected issues - pure action logic
 class WizardAutoFixer: AutoFixCapable {
@@ -419,7 +422,7 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] Terminating conflicting kanata processes")
 
         // Use ProcessLifecycleManager to find external kanata processes
-        let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
+        let processManager = await MainActor.run { ProcessLifecycleManager() }
         let conflicts = await processManager.detectConflicts()
 
         if conflicts.externalProcesses.isEmpty {

@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Accessibility permission page - dedicated page for Accessibility permissions
 struct WizardAccessibilityPage: View {

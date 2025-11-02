@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Kanata binary and service setup page
 struct WizardKanataComponentsPage: View {

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import AppKit
 
 /// Protocol for managing Kanata configuration files

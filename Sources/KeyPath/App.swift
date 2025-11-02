@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import KeyPathCore
+import KeyPathPermissions
 
 @main
 public struct KeyPathApp: App {
@@ -191,6 +193,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Phase 2/3: TCP-only mode (no authentication needed)
         AppLogger.shared.log("📡 [AppDelegate] TCP communication mode - no auth token needed")
+
+        // Phase 1 (ADR-009): Proactively disable legacy UI LaunchAgent to prevent headless background instance
+        Task { @MainActor in
+            if LaunchAgentManager.isLoaded() {
+                AppLogger.shared.log("🧹 [AppDelegate] Disabling legacy LaunchAgent to prevent headless UI")
+                try? await LaunchAgentManager.disable()
+            }
+        }
 
         // Check for pending service bounce first
         Task { @MainActor in

@@ -1,5 +1,8 @@
 import Foundation
 @testable import KeyPath
+@testable import KeyPathWizardCore
+@testable import KeyPathPermissions
+@testable import KeyPathDaemonLifecycle
 import Testing
 
 @MainActor
@@ -18,7 +21,7 @@ struct SystemValidatorTests {
         // Reset counters before test
         await setupTest()
 
-        let processManager = ProcessLifecycleManager(kanataManager: nil)
+        let processManager = ProcessLifecycleManager()
         let validator = SystemValidator(processLifecycleManager: processManager)
 
         // Should not crash - validator is non-optional
@@ -44,7 +47,7 @@ struct SystemValidatorTests {
         let baselineStats = SystemValidator.getValidationStats()
         let baselineCount = baselineStats.totalCount
 
-        let processManager = ProcessLifecycleManager(kanataManager: nil)
+        let processManager = ProcessLifecycleManager()
         let validator = SystemValidator(processLifecycleManager: processManager)
 
         // First validation
@@ -79,7 +82,7 @@ struct SystemValidatorTests {
         // Reset counters for isolation (this test doesn't check counts, but good practice)
         await setupTest()
 
-        let processManager = ProcessLifecycleManager(kanataManager: nil)
+        let processManager = ProcessLifecycleManager()
         let validator = SystemValidator(processLifecycleManager: processManager)
 
         let snapshot = await validator.checkSystem()

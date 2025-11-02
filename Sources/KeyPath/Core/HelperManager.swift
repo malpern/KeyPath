@@ -1,5 +1,6 @@
 import Foundation
 import ServiceManagement
+import KeyPathCore
 
 /// Manager for XPC communication with the privileged helper
 ///

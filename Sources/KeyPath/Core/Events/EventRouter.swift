@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import KeyPathCore
 
 /// Scope-based filtering for event processing
 public enum EventScope {

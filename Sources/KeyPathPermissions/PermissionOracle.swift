@@ -2,6 +2,7 @@ import ApplicationServices
 @preconcurrency import Combine
 import Foundation
 import IOKit.hid
+import KeyPathCore
 
 // (Removed deprecated OracleError - now using KeyPathError directly)
 
@@ -9,100 +10,72 @@ import IOKit.hid
 ///
 /// This actor eliminates the chaos of multiple conflicting permission detection methods.
 /// It provides deterministic, hierarchical permission checking with clear source precedence.
-///
-/// ## Quick Start for New Developers
-///
-/// **The Oracle is the ONLY way to check permissions in KeyPath.** Never call PermissionService,
-/// AXIsProcessTrusted(), or IOHIDCheckAccess() directly.
-///
-/// **Basic Usage:**
-/// ```swift
-/// // Get current permission status
-/// let snapshot = await PermissionOracle.shared.currentSnapshot()
-///
-/// // Check if system is ready
-/// if snapshot.isSystemReady {
-///     print("✓ All permissions granted")
-/// } else if let issue = snapshot.blockingIssue {
-///     print("✗ Blocked: \(issue)")
-/// }
-///
-/// // After permission changes, force refresh
-/// let updated = await PermissionOracle.shared.forceRefresh()
-/// ```
-///
-/// **Why Oracle exists:**
-/// - Prevents UI showing stale "denied" while service works perfectly
-/// - Provides consistent 1.5s cached results (no permission check spam)
-/// - Handles macOS TCC quirks and race conditions
-/// - Single source of truth = no conflicting status across UI
-///
-/// **Architecture:** See `ARCHITECTURE.md` for full permission hierarchy explanation.
-///
-/// ## Permission Detection Hierarchy
-///
-/// Priority 1: Apple APIs from GUI (IOHIDCheckAccess - reliable in user session)
-/// Priority 2: TCC Database Fallback (only when Apple API returns .unknown)
-/// Priority 3: Functional Verification (UDP connectivity for accessibility, not Input Monitoring)
-///
-/// **CRITICAL RULE:** Apple API results (.granted/.denied) are AUTHORITATIVE.
-/// Never bypass with TCC fallback when APIs give definitive answers.
-///
-/// ⚠️ **Known Limitation:** Kanata UDP reports false negatives for Input Monitoring
-/// due to IOHIDCheckAccess() being unreliable for root processes. This is why we check
-/// from GUI context instead.
-actor PermissionOracle {
-    static let shared = PermissionOracle()
+public actor PermissionOracle {
+    public static let shared = PermissionOracle()
 
     // MARK: - Published Properties (for real-time sync)
 
     /// Notifies observers when permission state changes
-    nonisolated let statusUpdatePublisher = PassthroughSubject<Date, Never>()
+    public nonisolated let statusUpdatePublisher = PassthroughSubject<Date, Never>()
 
     // MARK: - Core Types
 
-    enum Status: Equatable {
+    public enum Status: Equatable, Sendable {
         case granted
         case denied
         case error(String)
         case unknown
 
-        var isReady: Bool {
+        public var isReady: Bool {
             if case .granted = self { return true }
             return false
         }
 
-        var isBlocking: Bool {
+        public var isBlocking: Bool {
             if case .denied = self { return true }
             if case .error = self { return true }
             return false
         }
     }
 
-    struct PermissionSet {
-        let accessibility: Status
-        let inputMonitoring: Status
-        let source: String
-        let confidence: Confidence
-        let timestamp: Date
+    public struct PermissionSet: Sendable {
+        public let accessibility: Status
+        public let inputMonitoring: Status
+        public let source: String
+        public let confidence: Confidence
+        public let timestamp: Date
 
-        var hasAllPermissions: Bool {
+        public init(accessibility: Status, inputMonitoring: Status, source: String, confidence: Confidence, timestamp: Date) {
+            self.accessibility = accessibility
+            self.inputMonitoring = inputMonitoring
+            self.source = source
+            self.confidence = confidence
+            self.timestamp = timestamp
+        }
+
+        public var hasAllPermissions: Bool {
             accessibility.isReady && inputMonitoring.isReady
         }
     }
 
-    struct Snapshot {
-        let keyPath: PermissionSet
-        let kanata: PermissionSet
-        let timestamp: Date
+    public struct Snapshot: Sendable {
+        public let keyPath: PermissionSet
+        public let kanata: PermissionSet
+        public let timestamp: Date
+
+        public init(keyPath: PermissionSet, kanata: PermissionSet, timestamp: Date) {
+            self.keyPath = keyPath
+            self.kanata = kanata
+            self.timestamp = timestamp
+        }
 
         /// System is ready when both apps have all required permissions
-        var isSystemReady: Bool {
+        public var isSystemReady: Bool {
             keyPath.hasAllPermissions && kanata.hasAllPermissions
         }
 
         /// Get the first blocking permission issue (user-facing error message)
-        var blockingIssue: String? {
+        public var blockingIssue: String? {
             // Check KeyPath permissions first (needed for UI functionality)
             if keyPath.accessibility.isBlocking {
                 return "KeyPath needs Accessibility permission - enable in System Settings > Privacy & Security > Accessibility"
@@ -121,7 +94,7 @@ actor PermissionOracle {
         }
 
         /// Diagnostic information for troubleshooting
-        var diagnosticSummary: String {
+        public var diagnosticSummary: String {
             """
             🔮 Permission Oracle Snapshot (\(String(format: "%.3f", Date().timeIntervalSince(timestamp)))s ago)
 
@@ -138,9 +111,16 @@ actor PermissionOracle {
         }
     }
 
-    enum Confidence: Equatable {
+    public enum Confidence: Equatable, CustomStringConvertible, Sendable {
         case high // UDP API, Official Apple APIs
         case low // Unknown/unavailable states (TCC fallback removed)
+
+        public var description: String {
+            switch self {
+            case .high: "high"
+            case .low: "low"
+            }
+        }
     }
 
     // MARK: - State Management
@@ -151,14 +131,14 @@ actor PermissionOracle {
     /// Cache TTL for sub-2-second goal
     private let cacheTTL: TimeInterval = 1.5
 
-    private init() {
+    public init() {
         AppLogger.shared.log("🔮 [Oracle] Permission Oracle initialized - ending the chaos!")
     }
 
     // MARK: - 🎯 THE ONLY PUBLIC API
 
     /// Force cache invalidation - useful after UDP configuration changes
-    func invalidateCache() {
+    public func invalidateCache() {
         AppLogger.shared.log("🔮 [Oracle] Cache invalidated - next check will be fresh")
         lastSnapshot = nil
         lastSnapshotTime = nil
@@ -168,7 +148,7 @@ actor PermissionOracle {
     ///
     /// This is the ONLY method other components should call.
     /// No more direct PermissionService calls, no more guessing from logs.
-    func currentSnapshot() async -> Snapshot {
+    public func currentSnapshot() async -> Snapshot {
         // Fast-path for unit tests: avoid heavy OS calls and network timeouts
         if TestEnvironment.isRunningTests {
             // Honor cache semantics in tests to keep behavior deterministic
@@ -235,7 +215,7 @@ actor PermissionOracle {
     }
 
     /// Force refresh (bypass cache) - use after permission changes
-    func forceRefresh() async -> Snapshot {
+    public func forceRefresh() async -> Snapshot {
         AppLogger.shared.log("🔮 [Oracle] Forcing permission refresh (cache invalidated)")
         lastSnapshot = nil
         lastSnapshotTime = nil
@@ -290,37 +270,6 @@ actor PermissionOracle {
     // MARK: - Kanata Permission Detection (GUI Context - ARCHITECTURE.md Current Workaround)
 
     private func checkKanataPermissions() async -> PermissionSet {
-        // ================================================================================================
-        // 🚨 CRITICAL ARCHITECTURAL PRINCIPLE - DO NOT CHANGE WITHOUT UNDERSTANDING THIS COMMENT 🚨
-        // ================================================================================================
-        //
-        // ORACLE PERMISSION DETECTION HIERARCHY (commit 7f68821 broke this, restored here):
-        //
-        // 1. APPLE APIs FIRST (IOHIDCheckAccess from GUI context) - MOST RELIABLE
-        //    - Always trust definitive answers (.granted/.denied)
-        //    - GUI context can reliably check permissions for any binary path
-        //    - This is the official Apple-approved method
-        //
-        // 2. TCC DATABASE FALLBACK - NECESSARY when Apple API returns .unknown
-        //    - REQUIRED to break chicken-and-egg problems in wizard scenarios
-        //    - When service isn't running, we can't do functional verification
-        //    - When wizard needs to know permissions before starting service
-        //    - TCC database can be stale/inconsistent (why it's not primary source)
-        //    - Requires Full Disk Access which may not be available
-        //
-        // 3. FUNCTIONAL VERIFICATION - For accessibility status only
-        //    - UDP connectivity test to verify kanata is actually working
-        //    - Cannot determine Input Monitoring status (UDP works regardless)
-        //
-        // ⚠️  NEVER BYPASS APPLE APIs WITH TCC FALLBACK WHEN APIs GIVE DEFINITIVE ANSWERS ⚠️
-        //     This causes UI to show stale "denied" status while service works perfectly
-        //
-        // Historical context:
-        // - Original Oracle design (commit 71d7d06): Apple APIs → TCC fallback for unknown only
-        // - Broken by commit 7f68821: Always used TCC fallback, ignored Apple API results
-        // - Fixed here: Restored original Apple-first hierarchy
-        // ================================================================================================
-
         let kanataPath = resolveKanataExecutablePath()
 
         // IMPORTANT: IOHIDCheckAccess() reflects the calling process only and
@@ -352,9 +301,6 @@ actor PermissionOracle {
             timestamp: Date()
         )
     }
-
-    // NOTE: Removed incorrect IOHIDCheckAccess-based Kanata IM check. IOHIDCheckAccess()
-    // returns the current process status (KeyPath), not an arbitrary binary.
 
     /// Functional verification disabled in TCP-only mode
     /// TCP connectivity check would require protocol implementation
@@ -540,7 +486,7 @@ actor PermissionOracle {
 
 // MARK: - Status Display Helpers
 
-extension PermissionOracle.Status: CustomStringConvertible {
+public extension PermissionOracle.Status {
     var description: String {
         switch self {
         case .granted: "granted"
@@ -551,11 +497,4 @@ extension PermissionOracle.Status: CustomStringConvertible {
     }
 }
 
-extension PermissionOracle.Confidence: CustomStringConvertible {
-    var description: String {
-        switch self {
-        case .high: "high"
-        case .low: "low"
-        }
-    }
-}
+

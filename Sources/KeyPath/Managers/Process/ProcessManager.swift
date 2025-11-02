@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathCore
+import KeyPathDaemonLifecycle
 
 /// Protocol for managing Kanata process lifecycle
 protocol ProcessManaging: Sendable {

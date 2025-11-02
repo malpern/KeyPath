@@ -4,6 +4,7 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ErrorHandlingTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/FDADetectionTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/IntegrationTestSuite.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/KanataManagerResetTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/KanataManagerTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/KeyPathTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/KeyboardCaptureListenOnlyTests.swift
@@ -13,11 +14,13 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/Managers/KanataManagerPublicAPITests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/MockSystemEnvironment.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/PackageManagerTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/PermissionOracleFastModeTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ProcessLifecycleIntegrationTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/ProcessLifecycleManagerTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/RecordingCoordinatorTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/Services/ConfigurationServiceTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/Services/DiagnosticsServiceTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/Services/PermissionOraclePolicyTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/Services/PermissionOracleTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/Services/ServiceHealthMonitorTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/Services/SystemValidatorTests.swift
@@ -31,5 +34,6 @@
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UnitTestSuite.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/UtilitiesTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/WizardNavigationEngineTests.swift
+/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/WizardStateMachineDeterminismTests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/WizardSummaryCTATests.swift
 /Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Tests/KeyPathTests/WizardTriggeringTests.swift

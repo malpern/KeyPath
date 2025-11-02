@@ -1,6 +1,7 @@
 import XCTest
 
 @testable import KeyPath
+@testable import KeyPathDaemonLifecycle
 
 final class DiagnosticsServiceTests: XCTestCase {
     var service: DiagnosticsService!
@@ -8,7 +9,7 @@ final class DiagnosticsServiceTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        processManager = ProcessLifecycleManager(kanataManager: nil)
+        processManager = ProcessLifecycleManager()
         service = DiagnosticsService(processLifecycleManager: processManager)
     }
 
