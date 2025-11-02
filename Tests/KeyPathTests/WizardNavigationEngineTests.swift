@@ -1,6 +1,7 @@
 import XCTest
 
 @testable import KeyPath
+import KeyPathWizardCore
 
 class WizardNavigationEngineTests: XCTestCase {
     var engine: WizardNavigationEngine!

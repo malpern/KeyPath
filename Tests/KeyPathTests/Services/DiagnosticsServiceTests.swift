@@ -3,6 +3,7 @@ import XCTest
 @testable import KeyPath
 @testable import KeyPathDaemonLifecycle
 
+@MainActor
 final class DiagnosticsServiceTests: XCTestCase {
     var service: DiagnosticsService!
     var processManager: ProcessLifecycleManager!

@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPath
+import KeyPathWizardCore
 import Testing
 
 /// Tests for UserNotificationService - notification management and deduplication

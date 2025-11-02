@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 
 @testable import KeyPath
+import KeyPathDaemonLifecycle
 
 /// Mock UDP client for testing health checks
 actor MockKanataUDPClient {
@@ -20,7 +21,7 @@ actor MockKanataUDPClient {
 
 @MainActor
 class ServiceHealthMonitorTests: XCTestCase {
-    lazy var processLifecycle: ProcessLifecycleManager = .init(kanataManager: nil)
+    lazy var processLifecycle: ProcessLifecycleManager = .init()
     lazy var monitor: ServiceHealthMonitor = .init(processLifecycle: processLifecycle)
 
     // MARK: - Health Check Tests

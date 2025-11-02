@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 @testable import KeyPath
+import KeyPathCore
 import XCTest
 
 @MainActor

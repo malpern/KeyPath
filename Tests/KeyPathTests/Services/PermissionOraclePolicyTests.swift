@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPath
+import KeyPathPermissions
 import Testing
 
 @Suite("Permission Oracle Policy Tests")
@@ -98,5 +99,6 @@ struct PermissionOraclePolicyTests {
         #expect(!issue.contains("KeyPath needs Input Monitoring"))
     }
 }
+
 
 

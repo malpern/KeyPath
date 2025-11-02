@@ -2,6 +2,7 @@ import SwiftUI
 import XCTest
 
 @testable import KeyPath
+import KeyPathCore
 
 /// Phase 1 Unit Tests: ContentView Debouncing
 /// Tests the save operation debouncing added in Phase 1.3 to prevent rapid successive saves

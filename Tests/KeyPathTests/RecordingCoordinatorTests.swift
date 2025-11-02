@@ -1,4 +1,5 @@
 @testable import KeyPath
+import KeyPathPermissions
 import XCTest
 
 @MainActor
