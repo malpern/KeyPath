@@ -38,9 +38,21 @@ actor ConfigApplyPipeline {
             return nil
         }()
 
-        // Write file
+        // Write file atomically (same-directory replace)
         do {
-            try content.write(toFile: configPath, atomically: true, encoding: .utf8)
+            let directoryURL = URL(fileURLWithPath: (configPath as NSString).deletingLastPathComponent)
+            try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+            let tempURL = directoryURL.appendingPathComponent(".keypath.tmp.\(UUID().uuidString).kbd")
+            let targetURL = URL(fileURLWithPath: configPath)
+            try content.write(to: tempURL, atomically: true, encoding: .utf8)
+            var resultURL: NSURL?
+            try FileManager.default.replaceItemAt(
+                targetURL,
+                withItemAt: tempURL,
+                backupItemName: ".keypath.atomic.bak",
+                options: [.usingNewMetadataOnly],
+                resultingItemURL: &resultURL
+            )
         } catch {
             return ApplyResult(
                 success: false,
@@ -72,13 +84,12 @@ actor ConfigApplyPipeline {
             }
         }
 
-        // Reload and health check (best-effort; mirror legacy)
+        // Reload and readiness/health check
         if let manager = kanataManager {
             _ = await manager.triggerConfigReload()
             manager.clearDiagnostics()
-            // Simple readiness wait; refined watcher will arrive later
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            if !manager.isRunning {
+            let ready = await KanataReadinessWatcher.waitForDriverConnected(timeoutSeconds: 2.5)
+            if !ready {
                 // Roll back
                 if let original = originalContent {
                     _ = try? original.write(toFile: configPath, atomically: true, encoding: .utf8)
@@ -86,7 +97,7 @@ actor ConfigApplyPipeline {
                 return ApplyResult(
                     success: false,
                     rolledBack: true,
-                    error: .healthCheckFailed(message: "Kanata not running after reload"),
+                    error: .readinessTimeout(message: "Timeout waiting for driver_connected 1"),
                     diagnostics: ConfigDiagnostics(configPathBefore: configPath, configPathAfter: configPath)
                 )
             }

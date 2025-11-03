@@ -163,6 +163,35 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         AppLogger.shared.log("🔍 [ConfigManager] Modification time after write: \(afterModTime?.description ?? "unknown")")
         AppLogger.shared.log("🔍 [ConfigManager] File size: \(fileSize) bytes")
     }
+
+    /// Atomically write configuration content to the on-disk config path by replacing the file in-place.
+    /// Uses a same-directory temporary file and FileManager.replaceItem to avoid partial writes.
+    func writeConfigAtomically(_ content: String) throws {
+        AppLogger.shared.log("💾 [ConfigManager] Atomic write requested")
+        // Suppress watcher events to avoid self-triggered reloads
+        configFileWatcher?.suppressEvents(for: 1.0, reason: "Atomic write")
+
+        let directoryURL = URL(fileURLWithPath: configDirectory)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+
+        let tempURL = directoryURL.appendingPathComponent(".keypath.tmp.\(UUID().uuidString).kbd")
+        let targetURL = URL(fileURLWithPath: configPath)
+
+        // Write to temp file first
+        try content.write(to: tempURL, atomically: true, encoding: .utf8)
+
+        // Replace target with temp file
+        var resultURL: NSURL?
+        try FileManager.default.replaceItemAt(
+            targetURL,
+            withItemAt: tempURL,
+            backupItemName: ".keypath.atomic.bak",
+            options: [.usingNewMetadataOnly],
+            resultingItemURL: &resultURL
+        )
+
+        AppLogger.shared.log("✅ [ConfigManager] Atomic write completed → \(resultURL as URL? ?? targetURL)")
+    }
     
     func loadExistingMappings() async -> [KeyMapping] {
         AppLogger.shared.log("📂 [ConfigManager] Loading existing mappings")
