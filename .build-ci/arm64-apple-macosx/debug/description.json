@@ -2543,6 +2543,12 @@
   },
   "targetDependencyMap" : {
     "KeyPath" : [
+      "KeyPathWizardCore",
+      "KeyPathDaemonLifecycle",
+      "KeyPathPermissions",
+      "KeyPathCore"
+    ],
+    "KeyPathCore" : [
 
     ],
     "KeyPathHelper" : [
@@ -2550,10 +2556,26 @@
     ],
     "KeyPathPackageTests" : [
       "KeyPathTests",
-      "KeyPath"
+      "KeyPath",
+      "KeyPathWizardCore",
+      "KeyPathDaemonLifecycle",
+      "KeyPathPermissions",
+      "KeyPathCore"
+    ],
+    "KeyPathPermissions" : [
+      "KeyPathCore"
     ],
     "KeyPathTests" : [
-      "KeyPath"
+      "KeyPath",
+      "KeyPathWizardCore",
+      "KeyPathDaemonLifecycle",
+      "KeyPathPermissions",
+      "KeyPathCore"
+    ],
+    "KeyPathWizardCore" : [
+      "KeyPathDaemonLifecycle",
+      "KeyPathPermissions",
+      "KeyPathCore"
     ]
   },
   "testDiscoveryCommands" : {

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Manages the Karabiner VirtualHIDDevice Manager component
 /// This is critical for keyboard remapping functionality on macOS
