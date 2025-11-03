@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Central access point for acquiring the app-wide PrivilegedOperations implementation.
 ///

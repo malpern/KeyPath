@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Karabiner driver and virtual HID components setup page
 struct WizardKarabinerComponentsPage: View {

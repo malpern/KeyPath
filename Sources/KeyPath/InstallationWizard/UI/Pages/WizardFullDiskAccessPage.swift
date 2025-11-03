@@ -1,4 +1,6 @@
 import os
+import KeyPathWizardCore
+import KeyPathCore
 import SwiftUI
 
 // Thread-safe counter for detection attempts

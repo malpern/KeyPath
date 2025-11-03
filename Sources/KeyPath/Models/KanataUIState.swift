@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathDaemonLifecycle
+import KeyPathWizardCore
 
 /// Snapshot of KanataManager state for UI updates
 struct KanataUIState {

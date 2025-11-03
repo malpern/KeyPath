@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KeyPathCore
 
 /// Service for monitoring configuration file changes and triggering hot reloads
 ///

@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import KeyPathCore
 
 /// Protocol defining output event synthesis capabilities.
 ///

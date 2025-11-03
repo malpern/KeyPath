@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import Security
 
 /// Secure storage service for sensitive data using Keychain Services

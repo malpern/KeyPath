@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathPermissions.build/master.swiftdeps"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPathPermissions/PermissionOracle.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathPermissions.build/PermissionOracle.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathPermissions.build/PermissionOracle.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathPermissions.build/PermissionOracle~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathPermissions.build/PermissionOracle.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathPermissions.build/PermissionOracle.dia"
+  }
+}

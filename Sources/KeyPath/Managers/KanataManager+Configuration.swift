@@ -1,4 +1,5 @@
 import ApplicationServices
+import KeyPathCore
 import Foundation
 import IOKit.hidsystem
 import SwiftUI
@@ -12,7 +13,7 @@ extension KanataManager {
         do {
             try await configurationService.createInitialConfigIfNeeded()
         } catch {
-            AppLogger.shared.log("❌ [Config] Failed to create initial config via ConfigurationService: \(error)")
+            AppLogger.shared.error("❌ [Config] Failed to create initial config via ConfigurationService: \(error)")
         }
     }
 
@@ -33,9 +34,11 @@ extension KanataManager {
     /// Main reload method using TCP protocol
     func triggerConfigReload() async -> ReloadResult {
         // Try TCP reload
-        AppLogger.shared.log("📡 [Reload] Attempting TCP reload")
+        AppLogger.shared.debug("📡 [Reload] Attempting TCP reload")
         let tcpResult = await triggerTCPReload()
         if tcpResult.isSuccess {
+            // Successful reload -> clear stale diagnostics (e.g., Invalid Configuration)
+            clearDiagnostics()
             return ReloadResult(
                 success: true,
                 response: tcpResult.response ?? "",
@@ -43,10 +46,12 @@ extension KanataManager {
                 protocol: .tcp
             )
         } else {
-            AppLogger.shared.log("📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")")
+            AppLogger.shared.debug("📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")")
             // Fall back to service restart
-            AppLogger.shared.log("⚠️ [Reload] Falling back to service restart")
+            AppLogger.shared.warn("⚠️ [Reload] Falling back to service restart")
             await restartKanata()
+            // After a successful restart, clear stale diagnostics
+            clearDiagnostics()
             return ReloadResult(
                 success: true,
                 response: "Service restarted (TCP reload failed)",
@@ -59,7 +64,7 @@ extension KanataManager {
     /// TCP-based config reload (no authentication required - see ADR-013)
     func triggerTCPReload() async -> TCPReloadResult {
         if TestEnvironment.isRunningTests {
-            AppLogger.shared.log("🧪 [TCP Reload] Skipping TCP reload in test environment")
+            AppLogger.shared.debug("🧪 [TCP Reload] Skipping TCP reload in test environment")
             return .networkError("Test environment - TCP disabled")
         }
 
@@ -81,7 +86,7 @@ extension KanataManager {
     func triggerReload() async {
         let result = await triggerConfigReload()
         if !result.isSuccess {
-            AppLogger.shared.log("🔄 [Reload] Falling back to service restart due to error: \(result.errorMessage ?? "Unknown")")
+            AppLogger.shared.info("🔄 [Reload] Falling back to service restart due to error: \(result.errorMessage ?? "Unknown")")
             await restartKanata()
         }
     }

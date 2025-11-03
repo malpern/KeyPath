@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KeyPathCore
 
 /// Coordinates all privileged operations with hybrid approach (helper vs direct sudo)
 ///

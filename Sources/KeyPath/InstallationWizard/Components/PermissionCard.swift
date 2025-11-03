@@ -1,4 +1,6 @@
 import AppKit
+import KeyPathWizardCore
+import KeyPathCore
 import Foundation
 import SwiftUI
 

@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathCore
 import Foundation
 
 /// Utility for restarting the application

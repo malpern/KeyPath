@@ -1,5 +1,9 @@
 import ApplicationServices
 import Foundation
+import KeyPathCore
+import KeyPathPermissions
+import KeyPathDaemonLifecycle
+import KeyPathWizardCore
 import IOKit.hidsystem
 import Network
 import SwiftUI
@@ -430,7 +434,7 @@ class KanataManager {
                 await self?.performInitialization()
             }
         } else {
-            AppLogger.shared.log("🧪 [KanataManager] Skipping background initialization in test environment")
+            AppLogger.shared.debug("🧪 [KanataManager] Skipping background initialization in test environment")
         }
 
 #if os(macOS)
@@ -474,7 +478,7 @@ class KanataManager {
     /// Start watching the configuration file for external changes
     func startConfigFileWatching() {
         guard let fileWatcher = configFileWatcher else {
-            AppLogger.shared.log("⚠️ [FileWatcher] ConfigFileWatcher not initialized")
+            AppLogger.shared.warn("⚠️ [FileWatcher] ConfigFileWatcher not initialized")
             return
         }
 
@@ -507,7 +511,7 @@ class KanataManager {
         // Read the updated configuration
         let configPath = configPath
         guard FileManager.default.fileExists(atPath: configPath) else {
-            AppLogger.shared.log("❌ [FileWatcher] Config file no longer exists: \(configPath)")
+            AppLogger.shared.error("❌ [FileWatcher] Config file no longer exists: \(configPath)")
             Task { @MainActor in SoundManager.shared.playErrorSound() }
             await MainActor.run {
                 saveStatus = .failed("Config file was deleted")
@@ -522,7 +526,7 @@ class KanataManager {
             // Validate the configuration via CLI
             let validationResult = await configurationService.validateConfiguration(configContent)
             if !validationResult.isValid {
-                AppLogger.shared.log("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
+                AppLogger.shared.error("❌ [FileWatcher] External config validation failed: \(validationResult.errors.joined(separator: ", "))")
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
 
                 await MainActor.run {
@@ -540,7 +544,7 @@ class KanataManager {
             let reloadResult = await triggerConfigReload()
 
             if reloadResult.isSuccess {
-                AppLogger.shared.log("✅ [FileWatcher] External config successfully reloaded")
+                AppLogger.shared.info("✅ [FileWatcher] External config successfully reloaded")
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
 
                 // Update configuration service with the new content
@@ -553,7 +557,7 @@ class KanataManager {
                 AppLogger.shared.log("📝 [FileWatcher] Configuration updated from external file")
             } else {
                 let errorMessage = reloadResult.errorMessage ?? "Unknown error"
-                AppLogger.shared.log("❌ [FileWatcher] External config reload failed: \(errorMessage)")
+                AppLogger.shared.error("❌ [FileWatcher] External config reload failed: \(errorMessage)")
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
 
                 await MainActor.run {
@@ -567,7 +571,7 @@ class KanataManager {
             }
 
         } catch {
-            AppLogger.shared.log("❌ [FileWatcher] Failed to read external config: \(error)")
+            AppLogger.shared.error("❌ [FileWatcher] Failed to read external config: \(error)")
             Task { @MainActor in SoundManager.shared.playErrorSound() }
 
             await MainActor.run {
@@ -591,7 +595,7 @@ class KanataManager {
                 lastConfigUpdate = Date()
             }
         } catch {
-            AppLogger.shared.log("⚠️ [FileWatcher] Failed to parse config for in-memory update: \(error)")
+            AppLogger.shared.warn("⚠️ [FileWatcher] Failed to parse config for in-memory update: \(error)")
         }
     }
 
@@ -601,7 +605,7 @@ class KanataManager {
     func startKanataWithValidation() async {
         // Check if VirtualHID daemon is running first
         if !isKarabinerDaemonRunning() {
-            AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
+            AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
             updateInternalState(
                 isRunning: isRunning,
                 lastProcessExitCode: lastProcessExitCode,
@@ -645,7 +649,7 @@ class KanataManager {
             lastGoodConfig = currentConfig
             AppLogger.shared.log("💾 [Backup] Current config backed up successfully")
         } catch {
-            AppLogger.shared.log("⚠️ [Backup] Failed to backup current config: \(error)")
+            AppLogger.shared.warn("⚠️ [Backup] Failed to backup current config: \(error)")
         }
     }
 
@@ -656,7 +660,7 @@ class KanataManager {
         }
 
         try backup.write(toFile: configPath, atomically: true, encoding: .utf8)
-        AppLogger.shared.log("🔄 [Restore] Restored last good config successfully")
+        AppLogger.shared.info("🔄 [Restore] Restored last good config successfully")
     }
 
     func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
@@ -692,7 +696,7 @@ class KanataManager {
                 AppLogger.shared.log("🔧 [AutoFix] Reset configuration to default")
                 return true
             } catch {
-                AppLogger.shared.log("❌ [AutoFix] Failed to reset config: \(error)")
+                AppLogger.shared.error("❌ [AutoFix] Failed to reset config: \(error)")
                 return false
             }
 
@@ -724,14 +728,14 @@ class KanataManager {
     // MARK: - Public Interface
 
     func startKanataIfConfigured() async {
-        AppLogger.shared.log("🔍 [StartIfConfigured] Checking if config exists at: \(configPath)")
+        AppLogger.shared.debug("🔍 [StartIfConfigured] Checking if config exists at: \(configPath)")
 
         // Only start if config file exists and is valid
         if FileManager.default.fileExists(atPath: configPath) {
-            AppLogger.shared.log("✅ [StartIfConfigured] Config file exists - starting Kanata")
+            AppLogger.shared.info("✅ [StartIfConfigured] Config file exists - starting Kanata")
             await startKanata()
         } else {
-            AppLogger.shared.log("⚠️ [StartIfConfigured] Config file does not exist - skipping start")
+            AppLogger.shared.warn("⚠️ [StartIfConfigured] Config file does not exist - skipping start")
         }
     }
 
@@ -772,7 +776,7 @@ class KanataManager {
                     // Show safety notification (skip in tests)
                     await MainActor.run {
                         if TestEnvironment.isRunningTests {
-                            AppLogger.shared.log("🧪 [Safety] Suppressing NSAlert in test environment")
+                            AppLogger.shared.debug("🧪 [Safety] Suppressing NSAlert in test environment")
                         } else {
                             let alert = NSAlert()
                             alert.messageText = "Safety Timeout Activated"
@@ -794,14 +798,14 @@ class KanataManager {
 
     private func performStartKanata() async {
         let startTime = Date()
-        AppLogger.shared.log("🚀 [Start] ========== KANATA START ATTEMPT ==========")
-        AppLogger.shared.log("🚀 [Start] Time: \(startTime)")
-        AppLogger.shared.log("🚀 [Start] Starting Kanata with synchronization lock...")
+        AppLogger.shared.info("🚀 [Start] ========== KANATA START ATTEMPT ==========")
+        AppLogger.shared.info("🚀 [Start] Time: \(startTime)")
+        AppLogger.shared.info("🚀 [Start] Starting Kanata with synchronization lock...")
 
         // Check restart cooldown
         let cooldownState = await diagnosticsManager.canRestartService()
         if !cooldownState.canRestart {
-            AppLogger.shared.log("⚠️ [Start] Restart cooldown active: \(String(format: "%.1f", cooldownState.remainingCooldown))s remaining")
+            AppLogger.shared.warn("⚠️ [Start] Restart cooldown active: \(String(format: "%.1f", cooldownState.remainingCooldown))s remaining")
             return
         }
 
@@ -811,13 +815,13 @@ class KanataManager {
 
         // Check if already starting (prevent concurrent operations)
         if isStartingKanata {
-            AppLogger.shared.log("⚠️ [Start] Kanata is already starting - skipping concurrent start")
+            AppLogger.shared.warn("⚠️ [Start] Kanata is already starting - skipping concurrent start")
             return
         }
 
         // If Kanata is already running, check if it's healthy before restarting
         if isRunning {
-            AppLogger.shared.log("🔍 [Start] Kanata is already running - checking health before restart")
+            AppLogger.shared.debug("🔍 [Start] Kanata is already running - checking health before restart")
 
             // Check health via DiagnosticsManager
             let launchDaemonStatus = await checkLaunchDaemonStatus()
@@ -832,7 +836,7 @@ class KanataManager {
             )
 
             if healthStatus.isHealthy, !healthStatus.shouldRestart {
-                AppLogger.shared.log("✅ [Start] Kanata is healthy - no restart needed")
+                AppLogger.shared.info("✅ [Start] Kanata is healthy - no restart needed")
                 return
             }
 
@@ -841,9 +845,9 @@ class KanataManager {
                 return
             }
 
-            AppLogger.shared.log("🔄 [Start] Service unhealthy: \(healthStatus.reason ?? "unknown") - proceeding with restart")
+            AppLogger.shared.info("🔄 [Start] Service unhealthy: \(healthStatus.reason ?? "unknown") - proceeding with restart")
 
-            AppLogger.shared.log("🔄 [Start] Performing necessary restart via kickstart")
+            AppLogger.shared.info("🔄 [Start] Performing necessary restart via kickstart")
             isStartingKanata = true
             defer { isStartingKanata = false }
 
@@ -863,7 +867,7 @@ class KanataManager {
                     await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
                 }
             } else {
-                AppLogger.shared.log("❌ [Start] Kickstart restart failed - will fall through to full startup")
+                AppLogger.shared.error("❌ [Start] Kickstart restart failed - will fall through to full startup")
                 // Don't return - let it fall through to full startup sequence
             }
 
@@ -900,7 +904,7 @@ class KanataManager {
 
         // Check for karabiner_grabber conflict
         if isKarabinerElementsRunning() {
-            AppLogger.shared.log("⚠️ [Start] Detected karabiner_grabber running - attempting to kill it")
+            AppLogger.shared.warn("⚠️ [Start] Detected karabiner_grabber running - attempting to kill it")
             let killed = await killKarabinerGrabber()
             if !killed {
                 let diagnostic = KanataDiagnostic(
@@ -924,13 +928,13 @@ class KanataManager {
         }
 
         // Check for and resolve any existing conflicting processes
-        AppLogger.shared.log("🔍 [Start] Checking for conflicting Kanata processes...")
+        AppLogger.shared.debug("🔍 [Start] Checking for conflicting Kanata processes...")
         await resolveProcessConflicts()
 
         // Check if config file exists and is readable
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: configPath) {
-            AppLogger.shared.log("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
+            AppLogger.shared.warn("⚠️ [DEBUG] Config file does NOT exist at: \(configPath)")
             updateInternalState(
                 isRunning: false,
                 lastProcessExitCode: 1,
@@ -938,9 +942,9 @@ class KanataManager {
             )
             return
         } else {
-            AppLogger.shared.log("✅ [DEBUG] Config file exists at: \(configPath)")
+            AppLogger.shared.info("✅ [DEBUG] Config file exists at: \(configPath)")
             if !fileManager.isReadableFile(atPath: configPath) {
-                AppLogger.shared.log("⚠️ [DEBUG] Config file is NOT readable")
+                AppLogger.shared.warn("⚠️ [DEBUG] Config file is NOT readable")
                 updateInternalState(
                     isRunning: false,
                     lastProcessExitCode: 1,
@@ -951,9 +955,9 @@ class KanataManager {
         }
 
         // Use LaunchDaemon service management exclusively
-        AppLogger.shared.log("🚀 [Start] Starting Kanata via LaunchDaemon service...")
-        AppLogger.shared.log("🔍 [DEBUG] Config path: \(configPath)")
-        AppLogger.shared.log("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
+        AppLogger.shared.info("🚀 [Start] Starting Kanata via LaunchDaemon service...")
+        AppLogger.shared.debug("🔍 [DEBUG] Config path: \(configPath)")
+        AppLogger.shared.debug("🔍 [DEBUG] Kanata binary: \(WizardSystemPaths.kanataActiveBinary)")
 
         // Start the LaunchDaemon service
         // Record when we're triggering a service start for grace period tracking
@@ -993,7 +997,7 @@ class KanataManager {
 
             } else {
                 // Service started but no PID found - may still be initializing
-                AppLogger.shared.log("⚠️ [Start] LaunchDaemon service started but PID not yet available")
+                AppLogger.shared.warn("⚠️ [Start] LaunchDaemon service started but PID not yet available")
 
                 // Update state to indicate running
                 updateInternalState(
@@ -1003,8 +1007,8 @@ class KanataManager {
                     shouldClearDiagnostics: true
                 )
 
-                AppLogger.shared.log("✅ [Start] LaunchDaemon service started successfully")
-                AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
+                AppLogger.shared.info("✅ [Start] LaunchDaemon service started successfully")
+                AppLogger.shared.info("✅ [Start] ========== KANATA START SUCCESS ==========")
                 await healthMonitor.recordStartSuccess()
             }
         } else {
@@ -1014,7 +1018,7 @@ class KanataManager {
                 lastProcessExitCode: 1,
                 lastError: "Failed to start LaunchDaemon service"
             )
-            AppLogger.shared.log("❌ [Start] Failed to start LaunchDaemon service")
+            AppLogger.shared.error("❌ [Start] Failed to start LaunchDaemon service")
 
             let diagnostic = KanataDiagnostic(
                 timestamp: Date(),
@@ -1059,13 +1063,13 @@ class KanataManager {
             return true
         }
 
-        AppLogger.shared.log("✅ [FreshInstall] Both Kanata binary and user config exist - returning user")
+        AppLogger.shared.info("✅ [FreshInstall] Both Kanata binary and user config exist - returning user")
         return false
     }
 
     /// Start the automatic Kanata launch sequence
     func startAutoLaunch(presentWizardOnFailure: Bool = true) async {
-        AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
+        AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
 
         // Check if this is a fresh install first
         let isFreshInstall = isFirstTimeInstall()
@@ -1105,7 +1109,7 @@ class KanataManager {
             await attemptAutoStart(presentWizardOnFailure: presentWizardOnFailure)
         }
 
-        AppLogger.shared.log("🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE ==========")
+        AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE ==========")
     }
 
     /// Attempt to start quietly without showing wizard (for subsequent app launches)
@@ -1165,7 +1169,7 @@ class KanataManager {
 
     /// Force refresh the current status
     func forceRefreshStatus() async {
-        AppLogger.shared.log("🔄 [KanataManager] Force refresh status requested")
+        AppLogger.shared.info("🔄 [KanataManager] Force refresh status requested")
         await refreshStatus()
     }
 
@@ -1197,14 +1201,14 @@ class KanataManager {
 
         // Check if start was successful
         if isRunning {
-            AppLogger.shared.log("✅ [KanataManager] Auto-start successful!")
+            AppLogger.shared.info("✅ [KanataManager] Auto-start successful!")
             await MainActor.run {
                 currentState = .running
                 errorReason = nil
                 launchFailureStatus = nil
             }
         } else {
-            AppLogger.shared.log("❌ [KanataManager] Auto-start failed")
+            AppLogger.shared.error("❌ [KanataManager] Auto-start failed")
             await handleAutoStartFailure(presentWizardOnFailure: presentWizardOnFailure)
         }
 
@@ -1216,7 +1220,7 @@ class KanataManager {
     private func handleAutoStartFailure(presentWizardOnFailure: Bool = true) async {
         // Check if we should retry
         if autoStartAttempts < maxAutoStartAttempts {
-            AppLogger.shared.log("🔄 [KanataManager] Retrying auto-start...")
+            AppLogger.shared.info("🔄 [KanataManager] Retrying auto-start...")
             try? await Task.sleep(nanoseconds: 3_000_000_000) // Wait 3 seconds
             await attemptAutoStart(presentWizardOnFailure: presentWizardOnFailure)
             return
@@ -1228,7 +1232,7 @@ class KanataManager {
             errorReason = "Failed to start Kanata after \(maxAutoStartAttempts) attempts"
             if presentWizardOnFailure {
                 showWizard = true
-                AppLogger.shared.log("❌ [KanataManager] Max attempts reached - showing wizard")
+                AppLogger.shared.error("❌ [KanataManager] Max attempts reached - showing wizard")
             } else {
                 AppLogger.shared.log("🕊️ [KanataManager] Quiet mode: not presenting wizard on max attempts failure")
             }
@@ -1237,7 +1241,7 @@ class KanataManager {
 
     /// Retry after manual fix (from SimpleKanataManager)
     func retryAfterFix(_ feedbackMessage: String) async {
-        AppLogger.shared.log("🔄 [KanataManager] Retry after fix requested: \(feedbackMessage)")
+        AppLogger.shared.info("🔄 [KanataManager] Retry after fix requested: \(feedbackMessage)")
 
         await MainActor.run {
             isRetryingAfterFix = true
@@ -1255,7 +1259,7 @@ class KanataManager {
             isRetryingAfterFix = false
         }
 
-        AppLogger.shared.log("🔄 [KanataManager] Retry after fix completed")
+        AppLogger.shared.info("🔄 [KanataManager] Retry after fix completed")
     }
 
     /// Request wizard presentation from any UI component
@@ -1282,12 +1286,12 @@ class KanataManager {
 
         // If Kanata is now running successfully, mark wizard as completed
         if isRunning {
-            AppLogger.shared.log("✅ [KanataManager] Wizard completed successfully - Kanata is running")
+            AppLogger.shared.info("✅ [KanataManager] Wizard completed successfully - Kanata is running")
             UserDefaults.standard.set(true, forKey: "KeyPath.HasShownWizard")
             UserDefaults.standard.synchronize()
-            AppLogger.shared.log("✅ [KanataManager] Set KeyPath.HasShownWizard = true for future launches")
+            AppLogger.shared.info("✅ [KanataManager] Set KeyPath.HasShownWizard = true for future launches")
         } else {
-            AppLogger.shared.log("⚠️ [KanataManager] Wizard closed but Kanata is not running - will retry setup on next launch")
+            AppLogger.shared.warn("⚠️ [KanataManager] Wizard closed but Kanata is not running - will retry setup on next launch")
         }
 
         if !isRunning {
@@ -1302,7 +1306,7 @@ class KanataManager {
 
     /// Start the Kanata LaunchDaemon service via privileged operations facade
     private func startLaunchDaemonService() async -> Bool {
-        AppLogger.shared.log("🚀 [LaunchDaemon] Starting Kanata service via PrivilegedOperations...")
+        AppLogger.shared.info("🚀 [LaunchDaemon] Starting Kanata service via PrivilegedOperations...")
         return await PrivilegedOperationsProvider.shared.startKanataService()
     }
 
@@ -1343,12 +1347,12 @@ class KanataManager {
             task.waitUntilExit()
 
             if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [Kill] Successfully killed process \(pid)")
+                AppLogger.shared.info("✅ [Kill] Successfully killed process \(pid)")
             } else {
-                AppLogger.shared.log("⚠️ [Kill] Failed to kill process \(pid) (may have already exited)")
+                AppLogger.shared.warn("⚠️ [Kill] Failed to kill process \(pid) (may have already exited)")
             }
         } catch {
-            AppLogger.shared.log("❌ [Kill] Exception killing process \(pid): \(error)")
+            AppLogger.shared.error("❌ [Kill] Exception killing process \(pid): \(error)")
         }
     }
 
@@ -1372,7 +1376,7 @@ class KanataManager {
                 lastError: nil
             )
         } else {
-            AppLogger.shared.log("⚠️ [Stop] Failed to stop Kanata LaunchDaemon service")
+            AppLogger.shared.warn("⚠️ [Stop] Failed to stop Kanata LaunchDaemon service")
 
             // Still update status to reflect current state
             await updateStatus()
@@ -1413,18 +1417,18 @@ class KanataManager {
 
         do {
             // VALIDATE BEFORE SAVING - prevent writing broken configs
-            AppLogger.shared.log("🔍 [KanataManager] Validating generated config before save...")
+            AppLogger.shared.debug("🔍 [KanataManager] Validating generated config before save...")
             let validation = await configurationService.validateConfiguration(configContent)
 
             if !validation.isValid {
-                AppLogger.shared.log("❌ [KanataManager] Generated config validation failed: \(validation.errors.joined(separator: ", "))")
+                AppLogger.shared.error("❌ [KanataManager] Generated config validation failed: \(validation.errors.joined(separator: ", "))")
                 await MainActor.run {
                     saveStatus = .failed("Invalid config: \(validation.errors.first ?? "Unknown error")")
                 }
                 throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
             }
 
-            AppLogger.shared.log("✅ [KanataManager] Generated config validation passed")
+            AppLogger.shared.info("✅ [KanataManager] Generated config validation passed")
 
             // Backup current config before making changes
             await backupCurrentConfig()
@@ -1437,7 +1441,7 @@ class KanataManager {
             let configURL = URL(fileURLWithPath: configPath)
             try configContent.write(to: configURL, atomically: true, encoding: .utf8)
 
-            AppLogger.shared.log("✅ [KanataManager] Generated configuration saved to \(configPath)")
+            AppLogger.shared.info("✅ [KanataManager] Generated configuration saved to \(configPath)")
 
             // Update last config update timestamp
             lastConfigUpdate = Date()
@@ -1454,7 +1458,7 @@ class KanataManager {
             // Trigger hot reload via TCP
             let reloadResult = await triggerConfigReload()
             if reloadResult.isSuccess {
-                AppLogger.shared.log("✅ [KanataManager] TCP reload successful, config is active")
+                AppLogger.shared.info("✅ [KanataManager] TCP reload successful, config is active")
                 // Play glass sound asynchronously to avoid blocking completion
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
                 await MainActor.run {
@@ -1463,8 +1467,8 @@ class KanataManager {
             } else {
                 // TCP reload failed - this is a critical error for validation-on-demand
                 let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
-                AppLogger.shared.log("❌ [KanataManager] TCP reload FAILED: \(errorMessage)")
-                AppLogger.shared.log("❌ [KanataManager] Restoring backup since config couldn't be verified")
+                AppLogger.shared.error("❌ [KanataManager] TCP reload FAILED: \(errorMessage)")
+                AppLogger.shared.error("❌ [KanataManager] Restoring backup since config couldn't be verified")
 
                 // Play error sound asynchronously
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
@@ -1524,12 +1528,12 @@ class KanataManager {
             Task { @MainActor in SoundManager.shared.playTinkSound() }
 
             // Attempt TCP reload to validate config
-            AppLogger.shared.log("📡 [Config] Triggering TCP reload for validation")
+            AppLogger.shared.debug("📡 [Config] Triggering TCP reload for validation")
             let tcpResult = await triggerTCPReload()
 
             if tcpResult.isSuccess {
                 // Reload succeeded - config is valid
-                AppLogger.shared.log("✅ [Config] Reload successful, config is valid")
+                AppLogger.shared.info("✅ [Config] Reload successful, config is valid")
 
                 // Play glass sound asynchronously to avoid blocking completion
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
@@ -1540,8 +1544,8 @@ class KanataManager {
             } else {
                 // TCP reload failed - this is a critical error for validation-on-demand
                 let errorMessage = tcpResult.errorMessage ?? "TCP server unresponsive"
-                AppLogger.shared.log("❌ [Config] TCP reload FAILED: \(errorMessage)")
-                AppLogger.shared.log("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
+                AppLogger.shared.error("❌ [Config] TCP reload FAILED: \(errorMessage)")
+                AppLogger.shared.error("❌ [Config] TCP server is required for validation-on-demand - restoring backup")
 
                 // Play error sound asynchronously
                 Task { @MainActor in SoundManager.shared.playErrorSound() }
@@ -1589,7 +1593,7 @@ class KanataManager {
         // Fast path - already running
         await updateStatus()
         if await MainActor.run(body: { currentState == .running }) {
-            AppLogger.shared.log("✅ [KanataManager] Service already ready")
+            AppLogger.shared.info("✅ [KanataManager] Service already ready")
             return true
         }
 
@@ -1604,12 +1608,12 @@ class KanataManager {
 
             if state == .running {
                 let elapsed = Date().timeIntervalSince(startTime)
-                AppLogger.shared.log("✅ [KanataManager] Service became ready after \(String(format: "%.1f", elapsed))s")
+                AppLogger.shared.info("✅ [KanataManager] Service became ready after \(String(format: "%.1f", elapsed))s")
                 return true
             }
 
             if state == .needsHelp || state == .stopped {
-                AppLogger.shared.log("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
+                AppLogger.shared.error("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
                 return false
             }
 
@@ -1656,7 +1660,7 @@ class KanataManager {
         let serviceRunning = serviceStatus.isRunning
 
         if isRunning != serviceRunning {
-            AppLogger.shared.log("⚠️ [Status] LaunchDaemon service state changed: \(serviceRunning)")
+            AppLogger.shared.warn("⚠️ [Status] LaunchDaemon service state changed: \(serviceRunning)")
 
             if serviceRunning {
                 // Service is running - clear any stale errors
@@ -1666,10 +1670,10 @@ class KanataManager {
                     lastError: nil,
                     shouldClearDiagnostics: true
                 )
-                AppLogger.shared.log("🔄 [Status] LaunchDaemon service running - cleared stale diagnostics")
+                AppLogger.shared.info("🔄 [Status] LaunchDaemon service running - cleared stale diagnostics")
 
                 if let pid = serviceStatus.pid {
-                    AppLogger.shared.log("✅ [Status] LaunchDaemon service PID: \(pid)")
+                    AppLogger.shared.info("✅ [Status] LaunchDaemon service PID: \(pid)")
 
                     // Update lifecycle manager with current service PID
                     let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
@@ -1682,7 +1686,7 @@ class KanataManager {
                     lastProcessExitCode: lastProcessExitCode,
                     lastError: lastError
                 )
-                AppLogger.shared.log("⚠️ [Status] LaunchDaemon service is not running")
+                AppLogger.shared.warn("⚠️ [Status] LaunchDaemon service is not running")
 
                 // Clean up lifecycle manager
                 await processLifecycleManager.unregisterProcess()
@@ -1718,7 +1722,7 @@ class KanataManager {
 
         // Clean up PID file
         try? PIDFileManager.removePID()
-        AppLogger.shared.log("✅ [Cleanup] Synchronous cleanup complete")
+        AppLogger.shared.info("✅ [Cleanup] Synchronous cleanup complete")
     }
 
     private func checkExternalKanataProcess() async -> Bool {
@@ -2001,16 +2005,16 @@ class KanataManager {
         if let appleScript = NSAppleScript(source: script) {
             appleScript.executeAndReturnError(&error)
             if let error {
-                AppLogger.shared.log("❌ [Finder] AppleScript error revealing kanata: \(error)")
+                AppLogger.shared.error("❌ [Finder] AppleScript error revealing kanata: \(error)")
             } else {
-                AppLogger.shared.log("✅ [Finder] Revealed kanata in Finder: \(kanataPath)")
+                AppLogger.shared.info("✅ [Finder] Revealed kanata in Finder: \(kanataPath)")
                 // Show guide bubble slightly below the icon (fallback if we cannot resolve exact AX position)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     self.showDragAndDropHelpBubble()
                 }
             }
         } else {
-            AppLogger.shared.log("❌ [Finder] Could not create AppleScript to reveal kanata.")
+            AppLogger.shared.error("❌ [Finder] Could not create AppleScript to reveal kanata.")
         }
     }
 
@@ -2118,11 +2122,11 @@ class KanataManager {
 
             do {
                 try await PrivilegedOperationsCoordinator.shared.installBundledKanata()
-                AppLogger.shared.log("✅ [Installation] Successfully installed bundled Kanata binary")
-                AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary installed and verified")
+                AppLogger.shared.info("✅ [Installation] Successfully installed bundled Kanata binary")
+                AppLogger.shared.info("✅ [Installation] Step 1 SUCCESS: Kanata binary installed and verified")
                 stepsCompleted += 1
             } catch {
-                AppLogger.shared.log("❌ [Installation] Step 1 FAILED: Failed to install bundled Kanata binary: \(error)")
+                AppLogger.shared.error("❌ [Installation] Step 1 FAILED: Failed to install bundled Kanata binary: \(error)")
                 AppLogger.shared.log("💡 [Installation] Check system permissions and try running KeyPath with administrator privileges")
                 stepsFailed += 1
             }
@@ -2149,7 +2153,7 @@ class KanataManager {
         // 3. Prepare Karabiner daemon directories
         AppLogger.shared.log("🔧 [Installation] Step 3/\(totalSteps): Preparing daemon directories...")
         await prepareDaemonDirectories()
-        AppLogger.shared.log("✅ [Installation] Step 3 SUCCESS: Daemon directories prepared")
+        AppLogger.shared.info("✅ [Installation] Step 3 SUCCESS: Daemon directories prepared")
         stepsCompleted += 1
 
         // 4. Create initial config if needed
@@ -2160,7 +2164,7 @@ class KanataManager {
                 "✅ [Installation] Step 4 SUCCESS: User config available at \(configPath)")
             stepsCompleted += 1
         } else {
-            AppLogger.shared.log("❌ [Installation] Step 4 FAILED: User config missing at \(configPath)")
+            AppLogger.shared.error("❌ [Installation] Step 4 FAILED: User config missing at \(configPath)")
             stepsFailed += 1
         }
 
@@ -2168,7 +2172,7 @@ class KanataManager {
         AppLogger.shared.log(
             "🔧 [Installation] Step 5/\(totalSteps): System config step skipped - LaunchDaemon uses user config directly"
         )
-        AppLogger.shared.log("✅ [Installation] Step 5 SUCCESS: Using ~/.config/keypath path directly")
+        AppLogger.shared.info("✅ [Installation] Step 5 SUCCESS: Using ~/.config/keypath path directly")
         stepsCompleted += 1
 
         let success = stepsCompleted >= 4 // Require at least user config + binary + directories
@@ -2215,7 +2219,7 @@ class KanataManager {
             task.waitUntilExit()
 
             if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [Daemon] Successfully prepared daemon directories")
+                AppLogger.shared.info("✅ [Daemon] Successfully prepared daemon directories")
 
                 // Also ensure log directory exists and is accessible
                 let logDirScript =
@@ -2229,17 +2233,17 @@ class KanataManager {
                 logTask.waitUntilExit()
 
                 if logTask.terminationStatus == 0 {
-                    AppLogger.shared.log("✅ [Daemon] Log directory permissions set")
+                    AppLogger.shared.info("✅ [Daemon] Log directory permissions set")
                 } else {
-                    AppLogger.shared.log("⚠️ [Daemon] Could not set log directory permissions")
+                    AppLogger.shared.warn("⚠️ [Daemon] Could not set log directory permissions")
                 }
             } else {
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 let output = String(data: data, encoding: .utf8) ?? ""
-                AppLogger.shared.log("❌ [Daemon] Failed to prepare directories: \(output)")
+                AppLogger.shared.error("❌ [Daemon] Failed to prepare directories: \(output)")
             }
         } catch {
-            AppLogger.shared.log("❌ [Daemon] Error preparing daemon directories: \(error)")
+            AppLogger.shared.error("❌ [Daemon] Error preparing daemon directories: \(error)")
         }
     }
 
@@ -2275,8 +2279,8 @@ class KanataManager {
                 await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
             }
         } catch {
-            AppLogger.shared.log("❌ [Validation] Failed to load existing config: \(error)")
-            AppLogger.shared.log("❌ [Validation] Error type: \(type(of: error))")
+            AppLogger.shared.error("❌ [Validation] Failed to load existing config: \(error)")
+            AppLogger.shared.error("❌ [Validation] Error type: \(type(of: error))")
             keyMappings = []
         }
 
@@ -2297,8 +2301,8 @@ class KanataManager {
             AppLogger.shared.log("💾 [Validation] Successfully backed up invalid config to: \(backupPath)")
             AppLogger.shared.log("💾 [Validation] Backup file size: \(configContent.count) characters")
         } catch {
-            AppLogger.shared.log("❌ [Validation] Failed to backup invalid config: \(error)")
-            AppLogger.shared.log("❌ [Validation] Backup path attempted: \(backupPath)")
+            AppLogger.shared.error("❌ [Validation] Failed to backup invalid config: \(error)")
+            AppLogger.shared.error("❌ [Validation] Backup path attempted: \(backupPath)")
         }
 
         // Generate default configuration
@@ -2311,15 +2315,15 @@ class KanataManager {
             AppLogger.shared.log("📝 [Validation] Writing default config to: \(configPath)")
             try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
             keyMappings = [defaultMapping]
-            AppLogger.shared.log("✅ [Validation] Successfully replaced invalid config with default")
-            AppLogger.shared.log("✅ [Validation] New config has \(keyMappings.count) mapping(s)")
+            AppLogger.shared.info("✅ [Validation] Successfully replaced invalid config with default")
+            AppLogger.shared.info("✅ [Validation] New config has \(keyMappings.count) mapping(s)")
 
             // Schedule user notification about the fallback
             AppLogger.shared.log("📢 [Validation] Scheduling user notification about config fallback...")
             await scheduleConfigValidationNotification(originalErrors: errors, backupPath: backupPath)
         } catch {
-            AppLogger.shared.log("❌ [Validation] Failed to write default config: \(error)")
-            AppLogger.shared.log("❌ [Validation] Config path: \(configPath)")
+            AppLogger.shared.error("❌ [Validation] Failed to write default config: \(error)")
+            AppLogger.shared.error("❌ [Validation] Config path: \(configPath)")
             keyMappings = []
         }
 
@@ -2332,7 +2336,7 @@ class KanataManager {
 
         await MainActor.run {
             if TestEnvironment.isRunningTests {
-                AppLogger.shared.log("🧪 [Config] Suppressing validation alert in test environment")
+                AppLogger.shared.debug("🧪 [Config] Suppressing validation alert in test environment")
                 return
             }
             validationAlertTitle = "Configuration File Invalid"
@@ -2354,7 +2358,7 @@ class KanataManager {
                 },
                 ValidationAlertAction(title: "Open Backup Location", style: .default) { [weak self] in
                     if TestEnvironment.isRunningTests {
-                        AppLogger.shared.log("🧪 [Config] Suppressing NSWorkspace file viewer in test environment")
+                        AppLogger.shared.debug("🧪 [Config] Suppressing NSWorkspace file viewer in test environment")
                     } else {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
                     }
@@ -2402,7 +2406,7 @@ class KanataManager {
 
     /// Revert to a safe default configuration
     private func revertToDefaultConfig() async {
-        AppLogger.shared.log("🔄 [Config] Reverting to default configuration")
+        AppLogger.shared.info("🔄 [Config] Reverting to default configuration")
 
         let defaultMapping = KeyMapping(input: "caps", output: "esc")
         let defaultConfig = generateKanataConfigWithMappings([defaultMapping])
@@ -2413,9 +2417,9 @@ class KanataManager {
                 keyMappings = [defaultMapping]
                 lastConfigUpdate = Date()
             }
-            AppLogger.shared.log("✅ [Config] Successfully reverted to default configuration")
+            AppLogger.shared.info("✅ [Config] Successfully reverted to default configuration")
         } catch {
-            AppLogger.shared.log("❌ [Config] Failed to revert to default configuration: \(error)")
+            AppLogger.shared.error("❌ [Config] Failed to revert to default configuration: \(error)")
         }
     }
 
@@ -2425,7 +2429,7 @@ class KanataManager {
             let config = try configurationService.parseConfigurationFromString(configContent)
             return config.keyMappings
         } catch {
-            AppLogger.shared.log("⚠️ [Parse] Failed to parse config: \(error)")
+            AppLogger.shared.warn("⚠️ [Parse] Failed to parse config: \(error)")
             return []
         }
     }
@@ -2506,12 +2510,12 @@ class KanataManager {
 
         // Apply changes immediately via TCP reload if service is running
         if isRunning {
-            AppLogger.shared.log("🔄 [Reset] Triggering immediate config reload via TCP...")
+            AppLogger.shared.info("🔄 [Reset] Triggering immediate config reload via TCP...")
             let reloadResult = await triggerConfigReload()
 
             if reloadResult.isSuccess {
                 let response = reloadResult.response ?? "Success"
-                AppLogger.shared.log("✅ [Reset] Default config applied successfully via TCP: \(response)")
+                AppLogger.shared.info("✅ [Reset] Default config applied successfully via TCP: \(response)")
                 // Play happy chime on successful reset
                 await MainActor.run {
                     SoundManager.shared.playGlassSound()
@@ -2519,7 +2523,7 @@ class KanataManager {
             } else {
                 let error = reloadResult.errorMessage ?? "Unknown error"
                 let response = reloadResult.response ?? "No response"
-                AppLogger.shared.log("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
+                AppLogger.shared.warn("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
                 AppLogger.shared.log("📝 [Reset] TCP response: \(response)")
                 // If TCP reload fails, fall back to service restart
                 await restartKanata()
@@ -2541,7 +2545,7 @@ class KanataManager {
             AppLogger.shared.log("🛑 [Mappings] Paused by killing Kanata processes via helper")
             return true
         } catch {
-            AppLogger.shared.log("⚠️ [Mappings] Helper killAllKanataProcesses failed: \(error)")
+            AppLogger.shared.warn("⚠️ [Mappings] Helper killAllKanataProcesses failed: \(error)")
             return false
         }
     }
@@ -2554,10 +2558,10 @@ class KanataManager {
             try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
             // Give it a brief moment to come up
             try? await Task.sleep(nanoseconds: 200_000_000)
-            AppLogger.shared.log("🚀 [Mappings] Resumed by restarting unhealthy services via helper")
+            AppLogger.shared.info("🚀 [Mappings] Resumed by restarting unhealthy services via helper")
             return true
         } catch {
-            AppLogger.shared.log("⚠️ [Mappings] Helper restartUnhealthyServices failed: \(error)")
+            AppLogger.shared.warn("⚠️ [Mappings] Helper restartUnhealthyServices failed: \(error)")
             return false
         }
     }
@@ -2657,7 +2661,7 @@ class KanataManager {
 
             return try await callClaudeAPI(prompt: prompt)
         } catch {
-            AppLogger.shared.log("⚠️ [KanataManager] Claude API failed: \(error), falling back to rule-based repair")
+            AppLogger.shared.warn("⚠️ [KanataManager] Claude API failed: \(error), falling back to rule-based repair")
             // For now, use rule-based repair as fallback
             return try await performRuleBasedRepair(config: config, errors: errors, mappings: mappings)
         }
@@ -2673,22 +2677,22 @@ class KanataManager {
     /// Saves a validated config to disk
     private func saveValidatedConfig(_ config: String) async throws {
         // DEBUG: Log detailed file save information
-        AppLogger.shared.log("🔍 [DEBUG] saveValidatedConfig called")
-        AppLogger.shared.log("🔍 [DEBUG] Target config path: \(configPath)")
-        AppLogger.shared.log("🔍 [DEBUG] Config size: \(config.count) characters")
+        AppLogger.shared.debug("🔍 [DEBUG] saveValidatedConfig called")
+        AppLogger.shared.debug("🔍 [DEBUG] Target config path: \(configPath)")
+        AppLogger.shared.debug("🔍 [DEBUG] Config size: \(config.count) characters")
 
         // Config validation is performed by caller before reaching here
-        AppLogger.shared.log("📡 [SaveConfig] Saving validated config (TCP-only mode)")
+        AppLogger.shared.debug("📡 [SaveConfig] Saving validated config (TCP-only mode)")
 
         let configDir = URL(fileURLWithPath: configDirectory)
         try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-        AppLogger.shared.log("🔍 [DEBUG] Config directory created/verified: \(configDirectory)")
+        AppLogger.shared.debug("🔍 [DEBUG] Config directory created/verified: \(configDirectory)")
 
         let configURL = URL(fileURLWithPath: configPath)
 
         // Check if file exists before writing
         let fileExists = FileManager.default.fileExists(atPath: configPath)
-        AppLogger.shared.log("🔍 [DEBUG] Config file exists before write: \(fileExists)")
+        AppLogger.shared.debug("🔍 [DEBUG] Config file exists before write: \(fileExists)")
 
         // Get modification time before write (if file exists)
         var beforeModTime: Date?
@@ -2701,7 +2705,7 @@ class KanataManager {
 
         // Write the config
         try config.write(to: configURL, atomically: true, encoding: .utf8)
-        AppLogger.shared.log("✅ [DEBUG] Config written to file successfully")
+        AppLogger.shared.info("✅ [DEBUG] Config written to file successfully")
 
         // Note: File watcher delay removed - we use TCP reload commands instead of --watch
 
@@ -2712,12 +2716,12 @@ class KanataManager {
 
         AppLogger.shared.log(
             "🔍 [DEBUG] Modification time after write: \(afterModTime?.description ?? "unknown")")
-        AppLogger.shared.log("🔍 [DEBUG] File size after write: \(fileSize) bytes")
+        AppLogger.shared.debug("🔍 [DEBUG] File size after write: \(fileSize) bytes")
 
         // Calculate time difference if we have both times
         if let before = beforeModTime, let after = afterModTime {
             let timeDiff = after.timeIntervalSince(before)
-            AppLogger.shared.log("🔍 [DEBUG] File modification time changed by: \(timeDiff) seconds")
+            AppLogger.shared.debug("🔍 [DEBUG] File modification time changed by: \(timeDiff) seconds")
         }
 
         // Post-save validation: verify the file was saved correctly
@@ -2725,8 +2729,8 @@ class KanataManager {
             saveStatus = .validating
         }
 
-        AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
-        AppLogger.shared.log("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
+        AppLogger.shared.debug("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
+        AppLogger.shared.debug("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
         do {
             let savedContent = try String(contentsOfFile: configPath, encoding: .utf8)
             AppLogger.shared.log("📖 [Validation-PostSave] Successfully read saved file (\(savedContent.count) characters)")
@@ -2737,31 +2741,31 @@ class KanataManager {
             AppLogger.shared.log("⏱️ [Validation-PostSave] Validation completed in \(String(format: "%.3f", postSaveDuration)) seconds")
 
             if postSaveValidation.isValid {
-                AppLogger.shared.log("✅ [Validation-PostSave] Post-save validation PASSED")
-                AppLogger.shared.log("✅ [Validation-PostSave] Config saved and verified successfully")
+                AppLogger.shared.info("✅ [Validation-PostSave] Post-save validation PASSED")
+                AppLogger.shared.info("✅ [Validation-PostSave] Config saved and verified successfully")
             } else {
-                AppLogger.shared.log("❌ [Validation-PostSave] Post-save validation FAILED")
-                AppLogger.shared.log("❌ [Validation-PostSave] Found \(postSaveValidation.errors.count) errors:")
+                AppLogger.shared.error("❌ [Validation-PostSave] Post-save validation FAILED")
+                AppLogger.shared.error("❌ [Validation-PostSave] Found \(postSaveValidation.errors.count) errors:")
                 for (index, error) in postSaveValidation.errors.enumerated() {
                     AppLogger.shared.log("   Error \(index + 1): \(error)")
                 }
                 AppLogger.shared.log("🎭 [Validation-PostSave] Showing error dialog to user...")
                 await showValidationErrorDialog(title: "Save Verification Failed", errors: postSaveValidation.errors)
-                AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
+                AppLogger.shared.debug("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
                 throw KeyPathError.configuration(.validationFailed(errors: postSaveValidation.errors))
             }
         } catch {
-            AppLogger.shared.log("❌ [Validation-PostSave] Failed to read saved config: \(error)")
-            AppLogger.shared.log("❌ [Validation-PostSave] Error type: \(type(of: error))")
-            AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
+            AppLogger.shared.error("❌ [Validation-PostSave] Failed to read saved config: \(error)")
+            AppLogger.shared.error("❌ [Validation-PostSave] Error type: \(type(of: error))")
+            AppLogger.shared.debug("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
             throw error
         }
 
-        AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
+        AppLogger.shared.debug("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
 
         // Notify UI that config was updated
         lastConfigUpdate = Date()
-        AppLogger.shared.log("🔍 [DEBUG] lastConfigUpdate timestamp set to: \(lastConfigUpdate)")
+        AppLogger.shared.debug("🔍 [DEBUG] lastConfigUpdate timestamp set to: \(lastConfigUpdate)")
     }
 
     /// Synchronize config to system path for Kanata --watch compatibility

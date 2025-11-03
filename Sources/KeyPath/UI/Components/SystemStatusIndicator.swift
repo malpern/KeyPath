@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathCore
 import SwiftUI
 
 /// Small status indicator that shows system validation state in the top-right corner

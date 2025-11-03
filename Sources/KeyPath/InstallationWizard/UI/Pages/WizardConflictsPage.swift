@@ -1,4 +1,7 @@
 import SwiftUI
+import KeyPathCore
+import KeyPathWizardCore
+import KeyPathDaemonLifecycle
 
 struct WizardConflictsPage: View {
     let issues: [WizardIssue]
@@ -549,7 +552,7 @@ struct TechnicalDetailsView: View {
 
     private func loadConflictDetails() async {
         isLoadingConflicts = true
-        let processLifecycleManager = ProcessLifecycleManager(kanataManager: kanataManager)
+        let processLifecycleManager = ProcessLifecycleManager()
         let conflicts = await processLifecycleManager.detectConflicts()
 
         await MainActor.run {

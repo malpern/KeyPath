@@ -1,4 +1,6 @@
 import Observation
+import KeyPathWizardCore
+import KeyPathCore
 import SwiftUI
 
 /// Manages toast notifications for the installation wizard

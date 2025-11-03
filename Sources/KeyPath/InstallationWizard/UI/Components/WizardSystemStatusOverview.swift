@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Simplified system status overview component for the summary page
 struct WizardSystemStatusOverview: View {

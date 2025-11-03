@@ -1,0 +1,33 @@
+{
+  "": {
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/master.swiftdeps"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPathDaemonLifecycle/LaunchDaemonPIDCache.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LaunchDaemonPIDCache.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPathDaemonLifecycle/LifecycleStateMachine.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LifecycleStateMachine.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LifecycleStateMachine.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LifecycleStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LifecycleStateMachine.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/LifecycleStateMachine.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPathDaemonLifecycle/PIDFileManager.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/PIDFileManager.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/PIDFileManager.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/PIDFileManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/PIDFileManager.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/PIDFileManager.dia"
+  },
+  "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/Sources/KeyPathDaemonLifecycle/ProcessLifecycleManager.swift": {
+    "dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/ProcessLifecycleManager.d",
+    "object": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/ProcessLifecycleManager.swift.o",
+    "swiftmodule": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/ProcessLifecycleManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/ProcessLifecycleManager.swiftdeps",
+    "diagnostics": "/Users/malpern/Library/CloudStorage/Dropbox/code/KeyPath/.build-ci/arm64-apple-macosx/debug/KeyPathDaemonLifecycle.build/ProcessLifecycleManager.dia"
+  }
+}

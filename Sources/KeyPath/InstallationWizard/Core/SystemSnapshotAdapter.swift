@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathCore
+import KeyPathWizardCore
 
 /// Adapter to convert SystemSnapshot (new) to SystemStateResult (old wizard format)
 /// This allows testing the new SystemValidator in the existing wizard without rewriting all pages

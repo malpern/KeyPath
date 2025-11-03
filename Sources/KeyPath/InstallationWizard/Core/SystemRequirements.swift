@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathCore
+import KeyPathWizardCore
 
 /// Manages macOS version detection and system requirements validation
 /// Implements version-specific driver handling as identified in the installer improvement analysis

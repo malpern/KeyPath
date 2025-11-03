@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 struct WizardKanataServicePage: View {
     @EnvironmentObject var kanataViewModel: KanataViewModel

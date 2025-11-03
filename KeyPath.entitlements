@@ -2,20 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Disable sandboxing (required for system-level operations) -->
+    <!-- Disable sandboxing (required for system-level operations like launching kanata, managing LaunchDaemons) -->
     <key>com.apple.security.app-sandbox</key>
     <false/>
 
     <!-- Required for AppleScript admin prompts (DEBUG mode fallback) -->
+    <!-- Note: This is only used as a fallback in development; production uses SMAppService -->
     <key>com.apple.security.automation.apple-events</key>
-    <true/>
-
-    <!-- Allow executing external processes (kanata, helper) -->
-    <key>com.apple.security.inherit</key>
     <true/>
 
     <!-- Network access for TCP communication with kanata -->
     <key>com.apple.security.network.client</key>
     <true/>
+    
+    <!-- Note: com.apple.security.inherit removed - not needed when sandboxing is disabled -->
+    <!-- Process spawning works without this entitlement when app-sandbox is false -->
 </dict>
 </plist>

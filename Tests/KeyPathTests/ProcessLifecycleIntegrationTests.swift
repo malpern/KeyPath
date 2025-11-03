@@ -1,7 +1,11 @@
 import XCTest
 
 @testable import KeyPath
+import KeyPathDaemonLifecycle
+import KeyPathCore
+import KeyPathWizardCore
 
+@MainActor
 /// Integration tests for ProcessLifecycleManager - tests the actual system
 /// Updated to work with the simplified ProcessLifecycleManager that uses PID files
 final class ProcessLifecycleIntegrationTests: XCTestCase {
@@ -31,8 +35,8 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         // Test process unregistration
         await processManager.unregisterProcess()
 
-        // Test crash recovery
-        await processManager.recoverFromCrash()
+        // Test orphaned process cleanup (replaces recoverFromCrash)
+        await processManager.cleanupOrphanedProcesses()
 
         XCTAssertTrue(true, "Basic ProcessLifecycleManager operations should complete without errors")
     }
@@ -160,8 +164,8 @@ final class ProcessLifecycleIntegrationTests: XCTestCase {
         // Should be able to set intent
         manager.setIntent(.shouldBeRunning(source: "initialization_test"))
 
-        // Should be able to recover from crash
-        await manager.recoverFromCrash()
+        // Should be able to clean up orphaned processes
+        await manager.cleanupOrphanedProcesses()
 
         XCTAssertTrue(true, "ProcessLifecycleManager initializes and operates correctly")
     }

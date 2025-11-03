@@ -34,13 +34,17 @@ run_test_suite() {
     
     echo "🔍 Running $test_name..."
     
-    # Use gtimeout on macOS, timeout on Linux
-    TIMEOUT_CMD="timeout"
+    # Use gtimeout on macOS, timeout on Linux; fallback to no-timeout if unavailable
+    TIMEOUT_CMD=""
     if command -v gtimeout >/dev/null 2>&1; then
         TIMEOUT_CMD="gtimeout"
+    elif command -v timeout >/dev/null 2>&1; then
+        TIMEOUT_CMD="timeout"
     fi
-    
-    if $TIMEOUT_CMD "$timeout" swift test --filter "$test_filter" --parallel 2>&1 | tee "test-results/$test_name.log"; then
+
+    if { [ -n "$TIMEOUT_CMD" ] && $TIMEOUT_CMD "$timeout" swift test --filter "$test_filter" --parallel; } \
+       || { [ -z "$TIMEOUT_CMD" ] && swift test --filter "$test_filter" --parallel; } \
+       2>&1 | tee "test-results/$test_name.log"; then
         echo "✅ $test_name completed successfully"
         return 0
     else
@@ -67,7 +71,7 @@ fi
 echo ""
 
 # 2. Core Tests (essential functionality)
-if run_test_suite "Core Tests" "CoreTestSuite" 90; then
+if run_test_suite "Core Tests" "UnitTestSuite" 90; then
     echo "  Core tests passed ✅"
 else
     echo "  Core tests failed ❌"
@@ -79,7 +83,7 @@ echo ""
 # 3. Basic Integration Tests (only if enabled)
 if [ "$CI_INTEGRATION_TESTS" = "true" ]; then
     echo "🔗 Integration tests enabled"
-    if run_test_suite "Integration Tests" "BasicIntegrationTestSuite" 120; then
+    if run_test_suite "Integration Tests" "IntegrationTestSuite" 120; then
         echo "  Integration tests passed ✅"
     else
         echo "  Integration tests failed ❌"

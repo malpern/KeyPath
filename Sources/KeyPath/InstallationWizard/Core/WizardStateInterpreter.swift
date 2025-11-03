@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathWizardCore
+import KeyPathCore
 import SwiftUI
 
 /// Centralized interpreter for wizard state to ensure consistent UI status across all components

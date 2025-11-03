@@ -1,6 +1,8 @@
 import XCTest
 
 @testable import KeyPath
+import KeyPathCore
+import KeyPathDaemonLifecycle
 
 @MainActor
 final class ProcessLifecycleManagerTests: XCTestCase {
@@ -43,8 +45,8 @@ final class ProcessLifecycleManagerTests: XCTestCase {
 
     func testProcessIntentEnumValues() async {
         // Test that ProcessIntent enum works correctly
-        let runningIntent = ProcessIntent.shouldBeRunning(source: "test")
-        let stoppedIntent = ProcessIntent.shouldBeStopped
+        let runningIntent = ProcessLifecycleManager.ProcessIntent.shouldBeRunning(source: "test")
+        let stoppedIntent = ProcessLifecycleManager.ProcessIntent.shouldBeStopped
 
         // Basic validation that enum cases can be created
         switch runningIntent {

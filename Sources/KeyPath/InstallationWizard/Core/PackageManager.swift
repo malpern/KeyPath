@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import Security
 
 /// Manages package installation via Homebrew and other package managers

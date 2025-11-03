@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathCore
+import KeyPathDaemonLifecycle
 
 // MARK: - Diagnostic Types
 

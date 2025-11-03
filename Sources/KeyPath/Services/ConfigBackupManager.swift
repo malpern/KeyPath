@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Service for managing configuration backups to protect against corruption
 ///
