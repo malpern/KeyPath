@@ -15,8 +15,12 @@ actor ConfigApplyPipeline {
     /// Apply already-generated effective config text.
     func applyEffectiveConfig(_ content: String) async -> ApplyResult {
         // Pre-write validation (in-memory)
-        let configService = ConfigurationService(configDirectory: (configPath as NSString).deletingLastPathComponent)
-        let pre = await configService.validateConfiguration(content)
+        let t0 = Date()
+        var pre: (isValid: Bool, errors: [String]) = (true, [])
+        if let manager = kanataManager {
+            pre = await manager.configurationManager.validateConfiguration(content)
+        }
+        let preMs = Date().timeIntervalSince(t0) * 1000.0
         if !pre.isValid {
             let details = pre.errors.joined(separator: "\n")
             return ApplyResult(
@@ -25,7 +29,8 @@ actor ConfigApplyPipeline {
                 error: .preWriteValidationFailed(message: "Pre-write validation failed"),
                 diagnostics: ConfigDiagnostics(
                     configPathBefore: configPath,
-                    validationOutput: details
+                    validationOutput: details,
+                    preValidationMs: preMs
                 )
             )
         }
@@ -38,9 +43,24 @@ actor ConfigApplyPipeline {
             return nil
         }()
 
-        // Write file
+        // Write file atomically via ConfigurationManager
         do {
-            try content.write(toFile: configPath, atomically: true, encoding: .utf8)
+            if let manager = kanataManager {
+                try manager.configurationManager.writeConfigAtomically(content)
+            } else {
+                // Fallback to direct atomic replace if manager is unavailable
+                let directoryURL = URL(fileURLWithPath: (configPath as NSString).deletingLastPathComponent)
+                try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+                let tempURL = directoryURL.appendingPathComponent(".keypath.tmp.\(UUID().uuidString).kbd")
+                let targetURL = URL(fileURLWithPath: configPath)
+                try content.write(to: tempURL, atomically: true, encoding: .utf8)
+                let _ = try FileManager.default.replaceItemAt(
+                    targetURL,
+                    withItemAt: tempURL,
+                    backupItemName: ".keypath.atomic.bak",
+                    options: [.usingNewMetadataOnly]
+                )
+            }
         } catch {
             return ApplyResult(
                 success: false,
@@ -52,7 +72,9 @@ actor ConfigApplyPipeline {
 
         // Post-write CLI validation
         if let manager = kanataManager {
+            let t1 = Date()
             let post = await manager.validateConfigFile()
+            let postMs = Date().timeIntervalSince(t1) * 1000.0
             if !post.isValid {
                 // Roll back
                 if let original = originalContent {
@@ -66,19 +88,21 @@ actor ConfigApplyPipeline {
                     diagnostics: ConfigDiagnostics(
                         configPathBefore: configPath,
                         configPathAfter: configPath,
-                        validationOutput: details
+                        validationOutput: details,
+                        postValidationMs: postMs
                     )
                 )
             }
         }
 
-        // Reload and health check (best-effort; mirror legacy)
+        // Reload and readiness/health check
         if let manager = kanataManager {
             _ = await manager.triggerConfigReload()
-            manager.clearDiagnostics()
-            // Simple readiness wait; refined watcher will arrive later
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            if !manager.isRunning {
+            await manager.clearDiagnostics()
+            let t2 = Date()
+            let ready = await KanataReadinessWatcher.waitForDriverConnected(timeoutSeconds: 2.5)
+            let readyMs = Date().timeIntervalSince(t2) * 1000.0
+            if !ready {
                 // Roll back
                 if let original = originalContent {
                     _ = try? original.write(toFile: configPath, atomically: true, encoding: .utf8)
@@ -86,8 +110,12 @@ actor ConfigApplyPipeline {
                 return ApplyResult(
                     success: false,
                     rolledBack: true,
-                    error: .healthCheckFailed(message: "Kanata not running after reload"),
-                    diagnostics: ConfigDiagnostics(configPathBefore: configPath, configPathAfter: configPath)
+                    error: .readinessTimeout(message: "Timeout waiting for driver_connected 1"),
+                    diagnostics: ConfigDiagnostics(
+                        configPathBefore: configPath,
+                        configPathAfter: configPath,
+                        readinessWaitMs: readyMs
+                    )
                 )
             }
         }

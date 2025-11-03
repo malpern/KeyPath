@@ -46,6 +46,9 @@ protocol ConfigurationManaging: Sendable {
     
     /// Generate config from mappings
     func generateConfig(mappings: [KeyMapping]) -> String
+
+    /// Atomically write configuration content to disk (same-dir replace)
+    func writeConfigAtomically(_ content: String) throws
 }
 
 /// Manages Kanata configuration files and operations
@@ -162,6 +165,33 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         let fileSize = afterAttributes[.size] as? Int ?? 0
         AppLogger.shared.log("🔍 [ConfigManager] Modification time after write: \(afterModTime?.description ?? "unknown")")
         AppLogger.shared.log("🔍 [ConfigManager] File size: \(fileSize) bytes")
+    }
+
+    /// Atomically write configuration content to the on-disk config path by replacing the file in-place.
+    /// Uses a same-directory temporary file and FileManager.replaceItem to avoid partial writes.
+    func writeConfigAtomically(_ content: String) throws {
+        AppLogger.shared.log("💾 [ConfigManager] Atomic write requested")
+        // Suppress watcher events to avoid self-triggered reloads
+        configFileWatcher?.suppressEvents(for: 1.0, reason: "Atomic write")
+
+        let directoryURL = URL(fileURLWithPath: configDirectory)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+
+        let tempURL = directoryURL.appendingPathComponent(".keypath.tmp.\(UUID().uuidString).kbd")
+        let targetURL = URL(fileURLWithPath: configPath)
+
+        // Write to temp file first
+        try content.write(to: tempURL, atomically: true, encoding: .utf8)
+
+        // Replace target with temp file
+        let _ = try FileManager.default.replaceItemAt(
+            targetURL,
+            withItemAt: tempURL,
+            backupItemName: ".keypath.atomic.bak",
+            options: [.usingNewMetadataOnly]
+        )
+
+        AppLogger.shared.log("✅ [ConfigManager] Atomic write completed → \(targetURL)")
     }
     
     func loadExistingMappings() async -> [KeyMapping] {
