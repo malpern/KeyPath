@@ -47,6 +47,10 @@ struct SystemValidatorTests {
         let baselineStats = SystemValidator.getValidationStats()
         let baselineCount = baselineStats.totalCount
 
+        // Get baseline stats to account for parallel test execution
+        let baselineStats = SystemValidator.getValidationStats()
+        let baselineCount = baselineStats.totalCount
+
         let processManager = ProcessLifecycleManager()
         let validator = SystemValidator(processLifecycleManager: processManager)
 
@@ -82,7 +86,7 @@ struct SystemValidatorTests {
         // Reset counters for isolation (this test doesn't check counts, but good practice)
         await setupTest()
 
-        let processManager = ProcessLifecycleManager()
+        let processManager = ProcessLifecycleManager(kanataManager: nil)
         let validator = SystemValidator(processLifecycleManager: processManager)
 
         let snapshot = await validator.checkSystem()

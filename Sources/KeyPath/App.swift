@@ -26,12 +26,12 @@ public struct KeyPathApp: App {
         // Enable auto-trigger recording when launched with --autotrigger (in-memory flag)
         if args.contains("--autotrigger") {
             FeatureFlags.shared.setAutoTriggerEnabled(true)
-            AppLogger.shared.debug("🧪 [App] Auto-trigger flag detected (--autotrigger)")
+            AppLogger.shared.log("🧪 [App] Auto-trigger flag detected (--autotrigger)")
         }
 
         // Set startup mode to prevent blocking operations during app launch (in-memory flag)
         FeatureFlags.shared.activateStartupMode(timeoutSeconds: 5.0)
-        AppLogger.shared.debug("🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped")
+        AppLogger.shared.log("🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped")
 
         // Phase 4: MVVM - Initialize KanataManager and ViewModel
         let manager = KanataManager()
@@ -270,11 +270,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 // Respect permission-grant return to avoid resetting wizard state
                 let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
                 if !result.shouldRestart {
-                    AppLogger.shared.debug("🚀 [AppDelegate] Starting auto-launch sequence (simple)")
+                    AppLogger.shared.log("🚀 [AppDelegate] Starting auto-launch sequence (simple)")
                     await manager.startAutoLaunch(presentWizardOnFailure: false)
-                    AppLogger.shared.debug("✅ [AppDelegate] Auto-launch sequence completed (simple)")
+                    AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
                 } else {
-                    AppLogger.shared.debug("⏭️ [AppDelegate] Skipping auto-launch (returning from permission grant)")
+                    AppLogger.shared.log("⏭️ [AppDelegate] Skipping auto-launch (returning from permission grant)")
                 }
 
                 // Trigger validation once after auto-launch attempt

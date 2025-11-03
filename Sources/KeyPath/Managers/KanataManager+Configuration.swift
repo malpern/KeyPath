@@ -68,7 +68,7 @@ extension KanataManager {
             return .networkError("Test environment - TCP disabled")
         }
 
-        AppLogger.shared.debug("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
+        AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
         let res = await engineClient.reloadConfig()
         return mapEngineToTCP(res)
     }

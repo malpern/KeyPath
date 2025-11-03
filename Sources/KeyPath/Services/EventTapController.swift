@@ -1,6 +1,5 @@
 import ApplicationServices
 import Foundation
-import KeyPathCore
 
 /// Controller for CGEvent/IOHID concerns. Provides a narrow surface for
 /// installing a passive event tap and delegating emergency monitoring via

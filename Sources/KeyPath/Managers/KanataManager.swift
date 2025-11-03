@@ -358,7 +358,7 @@ class KanataManager {
 
         // Initialize legacy service dependencies (for backward compatibility)
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
-        processLifecycleManager = ProcessLifecycleManager()
+        processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
         
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
@@ -814,7 +814,7 @@ class KanataManager {
             let success = await startLaunchDaemonService() // Already uses kickstart -k
 
             if success {
-                AppLogger.shared.info("✅ [Start] Kanata service restarted successfully via kickstart")
+                AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via kickstart")
                 await diagnosticsManager.recordStartSuccess()
                 // Update service status after restart
                 let serviceStatus = await checkLaunchDaemonStatus()
@@ -948,8 +948,8 @@ class KanataManager {
                     shouldClearDiagnostics: true
                 )
 
-                AppLogger.shared.info("✅ [Start] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
-                AppLogger.shared.info("✅ [Start] ========== KANATA START SUCCESS ==========")
+                AppLogger.shared.log("✅ [Start] Successfully started Kanata LaunchDaemon service (PID: \(pid))")
+                AppLogger.shared.log("✅ [Start] ========== KANATA START SUCCESS ==========")
                 await diagnosticsManager.recordStartSuccess()
 
             } else {
@@ -1322,7 +1322,7 @@ class KanataManager {
         let success = await processManager.stopService()
 
         if success {
-            AppLogger.shared.info("✅ [Stop] Successfully stopped Kanata LaunchDaemon service")
+            AppLogger.shared.log("✅ [Stop] Successfully stopped Kanata LaunchDaemon service")
 
             // Stop log monitoring when Kanata stops
             diagnosticsManager.stopLogMonitoring()
@@ -1341,7 +1341,7 @@ class KanataManager {
     }
 
     func restartKanata() async {
-        AppLogger.shared.info("🔄 [Restart] Restarting Kanata...")
+        AppLogger.shared.log("🔄 [Restart] Restarting Kanata...")
         let configPath = configurationManager.configPath
         let arguments = configurationManager.buildKanataArguments(checkOnly: false)
         let success = await processManager.restartService(configPath: configPath, arguments: arguments)
@@ -2067,15 +2067,15 @@ class KanataManager {
             AppLogger.shared.log("📖 [Validation] Config file size: \(configContent.count) characters")
 
             // Strict CLI validation to match engine behavior on startup
-            AppLogger.shared.debug("🔍 [Validation] Running CLI validation of existing configuration...")
+            AppLogger.shared.log("🔍 [Validation] Running CLI validation of existing configuration...")
             let cli = configurationService.validateConfigViaFile()
             if cli.isValid {
-                AppLogger.shared.info("✅ [Validation] CLI validation PASSED")
+                AppLogger.shared.log("✅ [Validation] CLI validation PASSED")
                 let config = try await configurationService.reload()
                 keyMappings = config.keyMappings
-                AppLogger.shared.info("✅ [Validation] Successfully loaded \(keyMappings.count) existing mappings")
+                AppLogger.shared.log("✅ [Validation] Successfully loaded \(keyMappings.count) existing mappings")
             } else {
-                AppLogger.shared.error("❌ [Validation] CLI validation FAILED with \(cli.errors.count) errors")
+                AppLogger.shared.log("❌ [Validation] CLI validation FAILED with \(cli.errors.count) errors")
                 await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
             }
         } catch {
@@ -2293,7 +2293,7 @@ class KanataManager {
     func resetToDefaultConfig() async throws {
         // IMPORTANT: Reset should ALWAYS work - it's a recovery mechanism for broken configs
         // Intentionally bypass validation here: force-write a known-good default config (enforced by tests)
-        AppLogger.shared.info("🔄 [Reset] Forcing reset to default config (no validation - recovery mode)")
+        AppLogger.shared.log("🔄 [Reset] Forcing reset to default config (no validation - recovery mode)")
 
         let defaultMapping = KeyMapping(input: "caps", output: "escape")
         let defaultConfig = KanataConfiguration.generateFromMappings([defaultMapping])

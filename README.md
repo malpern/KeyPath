@@ -103,7 +103,7 @@ Built on proven patterns (inspired by Karabiner-Elements):
 git clone https://github.com/malpern/KeyPath.git
 cd KeyPath
 
-# Build, sign, notarize, and deploy
+# Canonical build (builds, signs, notarizes, deploys to ~/Applications, restarts app)
 ./build.sh
 ```
 
@@ -248,21 +248,20 @@ KeyPath needs two macOS permissions to work:
 
 The setup wizard guides you through granting these permissions with one-click access to System Settings.
 
-### Privacy & Security
+### Kanata binary location (LaunchDaemon)
+For stable TCC permissions, LaunchDaemon services use the system-installed kanata binary:
 
-- ✅ **No internet connection required** - Works completely offline
-- ✅ **No data collection** - No telemetry or analytics
-- ✅ **No system modifications** - Only installs necessary services
-- ✅ **Properly signed** - Developer ID certificate and notarization
-- ✅ **Open source** - Complete source code available for audit
+```
+/Library/KeyPath/bin/kanata
+```
 
-### System Integration
+The helper keeps this binary updated from the bundled copy when needed and ensures proper ownership/permissions. The bundled binary inside `KeyPath.app` is not used by LaunchDaemons.
 
-- **UI-only app** - Keyboard remapping service runs independently as LaunchDaemon
-- **Boot-time remapping** - Remappings work at login, before UI launches
-- **System-level binary** - Kanata runs from `/Library/KeyPath/bin/kanata` for stable TCC permissions
-
----
+### What KeyPath Does NOT Do
+- ❌ No internet connection required (offline by default; optional AI config generation contacts Anthropic if ANTHROPIC_API_KEY is present)
+- ❌ No data collection or telemetry
+- ❌ No modification of system files
+- ❌ No kernel extensions
 
 ## 🔧 Troubleshooting
 
@@ -352,7 +351,7 @@ cd KeyPath
 swift build
 swift test
 
-# Production build & deploy (recommended for accurate testing)
+# Production-like build & deploy (recommended for real testing)
 ./build.sh
 mkdir -p ~/Applications && cp -R dist/KeyPath.app ~/Applications/
 osascript -e 'tell application "KeyPath" to quit' || true

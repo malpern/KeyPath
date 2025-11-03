@@ -138,7 +138,7 @@ class MainAppStateController: ObservableObject {
             // This ensures Oracle runs full permission checks for accurate results
             if FeatureFlags.shared.startupModeActive {
                 FeatureFlags.shared.deactivateStartupMode()
-                AppLogger.shared.debug("🔍 [MainAppStateController] Cleared startup mode flag for accurate validation")
+                AppLogger.shared.log("🔍 [MainAppStateController] Cleared startup mode flag for accurate validation")
 
                 // Invalidate Oracle cache so it runs fresh permission checks without startup mode
                 await PermissionOracle.shared.invalidateCache()
