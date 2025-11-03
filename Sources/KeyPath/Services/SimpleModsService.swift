@@ -23,6 +23,7 @@ public final class SimpleModsService: ObservableObject {
     
     // Apply pipeline dependencies (will be injected)
     private var kanataManager: KanataManager?
+    private var applyPipeline: ConfigApplyPipeline?
     
     public init(configPath: String) {
         self.configPath = configPath
@@ -35,6 +36,11 @@ public final class SimpleModsService: ObservableObject {
         kanataManager: KanataManager?
     ) {
         self.kanataManager = kanataManager
+        if FeatureFlags.useConfigApplyPipeline {
+            self.applyPipeline = ConfigApplyPipeline(configPath: configPath, kanataManager: kanataManager)
+        } else {
+            self.applyPipeline = nil
+        }
     }
     
     /// Load current mappings from config
@@ -143,6 +149,48 @@ public final class SimpleModsService: ObservableObject {
         do {
             // Generate effective config
             let effectiveContent = try writer.generateEffectiveConfig()
+
+            // New pipeline path behind feature flag
+            if FeatureFlags.useConfigApplyPipeline, let pipeline = applyPipeline {
+                let result = await pipeline.applyEffectiveConfig(effectiveContent)
+                if result.success {
+                    try? load()
+                    lastError = nil
+                    lastRollbackReason = nil
+                    lastRollbackDetails = nil
+                    AppLogger.shared.log("✅ [SimpleMods] Apply succeeded via pipeline - \(installedMappings.count) mapping(s) active")
+                } else {
+                    // Populate UI-facing error state from typed diagnostics
+                    lastError = "Configuration apply failed"
+                    switch result.error {
+                    case .some(let e):
+                        switch e {
+                        case .preWriteValidationFailed:
+                            lastRollbackReason = "Pre-write validation failed"
+                        case .writeFailed:
+                            lastRollbackReason = "Write failed"
+                        case .postWriteValidationFailed:
+                            lastRollbackReason = "Post-write CLI validation failed"
+                        case .reloadFailed:
+                            lastRollbackReason = "Reload failed"
+                        case .readinessTimeout:
+                            lastRollbackReason = "Readiness timeout"
+                        case .healthCheckFailed:
+                            lastRollbackReason = "Kanata service not healthy after reload"
+                        }
+                    case .none:
+                        lastRollbackReason = "Unknown error"
+                    }
+                    if let d = result.diagnostics {
+                        var diag: [String] = []
+                        if let cpb = d.configPathBefore { diag.append("Config file: \(cpb)") }
+                        if let v = d.validationOutput { diag.append("Validation errors:\n\(v)") }
+                        lastRollbackDetails = diag.joined(separator: "\n")
+                    }
+                    AppLogger.shared.log("❌ [SimpleMods] Pipeline apply failed; rolledBack=\(result.rolledBack)")
+                }
+                return
+            }
             
             // Validate config
             AppLogger.shared.log("🔍 [SimpleMods] Validating effective config (pre-write)...")
