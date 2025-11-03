@@ -1,5 +1,4 @@
 import Foundation
-import KeyPathCore
 
 /// Manages the Karabiner VirtualHIDDevice Manager component
 /// This is critical for keyboard remapping functionality on macOS
@@ -56,8 +55,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
     func detectRunning() -> Bool {
         // Skip daemon check during startup to prevent blocking
         if FeatureFlags.shared.startupModeActive {
-            AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze (treat as healthy)")
-            return true // Treat as healthy during startup warmup to avoid false negatives
+            AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze")
+            return false // Assume not running during startup
         }
 
         // Test seam: allow mocked PID list in tests

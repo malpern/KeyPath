@@ -21,4 +21,3 @@ malpern ALL=(ALL) NOPASSWD: /bin/cp * /Library/LaunchDaemons/com.keypath.*
 malpern ALL=(ALL) NOPASSWD: /bin/rm /Library/LaunchDaemons/com.keypath.*
 
 
-

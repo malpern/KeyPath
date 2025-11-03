@@ -80,6 +80,13 @@ Ensure both dev and production-like builds pass tests.
 - Made 8 types public  
 - Removed 19 dead code references
 
+## ⏱️ Time Investment So Far
+
+- Fixed 6 major compilation errors
+- Addressed 4 architecture violations
+- Made 8 types public  
+- Removed 19 dead code references
+
 **Estimated remaining work for Option 1**: 30-60 minutes to make all Core types public
 
 

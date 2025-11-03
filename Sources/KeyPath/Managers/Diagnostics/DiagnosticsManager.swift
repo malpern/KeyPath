@@ -1,6 +1,4 @@
 import Foundation
-import KeyPathCore
-import KeyPathDaemonLifecycle
 
 /// Protocol for managing diagnostics, health monitoring, and log monitoring
 @preconcurrency
@@ -170,16 +168,10 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
     
     /// Analyze log content for VirtualHID connection issues
     private func analyzeLogContent(_ content: String) async {
-        // During startup warm-up, ignore transient failures to prevent false banners
-        if FeatureFlags.shared.startupModeActive {
-            return
-        }
-
-        let events = diagnosticsService.analyzeKanataLogChunk(content)
-
-        if events.contains(.virtualHIDConnectionFailed) {
+        // Check for VirtualHID connection failures
+        if content.contains("connect_failed asio.system:61") || content.contains("connect_failed asio.system:2") {
             AppLogger.shared.log("🚨 [DiagnosticsManager] Detected VirtualHID connection failure in logs")
-
+            
             let diagnostic = KanataDiagnostic(
                 timestamp: Date(),
                 severity: .error,
@@ -190,21 +182,14 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
                 suggestedAction: "Check VirtualHID driver and daemon status",
                 canAutoFix: true
             )
-
+            
             addDiagnostic(diagnostic)
-
+            
             // Record connection failure for health monitoring
             let shouldRecover = await healthMonitor.recordConnectionFailure()
             if shouldRecover {
                 AppLogger.shared.log("🚨 [DiagnosticsManager] Max connection failures reached - recovery recommended")
             }
-        }
-
-        if events.contains(.virtualHIDConnected) {
-            // Clear previous failure diagnostics when we see a successful connection
-            AppLogger.shared.log("✅ [DiagnosticsManager] VirtualHID connected - clearing previous connection failure diagnostics")
-            diagnostics.removeAll { $0.title == "VirtualHID Connection Failure" || $0.title == "VirtualHID Connection Failed" }
-            await healthMonitor.recordConnectionSuccess()
         }
     }
 }
