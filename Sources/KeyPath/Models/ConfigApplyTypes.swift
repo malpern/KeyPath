@@ -45,19 +45,28 @@ public struct ConfigDiagnostics: Equatable, Sendable {
     public let mappingCountAfter: Int?
     public let validationOutput: String?
     public let timestamp: Date
+    public let preValidationMs: Double?
+    public let postValidationMs: Double?
+    public let readinessWaitMs: Double?
 
     public init(configPathBefore: String? = nil,
                 configPathAfter: String? = nil,
                 mappingCountBefore: Int? = nil,
                 mappingCountAfter: Int? = nil,
                 validationOutput: String? = nil,
-                timestamp: Date = Date()) {
+                timestamp: Date = Date(),
+                preValidationMs: Double? = nil,
+                postValidationMs: Double? = nil,
+                readinessWaitMs: Double? = nil) {
         self.configPathBefore = configPathBefore
         self.configPathAfter = configPathAfter
         self.mappingCountBefore = mappingCountBefore
         self.mappingCountAfter = mappingCountAfter
         self.validationOutput = validationOutput
         self.timestamp = timestamp
+        self.preValidationMs = preValidationMs
+        self.postValidationMs = postValidationMs
+        self.readinessWaitMs = readinessWaitMs
     }
 }
 

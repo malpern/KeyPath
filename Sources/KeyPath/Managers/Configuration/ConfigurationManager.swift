@@ -46,6 +46,9 @@ protocol ConfigurationManaging: Sendable {
     
     /// Generate config from mappings
     func generateConfig(mappings: [KeyMapping]) -> String
+
+    /// Atomically write configuration content to disk (same-dir replace)
+    func writeConfigAtomically(_ content: String) throws
 }
 
 /// Manages Kanata configuration files and operations
@@ -181,16 +184,14 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         try content.write(to: tempURL, atomically: true, encoding: .utf8)
 
         // Replace target with temp file
-        var resultURL: NSURL?
-        try FileManager.default.replaceItemAt(
+        let _ = try FileManager.default.replaceItemAt(
             targetURL,
             withItemAt: tempURL,
             backupItemName: ".keypath.atomic.bak",
-            options: [.usingNewMetadataOnly],
-            resultingItemURL: &resultURL
+            options: [.usingNewMetadataOnly]
         )
 
-        AppLogger.shared.log("✅ [ConfigManager] Atomic write completed → \(resultURL as URL? ?? targetURL)")
+        AppLogger.shared.log("✅ [ConfigManager] Atomic write completed → \(targetURL)")
     }
     
     func loadExistingMappings() async -> [KeyMapping] {
