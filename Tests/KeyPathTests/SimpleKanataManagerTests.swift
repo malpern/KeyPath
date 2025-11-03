@@ -42,7 +42,7 @@ final class SimpleKanataManagerTests: XCTestCase {
     func testStateEnumValues() {
         // Test that all required state enum values exist
 
-        let states: [SimpleKanataState] = [.starting, .running, .needsHelp, .stopped]
+        let states: [SimpleKanataState] = [.starting, .running, .needsHelp, .stopped, .pausedLowPower]
 
         for state in states {
             // Each state should have a display name
@@ -63,6 +63,12 @@ final class SimpleKanataManagerTests: XCTestCase {
         )
         XCTAssertFalse(
             SimpleKanataState.running.needsUserAction, "Running should not need user action"
+        )
+        XCTAssertTrue(
+            SimpleKanataState.pausedLowPower.needsUserAction, "PausedLowPower should need user action"
+        )
+        XCTAssertFalse(
+            SimpleKanataState.pausedLowPower.isWorking, "PausedLowPower should not be considered working"
         )
     }
 
@@ -94,7 +100,7 @@ final class SimpleKanataManagerTests: XCTestCase {
         await kanataManager.startAutoLaunch()
 
         // State should be defined (either running, needsHelp, or starting)
-        let validStates: [SimpleKanataState] = [.starting, .running, .needsHelp, .stopped]
+        let validStates: [SimpleKanataState] = [.starting, .running, .needsHelp, .stopped, .pausedLowPower]
         XCTAssertTrue(validStates.contains(kanataManager.currentState), "Should be in a valid state")
     }
 

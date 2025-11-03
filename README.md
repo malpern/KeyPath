@@ -239,6 +239,12 @@ KeyPath isn't just a wrapper around Kanata—it's a **complete macOS integration
 
 If your keyboard becomes unresponsive, press **Ctrl + Space + Esc** simultaneously. This immediately disables all remappings and restores normal keyboard functionality.
 
+### Low Power Safeguard
+- KeyPath watches your Mac's battery level using the built-in power APIs.
+- When charge drops under **5%**, you'll see a 🪫 system toast inviting you to pause Kanata to prevent sticky keys or missed strokes.
+- If you accept, KeyPath pauses the remapper and clearly labels the app as "Paused (Low Power)" until the battery recovers.
+- Once the battery climbs back above the safe zone, KeyPath automatically resumes Kanata and sends a follow-up notification so you can keep working.
+
 ### Permission Requirements
 
 KeyPath needs two macOS permissions to work:

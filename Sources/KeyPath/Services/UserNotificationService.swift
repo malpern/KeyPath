@@ -23,6 +23,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
         case recovery = "KP_RECOVERY"
         case permission = "KP_PERMISSION"
         case info = "KP_INFO"
+        case power = "KP_POWER"
     }
 
     // Action identifiers
@@ -32,6 +33,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
         case openInputMonitoring = "KP_ACTION_OPEN_INPUT_MONITORING"
         case openAccessibility = "KP_ACTION_OPEN_ACCESSIBILITY"
         case openApp = "KP_ACTION_OPEN_APP"
+        case pauseLowPower = "KP_ACTION_PAUSE_LOW_POWER"
     }
 
     private init(preferences: PreferencesService = .shared) {
@@ -76,6 +78,7 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
         let openIM = UNNotificationAction(identifier: Action.openInputMonitoring.rawValue, title: "Open Input Monitoring", options: [.foreground])
         let openAX = UNNotificationAction(identifier: Action.openAccessibility.rawValue, title: "Open Accessibility", options: [.foreground])
         let openApp = UNNotificationAction(identifier: Action.openApp.rawValue, title: "Open KeyPath", options: [.foreground])
+        let pauseLowPower = UNNotificationAction(identifier: Action.pauseLowPower.rawValue, title: "Pause KeyPath", options: [])
 
         let serviceFailure = UNNotificationCategory(
             identifier: Category.serviceFailure.rawValue,
@@ -93,8 +96,12 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
             identifier: Category.info.rawValue,
             actions: [openApp], intentIdentifiers: [], options: []
         )
+        let power = UNNotificationCategory(
+            identifier: Category.power.rawValue,
+            actions: [pauseLowPower, openApp], intentIdentifiers: [], options: []
+        )
 
-        center.setNotificationCategories([serviceFailure, recovery, permission, info])
+        center.setNotificationCategories([serviceFailure, recovery, permission, info, power])
     }
 
     // MARK: - Dedupe / Rate limiting
@@ -219,6 +226,43 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
         )
     }
 
+    func notifyLowPowerWarning(batteryPercentage: Int) {
+        let percent = max(0, min(100, batteryPercentage))
+        let body = "Battery at \(percent)% — pause KeyPath to avoid missed keystrokes."
+        sendNotification(
+            title: "🪫 Battery Critically Low",
+            body: body,
+            category: .power,
+            key: "power.warning",
+            ttl: 300,
+            allowWhenFrontmost: true
+        )
+    }
+
+    func notifyLowPowerPaused(batteryPercentage: Int) {
+        let percent = max(0, min(100, batteryPercentage))
+        let body = "KeyPath paused at \(percent)% battery. We'll resume automatically above 5%."
+        sendNotification(
+            title: "🪫 KeyPath Paused",
+            body: body,
+            category: .power,
+            key: "power.paused",
+            ttl: 300,
+            allowWhenFrontmost: true
+        )
+    }
+
+    func notifyLowPowerRecovered() {
+        sendNotification(
+            title: "🔋 Battery Recovered",
+            body: "Power is above 5%. KeyPath is running again.",
+            category: .power,
+            key: "power.recovered",
+            ttl: 300,
+            allowWhenFrontmost: true
+        )
+    }
+
     func notifyConfigEvent(_ title: String, body: String, key: String) {
         sendNotification(
             title: title,
@@ -247,6 +291,8 @@ final class UserNotificationService: NSObject, @preconcurrency UNUserNotificatio
             DispatchQueue.main.async {
                 NSApplication.shared.activate(ignoringOtherApps: true)
             }
+        case Action.pauseLowPower.rawValue:
+            NotificationCenter.default.post(name: .pauseForLowPower, object: nil)
         default:
             break
         }
