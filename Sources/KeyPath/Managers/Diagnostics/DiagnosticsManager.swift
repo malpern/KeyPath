@@ -179,7 +179,7 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
 
         if events.contains(.virtualHIDConnectionFailed) {
             AppLogger.shared.log("🚨 [DiagnosticsManager] Detected VirtualHID connection failure in logs")
-
+            
             let diagnostic = KanataDiagnostic(
                 timestamp: Date(),
                 severity: .error,
@@ -190,9 +190,9 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
                 suggestedAction: "Check VirtualHID driver and daemon status",
                 canAutoFix: true
             )
-
+            
             addDiagnostic(diagnostic)
-
+            
             // Record connection failure for health monitoring
             let shouldRecover = await healthMonitor.recordConnectionFailure()
             if shouldRecover {
