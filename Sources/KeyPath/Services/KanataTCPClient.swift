@@ -56,6 +56,9 @@ actor KanataTCPClient {
     private var authToken: String?
     private var sessionId: String?
 
+    // Handshake cache
+    private var cachedHello: TcpHelloOk?
+
     // MARK: - Initialization
 
     init(host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 5.0, reuseConnection _: Bool = true) {
@@ -213,6 +216,65 @@ actor KanataTCPClient {
     }
 
     // MARK: - Server Operations
+
+    // MARK: - Protocol Models
+    struct TcpHelloOk: Codable, Sendable {
+        let version: String
+        let protocolVersion: Int
+        let capabilities: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case version
+            case protocolVersion = "protocol"
+            case capabilities
+        }
+
+        func hasCapabilities(_ required: [String]) -> Bool {
+            let set = Set(capabilities)
+            return required.allSatisfy { set.contains($0) }
+        }
+    }
+
+    struct TcpLastReload: Codable, Sendable { let ok: Bool; let at: String }
+    struct TcpStatusInfo: Codable, Sendable {
+        let engine_version: String
+        let uptime_s: UInt64
+        let ready: Bool
+        let last_reload: TcpLastReload
+    }
+
+    // MARK: - Handshake / Status
+
+    /// Perform Hello handshake and cache capabilities
+    func hello() async throws -> TcpHelloOk {
+        if let cachedHello { return cachedHello }
+
+        let requestData = try JSONEncoder().encode(["Hello": [:] as [String: String]])
+        let responseData = try await send(requestData)
+        guard let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: responseData) else {
+            throw KeyPathError.communication(.invalidResponse)
+        }
+        cachedHello = hello
+        return hello
+    }
+
+    /// Enforce minimum protocol/capabilities (assumes PR1+PR2)
+    func enforceMinimumCapabilities(required: [String] = ["reload", "status", "validate"]) async throws {
+        let hello = try await hello()
+        guard hello.protocolVersion >= 1, hello.hasCapabilities(required) else {
+            throw KeyPathError.communication(.unsupported("Kanata TCP protocol/capabilities are insufficient. Please update Kanata."))
+        }
+    }
+
+    /// Fetch StatusInfo
+    func getStatus() async throws -> TcpStatusInfo {
+        let requestData = try JSONEncoder().encode(["Status": [:] as [String: String]])
+        let responseData = try await send(requestData)
+        if let status = try extractMessage(named: "StatusInfo", into: TcpStatusInfo.self, from: responseData) {
+            return status
+        }
+        throw KeyPathError.communication(.invalidResponse)
+    }
 
     /// Check if TCP server is available
     func checkServerStatus(authToken: String? = nil) async -> Bool {
@@ -385,6 +447,26 @@ actor KanataTCPClient {
             return error
         }
         return "Unknown error"
+    }
+
+    /// Extract a named server message (second line) from a newline-delimited response
+    private func extractMessage<T: Decodable>(named name: String, into type: T.Type, from data: Data) throws -> T? {
+        guard let s = String(data: data, encoding: .utf8) else { return nil }
+        // Split by newlines; look for an object where the top-level key is the provided name
+        for line in s.split(separator: "\n").map(String.init) {
+            guard let lineData = line.data(using: .utf8) else { continue }
+            // Try loose parse via JSONSerialization to locate the named object
+            if let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
+               let payload = obj[name] {
+                // Re-encode payload and decode strongly
+                if let payloadData = try? JSONSerialization.data(withJSONObject: payload) {
+                    if let decoded = try? JSONDecoder().decode(T.self, from: payloadData) {
+                        return decoded
+                    }
+                }
+            }
+        }
+        return nil
     }
 }
 

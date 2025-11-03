@@ -86,4 +86,3 @@ struct EmergencyStopPauseCard: View {
         .preferredColorScheme(.light)
 }
 
-

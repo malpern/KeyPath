@@ -40,6 +40,7 @@ public final class FeatureFlags {
         stateQueue.sync { _autoTriggerEnabled = enabled }
     }
 }
+
 // FeatureFlags manages its own synchronization.
 // Mark unchecked to silence Swift 6 Sendable warnings for cross-actor access.
 extension FeatureFlags: @unchecked Sendable {}
@@ -47,7 +48,6 @@ extension FeatureFlags: @unchecked Sendable {}
 // MARK: - Persisted flags (UserDefaults-backed)
 public extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
-    private static let useConfigApplyPipelineKey = "USE_CONFIG_APPLY_PIPELINE"
 
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
@@ -59,17 +59,7 @@ public extension FeatureFlags {
     static func setCaptureListenOnlyEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
     }
-
-    /// Feature-gated rollout for the new ConfigApplyPipeline actor.
-    /// Defaults to false. Persisted in UserDefaults.
-    static var useConfigApplyPipeline: Bool {
-        if UserDefaults.standard.object(forKey: useConfigApplyPipelineKey) == nil {
-            return false // default OFF
-        }
-        return UserDefaults.standard.bool(forKey: useConfigApplyPipelineKey)
-    }
-
-    static func setUseConfigApplyPipeline(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: useConfigApplyPipelineKey)
-    }
 }
+
+
+

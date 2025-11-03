@@ -436,6 +436,8 @@ private struct InstalledMappingRow: View {
 private struct AvailablePresetRow: View {
     let preset: SimpleModPreset
     @ObservedObject var service: SimpleModsService
+    @State private var showConflictSheet = false
+    @State private var conflictingMapping: SimpleMapping?
     
     var body: some View {
         HStack {
@@ -460,7 +462,12 @@ private struct AvailablePresetRow: View {
             Spacer()
             
             Button(action: {
-                service.addMapping(fromKey: preset.fromKey, toKey: preset.toKey, enabled: true)
+                if let existing = service.installedMappings.first(where: { $0.fromKey == preset.fromKey && $0.enabled && $0.toKey != preset.toKey }) {
+                    conflictingMapping = existing
+                    showConflictSheet = true
+                } else {
+                    service.addMapping(fromKey: preset.fromKey, toKey: preset.toKey, enabled: true)
+                }
             }, label: {
                 HStack(spacing: 4) {
                     Image(systemName: "plus.circle.fill")
@@ -479,6 +486,23 @@ private struct AvailablePresetRow: View {
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
+        .sheet(isPresented: $showConflictSheet) {
+            if let existing = conflictingMapping {
+                ConflictMappingDialog(
+                    fromKey: preset.fromKey,
+                    existingTo: existing.toKey,
+                    newTo: preset.toKey,
+                    onReplace: {
+                        service.removeMapping(id: existing.id)
+                        service.addMapping(fromKey: preset.fromKey, toKey: preset.toKey, enabled: true)
+                        showConflictSheet = false
+                    },
+                    onKeep: {
+                        showConflictSheet = false
+                    }
+                )
+            }
+        }
     }
 
     // MARK: - Display helpers
@@ -513,6 +537,58 @@ private struct AvailablePresetRow: View {
             return nil
         }
         return desc
+    }
+}
+
+/// Visual dialog for resolving conflicting mappings
+private struct ConflictMappingDialog: View {
+    let fromKey: String
+    let existingTo: String
+    let newTo: String
+    let onReplace: () -> Void
+    let onKeep: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Conflicting mapping detected")
+                .font(.title3)
+                .bold()
+            Text("You already have this key mapped. Choose which mapping to keep.")
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 16) {
+                mappingCard(title: "Existing", toKey: existingTo)
+                mappingCard(title: "New", toKey: newTo)
+            }
+
+            HStack(spacing: 12) {
+                Button("Replace with New", role: .destructive) { onReplace() }
+                    .buttonStyle(.borderedProminent)
+                Button("Keep Existing") { onKeep() }
+                    .buttonStyle(.bordered)
+            }
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(minWidth: 480)
+    }
+
+    private func mappingCard(title: String, toKey: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            HStack(spacing: 8) {
+                KeyCapChip(text: fromKey)
+                Text("→").foregroundColor(.secondary)
+                KeyCapChip(text: toKey)
+            }
+            .padding(10)
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
