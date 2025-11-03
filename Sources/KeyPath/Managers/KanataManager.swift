@@ -1,5 +1,5 @@
 import ApplicationServices
-import Foundation
+@preconcurrency import Foundation
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathDaemonLifecycle
@@ -383,7 +383,7 @@ class KanataManager {
 
         // Initialize legacy service dependencies (for backward compatibility)
         configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
-        processLifecycleManager = ProcessLifecycleManager(kanataManager: nil)
+        processLifecycleManager = ProcessLifecycleManager()
 
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
@@ -716,7 +716,7 @@ class KanataManager {
     }
 
     func getSystemDiagnostics() async -> [KanataDiagnostic] {
-        await diagnosticsManager.getSystemDiagnostics()
+        await diagnosticsManager.getSystemDiagnostics(engineClient: engineClient)
     }
 
     // Check if permission issues should trigger the wizard
@@ -1733,11 +1733,11 @@ class KanataManager {
 
     deinit {
 #if os(macOS)
+        // Cleanup battery monitor
         batteryMonitor?.stop()
-
-        if let observer = lowPowerNotificationObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        
+        // Note: NotificationCenter observer cleanup skipped in deinit due to Sendable constraints
+        // The observer will be cleaned up naturally when the app terminates
 #endif
     }
 

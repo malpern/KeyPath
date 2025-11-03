@@ -58,13 +58,13 @@ struct SettingsView: View {
     private var kanataServiceStatus: String {
         switch kanataManager.currentState {
         case .running:
-            "Running"
+            return "Running"
         case .starting:
-            "Starting..."
+            return "Starting..."
         case .needsHelp:
-            "Needs Help"
+            return "Needs Help"
         case .stopped:
-            "Stopped"
+            return "Stopped"
         case .pausedLowPower:
             if let level = formattedBatteryLevel(kanataManager.batteryLevel) {
                 return "Paused (Low Power, \(level))"

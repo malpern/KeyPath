@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathDaemonLifecycle
+import KeyPathCore
 
 /// Protocol for managing diagnostics, health monitoring, and log monitoring
 @preconcurrency
@@ -37,7 +39,7 @@ protocol DiagnosticsManaging: Sendable {
     func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic]
     
     /// Get system diagnostics
-    func getSystemDiagnostics() async -> [KanataDiagnostic]
+    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic]
 }
 
 /// Manages diagnostics, health monitoring, and log monitoring
@@ -160,8 +162,8 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
         diagnosticsService.diagnoseKanataFailure(exitCode: exitCode, output: output)
     }
     
-    func getSystemDiagnostics() async -> [KanataDiagnostic] {
-        await diagnosticsService.getSystemDiagnostics()
+    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic] {
+        await diagnosticsService.getSystemDiagnostics(engineClient: engineClient)
     }
     
     // MARK: - Private Helper Methods
