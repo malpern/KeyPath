@@ -81,3 +81,4 @@ struct ConfigDiagnostics {
 - Flaky readiness → log sentinel + timeout; expose result in diagnostics
 
 
+

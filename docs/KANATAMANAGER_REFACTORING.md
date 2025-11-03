@@ -88,3 +88,4 @@ Successfully split KanataManager by responsibility into four focused managers wh
 - **Extensibility**: New features can be added to specific managers without touching others
 
 
+
