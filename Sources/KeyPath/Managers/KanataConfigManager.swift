@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Phase 4: Kanata Configuration Manager
 ///

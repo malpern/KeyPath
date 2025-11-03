@@ -2,6 +2,7 @@ import Foundation
 import Testing
 
 @testable import KeyPath
+import KeyPathCore
 
 /// Tests for the consolidated KeyPathError type
 ///

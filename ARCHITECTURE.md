@@ -702,7 +702,7 @@ swift test --filter WizardNavigationEngineTests
 
 ### ADR-009: Deterministic UI Activation — Split UI App from Background Agent
 **Decision:** Keep the main app purely UI (activationPolicy .regular, no headless mode). Move background/headless responsibilities to a separate helper (user-level agent), and consider a minimal privileged helper for admin tasks.  
-**Status:** Proposed (September 2025) — pending implementation  
+**Status:** Phase 1 implemented (November 2025); Phase 2 under consideration  
 **Problem:** Some users observed that launching KeyPath from Finder showed no main window until clicking the Dock icon. Root causes:
 - Finder’s “open” event can target an existing headless/accessory instance of the same binary (started by a LaunchAgent), which is not front‑eligible.
 - Early show/activate attempts before the app is truly active can be ignored; password prompts (admin flows) can also preempt first‑window fronting.
@@ -727,9 +727,11 @@ swift test --filter WizardNavigationEngineTests
 - Return to SwiftUI WindowGroup. Rejected: prior unpredictability under Finder activation and reopen paths.
 
 **Migration Plan (Phased):**
-1) Short term: Disable the LaunchAgent that runs the UI binary headless. If automatic UI at login is desired, add a Login Item (SMAppService) for the UI app. Keep LaunchDaemon for kanata.
-2) Medium term: Introduce a small KeyPathAgent (user-level) for background conveniences; communicate via DistributedNotifications/XPC/file signals.
-3) Long term (optional): Maintain a minimal SMAppService privileged helper for admin flows; keep the API surface tiny and asynchronous to avoid the XPC pitfalls called out earlier in this document.
+1) Short term (Implemented): Disable the LaunchAgent that runs the UI binary headless. The app auto-disables any legacy LaunchAgent on launch. Keep LaunchDaemon for kanata.  
+2) Medium term (Optional): Introduce a small KeyPathAgent (user-level) for background conveniences; communicate via DistributedNotifications/XPC/file signals.  
+3) Long term (Optional): Maintain a minimal SMAppService privileged helper for admin flows; keep the API surface tiny and asynchronous to avoid the XPC pitfalls called out earlier in this document.
+
+Note on Phase 2: A user-level agent can consolidate Input Monitoring to a branded process and further decouple UI from background work, but it reintroduces tap-ownership considerations and increases QA surface. Proceed only if the UX benefit outweighs the added complexity.
 
 **Risks & Mitigations:**
 - XPC/SMJobBless complexity: mitigate by keeping the helper’s API minimal, time‑bounded, and non‑blocking; use Authorization Services interim if needed.

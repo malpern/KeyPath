@@ -74,8 +74,8 @@ final class KeyPathTests: XCTestCase {
         XCTAssertEqual(manager.convertToKanataSequence("rightcmd"), "rmet")
 
         // Test sequences
-        XCTAssertEqual(manager.convertToKanataSequence("hello"), "(h e l l o)")
-        XCTAssertEqual(manager.convertToKanataSequence("abc"), "(a b c)")
+        XCTAssertEqual(manager.convertToKanataSequence("hello"), "(macro h e l l o)")
+        XCTAssertEqual(manager.convertToKanataSequence("abc"), "(macro a b c)")
     }
 
     func testGenerateKanataConfig() throws {

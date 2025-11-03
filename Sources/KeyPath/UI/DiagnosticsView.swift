@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathCore
+import KeyPathPermissions
 
 // MARK: - File Navigation (999 lines)
 

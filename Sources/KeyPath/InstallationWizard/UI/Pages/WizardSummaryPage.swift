@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Simplified summary page using extracted components
 struct WizardSummaryPage: View {

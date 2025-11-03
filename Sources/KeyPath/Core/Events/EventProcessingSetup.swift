@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Helper for setting up the event processing chain in KeyPath
 @MainActor

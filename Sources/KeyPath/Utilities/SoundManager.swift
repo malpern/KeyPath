@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KeyPathCore
 
 /// Manager for system sounds to provide audio feedback
 @MainActor

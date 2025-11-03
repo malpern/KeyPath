@@ -1,5 +1,8 @@
 import ApplicationServices
 import Foundation
+import KeyPathCore
+import KeyPathPermissions
+import KeyPathDaemonLifecycle
 import IOKit.hidsystem
 import Network
 import SwiftUI
@@ -12,7 +15,7 @@ extension KanataManager {
     func performInitialization() async {
         // Prevent concurrent initialization
         if isInitializing {
-            AppLogger.shared.log("⚠️ [Init] Already initializing - skipping duplicate initialization")
+            AppLogger.shared.warn("⚠️ [Init] Already initializing - skipping duplicate initialization")
             return
         }
 
@@ -22,15 +25,15 @@ extension KanataManager {
         await updateStatus()
 
         // First, adopt any existing KeyPath-looking kanata processes before deciding to auto-start
-        let lifecycle = ProcessLifecycleManager(kanataManager: self)
-        await lifecycle.recoverFromCrash()
+        let lifecycle = ProcessLifecycleManager()
+        await lifecycle.cleanupOrphanedProcesses()
         await updateStatus()
         // Try to start Kanata automatically on launch if all requirements are met
         let status = await getSystemRequirementsStatus()
 
         // Check if Kanata is already running before attempting to start
         if isRunning {
-            AppLogger.shared.log("✅ [Init] Kanata is already running - skipping initialization")
+            AppLogger.shared.info("✅ [Init] Kanata is already running - skipping initialization")
             return
         }
 
@@ -40,10 +43,10 @@ extension KanataManager {
         )
 
         if status.installed, status.permissions, status.driver, status.daemon {
-            AppLogger.shared.log("✅ [Init] All requirements met - auto-starting Kanata")
+            AppLogger.shared.info("✅ [Init] All requirements met - auto-starting Kanata")
             await startKanata()
         } else {
-            AppLogger.shared.log("⚠️ [Init] Requirements not met - skipping auto-start")
+            AppLogger.shared.warn("⚠️ [Init] Requirements not met - skipping auto-start")
             if !status.installed { AppLogger.shared.log("  - Missing: Kanata binary") }
             if !status.permissions { AppLogger.shared.log("  - Missing: Required permissions") }
             if !status.driver { AppLogger.shared.log("  - Missing: VirtualHID driver") }
@@ -74,9 +77,9 @@ extension KanataManager {
         AppLogger.shared.log("🔧 [Recovery] Step 3: Attempting to restart Karabiner daemon...")
         let restartSuccess = await restartKarabinerDaemon()
         if restartSuccess {
-            AppLogger.shared.log("✅ [Recovery] Karabiner daemon restart verified")
+            AppLogger.shared.info("✅ [Recovery] Karabiner daemon restart verified")
         } else {
-            AppLogger.shared.log("⚠️ [Recovery] Karabiner daemon restart failed or not verified")
+            AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon restart failed or not verified")
         }
 
         // Step 4: Wait before retry
@@ -96,7 +99,7 @@ extension KanataManager {
             try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
             AppLogger.shared.log("🔧 [Recovery] Killed Kanata processes")
         } catch {
-            AppLogger.shared.log("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
+            AppLogger.shared.warn("⚠️ [Recovery] Failed to kill Kanata processes: \(error)")
         }
     }
 
@@ -115,7 +118,7 @@ extension KanataManager {
             AppLogger.shared.log("🔧 [Recovery] VirtualHID daemon restart - running: \(status.daemonRunning)")
 
         } catch {
-            AppLogger.shared.log("⚠️ [Recovery] Failed to restart Karabiner daemon: \(error)")
+            AppLogger.shared.warn("⚠️ [Recovery] Failed to restart Karabiner daemon: \(error)")
         }
     }
 }

@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Privileged Helper installation and validation page
 struct WizardHelperPage: View {

@@ -1,6 +1,8 @@
 import Combine
 import Foundation
 import SwiftUI
+import KeyPathDaemonLifecycle
+import KeyPathWizardCore
 
 /// MVVM ViewModel for KanataManager
 ///
@@ -53,6 +55,9 @@ class KanataViewModel: ObservableObject {
 
     // Save progress feedback
     @Published var saveStatus: SaveStatus = .idle
+
+    // Emergency stop state
+    @Published var emergencyStopActivated: Bool = false
 
     // MARK: - Private Properties
 
@@ -131,6 +136,7 @@ class KanataViewModel: ObservableObject {
         validationAlertMessage = state.validationAlertMessage
         validationAlertActions = state.validationAlertActions
         saveStatus = state.saveStatus
+        // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
     }
 
     // MARK: - Action Delegation to KanataManager

@@ -52,6 +52,27 @@ Ensure both dev and production-like builds pass tests.
 1. Review any incomplete WIP files (e.g., `KanataConfigManager.swift`) before merging
 2. Address deprecations where practical (e.g., `KeyMapping`, `String(contentsOfFile:)`)
 
+## 🔄 Ongoing Work / Scheduled Follow-ups
+
+### ADR-009: Deterministic UI Activation
+- Phase 1 (Implemented): UI no longer runs headless; app auto-disables any legacy LaunchAgent on launch; Settings provides a "Disable Legacy Agent" button.
+- Phase 2 (Optional, under consideration): A lightweight user-level agent (Login Item) for background conveniences and possibly a single branded Input Monitoring entry. Tradeoffs: tap ownership, larger QA surface. Only proceed if benefits clearly outweigh complexity.
+
+### Removal Schedule
+- Next Release (N+1): Remove headless mode code and flags
+  - Delete `--headless`/`KEYPATH_HEADLESS` handling
+  - Remove `.accessory` activation path and headless-only startup branches
+  - Simplify reopen/escalation logic that referenced headless mode
+- Following Release (N+2): Remove legacy LaunchAgent auto-cleanup
+  - Drop the proactive disable-on-launch migration path once the fleet is updated
+
+## ⏱️ Time Investment So Far
+
+- Fixed 6 major compilation errors
+- Addressed 4 architecture violations
+- Made 8 types public  
+- Removed 19 dead code references
+
 ## ⏱️ Time Investment So Far
 
 - Fixed 6 major compilation errors

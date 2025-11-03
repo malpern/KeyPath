@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathCore
 import Foundation
 
 @MainActor

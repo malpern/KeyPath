@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathCore
+import KeyPathPermissions
 
 /// Phase 4: System Requirements Checker
 ///

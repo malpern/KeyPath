@@ -2,174 +2,244 @@ import SwiftUI
 
 struct EmergencyStopDialog: View {
     @Environment(\.dismiss) private var dismiss
+    let isActivated: Bool
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 32) {
             // Header
-            VStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(.orange)
+            VStack(spacing: 16) {
+                Image(systemName: isActivated ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 64))
+                    .foregroundColor(isActivated ? .green : .orange)
 
-                Text("Emergency Stop")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                Text(isActivated ? "Emergency Stop Activated" : "Emergency Stop")
+                    .font(.system(size: 32, weight: .bold))
 
-                Text("If Kanata stops responding or you need to disable all keyboard remapping immediately")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                if isActivated {
+                    Text("The emergency stop sequence was detected and Kanata has been stopped. Keyboard remapping is now paused.")
+                        .font(.body)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                } else {
+                    Text("For Kanata (the keyboard remapper) the emergency stop shortcut is Left Control + Space + Escape (using their physical key positions, not after any remapping).")
+                        .font(.body)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
             }
 
             Divider()
 
-            // Key combination explanation
-            VStack(spacing: 20) {
-                Text("Press these 3 keys simultaneously:")
-                    .font(.headline)
-
-                // Visual key representation
-                HStack(spacing: 12) {
-                    EmergencyStopKeyView(
-                        keyLabel: "Left Control",
-                        keySymbol: "⌃",
-                        description: "Left Control key\n(bottom-left corner)"
-                    )
-
-                    Text("+")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-
-                    EmergencyStopKeyView(
-                        keyLabel: "Space",
-                        keySymbol: "⎵",
-                        description: "Space bar\n(bottom center)"
-                    )
-
-                    Text("+")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-
-                    EmergencyStopKeyView(
-                        keyLabel: "Escape",
-                        keySymbol: "⎋",
-                        description: "Escape key\n(top-left corner)"
-                    )
-                }
-
-                // Sequence explanation
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundColor(.blue)
-                        Text("Hold all three keys at the same time")
-                            .font(.subheadline)
-                        Spacer()
-                    }
-
-                    HStack {
+            if isActivated {
+                // Activated state - show success message
+                VStack(spacing: 24) {
+                    HStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
+                            .font(.title3)
                             .foregroundColor(.green)
-                        Text("Kanata will immediately stop all remapping")
-                            .font(.subheadline)
+                        Text("Keyboard remapping has been safely stopped")
+                            .font(.headline)
+                            .foregroundColor(.primary)
                         Spacer()
                     }
 
-                    HStack {
-                        Image(systemName: "arrow.clockwise.circle.fill")
-                            .foregroundColor(.orange)
-                        Text("Restart KeyPath to re-enable remapping")
-                            .font(.subheadline)
+                    HStack(spacing: 12) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(.blue)
+                        Text("You can restart the service when ready by clicking the restart button in the main window")
+                            .font(.body)
                         Spacer()
                     }
+
+                    // Visual key buttons (smaller when activated)
+                    VStack(spacing: 16) {
+                        Text("Emergency stop sequence used:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        HStack(spacing: 16) {
+                            EmergencyStopKeyButton(
+                                keyLabel: "Left Control",
+                                keySymbol: "⌃",
+                                description: "Bottom-left",
+                                isSmall: true
+                            )
+
+                            Text("+")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.secondary)
+
+                            EmergencyStopKeyButton(
+                                keyLabel: "Space",
+                                keySymbol: "⎵",
+                                description: "Bottom center",
+                                isSmall: true
+                            )
+
+                            Text("+")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.secondary)
+
+                            EmergencyStopKeyButton(
+                                keyLabel: "Escape",
+                                keySymbol: "⎋",
+                                description: "Top-left",
+                                isSmall: true
+                            )
+                        }
+                    }
                 }
-                .padding(.horizontal)
-            }
+            } else {
+                // Instructions state - show how to use emergency stop
+                // Big visual key buttons
+                VStack(spacing: 24) {
+                    Text("Press these 3 keys simultaneously:")
+                        .font(.title3)
+                        .fontWeight(.semibold)
 
-            Divider()
+                    HStack(spacing: 24) {
+                        EmergencyStopKeyButton(
+                            keyLabel: "Left Control",
+                            keySymbol: "⌃",
+                            description: "Bottom-left corner",
+                            isSmall: false
+                        )
 
-            // Safety note
-            VStack(spacing: 8) {
-                HStack {
-                    Image(systemName: "shield.fill")
-                        .foregroundColor(.blue)
-                    Text("Safety Feature")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Spacer()
+                        Text("+")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .padding(.vertical)
+
+                        EmergencyStopKeyButton(
+                            keyLabel: "Space",
+                            keySymbol: "⎵",
+                            description: "Bottom center",
+                            isSmall: false
+                        )
+
+                        Text("+")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .padding(.vertical)
+
+                        EmergencyStopKeyButton(
+                            keyLabel: "Escape",
+                            keySymbol: "⎋",
+                            description: "Top-left corner",
+                            isSmall: false
+                        )
+                    }
+
+                    // Important note
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "info.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.blue)
+                            Text("Important: Use physical key positions, not after any remapping")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.green)
+                            Text("Kanata will immediately stop all remapping")
+                                .font(.body)
+                            Spacer()
+                        }
+
+                        HStack(spacing: 12) {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.orange)
+                            Text("Restart KeyPath to re-enable remapping")
+                                .font(.body)
+                            Spacer()
+                        }
+                    }
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(12)
                 }
-
-                Text("This emergency stop works even when Kanata is completely frozen or unresponsive. It's built into the keyboard monitoring system itself.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
             }
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(8)
 
             // OK button
-            HStack {
-                Spacer()
-                Button("OK") {
-                    dismiss()
-                }
-                .keyboardShortcut(.return)
-                .buttonStyle(.borderedProminent)
-            }
+            Button(action: {
+                dismiss()
+            }, label: {
+                Text("Got it")
+                    .font(.headline)
+                    .frame(minWidth: 200)
+                    .padding(.vertical, 12)
+            })
+            .keyboardShortcut(.return)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
-        .padding(24)
-        .frame(width: 540)
+        .padding(32)
+        .frame(width: 700)
         .background(.regularMaterial)
     }
 }
 
-struct EmergencyStopKeyView: View {
+struct EmergencyStopKeyButton: View {
     let keyLabel: String
     let keySymbol: String
     let description: String
+    let isSmall: Bool
 
     var body: some View {
-        VStack(spacing: 8) {
-            // Key cap
-            VStack(spacing: 4) {
+        VStack(spacing: isSmall ? 6 : 12) {
+            // Large key cap
+            VStack(spacing: isSmall ? 4 : 8) {
                 Text(keySymbol)
-                    .font(.title)
-                    .fontWeight(.medium)
+                    .font(.system(size: isSmall ? 32 : 48, weight: .medium))
                     .foregroundColor(.primary)
 
                 Text(keyLabel)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .font(isSmall ? .subheadline : .headline)
+                    .foregroundColor(.primary)
             }
-            .frame(width: 80, height: 60)
-            .background(.quaternary)
-            .cornerRadius(8)
+            .frame(width: isSmall ? 100 : 140, height: isSmall ? 70 : 100)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(NSColor.controlBackgroundColor))
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(.tertiary, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(.secondary, lineWidth: 2)
             )
 
             // Description
             Text(description)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(2)
         }
     }
 }
 
 // Preview
 #Preview {
-    EmergencyStopDialog()
+    EmergencyStopDialog(isActivated: false)
+        .preferredColorScheme(.light)
+}
+
+#Preview("Activated") {
+    EmergencyStopDialog(isActivated: true)
         .preferredColorScheme(.light)
 }
 
 #Preview("Dark Mode") {
-    EmergencyStopDialog()
+    EmergencyStopDialog(isActivated: false)
         .preferredColorScheme(.dark)
 }

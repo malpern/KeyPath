@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 // (Removed deprecated PrivilegedOperationError - now using KeyPathError directly)
 

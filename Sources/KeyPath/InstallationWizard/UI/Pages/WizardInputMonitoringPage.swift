@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 /// Input Monitoring permission page with hybrid permission request approach
 struct WizardInputMonitoringPage: View {

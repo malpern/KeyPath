@@ -1,4 +1,6 @@
 import SwiftUI
+import KeyPathWizardCore
+import KeyPathCore
 
 struct WizardCommunicationPage: View {
     @State private var commStatus: CommunicationStatus = .checking

@@ -1,4 +1,7 @@
 import Foundation
+import KeyPathCore
+import KeyPathDaemonLifecycle
+import KeyPathWizardCore
 
 @MainActor
 class WizardStateManager: ObservableObject {
@@ -7,7 +10,7 @@ class WizardStateManager: ObservableObject {
 
     func configure(kanataManager: KanataManager) {
         // Create validator with process manager
-        let processManager = ProcessLifecycleManager(kanataManager: kanataManager)
+        let processManager = ProcessLifecycleManager()
         validator = SystemValidator(
             processLifecycleManager: processManager,
             kanataManager: kanataManager

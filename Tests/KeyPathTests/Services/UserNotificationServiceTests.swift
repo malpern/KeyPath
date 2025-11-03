@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPath
+import KeyPathWizardCore
 import Testing
 
 /// Tests for UserNotificationService - notification management and deduplication
@@ -49,7 +50,9 @@ struct UserNotificationServiceTests {
     @Test("Service initializes without crashing")
     func serviceInitialization() {
         let service = UserNotificationService.shared
-        #expect(service != nil)
+        // shared is a singleton, not optional - verify it exists by calling a method
+        service.requestAuthorizationIfNeeded()
+        // If we get here without crashing, the service initialized successfully
     }
 
     @Test("Request authorization is idempotent")

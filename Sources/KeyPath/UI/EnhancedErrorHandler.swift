@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import SwiftUI
 
 /// Enhanced error handling system with persistent display and recovery actions

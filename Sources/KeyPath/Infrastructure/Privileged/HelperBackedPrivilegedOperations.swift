@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Helper-backed implementation of PrivilegedOperations.
 /// Uses the SMAppService/XPC helper via PrivilegedOperationsCoordinator, with

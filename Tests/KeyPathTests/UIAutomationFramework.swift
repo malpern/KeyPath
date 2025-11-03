@@ -1,4 +1,5 @@
 @testable import KeyPath
+import KeyPathCore
 import SwiftUI
 import XCTest
 

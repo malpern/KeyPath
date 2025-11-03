@@ -1,4 +1,7 @@
 @testable import KeyPath
+import KeyPathCore
+import KeyPathDaemonLifecycle
+import KeyPathWizardCore
 import XCTest
 
 /// Fast unit tests for individual components

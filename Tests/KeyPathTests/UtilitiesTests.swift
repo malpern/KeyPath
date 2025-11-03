@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 @testable import KeyPath
+import KeyPathCore
 import XCTest
 
 @MainActor
@@ -100,7 +101,11 @@ final class UtilitiesTests: XCTestCase {
         // Test that Bundle.main.bundlePath is accessible
         let bundlePath = Bundle.main.bundlePath
         XCTAssertFalse(bundlePath.isEmpty, "Bundle path should not be empty")
-        XCTAssertTrue(bundlePath.hasSuffix(".app"), "Bundle path should end with .app")
+        // In test environments, Bundle.main might not be an actual .app bundle
+        // So we only check this if we're not in a test environment
+        if !ProcessInfo.processInfo.environment.keys.contains("XCTestConfigurationFilePath") {
+            XCTAssertTrue(bundlePath.hasSuffix(".app"), "Bundle path should end with .app")
+        }
     }
 
     // MARK: - Logger Tests
