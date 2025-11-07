@@ -11,14 +11,14 @@ import KeyPathWizardCore
 final class ProcessLifecycleIntegrationTests: XCTestCase {
     var processManager: ProcessLifecycleManager!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         processManager = ProcessLifecycleManager()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         processManager = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Basic Operations Tests

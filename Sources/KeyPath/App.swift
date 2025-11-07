@@ -96,9 +96,9 @@ public struct KeyPathApp: App {
             CommandGroup(replacing: .newItem) {
                 Button(action: {
                     NotificationCenter.default.post(name: NSNotification.Name("ShowSimpleMods"), object: nil)
-                }) {
+                }, label: {
                     Label("Simple key mappings...", systemImage: "keyboard")
-                }
+                })
                 .keyboardShortcut("k", modifiers: .command)
 
                 Divider()
@@ -112,9 +112,9 @@ public struct KeyPathApp: App {
 
                 Button(action: {
                     openConfigInEditor(viewModel: viewModel)
-                }) {
+                }, label: {
                     Label("Edit Config", systemImage: "chevron.left.forwardslash.chevron.right")
-                }
+                })
                 .keyboardShortcut("o", modifiers: .command)
 
                 Divider()
@@ -373,6 +373,7 @@ private func showSMAppServiceStatus(plistName: String) {
     AppLogger.shared.info("🔧 [SM] \(plistName) status=\(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)")
 }
 
+@MainActor
 private func registerSMAppService(plistName: String) {
     let svc = SMAppService.daemon(plistName: plistName)
     do {

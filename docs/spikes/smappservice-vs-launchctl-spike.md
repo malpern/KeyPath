@@ -69,21 +69,176 @@
 - Are there edge cases with user migrations (e.g., existing LaunchDaemon left registered) that require extra cleanup?
 
 #### Status
-- Pending POC. Default behavior remains helper + `launchctl`.
+- ✅ POC utility added as executable target in Package.swift
+- ✅ Standalone test scripts created
+- ✅ App bundle exists at `dist/KeyPath.app` with helper plist
+- 🚀 Ready for Phase 1 testing now
+- Default behavior remains helper + `launchctl`.
 
 #### Execution (dev-only; no app changes)
-- Added debug utility: `dev-tools/debug/smappservice-poc.swift`
-  - Usage: `swift run smappservice-poc <plistName> [status|register|unregister]`
-  - Example: `swift run smappservice-poc com.keypath.helper.plist status`
-  - Note: For a Kanata daemon POC, the target plist must be packaged in the app bundle. This tool reports status and attempts register/unregister, surfacing OSLog diagnostic messages.
+- Enhanced debug utility: `dev-tools/debug/smappservice-poc.swift`
+  - Usage: `swift run smappservice-poc <plistName> [action] [options]`
+  - Actions: `status`, `register`, `unregister`, `lifecycle`
+  - Options: `--verbose`, `--create-test-plist`
+  - Example: `swift run smappservice-poc com.keypath.helper.plist lifecycle --verbose`
+  - Features:
+    - OSLog diagnostics integration
+    - Timing measurements for register/unregister operations
+    - Lifecycle testing (register → wait → check → unregister)
+    - Test plist generation utility
+    - Comparison with `launchctl print` output
+  - Note: For a Kanata daemon POC, the target plist must be packaged in the app bundle at `Contents/Library/LaunchDaemons/<plistName>`.
 
-#### Results (to be filled after running POC)
-- macOS version tested:
-- Status transitions observed:
-- Prompts/approvals shown:
-- Time-to-ready measurements:
-- Errors and their clarity:
-- TCC/permissions regressions: yes/no
-- Recommendation:
+- Standalone test scripts (no build required):
+  - `dev-tools/debug/test-smappservice-simple.swift` - Simple validation test
+    - Validates SMAppService API availability
+    - Creates test plist for future use
+    - Works without requiring app build
+    - Usage: `swift dev-tools/debug/test-smappservice-simple.swift`
+  - `dev-tools/debug/test-smappservice-standalone.swift` - More comprehensive standalone test
+    - Finds existing app bundles
+    - Creates test plists in app bundles or standalone
+    - Usage: `swift dev-tools/debug/test-smappservice-standalone.swift --create-test-plist`
+
+#### Analysis & Findings
+
+##### Current State Assessment
+- **SMAppService Usage**: Already successfully used for privileged helper (`HelperManager.swift`)
+  - Helper plist packaged at `Contents/Library/LaunchDaemons/com.keypath.helper.plist`
+  - Status handling covers `.enabled`, `.notRegistered`, `.requiresApproval`, `.notFound`
+  - Registration/unregistration working in production
+  
+- **Kanata LaunchDaemon**: Currently managed via `launchctl` through `LaunchDaemonInstaller`
+  - Uses privileged helper (XPC) to install plist to `/Library/LaunchDaemons`
+  - Bootstrap/kickstart via shell commands
+  - Service dependency order critical (VirtualHID → Kanata)
+
+##### Open Questions - Answered
+
+**Q: How does SMAppService daemon registration interact with sandbox/signing?**
+- **Answer**: Should work identically to helper registration:
+  - Plist must be in app bundle at `Contents/Library/LaunchDaemons/`
+  - App must be properly signed (Developer ID or App Store)
+  - Notarization/stapling should not interfere (helper path demonstrates this)
+  - Key requirement: Plist must reference executables within the signed bundle or system paths
+  - For Kanata: Would need to use bundled kanata path (`Contents/Library/KeyPath/kanata`) or ensure system-installed kanata is properly signed
+
+**Q: Edge cases with user migrations?**
+- **Answer**: Yes, requires careful handling:
+  - Legacy `launchctl`-managed daemon may exist at `/Library/LaunchDaemons/com.keypath.kanata.plist`
+  - Must detect and clean up before SMAppService registration
+  - Migration path: Check `launchctl print system/com.keypath.kanata` → unload → remove plist → register via SMAppService
+  - Rollback: SMAppService unregister → helper reinstalls via launchctl
+
+##### Key Differences: Helper vs Daemon SMAppService
+
+| Aspect | Helper (Current) | Daemon (Proposed) |
+|--------|------------------|-------------------|
+| Plist Location | `Contents/Library/LaunchDaemons/` | Same |
+| Executable | `Contents/Library/HelperTools/` | System path or bundled |
+| User Approval | Login Items prompt | Same (background items) |
+| Privileges | Root via SMJobBless | Root (system daemon) |
+| Restart Control | Via XPC | Via SMAppService (limited) |
+
+##### Critical Considerations
+
+1. **Restart/Kickstart Parity**:
+   - `launchctl kickstart -k` provides immediate restart
+   - SMAppService has no equivalent - unregister/register cycle required
+   - May impact recovery time for crashed services
+
+2. **Service Dependencies**:
+   - Current: Explicit bootstrap order (VirtualHID → Kanata)
+   - SMAppService: No explicit dependency management
+   - Risk: Kanata may start before VirtualHID services are ready
+
+3. **Observability Gap**:
+   - `launchctl print` provides detailed service state
+   - SMAppService status is binary (enabled/notRegistered/requiresApproval/notFound)
+   - May need hybrid approach: SMAppService for registration, launchctl for status checks
+
+4. **macOS Version Compatibility**:
+   - SMAppService.daemon requires macOS 13+
+   - Current minimum: macOS 15.0 (per Info.plist)
+   - No compatibility concern, but fallback path still needed for edge cases
+
+##### Recommended POC Testing Sequence
+
+1. **Phase 1: Minimal Test Daemon (Standalone - No Build Required)**
+   ```bash
+   # Option A: Simple standalone test (no build needed)
+   swift dev-tools/debug/test-smappservice-simple.swift
+   
+   # Option B: If app bundle exists, test with helper plist
+   swift run smappservice-poc com.keypath.helper.plist lifecycle --verbose
+   
+   # Option C: Create test plist for future use
+   swift dev-tools/debug/test-smappservice-standalone.swift --create-test-plist
+   ```
+   - Validates SMAppService API availability
+   - Creates test plist for future testing
+   - Works without requiring app build
+   - Once app is built: Validate basic registration/unregistration
+   - Observe System Settings prompts
+   - Measure timing
+
+2. **Phase 2: Kanata-like POC**
+   - Create plist with Kanata-like ProgramArguments
+   - Test with bundled kanata binary
+   - Validate lifecycle (start, restart via unregister/register, kill)
+   - Compare timing vs launchctl kickstart
+
+3. **Phase 3: TCC/Permissions Validation**
+   - Install SMAppService-managed daemon
+   - Verify Input Monitoring permissions persist
+   - Test app update scenario (TCC identity stability)
+   - Compare with current launchctl path
+
+4. **Phase 4: Migration/Rollback Testing**
+   - Simulate legacy launchctl installation
+   - Test migration: detect → cleanup → register via SMAppService
+   - Test rollback: unregister SMAppService → reinstall via launchctl
+   - Verify no duplicate registrations
+
+#### Results (Phase 1 POC - Initial Testing)
+
+**Test Date:** 2025-11-07  
+**macOS Version:** 26.0.1 (Build 25A362)  
+**Test Method:** POC executable run from within app bundle context
+
+**Status Transitions Observed:**
+- Initial status: `.notFound` (3) - Expected when service not registered
+- After register attempt: `.notFound` (3) - Registration failed due to codesigning
+- After unregister: `.notFound` (3) - Unregister succeeded (service was not registered)
+
+**Prompts/Approvals Shown:**
+- None observed (registration failed before reaching approval stage)
+
+**Time-to-Ready Measurements:**
+- Register attempt: < 0.001s (failed immediately)
+- Unregister: ~10.005s (succeeded)
+
+**Errors and Their Clarity:**
+- **Codesigning Error (-67028):** `"Codesigning failure loading plist: com.keypath.helper.plist code: -67028"`
+  - Clear error message indicating codesigning issue
+  - Expected: App bundle needs proper Developer ID signing for SMAppService to work
+  - This is a known requirement - SMAppService requires properly signed app bundles
+
+**Key Findings:**
+1. ✅ POC utility works correctly when run from app bundle context
+2. ✅ SMAppService API is accessible and functional
+3. ✅ Error messages are clear and actionable
+4. ⚠️ Requires properly signed app bundle (Developer ID or App Store signing)
+5. ✅ Unregister operation works even when service wasn't registered
+
+**Next Steps:**
+- Test with properly signed app bundle (run `./build-and-sign.sh` or similar)
+- Test registration with signed bundle to observe approval prompts
+- Compare timing with `launchctl` operations
+- Test with Kanata-like daemon plist
+
+**TCC/Permissions Regressions:** Not yet tested (requires signed bundle)
+
+**Recommendation:** Pending - need to test with properly signed app bundle to complete evaluation.
 
 

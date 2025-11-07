@@ -1,11 +1,12 @@
 import XCTest
 @testable import KeyPath
 
+@MainActor
 final class SimpleModsSmokeTests: XCTestCase {
     func testSaveShowsDurationViaStatus() async throws {
         // Precondition: Kanata TCP server is running on default port
         let client = KanataTCPClient(port: 37001)
-        let ready = await client.checkServer()
+        let ready = await client.checkServerStatus()
         try XCTSkipUnless(ready, "Kanata TCP server not ready; Wizard should be all green before running this test.")
 
         // Use user's config path (same as app)
@@ -20,7 +21,7 @@ final class SimpleModsSmokeTests: XCTestCase {
         var added = false
         for (fromKey, toKey) in candidateMappings {
             if !service.installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey }) {
-                await MainActor.run { service.addMapping(fromKey: fromKey, toKey: toKey) }
+                service.addMapping(fromKey: fromKey, toKey: toKey)
                 added = true
                 break
             }

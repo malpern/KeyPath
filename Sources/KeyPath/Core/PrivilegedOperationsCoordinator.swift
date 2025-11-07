@@ -554,7 +554,7 @@ final class PrivilegedOperationsCoordinator {
     /// Regenerate service configuration using LaunchDaemonInstaller
     private func sudoRegenerateConfig() async throws {
         let installer = LaunchDaemonInstaller()
-        let success = await installer.regenerateServiceWithCurrentSettings()
+        let success = installer.regenerateServiceWithCurrentSettings()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Config regeneration failed")

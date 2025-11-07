@@ -6,7 +6,7 @@ import XCTest
 final class KeyboardCaptureListenOnlyTests: XCTestCase {
     func testListenOnlyEnabledWhenKanataRunning() {
         // Given
-        FeatureFlags.setCaptureListenOnlyEnabled(true)
+        KeyPathCore.FeatureFlags.setCaptureListenOnlyEnabled(true)
         let manager = KanataManager()
         manager.isRunning = true
         let capture = KeyboardCapture()
@@ -26,7 +26,7 @@ final class KeyboardCaptureListenOnlyTests: XCTestCase {
     }
 
     func testRawModeWhenKanataNotRunning() {
-        FeatureFlags.setCaptureListenOnlyEnabled(true)
+        KeyPathCore.FeatureFlags.setCaptureListenOnlyEnabled(true)
         let manager = KanataManager()
         manager.isRunning = false
         let capture = KeyboardCapture()
@@ -46,7 +46,7 @@ final class KeyboardCaptureListenOnlyTests: XCTestCase {
     }
 
     func testRawModeWhenFeatureFlagDisabled() {
-        FeatureFlags.setCaptureListenOnlyEnabled(false)
+        KeyPathCore.FeatureFlags.setCaptureListenOnlyEnabled(false)
         let manager = KanataManager()
         manager.isRunning = true
         let capture = KeyboardCapture()
@@ -60,6 +60,6 @@ final class KeyboardCaptureListenOnlyTests: XCTestCase {
         XCTAssertTrue(capture.suppressEvents, "Flag off forces raw/suppress mode even if Kanata is running")
 
         capture.stopCapture()
-        FeatureFlags.setCaptureListenOnlyEnabled(true) // cleanup
+        KeyPathCore.FeatureFlags.setCaptureListenOnlyEnabled(true) // cleanup
     }
 }

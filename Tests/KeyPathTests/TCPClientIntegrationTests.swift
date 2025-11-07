@@ -1,5 +1,6 @@
 import XCTest
 @testable import KeyPath
+import Network
 
 final class TCPClientIntegrationTests: XCTestCase {
     private let port: Int = 37001
@@ -46,25 +47,28 @@ final class TCPClientIntegrationTests: XCTestCase {
 
         // Use a raw connection to inspect bytes
         let exp = expectation(description: "recv")
-        var received: Data = Data()
+        final class ReceivedData: @unchecked Sendable {
+            var value: Data = Data()
+        }
+        let received = ReceivedData()
 
         let conn = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(integerLiteral: UInt16(port)), using: .tcp)
-        conn.stateUpdateHandler = { state in
+        conn.stateUpdateHandler = { (state: NWConnection.State) in
             if case .ready = state {
                 let payload = "{\"Reload\":{\"wait\":true,\"timeout_ms\":1200}}\n".data(using: .utf8)!
-                conn.send(content: payload, completion: .contentProcessed { _ in
+                conn.send(content: payload, completion: .contentProcessed { (_: NWError?) in
                     conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, _ in
-                        if let content { received = content }
+                        if let content { received.value = content }
                         exp.fulfill()
                     }
                 })
             }
         }
-        conn.start(queue: .global())
+        conn.start(queue: DispatchQueue.global())
         await fulfillment(of: [exp], timeout: 3.0)
         conn.cancel()
 
-        let s = String(data: received, encoding: .utf8) ?? ""
+        let s = String(data: received.value, encoding: .utf8) ?? ""
         // Expect exactly one JSON object line: ReloadResult
         let lines = s.split(separator: "\n")
         XCTAssertEqual(lines.count, 1, "Expected single JSON object, got: \(lines.count) -> \(s)")
@@ -95,25 +99,28 @@ final class TCPClientIntegrationTests: XCTestCase {
         guard await serverReachable() else { throw XCTSkip("TCP server not running") }
 
         let exp = expectation(description: "recv-timeout")
-        var received: Data = Data()
+        final class ReceivedData: @unchecked Sendable {
+            var value: Data = Data()
+        }
+        let received = ReceivedData()
 
         let conn = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(integerLiteral: UInt16(port)), using: .tcp)
-        conn.stateUpdateHandler = { state in
+        conn.stateUpdateHandler = { (state: NWConnection.State) in
             if case .ready = state {
                 let payload = "{\"Reload\":{\"wait\":true,\"timeout_ms\":1}}\n".data(using: .utf8)!
-                conn.send(content: payload, completion: .contentProcessed { _ in
+                conn.send(content: payload, completion: .contentProcessed { (_: NWError?) in
                     conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, _ in
-                        if let content { received = content }
+                        if let content { received.value = content }
                         exp.fulfill()
                     }
                 })
             }
         }
-        conn.start(queue: .global())
+        conn.start(queue: DispatchQueue.global())
         await fulfillment(of: [exp], timeout: 3.0)
         conn.cancel()
 
-        let s = String(data: received, encoding: .utf8) ?? ""
+        let s = String(data: received.value, encoding: .utf8) ?? ""
         let lines = s.split(separator: "\n")
         XCTAssertEqual(lines.count, 1, "Expected single JSON object, got: \(lines.count) -> \(s)")
         XCTAssertTrue(lines.first?.contains("\"ReloadResult\"") ?? false, "Missing ReloadResult in response")

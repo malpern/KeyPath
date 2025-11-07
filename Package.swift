@@ -14,6 +14,10 @@ let package = Package(
         .executable(
             name: "KeyPathHelper",
             targets: ["KeyPathHelper"]
+        ),
+        .executable(
+            name: "smappservice-poc",
+            targets: ["SMAppServicePOC"]
         )
     ],
     dependencies: [
@@ -98,6 +102,16 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ]
+        ),
+        // SMAppService POC test utility
+        .executableTarget(
+            name: "SMAppServicePOC",
+            dependencies: [],
+            path: "dev-tools/debug",
+            sources: ["smappservice-poc.swift"],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
             ]
         ),
         // Tests

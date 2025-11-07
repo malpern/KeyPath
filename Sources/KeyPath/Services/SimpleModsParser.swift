@@ -114,7 +114,7 @@ public final class SimpleModsParser {
                 // Outside block - check for conflicts (other deflayermap mappings)
                 if let mapping = parseMappingLine(line, at: lineNumber) {
                     // Check if this conflicts with any in our block
-                    if let existing = blockMappings.first(where: { $0.fromKey == mapping.fromKey }) {
+                    if blockMappings.contains(where: { $0.fromKey == mapping.fromKey }) {
                         conflicts.append(MappingConflict(
                             fromKey: mapping.fromKey,
                             conflictingLine: lineNumber,

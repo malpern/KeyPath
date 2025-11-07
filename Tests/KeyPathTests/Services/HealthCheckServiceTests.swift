@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 @testable import KeyPath
 
+@MainActor
 final class HealthCheckServiceTests: XCTestCase {
     // Minimal test double for DiagnosticsManaging focusing on checkHealth
     final class FakeDiagnosticsManager: DiagnosticsManaging {

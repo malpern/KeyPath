@@ -35,6 +35,24 @@
             "name": "Release KeyPathHelper",
             "program": "${workspaceFolder:KeyPath}/.build/release/KeyPathHelper",
             "preLaunchTask": "swift: Build Release KeyPathHelper"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:KeyPath}",
+            "name": "Debug smappservice-poc",
+            "program": "${workspaceFolder:KeyPath}/.build/debug/smappservice-poc",
+            "preLaunchTask": "swift: Build Debug smappservice-poc"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:KeyPath}",
+            "name": "Release smappservice-poc",
+            "program": "${workspaceFolder:KeyPath}/.build/release/smappservice-poc",
+            "preLaunchTask": "swift: Build Release smappservice-poc"
         }
     ]
 }

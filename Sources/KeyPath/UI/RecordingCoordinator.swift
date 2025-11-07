@@ -203,7 +203,7 @@ final class RecordingCoordinator: ObservableObject {
         refreshDisplayTexts()
 
         guard let permissionProvider else {
-            failInputRecording(with: .permissionFailure)
+            failInputRecording(with: "permissionFailure")
             return
         }
 
@@ -212,7 +212,7 @@ final class RecordingCoordinator: ObservableObject {
 
             guard snapshot.keyPath.accessibility.isReady else {
                 await MainActor.run {
-                    self.failInputRecording(with: .permissionFailure)
+                    self.failInputRecording(with: "permissionFailure")
                 }
                 return
             }
@@ -220,7 +220,7 @@ final class RecordingCoordinator: ObservableObject {
             await MainActor.run {
                 self.prepareKeyboardCaptureIfNeeded()
                 guard let capture = self.keyboardCapture else {
-                    self.failInputRecording(with: .captureInitializationFailure)
+                    self.failInputRecording(with: "captureInitializationFailure")
                     return
                 }
 
@@ -246,7 +246,7 @@ final class RecordingCoordinator: ObservableObject {
                     Task { @MainActor in
                         guard let self else { return }
                         if self.input.isRecording {
-                            self.failInputRecording(with: .timeout)
+                            self.failInputRecording(with: "timeout")
                             self.keyboardCapture?.stopCapture()
                         }
                     }
@@ -277,14 +277,15 @@ final class RecordingCoordinator: ObservableObject {
         }
     }
 
-    private func failInputRecording(with reason: RecordingFailureReason) {
+    private func failInputRecording(with reason: String) {
         inputTimeoutTimer?.invalidate()
         input.isRecording = false
         input.capturedSequence = nil
-        input.fieldText = reason.displayMessage
+        let displayInfo = recordingFailureDisplayInfo(for: reason)
+        input.fieldText = displayInfo.displayMessage
         updateButtonIcon(&input)
-        if reason.shouldShowBanner {
-            showStatusMessage?(reason.bannerMessage)
+        if displayInfo.shouldShowBanner {
+            showStatusMessage?(displayInfo.bannerMessage)
         }
 
         // Resume mappings if we suspended them
@@ -327,7 +328,7 @@ final class RecordingCoordinator: ObservableObject {
         refreshDisplayTexts()
 
         guard let permissionProvider else {
-            failOutputRecording(with: .permissionFailure)
+            failOutputRecording(with: "permissionFailure")
             return
         }
 
@@ -336,7 +337,7 @@ final class RecordingCoordinator: ObservableObject {
 
             guard snapshot.keyPath.accessibility.isReady else {
                 await MainActor.run {
-                    self.failOutputRecording(with: .permissionFailure)
+                    self.failOutputRecording(with: "permissionFailure")
                 }
                 return
             }
@@ -344,7 +345,7 @@ final class RecordingCoordinator: ObservableObject {
             await MainActor.run {
                 self.prepareKeyboardCaptureIfNeeded()
                 guard let capture = self.keyboardCapture else {
-                    self.failOutputRecording(with: .captureInitializationFailure)
+                    self.failOutputRecording(with: "captureInitializationFailure")
                     return
                 }
 
@@ -370,7 +371,7 @@ final class RecordingCoordinator: ObservableObject {
                     Task { @MainActor in
                         guard let self else { return }
                         if self.output.isRecording {
-                            self.failOutputRecording(with: .timeout)
+                            self.failOutputRecording(with: "timeout")
                             self.keyboardCapture?.stopCapture()
                         }
                     }
@@ -401,14 +402,15 @@ final class RecordingCoordinator: ObservableObject {
         }
     }
 
-    private func failOutputRecording(with reason: RecordingFailureReason) {
+    private func failOutputRecording(with reason: String) {
         outputTimeoutTimer?.invalidate()
         output.isRecording = false
         output.capturedSequence = nil
-        output.fieldText = reason.displayMessage
+        let displayInfo = recordingFailureDisplayInfo(for: reason)
+        output.fieldText = displayInfo.displayMessage
         updateButtonIcon(&output)
-        if reason.shouldShowBanner {
-            showStatusMessage?(reason.bannerMessage)
+        if displayInfo.shouldShowBanner {
+            showStatusMessage?(displayInfo.bannerMessage)
         }
 
         // Resume mappings if we suspended them
@@ -532,44 +534,39 @@ private extension RecordingCoordinator {
 
 extension RecordingCoordinator {
     /// Recording coordinator errors
-    ///
-    /// - Deprecated: Use `KeyPathError.coordination(...)` instead for consistent error handling
-    @available(*, deprecated, message: "Use KeyPathError.coordination(...) instead")
-
-    enum RecordingFailureReason {
-        case permissionFailure
-        case captureInitializationFailure
-        case timeout
-
-        var displayMessage: String {
-            switch self {
-            case .permissionFailure:
-                "⚠️ Accessibility permission required for recording"
-            case .captureInitializationFailure:
-                "⚠️ Failed to initialize keyboard capture"
-            case .timeout:
-                "⚠️ Recording timed out - try again"
-            }
-        }
-
-        var bannerMessage: String {
-            switch self {
-            case .permissionFailure:
-                "❌ Recording requires Accessibility permission. Open the Installation Wizard to grant access."
-            case .captureInitializationFailure:
-                "❌ Failed to start keyboard capture. Check KeyPath diagnostics."
-            case .timeout:
-                "⚠️ Recording timed out — try again."
-            }
-        }
-
-        var shouldShowBanner: Bool {
-            switch self {
-            case .timeout:
-                true
-            case .permissionFailure, .captureInitializationFailure:
-                true
-            }
+    /// Helper to get display information for recording failure reasons
+    private struct RecordingFailureDisplayInfo {
+        let displayMessage: String
+        let bannerMessage: String
+        let shouldShowBanner: Bool
+    }
+    
+    private func recordingFailureDisplayInfo(for reason: String) -> RecordingFailureDisplayInfo {
+        switch reason {
+        case "permissionFailure":
+            return RecordingFailureDisplayInfo(
+                displayMessage: "⚠️ Accessibility permission required for recording",
+                bannerMessage: "❌ Recording requires Accessibility permission. Open the Installation Wizard to grant access.",
+                shouldShowBanner: true
+            )
+        case "captureInitializationFailure":
+            return RecordingFailureDisplayInfo(
+                displayMessage: "⚠️ Failed to initialize keyboard capture",
+                bannerMessage: "❌ Failed to start keyboard capture. Check KeyPath diagnostics.",
+                shouldShowBanner: true
+            )
+        case "timeout":
+            return RecordingFailureDisplayInfo(
+                displayMessage: "⚠️ Recording timed out - try again",
+                bannerMessage: "⚠️ Recording timed out — try again.",
+                shouldShowBanner: true
+            )
+        default:
+            return RecordingFailureDisplayInfo(
+                displayMessage: "⚠️ Recording failed",
+                bannerMessage: "❌ Recording failed: \(reason)",
+                shouldShowBanner: true
+            )
         }
     }
 }

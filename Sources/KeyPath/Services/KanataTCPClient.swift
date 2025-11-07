@@ -471,7 +471,7 @@ actor KanataTCPClient {
                                     let first = s.split(separator: "\n").map(String.init).first ?? ""
                                     if let data = first.data(using: .utf8),
                                        let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                                        if let ready = obj["Ready"] as? [String: Any] {
+                                        if (obj["Ready"] as? [String: Any]) != nil {
                                             conn.cancel(); continuation.resume(returning: (true, nil, nil, nil)); return
                                         } else if let err = obj["ConfigError"] as? [String: Any] {
                                             let msg = err["message"] as? String

@@ -157,10 +157,13 @@ actor HelperManager {
             let proxy = try getRemoteProxy { _ in /* proxy error handled by timeout path */ }
             return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
                 let sema = DispatchSemaphore(value: 0)
-                var gotVersion: String?
+                final class VersionHolder: @unchecked Sendable {
+                    var value: String?
+                }
+                let versionHolder = VersionHolder()
                 proxy.getVersion { version, error in
                     if let version {
-                        gotVersion = version
+                        versionHolder.value = version
                     } else {
                         let msg = error ?? "Unknown error"
                         AppLogger.shared.log("❌ [HelperManager] getVersion callback error: \(msg)")
@@ -173,7 +176,7 @@ actor HelperManager {
                         AppLogger.shared.log("⚠️ [HelperManager] getVersion timed out")
                         continuation.resume(returning: nil)
                     } else {
-                        if let v = gotVersion {
+                        if let v = versionHolder.value {
                             AppLogger.shared.info("✅ [HelperManager] Helper version: \(v)")
                             continuation.resume(returning: v)
                         } else {

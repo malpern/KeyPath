@@ -6,7 +6,7 @@ import KeyPathWizardCore
 
 /// Manages local user notifications for KeyPath
 @MainActor
-final class UserNotificationService: NSObject, @preconcurrency UNUserNotificationCenterDelegate {
+final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = UserNotificationService()
 
     private let center: UNUserNotificationCenter?

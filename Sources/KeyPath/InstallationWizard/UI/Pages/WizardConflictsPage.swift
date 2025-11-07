@@ -60,7 +60,7 @@ struct WizardConflictsPage: View {
                                     try? await Task.sleep(nanoseconds: 500_000_000)
                                     isScanning = false
                                 }
-                            }) {
+                            }, label: {
                                 HStack(spacing: 4) {
                                     if isScanning {
                                         ProgressView()
@@ -69,7 +69,7 @@ struct WizardConflictsPage: View {
                                     }
                                     Text(isScanning ? "Scanning..." : "Check Again")
                                 }
-                            }
+                            })
                             .buttonStyle(.link)
                             .disabled(isFixing || isScanning)
 
@@ -295,7 +295,7 @@ struct CleanConflictsCard: View {
 
                         isPerformingPermanentFix = false
                     }
-                }) {
+                }, label: {
                     HStack(spacing: 8) {
                         if isFixing || isPerformingPermanentFix {
                             ProgressView()
@@ -311,7 +311,7 @@ struct CleanConflictsCard: View {
                         .fontWeight(.medium)
                     }
                     .frame(minWidth: 240, minHeight: 44)
-                }
+                })
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
                 .disabled(isFixing || isPerformingPermanentFix)
 
@@ -354,7 +354,7 @@ struct CleanConflictsCard: View {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             showingDetails.toggle()
                         }
-                    }) {
+                    }, label: {
                         HStack(spacing: 6) {
                             Image(systemName: showingDetails ? "chevron.down" : "chevron.right")
                                 .font(.caption)
@@ -362,7 +362,7 @@ struct CleanConflictsCard: View {
                                 .font(.subheadline)
                         }
                         .foregroundColor(.secondary)
-                    }
+                    })
                     .buttonStyle(.link)
 
                     if showingDetails {

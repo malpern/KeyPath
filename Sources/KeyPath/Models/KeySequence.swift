@@ -3,7 +3,7 @@ import Foundation
 
 /// Represents a captured key sequence including modifiers and timing
 public struct KeySequence: Identifiable, Codable, Equatable, Sendable {
-    public let id = UUID()
+    public var id: UUID = UUID()
     public let keys: [KeyPress]
     public let captureMode: CaptureMode
     public let timestamp: Date

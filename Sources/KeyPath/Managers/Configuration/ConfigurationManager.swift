@@ -213,7 +213,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
     
     func backupCurrentConfig() async {
         AppLogger.shared.log("💾 [ConfigManager] Creating backup of current config")
-        configBackupManager.createPreEditBackup()
+        _ = configBackupManager.createPreEditBackup()
     }
     
     func restoreLastGoodConfig() async throws {
