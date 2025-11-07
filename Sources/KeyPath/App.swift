@@ -33,8 +33,9 @@ public struct KeyPathApp: App {
         FeatureFlags.shared.activateStartupMode(timeoutSeconds: 5.0)
         AppLogger.shared.log("🔍 [App] Startup mode set (auto-clear in 5s) - IOHIDCheckAccess calls will be skipped")
 
-        // Phase 4: MVVM - Initialize KanataManager and ViewModel
-        let manager = KanataManager()
+        // Phase 4: MVVM - Initialize services and KanataManager via composition root
+        let configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
+        let manager = KanataManager(injectedConfigurationService: configurationService)
         kanataManager = manager
         _viewModel = StateObject(wrappedValue: KanataViewModel(manager: manager))
         AppLogger.shared.debug("🎯 [Phase 4] MVVM architecture initialized - ViewModel wrapping KanataManager")
@@ -205,13 +206,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Phase 2/3: TCP-only mode (no authentication needed)
         AppLogger.shared.debug("📡 [AppDelegate] TCP communication mode - no auth token needed")
 
-        // Phase 1 (ADR-009): Proactively disable legacy UI LaunchAgent to prevent headless background instance
-        Task { @MainActor in
-            if LaunchAgentManager.isLoaded() {
-                AppLogger.shared.debug("🧹 [AppDelegate] Disabling legacy LaunchAgent to prevent headless UI")
-                try? await LaunchAgentManager.disable()
-            }
-        }
+        // Legacy LaunchAgent support removed
 
         // Check for pending service bounce first
         Task { @MainActor in

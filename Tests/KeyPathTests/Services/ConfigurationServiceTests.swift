@@ -414,4 +414,56 @@ class ConfigurationServiceTests: XCTestCase {
             XCTAssertEqual(found?.output, original.output, "Output should match for \(original.input)")
         }
     }
+
+    // MARK: - Observer/Notification Tests
+
+    func testObserverFiresOnMainActor_OnSave() async throws {
+        let exp = expectation(description: "Observer fired on save")
+        actor Flag { var value = false; func setTrue() { value = true }; func get() -> Bool { value } }
+        let flag = Flag()
+
+        _ = configService.observe { _ in
+            Task { @MainActor in
+                await flag.setTrue()
+                exp.fulfill()
+            }
+        }
+
+        try await configService.saveConfiguration(input: "caps", output: "esc")
+
+        await fulfillment(of: [exp], timeout: 2.0)
+        let fired = await flag.get()
+        XCTAssertTrue(fired, "Observer should fire on main actor for UI safety")
+    }
+
+    func testObserverFiresOnMainActor_OnReload() async throws {
+        // First, write a valid config file so reload succeeds
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        let content = """
+        (defcfg
+          process-unmapped-keys yes
+        )
+
+        (defsrc caps)
+        (deflayer base esc)
+        """
+        try content.write(to: configPath, atomically: true, encoding: .utf8)
+
+        let exp = expectation(description: "Observer fired on reload")
+        actor Flag { var value = false; func setTrue() { value = true }; func get() -> Bool { value } }
+        let flag = Flag()
+
+        _ = configService.observe { _ in
+            Task { @MainActor in
+                await flag.setTrue()
+                exp.fulfill()
+            }
+        }
+
+        _ = try await configService.reload()
+
+        await fulfillment(of: [exp], timeout: 2.0)
+        let fired = await flag.get()
+        XCTAssertTrue(fired, "Observer should fire on main actor for UI safety")
+    }
 }

@@ -76,7 +76,7 @@ public struct KanataConfiguration: Sendable {
 /// - Validation via TCP and file-based checks
 /// - File watching and change detection
 /// - Key mapping generation and conversion
-@MainActor public final class ConfigurationService: FileConfigurationProviding {
+public final class ConfigurationService: FileConfigurationProviding {
     public typealias Config = KanataConfiguration
 
     // MARK: - Properties
@@ -88,6 +88,11 @@ public struct KanataConfiguration: Sendable {
     private var currentConfiguration: KanataConfiguration?
     private var fileWatcher: FileWatcher?
     private var observers: [@Sendable (Config) async -> Void] = []
+
+    // Perform blocking file I/O off the main actor
+    private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
+    // Protect shared state when accessed from multiple threads
+    private let stateLock = NSLock()
 
     // MARK: - Initialization
 
@@ -103,9 +108,8 @@ public struct KanataConfiguration: Sendable {
     // MARK: - ConfigurationProviding Protocol
 
     public func current() async -> KanataConfiguration {
-        if let config = currentConfiguration {
-            return config
-        }
+        // Fast path: return cached config if available
+        if let cached = withLockedCurrentConfig() { return cached }
 
         // Try to load existing configuration, fallback to empty if not found
         do {
@@ -119,25 +123,28 @@ public struct KanataConfiguration: Sendable {
                 lastModified: Date(),
                 path: configurationPath
             )
-            currentConfiguration = emptyConfig
+            setCurrentConfiguration(emptyConfig)
             return emptyConfig
         }
     }
 
     public func reload() async throws -> KanataConfiguration {
-        guard FileManager.default.fileExists(atPath: configurationPath) else {
+        let exists = await fileExistsAsync(path: configurationPath)
+        guard exists else {
             throw KeyPathError.configuration(.fileNotFound(path: configurationPath))
         }
 
         do {
-            let content = try String(contentsOfFile: configurationPath, encoding: .utf8)
+            let content = try await readFileAsync(path: configurationPath)
             let config = try validate(content: content)
-            currentConfiguration = config
+            setCurrentConfiguration(config)
 
-            // Notify observers
-            for observer in observers {
-                await observer(config)
+            // Notify observers on main actor
+            let snapshot = observersSnapshot()
+            let tasks = snapshot.map { observer in
+                Task { @MainActor in await observer(config) }
             }
+            for t in tasks { await t.value }
 
             return config
         } catch let error as KeyPathError {
@@ -148,11 +155,16 @@ public struct KanataConfiguration: Sendable {
     }
 
     public func observe(_ onChange: @Sendable @escaping (Config) async -> Void) -> ConfigurationObservationToken {
+        var index = 0
+        stateLock.lock()
         observers.append(onChange)
-        let index = observers.count - 1
+        index = observers.count - 1
+        stateLock.unlock()
 
         return ConfigurationObservationToken {
-            self.observers.remove(at: index)
+            self.stateLock.lock()
+            if index < self.observers.count { self.observers.remove(at: index) }
+            self.stateLock.unlock()
         }
     }
 
@@ -200,14 +212,12 @@ public struct KanataConfiguration: Sendable {
 
     /// Create the configuration directory and initial config if needed
     public func createInitialConfigIfNeeded() async throws {
-        // Create config directory if it doesn't exist
-        try FileManager.default.createDirectory(
-            atPath: configDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o755]
-        )
+        // Create config directory if it doesn't exist (off-main)
+        try await createDirectoryAsync(path: configDirectory)
         AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
 
         // Check if config file exists
-        let exists = FileManager.default.fileExists(atPath: configurationPath)
+        let exists = await fileExistsAsync(path: configurationPath)
         if !exists {
             AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
 
@@ -235,7 +245,7 @@ public struct KanataConfiguration: Sendable {
 
         AppLogger.shared.log("✅ [ConfigService] Config validation passed")
 
-        try configContent.write(toFile: configurationPath, atomically: true, encoding: .utf8)
+        try await writeFileAsync(string: configContent, to: configurationPath)
 
         // Update current configuration
         let newConfig = KanataConfiguration(
@@ -244,12 +254,14 @@ public struct KanataConfiguration: Sendable {
             lastModified: Date(),
             path: configurationPath
         )
-        currentConfiguration = newConfig
+        setCurrentConfiguration(newConfig)
 
-        // Notify observers
-        for observer in observers {
-            await observer(newConfig)
+        // Notify observers on main actor
+        let snapshot = observersSnapshot()
+        let tasks = snapshot.map { observer in
+            Task { @MainActor in await observer(newConfig) }
         }
+        for t in tasks { await t.value }
 
         AppLogger.shared.log("✅ [ConfigService] Configuration saved with \(keyMappings.count) mappings")
     }
@@ -305,15 +317,30 @@ public struct KanataConfiguration: Sendable {
         }
     }
 
-    /// Validate configuration content using CLI validation
+    /// Validate configuration content using TCP if available, else CLI
     public func validateConfiguration(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
-        AppLogger.shared.log("🖥️ [Validation] Using CLI validation (TCP-only mode)")
 
-        let cliResult = await validateConfigWithCLI(config)
-        AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
-        return cliResult
+        // Try TCP validation first
+        let tcpPort = PreferencesService.shared.tcpServerPort
+        let tcpClient = KanataTCPClient(port: tcpPort)
+        let tcpResult = await tcpClient.validateConfig(config)
+        switch tcpResult {
+        case .success:
+            AppLogger.shared.log("🌐 [Validation] TCP validation PASSED")
+            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+            return (true, [])
+        case let .failure(errors):
+            AppLogger.shared.log("🌐 [Validation] TCP validation FAILED with \(errors.count) errors")
+            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+            return (false, errors)
+        case .authenticationRequired, .networkError:
+            AppLogger.shared.log("🌐 [Validation] TCP validation unavailable, falling back to CLI")
+            let cliResult = await validateConfigWithCLI(config)
+            AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION END ==========")
+            return cliResult
+        }
     }
 
     /// Validate configuration via CLI (kanata --check)
@@ -325,10 +352,10 @@ public struct KanataConfiguration: Sendable {
         AppLogger.shared.log("📝 [Validation-CLI] Creating temp config file: \(tempConfigPath)")
 
         do {
-            let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
-            let configDir = URL(fileURLWithPath: configDirectory)
-            try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-            try config.write(to: tempConfigURL, atomically: true, encoding: .utf8)
+        let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
+        let configDir = URL(fileURLWithPath: configDirectory)
+        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        try await writeFileURLAsync(string: config, to: tempConfigURL)
             AppLogger.shared.log("📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)")
 
             // Use kanata --check to validate
@@ -413,7 +440,7 @@ public struct KanataConfiguration: Sendable {
 
         \(failedConfig)
         """
-        try backupContent.write(to: backupURL, atomically: true, encoding: .utf8)
+        try await writeFileURLAsync(string: backupContent, to: backupURL)
 
         AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
 
@@ -434,17 +461,17 @@ public struct KanataConfiguration: Sendable {
         """
 
         let configURL = URL(fileURLWithPath: configurationPath)
-        try safeConfig.write(to: configURL, atomically: true, encoding: .utf8)
+        try await writeFileURLAsync(string: safeConfig, to: configURL)
 
         AppLogger.shared.log("✅ [Config] Safe default config applied")
 
         // Update current configuration
-        currentConfiguration = KanataConfiguration(
+        setCurrentConfiguration(KanataConfiguration(
             content: safeConfig,
             keyMappings: [KeyMapping(input: "caps", output: "escape")],
             lastModified: Date(),
             path: configurationPath
-        )
+        ))
 
         return backupPath
     }
@@ -612,6 +639,89 @@ public struct KanataConfiguration: Sendable {
         }
 
         return errors
+    }
+}
+
+// MARK: - Private helpers (I/O and state)
+
+private extension ConfigurationService {
+    func withLockedCurrentConfig() -> KanataConfiguration? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return currentConfiguration
+    }
+
+    func setCurrentConfiguration(_ config: KanataConfiguration) {
+        stateLock.lock(); defer { stateLock.unlock() }
+        currentConfiguration = config
+    }
+
+    func observersSnapshot() -> [@Sendable (Config) async -> Void] {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return observers
+    }
+
+    func readFileAsync(path: String) async throws -> String {
+        try await withCheckedThrowingContinuation { cont in
+            ioQueue.async {
+                do {
+                    let content = try String(contentsOfFile: path, encoding: .utf8)
+                    cont.resume(returning: content)
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func writeFileAsync(string: String, to path: String) async throws {
+        try await withCheckedThrowingContinuation { cont in
+            ioQueue.async {
+                do {
+                    try string.write(toFile: path, atomically: true, encoding: .utf8)
+                    cont.resume()
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func writeFileURLAsync(string: String, to url: URL) async throws {
+        try await withCheckedThrowingContinuation { cont in
+            ioQueue.async {
+                do {
+                    try string.write(to: url, atomically: true, encoding: .utf8)
+                    cont.resume()
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func createDirectoryAsync(path: String) async throws {
+        try await withCheckedThrowingContinuation { cont in
+            ioQueue.async {
+                do {
+                    try FileManager.default.createDirectory(
+                        atPath: path,
+                        withIntermediateDirectories: true,
+                        attributes: [.posixPermissions: 0o755]
+                    )
+                    cont.resume()
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func fileExistsAsync(path: String) async -> Bool {
+        await withCheckedContinuation { cont in
+            ioQueue.async {
+                cont.resume(returning: FileManager.default.fileExists(atPath: path))
+            }
+        }
     }
 }
 

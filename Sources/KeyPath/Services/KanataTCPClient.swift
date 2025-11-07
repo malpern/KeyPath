@@ -47,6 +47,7 @@ actor KanataTCPClient {
     private let host: String
     private let port: Int
     private let timeout: TimeInterval
+    private let retryBackoffSeconds: TimeInterval = 0.15
 
     // Connection management
     private var connection: NWConnection?
@@ -70,6 +71,22 @@ actor KanataTCPClient {
     // MARK: - Connection Management
 
     private func ensureConnection() async throws -> NWConnection {
+        // Attempt once, then single retry with small backoff on timeout/connection failure
+        do {
+            return try await ensureConnectionCore()
+        } catch {
+            if shouldRetry(error) {
+                AppLogger.shared.debug("🌐 [TCP] ensureConnection retry after backoff: \(error)")
+                try? await Task.sleep(nanoseconds: UInt64(retryBackoffSeconds * 1_000_000_000))
+                // Reset any half-open state
+                closeConnection()
+                return try await ensureConnectionCore()
+            }
+            throw error
+        }
+    }
+
+    private func ensureConnectionCore() async throws -> NWConnection {
         // Return existing connection if ready
         if let connection, connection.state == .ready {
             return connection
@@ -282,6 +299,18 @@ actor KanataTCPClient {
         let last_reload: TcpLastReload?
     }
 
+    struct TcpValidationItem: Codable, Sendable {
+        let code: String
+        let message: String
+        let line: UInt32?
+        let column: UInt32?
+    }
+
+    struct TcpValidationResult: Codable, Sendable {
+        let warnings: [TcpValidationItem]
+        let errors: [TcpValidationItem]
+    }
+
     // MARK: - Handshake / Status
 
     /// Perform Hello handshake and cache capabilities
@@ -359,11 +388,120 @@ actor KanataTCPClient {
         }
     }
 
-    /// Validate configuration (currently not supported by kanata TCP server)
+    /// Validate configuration via TCP (Phase 2)
     func validateConfig(_ configContent: String) async -> TCPValidationResult {
         AppLogger.shared.debug("📝 [TCP] Config validation requested (\(configContent.count) bytes)")
-        AppLogger.shared.debug("📝 [TCP] Note: ValidateConfig not supported by kanata - will validate on file load")
-        return .success
+        do {
+            // Ensure capability or proceed best-effort
+            _ = try? await enforceMinimumCapabilities(required: ["validate"]) // soft-check
+
+            let payload: [String: Any] = [
+                "Validate": [
+                    "config": configContent
+                ]
+            ]
+            let requestData = try JSONSerialization.data(withJSONObject: payload)
+            let responseData = try await send(requestData)
+            if let vr = try extractMessage(named: "ValidationResult", into: TcpValidationResult.self, from: responseData) {
+                if vr.errors.isEmpty {
+                    return .success
+                } else {
+                    let msgs = vr.errors.map { item in
+                        var ctx = item.message
+                        if let line = item.line { ctx += " (line \(line))" }
+                        return ctx
+                    }
+                    return .failure(errors: msgs)
+                }
+            }
+            let raw = String(data: responseData, encoding: .utf8) ?? ""
+            return .failure(errors: ["Unexpected response: \(raw)"])
+        } catch {
+            AppLogger.shared.error("❌ [TCP] Validate error: \(error)")
+            return .networkError(error.localizedDescription)
+        }
+    }
+
+    /// Subscribe to server events (Ready/ConfigError). Returns true on ack.
+    func subscribeToEvents() async -> Bool {
+        AppLogger.shared.debug("📡 [TCP] Subscribing to events")
+        do {
+            _ = try? await enforceMinimumCapabilities(required: ["subscribe"]) // soft-check
+            let payload: [String: Any] = [
+                "Subscribe": [
+                    "events": ["reload", "ready"]
+                ]
+            ]
+            let requestData = try JSONSerialization.data(withJSONObject: payload)
+            let responseData = try await send(requestData)
+            if let s = String(data: responseData, encoding: .utf8), s.contains("\"status\":\"Ok\"") {
+                return true
+            }
+            return false
+        } catch {
+            AppLogger.shared.error("❌ [TCP] Subscribe error: \(error)")
+            return false
+        }
+    }
+
+    /// Subscribe on a fresh connection and await one Ready/ConfigError event.
+    /// Returns parsed details or nil on timeout/error.
+    func awaitOneReloadEvent(timeout: TimeInterval = 3.0) async -> (isReady: Bool, message: String?, line: UInt32?, column: UInt32?)? {
+        do {
+            let conn = NWConnection(
+                host: NWEndpoint.Host(host),
+                port: NWEndpoint.Port(integerLiteral: UInt16(port)),
+                using: .tcp
+            )
+            return try await withCheckedThrowingContinuation { continuation in
+                let completionFlag = CompletionFlag()
+
+                conn.stateUpdateHandler = { state in
+                    switch state {
+                    case .ready:
+                        let payload = "{\"Subscribe\":{\"events\":[\"reload\",\"ready\"]}}\n".data(using: .utf8)!
+                        conn.send(content: payload, completion: .contentProcessed { _ in
+                            conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, error in
+                                if completionFlag.markCompleted() {
+                                    if let error { continuation.resume(throwing: error) ; return }
+                                    guard let content, let s = String(data: content, encoding: .utf8) else {
+                                        continuation.resume(returning: nil); return
+                                    }
+                                    // Parse first line
+                                    let first = s.split(separator: "\n").map(String.init).first ?? ""
+                                    if let data = first.data(using: .utf8),
+                                       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                                        if let ready = obj["Ready"] as? [String: Any] {
+                                            conn.cancel(); continuation.resume(returning: (true, nil, nil, nil)); return
+                                        } else if let err = obj["ConfigError"] as? [String: Any] {
+                                            let msg = err["message"] as? String
+                                            let line = (err["line"] as? NSNumber)?.uint32Value
+                                            let col = (err["column"] as? NSNumber)?.uint32Value
+                                            conn.cancel(); continuation.resume(returning: (false, msg, line, col)); return
+                                        }
+                                    }
+                                    conn.cancel(); continuation.resume(returning: nil)
+                                }
+                            }
+                        })
+                    case let .failed(error):
+                        if completionFlag.markCompleted() { continuation.resume(throwing: error) }
+                        conn.cancel()
+                    case .cancelled:
+                        if completionFlag.markCompleted() { continuation.resume(returning: nil) }
+                    default:
+                        break
+                    }
+                }
+                conn.start(queue: .global())
+                DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                    if completionFlag.markCompleted() { conn.cancel(); continuation.resume(returning: nil) }
+                }
+            }
+        } catch {
+            AppLogger.shared.warn("❌ [TCP] awaitOneReloadEvent error: \(error)")
+            return nil
+        }
     }
 
     /// Send reload command to Kanata
@@ -453,8 +591,22 @@ actor KanataTCPClient {
 
     /// Send TCP message and receive response with timeout
     private func send(_ data: Data) async throws -> Data {
+        do {
+            return try await sendCore(data)
+        } catch {
+            if shouldRetry(error) {
+                AppLogger.shared.debug("🌐 [TCP] send retry after backoff: \(error)")
+                try? await Task.sleep(nanoseconds: UInt64(retryBackoffSeconds * 1_000_000_000))
+                closeConnection()
+                return try await sendCore(data)
+            }
+            throw error
+        }
+    }
+
+    private func sendCore(_ data: Data) async throws -> Data {
         // Ensure connection is ready
-        let connection = try await ensureConnection()
+        let connection = try await ensureConnectionCore()
 
         // Send with timeout
         return try await withThrowingTaskGroup(of: Data.self) { group in
@@ -474,6 +626,18 @@ actor KanataTCPClient {
             group.cancelAll()
             return result
         }
+    }
+
+    private func shouldRetry(_ error: Error) -> Bool {
+        if let kpe = error as? KeyPathError {
+            switch kpe {
+            case .communication(.timeout), .communication(.connectionFailed):
+                return true
+            default:
+                return false
+            }
+        }
+        return false
     }
 
     /// Core TCP send/receive implementation

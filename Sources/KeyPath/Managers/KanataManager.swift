@@ -371,7 +371,7 @@ class KanataManager {
         configurationManager.configPath
     }
 
-    init(engineClient: EngineClient? = nil) {
+    init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil) {
         // Check if running in headless mode
         isHeadlessMode =
             ProcessInfo.processInfo.arguments.contains("--headless")
@@ -382,7 +382,11 @@ class KanataManager {
         lastServiceKickstart = Date()
 
         // Initialize legacy service dependencies (for backward compatibility)
-        configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
+        if let injected = injectedConfigurationService {
+            configurationService = injected
+        } else {
+            configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
+        }
         processLifecycleManager = ProcessLifecycleManager()
 
         // Initialize configuration file watcher for hot reload
@@ -426,9 +430,9 @@ class KanataManager {
         self.engineClient = engineClient ?? TCPEngineClient()
 
         // Dispatch heavy initialization work to background thread (skip during unit tests)
-        // Use Task.detached to ensure this runs off the main thread even with @MainActor
+        // Prefer structured concurrency; a plain Task{} runs off the main actor by default
         if !TestEnvironment.isRunningTests {
-            Task.detached { [weak self] in
+            Task { [weak self] in
                 // Clean up any orphaned processes first
                 await self?.processLifecycleManager.cleanupOrphanedProcesses()
                 await self?.performInitialization()
@@ -741,10 +745,7 @@ class KanataManager {
 
     func startKanata() async {
         // Trace who is calling startKanata
-        AppLogger.shared.log("📞 [Trace] startKanata() called from:")
-        for (index, symbol) in Thread.callStackSymbols.prefix(5).enumerated() {
-            AppLogger.shared.log("📞 [Trace] [\(index)] \(symbol)")
-        }
+        StartTraceLogger.logStartCallStack()
 
         // Phase 1: Process synchronization using actor (async-safe)
         return await KanataManager.startupActor.synchronize { [self] in
@@ -760,39 +761,21 @@ class KanataManager {
         if isRunning {
             AppLogger.shared.log("🛡️ [Safety] Starting 30-second safety timeout for Kanata")
 
-            // Start safety timeout in background
-            Task.detached { [weak self] in
-                // Wait 30 seconds
-                try? await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
+            let safetyTimeoutService = SafetyTimeoutService()
+            safetyTimeoutService.start(
+                durationSeconds: 30.0,
+                shouldStop: { [weak self] in
+                    guard let self else { return false }
+                    return await MainActor.run(resultType: Bool.self, body: { self.isRunning })
+                },
+                onTimeout: { [weak self] in
+                    guard let self else { return }
+                    await self.stopKanata()
 
-                // Check if Kanata is still running and stop it
-                guard let self else { return }
-
-                if await MainActor.run(resultType: Bool.self, body: { self.isRunning }) {
-                    AppLogger.shared.log(
-                        "⚠️ [Safety] 30-second timeout reached - automatically stopping Kanata for safety")
-                    await stopKanata()
-
-                    // Show safety notification (skip in tests)
-                    await MainActor.run {
-                        if TestEnvironment.isRunningTests {
-                            AppLogger.shared.debug("🧪 [Safety] Suppressing NSAlert in test environment")
-                        } else {
-                            let alert = NSAlert()
-                            alert.messageText = "Safety Timeout Activated"
-                            alert.informativeText = """
-                            KeyPath automatically stopped the keyboard remapping service after 30 seconds as a safety precaution.
-
-                            If the service was working correctly, you can restart it from the main app window.
-
-                            If you experienced keyboard issues, this timeout prevented them from continuing.
-                            """
-                            alert.alertStyle = .informational
-                            alert.runModal()
-                        }
-                    }
+                    // Show safety notification
+                    await MainActor.run { SafetyAlertPresenter.presentSafetyTimeoutAlert() }
                 }
-            }
+            )
         }
     }
 
@@ -823,29 +806,25 @@ class KanataManager {
         if isRunning {
             AppLogger.shared.debug("🔍 [Start] Kanata is already running - checking health before restart")
 
-            // Check health via DiagnosticsManager
-            let launchDaemonStatus = await checkLaunchDaemonStatus()
-            let processStatus = ProcessHealthStatus(
-                isRunning: launchDaemonStatus.isRunning,
-                pid: launchDaemonStatus.pid
-            )
+            // Check health via small wrapper service to keep logic cohesive
             let tcpPort = PreferencesService.shared.tcpServerPort
-            let healthStatus = await diagnosticsManager.checkHealth(
-                processStatus: processStatus,
-                tcpPort: tcpPort
+            let healthChecker = HealthCheckService(
+                diagnosticsManager: diagnosticsManager,
+                statusProvider: { [weak self] in await self?.checkLaunchDaemonStatus() ?? (false, nil) }
             )
+            let decision = await healthChecker.evaluate(tcpPort: tcpPort)
 
-            if healthStatus.isHealthy, !healthStatus.shouldRestart {
+            if decision.isHealthy, !decision.shouldRestart {
                 AppLogger.shared.info("✅ [Start] Kanata is healthy - no restart needed")
                 return
             }
 
-            if !healthStatus.shouldRestart {
+            if !decision.shouldRestart {
                 AppLogger.shared.log("⏳ [Start] Service not ready but should wait - skipping restart")
                 return
             }
 
-            AppLogger.shared.info("🔄 [Start] Service unhealthy: \(healthStatus.reason ?? "unknown") - proceeding with restart")
+            AppLogger.shared.info("🔄 [Start] Service unhealthy: \(decision.reason ?? "unknown") - proceeding with restart")
 
             AppLogger.shared.info("🔄 [Start] Performing necessary restart via kickstart")
             isStartingKanata = true
@@ -1337,24 +1316,7 @@ class KanataManager {
     }
 
     /// Kill a specific process by PID
-    private func killProcess(pid: Int) async {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        task.arguments = ["kill", "-TERM", String(pid)]
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.info("✅ [Kill] Successfully killed process \(pid)")
-            } else {
-                AppLogger.shared.warn("⚠️ [Kill] Failed to kill process \(pid) (may have already exited)")
-            }
-        } catch {
-            AppLogger.shared.error("❌ [Kill] Exception killing process \(pid): \(error)")
-        }
-    }
+    private func killProcess(pid: Int) async { await ProcessKiller.kill(pid: pid) }
 
     // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service management
 

@@ -805,7 +805,7 @@ struct InstallationWizardView: View {
 
     /// Performs cancellation and cleanup in the background after UI dismissal
     private func performBackgroundCleanup() {
-        // Use Task.detached to avoid any main thread scheduling overhead
+        // Use structured concurrency; hop to MainActor for UI-safe cleanup without blocking
         Task { @MainActor [weak asyncOperationManager] in
             asyncOperationManager?.cancelAllOperationsAsync()
         }
