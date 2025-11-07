@@ -200,45 +200,13 @@
    - Test rollback: unregister SMAppService → reinstall via launchctl
    - Verify no duplicate registrations
 
-#### Results (Phase 1 POC - Initial Testing)
-
-**Test Date:** 2025-11-07  
-**macOS Version:** 26.0.1 (Build 25A362)  
-**Test Method:** POC executable run from within app bundle context
-
-**Status Transitions Observed:**
-- Initial status: `.notFound` (3) - Expected when service not registered
-- After register attempt: `.notFound` (3) - Registration failed due to codesigning
-- After unregister: `.notFound` (3) - Unregister succeeded (service was not registered)
-
-**Prompts/Approvals Shown:**
-- None observed (registration failed before reaching approval stage)
-
-**Time-to-Ready Measurements:**
-- Register attempt: < 0.001s (failed immediately)
-- Unregister: ~10.005s (succeeded)
-
-**Errors and Their Clarity:**
-- **Codesigning Error (-67028):** `"Codesigning failure loading plist: com.keypath.helper.plist code: -67028"`
-  - Clear error message indicating codesigning issue
-  - Expected: App bundle needs proper Developer ID signing for SMAppService to work
-  - This is a known requirement - SMAppService requires properly signed app bundles
-
-**Key Findings:**
-1. ✅ POC utility works correctly when run from app bundle context
-2. ✅ SMAppService API is accessible and functional
-3. ✅ Error messages are clear and actionable
-4. ⚠️ Requires properly signed app bundle (Developer ID or App Store signing)
-5. ✅ Unregister operation works even when service wasn't registered
-
-**Next Steps:**
-- Test with properly signed app bundle (run `./build-and-sign.sh` or similar)
-- Test registration with signed bundle to observe approval prompts
-- Compare timing with `launchctl` operations
-- Test with Kanata-like daemon plist
-
-**TCC/Permissions Regressions:** Not yet tested (requires signed bundle)
-
-**Recommendation:** Pending - need to test with properly signed app bundle to complete evaluation.
+#### Results (to be filled after running POC)
+- macOS version tested:
+- Status transitions observed:
+- Prompts/approvals shown:
+- Time-to-ready measurements:
+- Errors and their clarity:
+- TCC/permissions regressions: yes/no
+- Recommendation:
 
 
