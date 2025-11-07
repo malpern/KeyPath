@@ -362,36 +362,51 @@ actor KanataTCPClient {
     }
 
     /// Send reload command to Kanata
-    /// NOTE: Kanata v1.9.0 TCP server does NOT require authentication
-    func reloadConfig() async -> TCPReloadResult {
-        AppLogger.shared.log("🔄 [TCP] Triggering config reload (no auth required)")
+    /// Tries Reload(wait/timeout_ms), falls back to basic {"Reload":{}} and Ok/Error.
+    func reloadConfig(timeoutMs: UInt32 = 3000) async -> TCPReloadResult {
+        AppLogger.shared.log("🔄 [TCP] Triggering config reload (preferring wait/timeout_ms)")
 
         do {
-            // Kanata TCP server accepts simple {"Reload":{}} without session_id
-            let requestData = try JSONEncoder().encode(["Reload": [:] as [String: String]])
+            // Preferred: wait contract
+            let req: [String: Any] = [
+                "Reload": [
+                    "wait": true,
+                    "timeout_ms": Int(timeoutMs)
+                ]
+            ]
+            let requestData = try JSONSerialization.data(withJSONObject: req)
             let responseData = try await send(requestData)
 
-            let responseString = String(data: responseData, encoding: .utf8) ?? ""
-            AppLogger.shared.log("🌐 [TCP] Reload response: \(responseString)")
+            if let reload = try extractMessage(named: "ReloadResult", into: ReloadResult.self, from: responseData) {
+                if reload.ready {
+                    AppLogger.shared.log("✅ [TCP] Reload(wait) reported ready within \(reload.timeout_ms) ms")
+                    return .success(response: String(data: responseData, encoding: .utf8) ?? "")
+                } else {
+                    AppLogger.shared.log("⚠️ [TCP] Reload(wait) reported not ready before timeout \(reload.timeout_ms) ms")
+                    return .failure(error: "timeout", response: String(data: responseData, encoding: .utf8) ?? "")
+                }
+            }
 
+            // Fallback: Ok/Error contract
+            let responseString = String(data: responseData, encoding: .utf8) ?? ""
             if responseString.contains("\"status\":\"Ok\"") || responseString.contains("Live reload successful") {
-                AppLogger.shared.log("✅ [TCP] Config reload successful")
+                AppLogger.shared.log("✅ [TCP] Config reload successful (fallback)")
                 return .success(response: responseString)
             } else if responseString.contains("\"status\":\"Error\"") {
                 let error = extractError(from: responseString)
-                AppLogger.shared.log("❌ [TCP] Config reload failed: \(error)")
                 return .failure(error: error, response: responseString)
             } else if responseString.contains("AuthRequired") {
                 return .authenticationRequired
             }
 
-            AppLogger.shared.log("⚠️ [TCP] Unexpected reload response")
-            return .failure(error: "Unexpected response format", response: responseString)
+            return .failure(error: "Unexpected response format", response: String(data: responseData, encoding: .utf8) ?? "")
         } catch {
             AppLogger.shared.log("❌ [TCP] Reload error: \(error)")
             return .networkError(error.localizedDescription)
         }
     }
+
+    private struct ReloadResult: Codable { let ready: Bool; let timeout_ms: UInt32 }
 
     /// Restart Kanata process
     func restartKanata() async -> Bool {

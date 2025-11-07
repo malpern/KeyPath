@@ -427,7 +427,7 @@ struct WizardSystemStatusOverview: View {
         // Resolve TCP port from LaunchDaemon plist, then probe Hello/Status quickly
         let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
         guard let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
-              let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+           let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
               let args = plist["ProgramArguments"] as? [String],
               let idx = args.firstIndex(of: "--port"), args.count > idx + 1,
               let port = Int(args[idx + 1].split(separator: ":").last ?? Substring(""))

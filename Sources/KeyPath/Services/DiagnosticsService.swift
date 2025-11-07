@@ -353,17 +353,18 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                 ))
         }
 
-        // Check background services
+        // Karabiner background services
+        // If they are disabled, that's OK for KeyPath (it avoids conflicts). Downgrade to info.
         if !areKarabinerBackgroundServicesEnabled() {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
-                    severity: .warning,
+                    severity: .info,
                     category: .system,
-                    title: "Background Services Not Enabled",
-                    description: "Karabiner background services may not be enabled",
-                    technicalDetails: "Services not detected in launchctl",
-                    suggestedAction: "Enable in System Settings > General > Login Items & Extensions",
+                    title: "Karabiner Background Services Disabled (OK)",
+                    description: "Karabiner-Elements background services are not enabled. This is fine when using KeyPath.",
+                    technicalDetails: "No org.pqrs.karabiner services detected in launchctl",
+                    suggestedAction: "No action needed unless you intend to use Karabiner-Elements.",
                     canAutoFix: false
                 ))
         }
