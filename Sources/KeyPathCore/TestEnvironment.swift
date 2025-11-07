@@ -96,7 +96,8 @@ public enum MockSystemData {
     /// Mock launchctl service status
     public static func mockServiceStatus(loaded: Bool = true, running: Bool = false) -> String {
         if loaded, running {
-            """ {
+            """
+            {
                 "LimitLoadToSessionType" = "System";
                 "Label" = "com.keypath.kanata";
                 "OnDemand" = true;
@@ -113,7 +114,8 @@ public enum MockSystemData {
             }
             """
         } else if loaded {
-            """ {
+            """
+            {
                 "LimitLoadToSessionType" = "System";
                 "Label" = "com.keypath.kanata";
                 "OnDemand" = true;
