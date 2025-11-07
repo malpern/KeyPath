@@ -395,16 +395,15 @@ struct TechnicalDetailsView: View {
             // Add the main description
             details.append("Issue: \(issue.title)")
 
-                // Split description into lines and process each
-                let lines = issue.description.components(separatedBy: "\n")
-                for line in lines {
-                    let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmedLine.isEmpty {
-                        // Clean up bullet points and add all non-empty lines
-                        let cleanLine = trimmedLine.replacingOccurrences(of: "• ", with: "")
-                        if !cleanLine.isEmpty {
-                            details.append("• \(cleanLine)")
-                        }
+            // Split description into lines and process each
+            let lines = issue.description.components(separatedBy: "\n")
+            for line in lines {
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedLine.isEmpty {
+                    // Clean up bullet points and add all non-empty lines
+                    let cleanLine = trimmedLine.replacingOccurrences(of: "• ", with: "")
+                    if !cleanLine.isEmpty {
+                        details.append("• \(cleanLine)")
                     }
                 }
             }
