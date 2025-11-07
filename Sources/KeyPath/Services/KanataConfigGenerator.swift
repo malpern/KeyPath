@@ -107,7 +107,7 @@ public class KanataConfigGenerator {
         """
     }
 
-    /// Convert KeySequence to Kanata key format
+    /// Convert KeySequence to Kanata key forma
     private func convertSequenceToKanataKey(_ sequence: KeySequence) -> String {
         guard let firstKey = sequence.keys.first else { return "spc" }
 
@@ -167,7 +167,7 @@ public class KanataConfigGenerator {
         let fileManager = FileManager.default
         var currentPath = fileManager.currentDirectoryPath
 
-        // Look for characteristic files that indicate project root
+        // Look for characteristic files that indicate project roo
         let markers = ["Package.swift", "CLAUDE.md", "External/kanata"]
 
         for _ in 0 ..< 10 { // Limit search depth
@@ -181,7 +181,7 @@ public class KanataConfigGenerator {
             // Go up one directory
             let parentPath = (currentPath as NSString).deletingLastPathComponent
             if parentPath == currentPath {
-                break // Reached root
+                break // Reached roo
             }
             currentPath = parentPath
         }
@@ -199,18 +199,18 @@ public class KanataConfigGenerator {
     )
 
     (defsrc
-      key1 key2 key3  ; Physical keys to intercept
+      key1 key2 key3  ; Physical keys to intercep
     )
 
     (deflayer base
-      out1 out2 out3  ; What those keys should output
+      out1 out2 out3  ; What those keys should outpu
     )
 
     2. Key Names:
     - Letters: a b c ... z
     - Numbers: 1 2 3 ... 0
     - Special: spc (space), ret (enter), esc (escape), bspc (backspace), tab, caps
-    - Modifiers: lctl rctl lalt ralt lsft rsft lmet rmet
+    - Modifiers: lctl rctl lalt ralt lsft rsft lmet rme
 
     3. Chord Notation:
     - C-a = Control+A

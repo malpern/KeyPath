@@ -27,7 +27,7 @@ final class KeychainService {
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
 
-        // Delete existing item first
+        // Delete existing item firs
         SecItemDelete(query as CFDictionary)
 
         // Add new item
@@ -108,7 +108,7 @@ final class KeychainService {
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
 
-        // Delete existing item first
+        // Delete existing item firs
         SecItemDelete(query as CFDictionary)
 
         // Add new item

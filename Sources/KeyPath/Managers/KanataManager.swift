@@ -47,7 +47,7 @@ public struct KeyMapping: Codable, Equatable, Identifiable, Sendable {
 
 /// Simple UI-focused state model (from SimpleKanataManager)
 enum SimpleKanataState: String, CaseIterable {
-    case starting // App launched, attempting auto-start
+    case starting // App launched, attempting auto-star
     case running // Kanata is running successfully
     case needsHelp = "needs_help" // Auto-start failed, user intervention required
     case stopped // User manually stopped
@@ -82,14 +82,14 @@ enum SimpleKanataState: String, CaseIterable {
 /// ## Extension Files (organized by concern):
 ///
 /// **KanataManager.swift** (main file, ~1,200 lines)
-/// - Core initialization and state management
+/// - Core initialization and state managemen
 /// - UI state snapshots and ViewModel interface
 /// - Health monitoring and auto-start logic
 /// - Diagnostics and error handling
 ///
 /// **KanataManager+Lifecycle.swift** (~400 lines)
 /// - Process start/stop/restart operations
-/// - LaunchDaemon service management
+/// - LaunchDaemon service managemen
 /// - State machine transitions
 /// - Recovery and health checks
 ///
@@ -102,7 +102,7 @@ enum SimpleKanataState: String, CaseIterable {
 /// **KanataManager+Engine.swift** (~300 lines)
 /// - Kanata engine communication
 /// - TCP protocol handling
-/// - Config reload and layer management
+/// - Config reload and layer managemen
 ///
 /// **KanataManager+EventTaps.swift** (~200 lines)
 /// - CGEvent monitoring and key capture
@@ -426,14 +426,14 @@ class KanataManager {
             processLifecycleManager: processLifecycleManager
         )
 
-        // Initialize EngineClient
+        // Initialize EngineClien
         self.engineClient = engineClient ?? TCPEngineClient()
 
         // Dispatch heavy initialization work to background thread (skip during unit tests)
-        // Prefer structured concurrency; a plain Task{} runs off the main actor by default
+        // Prefer structured concurrency; a plain Task{} runs off the main actor by defaul
         if !TestEnvironment.isRunningTests {
             Task { [weak self] in
-                // Clean up any orphaned processes first
+                // Clean up any orphaned processes firs
                 await self?.processLifecycleManager.cleanupOrphanedProcesses()
                 await self?.performInitialization()
             }
@@ -551,7 +551,7 @@ class KanataManager {
                 AppLogger.shared.info("✅ [FileWatcher] External config successfully reloaded")
                 Task { @MainActor in SoundManager.shared.playGlassSound() }
 
-                // Update configuration service with the new content
+                // Update configuration service with the new conten
                 await updateInMemoryConfig(configContent)
 
                 await MainActor.run {
@@ -607,7 +607,7 @@ class KanataManager {
 
     /// Starts Kanata with VirtualHID connection validation
     func startKanataWithValidation() async {
-        // Check if VirtualHID daemon is running first
+        // Check if VirtualHID daemon is running firs
         if !isKarabinerDaemonRunning() {
             AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
             updateInternalState(
@@ -792,7 +792,7 @@ class KanataManager {
             return
         }
 
-        // Record this start attempt
+        // Record this start attemp
         await diagnosticsManager.recordStartAttempt(timestamp: Date())
         lastStartAttempt = Date()
 
@@ -838,7 +838,7 @@ class KanataManager {
             if success {
                 AppLogger.shared.log("✅ [Start] Kanata service restarted successfully via kickstart")
                 await diagnosticsManager.recordStartSuccess()
-                // Update service status after restart
+                // Update service status after restar
                 let serviceStatus = await checkLaunchDaemonStatus()
                 if let pid = serviceStatus.pid {
                     AppLogger.shared.log("📝 [Start] Service restarted with PID: \(pid)")
@@ -881,7 +881,7 @@ class KanataManager {
             return
         }
 
-        // Check for karabiner_grabber conflict
+        // Check for karabiner_grabber conflic
         if isKarabinerElementsRunning() {
             AppLogger.shared.warn("⚠️ [Start] Detected karabiner_grabber running - attempting to kill it")
             let killed = await killKarabinerGrabber()
@@ -1050,7 +1050,7 @@ class KanataManager {
     func startAutoLaunch(presentWizardOnFailure: Bool = true) async {
         AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
 
-        // Check if this is a fresh install first
+        // Check if this is a fresh install firs
         let isFreshInstall = isFirstTimeInstall()
         let hasShownWizardBefore = UserDefaults.standard.bool(forKey: "KeyPath.HasShownWizard")
 
@@ -1241,7 +1241,7 @@ class KanataManager {
         AppLogger.shared.info("🔄 [KanataManager] Retry after fix completed")
     }
 
-    /// Request wizard presentation from any UI component
+    /// Request wizard presentation from any UI componen
     @MainActor
     func requestWizardPresentation(initialPage _: WizardPage? = nil) {
         AppLogger.shared.log("🧭 [KanataManager] Wizard presentation requested")
@@ -1281,7 +1281,7 @@ class KanataManager {
         AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed handling completed")
     }
 
-    // MARK: - LaunchDaemon Service Management
+    // MARK: - LaunchDaemon Service Managemen
 
     /// Start the Kanata LaunchDaemon service via privileged operations facade
     private func startLaunchDaemonService() async -> Bool {
@@ -1318,7 +1318,7 @@ class KanataManager {
     /// Kill a specific process by PID
     private func killProcess(pid: Int) async { await ProcessKiller.kill(pid: pid) }
 
-    // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service management
+    // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service managemen
 
     func stopKanata() async {
         AppLogger.shared.log("🛑 [Stop] Stopping Kanata LaunchDaemon service...")
@@ -1473,7 +1473,7 @@ class KanataManager {
             // Create new mapping
             let newMapping = KeyMapping(input: input, output: output)
 
-            // Remove any existing mapping with the same input
+            // Remove any existing mapping with the same inpu
             keyMappings.removeAll { $0.input == input }
 
             // Add the new mapping
@@ -1559,7 +1559,7 @@ class KanataManager {
             return true
         }
 
-        // Poll until ready or timeout
+        // Poll until ready or timeou
         while Date().timeIntervalSince(startTime) < timeout {
             // Wait a bit before checking again
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
@@ -1602,7 +1602,7 @@ class KanataManager {
             let initialCount = diagnostics.count
 
             // Remove diagnostics related to process failures and permission issues
-            // Keep configuration-related diagnostics as they may still be relevant
+            // Keep configuration-related diagnostics as they may still be relevan
             diagnostics.removeAll { diagnostic in
                 diagnostic.category == .process || diagnostic.category == .permissions
                     || (diagnostic.category == .conflict && diagnostic.title.contains("Exit"))
@@ -2162,8 +2162,8 @@ class KanataManager {
 
         // Use AppleScript to run commands with admin privileges
         let createDirScript = """
-        do shell script "mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'" \
-        with administrator privileges \
+        do shell script "mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'"
+        with administrator privileges
         with prompt "KeyPath needs to prepare system directories for the virtual keyboard."
         """
 
@@ -2208,9 +2208,9 @@ class KanataManager {
         }
     }
 
-    // MARK: - Configuration Management
+    // MARK: - Configuration Managemen
 
-    /// Load and strictly validate existing configuration with fallback to default
+    /// Load and strictly validate existing configuration with fallback to defaul
     private func loadExistingMappings() async {
         AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION BEGIN ==========")
         keyMappings.removeAll()
@@ -2331,7 +2331,7 @@ class KanataManager {
         }
     }
 
-    /// Show validation error dialog with options to cancel or revert to default
+    /// Show validation error dialog with options to cancel or revert to defaul
     private func showValidationErrorDialog(title: String, errors: [String], config _: String? = nil) async {
         await MainActor.run {
             validationAlertTitle = title
@@ -2428,7 +2428,7 @@ class KanataManager {
         }
     }
 
-    // MARK: - Configuration Backup Management
+    // MARK: - Configuration Backup Managemen
 
     /// Create a backup before opening config for editing
     /// Returns true if backup was created successfully
@@ -2477,7 +2477,7 @@ class KanataManager {
             if reloadResult.isSuccess {
                 let response = reloadResult.response ?? "Success"
                 AppLogger.shared.info("✅ [Reset] Default config applied successfully via TCP: \(response)")
-                // Play happy chime on successful reset
+                // Play happy chime on successful rese
                 await MainActor.run {
                     SoundManager.shared.playGlassSound()
                 }
@@ -2486,7 +2486,7 @@ class KanataManager {
                 let response = reloadResult.response ?? "No response"
                 AppLogger.shared.warn("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
                 AppLogger.shared.log("📝 [Reset] TCP response: \(response)")
-                // If TCP reload fails, fall back to service restart
+                // If TCP reload fails, fall back to service restar
                 await restartKanata()
             }
         }
@@ -2501,7 +2501,7 @@ class KanataManager {
         // Preferred: use privileged helper to kill Kanata processes (no admin prompt)
         do {
             try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
-            // Small settle to ensure processes exit
+            // Small settle to ensure processes exi
             try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
             AppLogger.shared.log("🛑 [Mappings] Paused by killing Kanata processes via helper")
             return true
@@ -2537,7 +2537,7 @@ class KanataManager {
 
     // MARK: - Real-Time VirtualHID Connection Monitoring
 
-    // startLogMonitoring/stopLogMonitoring moved to KanataManager+Output.swift
+    // startLogMonitoring/stopLogMonitoring moved to KanataManager+Output.swif
 
     /// Analyze new log content for VirtualHID connection issues (delegates parsing to DiagnosticsService)
     func analyzeLogContent(_ content: String) async {
