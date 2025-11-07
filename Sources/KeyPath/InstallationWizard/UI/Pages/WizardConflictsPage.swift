@@ -551,7 +551,7 @@ struct TechnicalDetailsView: View {
 
     private func loadConflictDetails() async {
         isLoadingConflicts = true
-        let processLifecycleManager = ProcessLifecycleManager()
+        let processLifecycleManager = await MainActor.run { ProcessLifecycleManager() }
         let conflicts = await processLifecycleManager.detectConflicts()
 
         await MainActor.run {
