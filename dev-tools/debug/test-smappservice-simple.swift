@@ -124,4 +124,3 @@ print("      swift run smappservice-poc com.keypath.test-daemon.plist lifecycle 
 print()
 print("   Or test with existing helper plist:")
 print("      swift run smappservice-poc com.keypath.helper.plist lifecycle --verbose")
-

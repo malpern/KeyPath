@@ -154,4 +154,3 @@ if createTestPlist {
     print("📋 Alternative: Test with existing helper plist (if app is built):")
     print("   swift run smappservice-poc com.keypath.helper.plist lifecycle --verbose")
 }
-

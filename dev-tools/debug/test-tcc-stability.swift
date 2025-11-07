@@ -42,4 +42,3 @@ print("  • Both approaches: TCC permissions independent of service registratio
 print("")
 print("✅ Conclusion: No TCC regression risk with SMAppService")
 print("")
-
