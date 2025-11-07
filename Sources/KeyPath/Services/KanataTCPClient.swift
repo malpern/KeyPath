@@ -269,7 +269,12 @@ actor KanataTCPClient {
         }
     }
 
-    struct TcpLastReload: Codable, Sendable { let ok: Bool; let at: String }
+    struct TcpLastReload: Codable, Sendable {
+        let ok: Bool
+        let at: String?
+        let duration_ms: UInt64?
+        let epoch: UInt64?
+    }
     struct TcpStatusInfo: Codable, Sendable {
         let engine_version: String?
         let uptime_s: UInt64?
@@ -363,7 +368,7 @@ actor KanataTCPClient {
 
     /// Send reload command to Kanata
     /// Tries Reload(wait/timeout_ms), falls back to basic {"Reload":{}} and Ok/Error.
-    func reloadConfig(timeoutMs: UInt32 = 3000) async -> TCPReloadResult {
+    func reloadConfig(timeoutMs: UInt32 = 5000) async -> TCPReloadResult {
         AppLogger.shared.log("🔄 [TCP] Triggering config reload (preferring wait/timeout_ms)")
 
         do {
@@ -379,10 +384,12 @@ actor KanataTCPClient {
 
             if let reload = try extractMessage(named: "ReloadResult", into: ReloadResult.self, from: responseData) {
                 if reload.ready {
-                    AppLogger.shared.log("✅ [TCP] Reload(wait) reported ready within \(reload.timeout_ms) ms")
+                    let dur = reload.duration_ms ?? 0
+                    let ep = reload.epoch ?? 0
+                    AppLogger.shared.log("✅ [TCP] Reload(wait) ok duration=\(dur)ms epoch=\(ep)")
                     return .success(response: String(data: responseData, encoding: .utf8) ?? "")
                 } else {
-                    AppLogger.shared.log("⚠️ [TCP] Reload(wait) reported not ready before timeout \(reload.timeout_ms) ms")
+                    AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout before \(reload.timeout_ms) ms")
                     return .failure(error: "timeout", response: String(data: responseData, encoding: .utf8) ?? "")
                 }
             }
@@ -406,7 +413,13 @@ actor KanataTCPClient {
         }
     }
 
-    private struct ReloadResult: Codable { let ready: Bool; let timeout_ms: UInt32 }
+    private struct ReloadResult: Codable {
+        let ready: Bool
+        let timeout_ms: UInt32
+        let ok: Bool?
+        let duration_ms: UInt64?
+        let epoch: UInt64?
+    }
 
     /// Restart Kanata process
     func restartKanata() async -> Bool {

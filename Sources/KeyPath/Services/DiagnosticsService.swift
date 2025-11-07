@@ -369,6 +369,25 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                 ))
         }
 
+        // TCP engine status (non-blocking informational)
+        if let tcpInfo = await fetchTcpStatusInfo() {
+            if let last = tcpInfo.last_reload {
+                let dur = last.duration_ms.map(String.init) ?? "-"
+                let ep = last.epoch.map(String.init) ?? "-"
+                diagnostics.append(
+                    KanataDiagnostic(
+                        timestamp: Date(),
+                        severity: .info,
+                        category: .system,
+                        title: "Last Reload",
+                        description: "ok=\(last.ok) duration_ms=\(dur) epoch=\(ep)",
+                        technicalDetails: "Reported by TCP StatusInfo",
+                        suggestedAction: "",
+                        canAutoFix: false
+                    ))
+            }
+        }
+
         return diagnostics
     }
 
@@ -586,5 +605,16 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
 
         return false
+    }
+
+    // MARK: - TCP helpers (best-effort)
+    private func fetchTcpStatusInfo() async -> KanataTCPClient.TcpStatusInfo? {
+        let client = KanataTCPClient(port: 37001)
+        do {
+            _ = try await client.hello()
+            return try await client.getStatus()
+        } catch {
+            return nil
+        }
     }
 }
