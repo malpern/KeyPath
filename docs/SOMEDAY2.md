@@ -367,7 +367,7 @@ func savePrivilegedConfig(fromTemp path: String, toSystemPath: String) async thr
 ## Swift and SwiftUI Best Practices Checklist
 
 - Avoid `runModal` NSAlert in SwiftUI where not needed; prefer `.alert` with state.
-- Do not block main thread for process I/O; always offload to `Task.detached/ProcessRunner`; present admin prompts on main thread only for UI security reasons.
+- Do not block main thread for process I/O; offload using structured concurrency and background queues/`ProcessRunner`. Prefer `Task {}`; use `Task.detached` only when you intentionally need to break parent cancellation/priority or actor context, and document the rationale. Present admin prompts on the main thread for UI security.
 - Prefer actors for shared mutable state accessed across tasks (PID cache already uses actor—extend to service warm-up tracking).
 - Use Result builders for script assembly sparingly; prefer arrays-of-commands to reduce quoting complexity.
 - Make larger view bodies readable by extracting subviews and moving imperative logic into view models/managers.

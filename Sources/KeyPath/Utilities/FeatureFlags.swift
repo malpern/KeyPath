@@ -52,6 +52,7 @@ extension FeatureFlags: @unchecked Sendable {}
 // MARK: - Persisted flags (UserDefaults-backed)
 extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
+    private static let tcpProtocolV2Key = "TCP_PROTOCOL_V2_ENABLED"
 
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
@@ -62,5 +63,18 @@ extension FeatureFlags {
 
     static func setCaptureListenOnlyEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
+    }
+
+    // MARK: - Protocol flags
+
+    static var tcpProtocolV2Enabled: Bool {
+        if UserDefaults.standard.object(forKey: tcpProtocolV2Key) == nil {
+            return true // default ON (canary-friendly)
+        }
+        return UserDefaults.standard.bool(forKey: tcpProtocolV2Key)
+    }
+
+    static func setTcpProtocolV2Enabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: tcpProtocolV2Key)
     }
 }

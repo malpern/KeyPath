@@ -113,7 +113,7 @@ cd "$KANATA_SOURCE"
 MACOSX_DEPLOYMENT_TARGET=11.0 \
 cargo build \
     --release \
-    --features cmd \
+    --features cmd,tcp_server \
     --target aarch64-apple-darwin
 
 # Skip x86_64 build for now due to Rust toolchain issues

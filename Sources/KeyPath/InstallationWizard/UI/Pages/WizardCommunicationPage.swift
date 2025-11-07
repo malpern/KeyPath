@@ -237,8 +237,29 @@ struct WizardCommunicationPage: View {
                     // IMPORTANT: Kanata v1.9.0 TCP server does NOT support authentication
                     // It ignores all Authenticate messages. We only need to verify the server responds.
 
-                    // 1) Is the server answering?
-                    let responding = await client.checkServerStatus()
+                    // 1) Is the server answering? Prefer Hello handshake to align with summary check
+                    let responding: Bool
+                    do {
+                        let t0 = CFAbsoluteTimeGetCurrent()
+                        let hello = try await client.hello()
+                        responding = true
+                        let dt = CFAbsoluteTimeGetCurrent() - t0
+                        AppLogger.shared.log("🌐 [WizardCommDetail] hello ok port=\(port) duration_ms=\(Int(dt*1000)) caps=\(hello.capabilities.joined(separator: ","))")
+
+                        // Ensure Status capability exists to claim "Communication Ready"
+                        if !hello.hasCapabilities(["status"]) {
+                            AppLogger.shared.log("🌐 [WizardCommDetail] missing 'status' capability -> not ready")
+                            await MainActor.run {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    commStatus = .needsSetup("TCP reachable but Status capability not available (older Kanata). Install/update via Wizard.")
+                                }
+                            }
+                            return
+                        }
+                    } catch {
+                        responding = false
+                        AppLogger.shared.log("🌐 [WizardCommDetail] hello failed port=\(port) error=\(error.localizedDescription)")
+                    }
                     guard responding else {
                         await MainActor.run {
                             withAnimation(.easeInOut(duration: 0.3)) {

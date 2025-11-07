@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import KeyPathCore
 
 /// Protocol for managing Kanata configuration files
 @preconcurrency

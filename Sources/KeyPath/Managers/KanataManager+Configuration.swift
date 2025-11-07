@@ -70,7 +70,13 @@ extension KanataManager {
 
         AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
         let res = await engineClient.reloadConfig()
-        return mapEngineToTCP(res)
+        let mapped = mapEngineToTCP(res)
+
+        // Best-effort: subscribe on a fresh connection and await one Ready/ConfigError event
+        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
+        Task { await ReloadEventService().awaitReloadEventAndReport(port: port, timeout: 2.0) }
+
+        return mapped
     }
 
     private func mapEngineToTCP(_ result: EngineReloadResult) -> TCPReloadResult {

@@ -231,4 +231,17 @@ class KanataViewModel: ObservableObject {
     var configPath: String {
         manager.configPath
     }
+
+    // MARK: - Service Maintenance Actions
+
+    func regenerateServices() async -> Bool {
+        let ok = await manager.regenerateServices()
+        await syncFromManager()
+        return ok
+    }
+
+    func restartKanata() async {
+        await manager.restartKanata()
+        await syncFromManager()
+    }
 }

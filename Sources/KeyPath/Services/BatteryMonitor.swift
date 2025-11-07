@@ -61,7 +61,7 @@ struct IOKitBatteryStatusProvider: BatteryStatusProviding {
 }
 
 /// Polls the system battery and dispatches updates to the provided handler
-final class BatteryMonitor {
+final class BatteryMonitor: @unchecked Sendable {
     typealias Handler = @Sendable (BatteryReading?) -> Void
 
     private let provider: BatteryStatusProviding

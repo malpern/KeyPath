@@ -59,24 +59,74 @@ struct ErrorInfo: Identifiable {
     static func from(_ error: Error) -> ErrorInfo {
         let errorString = error.localizedDescription.lowercased()
 
-        // TCP timeout errors (like the user experienced)
-        if (errorString.contains("tcp") && errorString.contains("timeout")) ||
-            errorString.contains("tcp request timed out") ||
-            errorString.contains("tcp communication failed") {
-            return ErrorInfo(
-                originalError: error,
-                errorType: .tcpTimeout,
-                title: "Connection Timeout",
-                detailedMessage: """
-                KeyPath couldn't communicate with the keyboard service to apply your changes.
+        // Check for KeyPathError structure first for more accurate classification
+        if let keyPathError = error as? KeyPathError {
+            switch keyPathError {
+            case let .configuration(.loadFailed(reason)):
+                // Check if this is a TCP connectivity issue masquerading as config error
+                let reasonLower = reason.lowercased()
+                if reasonLower.contains("tcp") && (reasonLower.contains("required") || reasonLower.contains("unresponsive") || reasonLower.contains("failed") || reasonLower.contains("reload")) {
+                    return ErrorInfo(
+                        originalError: error,
+                        errorType: .tcpTimeout,
+                        title: "Service Connection Failed",
+                        detailedMessage: """
+                        KeyPath couldn't communicate with the keyboard service to validate your configuration.
 
-                This usually happens when the service becomes unresponsive. Your mapping was safely rolled back to prevent issues.
-                """,
-                recoveryActions: [
-                    .restartKanataService,
-                    .openDiagnostics
-                ]
-            )
+                        The TCP server is required for configuration validation but is not responding. Your changes were safely rolled back to prevent issues.
+                        """,
+                        recoveryActions: [
+                            .restartKanataService,
+                            .openDiagnostics
+                        ]
+                    )
+                }
+                // Fall through to generic config error handling
+            case .configuration(.validationFailed):
+                // Actual configuration validation errors
+                return ErrorInfo(
+                    originalError: error,
+                    errorType: .configValidation,
+                    title: "Configuration Error",
+                    detailedMessage: """
+                    The keyboard configuration contains invalid settings that prevent it from loading.
+
+                    This is usually due to conflicting key assignments or unsupported key combinations.
+                    """,
+                    recoveryActions: [
+                        .resetToSafeConfig,
+                        .openDiagnostics
+                    ]
+                )
+            default:
+                break
+            }
+        }
+
+        // TCP-related errors (check BEFORE config validation to avoid false positives)
+        if errorString.contains("tcp") {
+            // TCP timeout or connection errors
+            if errorString.contains("timeout") ||
+                errorString.contains("tcp request timed out") ||
+                errorString.contains("tcp communication failed") ||
+                errorString.contains("tcp server required") ||
+                errorString.contains("tcp server unresponsive") ||
+                errorString.contains("tcp reload failed") {
+                return ErrorInfo(
+                    originalError: error,
+                    errorType: .tcpTimeout,
+                    title: "Service Connection Failed",
+                    detailedMessage: """
+                    KeyPath couldn't communicate with the keyboard service to apply your changes.
+
+                    The TCP server is required for configuration validation but is not responding. Your changes were safely rolled back to prevent issues.
+                    """,
+                    recoveryActions: [
+                        .restartKanataService,
+                        .openDiagnostics
+                    ]
+                )
+            }
         }
 
         // Permission errors
@@ -116,22 +166,25 @@ struct ErrorInfo: Identifiable {
             )
         }
 
-        // Config validation errors
-        if errorString.contains("config"), errorString.contains("invalid") || errorString.contains("validation") {
-            return ErrorInfo(
-                originalError: error,
-                errorType: .configValidation,
-                title: "Configuration Error",
-                detailedMessage: """
-                The keyboard configuration contains invalid settings that prevent it from loading.
+        // Config validation errors (only if NOT a TCP error)
+        // Make sure we don't match TCP errors that mention "validation"
+        if errorString.contains("config") && !errorString.contains("tcp") {
+            if errorString.contains("invalid") || errorString.contains("validation") {
+                return ErrorInfo(
+                    originalError: error,
+                    errorType: .configValidation,
+                    title: "Configuration Error",
+                    detailedMessage: """
+                    The keyboard configuration contains invalid settings that prevent it from loading.
 
-                This is usually due to conflicting key assignments or unsupported key combinations.
-                """,
-                recoveryActions: [
-                    .resetToSafeConfig,
-                    .openDiagnostics
-                ]
-            )
+                    This is usually due to conflicting key assignments or unsupported key combinations.
+                    """,
+                    recoveryActions: [
+                        .resetToSafeConfig,
+                        .openDiagnostics
+                    ]
+                )
+            }
         }
 
         // Generic error fallback

@@ -28,7 +28,7 @@ struct DiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
     @State private var systemDiagnostics: [KanataDiagnostic] = []
-    @State private var showTechnicalDetails: Set<UUID> = []
+    @State private var showTechnicalDetails: Set<Int> = []
     @State private var isRunningDiagnostics = false
     @State private var showingWizard = false
 
@@ -85,6 +85,26 @@ struct DiagnosticsView: View {
                     // Enhanced System Status
                     EnhancedStatusSection(kanataManager: kanataManager)
 
+                    // Build Info
+                    VStack(alignment: .leading, spacing: 4) {
+                        let bi = BuildInfo.current()
+                        let dot = " • "
+                        Text("Build: \(bi.version) (\(bi.build))\(dot)Git: \(String(bi.git.prefix(7)))\(dot)\(bi.date)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.bottom, 6)
+
+                    // System Diagnostics (includes TCP status, engine status, etc.)
+                    if !systemDiagnostics.isEmpty {
+                        DiagnosticSection(
+                            title: "System Diagnostics",
+                            diagnostics: systemDiagnostics,
+                            showTechnicalDetails: $showTechnicalDetails,
+                            kanataManager: kanataManager
+                        )
+                    }
+
                     // Runtime Diagnostics (process crashes, config errors, etc.)
                     if !kanataManager.diagnostics.isEmpty {
                         DiagnosticSection(
@@ -122,8 +142,11 @@ struct DiagnosticsView: View {
         isRunningDiagnostics = true
 
         Task {
+            // Fetch system diagnostics including TCP status
+            let diagnostics = await kanataManager.underlyingManager.getSystemDiagnostics()
+
             await MainActor.run {
-                systemDiagnostics = []
+                systemDiagnostics = diagnostics
                 isRunningDiagnostics = false
             }
         }
@@ -236,6 +259,12 @@ struct DiagnosticsView: View {
 
 struct ProcessStatusSection: View {
     @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
+    @State private var isRegenerating = false
+    @State private var statusMessage: String = ""
+    @State private var showSuccessMessage = false
+    @State private var showErrorMessage = false
+    @State private var statusMessageTimer: DispatchWorkItem?
+    @State private var isRestarting = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -276,9 +305,75 @@ struct ProcessStatusSection: View {
                 }
                 .padding(.top, 4)
             }
+
+            HStack {
+                Button(isRegenerating ? "Regenerating…" : "Regenerate Services") {
+                    guard !isRegenerating else { return }
+                    isRegenerating = true
+                    Task { @MainActor in
+                        let ok = await kanataManager.regenerateServices()
+                        if ok {
+                            showToast("✅ Services regenerated", isError: false)
+                        } else {
+                            let msg = kanataManager.lastError ?? "Regenerate services failed"
+                            showToast("❌ \(msg)", isError: true)
+                        }
+                        isRegenerating = false
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(isRegenerating)
+
+                Button(isRestarting ? "Restarting…" : "Restart Kanata") {
+                    guard !isRestarting else { return }
+                    isRestarting = true
+                    Task { @MainActor in
+                        await kanataManager.restartKanata()
+                        showToast("✅ Kanata restarted", isError: false)
+                        await kanataManager.forceRefreshStatus()
+                        isRestarting = false
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isRestarting)
+
+                Spacer()
+            }
+            .padding(.top, 4)
+
+            if showSuccessMessage || showErrorMessage {
+                HStack {
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundColor(showErrorMessage ? .red : .green)
+                        .padding(8)
+                        .background((showErrorMessage ? Color.red.opacity(0.1) : Color.green.opacity(0.1)))
+                        .cornerRadius(6)
+                    Spacer()
+                }
+                .transition(.opacity)
+            }
         }
         .padding(16)
         .appGlassCard()
+    }
+}
+
+extension ProcessStatusSection {
+    private func showToast(_ message: String, isError: Bool) {
+        statusMessageTimer?.cancel()
+        statusMessage = message
+        showErrorMessage = isError
+        showSuccessMessage = !isError
+
+        let workItem = DispatchWorkItem {
+            showErrorMessage = false
+            showSuccessMessage = false
+        }
+        statusMessageTimer = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + (isError ? 5.0 : 3.0), execute: workItem)
     }
 }
 
@@ -347,7 +442,7 @@ struct PermissionStatusSection: View {
 struct DiagnosticSection: View {
     let title: String
     let diagnostics: [KanataDiagnostic]
-    @Binding var showTechnicalDetails: Set<UUID>
+    @Binding var showTechnicalDetails: Set<Int>
     @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
 
     var body: some View {
@@ -357,7 +452,8 @@ struct DiagnosticSection: View {
 
             ForEach(diagnostics.indices, id: \.self) { index in
                 let diagnostic = diagnostics[index]
-                let diagnosticId = UUID() // Create stable ID for this diagnostic
+                let diagnosticKey = "\(diagnostic.title)|\(diagnostic.description)|\(diagnostic.technicalDetails)"
+                let diagnosticId = diagnosticKey.hashValue // Stable per-content id
 
                 DiagnosticCard(
                     diagnostic: diagnostic,
@@ -371,7 +467,12 @@ struct DiagnosticSection: View {
                     },
                     onAutoFix: {
                         Task {
-                            await kanataManager.autoFixDiagnostic(diagnostic)
+                            if diagnostic.title.contains("protocol too old") {
+                                _ = await kanataManager.regenerateServices()
+                                await kanataManager.forceRefreshStatus()
+                            } else {
+                                await kanataManager.autoFixDiagnostic(diagnostic)
+                            }
                         }
                     }
                 )
@@ -433,11 +534,13 @@ struct DiagnosticCard: View {
                     .controlSize(.small)
                 }
 
-                Button(showTechnicalDetails ? "Hide Details" : "Show Details") {
-                    onToggleTechnicalDetails()
+                if !diagnostic.technicalDetails.isEmpty {
+                    Button(showTechnicalDetails ? "Hide Details" : "Show Details") {
+                        onToggleTechnicalDetails()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
 
                 Spacer()
 
@@ -588,7 +691,7 @@ struct ConfigStatusSection: View {
                 .buttonStyle(.plain)
 
                 if showConfigContent {
-                    if let configContent = try? String(contentsOfFile: kanataManager.configPath) {
+                    if let configContent = try? String(contentsOfFile: kanataManager.configPath, encoding: .utf8) {
                         ScrollView {
                             Text(configContent)
                                 .font(.system(.caption, design: .monospaced))

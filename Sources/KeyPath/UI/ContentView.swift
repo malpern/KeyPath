@@ -276,6 +276,11 @@ struct ContentView: View {
                 logInputDisabledReason()
                 logOutputDisabledReason()
             }
+
+            // Trigger first-run validation on launch to drive the status indicator immediately
+            Task {
+                await stateController.performInitialValidation()
+            }
         }
         .onReceive(recordingCoordinator.$input.map(\.isRecording).removeDuplicates()) { isRecording in
             AppLogger.shared.log("🔁 [UI] isRecording changed -> \(isRecording)")
@@ -602,6 +607,18 @@ struct ContentView: View {
             return
         }
 
+        // Handle TCP connectivity errors (before config validation to avoid false positives)
+        if case let KeyPathError.configuration(.loadFailed(reason)) = error {
+            let reasonLower = reason.lowercased()
+            if reasonLower.contains("tcp") && (reasonLower.contains("required") || reasonLower.contains("unresponsive") || reasonLower.contains("failed") || reasonLower.contains("reload")) {
+                // Use enhanced error handler for TCP connectivity issues
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                    enhancedErrorInfo = ErrorInfo.from(error)
+                }
+                return
+            }
+        }
+
         // Handle configuration validation errors with detailed feedback
         if case let KeyPathError.configuration(.validationFailed(errors)) = error {
             configCorruptionDetails = """
@@ -645,7 +662,10 @@ struct ContentView: View {
         }
 
         // Generic error handling for all other cases
-        showStatusMessage(message: "❌ Error saving: \(error.localizedDescription)")
+        // Use enhanced error handler for proper error classification
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+            enhancedErrorInfo = ErrorInfo.from(error)
+        }
     }
 
     private func handleInputRecordTap() {

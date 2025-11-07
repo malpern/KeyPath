@@ -40,6 +40,20 @@ enum DiagnosticCategory: String, CaseIterable, Sendable {
     case conflict = "Conflict"
 }
 
+// MARK: - Shared Types
+
+struct VirtualHIDDaemonStatus: Sendable {
+    let pids: [String]
+    let owners: [String]
+    let serviceInstalled: Bool
+    let serviceState: String
+}
+
+enum DiagnosticsLogEvent: Sendable {
+    case virtualHIDConnectionFailed
+    case virtualHIDConnected
+}
+
 // MARK: - Protocol
 
 /// Service responsible for generating and analyzing system diagnostics
@@ -49,18 +63,18 @@ protocol DiagnosticsServiceProtocol: Sendable {
 
     /// Get comprehensive system diagnostics
     func getSystemDiagnostics() async -> [KanataDiagnostic]
+    /// Overload used by managers expecting to pass an engine client
+    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic]
 
     /// Check for Kanata process conflicts
     func checkProcessConflicts() async -> [KanataDiagnostic]
 
     /// Analyze log file for issues
     func analyzeLogFile(path: String) async -> [KanataDiagnostic]
-
-    /// Low-level status for Karabiner VirtualHID daemon used in summaries/toasts
-    func virtualHIDDaemonStatus() -> (pids: [String], owners: [String], serviceInstalled: Bool, serviceState: String)
-
-    /// Analyze a chunk of kanata log content and emit structured events
-    func analyzeKanataLogChunk(_ content: String) -> [DiagnosticsService.LogEvent]
+    /// VirtualHID daemon low-level status (used for summaries)
+    func virtualHIDDaemonStatus() -> VirtualHIDDaemonStatus
+    /// Parse a log chunk into high-level events
+    func analyzeKanataLogChunk(_ chunk: String) -> [DiagnosticsLogEvent]
 }
 
 // MARK: - Implementation
@@ -71,6 +85,36 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
     init(processLifecycleManager: ProcessLifecycleManager) {
         self.processLifecycleManager = processLifecycleManager
+    }
+
+    nonisolated func virtualHIDDaemonStatus() -> VirtualHIDDaemonStatus {
+        // Minimal, non-blocking snapshot using VHIDDeviceManager
+        let vhid = VHIDDeviceManager()
+        let running = vhid.detectRunning()
+        let installed = vhid.detectActivation()
+        // We do not enumerate PIDs here; return empty for now
+        return VirtualHIDDaemonStatus(
+            pids: running ? ["1"] : [], // placeholder count-only signal
+            owners: [],
+            serviceInstalled: installed,
+            serviceState: running ? "running" : "stopped"
+        )
+    }
+
+    nonisolated func analyzeKanataLogChunk(_ chunk: String) -> [DiagnosticsLogEvent] {
+        var events: [DiagnosticsLogEvent] = []
+        let lower = chunk.lowercased()
+        if lower.contains("connection established") || lower.contains("vhid connected") {
+            events.append(.virtualHIDConnected)
+        }
+        if lower.contains("asio.system") || lower.contains("connection failed") || lower.contains("vhid error") {
+            events.append(.virtualHIDConnectionFailed)
+        }
+        return events
+    }
+
+    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic] {
+        await getSystemDiagnostics()
     }
 
     // MARK: - Failure Analysis
@@ -309,97 +353,74 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                 ))
         }
 
-        // Check background services
+        // Karabiner background services
+        // If they are disabled, that's OK for KeyPath (it avoids conflicts). Downgrade to info.
         if !areKarabinerBackgroundServicesEnabled() {
             diagnostics.append(
                 KanataDiagnostic(
                     timestamp: Date(),
-                    severity: .warning,
+                    severity: .info,
                     category: .system,
-                    title: "Background Services Not Enabled",
-                    description: "Karabiner background services may not be enabled",
-                    technicalDetails: "Services not detected in launchctl",
-                    suggestedAction: "Enable in System Settings > General > Login Items & Extensions",
+                    title: "Karabiner Background Services Disabled (OK)",
+                    description: "Karabiner-Elements background services are not enabled. This is fine when using KeyPath.",
+                    technicalDetails: "No org.pqrs.karabiner services detected in launchctl",
+                    suggestedAction: "No action needed unless you intend to use Karabiner-Elements.",
                     canAutoFix: false
                 ))
         }
 
+        // TCP engine status (non-blocking informational)
+        if let tcpInfo = await fetchTcpStatusInfo() {
+            if let last = tcpInfo.last_reload {
+                let dur = last.duration_ms.map(String.init) ?? "-"
+                let ep = last.epoch.map(String.init) ?? "-"
+                diagnostics.append(
+                    KanataDiagnostic(
+                        timestamp: Date(),
+                        severity: .info,
+                        category: .system,
+                        title: "Last Reload",
+                        description: "ok=\(last.ok) duration_ms=\(dur) epoch=\(ep)",
+                        technicalDetails: "Reported by TCP StatusInfo",
+                        suggestedAction: "",
+                        canAutoFix: false
+                    ))
+            }
+        }
+
+        // TCP handshake summary (protocol/capabilities)
+        if let hello = await fetchTcpHello() {
+            let caps = hello.capabilities.joined(separator: ", ")
+            let proto = hello.protocolVersion
+            diagnostics.append(
+                KanataDiagnostic(
+                    timestamp: Date(),
+                    severity: .info,
+                    category: .system,
+                    title: "TCP Handshake",
+                    description: "version=\(hello.version) protocol=\(proto) caps=[\(caps)]",
+                    technicalDetails: "HelloOk(version, protocol, capabilities)",
+                    suggestedAction: "",
+                    canAutoFix: false
+                ))
+
+            // Enforce protocol v2 for full functionality
+            if proto < 2 {
+                diagnostics.append(
+                    KanataDiagnostic(
+                        timestamp: Date(),
+                        severity: .error,
+                        category: .system,
+                        title: "Kanata protocol too old",
+                        description: "Detected protocol v\(proto). KeyPath requires v2 for blocking reload and richer status.",
+                        technicalDetails: "HelloOk reported protocol=\(proto)",
+                        suggestedAction: "Use Regenerate Services to install the bundled Kanata and reload services.",
+                        canAutoFix: true
+                    ))
+            }
+        }
+
         return diagnostics
-    }
-
-    // MARK: - VirtualHID Daemon Status
-
-    func virtualHIDDaemonStatus() -> (pids: [String], owners: [String], serviceInstalled: Bool, serviceState: String) {
-        // pgrep VirtualHID daemon
-        let pids: [String] = {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            task.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
-            let pipe = Pipe(); task.standardOutput = pipe
-            do { try task.run(); task.waitUntilExit() } catch {}
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            return output
-                .split(separator: "\n")
-                .map { String($0).trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-        }()
-
-        // ps owners
-        var owners: [String] = []
-        for pid in pids {
-            let ps = Process()
-            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
-            ps.arguments = ["-o", "pid,ppid,user,command", "-p", pid]
-            let pp = Pipe(); ps.standardOutput = pp
-            if (try? ps.run()) != nil {
-                ps.waitUntilExit()
-                let d = pp.fileHandleForReading.readDataToEndOfFile()
-                if let s = String(data: d, encoding: .utf8) {
-                    owners.append(s.trimmingCharacters(in: .whitespacesAndNewlines))
-                }
-            }
-        }
-
-        // launchctl state
-        let label = "com.keypath.karabiner-vhiddaemon"
-        let plistPath = "/Library/LaunchDaemons/\(label).plist"
-        let serviceInstalled = FileManager.default.fileExists(atPath: plistPath)
-        var serviceState = "unknown"
-        if serviceInstalled {
-            let t = Process(); t.executableURL = URL(fileURLWithPath: "/bin/launchctl"); t.arguments = ["print", "system/\(label)"]
-            let p = Pipe(); t.standardOutput = p; t.standardError = p
-            if (try? t.run()) != nil {
-                t.waitUntilExit()
-                let d = p.fileHandleForReading.readDataToEndOfFile()
-                let s = String(data: d, encoding: .utf8) ?? ""
-                if let line = s.split(separator: "\n").first(where: { $0.contains("state =") }) {
-                    serviceState = String(line).trimmingCharacters(in: .whitespaces)
-                }
-            }
-        }
-
-        return (pids, owners, serviceInstalled, serviceState)
-    }
-
-    // MARK: - Log Parsing
-
-    enum LogEvent: Sendable, Equatable {
-        case virtualHIDConnectionFailed
-        case virtualHIDConnected
-    }
-
-    func analyzeKanataLogChunk(_ content: String) -> [LogEvent] {
-        var events: [LogEvent] = []
-        let lines = content.components(separatedBy: .newlines)
-        for line in lines {
-            if line.contains("connect_failed asio.system:2") || line.contains("connect_failed asio.system:61") {
-                events.append(.virtualHIDConnectionFailed)
-            } else if line.contains("driver_connected 1") {
-                events.append(.virtualHIDConnected)
-            }
-        }
-        return events
     }
 
     // MARK: - Process Conflict Checking
@@ -616,5 +637,25 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
 
         return false
+    }
+
+    // MARK: - TCP helpers (best-effort)
+    private func fetchTcpStatusInfo() async -> KanataTCPClient.TcpStatusInfo? {
+        let client = KanataTCPClient(port: 37001)
+        do {
+            _ = try await client.hello()
+            return try await client.getStatus()
+        } catch {
+            return nil
+        }
+    }
+
+    private func fetchTcpHello() async -> KanataTCPClient.TcpHelloOk? {
+        let client = KanataTCPClient(port: 37001)
+        do {
+            return try await client.hello()
+        } catch {
+            return nil
+        }
     }
 }
