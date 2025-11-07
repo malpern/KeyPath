@@ -53,7 +53,7 @@ struct SystemStatusIndicator: View {
         }
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Click to open system setup wizard")
-        .opacity(validator.validationState == nil ? 0 : 1) // Invisible but reserves space
+        .opacity(1) // Always visible; shows gear before first validation
         .animation(.easeIn(duration: 0.2), value: validator.validationState == nil) // Smooth fade-in
     }
 
@@ -85,6 +85,14 @@ struct SystemStatusIndicator: View {
                     }
                     .transition(.opacity)
                 }
+            } else {
+                // Before first validation, show animated gear as a neutral entrypoint
+                Image(systemName: "gear")
+                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
+                    .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
+                    .onAppear { isAnimating = true }
+                    .onDisappear { isAnimating = false }
+                    .transition(.opacity)
             }
         }
         .frame(width: indicatorSize, height: indicatorSize) // Fixed size to prevent jumps

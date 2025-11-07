@@ -424,33 +424,23 @@ struct WizardSystemStatusOverview: View {
             return .failed
         }
 
-        // NOTE: Kanata v1.9.0 TCP does NOT require authentication
-        // No token check needed - just verify service has TCP configuration
-
-        // Check if the LaunchDaemon plist exists and has TCP configuration
-        // If plist doesn't exist or doesn't have --port argument, service needs regeneration
+        // Resolve TCP port from LaunchDaemon plist, then probe Hello/Status quickly
         let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
-        let plistExists = FileManager.default.fileExists(atPath: plistPath)
-
-        if !plistExists {
-            return .failed // Service plist doesn't exist
+        guard let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
+              let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+              let args = plist["ProgramArguments"] as? [String],
+              let idx = args.firstIndex(of: "--port"), args.count > idx + 1,
+              let port = Int(args[idx + 1].split(separator: ":").last ?? Substring(""))
+        else {
+            return .failed
         }
 
-        // Try to read plist and check for TCP port argument
-        if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
-           let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String] {
-            // Check if --port argument exists (TCP configuration)
-            let hasTCPPort = args.contains("--port")
-            guard hasTCPPort else {
-                return .failed // Service uses old TCP configuration
-            }
-        } else {
-            return .failed // Can't read plist or parse arguments
-        }
-
-        // If everything checks out, show as completed
-        return .completed
+        // Fast synchronous probe to align with detail page (requires Status capability)
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let ok = probeTCPHelloRequiresStatus(port: port, timeoutMs: 300)
+        let dt = CFAbsoluteTimeGetCurrent() - t0
+        AppLogger.shared.log("🌐 [WizardCommSummary] probe result: ok=\(ok) port=\(port) duration_ms=\(Int(dt*1000))")
+        return ok ? .completed : .failed
     }
 
     private func getServiceStatus() -> InstallationStatus {
@@ -489,6 +479,43 @@ struct WizardSystemStatusOverview: View {
             return (.service, "Check service status")
         }
     }
+}
+
+// MARK: - TCP Probe (synchronous, tiny timeout)
+
+private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
+    var readStream: Unmanaged<CFReadStream>? = nil
+    var writeStream: Unmanaged<CFWriteStream>? = nil
+    CFStreamCreatePairWithSocketToHost(nil, "127.0.0.1" as CFString, UInt32(port), &readStream, &writeStream)
+    guard let r = readStream?.takeRetainedValue(), let w = writeStream?.takeRetainedValue() else { return false }
+    let input = r as InputStream
+    let output = w as OutputStream
+    input.open(); output.open()
+    defer { input.close(); output.close() }
+
+    // Send Hello request
+    let hello = "{\"Hello\":{}}\n"
+    if let data = hello.data(using: .utf8) {
+        _ = data.withUnsafeBytes { output.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: data.count) }
+    }
+
+    let start = Date()
+    var buffer = [UInt8](repeating: 0, count: 2048)
+    var received = Data()
+    while Date().timeIntervalSince(start) * 1000.0 < Double(timeoutMs) {
+        let n = input.read(&buffer, maxLength: buffer.count)
+        if n > 0 {
+            received.append(buffer, count: n)
+            if let s = String(data: received, encoding: .utf8) {
+                // Expect Ok + HelloOk JSON, and require "status" capability
+                if s.contains("\"HelloOk\"") && s.contains("\"status\"") { return true }
+                if s.contains("unknown variant") { return false } // old server
+            }
+        } else {
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+    }
+    return false
 }
 
 // MARK: - Status Item Model

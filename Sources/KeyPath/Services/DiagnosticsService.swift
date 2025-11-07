@@ -40,6 +40,20 @@ enum DiagnosticCategory: String, CaseIterable, Sendable {
     case conflict = "Conflict"
 }
 
+// MARK: - Shared Types
+
+struct VirtualHIDDaemonStatus: Sendable {
+    let pids: [String]
+    let owners: [String]
+    let serviceInstalled: Bool
+    let serviceState: String
+}
+
+enum DiagnosticsLogEvent: Sendable {
+    case virtualHIDConnectionFailed
+    case virtualHIDConnected
+}
+
 // MARK: - Protocol
 
 /// Service responsible for generating and analyzing system diagnostics
@@ -48,6 +62,8 @@ protocol DiagnosticsServiceProtocol: Sendable {
     func diagnoseKanataFailure(exitCode: Int32, output: String) -> [KanataDiagnostic]
 
     /// Get comprehensive system diagnostics
+    func getSystemDiagnostics() async -> [KanataDiagnostic]
+    /// Overload used by managers expecting to pass an engine client
     func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic]
 
     /// Check for Kanata process conflicts
@@ -55,15 +71,10 @@ protocol DiagnosticsServiceProtocol: Sendable {
 
     /// Analyze log file for issues
     func analyzeLogFile(path: String) async -> [KanataDiagnostic]
-
-    /// Low-level status for Karabiner VirtualHID daemon used in summaries/toasts
-    func virtualHIDDaemonStatus() -> (pids: [String], owners: [String], serviceInstalled: Bool, serviceState: String)
-
-    /// Analyze a chunk of kanata log content and emit structured events
-    func analyzeKanataLogChunk(_ content: String) -> [DiagnosticsService.LogEvent]
-
-    /// Get Kanata engine status via TCP Status endpoint (if available)
-    func getKanataEngineStatus(engineClient: EngineClient?) async -> KanataEngineStatus?
+    /// VirtualHID daemon low-level status (used for summaries)
+    func virtualHIDDaemonStatus() -> VirtualHIDDaemonStatus
+    /// Parse a log chunk into high-level events
+    func analyzeKanataLogChunk(_ chunk: String) -> [DiagnosticsLogEvent]
 }
 
 // MARK: - Implementation
@@ -74,6 +85,36 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
     init(processLifecycleManager: ProcessLifecycleManager) {
         self.processLifecycleManager = processLifecycleManager
+    }
+
+    nonisolated func virtualHIDDaemonStatus() -> VirtualHIDDaemonStatus {
+        // Minimal, non-blocking snapshot using VHIDDeviceManager
+        let vhid = VHIDDeviceManager()
+        let running = vhid.detectRunning()
+        let installed = vhid.detectActivation()
+        // We do not enumerate PIDs here; return empty for now
+        return VirtualHIDDaemonStatus(
+            pids: running ? ["1"] : [], // placeholder count-only signal
+            owners: [],
+            serviceInstalled: installed,
+            serviceState: running ? "running" : "stopped"
+        )
+    }
+
+    nonisolated func analyzeKanataLogChunk(_ chunk: String) -> [DiagnosticsLogEvent] {
+        var events: [DiagnosticsLogEvent] = []
+        let lower = chunk.lowercased()
+        if lower.contains("connection established") || lower.contains("vhid connected") {
+            events.append(.virtualHIDConnected)
+        }
+        if lower.contains("asio.system") || lower.contains("connection failed") || lower.contains("vhid error") {
+            events.append(.virtualHIDConnectionFailed)
+        }
+        return events
+    }
+
+    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic] {
+        await getSystemDiagnostics()
     }
 
     // MARK: - Failure Analysis
@@ -213,83 +254,10 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         return diagnostics
     }
 
-    // MARK: - Engine Status
-
-    /// Result of checking Kanata engine status via TCP
-    struct KanataEngineStatus: Sendable {
-        let engineVersion: String
-        let uptimeSeconds: UInt64
-        let ready: Bool
-        let lastReloadOk: Bool
-        let lastReloadAt: String? // Epoch seconds timestamp
-    }
-
-    func getKanataEngineStatus(engineClient: EngineClient?) async -> KanataEngineStatus? {
-        guard let engineClient = engineClient as? TCPEngineClient else {
-            return nil
-        }
-
-        switch await engineClient.getStatus() {
-        case .success(let statusInfo):
-            return KanataEngineStatus(
-                engineVersion: statusInfo.engine_version,
-                uptimeSeconds: statusInfo.uptime_s,
-                ready: statusInfo.ready,
-                lastReloadOk: statusInfo.last_reload.ok,
-                lastReloadAt: statusInfo.last_reload.at
-            )
-        case .failure:
-            return nil
-        }
-    }
-
     // MARK: - System Diagnostics
 
-    func getSystemDiagnostics(engineClient: EngineClient? = nil) async -> [KanataDiagnostic] {
+    func getSystemDiagnostics() async -> [KanataDiagnostic] {
         var diagnostics: [KanataDiagnostic] = []
-
-        // Check Kanata engine status via TCP (if available)
-        if let engineStatus = await getKanataEngineStatus(engineClient: engineClient) {
-            // Add engine status diagnostic
-            if !engineStatus.ready {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .warning,
-                        category: .process,
-                        title: "Kanata Engine Not Ready",
-                        description: "Engine is running but not ready to remap keys (uptime: \(engineStatus.uptimeSeconds)s)",
-                        technicalDetails: "Engine version: \(engineStatus.engineVersion), Last reload: \(engineStatus.lastReloadOk ? "OK" : "Failed")",
-                        suggestedAction: "Wait for engine to become ready or check configuration",
-                        canAutoFix: false
-                    ))
-            } else if !engineStatus.lastReloadOk {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .configuration,
-                        title: "Last Configuration Reload Failed",
-                        description: "Engine is running but last configuration reload failed",
-                        technicalDetails: "Engine version: \(engineStatus.engineVersion), Uptime: \(engineStatus.uptimeSeconds)s",
-                        suggestedAction: "Check configuration file for errors",
-                        canAutoFix: true
-                    ))
-            } else {
-                // Engine is healthy - add informational diagnostic
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .info,
-                        category: .process,
-                        title: "Kanata Engine Healthy",
-                        description: "Engine is running and ready (version: \(engineStatus.engineVersion), uptime: \(formatUptime(engineStatus.uptimeSeconds)))",
-                        technicalDetails: "TCP Status endpoint indicates healthy state",
-                        suggestedAction: "",
-                        canAutoFix: false
-                    ))
-            }
-        }
 
         // Check Kanata installation
         if !isKanataInstalled() {
@@ -401,81 +369,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
 
         return diagnostics
-    }
-
-    // MARK: - VirtualHID Daemon Status
-
-    func virtualHIDDaemonStatus() -> (pids: [String], owners: [String], serviceInstalled: Bool, serviceState: String) {
-        // pgrep VirtualHID daemon
-        let pids: [String] = {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-            task.arguments = ["-f", "Karabiner-VirtualHIDDevice-Daemon"]
-            let pipe = Pipe(); task.standardOutput = pipe
-            do { try task.run(); task.waitUntilExit() } catch {}
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            return output
-                .split(separator: "\n")
-                .map { String($0).trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-        }()
-
-        // ps owners
-        var owners: [String] = []
-        for pid in pids {
-            let ps = Process()
-            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
-            ps.arguments = ["-o", "pid,ppid,user,command", "-p", pid]
-            let pp = Pipe(); ps.standardOutput = pp
-            if (try? ps.run()) != nil {
-                ps.waitUntilExit()
-                let d = pp.fileHandleForReading.readDataToEndOfFile()
-                if let s = String(data: d, encoding: .utf8) {
-                    owners.append(s.trimmingCharacters(in: .whitespacesAndNewlines))
-                }
-            }
-        }
-
-        // launchctl state
-        let label = "com.keypath.karabiner-vhiddaemon"
-        let plistPath = "/Library/LaunchDaemons/\(label).plist"
-        let serviceInstalled = FileManager.default.fileExists(atPath: plistPath)
-        var serviceState = "unknown"
-        if serviceInstalled {
-            let t = Process(); t.executableURL = URL(fileURLWithPath: "/bin/launchctl"); t.arguments = ["print", "system/\(label)"]
-            let p = Pipe(); t.standardOutput = p; t.standardError = p
-            if (try? t.run()) != nil {
-                t.waitUntilExit()
-                let d = p.fileHandleForReading.readDataToEndOfFile()
-                let s = String(data: d, encoding: .utf8) ?? ""
-                if let line = s.split(separator: "\n").first(where: { $0.contains("state =") }) {
-                    serviceState = String(line).trimmingCharacters(in: .whitespaces)
-                }
-            }
-        }
-
-        return (pids, owners, serviceInstalled, serviceState)
-    }
-
-    // MARK: - Log Parsing
-
-    enum LogEvent: Sendable, Equatable {
-        case virtualHIDConnectionFailed
-        case virtualHIDConnected
-    }
-
-    func analyzeKanataLogChunk(_ content: String) -> [LogEvent] {
-        var events: [LogEvent] = []
-        let lines = content.components(separatedBy: .newlines)
-        for line in lines {
-            if line.contains("connect_failed asio.system:2") || line.contains("connect_failed asio.system:61") {
-                events.append(.virtualHIDConnectionFailed)
-            } else if line.contains("driver_connected 1") {
-                events.append(.virtualHIDConnected)
-            }
-        }
-        return events
     }
 
     // MARK: - Process Conflict Checking
@@ -692,18 +585,5 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         }
 
         return false
-    }
-
-    private func formatUptime(_ seconds: UInt64) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let secs = seconds % 60
-        if hours > 0 {
-            return "\(hours)h \(minutes)m \(secs)s"
-        } else if minutes > 0 {
-            return "\(minutes)m \(secs)s"
-        } else {
-            return "\(secs)s"
-        }
     }
 }

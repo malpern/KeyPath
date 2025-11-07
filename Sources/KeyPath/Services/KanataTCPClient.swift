@@ -227,6 +227,40 @@ actor KanataTCPClient {
             case version
             case protocolVersion = "protocol"
             case capabilities
+            // Minimal server compatibility
+            case server
+        }
+
+        init(version: String, protocolVersion: Int, capabilities: [String]) {
+            self.version = version
+            self.protocolVersion = protocolVersion
+            self.capabilities = capabilities
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let version = try container.decodeIfPresent(String.self, forKey: .version),
+               let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion),
+               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities) {
+                self.version = version
+                self.protocolVersion = protocolVersion
+                self.capabilities = capabilities
+                return
+            }
+
+            // Minimal form: { "HelloOk": { "server": "kanata", "capabilities": [..] } }
+            let serverString = (try container.decodeIfPresent(String.self, forKey: .server)) ?? "kanata"
+            let caps = (try container.decodeIfPresent([String].self, forKey: .capabilities)) ?? []
+            self.version = serverString
+            self.protocolVersion = 1
+            self.capabilities = caps
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(version, forKey: .version)
+            try container.encode(protocolVersion, forKey: .protocolVersion)
+            try container.encode(capabilities, forKey: .capabilities)
         }
 
         func hasCapabilities(_ required: [String]) -> Bool {
@@ -237,10 +271,10 @@ actor KanataTCPClient {
 
     struct TcpLastReload: Codable, Sendable { let ok: Bool; let at: String }
     struct TcpStatusInfo: Codable, Sendable {
-        let engine_version: String
-        let uptime_s: UInt64
+        let engine_version: String?
+        let uptime_s: UInt64?
         let ready: Bool
-        let last_reload: TcpLastReload
+        let last_reload: TcpLastReload?
     }
 
     // MARK: - Handshake / Status
@@ -250,20 +284,31 @@ actor KanataTCPClient {
         if let cachedHello { return cachedHello }
 
         let requestData = try JSONEncoder().encode(["Hello": [:] as [String: String]])
+        let start = CFAbsoluteTimeGetCurrent()
         let responseData = try await send(requestData)
+        let dt = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+        if let raw = String(data: responseData, encoding: .utf8) {
+            AppLogger.shared.debug("🌐 [TCP] hello response bytes=\(responseData.count) duration_ms=\(dt) sample=\(raw.prefix(120))")
+        } else {
+            AppLogger.shared.debug("🌐 [TCP] hello response bytes=\(responseData.count) duration_ms=\(dt)")
+        }
         guard let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: responseData) else {
+            AppLogger.shared.error("🌐 [TCP] hello parse failed")
             throw KeyPathError.communication(.invalidResponse)
         }
+        AppLogger.shared.debug("🌐 [TCP] hello ok protocol=\(hello.protocolVersion) caps=\(hello.capabilities.joined(separator: ","))")
         cachedHello = hello
         return hello
     }
 
-    /// Enforce minimum protocol/capabilities (assumes PR1+PR2)
-    func enforceMinimumCapabilities(required: [String] = ["reload", "status", "validate"]) async throws {
+    /// Enforce minimum protocol/capabilities. Callers pass only what they need.
+    func enforceMinimumCapabilities(required: [String]) async throws {
         let hello = try await hello()
         guard hello.protocolVersion >= 1, hello.hasCapabilities(required) else {
-            throw KeyPathError.communication(.unsupported("Kanata TCP protocol/capabilities are insufficient. Please update Kanata."))
+            AppLogger.shared.error("🌐 [TCP] capability check failed required=\(required.joined(separator: ",")) caps=\(hello.capabilities.joined(separator: ","))")
+            throw KeyPathError.communication(.invalidResponse)
         }
+        AppLogger.shared.debug("🌐 [TCP] capability check ok required=\(required.joined(separator: ","))")
     }
 
     /// Fetch StatusInfo

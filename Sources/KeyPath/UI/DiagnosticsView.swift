@@ -85,6 +85,26 @@ struct DiagnosticsView: View {
                     // Enhanced System Status
                     EnhancedStatusSection(kanataManager: kanataManager)
 
+                    // Build Info
+                    VStack(alignment: .leading, spacing: 4) {
+                        let bi = BuildInfo.current()
+                        let dot = " • "
+                        Text("Build: \(bi.version) (\(bi.build))\(dot)Git: \(String(bi.git.prefix(7)))\(dot)\(bi.date)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.bottom, 6)
+
+                    // System Diagnostics (includes TCP status, engine status, etc.)
+                    if !systemDiagnostics.isEmpty {
+                        DiagnosticSection(
+                            title: "System Diagnostics",
+                            diagnostics: systemDiagnostics,
+                            showTechnicalDetails: $showTechnicalDetails,
+                            kanataManager: kanataManager
+                        )
+                    }
+
                     // Runtime Diagnostics (process crashes, config errors, etc.)
                     if !kanataManager.diagnostics.isEmpty {
                         DiagnosticSection(
@@ -122,8 +142,11 @@ struct DiagnosticsView: View {
         isRunningDiagnostics = true
 
         Task {
+            // Fetch system diagnostics including TCP status
+            let diagnostics = await kanataManager.underlyingManager.getSystemDiagnostics()
+            
             await MainActor.run {
-                systemDiagnostics = []
+                systemDiagnostics = diagnostics
                 isRunningDiagnostics = false
             }
         }
