@@ -260,6 +260,7 @@ struct AsyncOperation<T> {
 enum WizardOperations {
   // COMMENTED OUT: WizardStateManager is in UI target, cannot be referenced from Core target
   // This factory method should be moved to UI layer since it's only used there
+  // swiftlint:disable:next todo
   // TODO: Move this to InstallationWizardView.swift or create a UI-layer WizardOperations extension
   /*
    /// State detection operation

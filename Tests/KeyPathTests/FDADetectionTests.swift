@@ -24,8 +24,7 @@ final class FDADetectionTests: XCTestCase {
             try? FileManager.default.removeItem(atPath: testPath)
         } else {
             // Should fail to write to protected location without FDA
-            XCTAssertThrowsError(try testData.write(to: URL(fileURLWithPath: testPath))) {
-                error in
+            XCTAssertThrowsError(try testData.write(to: URL(fileURLWithPath: testPath))) { error in
                 // Should be a permission error
                 XCTAssertNotNil(error)
             }

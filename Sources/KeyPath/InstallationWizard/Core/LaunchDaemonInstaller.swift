@@ -2481,6 +2481,7 @@ class LaunchDaemonInstaller {
         guard FileManager.default.fileExists(atPath: bundledPath) else {
             AppLogger.shared.log("❌ [LaunchDaemon] CRITICAL: Bundled kanata binary not found at: \(bundledPath)")
             AppLogger.shared.log("❌ [LaunchDaemon] This indicates a packaging issue - the app bundle is missing the kanata binary")
+            // swiftlint:disable:next todo
             // TODO: Surface this as a wizard issue with severity .critical
             return false
         }
