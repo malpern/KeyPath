@@ -4,28 +4,28 @@ import Foundation
 @MainActor
 public final class SimpleModsParser {
     private let configPath: String
-    
+
     public init(configPath: String) {
         self.configPath = configPath
     }
-    
+
     /// Parse the config file and find all simple mods sentinel blocks
     public func parse() throws -> (block: SentinelBlock?, allMappings: [SimpleMapping], conflicts: [MappingConflict]) {
         guard FileManager.default.fileExists(atPath: configPath) else {
             // No config file means no block
             return (nil, [], [])
         }
-        
+
         let content = try String(contentsOfFile: configPath, encoding: .utf8)
         let lines = content.components(separatedBy: .newlines)
-        
+
         // Find sentinel block
-        var sentinelBlock: SentinelBlock? = nil
+        var sentinelBlock: SentinelBlock?
         var conflicts: [MappingConflict] = []
-        
+
         // Track all mappings in the file (for conflict detection)
         var allMappings: [SimpleMapping] = []
-        
+
         // Find KP:BEGIN sentinel
         var inBlock = false
         var blockStartLine: Int?
@@ -34,18 +34,18 @@ public final class SimpleModsParser {
         var blockMappings: [SimpleMapping] = []
         var currentMappingLine: Int?
         var currentFromKey: String?
-        
+
         for (index, line) in lines.enumerated() {
             let lineNumber = index + 1
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            
+
             // Check for KP:BEGIN (accept both '#' and ';' comment styles)
             if trimmed.hasPrefix("# KP:BEGIN") || trimmed.hasPrefix("; KP:BEGIN") || trimmed.hasPrefix(";; KP:BEGIN") {
                 if inBlock {
                     // Nested block - not expected but handle gracefully
                     continue
                 }
-                
+
                 // Parse attributes
                 let attributes = parseAttributes(from: trimmed)
                 if attributes["simple_mods"] != nil || attributes["simple_mod"] != nil {
@@ -56,7 +56,7 @@ public final class SimpleModsParser {
                 }
                 continue
             }
-            
+
             // Check for KP:END (accept both '#' and ';' comment styles)
             if trimmed.hasPrefix("# KP:END") || trimmed.hasPrefix("; KP:END") || trimmed.hasPrefix(";; KP:END") {
                 if inBlock {
@@ -78,7 +78,7 @@ public final class SimpleModsParser {
                 }
                 continue
             }
-            
+
             // If we're in the block, look for deflayermap content
             if inBlock {
                 // Look for deflayermap (base) start
@@ -86,7 +86,7 @@ public final class SimpleModsParser {
                     currentMappingLine = lineNumber
                     continue
                 }
-                
+
                 // Look for mapping lines: "from to" or "from to # KP:DISABLED"
                 if let mapping = parseMappingLine(line, at: lineNumber) {
                     if mapping.fromKey == currentFromKey {
@@ -104,7 +104,7 @@ public final class SimpleModsParser {
                     }
                     currentMappingLine = lineNumber
                 }
-                
+
                 // Check for closing paren of deflayermap
                 if trimmed == ")" && currentMappingLine != nil {
                     currentMappingLine = nil
@@ -126,14 +126,14 @@ public final class SimpleModsParser {
                 }
             }
         }
-        
+
         return (sentinelBlock, allMappings, conflicts)
     }
-    
+
     /// Parse a mapping line like "caps esc" or "caps esc # KP:DISABLED"
     private func parseMappingLine(_ line: String, at lineNumber: Int) -> SimpleMapping? {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        
+
         // Handle disabled/commented mapping lines beginning with ';'
         var disabled = false
         var content = trimmed
@@ -142,33 +142,33 @@ public final class SimpleModsParser {
             disabled = true
             content = String(trimmed.drop(while: { $0 == ";" || $0 == " " }))
         }
-        
+
         if content.isEmpty || content.hasPrefix("#") {
             return nil
         }
-        
+
         // Skip deflayermap declaration line
         if content.contains("(deflayermap") || content == ")" {
             return nil
         }
-        
+
         // Parse key pair
         let parts = content.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
         guard parts.count >= 2 else {
             return nil
         }
-        
+
         let fromKey = parts[0]
         let toKey = parts[1]
-        
+
         // Check if disabled marker present anywhere
         let isDisabled = disabled || trimmed.contains("KP:DISABLED")
-        
+
         // Validate keys (basic check)
         if !isValidKanataKey(fromKey) || !isValidKanataKey(toKey) {
             return nil
         }
-        
+
         return SimpleMapping(
             fromKey: fromKey,
             toKey: toKey,
@@ -177,41 +177,39 @@ public final class SimpleModsParser {
             lineRange: lineNumber...lineNumber
         )
     }
-    
+
     /// Parse attributes from a sentinel line like "# KP:BEGIN simple_mods id=abc version=1"
     private func parseAttributes(from line: String) -> [String: String] {
         var attributes: [String: String] = [:]
-        
+
         // Extract type (simple_mods or simple_mod)
         if line.contains("simple_mods") {
             attributes["simple_mods"] = "true"
         } else if line.contains("simple_mod") {
             attributes["simple_mod"] = "true"
         }
-        
+
         // Parse key=value pairs
         let parts = line.components(separatedBy: .whitespaces)
-        for part in parts {
-            if part.contains("=") {
-                let keyValue = part.components(separatedBy: "=")
-                if keyValue.count == 2 {
-                    let key = keyValue[0].trimmingCharacters(in: .whitespaces)
-                    let value = keyValue[1].trimmingCharacters(in: .whitespaces)
-                    attributes[key] = value
-                }
+        for part in parts where part.contains("=") {
+            let keyValue = part.components(separatedBy: "=")
+            if keyValue.count == 2 {
+                let key = keyValue[0].trimmingCharacters(in: .whitespaces)
+                let value = keyValue[1].trimmingCharacters(in: .whitespaces)
+                attributes[key] = value
             }
         }
-        
+
         return attributes
     }
-    
+
     /// Validate if a string is a valid Kanata key name
     private func isValidKanataKey(_ key: String) -> Bool {
         // Basic validation - non-empty, no spaces, no special chars that break syntax
         if key.isEmpty || key.contains(" ") || key.contains("(") || key.contains(")") {
             return false
         }
-        
+
         // Known valid keys (non-exhaustive but covers common cases)
         let validKeys: Set<String> = [
             "caps", "esc", "lctl", "rctl", "lsft", "rsft",
@@ -223,8 +221,7 @@ public final class SimpleModsParser {
             "k", "l", "m", "n", "o", "p", "q", "r", "s", "t",
             "u", "v", "w", "x", "y", "z"
         ]
-        
+
         return validKeys.contains(key.lowercased())
     }
 }
-
