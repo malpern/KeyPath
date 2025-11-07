@@ -1,7 +1,7 @@
-import SwiftUI
 import KeyPathCore
-import KeyPathWizardCore
 import KeyPathDaemonLifecycle
+import KeyPathWizardCore
+import SwiftUI
 
 /// Simple wizard state machine using SystemValidator
 ///

@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPath
 import ServiceManagement
+import XCTest
 
 final class HelperManagerTests: XCTestCase {
     private var originalFactory: ((String) -> SMAppServiceProtocol)!

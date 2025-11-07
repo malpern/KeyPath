@@ -30,7 +30,7 @@ public final class SimpleModsParser {
         var inBlock = false
         var blockStartLine: Int?
         var blockId: String?
-        var blockVersion: Int = 1
+        var blockVersion = 1
         var blockMappings: [SimpleMapping] = []
         var currentMappingLine: Int?
         var currentFromKey: String?
@@ -82,7 +82,7 @@ public final class SimpleModsParser {
             // If we're in the block, look for deflayermap content
             if inBlock {
                 // Look for deflayermap (base) start
-                if trimmed.contains("(deflayermap") && trimmed.contains("(base)") {
+                if trimmed.contains("(deflayermap"), trimmed.contains("(base)") {
                     currentMappingLine = lineNumber
                     continue
                 }
@@ -106,7 +106,7 @@ public final class SimpleModsParser {
                 }
 
                 // Check for closing paren of deflayermap
-                if trimmed == ")" && currentMappingLine != nil {
+                if trimmed == ")", currentMappingLine != nil {
                     currentMappingLine = nil
                     currentFromKey = nil
                 }
@@ -174,7 +174,7 @@ public final class SimpleModsParser {
             toKey: toKey,
             enabled: !isDisabled,
             filePath: configPath,
-            lineRange: lineNumber...lineNumber
+            lineRange: lineNumber ... lineNumber
         )
     }
 

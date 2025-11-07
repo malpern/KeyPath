@@ -113,7 +113,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         return events
     }
 
-    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic] {
+    func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] {
         await getSystemDiagnostics()
     }
 
@@ -190,7 +190,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         case 6:
             // Exit code 6 has different causes - check for VirtualHID connection issues
             if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2") {
+                || output.contains("connect_failed asio.system:2")
+            {
                 diagnostics.append(
                     KanataDiagnostic(
                         timestamp: Date(),
@@ -640,6 +641,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     // MARK: - TCP helpers (best-effort)
+
     private func fetchTcpStatusInfo() async -> KanataTCPClient.TcpStatusInfo? {
         let client = KanataTCPClient(port: 37001)
         do {

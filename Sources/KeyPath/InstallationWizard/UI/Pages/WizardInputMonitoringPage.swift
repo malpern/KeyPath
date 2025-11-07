@@ -1,6 +1,6 @@
-import SwiftUI
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
+import SwiftUI
 
 /// Input Monitoring permission page with hybrid permission request approach
 struct WizardInputMonitoringPage: View {
@@ -263,6 +263,7 @@ struct WizardInputMonitoringPage: View {
             onDismiss?()
         }
     }
+
     private func navigateToPreviousPage() {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),

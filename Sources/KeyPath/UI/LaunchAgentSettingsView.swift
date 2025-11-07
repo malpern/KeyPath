@@ -1,5 +1,5 @@
-import SwiftUI
 import KeyPathCore
+import SwiftUI
 
 /// Settings view for managing LaunchAgent (start at login)
 struct LaunchAgentSettingsView: View {

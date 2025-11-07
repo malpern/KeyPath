@@ -601,6 +601,7 @@ extension HelperService {
         }
         return cp.status == 0
     }
+
     @discardableResult
     static func run(_ launchPath: String, _ args: [String]) -> (status: Int32, out: String) {
         let p = Process()

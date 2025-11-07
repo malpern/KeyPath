@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPath
 import KeyPathCore
+import XCTest
 
 final class ConfigApplyTypesTests: XCTestCase {
     func testFeatureFlagDefaultsOff() {

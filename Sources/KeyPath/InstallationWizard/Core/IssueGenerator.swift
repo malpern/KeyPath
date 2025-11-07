@@ -1,6 +1,6 @@
 import Foundation
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
 
 /// Responsible for generating WizardIssue objects from detection results
 /// Converts detection data into user-facing issue descriptions
@@ -8,7 +8,8 @@ class IssueGenerator {
     // MARK: - Issue Creation
 
     func createSystemRequirementIssues(from result: SystemRequirements.ValidationResult)
-        -> [WizardIssue] {
+        -> [WizardIssue]
+    {
         var issues: [WizardIssue] = []
 
         // Create issues for each compatibility problem

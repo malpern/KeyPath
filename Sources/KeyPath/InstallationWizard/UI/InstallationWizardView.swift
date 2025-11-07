@@ -1,6 +1,6 @@
-import SwiftUI
 import KeyPathCore
 import KeyPathWizardCore
+import SwiftUI
 
 /// Main installation wizard view using clean architecture
 struct InstallationWizardView: View {

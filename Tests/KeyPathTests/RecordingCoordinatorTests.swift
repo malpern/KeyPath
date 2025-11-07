@@ -61,7 +61,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         // Recording should stop after capture callback fires
         // Add a small retry loop for async operations
         var recordingStopped = false
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             if !coordinator.isInputRecording() {
                 recordingStopped = true
                 break

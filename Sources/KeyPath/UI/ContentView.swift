@@ -610,7 +610,7 @@ struct ContentView: View {
         // Handle TCP connectivity errors (before config validation to avoid false positives)
         if case let KeyPathError.configuration(.loadFailed(reason)) = error {
             let reasonLower = reason.lowercased()
-            if reasonLower.contains("tcp") && (reasonLower.contains("required") || reasonLower.contains("unresponsive") || reasonLower.contains("failed") || reasonLower.contains("reload")) {
+            if reasonLower.contains("tcp"), reasonLower.contains("required") || reasonLower.contains("unresponsive") || reasonLower.contains("failed") || reasonLower.contains("reload") {
                 // Use enhanced error handler for TCP connectivity issues
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                     enhancedErrorInfo = ErrorInfo.from(error)
@@ -1197,7 +1197,8 @@ struct StatusMessageView: View {
         } else if message.contains("paused") {
             "pause.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             "exclamationmark.triangle.fill"
         } else {
             "checkmark.circle.fill"
@@ -1208,7 +1209,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused") {
+            || message.contains("backed up") || message.contains("paused")
+        {
             .orange
         } else {
             .green
@@ -1219,7 +1221,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.85)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused") {
+            || message.contains("backed up") || message.contains("paused")
+        {
             Color.orange.opacity(0.85)
         } else {
             Color.green.opacity(0.85)
@@ -1230,7 +1233,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.5)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused") {
+            || message.contains("backed up") || message.contains("paused")
+        {
             Color.orange.opacity(0.5)
         } else {
             Color.green.opacity(0.5)

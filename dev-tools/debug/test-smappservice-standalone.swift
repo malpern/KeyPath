@@ -1,8 +1,8 @@
 #!/usr/bin/env swift
 
 import Foundation
-import ServiceManagement
 import OSLog
+import ServiceManagement
 
 /// Standalone SMAppService POC test - works with existing app bundle or creates minimal test
 ///

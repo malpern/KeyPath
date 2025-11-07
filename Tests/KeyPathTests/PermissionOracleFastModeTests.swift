@@ -1,7 +1,7 @@
-import XCTest
 @testable import KeyPath
 @testable import KeyPathCore
 @testable import KeyPathPermissions
+import XCTest
 
 @MainActor
 final class PermissionOracleFastModeTests: XCTestCase {

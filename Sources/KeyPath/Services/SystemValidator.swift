@@ -1,7 +1,7 @@
 import Foundation
 import KeyPathCore
-import KeyPathPermissions
 import KeyPathDaemonLifecycle
+import KeyPathPermissions
 import KeyPathWizardCore
 
 /// Stateless system validation service

@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class SimpleModsSmokeTests: XCTestCase {

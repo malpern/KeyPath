@@ -1,8 +1,8 @@
 #!/usr/bin/env swift
 
+import ApplicationServices
 import Foundation
 import IOKit.hid
-import ApplicationServices
 
 /// Phase 3: TCC/Permissions Stability Test
 /// Tests if SMAppService registration affects TCC permissions

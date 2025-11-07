@@ -253,8 +253,8 @@ struct SimpleModsView: View {
         if !searchText.isEmpty {
             mappings = mappings.filter { mapping in
                 mapping.fromKey.localizedCaseInsensitiveContains(searchText) ||
-                mapping.toKey.localizedCaseInsensitiveContains(searchText) ||
-                service.getPresetsByCategory().values.flatMap { $0 }
+                    mapping.toKey.localizedCaseInsensitiveContains(searchText) ||
+                    service.getPresetsByCategory().values.flatMap { $0 }
                     .first(where: { $0.fromKey == mapping.fromKey && $0.toKey == mapping.toKey })?
                     .name.localizedCaseInsensitiveContains(searchText) ?? false
             }
@@ -270,9 +270,9 @@ struct SimpleModsView: View {
         if !searchText.isEmpty {
             presets = presets.filter { preset in
                 preset.name.localizedCaseInsensitiveContains(searchText) ||
-                preset.fromKey.localizedCaseInsensitiveContains(searchText) ||
-                preset.toKey.localizedCaseInsensitiveContains(searchText) ||
-                preset.description.localizedCaseInsensitiveContains(searchText)
+                    preset.fromKey.localizedCaseInsensitiveContains(searchText) ||
+                    preset.toKey.localizedCaseInsensitiveContains(searchText) ||
+                    preset.description.localizedCaseInsensitiveContains(searchText)
             }
         }
 
@@ -515,6 +515,7 @@ private struct AvailablePresetRow: View {
     }
 
     // MARK: - Display helpers
+
     private var titleText: String? {
         let trivial1 = "\(preset.fromKey) → \(preset.toKey)"
         let trivial2 = "\(preset.fromKey) to \(preset.toKey)"
@@ -542,7 +543,7 @@ private struct AvailablePresetRow: View {
         let lower = desc.lowercased()
         let tokens = [preset.fromKey.lowercased(), preset.toKey.lowercased()]
         let alnum = lower.replacingOccurrences(of: "[^a-z0-9 ]", with: "", options: .regularExpression)
-        if tokens.allSatisfy({ alnum.contains($0) }) && !lower.contains("useful") && !lower.contains("vim") && !lower.contains("tip") && !lower.contains("recommend") {
+        if tokens.allSatisfy({ alnum.contains($0) }), !lower.contains("useful"), !lower.contains("vim"), !lower.contains("tip"), !lower.contains("recommend") {
             return nil
         }
         return desc
@@ -602,6 +603,7 @@ private struct ConflictMappingDialog: View {
 }
 
 // MARK: - KeyCap styling for key labels
+
 private struct KeyCapChip: View {
     let text: String
     var body: some View {

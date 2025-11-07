@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPath
 import Network
+import XCTest
 
 final class TCPClientIntegrationTests: XCTestCase {
     private let port: Int = 37001
@@ -48,7 +48,7 @@ final class TCPClientIntegrationTests: XCTestCase {
         // Use a raw connection to inspect bytes
         let exp = expectation(description: "recv")
         final class ReceivedData: @unchecked Sendable {
-            var value: Data = Data()
+            var value: Data = .init()
         }
         let received = ReceivedData()
 
@@ -100,7 +100,7 @@ final class TCPClientIntegrationTests: XCTestCase {
 
         let exp = expectation(description: "recv-timeout")
         final class ReceivedData: @unchecked Sendable {
-            var value: Data = Data()
+            var value: Data = .init()
         }
         let received = ReceivedData()
 

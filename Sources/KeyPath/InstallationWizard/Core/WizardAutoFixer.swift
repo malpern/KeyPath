@@ -1,9 +1,9 @@
 import AppKit
 import Foundation
-import os
 import KeyPathCore
-import KeyPathWizardCore
 import KeyPathDaemonLifecycle
+import KeyPathWizardCore
+import os
 
 /// Handles automatic fixing of detected issues - pure action logic
 class WizardAutoFixer: AutoFixCapable {

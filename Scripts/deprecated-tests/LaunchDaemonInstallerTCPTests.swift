@@ -243,7 +243,7 @@ final class LaunchDaemonInstallerTCPTests: XCTestCase {
             (1024, true), // Minimum valid port
             (65535, true), // Maximum valid port
             (1023, false), // Just below minimum
-            (65536, false) // Just above maximum
+            (65536, false), // Just above maximum
         ]
 
         for (port, shouldInclude) in edgeCasePorts {

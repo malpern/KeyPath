@@ -133,6 +133,7 @@ public enum PIDFileManager {
     }
 
     // MARK: - Private Helpers
+
     private static func ensureDirectoryExists() {
         if !FileManager.default.fileExists(atPath: pidDirectory) {
             try? FileManager.default.createDirectory(

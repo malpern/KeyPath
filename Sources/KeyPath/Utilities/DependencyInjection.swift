@@ -1,6 +1,6 @@
 import Foundation
-import SwiftUI
 import KeyPathPermissions
+import SwiftUI
 
 // MARK: - Permission Snapshot Provider DI
 

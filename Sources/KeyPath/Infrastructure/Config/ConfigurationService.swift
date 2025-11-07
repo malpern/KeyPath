@@ -1,9 +1,9 @@
 import ApplicationServices
 import Foundation
 import IOKit.hidsystem
+import KeyPathCore
 import Network
 import SwiftUI
-import KeyPathCore
 
 // MARK: - Kanata Configuration Model
 
@@ -144,7 +144,9 @@ public final class ConfigurationService: FileConfigurationProviding {
             let tasks = snapshot.map { observer in
                 Task { @MainActor in await observer(config) }
             }
-            for t in tasks { await t.value }
+            for t in tasks {
+                await t.value
+            }
 
             return config
         } catch let error as KeyPathError {
@@ -261,7 +263,9 @@ public final class ConfigurationService: FileConfigurationProviding {
         let tasks = snapshot.map { observer in
             Task { @MainActor in await observer(newConfig) }
         }
-        for t in tasks { await t.value }
+        for t in tasks {
+            await t.value
+        }
 
         AppLogger.shared.log("✅ [ConfigService] Configuration saved with \(keyMappings.count) mappings")
     }
@@ -352,10 +356,10 @@ public final class ConfigurationService: FileConfigurationProviding {
         AppLogger.shared.log("📝 [Validation-CLI] Creating temp config file: \(tempConfigPath)")
 
         do {
-        let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
-        let configDir = URL(fileURLWithPath: configDirectory)
-        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-        try await writeFileURLAsync(string: config, to: tempConfigURL)
+            let tempConfigURL = URL(fileURLWithPath: tempConfigPath)
+            let configDir = URL(fileURLWithPath: configDirectory)
+            try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+            try await writeFileURLAsync(string: config, to: tempConfigURL)
             AppLogger.shared.log("📝 [Validation-CLI] Temp config written successfully (\(config.count) characters)")
 
             // Use kanata --check to validate

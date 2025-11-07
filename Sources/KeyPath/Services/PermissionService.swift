@@ -1,6 +1,6 @@
 import AppKit
-import KeyPathCore
 import Foundation
+import KeyPathCore
 
 @MainActor
 class PermissionService {

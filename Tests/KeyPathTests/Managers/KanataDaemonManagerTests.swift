@@ -1,6 +1,6 @@
-import XCTest
-import ServiceManagement
 @testable import KeyPath
+import ServiceManagement
+import XCTest
 
 @MainActor
 final class KanataDaemonManagerTests: XCTestCase {
@@ -101,7 +101,7 @@ final class KanataDaemonManagerTests: XCTestCase {
             do {
                 try await manager.register()
                 XCTFail("Registration should fail on macOS < 13")
-            } catch KanataDaemonError.registrationFailed(let reason) {
+            } catch let KanataDaemonError.registrationFailed(reason) {
                 XCTAssertTrue(
                     reason.contains("macOS 13"),
                     "Error should mention macOS 13 requirement"

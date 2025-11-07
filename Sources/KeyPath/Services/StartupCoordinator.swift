@@ -1,6 +1,6 @@
 import AppKit
-import KeyPathCore
 import Foundation
+import KeyPathCore
 
 /// Coordinates a boring, phased startup to keep the first display cycle clean.
 ///

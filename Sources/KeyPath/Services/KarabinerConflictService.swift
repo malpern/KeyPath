@@ -1,6 +1,6 @@
 import AppKit
-import KeyPathCore
 import Foundation
+import KeyPathCore
 
 // MARK: - Protocol
 
@@ -66,7 +66,8 @@ final class KarabinerConflictService: KarabinerConflictManaging {
             let lines = output.components(separatedBy: .newlines)
             for line in lines {
                 if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"),
-                   line.contains("[activated enabled]") {
+                   line.contains("[activated enabled]")
+                {
                     AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
                     return true
                 }

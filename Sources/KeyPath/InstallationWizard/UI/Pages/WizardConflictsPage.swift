@@ -1,7 +1,7 @@
-import SwiftUI
 import KeyPathCore
-import KeyPathWizardCore
 import KeyPathDaemonLifecycle
+import KeyPathWizardCore
+import SwiftUI
 
 struct WizardConflictsPage: View {
     let issues: [WizardIssue]

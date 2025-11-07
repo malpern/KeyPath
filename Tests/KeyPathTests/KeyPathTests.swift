@@ -43,7 +43,7 @@ final class KeyPathTests: XCTestCase {
             ("rcmd", "rmet"),
             ("leftcmd", "lmet"),
             ("rightcmd", "rmet"),
-            ("unknown", "unknown") // Should pass through unchanged
+            ("unknown", "unknown"), // Should pass through unchanged
         ]
 
         for (input, expected) in testCases {
@@ -160,7 +160,7 @@ final class KeyPathTests: XCTestCase {
             (53, "escape"),
             (58, "caps"),
             (59, "caps"),
-            (999, "key999") // Unknown key code
+            (999, "key999"), // Unknown key code
         ]
 
         for (keyCode, expected) in testCases {

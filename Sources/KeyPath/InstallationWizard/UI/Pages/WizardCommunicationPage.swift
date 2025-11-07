@@ -1,6 +1,6 @@
-import SwiftUI
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
+import SwiftUI
 
 struct WizardCommunicationPage: View {
     @State private var commStatus: CommunicationStatus = .checking
@@ -244,7 +244,7 @@ struct WizardCommunicationPage: View {
                         let hello = try await client.hello()
                         responding = true
                         let dt = CFAbsoluteTimeGetCurrent() - t0
-                        AppLogger.shared.log("🌐 [WizardCommDetail] hello ok port=\(port) duration_ms=\(Int(dt*1000)) caps=\(hello.capabilities.joined(separator: ","))")
+                        AppLogger.shared.log("🌐 [WizardCommDetail] hello ok port=\(port) duration_ms=\(Int(dt * 1000)) caps=\(hello.capabilities.joined(separator: ","))")
 
                         // Ensure Status capability exists to claim "Communication Ready"
                         if !hello.hasCapabilities(["status"]) {

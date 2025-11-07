@@ -10,7 +10,7 @@ echo "test content" > /tmp/test-keypath.plist
 """
 
 let escapedCommand = testCommand.replacingOccurrences(of: "\\", with: "\\\\")
-                                .replacingOccurrences(of: "\"", with: "\\\"")
+    .replacingOccurrences(of: "\"", with: "\\\"")
 
 let osascriptCode = """
 do shell script "\(escapedCommand)" with administrator privileges

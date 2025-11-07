@@ -1,6 +1,6 @@
-import SwiftUI
 import KeyPathCore
 import KeyPathPermissions
+import SwiftUI
 
 // MARK: - File Navigation (999 lines)
 
@@ -349,7 +349,7 @@ struct ProcessStatusSection: View {
                         .font(.caption)
                         .foregroundColor(showErrorMessage ? .red : .green)
                         .padding(8)
-                        .background((showErrorMessage ? Color.red.opacity(0.1) : Color.green.opacity(0.1)))
+                        .background(showErrorMessage ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
                         .cornerRadius(6)
                     Spacer()
                 }

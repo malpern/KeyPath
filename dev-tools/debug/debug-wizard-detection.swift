@@ -44,8 +44,8 @@ for serviceID in services {
             // Apply KeepAlive semantics
             let isOneShot = (serviceID == "com.keypath.vhidmanager")
             let healthy: Bool = isOneShot
-                ? (lastExitCode == 0)                    // one-shot OK without PID if exit was clean
-                : (hasPID && lastExitCode == 0)          // keep-alive services must be running and clean
+                ? (lastExitCode == 0) // one-shot OK without PID if exit was clean
+                : (hasPID && lastExitCode == 0) // keep-alive services must be running and clean
 
             print("One-shot service: \(isOneShot)")
             print("Healthy: \(healthy)")
@@ -76,7 +76,8 @@ func extractInt(from text: String, pattern: String) -> Int? {
         let nsRange = NSRange(text.startIndex..., in: text)
         guard let match = rx.firstMatch(in: text, range: nsRange),
               match.numberOfRanges >= 2,
-              let range = Range(match.range(at: 1), in: text) else {
+              let range = Range(match.range(at: 1), in: text)
+        else {
             return nil
         }
         return Int(text[range])

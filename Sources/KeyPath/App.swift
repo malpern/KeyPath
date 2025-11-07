@@ -1,8 +1,8 @@
 import AppKit
-import SwiftUI
 import KeyPathCore
 import KeyPathPermissions
 import ServiceManagement
+import SwiftUI
 
 @main
 public struct KeyPathApp: App {
@@ -126,21 +126,21 @@ public struct KeyPathApp: App {
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             }
 
-#if DEBUG
-            CommandMenu("Developer • SMAppService") {
-                Button("Helper: Show SMAppService Status") {
-                    showSMAppServiceStatus(plistName: "com.keypath.helper.plist")
-                }
+            #if DEBUG
+                CommandMenu("Developer • SMAppService") {
+                    Button("Helper: Show SMAppService Status") {
+                        showSMAppServiceStatus(plistName: "com.keypath.helper.plist")
+                    }
 
-                Button("Helper: Register via SMAppService") {
-                    registerSMAppService(plistName: "com.keypath.helper.plist")
-                }
+                    Button("Helper: Register via SMAppService") {
+                        registerSMAppService(plistName: "com.keypath.helper.plist")
+                    }
 
-                Button("Helper: Unregister via SMAppService") {
-                    unregisterSMAppService(plistName: "com.keypath.helper.plist")
+                    Button("Helper: Unregister via SMAppService") {
+                        unregisterSMAppService(plistName: "com.keypath.helper.plist")
+                    }
                 }
-            }
-#endif
+            #endif
         }
     }
 }
@@ -365,40 +365,42 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 #if DEBUG
-// MARK: - SMAppService Dev Utilities
-@MainActor
-private func showSMAppServiceStatus(plistName: String) {
-    let svc = SMAppService.daemon(plistName: plistName)
-    let status = svc.status
-    AppLogger.shared.info("🔧 [SM] \(plistName) status=\(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)")
-}
 
-@MainActor
-private func registerSMAppService(plistName: String) {
-    let svc = SMAppService.daemon(plistName: plistName)
-    do {
-        try svc.register()
-        AppLogger.shared.info("✅ [SM] register() ok for \(plistName)")
-    } catch {
-        AppLogger.shared.error("❌ [SM] register() failed for \(plistName): \(error)")
+    // MARK: - SMAppService Dev Utilities
+
+    @MainActor
+    private func showSMAppServiceStatus(plistName: String) {
+        let svc = SMAppService.daemon(plistName: plistName)
+        let status = svc.status
+        AppLogger.shared.info("🔧 [SM] \(plistName) status=\(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)")
     }
-    showSMAppServiceStatus(plistName: plistName)
-}
 
-private func unregisterSMAppService(plistName: String) {
-    let svc = SMAppService.daemon(plistName: plistName)
-    if #available(macOS 13, *) {
-        Task { @MainActor in
-            do {
-                try await svc.unregister()
-                AppLogger.shared.info("✅ [SM] unregister() ok for \(plistName)")
-            } catch {
-                AppLogger.shared.error("❌ [SM] unregister() failed for \(plistName): \(error)")
-            }
-            showSMAppServiceStatus(plistName: plistName)
+    @MainActor
+    private func registerSMAppService(plistName: String) {
+        let svc = SMAppService.daemon(plistName: plistName)
+        do {
+            try svc.register()
+            AppLogger.shared.info("✅ [SM] register() ok for \(plistName)")
+        } catch {
+            AppLogger.shared.error("❌ [SM] register() failed for \(plistName): \(error)")
         }
-    } else {
-        AppLogger.shared.warn("⚠️ [SM] unregister requires macOS 13+")
+        showSMAppServiceStatus(plistName: plistName)
     }
-}
+
+    private func unregisterSMAppService(plistName: String) {
+        let svc = SMAppService.daemon(plistName: plistName)
+        if #available(macOS 13, *) {
+            Task { @MainActor in
+                do {
+                    try await svc.unregister()
+                    AppLogger.shared.info("✅ [SM] unregister() ok for \(plistName)")
+                } catch {
+                    AppLogger.shared.error("❌ [SM] unregister() failed for \(plistName): \(error)")
+                }
+                showSMAppServiceStatus(plistName: plistName)
+            }
+        } else {
+            AppLogger.shared.warn("⚠️ [SM] unregister requires macOS 13+")
+        }
+    }
 #endif

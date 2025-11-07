@@ -1,8 +1,8 @@
 #!/usr/bin/env swift
 
 import Foundation
-import ServiceManagement
 import OSLog
+import ServiceManagement
 
 /// Simple standalone SMAppService test - validates concept without requiring app bundle
 ///
@@ -30,7 +30,7 @@ print()
 // Test 2: Try to use helper plist if it exists in common locations
 let possibleBundlePaths = [
     "dist/KeyPath.app",
-    (NSString(string: "~/Applications/KeyPath.app")).expandingTildeInPath,
+    NSString(string: "~/Applications/KeyPath.app").expandingTildeInPath,
     "/Applications/KeyPath.app"
 ]
 

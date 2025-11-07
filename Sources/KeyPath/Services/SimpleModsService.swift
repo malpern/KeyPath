@@ -26,8 +26,8 @@ public final class SimpleModsService: ObservableObject {
 
     public init(configPath: String) {
         self.configPath = configPath
-        self.parser = SimpleModsParser(configPath: configPath)
-        self.writer = SimpleModsWriter(configPath: configPath)
+        parser = SimpleModsParser(configPath: configPath)
+        writer = SimpleModsWriter(configPath: configPath)
     }
 
     /// Set dependencies for apply pipeline
@@ -41,7 +41,7 @@ public final class SimpleModsService: ObservableObject {
     public func load() throws {
         AppLogger.shared.log("📖 [SimpleMods] Loading mappings from config: \(configPath)")
         let (_, allMappings, detectedConflicts) = try parser.parse()
-        self.conflicts = detectedConflicts
+        conflicts = detectedConflicts
 
         AppLogger.shared.log("📖 [SimpleMods] Found \(allMappings.count) installed mapping(s)")
         if !detectedConflicts.isEmpty {
@@ -49,19 +49,19 @@ public final class SimpleModsService: ObservableObject {
         }
 
         // Installed mappings are those that exist in the config file
-        self.installedMappings = allMappings
+        installedMappings = allMappings
 
         // Available presets are those NOT in the config file
         let installedKeys = Set(allMappings.map { "\($0.fromKey)->\($0.toKey)" })
         let allPresets = catalog.getAllPresets()
-        self.availablePresets = allPresets.filter { preset in
+        availablePresets = allPresets.filter { preset in
             !installedKeys.contains("\(preset.fromKey)->\(preset.toKey)")
         }
 
         AppLogger.shared.log("📖 [SimpleMods] Load complete: \(installedMappings.count) installed, \(availablePresets.count) available")
-        self.lastError = nil
-        self.lastRollbackReason = nil
-        self.lastRollbackDetails = nil
+        lastError = nil
+        lastRollbackReason = nil
+        lastRollbackDetails = nil
     }
 
     /// Add a preset to the config (installed mappings)

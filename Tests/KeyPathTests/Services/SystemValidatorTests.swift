@@ -1,8 +1,8 @@
 import Foundation
 @testable import KeyPath
-@testable import KeyPathWizardCore
-@testable import KeyPathPermissions
 @testable import KeyPathDaemonLifecycle
+@testable import KeyPathPermissions
+@testable import KeyPathWizardCore
 import Testing
 
 @MainActor

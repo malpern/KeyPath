@@ -1,6 +1,6 @@
-import SwiftUI
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
+import SwiftUI
 
 /// Accessibility permission page - dedicated page for Accessibility permissions
 struct WizardAccessibilityPage: View {
@@ -275,6 +275,7 @@ struct WizardAccessibilityPage: View {
         navigationCoordinator.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [Accessibility] Navigated to next page: \(nextPage.displayName)")
     }
+
     private func navigateToPreviousPage() {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
@@ -351,7 +352,8 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        {
             NSWorkspace.shared.open(url)
         }
     }

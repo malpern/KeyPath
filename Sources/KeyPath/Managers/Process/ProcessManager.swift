@@ -1,6 +1,6 @@
 import Foundation
-import KeyPathDaemonLifecycle
 import KeyPathCore
+import KeyPathDaemonLifecycle
 
 /// Protocol for managing Kanata process lifecycle
 protocol ProcessManaging: Sendable {
@@ -39,7 +39,7 @@ final class ProcessManager: ProcessManaging, @unchecked Sendable {
         self.karabinerConflictService = karabinerConflictService
     }
 
-    func startService(configPath: String, arguments: [String]) async -> Bool {
+    func startService(configPath _: String, arguments: [String]) async -> Bool {
         AppLogger.shared.log("🚀 [ProcessManager] Starting Kanata LaunchDaemon service...")
 
         // Resolve any conflicts first

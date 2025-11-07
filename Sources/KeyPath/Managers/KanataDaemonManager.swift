@@ -1,6 +1,6 @@
 import Foundation
-import ServiceManagement
 import KeyPathCore
+import ServiceManagement
 
 /// Manager for Kanata LaunchDaemon registration via SMAppService
 ///
@@ -15,6 +15,7 @@ import KeyPathCore
 @MainActor
 class KanataDaemonManager {
     // MARK: - SMAppService indirection for testability
+
     // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
     // Default implementation wraps Apple's `SMAppService`.
     nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in

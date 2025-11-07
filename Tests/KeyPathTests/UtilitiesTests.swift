@@ -265,7 +265,7 @@ final class UtilitiesTests: XCTestCase {
         let extremeCases = [
             String(repeating: "x", count: 1000), // Very long page name
             "null\0character", // Null character
-            "\n\r\t" // Control characters
+            "\n\r\t", // Control characters
         ]
 
         for testCase in extremeCases {

@@ -32,7 +32,7 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         case let .shouldBeRunning(source):
             AppLogger.shared.log(
                 "🚀 [ProcessLifecycleManager] Ensuring process running (source: \(source))")
-            // Add actual process start logic here
+        // Add actual process start logic here
         case .shouldBeStopped:
             AppLogger.shared.log("🛑 [ProcessLifecycleManager] Ensuring process is stopped")
             // Add actual process stop logic here
@@ -287,7 +287,8 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
 
         // Skip log monitoring and other utilities that contain "kanata" in paths
         if command.contains("tail") || command.contains("cat") || command.contains("grep")
-            || command.contains("less") || command.contains("vim") || command.contains("nano") {
+            || command.contains("less") || command.contains("vim") || command.contains("nano")
+        {
             return false
         }
 

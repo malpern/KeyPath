@@ -50,6 +50,7 @@ final class FeatureFlags {
 extension FeatureFlags: @unchecked Sendable {}
 
 // MARK: - Persisted flags (UserDefaults-backed)
+
 extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
     private static let tcpProtocolV2Key = "TCP_PROTOCOL_V2_ENABLED"

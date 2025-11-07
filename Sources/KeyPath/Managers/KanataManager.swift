@@ -1,10 +1,10 @@
 import ApplicationServices
 @preconcurrency import Foundation
-import KeyPathCore
-import KeyPathPermissions
-import KeyPathDaemonLifecycle
-import KeyPathWizardCore
 import IOKit.hidsystem
+import KeyPathCore
+import KeyPathDaemonLifecycle
+import KeyPathPermissions
+import KeyPathWizardCore
 import Network
 import SwiftUI
 
@@ -256,18 +256,18 @@ class KanataManager {
     // Save progress feedback
     var saveStatus: SaveStatus = .idle
 
-#if os(macOS)
-    // Battery monitoring
-    private var batteryMonitor: BatteryMonitor?
-    private var batteryLevel: Double?
-    private var lowPowerWarningActive = false
-    private var lowPowerPauseActive = false
-    private var lowPowerPausedAt: Date?
-    private var lastLowPowerResumeAttempt: Date?
-    private var lowPowerNotificationObserver: NSObjectProtocol?
-    private let lowPowerThreshold: Double = 0.05
-    private let lowPowerResumeThreshold: Double = 0.06
-#endif
+    #if os(macOS)
+        // Battery monitoring
+        private var batteryMonitor: BatteryMonitor?
+        private var batteryLevel: Double?
+        private var lowPowerWarningActive = false
+        private var lowPowerPauseActive = false
+        private var lowPowerPausedAt: Date?
+        private var lastLowPowerResumeAttempt: Date?
+        private var lowPowerNotificationObserver: NSObjectProtocol?
+        private let lowPowerThreshold: Double = 0.05
+        private let lowPowerResumeThreshold: Double = 0.06
+    #endif
 
     // MARK: - UI State Snapshot (Phase 4: MVVM)
 
@@ -278,11 +278,11 @@ class KanataManager {
         diagnostics = diagnosticsManager.getDiagnostics()
 
         #if os(macOS)
-        let currentBatteryLevel = batteryLevel
-        let lowPowerPaused = lowPowerPauseActive
+            let currentBatteryLevel = batteryLevel
+            let lowPowerPaused = lowPowerPauseActive
         #else
-        let currentBatteryLevel: Double? = nil
-        let lowPowerPaused = false
+            let currentBatteryLevel: Double? = nil
+            let lowPowerPaused = false
         #endif
 
         return KanataUIState(
@@ -441,23 +441,23 @@ class KanataManager {
             AppLogger.shared.debug("🧪 [KanataManager] Skipping background initialization in test environment")
         }
 
-#if os(macOS)
-        if !TestEnvironment.isRunningTests {
-            startBatteryMonitoring()
+        #if os(macOS)
+            if !TestEnvironment.isRunningTests {
+                startBatteryMonitoring()
 
-            lowPowerNotificationObserver = NotificationCenter.default.addObserver(
-                forName: .pauseForLowPower,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    await self?.handleLowPowerPauseRequest()
+                lowPowerNotificationObserver = NotificationCenter.default.addObserver(
+                    forName: .pauseForLowPower,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        await self?.handleLowPowerPauseRequest()
+                    }
                 }
+            } else {
+                AppLogger.shared.log("🧪 [KanataManager] Skipping battery monitoring in test environment")
             }
-        } else {
-            AppLogger.shared.log("🧪 [KanataManager] Skipping battery monitoring in test environment")
-        }
-#endif
+        #endif
 
         if isHeadlessMode {
             AppLogger.shared.log("🤖 [KanataManager] Initialized in headless mode")
@@ -672,7 +672,8 @@ class KanataManager {
 
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
-           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2") {
+           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2")
+        {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(
@@ -1672,15 +1673,15 @@ class KanataManager {
         // The LaunchDaemon service will handle process lifecycle automatically
         AppLogger.shared.log("ℹ️ [Cleanup] LaunchDaemon service will handle process cleanup automatically")
 
-#if os(macOS)
-        batteryMonitor?.stop()
-        batteryMonitor = nil
+        #if os(macOS)
+            batteryMonitor?.stop()
+            batteryMonitor = nil
 
-        if let observer = lowPowerNotificationObserver {
-            NotificationCenter.default.removeObserver(observer)
-            lowPowerNotificationObserver = nil
-        }
-#endif
+            if let observer = lowPowerNotificationObserver {
+                NotificationCenter.default.removeObserver(observer)
+                lowPowerNotificationObserver = nil
+            }
+        #endif
 
         // Clean up PID file
         try? PIDFileManager.removePID()
@@ -1694,150 +1695,151 @@ class KanataManager {
     }
 
     deinit {
-#if os(macOS)
-        // Cleanup battery monitor
-        batteryMonitor?.stop()
-        // Note: NotificationCenter observer cleanup skipped in deinit due to Sendable constraints
-        // The observer will be cleaned up naturally when the app terminates
-#endif
+        #if os(macOS)
+            // Cleanup battery monitor
+            batteryMonitor?.stop()
+            // Note: NotificationCenter observer cleanup skipped in deinit due to Sendable constraints
+            // The observer will be cleaned up naturally when the app terminates
+        #endif
     }
 
-#if os(macOS)
-    // MARK: - Battery Monitoring
+    #if os(macOS)
 
-    private func startBatteryMonitoring() {
-        guard batteryMonitor == nil else { return }
+        // MARK: - Battery Monitoring
 
-        AppLogger.shared.log("🔋 [Battery] Starting battery monitor")
-        let monitor = BatteryMonitor()
-        batteryMonitor = monitor
+        private func startBatteryMonitoring() {
+            guard batteryMonitor == nil else { return }
 
-        monitor.start { [weak self] reading in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.processBatteryReading(reading)
+            AppLogger.shared.log("🔋 [Battery] Starting battery monitor")
+            let monitor = BatteryMonitor()
+            batteryMonitor = monitor
+
+            monitor.start { [weak self] reading in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    await self.processBatteryReading(reading)
+                }
             }
         }
-    }
 
-    @MainActor
-    private func processBatteryReading(_ reading: BatteryReading?) async {
-        batteryLevel = reading?.level
+        @MainActor
+        private func processBatteryReading(_ reading: BatteryReading?) async {
+            batteryLevel = reading?.level
 
-        guard let reading else { return }
+            guard let reading else { return }
 
-        let level = reading.level
+            let level = reading.level
 
-        if lowPowerPauseActive {
-            updateLowPowerErrorReason(for: level)
-        }
-
-        if level < lowPowerThreshold {
-            if !lowPowerWarningActive && !lowPowerPauseActive {
-                lowPowerWarningActive = true
-                let percent = formattedBatteryPercentage(level)
-                AppLogger.shared.log("🪫 [Battery] Level at \(percent)% - prompting user to pause service")
-                UserNotificationService.shared.notifyLowPowerWarning(batteryPercentage: percent)
+            if lowPowerPauseActive {
+                updateLowPowerErrorReason(for: level)
             }
-        } else {
-            lowPowerWarningActive = false
-        }
 
-        if lowPowerPauseActive && level >= lowPowerResumeThreshold {
-            let now = Date()
-            if lastLowPowerResumeAttempt == nil || now.timeIntervalSince(lastLowPowerResumeAttempt!) >= 30 {
-                lastLowPowerResumeAttempt = now
-                await resumeFromLowPower(triggeredByBatteryRecovery: true)
+            if level < lowPowerThreshold {
+                if !lowPowerWarningActive, !lowPowerPauseActive {
+                    lowPowerWarningActive = true
+                    let percent = formattedBatteryPercentage(level)
+                    AppLogger.shared.log("🪫 [Battery] Level at \(percent)% - prompting user to pause service")
+                    UserNotificationService.shared.notifyLowPowerWarning(batteryPercentage: percent)
+                }
+            } else {
+                lowPowerWarningActive = false
+            }
+
+            if lowPowerPauseActive, level >= lowPowerResumeThreshold {
+                let now = Date()
+                if lastLowPowerResumeAttempt == nil || now.timeIntervalSince(lastLowPowerResumeAttempt!) >= 30 {
+                    lastLowPowerResumeAttempt = now
+                    await resumeFromLowPower(triggeredByBatteryRecovery: true)
+                }
             }
         }
-    }
 
-    private func formattedBatteryPercentage(_ level: Double?) -> Int {
-        guard let level else { return 5 }
-        return max(0, min(100, Int((level * 100).rounded())))
-    }
-
-    @MainActor
-    private func updateLowPowerErrorReason(for level: Double?) {
-        guard lowPowerPauseActive else {
-            errorReason = nil
-            return
+        private func formattedBatteryPercentage(_ level: Double?) -> Int {
+            guard let level else { return 5 }
+            return max(0, min(100, Int((level * 100).rounded())))
         }
 
-        let percent = formattedBatteryPercentage(level)
-        errorReason = "Paused automatically due to low battery (\(percent)%)"
-    }
+        @MainActor
+        private func updateLowPowerErrorReason(for level: Double?) {
+            guard lowPowerPauseActive else {
+                errorReason = nil
+                return
+            }
 
-    @MainActor
-    private func handleLowPowerPauseRequest() async {
-        AppLogger.shared.log("🪫 [Battery] Low-power pause requested via notification action")
-        await pauseServiceForLowBattery()
-    }
-
-    /// Exposed for UI/notification actions to pause the service.
-    @MainActor
-    func pauseServiceForLowBattery() async {
-        if lowPowerPauseActive {
-            AppLogger.shared.log("🪫 [Battery] Low-power pause already active; ignoring duplicate request")
-            return
+            let percent = formattedBatteryPercentage(level)
+            errorReason = "Paused automatically due to low battery (\(percent)%)"
         }
 
-        lowPowerPauseActive = true
-        lowPowerWarningActive = true
-        lowPowerPausedAt = Date()
-        let previousState = currentState
-
-        await stopKanata()
-        await updateStatus()
-
-        if isRunning {
-            AppLogger.shared.log("⚠️ [Battery] Failed to stop service for low-power pause")
-            lowPowerPauseActive = false
-            lowPowerPausedAt = nil
-            currentState = previousState
-            return
+        @MainActor
+        private func handleLowPowerPauseRequest() async {
+            AppLogger.shared.log("🪫 [Battery] Low-power pause requested via notification action")
+            await pauseServiceForLowBattery()
         }
 
-        currentState = .pausedLowPower
-        updateLowPowerErrorReason(for: batteryLevel)
+        /// Exposed for UI/notification actions to pause the service.
+        @MainActor
+        func pauseServiceForLowBattery() async {
+            if lowPowerPauseActive {
+                AppLogger.shared.log("🪫 [Battery] Low-power pause already active; ignoring duplicate request")
+                return
+            }
 
-        let percent = formattedBatteryPercentage(batteryLevel)
-        UserNotificationService.shared.notifyLowPowerPaused(batteryPercentage: percent)
-        postLowPowerStatusMessage("🪫 KeyPath paused due to low battery. Charge above 5% to resume automatically.")
-    }
+            lowPowerPauseActive = true
+            lowPowerWarningActive = true
+            lowPowerPausedAt = Date()
+            let previousState = currentState
 
-    @MainActor
-    private func resumeFromLowPower(triggeredByBatteryRecovery: Bool) async {
-        guard lowPowerPauseActive else { return }
+            await stopKanata()
+            await updateStatus()
 
-        AppLogger.shared.log("🔋 [Battery] Attempting automatic resume (batteryRecovery=\(triggeredByBatteryRecovery))")
+            if isRunning {
+                AppLogger.shared.log("⚠️ [Battery] Failed to stop service for low-power pause")
+                lowPowerPauseActive = false
+                lowPowerPausedAt = nil
+                currentState = previousState
+                return
+            }
 
-        await manualStart()
-        await refreshStatus()
+            currentState = .pausedLowPower
+            updateLowPowerErrorReason(for: batteryLevel)
 
-        if isRunning {
-            lowPowerPauseActive = false
-            lowPowerPausedAt = nil
-            lowPowerWarningActive = false
-            lastLowPowerResumeAttempt = nil
-            errorReason = nil
-
-            UserNotificationService.shared.notifyLowPowerRecovered()
-            postLowPowerStatusMessage("🔋 Battery recovered. KeyPath resumed.")
-        } else {
-            AppLogger.shared.log("⚠️ [Battery] Automatic resume failed; will retry on subsequent battery updates")
+            let percent = formattedBatteryPercentage(batteryLevel)
+            UserNotificationService.shared.notifyLowPowerPaused(batteryPercentage: percent)
+            postLowPowerStatusMessage("🪫 KeyPath paused due to low battery. Charge above 5% to resume automatically.")
         }
-    }
 
-    @MainActor
-    private func postLowPowerStatusMessage(_ message: String) {
-        NotificationCenter.default.post(
-            name: NSNotification.Name("ShowUserFeedback"),
-            object: nil,
-            userInfo: ["message": message]
-        )
-    }
-#endif
+        @MainActor
+        private func resumeFromLowPower(triggeredByBatteryRecovery: Bool) async {
+            guard lowPowerPauseActive else { return }
+
+            AppLogger.shared.log("🔋 [Battery] Attempting automatic resume (batteryRecovery=\(triggeredByBatteryRecovery))")
+
+            await manualStart()
+            await refreshStatus()
+
+            if isRunning {
+                lowPowerPauseActive = false
+                lowPowerPausedAt = nil
+                lowPowerWarningActive = false
+                lastLowPowerResumeAttempt = nil
+                errorReason = nil
+
+                UserNotificationService.shared.notifyLowPowerRecovered()
+                postLowPowerStatusMessage("🔋 Battery recovered. KeyPath resumed.")
+            } else {
+                AppLogger.shared.log("⚠️ [Battery] Automatic resume failed; will retry on subsequent battery updates")
+            }
+        }
+
+        @MainActor
+        private func postLowPowerStatusMessage(_ message: String) {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ShowUserFeedback"),
+                object: nil,
+                userInfo: ["message": message]
+            )
+        }
+    #endif
 
     // MARK: - Installation and Permissions
 
@@ -1922,7 +1924,8 @@ class KanataManager {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -1930,12 +1933,14 @@ class KanataManager {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -2774,7 +2779,7 @@ class KanataManager {
     // MARK: - Kanata Arguments Builder
 
     /// Builds Kanata command line arguments including TCP port when enabled
-    func buildKanataArguments(configPath: String, checkOnly: Bool = false) -> [String] {
+    func buildKanataArguments(configPath _: String, checkOnly: Bool = false) -> [String] {
         // Delegate to ConfigurationManager
         return configurationManager.buildKanataArguments(checkOnly: checkOnly)
     }

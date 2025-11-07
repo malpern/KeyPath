@@ -1,7 +1,7 @@
 import AppKit
-import KeyPathCore
 import Carbon
 import Foundation
+import KeyPathCore
 import SwiftUI
 
 // Import the event processing infrastructure
@@ -617,7 +617,8 @@ public class KeyboardCapture: ObservableObject {
             // Check if all three keys are pressed simultaneously
             if pressedKeys.contains(leftControlKey),
                pressedKeys.contains(spaceKey),
-               pressedKeys.contains(escapeKey) {
+               pressedKeys.contains(escapeKey)
+            {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
                 DispatchQueue.main.async {

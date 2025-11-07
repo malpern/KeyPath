@@ -1,5 +1,5 @@
-import Foundation
 import AppKit
+import Foundation
 import KeyPathCore
 
 /// Tiny service to run a post-start safety timeout that can trigger a stop callback.

@@ -1,7 +1,7 @@
 import ApplicationServices
-import KeyPathCore
 import Foundation
 import IOKit.hidsystem
+import KeyPathCore
 import SwiftUI
 
 // MARK: - KanataManager Configuration Extension
