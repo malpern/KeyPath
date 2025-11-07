@@ -24,8 +24,8 @@ echo "💡 Create run-tests-automated.sh locally for passwordless testing"
 echo ""
 
 # Fallback to manual testing
-echo "Running Swift unit tests..."
-./run-tests-workaround.sh
+echo "Running Swift unit tests (safe runner)..."
+"$SCRIPT_DIR/Scripts/run-tests-safe.sh"
 
 echo ""
 echo "Running integration tests..."

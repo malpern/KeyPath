@@ -1735,7 +1735,6 @@ class KanataManager {
 #if os(macOS)
         // Cleanup battery monitor
         batteryMonitor?.stop()
-        
         // Note: NotificationCenter observer cleanup skipped in deinit due to Sendable constraints
         // The observer will be cleaned up naturally when the app terminates
 #endif
@@ -2020,7 +2019,7 @@ class KanataManager {
 
     /// Show floating help bubble near the Finder selection, with fallback positioning
     private func showDragAndDropHelpBubble() {
-        // TODO: Post notification for UI layer to show help bubble
+        // Note: Post a notification for the UI layer to show a contextual help bubble
         // Core library cannot directly call UI components
         AppLogger.shared.log("ℹ️ [Bubble] Help bubble would be shown here (needs notification-based implementation)")
     }
@@ -2595,6 +2594,25 @@ class KanataManager {
         }
     }
 
+    // MARK: - One-click Service Regeneration
+
+    /// Regenerate LaunchDaemon services (rewrite plists, bootstrap, kickstart) using current settings.
+    /// Returns true on success.
+    func regenerateServices() async -> Bool {
+        AppLogger.shared.log("🔧 [Services] One-click regenerate services initiated")
+        do {
+            try await PrivilegedOperationsCoordinator.shared.regenerateServiceConfiguration()
+            // Refresh status after regeneration to update UI promptly
+            await forceRefreshStatus()
+            AppLogger.shared.info("✅ [Services] Regenerate services completed")
+            return true
+        } catch {
+            AppLogger.shared.error("❌ [Services] Regenerate services failed: \(error)")
+            lastError = "Regenerate services failed: \(error.localizedDescription)"
+            return false
+        }
+    }
+
     /// Trigger VirtualHID recovery when connection failures are detected
     private func triggerVirtualHIDRecovery() async {
         AppLogger.shared.log("🚨 [Recovery] VirtualHID connection failure detected in real-time")
@@ -2768,7 +2786,7 @@ class KanataManager {
         AppLogger.shared.debug("🔍 [DEBUG] lastConfigUpdate timestamp set to: \(lastConfigUpdate)")
     }
 
-    /// Synchronize config to system path for Kanata --watch compatibility
+    // Synchronize config to system path for Kanata --watch compatibility
     // synchronizeConfigToSystemPath removed - no longer needed since LaunchDaemon reads user config directly
 
     /// Backs up a failed config and applies safe default, returning backup path

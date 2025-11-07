@@ -367,12 +367,12 @@ actor KanataTCPClient {
     }
 
     /// Send reload command to Kanata
-    /// Tries Reload(wait/timeout_ms), falls back to basic {"Reload":{}} and Ok/Error.
+    /// Prefer Reload(wait/timeout_ms); fall back to basic {"Reload":{}} and Ok/Error if needed.
     func reloadConfig(timeoutMs: UInt32 = 5000) async -> TCPReloadResult {
-        AppLogger.shared.log("🔄 [TCP] Triggering config reload (preferring wait/timeout_ms)")
+        AppLogger.shared.log("🔄 [TCP] Triggering config reload (timeoutMs=\(timeoutMs))")
 
         do {
-            // Preferred: wait contract
+            // Preferred: wait contract (v2)
             let req: [String: Any] = [
                 "Reload": [
                     "wait": true,

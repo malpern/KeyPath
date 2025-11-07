@@ -21,6 +21,11 @@ Current status (this checkpoint)
   - ✅ Client prefers Reload(wait:true, timeout_ms) and falls back to Ok/Error automatically.
   - ✅ Diagnostics shows Last Reload (ok, duration_ms, epoch) and treats Karabiner background services disabled as info (OK).
   - ✅ UI: Save mapping path uses the new reload; verified deterministic success with Wizard all green.
+  - ✅ Diagnostics: added one-click "Regenerate Services" (rewrites plists, kickstarts; surfaces errors in logs).
+  - ✅ Diagnostics: shows HelloOk version/protocol/capabilities (TCP Handshake card).
+  - ✅ Save toast: includes reload duration when available.
+  - ✅ Diagnostics: protocol v2 enforcement with auto-fix (Regenerate Services).
+  - ✅ Diagnostics: "Restart Kanata" button with success toast and revalidation.
 
 Completed in this step
 1) ✅ Deterministic reload (v2/blocking)
@@ -33,21 +38,23 @@ Completed in this step
    - ✅ Diagnostics surfaces Last Reload info and clarifies Karabiner services disabled is OK.
 
 Next steps (ordered)
-3) Diagnostics/UI polish
-   - Show HelloOk version/protocol/capabilities in Diagnostics.
-   - Include reload duration in Save success toast consistently.
+3) ✅ Diagnostics/UI polish
+  - ✅ Show HelloOk version/protocol/capabilities in Diagnostics.
+  - ✅ Include reload duration in Save success toast consistently.
 
-4) Test coverage
-   - Keep integration tests for Hello/Status/Reload(wait) and framing running in CI; add UI smoke for Save.
+4) ✅ Test coverage
+   - ✅ Integration tests for Hello/Status/Reload(wait) and framing
+   - ✅ UI smoke: Save writes config and status exposes last_reload.duration_ms
 
 5) Logging defaults
-   - Set daemon default to info; rate-limit verbose "not mapped/unrecognized" debug.
+   - ✅ Default daemon log level set to info; hot-path IO + parser/zippychord debug gated or trace-only.
 
-6) Helper/daemon ergonomics
-   - Provide a one-click "Regenerate Services" (rewrite plists, verify codesign/BTM, kickstart).
+6) ✅ Helper/daemon ergonomics
+   - ✅ One-click "Regenerate Services" added in Diagnostics (rewrite plists and kickstart). Codesign/BTM issues are surfaced via existing analyzer; follow-ups will harden verification.
 
 7) Migration & rollout
-   - Feature-flag protocol v2 (default on), checkpoint tag and GitHub Release.
+   - Always prefer protocol v2 (wait-style reload) with automatic fallback; checkpoint tag and GitHub Release.
+   - Rollback: reinstall earlier build via Wizard → Regenerate Services (bundled kanata), or manually replace `/Library/KeyPath/bin/kanata` then kickstart.
 
 8) Upstream hygiene
    - Split PRs: (a) protocol v2 structs, (b) blocking Reload(wait) + epoch/duration, (c) framing cleanup, (d) Hello/Status additions.
@@ -60,6 +67,7 @@ Checkpoint tags
 - `checkpoint/2025-11-06-kanata-tcp-hello-status-ready` (Hello/Status integrated; UI green)
 - `checkpoint/2025-11-06-reload-wait-v1` (Reload(wait) v1 integrated; UI save validated)
  - `checkpoint/2025-11-06-reload-wait-v2-protocol-fix` (Blocking reload, protocol v2, framing cleanup, diagnostics)
+ - `checkpoint/2025-11-07-phase1-complete` (Stable Phase 1 complete: v2, blocking reload, diagnostics, logging; Phase 2 planning begins)
 
 ## Step-by-step plan for the next improvements
 
@@ -100,13 +108,13 @@ Checkpoint tags
 - Set daemon default to `info`; gate verbose "not mapped/unrecognized" behind a debug flag and add rate-limiting.
 - Acceptance: kanata log tail is quiet under normal operation.
 
-8) Helper/daemon ergonomics
-- Provide a single "Regenerate Services" action that rewrites plists, verifies codesign and BTM state, and kickstarts daemons.
-- Acceptance: one-click repair returns helper/kanata to running within 5s.
+8) ✅ Helper/daemon ergonomics
+- ✅ One-click "Regenerate Services" action implemented (rewrites plists, kickstarts daemons).
+- ✅ Acceptance: verified in-app; services return to running within seconds.
 
-9) Migration & rollout
-- Feature-flag v2 protocol; default off for canary builds.
-- Document rollback to v1; include tag names and installer steps.
-- Acceptance: documentation updated; canary toggles verified.
+9) ✅ Migration & rollout (phase 1)
+- ✅ Always prefer protocol v2; no user toggle. Wizard will complain if installed kanata lacks v2 and offer to fix.
+- Document rollback to v1; include tag names and installer steps. (next)
+- Acceptance: v2 wait-style reload path is used; fallback only if response lacks ReloadResult.
 
  

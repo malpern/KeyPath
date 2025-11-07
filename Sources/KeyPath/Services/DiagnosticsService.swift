@@ -388,6 +388,38 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             }
         }
 
+        // TCP handshake summary (protocol/capabilities)
+        if let hello = await fetchTcpHello() {
+            let caps = hello.capabilities.joined(separator: ", ")
+            let proto = hello.protocolVersion
+            diagnostics.append(
+                KanataDiagnostic(
+                    timestamp: Date(),
+                    severity: .info,
+                    category: .system,
+                    title: "TCP Handshake",
+                    description: "version=\(hello.version) protocol=\(proto) caps=[\(caps)]",
+                    technicalDetails: "HelloOk(version, protocol, capabilities)",
+                    suggestedAction: "",
+                    canAutoFix: false
+                ))
+
+            // Enforce protocol v2 for full functionality
+            if proto < 2 {
+                diagnostics.append(
+                    KanataDiagnostic(
+                        timestamp: Date(),
+                        severity: .error,
+                        category: .system,
+                        title: "Kanata protocol too old",
+                        description: "Detected protocol v\(proto). KeyPath requires v2 for blocking reload and richer status.",
+                        technicalDetails: "HelloOk reported protocol=\(proto)",
+                        suggestedAction: "Use Regenerate Services to install the bundled Kanata and reload services.",
+                        canAutoFix: true
+                    ))
+            }
+        }
+
         return diagnostics
     }
 
@@ -613,6 +645,15 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         do {
             _ = try await client.hello()
             return try await client.getStatus()
+        } catch {
+            return nil
+        }
+    }
+
+    private func fetchTcpHello() async -> KanataTCPClient.TcpHelloOk? {
+        let client = KanataTCPClient(port: 37001)
+        do {
+            return try await client.hello()
         } catch {
             return nil
         }
