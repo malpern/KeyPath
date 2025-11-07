@@ -259,8 +259,7 @@ actor KanataTCPClient {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             if let version = try container.decodeIfPresent(String.self, forKey: .version),
                let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion),
-               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
-            {
+               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities) {
                 self.version = version
                 self.protocolVersion = protocolVersion
                 self.capabilities = capabilities
@@ -473,8 +472,7 @@ actor KanataTCPClient {
                                     // Parse first line
                                     let first = s.split(separator: "\n").map(String.init).first ?? ""
                                     if let data = first.data(using: .utf8),
-                                       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                                    {
+                                       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                                         if (obj["Ready"] as? [String: Any]) != nil {
                                             conn.cancel(); continuation.resume(returning: (true, nil, nil, nil)); return
                                         } else if let err = obj["ConfigError"] as? [String: Any] {
@@ -578,8 +576,7 @@ actor KanataTCPClient {
             let responseData = try await send(requestData)
 
             if let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String, status == "Ok"
-            {
+               let status = json["status"] as? String, status == "Ok" {
                 AppLogger.shared.log("✅ [TCP] Kanata restart request sent")
                 return true
             }
@@ -699,8 +696,7 @@ actor KanataTCPClient {
             guard let lineData = line.data(using: .utf8) else { continue }
             // Try loose parse via JSONSerialization to locate the named object
             if let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-               let payload = obj[name]
-            {
+               let payload = obj[name] {
                 // Re-encode payload and decode strongly
                 if let payloadData = try? JSONSerialization.data(withJSONObject: payload) {
                     if let decoded = try? JSONDecoder().decode(T.self, from: payloadData) {

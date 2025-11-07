@@ -304,8 +304,7 @@ actor HelperManager {
         ]
         for path in fileCandidates {
             if FileManager.default.fileExists(atPath: path),
-               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path))
-            {
+               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) {
                 let data = try? handle.readToEnd()
                 let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
                 let lines = s.split(separator: "\n").map(String.init)

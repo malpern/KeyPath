@@ -19,8 +19,7 @@ public struct ApplyResult: Equatable, Sendable {
     public init(success: Bool,
                 rolledBack: Bool = false,
                 error: ConfigError? = nil,
-                diagnostics: ConfigDiagnostics? = nil)
-    {
+                diagnostics: ConfigDiagnostics? = nil) {
         self.success = success
         self.rolledBack = rolledBack
         self.error = error
@@ -52,8 +51,7 @@ public struct ConfigDiagnostics: Equatable, Sendable {
                 mappingCountBefore: Int? = nil,
                 mappingCountAfter: Int? = nil,
                 validationOutput: String? = nil,
-                timestamp: Date = Date())
-    {
+                timestamp: Date = Date()) {
         self.configPathBefore = configPathBefore
         self.configPathAfter = configPathAfter
         self.mappingCountBefore = mappingCountBefore

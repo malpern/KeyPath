@@ -89,8 +89,7 @@ class MainAppStateController: ObservableObject {
         // Verify plist has TCP port argument
         if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
            let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String]
-        {
+           let args = plist["ProgramArguments"] as? [String] {
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
                 AppLogger.shared.warn("⚠️ [MainAppStateController] TCP check failed: Service missing --port argument")

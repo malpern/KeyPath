@@ -79,7 +79,7 @@ final class KeyboardCaptureTests: XCTestCase {
             (Int64.max, "key\(Int64.max)"),
             (Int64.min, "key\(Int64.min)"),
             (0, "a"), // Should be 'a', not 'key0'
-            (10, "key10"), // Gap in mapping
+            (10, "key10") // Gap in mapping
         ]
 
         for (keyCode, expected) in edgeCases {

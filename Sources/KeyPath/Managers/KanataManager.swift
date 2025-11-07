@@ -672,8 +672,7 @@ class KanataManager {
 
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
-           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2")
-        {
+           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2") {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(
@@ -1924,8 +1923,7 @@ class KanataManager {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -1933,14 +1931,12 @@ class KanataManager {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(

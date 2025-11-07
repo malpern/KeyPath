@@ -111,8 +111,7 @@ struct ErrorInfo: Identifiable {
                 errorString.contains("tcp communication failed") ||
                 errorString.contains("tcp server required") ||
                 errorString.contains("tcp server unresponsive") ||
-                errorString.contains("tcp reload failed")
-            {
+                errorString.contains("tcp reload failed") {
                 return ErrorInfo(
                     originalError: error,
                     errorType: .tcpTimeout,
