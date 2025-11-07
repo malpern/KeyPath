@@ -459,7 +459,7 @@ actor KanataTCPClient {
                 conn.stateUpdateHandler = { state in
                     switch state {
                     case .ready:
-                        let payload = "{\"Subscribe\":{\"events\":[\"reload\",\"ready\"]}}\n".data(using: .utf8)!
+                        let payload = Data("{\"Subscribe\":{\"events\":[\"reload\",\"ready\"]}}\n".utf8)
                         conn.send(content: payload, completion: .contentProcessed { _ in
                             conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, error in
                                 if completionFlag.markCompleted() {

@@ -45,7 +45,7 @@ struct EmergencyStopPauseCard: View {
                             }
                         }
                     }
-                }) {
+                }, label: {
                     HStack(spacing: 8) {
                         if isRestarting {
                             ProgressView()

@@ -55,7 +55,7 @@ final class TCPClientIntegrationTests: XCTestCase {
         let conn = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(integerLiteral: UInt16(port)), using: .tcp)
         conn.stateUpdateHandler = { (state: NWConnection.State) in
             if case .ready = state {
-                let payload = "{\"Reload\":{\"wait\":true,\"timeout_ms\":1200}}\n".data(using: .utf8)!
+                let payload = Data("{\"Reload\":{\"wait\":true,\"timeout_ms\":1200}}\n".utf8)
                 conn.send(content: payload, completion: .contentProcessed { (_: NWError?) in
                     conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, _ in
                         if let content { received.value = content }
@@ -107,7 +107,7 @@ final class TCPClientIntegrationTests: XCTestCase {
         let conn = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(integerLiteral: UInt16(port)), using: .tcp)
         conn.stateUpdateHandler = { (state: NWConnection.State) in
             if case .ready = state {
-                let payload = "{\"Reload\":{\"wait\":true,\"timeout_ms\":1}}\n".data(using: .utf8)!
+                let payload = Data("{\"Reload\":{\"wait\":true,\"timeout_ms\":1}}\n".utf8)
                 conn.send(content: payload, completion: .contentProcessed { (_: NWError?) in
                     conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, _ in
                         if let content { received.value = content }
