@@ -38,14 +38,14 @@ final class BatteryMonitorTests: XCTestCase {
 
         // Should have at least 2 readings (immediate + after first poll)
         XCTAssertGreaterThanOrEqual(captured.values.count, 2, "Should receive at least 2 readings")
-        
+
         // Verify the readings match what we provided (may be fewer due to timing)
         let minCount = min(captured.values.count, readings.count)
         for i in 0..<minCount {
             XCTAssertEqual(captured.values[i].level, readings[i].level, accuracy: 0.0001)
             XCTAssertEqual(captured.values[i].isCharging, readings[i].isCharging)
         }
-        
+
         // Provider should have been called at least as many times as readings received
         XCTAssertGreaterThanOrEqual(provider.callCount, captured.values.count)
     }

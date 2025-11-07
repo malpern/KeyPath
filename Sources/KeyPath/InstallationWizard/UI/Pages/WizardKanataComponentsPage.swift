@@ -290,7 +290,7 @@ struct WizardKanataComponentsPage: View {
             AppLogger.shared.log("➡️ [Kanata Components] Navigated to next page: \(nextPage.displayName)")
         }
     }
-    
+
     private func navigateToPreviousPage() {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),

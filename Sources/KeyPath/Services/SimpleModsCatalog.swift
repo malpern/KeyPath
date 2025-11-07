@@ -4,9 +4,9 @@ import Foundation
 @MainActor
 public final class SimpleModsCatalog {
     public static let shared = SimpleModsCatalog()
-    
+
     private init() {}
-    
+
     /// Get all available presets
     public func getAllPresets() -> [SimpleModPreset] {
         return [
@@ -53,7 +53,7 @@ public final class SimpleModsCatalog {
                 fromKey: "ralt",
                 toKey: "lalt"
             ),
-            
+
             // Media & Function Keys
             SimpleModPreset(
                 name: "F13 → Play/Pause",
@@ -76,7 +76,7 @@ public final class SimpleModsCatalog {
                 fromKey: "f15",
                 toKey: "voldown"
             ),
-            
+
             // Common Swaps
             SimpleModPreset(
                 name: "Backspace → Delete",
@@ -94,7 +94,7 @@ public final class SimpleModsCatalog {
             ),
         ]
     }
-    
+
     /// Get presets by category
     public func getPresetsByCategory() -> [String: [SimpleModPreset]] {
         var categorized: [String: [SimpleModPreset]] = [:]
@@ -106,10 +106,9 @@ public final class SimpleModsCatalog {
         }
         return categorized
     }
-    
+
     /// Find a preset by keys
     public func findPreset(fromKey: String, toKey: String) -> SimpleModPreset? {
         return getAllPresets().first { $0.fromKey == fromKey && $0.toKey == toKey }
     }
 }
-

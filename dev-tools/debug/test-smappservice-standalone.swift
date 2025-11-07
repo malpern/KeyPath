@@ -53,7 +53,7 @@ if useDist {
 
 if let bundlePath = appBundlePath {
     print("✅ Found app bundle: \(bundlePath)")
-    
+
     // Check for helper plist
     let helperPlistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.helper.plist"
     if FileManager.default.fileExists(atPath: helperPlistPath) {
@@ -78,7 +78,7 @@ if let bundlePath = appBundlePath {
 // Create test plist if requested
 if createTestPlist {
     print("📝 Creating test daemon plist...")
-    
+
     let testPlistName = "com.keypath.test-daemon.plist"
     let testPlistContent = """
     <?xml version="1.0" encoding="UTF-8"?>
@@ -103,28 +103,28 @@ if createTestPlist {
     </dict>
     </plist>
     """
-    
+
     // Try to write to existing app bundle, or create standalone
     if let bundlePath = appBundlePath {
         let launchDaemonsPath = "\(bundlePath)/Contents/Library/LaunchDaemons"
         let testPlistPath = "\(launchDaemonsPath)/\(testPlistName)"
-        
+
         // Create directory if needed
         if !FileManager.default.fileExists(atPath: launchDaemonsPath) {
             try? FileManager.default.createDirectory(atPath: launchDaemonsPath, withIntermediateDirectories: true)
         }
-        
+
         do {
             try testPlistContent.write(toFile: testPlistPath, atomically: true, encoding: .utf8)
             print("✅ Created test plist: \(testPlistPath)")
-            
+
             // Validate
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/plutil")
             task.arguments = ["-lint", testPlistPath]
             try task.run()
             task.waitUntilExit()
-            
+
             if task.terminationStatus == 0 {
                 print("✅ Plist is valid")
                 print()

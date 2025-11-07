@@ -13,7 +13,7 @@ struct EmergencyStopPauseCard: View {
                     Circle()
                         .fill(Color.orange.opacity(0.2))
                         .frame(width: 48, height: 48)
-                    
+
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.title2)
                         .foregroundColor(.orange)

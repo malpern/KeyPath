@@ -9,7 +9,7 @@ public struct SimpleMapping: Identifiable, Sendable, Equatable {
     public let filePath: String
     public let lineRange: ClosedRange<Int>?
     public let checksum: String?
-    
+
     public init(
         id: UUID = UUID(),
         fromKey: String,
@@ -37,7 +37,7 @@ public struct SimpleModPreset: Identifiable, Sendable {
     public let category: String
     public let fromKey: String
     public let toKey: String
-    
+
     public init(
         id: UUID = UUID(),
         name: String,
@@ -61,7 +61,7 @@ public struct MappingConflict: Sendable {
     public let conflictingLine: Int
     public let conflictingFile: String
     public let reason: String
-    
+
     public init(fromKey: String, conflictingLine: Int, conflictingFile: String, reason: String) {
         self.fromKey = fromKey
         self.conflictingLine = conflictingLine
@@ -77,7 +77,7 @@ public struct SentinelBlock: Sendable {
     public let startLine: Int
     public let endLine: Int
     public let mappings: [SimpleMapping]
-    
+
     public init(id: String, version: Int, startLine: Int, endLine: Int, mappings: [SimpleMapping]) {
         self.id = id
         self.version = version
@@ -86,4 +86,3 @@ public struct SentinelBlock: Sendable {
         self.mappings = mappings
     }
 }
-

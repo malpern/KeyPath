@@ -44,7 +44,7 @@ for path in possibleBundlePaths {
 
 if let bundlePath = foundBundle {
     print("✅ Found app bundle: \(bundlePath)")
-    
+
     let helperPlistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.helper.plist"
     if FileManager.default.fileExists(atPath: helperPlistPath) {
         print("✅ Found helper plist")
@@ -96,14 +96,14 @@ let testPlistPath = "./com.keypath.test-daemon.plist"
 do {
     try testPlistContent.write(toFile: testPlistPath, atomically: true, encoding: .utf8)
     print("✅ Created test plist: \(testPlistPath)")
-    
+
     // Validate plist
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/plutil")
     task.arguments = ["-lint", testPlistPath]
     try task.run()
     task.waitUntilExit()
-    
+
     if task.terminationStatus == 0 {
         print("✅ Plist is valid")
     }

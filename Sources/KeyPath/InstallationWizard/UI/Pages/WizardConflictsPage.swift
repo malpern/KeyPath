@@ -207,7 +207,7 @@ struct WizardConflictsPage: View {
         navigationCoordinator.navigateToPage(nextPage)
         AppLogger.shared.log("➡️ [Conflicts] Navigated to next page: \(nextPage.displayName)")
     }
-    
+
     private func navigateToPreviousPage() {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),

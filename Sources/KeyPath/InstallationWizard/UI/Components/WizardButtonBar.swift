@@ -8,27 +8,27 @@ struct WizardButtonBar: View {
         let title: String
         let action: () -> Void
         let isEnabled: Bool
-        
+
         init(title: String = "Cancel", action: @escaping () -> Void, isEnabled: Bool = true) {
             self.title = title
             self.action = action
             self.isEnabled = isEnabled
         }
     }
-    
+
     /// Secondary button configuration (middle)
     struct SecondaryButton {
         let title: String
         let action: () -> Void
         let isEnabled: Bool
-        
+
         init(title: String, action: @escaping () -> Void, isEnabled: Bool = true) {
             self.title = title
             self.action = action
             self.isEnabled = isEnabled
         }
     }
-    
+
     /// Primary button configuration (rightmost, default action)
     struct PrimaryButton {
         let title: String
@@ -36,12 +36,12 @@ struct WizardButtonBar: View {
         let isEnabled: Bool
         let isLoading: Bool
         let style: ButtonStyle
-        
+
         enum ButtonStyle {
             case `default`
             case destructive
         }
-        
+
         init(title: String, action: @escaping () -> Void, isEnabled: Bool = true, isLoading: Bool = false, style: ButtonStyle = .default) {
             self.title = title
             self.action = action
@@ -50,11 +50,11 @@ struct WizardButtonBar: View {
             self.style = style
         }
     }
-    
+
     let cancelButton: CancelButton?
     let secondaryButton: SecondaryButton?
     let primaryButton: PrimaryButton?
-    
+
     init(
         cancel: CancelButton? = nil,
         secondary: SecondaryButton? = nil,
@@ -64,7 +64,7 @@ struct WizardButtonBar: View {
         self.secondaryButton = secondary
         self.primaryButton = primary
     }
-    
+
     var body: some View {
         HStack(spacing: WizardDesign.Spacing.itemGap) {
             // Cancel button (leftmost)
@@ -76,7 +76,7 @@ struct WizardButtonBar: View {
                 .keyboardShortcut(.cancelAction) // Escape key
                 .disabled(!cancelButton.isEnabled)
             }
-            
+
             // Secondary button (middle)
             if let secondaryButton {
                 Button(secondaryButton.title) {
@@ -85,9 +85,9 @@ struct WizardButtonBar: View {
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
                 .disabled(!secondaryButton.isEnabled)
             }
-            
+
             Spacer()
-            
+
             // Primary button (rightmost, default action)
             if let primaryButton {
                 if primaryButton.style == .destructive {
@@ -122,7 +122,7 @@ extension WizardButtonBar {
             primary: PrimaryButton(title: title, action: action, isLoading: isLoading)
         )
     }
-    
+
     /// Primary + Cancel (common case)
     static func primaryAndCancel(primaryTitle: String, primaryAction: @escaping () -> Void, cancelTitle: String = "Cancel", cancelAction: @escaping () -> Void, isLoading: Bool = false) -> WizardButtonBar {
         WizardButtonBar(
@@ -130,7 +130,7 @@ extension WizardButtonBar {
             primary: PrimaryButton(title: primaryTitle, action: primaryAction, isLoading: isLoading)
         )
     }
-    
+
     /// Primary + Secondary + Cancel (full set)
     static func full(
         primaryTitle: String,
@@ -148,4 +148,3 @@ extension WizardButtonBar {
         )
     }
 }
-

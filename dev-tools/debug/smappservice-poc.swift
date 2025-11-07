@@ -49,10 +49,11 @@ struct SMAppServicePOC {
             print("🔍 Checking plist: \(plistName)")
 
             // Check if plist exists in bundle
-            if let plistPath = Bundle.main.path(forResource: plistName.replacingOccurrences(of: ".plist", with: ""), ofType: "plist", inDirectory: "Contents/Library/LaunchDaemons") {
-                print("✅ Found plist in bundle: \(plistPath)")
+            let expectedPath = "\(Bundle.main.bundlePath)/Contents/Library/LaunchDaemons/\(plistName)"
+            if FileManager.default.fileExists(atPath: expectedPath) {
+                print("✅ Found plist in bundle: \(expectedPath)")
             } else {
-                print("⚠️ Plist not found in bundle (expected at Contents/Library/LaunchDaemons/\(plistName))")
+                print("⚠️ Plist not found in bundle (expected at \(expectedPath))")
             }
         }
 

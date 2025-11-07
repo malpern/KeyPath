@@ -51,4 +51,3 @@ final class HealthCheckServiceTests: XCTestCase {
     }
 }
 
-

@@ -325,7 +325,7 @@ struct WizardKanataServicePage: View {
             AppLogger.shared.log("➡️ [Kanata Service] Navigated to next page: \(nextPage.displayName)")
         }
     }
-    
+
     private func navigateToPreviousPage() {
         let allPages = WizardPage.allCases
         guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),

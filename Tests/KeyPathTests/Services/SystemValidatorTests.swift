@@ -47,7 +47,7 @@ struct SystemValidatorTests {
         // This ensures our validator is the one that counts
         let processManager = ProcessLifecycleManager()
         let validator = SystemValidator(processLifecycleManager: processManager)
-        
+
         // Wait to ensure validator initialization completes and becomes counting owner
         try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 seconds
 
@@ -63,18 +63,18 @@ struct SystemValidatorTests {
         try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
 
         var stats = SystemValidator.getValidationStats()
-        
+
         // In parallel execution, if another test's validator is the counting owner,
         // our validator won't increment the count. So we check that:
         // 1. Either the count increased (we're the counting owner), OR
         // 2. The activeCount changed (validation happened, even if we're not counting)
         let countIncreased = stats.totalCount > baselineCount
         let hadActiveValidation = stats.activeCount > 0 || baselineStats.activeCount > 0
-        
+
         // At least one of these should be true: either we counted, or validation happened
-        #expect(countIncreased || hadActiveValidation, 
+        #expect(countIncreased || hadActiveValidation,
                 "Either count should increase (if we're counting owner) or activeCount should change (validation happened)")
-        
+
         // Active count should be reasonable after validation completes
         #expect(stats.activeCount <= 2, "activeCount should be reasonable after validation completes")
 
@@ -86,11 +86,11 @@ struct SystemValidatorTests {
         try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
 
         stats = SystemValidator.getValidationStats()
-        
+
         // If we were counting before, we should still be counting
         // If count increased from baseline, check it increases again
         if countIncreased {
-            #expect(stats.totalCount >= countAfterFirst + 1, 
+            #expect(stats.totalCount >= countAfterFirst + 1,
                     "totalCount should increase again after second validation (if we're counting owner)")
         }
         #expect(stats.activeCount <= 2, "activeCount should be reasonable after validation completes")

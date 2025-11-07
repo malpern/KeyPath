@@ -540,7 +540,7 @@ extension RecordingCoordinator {
         let bannerMessage: String
         let shouldShowBanner: Bool
     }
-    
+
     private func recordingFailureDisplayInfo(for reason: String) -> RecordingFailureDisplayInfo {
         switch reason {
         case "permissionFailure":

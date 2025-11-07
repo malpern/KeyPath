@@ -31,4 +31,3 @@ final class PermissionOracleXCTests: XCTestCase {
     }
 }
 
-

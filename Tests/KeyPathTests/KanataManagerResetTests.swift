@@ -26,11 +26,3 @@ final class KanataManagerResetTests: XCTestCase {
     }
 }
 
-
-
-
-
-
-
-
-

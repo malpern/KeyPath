@@ -355,7 +355,7 @@ struct SettingsView: View {
                             openKanataLogs()
                         }
                     )
-                    
+
                     SettingsButton(
                         title: "Disable Karabiner Grabber",
                         systemImage: "nosign",

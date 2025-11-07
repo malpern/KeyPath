@@ -151,7 +151,7 @@ final class PackageManagerTests: XCTestCase {
                 break
             }
         }
-        
+
         // If kanata is installed, verify we detected it (regardless of which path)
         if initialKanataInfo.isInstalled {
             XCTAssertNotNil(initialKanataInfo.path, "Should have detected kanata path if installed")

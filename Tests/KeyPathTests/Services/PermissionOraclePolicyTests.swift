@@ -100,5 +100,3 @@ struct PermissionOraclePolicyTests {
     }
 }
 
-
-
