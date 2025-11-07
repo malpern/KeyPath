@@ -62,7 +62,7 @@ struct EmergencyStopPauseCard: View {
                     .background(Color.accentColor)
                     .foregroundColor(.white)
                     .cornerRadius(8)
-                }
+                })
                 .buttonStyle(.plain)
                 .disabled(isRestarting)
             }
