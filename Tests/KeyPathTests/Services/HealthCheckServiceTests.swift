@@ -50,4 +50,3 @@ final class HealthCheckServiceTests: XCTestCase {
         XCTAssertEqual(decision.reason, "tcp down")
     }
 }
-

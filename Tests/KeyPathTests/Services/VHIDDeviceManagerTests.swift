@@ -27,4 +27,3 @@ final class VHIDDeviceManagerTests: XCTestCase {
         XCTAssertFalse(mgr.detectRunning(), "No daemon should be reported as not running")
     }
 }
-

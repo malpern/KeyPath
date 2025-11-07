@@ -147,4 +147,3 @@ public enum MockSystemData {
     /// Mock permission status
     public static let mockHasPermissions = true
 }
-

@@ -82,5 +82,3 @@ enum TapError: Error {
     case alreadyInstalled
     case installationFailed(reason: String)
 }
-
-

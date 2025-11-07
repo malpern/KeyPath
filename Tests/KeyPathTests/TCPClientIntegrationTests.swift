@@ -127,4 +127,3 @@ final class TCPClientIntegrationTests: XCTestCase {
         // Accept either timeout or immediate success; framing is the key invariant
     }
 }
-

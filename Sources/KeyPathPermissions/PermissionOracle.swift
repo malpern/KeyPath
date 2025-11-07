@@ -496,4 +496,3 @@ public extension PermissionOracle.Status {
         }
     }
 }
-

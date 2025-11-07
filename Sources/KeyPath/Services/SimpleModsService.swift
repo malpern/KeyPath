@@ -312,4 +312,3 @@ public final class SimpleModsService: ObservableObject {
         return catalog.getPresetsByCategory()
     }
 }
-

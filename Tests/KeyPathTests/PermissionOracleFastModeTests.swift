@@ -30,4 +30,3 @@ final class PermissionOracleFastModeTests: XCTestCase {
         XCTAssertEqual(first.timestamp.timeIntervalSince1970, second.timestamp.timeIntervalSince1970)
     }
 }
-

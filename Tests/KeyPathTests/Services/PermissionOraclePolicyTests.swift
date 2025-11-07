@@ -99,4 +99,3 @@ struct PermissionOraclePolicyTests {
         #expect(!issue.contains("KeyPath needs Input Monitoring"))
     }
 }
-

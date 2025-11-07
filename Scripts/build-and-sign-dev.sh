@@ -66,5 +66,18 @@ echo "🔒 TCC identity preserved (Team ID + Bundle ID + Code Signature)"
 echo "🔍 Code signature verification..."
 codesign --verify --verbose=2 "$APP_BUNDLE"
 
+echo "📂 Deploying to ~/Applications for TCC testing..."
+USER_APPS_DIR="$HOME/Applications"
+APP_DEST="$USER_APPS_DIR/${APP_NAME}.app"
+mkdir -p "$USER_APPS_DIR"
+rm -rf "$APP_DEST"
+if ditto "$APP_BUNDLE" "$APP_DEST"; then
+    echo "✅ Deployed latest $APP_NAME to $APP_DEST"
+    echo "   (TCC permissions require app to be in Applications folder)"
+else
+    echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
+fi
+
 echo "✨ Ready for development testing!"
+echo "📍 App location: $APP_DEST"
 echo "💡 Use ./Scripts/build-and-sign.sh for production builds with notarization"

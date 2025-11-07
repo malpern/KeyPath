@@ -95,4 +95,3 @@ extension FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: useSMAppServiceForDaemonKey)
     }
 }
-

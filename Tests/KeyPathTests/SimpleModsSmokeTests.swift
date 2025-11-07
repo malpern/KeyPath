@@ -45,4 +45,3 @@ final class SimpleModsSmokeTests: XCTestCase {
         XCTAssertTrue(status.last_reload?.duration_ms != nil, "Expected last_reload.duration_ms to be present for UI toast")
     }
 }
-

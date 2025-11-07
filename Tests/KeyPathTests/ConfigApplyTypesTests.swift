@@ -44,4 +44,3 @@ final class ConfigApplyTypesTests: XCTestCase {
         XCTAssertEqual(c1, c2)
     }
 }
-

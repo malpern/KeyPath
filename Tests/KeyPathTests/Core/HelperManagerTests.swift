@@ -42,4 +42,3 @@ private struct FakeSMAppService: SMAppServiceProtocol {
     func register() throws { throw registerError }
     func unregister() async throws {}
 }
-

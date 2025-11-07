@@ -176,4 +176,3 @@ final class WizardStateMachineDeterminismTests: XCTestCase {
         XCTAssertEqual(machine.currentPage, .service)
     }
 }
-

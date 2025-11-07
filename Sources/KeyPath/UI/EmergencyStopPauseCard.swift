@@ -85,4 +85,3 @@ struct EmergencyStopPauseCard: View {
         .padding()
         .preferredColorScheme(.light)
 }
-

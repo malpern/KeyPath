@@ -292,4 +292,3 @@ public enum Issue: Equatable {
         }
     }
 }
-

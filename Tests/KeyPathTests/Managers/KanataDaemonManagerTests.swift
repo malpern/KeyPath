@@ -127,4 +127,3 @@ final class KanataDaemonManagerTests: XCTestCase {
         XCTAssertIdentical(manager1, manager2, "Should return same singleton instance")
     }
 }
-

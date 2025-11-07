@@ -35,4 +35,3 @@ final class KanataManagerPublicAPITests: XCTestCase {
         XCTAssertTrue(snapshot.showWizard)
     }
 }
-

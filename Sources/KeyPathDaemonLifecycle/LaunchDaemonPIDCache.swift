@@ -172,4 +172,3 @@ public enum CacheConfidence: Sendable {
     case low // Stale cache (> 10s old) or error fallback
     case none // No cache available
 }
-

@@ -23,5 +23,3 @@ enum SafetyAlertPresenter {
         alert.runModal()
     }
 }
-
-

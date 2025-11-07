@@ -322,12 +322,3 @@ public extension LifecycleStateMachine {
     /// Current state display string for UI
     var stateDisplay: String { currentState.displayName }
 }
-
-
-
-
-
-
-
-
-

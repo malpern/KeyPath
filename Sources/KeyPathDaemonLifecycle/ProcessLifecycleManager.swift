@@ -329,4 +329,3 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         return isThisProcessManaged
     }
 }
-

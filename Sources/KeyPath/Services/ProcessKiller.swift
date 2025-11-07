@@ -21,5 +21,3 @@ enum ProcessKiller {
         }
     }
 }
-
-
