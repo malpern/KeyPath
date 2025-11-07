@@ -285,8 +285,18 @@ public actor PermissionOracle {
         var sourceParts: [String] = []
         var confidence: Confidence = .high
 
-        switch accessibility { case .granted, .denied: sourceParts.append("tcc-ax"); default: break }
-        switch inputMonitoring { case .granted, .denied: sourceParts.append("tcc-im"); default: break }
+        switch accessibility {
+        case .granted, .denied:
+            sourceParts.append("tcc-ax")
+        default:
+            break
+        }
+        switch inputMonitoring {
+        case .granted, .denied:
+            sourceParts.append("tcc-im")
+        default:
+            break
+        }
 
         if sourceParts.isEmpty { sourceParts = ["unknown"]; confidence = .low }
 

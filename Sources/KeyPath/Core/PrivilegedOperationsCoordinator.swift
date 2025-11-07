@@ -524,7 +524,7 @@ final class PrivilegedOperationsCoordinator {
         // For now, this delegates to LaunchDaemonInstaller's existing implementation
         // Once we extract all the logic, we'll move it here
         let installer = LaunchDaemonInstaller()
-        let success = installer.createConfigureAndLoadAllServices()
+        let success = await installer.createConfigureAndLoadAllServices()
 
         if !success {
             throw PrivilegedOperationError.installationFailed("LaunchDaemon installation failed")
@@ -534,7 +534,7 @@ final class PrivilegedOperationsCoordinator {
     /// Install all LaunchDaemon services (convenience - uses PreferencesService)
     private func sudoInstallAllServicesWithPreferences() async throws {
         let installer = LaunchDaemonInstaller()
-        let success = installer.createConfigureAndLoadAllServices()
+        let success = await installer.createConfigureAndLoadAllServices()
 
         if !success {
             throw PrivilegedOperationError.installationFailed("LaunchDaemon installation failed")

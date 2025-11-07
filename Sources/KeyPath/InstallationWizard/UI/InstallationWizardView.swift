@@ -614,7 +614,7 @@ struct InstallationWizardView: View {
                                         issues: currentIssues
                                     )
                                     AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
-                                    if (action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon), karabinerStatus != .completed {
+                                    if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon, karabinerStatus != .completed {
                                         let detail = kanataManager.getVirtualHIDBreakageSummary()
                                         AppLogger.shared.log("❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
                                         await MainActor.run {

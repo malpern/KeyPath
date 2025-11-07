@@ -72,8 +72,7 @@ public final class AppLogger {
     // Determine minimum log level (environment variable override > parameter > default)
     if let envLevel = ProcessInfo.processInfo.environment["KEYPATH_LOG_LEVEL"],
       let levelInt = Int(envLevel),
-      let level = AppLogLevel(rawValue: levelInt)
-    {
+      let level = AppLogLevel(rawValue: levelInt) {
       self.minimumLevel = level
     } else {
       self.minimumLevel = minimumLevel ?? AppLogLevel.defaultMinimumLevel

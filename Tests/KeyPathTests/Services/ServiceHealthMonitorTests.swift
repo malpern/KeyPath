@@ -225,7 +225,7 @@ class ServiceHealthMonitorTests: XCTestCase {
     // To properly test conflict resolution, would need integration test with actual processes
     func skip_testDetermineRecoveryAction_ProcessConflicts() async {
         // Set up mock conflicts
-        let _ = ProcessLifecycleManager.ProcessInfo(pid: 9999, command: "/usr/local/bin/kanata")
+        _ = ProcessLifecycleManager.ProcessInfo(pid: 9999, command: "/usr/local/bin/kanata")
         // mockProcessLifecycle.mockConflicts = ProcessLifecycleManager.ConflictResolution(
         //     externalProcesses: [conflictProcess],
         //     managedProcesses: [],

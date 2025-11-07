@@ -372,12 +372,78 @@ class LaunchDaemonInstaller {
 
     /// Creates, installs, configures, and loads all LaunchDaemon services with a single admin prompt
     /// This method consolidates all admin operations to eliminate multiple password prompts
-    func createConfigureAndLoadAllServices() -> Bool {
+    /// Uses SMAppService for Kanata if feature flag is enabled, otherwise uses launchctl for all services
+    func createConfigureAndLoadAllServices() async -> Bool {
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] *** ENTRY POINT *** createConfigureAndLoadAllServices() called")
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Creating, configuring, and loading all services with single admin prompt")
-        AppLogger.shared.log("🔧 [LaunchDaemon] This method SHOULD trigger osascript password prompt")
+
+        // Check if SMAppService path is enabled for Kanata
+        if FeatureFlags.useSMAppServiceForDaemon {
+            AppLogger.shared.log("📱 [LaunchDaemon] Using SMAppService path for Kanata, launchctl for VirtualHID")
+            return await createConfigureAndLoadAllServicesWithSMAppService()
+        } else {
+            AppLogger.shared.log("🔧 [LaunchDaemon] Using launchctl path for all services")
+            return createConfigureAndLoadAllServicesViaLaunchctl()
+        }
+    }
+
+    /// Creates, installs, configures, and loads services using SMAppService for Kanata
+    /// VirtualHID services still use launchctl (they don't support SMAppService)
+    @MainActor
+    private func createConfigureAndLoadAllServicesWithSMAppService() async -> Bool {
+        AppLogger.shared.log("📱 [LaunchDaemon] Installing VirtualHID via launchctl, Kanata via SMAppService")
+
+        // 1. Install VirtualHID services via launchctl (they still need launchctl)
+        let vhidDaemonPlist = generateVHIDDaemonPlist()
+        let vhidManagerPlist = generateVHIDManagerPlist()
+
+        let tempDir = NSTemporaryDirectory()
+        let vhidDaemonTempPath = "\(tempDir)\(Self.vhidDaemonServiceID).plist"
+        let vhidManagerTempPath = "\(tempDir)\(Self.vhidManagerServiceID).plist"
+
+        do {
+            try vhidDaemonPlist.write(toFile: vhidDaemonTempPath, atomically: true, encoding: .utf8)
+            try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
+
+            // Install VirtualHID services via launchctl (requires admin)
+            let vhidSuccess = executeConsolidatedInstallationForVHIDOnly(
+                vhidDaemonTemp: vhidDaemonTempPath,
+                vhidManagerTemp: vhidManagerTempPath
+            )
+
+            // Clean up temporary files
+            try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
+            try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
+
+            guard vhidSuccess else {
+                AppLogger.shared.log("❌ [LaunchDaemon] VirtualHID installation failed")
+                return false
+            }
+
+            // 2. Install Kanata via SMAppService
+            AppLogger.shared.log("📱 [LaunchDaemon] Installing Kanata via SMAppService...")
+            let kanataSuccess = await createKanataLaunchDaemon()
+
+            if !kanataSuccess {
+                AppLogger.shared.log("❌ [LaunchDaemon] SMAppService registration failed, falling back to launchctl")
+                // Fall back to launchctl for Kanata
+                return createConfigureAndLoadAllServicesViaLaunchctl()
+            }
+
+            AppLogger.shared.info("✅ [LaunchDaemon] All services installed (VirtualHID via launchctl, Kanata via SMAppService)")
+            return true
+
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to create temporary plists: \(error)")
+            return false
+        }
+    }
+
+    /// Creates, installs, configures, and loads all services via launchctl (legacy path)
+    private func createConfigureAndLoadAllServicesViaLaunchctl() -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Installing all services via launchctl")
 
         let kanataBinaryPath = getKanataBinaryPath()
 
@@ -1295,6 +1361,107 @@ class LaunchDaemonInstaller {
         }
     }
 
+    /// Execute consolidated installation for VirtualHID services only (no Kanata)
+    /// Used when Kanata is installed via SMAppService
+    private func executeConsolidatedInstallationForVHIDOnly(
+        vhidDaemonTemp: String, vhidManagerTemp: String
+    ) -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Installing VirtualHID services only (Kanata via SMAppService)")
+
+        let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
+        let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
+        let currentUserName = NSUserName()
+
+        let command = """
+        set -ex
+        exec > /tmp/keypath-vhid-install-debug.log 2>&1
+        echo "Starting VirtualHID installation at $(date)..."
+        echo "Current user: $(whoami)"
+
+        # Create LaunchDaemons directory
+        mkdir -p '\(Self.launchDaemonsPath)'
+
+        # Install VirtualHID plist files with proper ownership
+        cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)'
+        cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
+
+        # Create user configuration directory and file (as current user)
+        install -d -o '\(currentUserName)' -g staff '/Users/\(currentUserName)/.config/keypath'
+        touch '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
+        chown '\(currentUserName):staff' '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
+
+        # Unload existing VirtualHID services first (ignore errors if not loaded)
+        launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
+        launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
+
+        # Enable services in case previously disabled
+        echo "Enabling VirtualHID services..."
+        /bin/launchctl enable system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
+        /bin/launchctl enable system/\(Self.vhidManagerServiceID) 2>/dev/null || true
+
+        # Load services using bootstrap (modern approach) - DEPENDENCIES FIRST!
+        launchctl bootstrap system '\(vhidDaemonFinal)'
+        launchctl bootstrap system '\(vhidManagerFinal)'
+
+        # Start services - DEPENDENCIES FIRST!
+        launchctl kickstart -k system/\(Self.vhidDaemonServiceID)
+        launchctl kickstart -k system/\(Self.vhidManagerServiceID)
+
+        echo "VirtualHID installation completed successfully"
+        """
+
+        // Create a temporary script file
+        let tempScriptPath = NSTemporaryDirectory() + "keypath-vhid-install-\(UUID().uuidString).sh"
+
+        do {
+            try command.write(toFile: tempScriptPath, atomically: true, encoding: .utf8)
+
+            // Set executable permissions
+            let fileManager = FileManager.default
+            try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScriptPath)
+
+            // Use osascript to execute the script with admin privileges
+            let osascriptCode = """
+            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install VirtualHID services for keyboard management."
+            """
+
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            task.arguments = ["-e", osascriptCode]
+            task.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
+
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+
+            AppLogger.shared.log("🔐 [LaunchDaemon] Executing VirtualHID installation...")
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
+            AppLogger.shared.log("🔐 [LaunchDaemon] VirtualHID installation status: \(task.terminationStatus)")
+            AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(output)")
+
+            // Clean up temp script
+            try? fileManager.removeItem(atPath: tempScriptPath)
+
+            if task.terminationStatus == 0 {
+                AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed VirtualHID services")
+                return true
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] VirtualHID installation failed")
+                return false
+            }
+
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Error installing VirtualHID services: \(error)")
+            try? FileManager.default.removeItem(atPath: tempScriptPath)
+            return false
+        }
+    }
+
     /// Execute consolidated installation with all operations in a single admin prompt
     /// Includes: install plists, create system config directory, create system config file, and load services
     @MainActor
@@ -1623,7 +1790,7 @@ class LaunchDaemonInstaller {
         // Step 1: Install missing services first if needed
         if !toInstall.isEmpty {
             AppLogger.shared.log("🔧 [LaunchDaemon] Installing missing services: \(toInstall)")
-            let installSuccess = createConfigureAndLoadAllServices()
+            let installSuccess = await createConfigureAndLoadAllServices()
             if !installSuccess {
                 AppLogger.shared.log("❌ [LaunchDaemon] Failed to install missing services")
                 return false
