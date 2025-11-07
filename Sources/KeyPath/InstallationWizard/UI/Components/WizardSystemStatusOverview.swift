@@ -484,8 +484,8 @@ struct WizardSystemStatusOverview: View {
 // MARK: - TCP Probe (synchronous, tiny timeout)
 
 private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
-    var readStream: Unmanaged<CFReadStream>? = nil
-    var writeStream: Unmanaged<CFWriteStream>? = nil
+    var readStream: Unmanaged<CFReadStream>?
+    var writeStream: Unmanaged<CFWriteStream>?
     CFStreamCreatePairWithSocketToHost(nil, "127.0.0.1" as CFString, UInt32(port), &readStream, &writeStream)
     guard let r = readStream?.takeRetainedValue(), let w = writeStream?.takeRetainedValue() else { return false }
     let input = r as InputStream

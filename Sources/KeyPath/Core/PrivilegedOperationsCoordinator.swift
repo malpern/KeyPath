@@ -584,7 +584,7 @@ final class PrivilegedOperationsCoordinator {
     /// Install LaunchDaemon services without loading them using LaunchDaemonInstaller
     private func sudoInstallServicesWithoutLoading() async throws {
         let installer = LaunchDaemonInstaller()
-        let success = installer.createAllLaunchDaemonServicesInstallOnly()
+        let success = await installer.createAllLaunchDaemonServicesInstallOnly()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Service installation (install-only) failed")

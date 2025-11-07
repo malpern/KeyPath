@@ -28,10 +28,10 @@ class KanataDaemonManager {
     // MARK: - Constants
 
     /// Service identifier for Kanata LaunchDaemon
-    static let kanataServiceID = "com.keypath.kanata"
+    nonisolated static let kanataServiceID = "com.keypath.kanata"
 
     /// LaunchDaemon plist name packaged inside the app bundle for SMAppService
-    static let kanataPlistName = "com.keypath.kanata.plist"
+    nonisolated static let kanataPlistName = "com.keypath.kanata.plist"
 
     // MARK: - Initialization
 
@@ -85,7 +85,7 @@ class KanataDaemonManager {
     /// Check if legacy launchctl installation exists
     /// - Returns: true if plist exists at /Library/LaunchDaemons/com.keypath.kanata.plist
     nonisolated func hasLegacyInstallation() -> Bool {
-        let legacyPlistPath = LaunchDaemonInstaller.kanataPlistPath
+        let legacyPlistPath = "/Library/LaunchDaemons/\(Self.kanataServiceID).plist"
         return FileManager.default.fileExists(atPath: legacyPlistPath)
     }
 
@@ -97,6 +97,19 @@ class KanataDaemonManager {
         AppLogger.shared.log("🔧 [KanataDaemonManager] Registering Kanata daemon via SMAppService")
         guard #available(macOS 13, *) else {
             throw KanataDaemonError.registrationFailed("Requires macOS 13+ for SMAppService")
+        }
+
+        // Validate plist exists in app bundle
+        let bundlePath = Bundle.main.bundlePath
+        let plistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(Self.kanataPlistName)"
+        guard FileManager.default.fileExists(atPath: plistPath) else {
+            throw KanataDaemonError.registrationFailed("Plist not found in app bundle: \(plistPath)")
+        }
+
+        // Validate kanata binary exists in app bundle
+        let kanataPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
+        guard FileManager.default.fileExists(atPath: kanataPath) else {
+            throw KanataDaemonError.registrationFailed("Kanata binary not found in app bundle: \(kanataPath)")
         }
 
         let svc = Self.smServiceFactory(Self.kanataPlistName)
@@ -218,8 +231,11 @@ class KanataDaemonManager {
         // 2. Reinstall via launchctl (using existing LaunchDaemonInstaller)
         AppLogger.shared.log("📝 [KanataDaemonManager] Reinstalling via launchctl...")
         let installer = LaunchDaemonInstaller()
-        // Use the existing installation method
-        // This will be handled by calling the appropriate LaunchDaemonInstaller method
+        let success = await installer.createKanataLaunchDaemon()
+
+        guard success else {
+            throw KanataDaemonError.rollbackFailed("Failed to reinstall via launchctl")
+        }
 
         AppLogger.shared.info("✅ [KanataDaemonManager] Rollback completed successfully")
     }

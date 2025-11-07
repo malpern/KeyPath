@@ -75,7 +75,8 @@ let package = Package(
             path: "Sources/KeyPath",
             exclude: [
                 "Info.plist",
-                "InstallationWizard/README.md"
+                "InstallationWizard/README.md",
+                "com.keypath.kanata.plist"
             ],
             resources: [
                 .process("Resources")

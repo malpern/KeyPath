@@ -50,8 +50,12 @@ cp "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
 # Copy daemon plist into bundle-local LaunchDaemons with final name
 cp "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
 
+# Copy Kanata daemon plist for SMAppService
+cp "Sources/KeyPath/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
+
 echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
-echo "✅ Daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
+echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
+echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"

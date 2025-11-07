@@ -77,4 +77,22 @@ extension FeatureFlags {
     static func setTcpProtocolV2Enabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: tcpProtocolV2Key)
     }
+
+    // MARK: - SMAppService Daemon Management
+
+    private static let useSMAppServiceForDaemonKey = "USE_SMAPPSERVICE_FOR_DAEMON"
+
+    /// Whether to use SMAppService for Kanata daemon management (default: true)
+    /// When enabled, uses SMAppService instead of launchctl for daemon registration
+    static var useSMAppServiceForDaemon: Bool {
+        if UserDefaults.standard.object(forKey: useSMAppServiceForDaemonKey) == nil {
+            return true // default ON (use SMAppService)
+        }
+        return UserDefaults.standard.bool(forKey: useSMAppServiceForDaemonKey)
+    }
+
+    static func setUseSMAppServiceForDaemon(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: useSMAppServiceForDaemonKey)
+    }
 }
+

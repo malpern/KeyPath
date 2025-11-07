@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import Security
+import ServiceManagement
 
 /// Manages LaunchDaemon installation and configuration for KeyPath services
 /// Implements the production-ready LaunchDaemon architecture identified in the installer improvement analysis
@@ -301,8 +302,44 @@ class LaunchDaemonInstaller {
     }
 
     /// Creates and installs the Kanata LaunchDaemon service
-    func createKanataLaunchDaemon() -> Bool {
+    /// Uses SMAppService if feature flag is enabled, otherwise uses launchctl
+    func createKanataLaunchDaemon() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating Kanata LaunchDaemon service")
+
+        // Check if SMAppService path is enabled
+        if FeatureFlags.useSMAppServiceForDaemon {
+            AppLogger.shared.log("📱 [LaunchDaemon] Using SMAppService path for Kanata daemon")
+            return await createKanataLaunchDaemonViaSMAppService()
+        } else {
+            AppLogger.shared.log("🔧 [LaunchDaemon] Using launchctl path for Kanata daemon")
+            return createKanataLaunchDaemonViaLaunchctl()
+        }
+    }
+
+    /// Creates and installs Kanata LaunchDaemon via SMAppService
+    @MainActor
+    private func createKanataLaunchDaemonViaSMAppService() async -> Bool {
+        AppLogger.shared.log("📱 [LaunchDaemon] Registering Kanata daemon via SMAppService")
+
+        guard #available(macOS 13, *) else {
+            AppLogger.shared.log("❌ [LaunchDaemon] SMAppService requires macOS 13+, falling back to launchctl")
+            return createKanataLaunchDaemonViaLaunchctl()
+        }
+
+        do {
+            try await KanataDaemonManager.shared.register()
+            AppLogger.shared.info("✅ [LaunchDaemon] Kanata daemon registered via SMAppService")
+            return true
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] SMAppService registration failed: \(error.localizedDescription)")
+            AppLogger.shared.log("🔄 [LaunchDaemon] Falling back to launchctl path")
+            return createKanataLaunchDaemonViaLaunchctl()
+        }
+    }
+
+    /// Creates and installs Kanata LaunchDaemon via launchctl (legacy path)
+    private func createKanataLaunchDaemonViaLaunchctl() -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Installing Kanata LaunchDaemon via launchctl")
 
         let kanataBinaryPath = getKanataBinaryPath()
         let plistContent = generateKanataPlist(binaryPath: kanataBinaryPath)
@@ -1458,11 +1495,11 @@ class LaunchDaemonInstaller {
 
     /// Install LaunchDaemon service files without loading/starting them
     /// Used for adopting orphaned processes - installs management files but doesn't interfere with running process
-    func createAllLaunchDaemonServicesInstallOnly() -> Bool {
+    func createAllLaunchDaemonServicesInstallOnly() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing service files only (no load/start)...")
 
         // Create all required plist files
-        let kanataSuccess = createKanataLaunchDaemon()
+        let kanataSuccess = await createKanataLaunchDaemon()
         let vhidDaemonSuccess = createVHIDDaemonService()
         let vhidManagerSuccess = createVHIDManagerService()
 

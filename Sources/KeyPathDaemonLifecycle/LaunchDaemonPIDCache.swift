@@ -173,4 +173,3 @@ public enum CacheConfidence: Sendable {
     case none // No cache available
 }
 
-

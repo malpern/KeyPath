@@ -495,5 +495,3 @@ public extension Array where Element == WizardIssue {
             .joined(separator: "\n\n")
     }
 }
-
-

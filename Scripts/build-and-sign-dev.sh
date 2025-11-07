@@ -28,12 +28,17 @@ rm -rf "$DIST_DIR"
 mkdir -p "$MACOS"
 mkdir -p "$RESOURCES"
 mkdir -p "$CONTENTS/Library/KeyPath"
+mkdir -p "$CONTENTS/Library/LaunchDaemons"
 
 # Copy main executable
 cp "$BUILD_DIR/KeyPath" "$MACOS/"
 
 # Copy bundled kanata binary
 cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
+
+# Copy Kanata daemon plist for SMAppService
+cp "Sources/KeyPath/com.keypath.kanata.plist" "$CONTENTS/Library/LaunchDaemons/com.keypath.kanata.plist"
+echo "✅ Kanata daemon plist embedded: $CONTENTS/Library/LaunchDaemons/com.keypath.kanata.plist"
 
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
