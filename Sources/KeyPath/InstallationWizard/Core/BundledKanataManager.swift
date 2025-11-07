@@ -67,11 +67,9 @@ class BundledKanataManager {
             "/opt/homebrew/bin/kanata" // ARM Homebrew
         ]
 
-        for path in systemPaths {
-            if FileManager.default.fileExists(atPath: path) {
-                AppLogger.shared.log("🔍 [BundledKanataManager] Found system kanata at: \(path)")
-                return path
-            }
+        for path in systemPaths where FileManager.default.fileExists(atPath: path) {
+            AppLogger.shared.log("🔍 [BundledKanataManager] Found system kanata at: \(path)")
+            return path
         }
 
         return nil

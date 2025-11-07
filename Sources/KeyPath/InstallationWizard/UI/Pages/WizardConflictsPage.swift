@@ -391,10 +391,9 @@ struct TechnicalDetailsView: View {
     private var processDetails: [String] {
         var details: [String] = []
 
-        for issue in issues {
-            if issue.category == .conflicts {
-                // Add the main description
-                details.append("Issue: \(issue.title)")
+        for issue in issues where issue.category == .conflicts {
+            // Add the main description
+            details.append("Issue: \(issue.title)")
 
                 // Split description into lines and process each
                 let lines = issue.description.components(separatedBy: "\n")

@@ -58,11 +58,9 @@ class PackageManager {
             "/usr/local/bin/brew" // Intel Homebrew
         ]
 
-        for path in homebrewPaths {
-            if FileManager.default.fileExists(atPath: path) {
-                AppLogger.shared.log("✅ [PackageManager] Homebrew found at: \(path)")
-                return true
-            }
+        for path in homebrewPaths where FileManager.default.fileExists(atPath: path) {
+            AppLogger.shared.log("✅ [PackageManager] Homebrew found at: \(path)")
+            return true
         }
 
         AppLogger.shared.log("❌ [PackageManager] Homebrew not found in standard locations")
@@ -81,10 +79,8 @@ class PackageManager {
             "/usr/local/bin/brew" // Intel Homebrew
         ]
 
-        for path in homebrewPaths {
-            if FileManager.default.fileExists(atPath: path) {
-                return path
-            }
+        for path in homebrewPaths where FileManager.default.fileExists(atPath: path) {
+            return path
         }
 
         return nil
@@ -113,20 +109,18 @@ class PackageManager {
             "\(NSHomeDirectory())/.cargo/bin/kanata" // Rust cargo installation
         ]
 
-        for path in possiblePaths {
-            if FileManager.default.fileExists(atPath: path) {
-                let installationType = determineInstallationType(path: path)
-                let codeSigningStatus = detectCodeSigningStatus(at: path)
-                AppLogger.shared.log("✅ [PackageManager] Kanata found at: \(path) (\(installationType)), signing: \(codeSigningStatus)")
+        for path in possiblePaths where FileManager.default.fileExists(atPath: path) {
+            let installationType = determineInstallationType(path: path)
+            let codeSigningStatus = detectCodeSigningStatus(at: path)
+            AppLogger.shared.log("✅ [PackageManager] Kanata found at: \(path) (\(installationType)), signing: \(codeSigningStatus)")
 
-                return KanataInstallationInfo(
-                    isInstalled: true,
-                    path: path,
-                    installationType: installationType,
-                    version: getKanataVersion(at: path),
-                    codeSigningStatus: codeSigningStatus
-                )
-            }
+            return KanataInstallationInfo(
+                isInstalled: true,
+                path: path,
+                installationType: installationType,
+                version: getKanataVersion(at: path),
+                codeSigningStatus: codeSigningStatus
+            )
         }
 
         AppLogger.shared.log("❌ [PackageManager] Kanata not found in any standard location")
@@ -396,11 +390,9 @@ class PackageManager {
         let pathEnv = ProcessInfo.processInfo.environment["PATH"] ?? ""
         let homebrewPaths = ["/opt/homebrew/bin", "/usr/local/bin"]
 
-        for homebrewPath in homebrewPaths {
-            if !pathEnv.contains(homebrewPath) {
-                AppLogger.shared.log(
-                    "⚠️ [PackageManager] PATH may be missing \(homebrewPath) - this could prevent detection")
-            }
+        for homebrewPath in homebrewPaths where !pathEnv.contains(homebrewPath) {
+            AppLogger.shared.log(
+                "⚠️ [PackageManager] PATH may be missing \(homebrewPath) - this could prevent detection")
         }
 
         // Check for partial Homebrew installation
