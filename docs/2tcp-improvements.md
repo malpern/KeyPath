@@ -58,4 +58,52 @@ Checkpoint tags
 - `checkpoint/2025-11-06-kanata-tcp-hello-status-ready` (Hello/Status integrated; UI green)
 - `checkpoint/2025-11-06-reload-wait-v1` (Reload(wait) v1 integrated; UI save validated)
 
+## Step-by-step plan for the next improvements
+
+1) Engine reload completion signal (blocking without polling)
+- Implement a condition variable (or channel) inside `Kanata` that is notified at the end of `do_live_reload` with the new reload epoch and duration.
+- Measure and store `last_reload_duration_ms` and `last_reload_epoch` atomically.
+- Acceptance: unit test that waits on the condition and unblocks when reload finishes.
+
+2) Server wait on signal; single reply
+- In `tcp_server`, replace the polling loop with a timed wait on the engine signal; on completion/timeout send exactly one JSON reply: `ReloadResult { ok, duration_ms, epoch }`.
+- Ensure the legacy `Ok/Error` secondary line is removed for this command path.
+- Acceptance: `nc` shows a single object reply; client parser no longer sees interleaved responses.
+
+3) Protocol v2 (explicit version/capabilities)
+- Add `PROTOCOL_VERSION = 2` and include it in `HelloOk { version, capabilities }`.
+- Extend `ReloadResult` to `{ ok, duration_ms, epoch, error? }`.
+- Extend `StatusInfo` to include `last_reload { ok, at, duration_ms, epoch }`.
+- Maintain compatibility: v1 fields still accepted by client.
+- Acceptance: round-trip serde tests for v1/v2; client negotiates correctly.
+
+4) Client negotiation and UI
+- On Hello, capture `version` and `capabilities`; gate features accordingly.
+- Prefer v2 `ReloadResult`; fall back to v1 or `Ok/Error` when needed.
+- Surface duration/timeout distinctly in Save flow; log error text when provided.
+- Acceptance: Save works on both v1 and v2 server; UI shows accurate results.
+
+5) Framing cleanup
+- Ensure request/response path emits one JSON object per request; move server-initiated notifications (e.g., `LayerChange`) onto a separate notification send path (or buffer until after reply).
+- Client filters/handles notification stream independently of request/response.
+- Acceptance: no interleaving in hex dump; request path parsing is deterministic.
+
+6) Tests
+- Integration tests covering Hello/Status/Reload(wait ok/timeout/error) and framing.
+- Smoke test: Save mapping end-to-end flips green after reload completes.
+- Acceptance: tests pass in CI; flake-free.
+
+7) Logging defaults
+- Set daemon default to `info`; gate verbose "not mapped/unrecognized" behind a debug flag and add rate-limiting.
+- Acceptance: kanata log tail is quiet under normal operation.
+
+8) Helper/daemon ergonomics
+- Provide a single "Regenerate Services" action that rewrites plists, verifies codesign and BTM state, and kickstarts daemons.
+- Acceptance: one-click repair returns helper/kanata to running within 5s.
+
+9) Migration & rollout
+- Feature-flag v2 protocol; default off for canary builds.
+- Document rollback to v1; include tag names and installer steps.
+- Acceptance: documentation updated; canary toggles verified.
+
  
