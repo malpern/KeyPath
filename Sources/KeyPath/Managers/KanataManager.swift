@@ -957,7 +957,7 @@ class KanataManager {
                 await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
 
                 // Start real-time log monitoring for VirtualHID connection issues
-                startLogMonitoring()
+                diagnosticsManager.startLogMonitoring()
 
                 // Check for process conflicts after starting
                 await verifyNoProcessConflicts()
