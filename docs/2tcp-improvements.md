@@ -8,29 +8,29 @@ Scope guardrails (unchanged)
 
 Current status (this checkpoint)
 - Kanata
-  - TCP Hello → HelloOk { server, version, protocol, capabilities } (v2) implemented.
-  - TCP Status → StatusInfo { ready, last_reload { ok, duration_ms, epoch } } implemented.
-  - TCP listener active; logs quieted (removed --debug/--log-layer-changes from LaunchDaemon).
-  - Reload(wait=true, timeout_ms) now performs a synchronous reload and replies with a single ReloadResult { ready, timeout_ms, ok, duration_ms, epoch } (blocking v2). Framing cleaned: one object per request.
+  - ✅ TCP Hello → HelloOk { server, version, protocol, capabilities } (v2) implemented.
+  - ✅ TCP Status → StatusInfo { ready, last_reload { ok, duration_ms, epoch } } implemented.
+  - ✅ TCP listener active; logs quieted (removed --debug/--log-layer-changes from LaunchDaemon).
+  - ✅ Reload(wait=true, timeout_ms) now performs a synchronous reload and replies with a single ReloadResult { ready, timeout_ms, ok, duration_ms, epoch } (blocking v2). Framing cleaned: one object per request.
 - KeyPath
-  - `KanataTCPClient` negotiates HelloOk (version/protocol), tolerant decoding for v1 and v2.
-  - Capability gating split: reload requires "reload"; status requires "status".
-  - Wizard summary/detail and Diagnostics aligned on Hello+Status readiness.
-  - Permanent status chip + first-run validation on launch.
-  - Helper repaired and running; install flow working from /Applications.
-  - Client prefers Reload(wait:true, timeout_ms) and falls back to Ok/Error automatically.
-  - Diagnostics shows Last Reload (ok, duration_ms, epoch) and treats Karabiner background services disabled as info (OK).
-  - UI: Save mapping path uses the new reload; verified deterministic success with Wizard all green.
+  - ✅ `KanataTCPClient` negotiates HelloOk (version/protocol), tolerant decoding for v1 and v2.
+  - ✅ Capability gating split: reload requires "reload"; status requires "status".
+  - ✅ Wizard summary/detail and Diagnostics aligned on Hello+Status readiness.
+  - ✅ Permanent status chip + first-run validation on launch.
+  - ✅ Helper repaired and running; install flow working from /Applications.
+  - ✅ Client prefers Reload(wait:true, timeout_ms) and falls back to Ok/Error automatically.
+  - ✅ Diagnostics shows Last Reload (ok, duration_ms, epoch) and treats Karabiner background services disabled as info (OK).
+  - ✅ UI: Save mapping path uses the new reload; verified deterministic success with Wizard all green.
 
 Completed in this step
-1) Deterministic reload (v2/blocking)
-   - Engine tracks reload_epoch and last_reload_duration_ms; server performs sync reload on wait=true and replies once.
-   - Framing cleanup: one JSON object per request (no interleaved Ok/LayerChange in reply path).
+1) ✅ Deterministic reload (v2/blocking)
+   - ✅ Engine tracks reload_epoch and last_reload_duration_ms; server performs sync reload on wait=true and replies once.
+   - ✅ Framing cleanup: one JSON object per request (no interleaved Ok/LayerChange in reply path).
 
-2) Protocol v2 and client/UI updates
-   - HelloOk now includes version/protocol; StatusInfo includes last_reload.
-   - Client parses v2 (with fallback to v1), default timeout raised to 5s, logs reload duration/epoch on success.
-   - Diagnostics surfaces Last Reload info and clarifies Karabiner services disabled is OK.
+2) ✅ Protocol v2 and client/UI updates
+   - ✅ HelloOk now includes version/protocol; StatusInfo includes last_reload.
+   - ✅ Client parses v2 (with fallback to v1), default timeout raised to 5s, logs reload duration/epoch on success.
+   - ✅ Diagnostics surfaces Last Reload info and clarifies Karabiner services disabled is OK.
 
 Next steps (ordered)
 3) Diagnostics/UI polish
