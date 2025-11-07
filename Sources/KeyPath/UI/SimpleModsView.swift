@@ -13,16 +13,16 @@ struct SimpleModsView: View {
     @State private var statusMessage = ""
     @State private var statusMessageTimer: DispatchWorkItem?
     @State private var previousMappingCount = 0
-    
+
     enum TabSelection {
         case installed
         case available
     }
-    
+
     init(configPath: String) {
         _service = StateObject(wrappedValue: SimpleModsService(configPath: configPath))
     }
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -35,7 +35,7 @@ struct SimpleModsView: View {
                     ) {
                         selectedTab = .installed
                     }
-                    
+
                     TabButton(
                         title: "Available",
                         badge: service.availablePresets.count,
@@ -46,7 +46,7 @@ struct SimpleModsView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
-                
+
                 // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
@@ -56,7 +56,7 @@ struct SimpleModsView: View {
                 }
                 .padding()
                 .background(Color(NSColor.controlBackgroundColor))
-                
+
                 // Category filter (only for Available tab)
                 if selectedTab == .available {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -67,7 +67,7 @@ struct SimpleModsView: View {
                             ) {
                                 selectedCategory = nil
                             }
-                            
+
                             ForEach(Array(service.getPresetsByCategory().keys.sorted()), id: \.self) { category in
                                 CategoryButton(
                                     title: category,
@@ -81,9 +81,9 @@ struct SimpleModsView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                
+
                 Divider()
-                
+
                 // Content
                 if service.isApplying {
                     HStack {
@@ -95,7 +95,7 @@ struct SimpleModsView: View {
                     }
                     .padding()
                 }
-                
+
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         if selectedTab == .installed {
@@ -175,7 +175,7 @@ struct SimpleModsView: View {
                 service.setDependencies(
                     kanataManager: viewModel.underlyingManager
                 )
-                
+
                 // Load mappings
                 do {
                     try service.load()
@@ -205,7 +205,7 @@ struct SimpleModsView: View {
             .onChange(of: service.installedMappings.count) { oldCount, newCount in
                 // Track previous count
                 previousMappingCount = oldCount
-                
+
                 // Only show success toast if NOT a rollback (no error state)
                 if service.lastError == nil && service.lastRollbackReason == nil {
                     // Switch to installed tab when a mapping is added
@@ -245,10 +245,10 @@ struct SimpleModsView: View {
         }
         .frame(width: 600, height: 500)
     }
-    
+
     private var filteredInstalledMappings: [SimpleMapping] {
         var mappings = service.installedMappings
-        
+
         // Filter by search
         if !searchText.isEmpty {
             mappings = mappings.filter { mapping in
@@ -259,13 +259,13 @@ struct SimpleModsView: View {
                     .name.localizedCaseInsensitiveContains(searchText) ?? false
             }
         }
-        
+
         return mappings
     }
-    
+
     private var filteredAvailablePresets: [SimpleModPreset] {
         var presets = service.availablePresets
-        
+
         // Filter by search
         if !searchText.isEmpty {
             presets = presets.filter { preset in
@@ -275,27 +275,27 @@ struct SimpleModsView: View {
                 preset.description.localizedCaseInsensitiveContains(searchText)
             }
         }
-        
+
         // Filter by category
         if let category = selectedCategory {
             presets = presets.filter { $0.category == category }
         }
-        
+
         return presets
     }
-    
+
     @EnvironmentObject private var kanataViewModel: KanataViewModel
-    
+
     private func findViewModel() -> KanataViewModel {
         return kanataViewModel
     }
-    
+
     private func showToast(_ message: String, isError: Bool) {
         statusMessageTimer?.cancel()
         statusMessage = message
         showErrorMessage = isError
         showSuccessMessage = !isError
-        
+
         // Auto-dismiss after duration
         let workItem = DispatchWorkItem {
             showErrorMessage = false
@@ -312,7 +312,7 @@ private struct TabButton: View {
     let badge: Int
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action, label: {
             HStack(spacing: 6) {
@@ -342,7 +342,7 @@ private struct EmptyStateView: View {
     let icon: String
     let title: String
     let message: String
-    
+
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
@@ -365,7 +365,7 @@ private struct CategoryButton: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             Text(title)
@@ -384,7 +384,7 @@ private struct CategoryButton: View {
 private struct InstalledMappingRow: View {
     let mapping: SimpleMapping
     @ObservedObject var service: SimpleModsService
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 6) {
@@ -399,9 +399,9 @@ private struct InstalledMappingRow: View {
                     KeyCapChip(text: mapping.toKey)
                 }
             }
-            
+
             Spacer()
-            
+
             Toggle("", isOn: Binding(
                 get: { mapping.enabled },
                 set: { newValue in
@@ -410,7 +410,7 @@ private struct InstalledMappingRow: View {
             ))
             .toggleStyle(.switch)
             .disabled(service.isApplying)
-            
+
             Button(action: {
                 service.removeMapping(id: mapping.id)
             }, label: {
@@ -424,7 +424,7 @@ private struct InstalledMappingRow: View {
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
     }
-    
+
     private var mappingDisplayName: String? {
         let presets = service.getPresetsByCategory().values.flatMap { $0 }
         if let name = presets.first(where: { $0.fromKey == mapping.fromKey && $0.toKey == mapping.toKey })?.name {
@@ -447,7 +447,7 @@ private struct AvailablePresetRow: View {
     @ObservedObject var service: SimpleModsService
     @State private var showConflictSheet = false
     @State private var conflictingMapping: SimpleMapping?
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 6) {
@@ -467,9 +467,9 @@ private struct AvailablePresetRow: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             Spacer()
-            
+
             Button(action: {
                 if let existing = service.installedMappings.first(where: { $0.fromKey == preset.fromKey && $0.enabled && $0.toKey != preset.toKey }) {
                     conflictingMapping = existing
