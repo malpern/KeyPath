@@ -848,15 +848,19 @@ struct RecordingSection: View {
                     radius: 6
                 )
                 .cornerRadius(6)
-                .help(PreferencesService.shared.applyMappingsDuringRecording
-                    ? "Apply Mappings During Recording: ON\n\n" +
-                        "Recording shows mapped keys (what you configured).\n" +
-                        "Kanata service stays running.\n\n" +
-                        "Click to toggle OFF (shows raw physical keys, stops service)."
-                    : "Apply Mappings During Recording: OFF\n\n" +
-                        "Recording shows raw physical keys.\n" +
-                        "⚠️ Kanata service will stop/restart (requires admin password).\n\n" +
-                        "Click to toggle ON (keeps service running).")
+                .help({
+                    if PreferencesService.shared.applyMappingsDuringRecording {
+                        return "Apply Mappings During Recording: ON\n\n" +
+                            "Recording shows mapped keys (what you configured).\n" +
+                            "Kanata service stays running.\n\n" +
+                            "Click to toggle OFF (shows raw physical keys, stops service)."
+                    } else {
+                        return "Apply Mappings During Recording: OFF\n\n" +
+                            "Recording shows raw physical keys.\n" +
+                            "⚠️ Kanata service will stop/restart (requires admin password).\n\n" +
+                            "Click to toggle ON (keeps service running)."
+                    }
+                }())
                 .accessibilityIdentifier("apply-mappings-toggle")
                 .accessibilityLabel(PreferencesService.shared.applyMappingsDuringRecording
                     ? "Disable mappings during recording (requires admin)"
@@ -884,13 +888,17 @@ struct RecordingSection: View {
                     radius: 6
                 )
                 .cornerRadius(6)
-                .help(coordinator.isSequenceMode
-                    ? "Sequence Mode: ON\n\n" +
-                        "Captures keys pressed in order.\n\n" +
-                        "Click to switch to Combo Mode (all keys at once)."
-                    : "Sequence Mode: OFF\n\n" +
-                        "Captures key combinations (all pressed together).\n\n" +
-                        "Click to switch to Sequence Mode (one after another).")
+                .help({
+                    if coordinator.isSequenceMode {
+                        return "Sequence Mode: ON\n\n" +
+                            "Captures keys pressed in order.\n\n" +
+                            "Click to switch to Combo Mode (all keys at once)."
+                    } else {
+                        return "Sequence Mode: OFF\n\n" +
+                            "Captures key combinations (all pressed together).\n\n" +
+                            "Click to switch to Sequence Mode (one after another)."
+                    }
+                }())
                 .accessibilityIdentifier("sequence-mode-toggle")
                 .accessibilityLabel(coordinator.isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
                 .accessibilityHint("Toggle between combo capture and sequence capture modes")
