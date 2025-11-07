@@ -75,11 +75,11 @@ let package = Package(
             path: "Sources/KeyPath",
             exclude: [
                 "Info.plist",
-                "InstallationWizard/README.md",
-                "com.keypath.kanata.plist"
+                "InstallationWizard/README.md"
             ],
             resources: [
-                .process("Resources")
+                .process("Resources"),
+                .copy("com.keypath.kanata.plist")
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),

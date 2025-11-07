@@ -100,10 +100,18 @@ class KanataDaemonManager {
         }
 
         // Validate plist exists in app bundle
+        // Check both the expected location (for build scripts) and bundle resources (for SPM builds)
         let bundlePath = Bundle.main.bundlePath
-        let plistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(Self.kanataPlistName)"
-        guard FileManager.default.fileExists(atPath: plistPath) else {
-            throw KanataDaemonError.registrationFailed("Plist not found in app bundle: \(plistPath)")
+        let expectedPlistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(Self.kanataPlistName)"
+
+        // First check the expected location (build scripts place it here)
+        if FileManager.default.fileExists(atPath: expectedPlistPath) {
+            // Found at expected location - continue
+        } else if let resourcePath = Bundle.main.path(forResource: "com.keypath.kanata", ofType: "plist") {
+            // Found in bundle resources (SPM build) - this is acceptable
+            AppLogger.shared.log("ℹ️ [KanataDaemonManager] Found plist in bundle resources: \(resourcePath)")
+        } else {
+            throw KanataDaemonError.registrationFailed("Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)")
         }
 
         // Validate kanata binary exists in app bundle
