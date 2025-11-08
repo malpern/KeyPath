@@ -76,20 +76,24 @@ codesign --verify --verbose=2 "$APP_BUNDLE"
 echo "📂 Deploying to Applications..."
 DEST_DIR="/Applications"
 APP_DEST="$DEST_DIR/${APP_NAME}.app"
-if [ ! -w "$DEST_DIR" ]; then
-  echo "ℹ️ /Applications not writable without privileges; attempting sudo copy..."
-  sudo rm -rf "$APP_DEST" 2>/dev/null || true
-  if sudo ditto "$APP_BUNDLE" "$APP_DEST"; then
-    echo "✅ Deployed to $APP_DEST"
-  else
-    echo "⚠️ WARNING: Failed to deploy to /Applications" >&2
-  fi
+# Always use sudo for predictable deployment (prevents false-positive -w checks)
+echo "🛑 Stopping any running KeyPath before deploy..."
+pkill -f "$APP_DEST/Contents/MacOS/$APP_NAME" 2>/dev/null || true
+
+echo "🧹 Removing existing $APP_DEST (sudo)..."
+sudo rm -rf "$APP_DEST" 2>/dev/null || true
+
+echo "📥 Copying app to /Applications (sudo)..."
+if sudo ditto "$APP_BUNDLE" "$APP_DEST"; then
+  echo "✅ Deployed to $APP_DEST"
 else
+  echo "⚠️ WARNING: sudo copy to /Applications failed. Retrying without sudo..." >&2
   rm -rf "$APP_DEST" 2>/dev/null || true
   if ditto "$APP_BUNDLE" "$APP_DEST"; then
-    echo "✅ Deployed to $APP_DEST"
+    echo "✅ Deployed to $APP_DEST (no sudo)"
   else
-    echo "⚠️ WARNING: Failed to deploy to /Applications" >&2
+    echo "❌ ERROR: Deployment to /Applications failed" >&2
+    exit 1
   fi
 fi
 
