@@ -355,6 +355,16 @@ struct WizardAccessibilityPage: View {
                     if Task.isCancelled { return }
                 }
             }
+            // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let granted = snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
+                if !granted {
+                    AppLogger.shared.info("ℹ️ [WizardAccessibilityPage] Opening System Settings (fallback) for Accessibility")
+                    openAccessibilitySettings()
+                }
+            }
         } else {
             let instructions = """
             KeyPath will now close so you can grant permissions:
