@@ -37,23 +37,27 @@ struct InstallationWizardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            pageContent()
-                .frame(maxWidth: .infinity)
-                .overlay {
-                    if isInitializing {
-                        initializingOverlay()
-                            .allowsHitTesting(false) // Don't block X button interaction
-                    }
+            Group {
+                if isInitializing {
+                    WizardPreflightView()
+                        .frame(height: 140)
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                } else {
+                    pageContent()
+                        .frame(maxWidth: .infinity)
+                        .overlay {
+                            if asyncOperationManager.hasRunningOperations {
+                                operationProgressOverlay()
+                                    .allowsHitTesting(false) // Don't block X button interaction
+                            }
+                        }
                 }
-                .overlay {
-                    if asyncOperationManager.hasRunningOperations {
-                        operationProgressOverlay()
-                            .allowsHitTesting(false) // Don't block X button interaction
-                    }
-                }
+            }
         }
         .frame(
-            width: navigationCoordinator.currentPage == .summary
+            width: isInitializing
+                ? 480
+                : navigationCoordinator.currentPage == .summary
                 ? WizardDesign.Layout.pageWidth * CGFloat(0.7)
                 : WizardDesign.Layout.pageWidth
         )
