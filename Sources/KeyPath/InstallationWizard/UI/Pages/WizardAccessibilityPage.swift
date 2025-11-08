@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
 
@@ -324,26 +325,46 @@ struct WizardAccessibilityPage: View {
     // MARK: - Actions
 
     private func openAccessibilityPermissionGrant() {
-        AppLogger.shared.log("🔐 [WizardAccessibilityPage] Starting unified permission grant flow for Accessibility")
+        AppLogger.shared.log("🔐 [WizardAccessibilityPage] Accessibility permission flow starting")
 
-        let instructions = """
-        KeyPath will now close so you can grant permissions:
-
-        1. Add KeyPath and kanata to Accessibility (use the '+' button)
-        2. Make sure both checkboxes are enabled
-        3. Restart KeyPath when you're done
-
-        KeyPath will automatically restart the keyboard service to pick up your new permissions.
-        """
-
-        PermissionGrantCoordinator.shared.initiatePermissionGrant(
-            for: .accessibility,
-            instructions: instructions,
-            onComplete: {
-                // Close wizard after user confirms the dialog
-                onDismiss?()
+        if FeatureFlags.useAutomaticPermissionPrompts {
+            let alreadyGranted = PermissionRequestService.shared.requestAccessibilityPermission()
+            if alreadyGranted {
+                Task { await onRefresh() }
+                return
             }
-        )
+            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+            Task {
+                var attempts = 0
+                let maxAttempts = 30
+                while attempts < maxAttempts {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    attempts += 1
+                    let snapshot = await PermissionOracle.shared.currentSnapshot()
+                    let granted = snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
+                    if granted {
+                        await onRefresh()
+                        return
+                    }
+                }
+            }
+        } else {
+            let instructions = """
+            KeyPath will now close so you can grant permissions:
+
+            1. Add KeyPath and kanata to Accessibility (use the '+' button)
+            2. Make sure both checkboxes are enabled
+            3. Restart KeyPath when you're done
+
+            KeyPath will automatically restart the keyboard service to pick up your new permissions.
+            """
+
+            PermissionGrantCoordinator.shared.initiatePermissionGrant(
+                for: .accessibility,
+                instructions: instructions,
+                onComplete: { onDismiss?() }
+            )
+        }
     }
 
     private func openAccessibilitySettings() {

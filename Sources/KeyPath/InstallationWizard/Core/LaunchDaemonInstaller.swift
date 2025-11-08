@@ -289,7 +289,7 @@ class LaunchDaemonInstaller {
         do {
             // Write plist contents to temporary files (skip Kanata if SMAppService is active)
             if let kanataPlist = kanataPlist, let kanataTempPath = kanataTempPath {
-                try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+            try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
             }
             try vhidDaemonPlist.write(toFile: vhidDaemonTempPath, atomically: true, encoding: .utf8)
             try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
@@ -299,9 +299,9 @@ class LaunchDaemonInstaller {
             if isSMAppServiceActive {
                 // Only install VirtualHID services
                 success = executeConsolidatedInstallationForVHIDOnly(
-                    vhidDaemonTemp: vhidDaemonTempPath,
-                    vhidManagerTemp: vhidManagerTempPath
-                )
+                vhidDaemonTemp: vhidDaemonTempPath,
+                vhidManagerTemp: vhidManagerTempPath
+            )
             } else {
                 // Install all services including Kanata
                 success = executeAllWithAdminPrivileges(
@@ -313,7 +313,7 @@ class LaunchDaemonInstaller {
 
             // Clean up temporary files
             if let kanataTempPath = kanataTempPath {
-                try? FileManager.default.removeItem(atPath: kanataTempPath)
+            try? FileManager.default.removeItem(atPath: kanataTempPath)
             }
             try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
             try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
@@ -590,7 +590,7 @@ class LaunchDaemonInstaller {
         do {
             // Write plist contents to temporary files (skip Kanata if SMAppService is active)
             if let kanataPlist = kanataPlist, let kanataTempPath = kanataTempPath {
-                try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+            try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
             }
             try vhidDaemonPlist.write(toFile: vhidDaemonTempPath, atomically: true, encoding: .utf8)
             try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
@@ -600,9 +600,9 @@ class LaunchDaemonInstaller {
             if isSMAppServiceActive {
                 // Only install VirtualHID services
                 success = executeConsolidatedInstallationForVHIDOnly(
-                    vhidDaemonTemp: vhidDaemonTempPath,
-                    vhidManagerTemp: vhidManagerTempPath
-                )
+                vhidDaemonTemp: vhidDaemonTempPath,
+                vhidManagerTemp: vhidManagerTempPath
+            )
             } else {
                 // Install all services including Kanata
                 success = executeConsolidatedInstallationImproved(
@@ -614,7 +614,7 @@ class LaunchDaemonInstaller {
 
             // Clean up temporary files
             if let kanataTempPath = kanataTempPath {
-                try? FileManager.default.removeItem(atPath: kanataTempPath)
+            try? FileManager.default.removeItem(atPath: kanataTempPath)
             }
             try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
             try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
@@ -2034,7 +2034,7 @@ class LaunchDaemonInstaller {
             if needsMigration {
                 AppLogger.shared.log("🔄 [LaunchDaemon] Migration needed - service using launchctl but feature flag requires SMAppService")
             } else {
-                AppLogger.shared.log("🔧 [LaunchDaemon] Installing missing services: \(toInstall)")
+            AppLogger.shared.log("🔧 [LaunchDaemon] Installing missing services: \(toInstall)")
             }
             let installSuccess = await createConfigureAndLoadAllServices()
             if !installSuccess {

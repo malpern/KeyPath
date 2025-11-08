@@ -105,6 +105,22 @@ public class KeyboardCapture: ObservableObject {
     func startCapture(callback: @escaping (String) -> Void) {
         guard !isCapturing else { return }
 
+        if FeatureFlags.useJustInTimePermissionRequests {
+            Task { @MainActor in
+                await PermissionGate.shared.checkAndRequestPermissions(
+                    for: .keyCapture,
+                    onGranted: { [weak self] in
+                        guard let self else { return }
+                        self.startCaptureAfterPermissions(callback: callback)
+                    },
+                    onDenied: {
+                        callback("⚠️ Accessibility permission required")
+                    }
+                )
+            }
+            return
+        }
+
         captureCallback = callback
         isCapturing = true
         isContinuous = false
@@ -139,6 +155,27 @@ public class KeyboardCapture: ObservableObject {
         setupEventTap(at: currentTapLocation)
 
         // Fallback to HID listen-only if nothing arrives quickly in listen-only mode
+        if !suppressEvents {
+            noEventTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    if !self.receivedAnyEvent {
+                        AppLogger.shared.log("🎹 [KeyboardCapture] No events at session tap; switching to HID listen-only")
+                        self.reinstallTap(to: .cghidEventTap)
+                    }
+                }
+            }
+        }
+    }
+
+    private func startCaptureAfterPermissions(callback: @escaping (String) -> Void) {
+        captureCallback = callback
+        isCapturing = true
+        isContinuous = false
+
+        currentTapLocation = .cgSessionEventTap
+        setupEventTap(at: currentTapLocation)
+
         if !suppressEvents {
             noEventTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
                 Task { @MainActor in

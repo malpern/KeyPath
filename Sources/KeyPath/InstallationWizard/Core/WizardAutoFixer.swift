@@ -1091,9 +1091,9 @@ class WizardAutoFixer: AutoFixCapable {
                     "🔄 [AutoFixer] Step 2: Migration needed - service using launchctl but feature flag requires SMAppService"
                 )
             } else {
-                AppLogger.shared.log(
-                    "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services first"
-                )
+            AppLogger.shared.log(
+                "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services first"
+            )
             }
             do {
                 try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()

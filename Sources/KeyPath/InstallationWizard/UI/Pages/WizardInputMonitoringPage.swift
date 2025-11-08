@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
 
@@ -345,27 +346,62 @@ struct WizardInputMonitoringPage: View {
         }
     }
 
-    private func openInputMonitoringSettings() {
-        AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix button clicked - entering permission grant mode")
-
-        let instructions = """
-        KeyPath will now close so you can grant permissions:
-
-        1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
-        2. Make sure both checkboxes are enabled
-        3. Restart KeyPath when you're done
-
-        KeyPath will automatically restart the keyboard service to pick up your new permissions.
-        """
-
-        PermissionGrantCoordinator.shared.initiatePermissionGrant(
-            for: .inputMonitoring,
-            instructions: instructions,
-            onComplete: {
-                // Close wizard after user confirms the dialog
-                onDismiss?()
+    // Automatic prompt polling (Phase 1)
+    private func startPermissionPolling(for type: CoordinatorPermissionType) {
+        Task {
+            var attempts = 0
+            let maxAttempts = 30 // 30 seconds
+            while attempts < maxAttempts {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                attempts += 1
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let hasPermission: Bool = {
+                    switch type {
+                    case .accessibility:
+                        return snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
+                    case .inputMonitoring:
+                        return snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
+                    }
+                }()
+                if hasPermission {
+                    await onRefresh()
+                    return
+                }
             }
-        )
+        }
+    }
+
+    private func openInputMonitoringSettings() {
+        AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix button clicked - permission flow starting")
+
+        if FeatureFlags.useAutomaticPermissionPrompts {
+            // Use automatic prompt via IOHIDRequestAccess()
+            let alreadyGranted = PermissionRequestService.shared.requestInputMonitoringPermission()
+            if alreadyGranted {
+                Task { await onRefresh() }
+                return
+            }
+
+            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+            startPermissionPolling(for: .inputMonitoring)
+        } else {
+            // Fallback: manual System Settings flow
+            let instructions = """
+            KeyPath will now close so you can grant permissions:
+
+            1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
+            2. Make sure both checkboxes are enabled
+            3. Restart KeyPath when you're done
+
+            KeyPath will automatically restart the keyboard service to pick up your new permissions.
+            """
+
+            PermissionGrantCoordinator.shared.initiatePermissionGrant(
+                for: .inputMonitoring,
+                instructions: instructions,
+                onComplete: { onDismiss?() }
+            )
+        }
     }
 }
 

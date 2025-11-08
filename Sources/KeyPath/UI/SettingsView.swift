@@ -918,11 +918,11 @@ struct SettingsView: View {
             // Only trigger wizard if it's not already showing (prevent duplicate wizards)
             // Check if wizard is already open by checking if showWizard is true AND we're not already showing it
             if kanataManager.showWizard && !showingInstallationWizard {
-                AppLogger.shared.log("🎭 [SettingsView] Triggering wizard from Settings - Kanata needs help")
-                showingInstallationWizard = true
+                 AppLogger.shared.log("🎭 [SettingsView] Triggering wizard from Settings - Kanata needs help")
+                 showingInstallationWizard = true
             } else if kanataManager.showWizard && showingInstallationWizard {
                 AppLogger.shared.log("🔍 [SettingsView] Wizard already showing, skipping duplicate trigger")
-            }
+             }
 
              // Status monitoring now handled centrally by SimpleKanataManager
              // Just do an initial status refresh
@@ -991,20 +991,20 @@ struct SettingsView: View {
              AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
              // Status monitoring handled centrally - no cleanup needed
          }
-        .onChange(of: kanataManager.showWizard) { shouldShow in
-            AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
-            AppLogger.shared.log(
-                "🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
-            )
+         .onChange(of: kanataManager.showWizard) { shouldShow in
+             AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
+             AppLogger.shared.log(
+                 "🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
+             )
 
             // Only update showingInstallationWizard if it's different from current state
             // This prevents duplicate wizards when Settings opens while wizard is already open
             if shouldShow != showingInstallationWizard {
-                showingInstallationWizard = shouldShow
+             showingInstallationWizard = shouldShow
             } else if shouldShow && showingInstallationWizard {
                 AppLogger.shared.log("🔍 [SettingsView] Wizard already showing, skipping onChange update")
             }
-        }
+         }
          .onChange(of: kanataManager.currentState) { _ in
              // Refresh TCP status when Kanata state changes
              checkTCPServerStatus()
