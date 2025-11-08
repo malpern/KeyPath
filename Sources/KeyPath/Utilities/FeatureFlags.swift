@@ -86,10 +86,17 @@ extension FeatureFlags {
     /// Whether to use SMAppService for Kanata daemon management (default: true)
     /// When enabled, uses SMAppService instead of launchctl for daemon registration
     static var useSMAppServiceForDaemon: Bool {
-        if UserDefaults.standard.object(forKey: useSMAppServiceForDaemonKey) == nil {
-            return true // default ON (use SMAppService)
+        let userDefaultsValue = UserDefaults.standard.object(forKey: useSMAppServiceForDaemonKey)
+        let defaultValue = true // default ON (use SMAppService)
+
+        if userDefaultsValue == nil {
+            // Logging removed to avoid import dependency - can be added back if needed
+            return defaultValue
         }
-        return UserDefaults.standard.bool(forKey: useSMAppServiceForDaemonKey)
+
+        let boolValue = UserDefaults.standard.bool(forKey: useSMAppServiceForDaemonKey)
+        // Logging removed to avoid import dependency - can be added back if needed
+        return boolValue
     }
 
     static func setUseSMAppServiceForDaemon(_ enabled: Bool) {

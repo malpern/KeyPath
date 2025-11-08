@@ -34,13 +34,136 @@ class KanataDaemonManager {
     /// LaunchDaemon plist name packaged inside the app bundle for SMAppService
     nonisolated static let kanataPlistName = "com.keypath.kanata.plist"
 
+    /// Path to legacy LaunchDaemon plist
+    nonisolated static let legacyPlistPath = "/Library/LaunchDaemons/\(kanataServiceID).plist"
+
     // MARK: - Initialization
 
     private init() {
         AppLogger.shared.log("🔧 [KanataDaemonManager] Initialized")
     }
 
-    // MARK: - Status Checking
+    // MARK: - Service Management State (Single Source of Truth)
+
+    /// Represents the current state of service management for Kanata daemon
+    /// This is the single source of truth for determining which management method is active
+    enum ServiceManagementState: Equatable {
+        case legacyActive          // Legacy plist exists, launchctl managing
+        case smappserviceActive   // No legacy plist, SMAppService .enabled
+        case smappservicePending  // No legacy plist, SMAppService .requiresApproval
+        case uninstalled          // No legacy plist, SMAppService .notFound, process not running
+        case conflicted           // Both legacy plist AND SMAppService active (error state)
+        case unknown              // Ambiguous state requiring investigation
+
+        var description: String {
+            switch self {
+            case .legacyActive: return "Legacy launchctl"
+            case .smappserviceActive: return "SMAppService (active)"
+            case .smappservicePending: return "SMAppService (pending approval)"
+            case .uninstalled: return "Uninstalled"
+            case .conflicted: return "Conflicted (both methods active)"
+            case .unknown: return "Unknown"
+            }
+        }
+
+        /// Returns true if SMAppService is the active management method
+        var isSMAppServiceManaged: Bool {
+            self == .smappserviceActive || self == .smappservicePending
+        }
+
+        /// Returns true if legacy launchctl is the active management method
+        var isLegacyManaged: Bool {
+            self == .legacyActive
+        }
+
+        /// Returns true if installation is needed
+        var needsInstallation: Bool {
+            self == .uninstalled
+        }
+
+        /// Returns true if migration is needed (legacy exists but feature flag requires SMAppService)
+        func needsMigration(featureFlagEnabled: Bool) -> Bool {
+            self == .legacyActive && featureFlagEnabled
+        }
+    }
+
+    /// Determines the current service management state
+    /// This is the SINGLE SOURCE OF TRUTH for determining which management method is active
+    /// Priority order (most reliable first):
+    /// 1. Legacy plist existence (most reliable indicator)
+    /// 2. SMAppService status
+    /// 3. Process running state (for ambiguous cases - only checked when needed)
+    ///
+    /// - Returns: The current ServiceManagementState
+    nonisolated static func determineServiceManagementState() -> ServiceManagementState {
+        let hasLegacy = FileManager.default.fileExists(atPath: legacyPlistPath)
+        let svc = smServiceFactory(kanataPlistName)
+        let smStatus = svc.status
+
+        AppLogger.shared.log("🔍 [KanataDaemonManager] State determination:")
+        AppLogger.shared.log("  - Legacy plist exists: \(hasLegacy)")
+        AppLogger.shared.log("  - SMAppService status: \(smStatus.rawValue) (\(String(describing: smStatus)))")
+
+        // Check for conflicts first (both methods active - error state)
+        if hasLegacy && smStatus == .enabled {
+            AppLogger.shared.log("⚠️ [KanataDaemonManager] CONFLICTED STATE: Both legacy plist and SMAppService active")
+            return .conflicted
+        }
+
+        // Priority 1: Legacy plist existence (most reliable check)
+        if hasLegacy {
+            AppLogger.shared.log("✅ [KanataDaemonManager] State: LEGACY_ACTIVE (plist exists)")
+            return .legacyActive
+        }
+
+        // Priority 2: SMAppService status
+        switch smStatus {
+        case .enabled:
+            AppLogger.shared.log("✅ [KanataDaemonManager] State: SMAPPSERVICE_ACTIVE")
+            return .smappserviceActive
+        case .requiresApproval:
+            AppLogger.shared.log("⏳ [KanataDaemonManager] State: SMAPPSERVICE_PENDING (approval needed)")
+            return .smappservicePending
+        case .notFound, .notRegistered:
+            // No legacy plist and SMAppService not registered
+            // Only check process when state is ambiguous (lazy evaluation for performance)
+            let isProcessRunning = pgrepKanataProcess()
+            AppLogger.shared.log("  - Process running: \(isProcessRunning)")
+            if isProcessRunning {
+                // Process running but unclear management - investigate
+                AppLogger.shared.log("❓ [KanataDaemonManager] State: UNKNOWN (process running but no clear management)")
+                return .unknown
+            }
+            AppLogger.shared.log("❌ [KanataDaemonManager] State: UNINSTALLED")
+            return .uninstalled
+        @unknown default:
+            AppLogger.shared.log("❓ [KanataDaemonManager] State: UNKNOWN (unexpected SMAppService status)")
+            return .unknown
+        }
+    }
+
+    /// Helper function to check if Kanata process is running
+    /// This is used as a fallback when state is ambiguous
+    nonisolated private static func pgrepKanataProcess() -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-f", "kanata.*--cfg"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+            let isRunning = task.terminationStatus == 0
+            return isRunning
+        } catch {
+            return false
+        }
+    }
+
+    // MARK: - Status Checking (Legacy - kept for compatibility)
 
     /// Check if Kanata daemon is installed and registered via SMAppService
     /// - Returns: true if SMAppService reports `.enabled` OR launchctl has the job
@@ -78,7 +201,7 @@ class KanataDaemonManager {
 
     /// Check if daemon is registered via SMAppService (not launchctl)
     /// - Returns: true if SMAppService status is `.enabled`
-    nonisolated func isRegisteredViaSMAppService() -> Bool {
+    nonisolated static func isRegisteredViaSMAppService() -> Bool {
         let svc = Self.smServiceFactory(Self.kanataPlistName)
         return svc.status == .enabled
     }
@@ -88,6 +211,27 @@ class KanataDaemonManager {
     nonisolated func hasLegacyInstallation() -> Bool {
         let legacyPlistPath = "/Library/LaunchDaemons/\(Self.kanataServiceID).plist"
         return FileManager.default.fileExists(atPath: legacyPlistPath)
+    }
+
+    /// Check if SMAppService is currently being used for Kanata daemon management
+    /// - Returns: true if feature flag is enabled AND SMAppService is registered
+    /// This is a convenience method to avoid repeating the check throughout the codebase
+    nonisolated static var isUsingSMAppService: Bool {
+        FeatureFlags.useSMAppServiceForDaemon && Self.isRegisteredViaSMAppService()
+    }
+
+    /// Get the active plist path for Kanata service
+    /// - Returns: SMAppService plist path if active, otherwise legacy plist path
+    /// This provides a single source of truth for plist location
+    nonisolated static func getActivePlistPath() -> String {
+        if isUsingSMAppService {
+            // SMAppService-managed: plist is in app bundle
+            let bundlePath = Bundle.main.bundlePath
+            return "\(bundlePath)/Contents/Library/LaunchDaemons/\(kanataServiceID).plist"
+        } else {
+            // Legacy launchctl: plist is in /Library/LaunchDaemons
+            return "/Library/LaunchDaemons/\(kanataServiceID).plist"
+        }
     }
 
     // MARK: - Registration
@@ -231,33 +375,83 @@ class KanataDaemonManager {
             throw KanataDaemonError.migrationFailed("No legacy launchctl installation found")
         }
 
-        // 2. Stop legacy service (requires admin via helper)
-        AppLogger.shared.log("🛑 [KanataDaemonManager] Stopping legacy service...")
-        try await HelperManager.shared.installLaunchDaemon(
-            plistPath: "", // Empty means uninstall
-            serviceID: Self.kanataServiceID
+        // 2. Stop legacy service and remove plist (requires admin)
+        AppLogger.shared.log("🛑 [KanataDaemonManager] Stopping legacy service and removing plist...")
+        let legacyPlistPath = "/Library/LaunchDaemons/\(Self.kanataServiceID).plist"
+
+        // Use PrivilegedOperationsCoordinator to execute privileged commands
+        let command = """
+        /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
+        /bin/rm -f '\(legacyPlistPath)' || true
+        """
+
+        try await PrivilegedOperationsCoordinator.shared.sudoExecuteCommand(
+            command,
+            description: "Stop legacy service and remove plist"
         )
 
-        // Actually, we need to use a different approach - use helper to bootout
-        // For now, let's use the helper's executeCommand if available, or we'll need to add a method
-        // Let's check what methods HelperManager has available
-
-        // 3. Remove legacy plist (requires admin via helper)
-        // This will be handled by the helper
-
-        // 4. Register via SMAppService
+        // 3. Register via SMAppService
         AppLogger.shared.log("📝 [KanataDaemonManager] Registering via SMAppService...")
-        try await register()
-
-        // 5. Verify service started
-        // Give it a moment to start
-        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-
-        guard isInstalled() else {
-            throw KanataDaemonError.migrationFailed("Service did not start after migration")
+        do {
+            try await register()
+            AppLogger.shared.log("✅ [KanataDaemonManager] SMAppService registration call succeeded")
+        } catch {
+            // Check if error is just "requires approval" - this is OK, user can approve later
+            if let kanataError = error as? KanataDaemonError,
+               case .registrationFailed(let reason) = kanataError,
+               reason.contains("Approval required") {
+                AppLogger.shared.log("⚠️ [KanataDaemonManager] Registration requires user approval - this is OK")
+                AppLogger.shared.log("💡 [KanataDaemonManager] User needs to approve in System Settings → Login Items")
+                AppLogger.shared.log("💡 [KanataDaemonManager] Legacy plist removed - migration will complete once approved")
+                // Don't throw - migration is successful, just needs approval
+            } else {
+                // Other errors - rethrow
+                AppLogger.shared.log("❌ [KanataDaemonManager] Registration failed with error: \(error)")
+                throw error
+            }
         }
 
-        AppLogger.shared.info("✅ [KanataDaemonManager] Migration completed successfully")
+        // 4. Verify service started OR is pending approval
+        // Give it a moment to start or transition to requiresApproval
+        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+
+        let finalStatus = getStatus()
+        let isRegistered = Self.isRegisteredViaSMAppService()
+        let hasLegacyAfterMigration = hasLegacyInstallation()
+
+        AppLogger.shared.log("🔍 [KanataDaemonManager] Post-migration verification:")
+        AppLogger.shared.log("  - SMAppService status: \(finalStatus.rawValue) (\(String(describing: finalStatus)))")
+        AppLogger.shared.log("  - isRegisteredViaSMAppService(): \(isRegistered)")
+        AppLogger.shared.log("  - Legacy plist still exists: \(hasLegacyAfterMigration)")
+
+        // Success criteria:
+        // 1. Legacy plist is gone (migration cleanup succeeded)
+        // 2. SMAppService status is .enabled OR .requiresApproval (registration succeeded or pending)
+        // 3. Process is running OR will start after approval
+        if hasLegacyAfterMigration {
+            AppLogger.shared.log("❌ [KanataDaemonManager] Legacy plist still exists after migration - migration may have failed")
+            throw KanataDaemonError.migrationFailed("Legacy plist still exists after migration")
+        }
+
+        if finalStatus == .enabled || finalStatus == .requiresApproval {
+            AppLogger.shared.info("✅ [KanataDaemonManager] Migration completed successfully")
+            AppLogger.shared.log("💡 [KanataDaemonManager] SMAppService status: \(finalStatus == .enabled ? "Enabled" : "Requires Approval")")
+            if finalStatus == .requiresApproval {
+                AppLogger.shared.log("💡 [KanataDaemonManager] User needs to approve in System Settings → Login Items → Background Items")
+            }
+            return
+        }
+
+        // If status is .notFound or .notRegistered, check if process is running anyway
+        if isInstalled() {
+            AppLogger.shared.log("⚠️ [KanataDaemonManager] SMAppService status is \(finalStatus) but service is running")
+            AppLogger.shared.log("💡 [KanataDaemonManager] This might be a timing issue - migration may still succeed")
+            AppLogger.shared.info("✅ [KanataDaemonManager] Migration completed (service running despite status)")
+            return
+        }
+
+        AppLogger.shared.log("❌ [KanataDaemonManager] Service did not start after migration")
+        throw KanataDaemonError.migrationFailed("Service did not start after migration (status: \(finalStatus))")
     }
 
     /// Rollback from SMAppService to launchctl installation

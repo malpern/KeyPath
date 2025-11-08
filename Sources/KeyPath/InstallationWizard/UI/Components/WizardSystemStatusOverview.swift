@@ -425,7 +425,9 @@ struct WizardSystemStatusOverview: View {
         }
 
         // Resolve TCP port from LaunchDaemon plist, then probe Hello/Status quickly
-        let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+        // Check SMAppService plist first if active, otherwise fall back to legacy plist
+        let plistPath = KanataDaemonManager.getActivePlistPath()
+
         guard let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
               let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
               let args = plist["ProgramArguments"] as? [String],

@@ -82,6 +82,9 @@ struct DiagnosticsView: View {
                     // Process Status
                     ProcessStatusSection(kanataManager: kanataManager)
 
+                    // Service Management (SMAppService vs launchctl)
+                    ServiceManagementSection(kanataManager: kanataManager)
+
                     // Enhanced System Status
                     EnhancedStatusSection(kanataManager: kanataManager)
 
@@ -362,6 +365,191 @@ struct ProcessStatusSection: View {
 }
 
 extension ProcessStatusSection {
+    private func showToast(_ message: String, isError: Bool) {
+        statusMessageTimer?.cancel()
+        statusMessage = message
+        showErrorMessage = isError
+        showSuccessMessage = !isError
+
+        let workItem = DispatchWorkItem {
+            showErrorMessage = false
+            showSuccessMessage = false
+        }
+        statusMessageTimer = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + (isError ? 5.0 : 3.0), execute: workItem)
+    }
+}
+
+struct ServiceManagementSection: View {
+    @ObservedObject var kanataManager: KanataViewModel
+    @State private var activeMethod: ServiceMethod = .unknown
+    @State private var isMigrating = false
+    @State private var isRollingBack = false
+    @State private var statusMessage: String = ""
+    @State private var showSuccessMessage = false
+    @State private var showErrorMessage = false
+    @State private var statusMessageTimer: DispatchWorkItem?
+
+    enum ServiceMethod {
+        case smappservice
+        case launchctl
+        case unknown
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Service Management")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            // Active method display
+            HStack(spacing: 12) {
+                Image(systemName: activeMethodIcon)
+                    .foregroundColor(activeMethodColor)
+                    .font(.title3)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(activeMethodText)
+                        .font(.body)
+                        .fontWeight(.medium)
+
+                    Text(activeMethodDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+            }
+
+            // Action buttons
+            HStack(spacing: 8) {
+                if activeMethod == .launchctl {
+                    Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
+                        guard !isMigrating else { return }
+                        isMigrating = true
+                        Task { @MainActor in
+                            do {
+                                try await KanataDaemonManager.shared.migrateFromLaunchctl()
+                                showToast("✅ Migrated to SMAppService", isError: false)
+                                await refreshStatus()
+                            } catch {
+                                showToast("❌ Migration failed: \(error.localizedDescription)", isError: true)
+                            }
+                            isMigrating = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(isMigrating)
+                }
+
+                if activeMethod == .smappservice {
+                    Button(isRollingBack ? "Rolling Back…" : "Rollback to launchctl") {
+                        guard !isRollingBack else { return }
+                        isRollingBack = true
+                        Task { @MainActor in
+                            do {
+                                try await KanataDaemonManager.shared.rollbackToLaunchctl()
+                                showToast("✅ Rolled back to launchctl", isError: false)
+                                await refreshStatus()
+                            } catch {
+                                showToast("❌ Rollback failed: \(error.localizedDescription)", isError: true)
+                            }
+                            isRollingBack = false
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(isRollingBack)
+                }
+
+                Spacer()
+            }
+            .padding(.top, 4)
+
+            if showSuccessMessage || showErrorMessage {
+                HStack {
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundColor(showErrorMessage ? .red : .green)
+                        .padding(8)
+                        .background(showErrorMessage ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
+                        .cornerRadius(6)
+                    Spacer()
+                }
+                .transition(.opacity)
+            }
+        }
+        .padding(16)
+        .appGlassCard()
+        .onAppear {
+            Task {
+                await refreshStatus()
+            }
+        }
+    }
+
+    private var activeMethodIcon: String {
+        switch activeMethod {
+        case .smappservice: "checkmark.circle.fill"
+        case .launchctl: "gear.circle.fill"
+        case .unknown: "questionmark.circle.fill"
+        }
+    }
+
+    private var activeMethodColor: Color {
+        switch activeMethod {
+        case .smappservice: .green
+        case .launchctl: .orange
+        case .unknown: .gray
+        }
+    }
+
+    private var activeMethodText: String {
+        switch activeMethod {
+        case .smappservice: "Using SMAppService"
+        case .launchctl: "Using launchctl (Legacy)"
+        case .unknown: "Checking service method..."
+        }
+    }
+
+    private var activeMethodDescription: String {
+        switch activeMethod {
+        case .smappservice: "Modern service management via System Settings"
+        case .launchctl: "Traditional service management via launchctl"
+        case .unknown: "Determining active service method"
+        }
+    }
+
+    private func refreshStatus() async {
+        await MainActor.run {
+            // Use state determination for consistent detection (same logic as guards)
+            let state = KanataDaemonManager.determineServiceManagementState()
+
+            AppLogger.shared.log("🔍 [ServiceManagement] refreshStatus() called")
+            AppLogger.shared.log("🔍 [ServiceManagement] State: \(state.description)")
+
+            // Map state to UI activeMethod
+            switch state {
+            case .legacyActive:
+                AppLogger.shared.log("⚠️ [ServiceManagement] Detected: Using launchctl (legacy plist exists)")
+                activeMethod = .launchctl
+            case .smappserviceActive, .smappservicePending:
+                AppLogger.shared.log("✅ [ServiceManagement] Detected: Using SMAppService (state: \(state.description))")
+                activeMethod = .smappservice
+            case .conflicted:
+                AppLogger.shared.log("⚠️ [ServiceManagement] Detected: Conflicted state (both methods active)")
+                // Prefer SMAppService if conflicted (feature flag is ON)
+                activeMethod = .smappservice
+            case .unknown, .uninstalled:
+                AppLogger.shared.log("❓ [ServiceManagement] Detected: Unknown/Uninstalled (state: \(state.description))")
+                activeMethod = .unknown
+            }
+
+            AppLogger.shared.log("🔍 [ServiceManagement] Final activeMethod: \(String(describing: activeMethod))")
+        }
+    }
+
     private func showToast(_ message: String, isError: Bool) {
         statusMessageTimer?.cancel()
         statusMessage = message

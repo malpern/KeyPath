@@ -77,12 +77,13 @@ class MainAppStateController: ObservableObject {
         // NOTE: Kanata v1.9.0 TCP does NOT require authentication
         // No token check needed - just verify service has TCP configuration
 
-        // Check if the LaunchDaemon plist exists and has TCP configuration
-        let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+        // Check SMAppService plist first if active, otherwise fall back to legacy plist
+        let plistPath = KanataDaemonManager.getActivePlistPath()
+
         let plistExists = FileManager.default.fileExists(atPath: plistPath)
 
         guard plistExists else {
-            AppLogger.shared.warn("⚠️ [MainAppStateController] TCP check failed: Service plist doesn't exist")
+            AppLogger.shared.warn("⚠️ [MainAppStateController] TCP check failed: Service plist doesn't exist at \(plistPath)")
             return false
         }
 

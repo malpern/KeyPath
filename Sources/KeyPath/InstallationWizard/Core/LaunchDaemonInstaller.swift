@@ -260,37 +260,61 @@ class LaunchDaemonInstaller {
     // MARK: - Installation Methods
 
     /// Creates and installs all LaunchDaemon services with a single admin prompt
+    /// GUARD: Skips Kanata plist creation if SMAppService is active
     func createAllLaunchDaemonServices() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating all LaunchDaemon services")
 
+        // GUARD: Check if SMAppService is active for Kanata - if so, skip Kanata plist creation
+        // Use synchronous check since this method is not async
+        let isSMAppServiceActive = KanataDaemonManager.isUsingSMAppService
+
+        if isSMAppServiceActive {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] SMAppService is active for Kanata - skipping Kanata plist creation")
+            AppLogger.shared.log("💡 [LaunchDaemon] Only installing VirtualHID services via launchctl")
+        }
+
         let kanataBinaryPath = getKanataBinaryPath()
 
-        // Generate all plist contents
-        let kanataPlist = generateKanataPlist(binaryPath: kanataBinaryPath)
+        // Generate plist contents (skip Kanata if SMAppService is active)
+        let kanataPlist = isSMAppServiceActive ? nil : generateKanataPlist(binaryPath: kanataBinaryPath)
         let vhidDaemonPlist = generateVHIDDaemonPlist()
         let vhidManagerPlist = generateVHIDManagerPlist()
 
-        // Create temporary files for all plists
+        // Create temporary files for all plists (skip Kanata if SMAppService is active)
         let tempDir = NSTemporaryDirectory()
-        let kanataTempPath = "\(tempDir)\(Self.kanataServiceID).plist"
+        let kanataTempPath = isSMAppServiceActive ? nil : "\(tempDir)\(Self.kanataServiceID).plist"
         let vhidDaemonTempPath = "\(tempDir)\(Self.vhidDaemonServiceID).plist"
         let vhidManagerTempPath = "\(tempDir)\(Self.vhidManagerServiceID).plist"
 
         do {
-            // Write all plist contents to temporary files
-            try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+            // Write plist contents to temporary files (skip Kanata if SMAppService is active)
+            if let kanataPlist = kanataPlist, let kanataTempPath = kanataTempPath {
+                try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+            }
             try vhidDaemonPlist.write(toFile: vhidDaemonTempPath, atomically: true, encoding: .utf8)
             try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
 
-            // Install all services with a single admin prompt
-            let success = executeAllWithAdminPrivileges(
-                kanataTemp: kanataTempPath,
-                vhidDaemonTemp: vhidDaemonTempPath,
-                vhidManagerTemp: vhidManagerTempPath
-            )
+            // Install services with a single admin prompt (skip Kanata if SMAppService is active)
+            let success: Bool
+            if isSMAppServiceActive {
+                // Only install VirtualHID services
+                success = executeConsolidatedInstallationForVHIDOnly(
+                    vhidDaemonTemp: vhidDaemonTempPath,
+                    vhidManagerTemp: vhidManagerTempPath
+                )
+            } else {
+                // Install all services including Kanata
+                success = executeAllWithAdminPrivileges(
+                    kanataTemp: kanataTempPath!,
+                    vhidDaemonTemp: vhidDaemonTempPath,
+                    vhidManagerTemp: vhidManagerTempPath
+                )
+            }
 
             // Clean up temporary files
-            try? FileManager.default.removeItem(atPath: kanataTempPath)
+            if let kanataTempPath = kanataTempPath {
+                try? FileManager.default.removeItem(atPath: kanataTempPath)
+            }
             try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
             try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
 
@@ -304,22 +328,30 @@ class LaunchDaemonInstaller {
     /// Creates and installs the Kanata LaunchDaemon service
     /// Uses SMAppService if feature flag is enabled, otherwise uses launchctl
     func createKanataLaunchDaemon() async -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] *** DECISION POINT *** createKanataLaunchDaemon() called")
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating Kanata LaunchDaemon service")
 
         // Check if SMAppService path is enabled
         let featureFlagValue = FeatureFlags.useSMAppServiceForDaemon
         AppLogger.shared.log("🔍 [LaunchDaemon] Feature flag check in createKanataLaunchDaemon(): useSMAppServiceForDaemon = \(featureFlagValue)")
+        AppLogger.shared.log("🔍 [LaunchDaemon] Feature flag UserDefaults key: USE_SMAPPSERVICE_FOR_DAEMON")
+        if let userDefaultsValue = UserDefaults.standard.object(forKey: "USE_SMAPPSERVICE_FOR_DAEMON") {
+            AppLogger.shared.log("🔍 [LaunchDaemon] UserDefaults has explicit value: \(userDefaultsValue)")
+        } else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] UserDefaults has no explicit value - using default: true")
+        }
 
         if featureFlagValue {
-            AppLogger.shared.log("📱 [LaunchDaemon] ✅ Feature flag is TRUE - Using SMAppService path for Kanata daemon")
+            AppLogger.shared.log("📱 [LaunchDaemon] ✅ DECISION: Feature flag is TRUE - Using SMAppService path for Kanata daemon")
             return await createKanataLaunchDaemonViaSMAppService()
         } else {
-            AppLogger.shared.log("🔧 [LaunchDaemon] ⚠️ Feature flag is FALSE - Using launchctl path for Kanata daemon")
+            AppLogger.shared.log("🔧 [LaunchDaemon] ⚠️ DECISION: Feature flag is FALSE - Using launchctl path for Kanata daemon")
             return createKanataLaunchDaemonViaLaunchctl()
         }
     }
 
     /// Creates and installs Kanata LaunchDaemon via SMAppService
+    /// GUARD: Uses state determination to check if legacy is active before registering
     @MainActor
     private func createKanataLaunchDaemonViaSMAppService() async -> Bool {
         AppLogger.shared.log("📱 [LaunchDaemon] *** ENTRY POINT *** createKanataLaunchDaemonViaSMAppService() called")
@@ -330,6 +362,42 @@ class LaunchDaemonInstaller {
             return createKanataLaunchDaemonViaLaunchctl()
         }
         AppLogger.shared.log("✅ [LaunchDaemon] macOS version OK for SMAppService")
+
+        // GUARD: Use state determination to check current state
+        let state = KanataDaemonManager.determineServiceManagementState()
+        AppLogger.shared.log("🔍 [LaunchDaemon] Current state: \(state.description)")
+
+        // If legacy is active, must migrate first, don't register fresh
+        if state.isLegacyManaged {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Legacy plist exists (state: \(state.description)) - must use migrateFromLaunchctl() instead")
+            return false
+        }
+
+        // If conflicted, auto-resolve by removing legacy
+        if state == .conflicted {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Conflicted state detected - auto-resolving by removing legacy plist")
+            // Auto-resolve: remove legacy plist and unload service
+            let command = """
+            /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
+            /bin/rm -f '/Library/LaunchDaemons/\(Self.kanataServiceID).plist' || true
+            """
+            do {
+                try await PrivilegedOperationsCoordinator.shared.sudoExecuteCommand(
+                    command,
+                    description: "Remove legacy plist to resolve conflict"
+                )
+                AppLogger.shared.log("✅ [LaunchDaemon] Legacy plist removed, conflict resolved")
+            } catch {
+                AppLogger.shared.log("❌ [LaunchDaemon] Failed to resolve conflict: \(error)")
+                return false
+            }
+        }
+
+        // If already managed by SMAppService, skip registration
+        if state.isSMAppServiceManaged {
+            AppLogger.shared.log("✅ [LaunchDaemon] Already managed by SMAppService (state: \(state.description)) - skipping registration")
+            return true
+        }
 
         do {
             AppLogger.shared.log("🔧 [LaunchDaemon] Calling KanataDaemonManager.shared.register()...")
@@ -342,14 +410,40 @@ class LaunchDaemonInstaller {
             if let kanataError = error as? KanataDaemonError {
                 AppLogger.shared.log("❌ [LaunchDaemon] KanataDaemonError details: \(kanataError.localizedDescription)")
             }
-            AppLogger.shared.log("🔄 [LaunchDaemon] Falling back to launchctl path")
-            return createKanataLaunchDaemonViaLaunchctl()
+
+            // CRITICAL: Don't fall back to launchctl if feature flag is enabled
+            // This prevents recreating the legacy plist after migration
+            AppLogger.shared.log("⚠️ [LaunchDaemon] SMAppService registration failed - NOT falling back to launchctl (feature flag enabled)")
+            AppLogger.shared.log("💡 [LaunchDaemon] User may need to approve in System Settings, or migration may be needed")
+            return false
         }
     }
 
     /// Creates and installs Kanata LaunchDaemon via launchctl (legacy path)
+    /// GUARD: Uses state determination to check if SMAppService is active before creating legacy plist
     private func createKanataLaunchDaemonViaLaunchctl() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] *** ENTRY POINT *** createKanataLaunchDaemonViaLaunchctl() called")
+
+        // GUARD: Use state determination to check if SMAppService is active
+        // This is the single source of truth for state determination
+        let state = KanataDaemonManager.determineServiceManagementState()
+        AppLogger.shared.log("🔍 [LaunchDaemon] Current state: \(state.description)")
+
+        // If SMAppService is managing the service, don't create legacy plist
+        if state.isSMAppServiceManaged {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] SMAppService is active (state: \(state.description)) - skipping legacy plist creation to avoid conflict")
+            AppLogger.shared.log("💡 [LaunchDaemon] Use SMAppService path instead, or rollback first")
+            return false
+        }
+
+        // Also check for conflicted state
+        if state == .conflicted {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Conflicted state detected - both legacy and SMAppService active")
+            AppLogger.shared.log("💡 [LaunchDaemon] Auto-resolving by keeping SMAppService (feature flag is ON)")
+            // Don't create legacy plist in conflicted state
+            return false
+        }
+
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing Kanata LaunchDaemon via launchctl (legacy path)")
 
         let kanataBinaryPath = getKanataBinaryPath()
@@ -390,7 +484,7 @@ class LaunchDaemonInstaller {
     /// Uses SMAppService for Kanata if feature flag is enabled, otherwise uses launchctl for all services
     func createConfigureAndLoadAllServices() async -> Bool {
         AppLogger.shared.log(
-            "🔧 [LaunchDaemon] *** ENTRY POINT *** createConfigureAndLoadAllServices() called")
+            "🔧 [LaunchDaemon] *** DECISION POINT *** createConfigureAndLoadAllServices() called")
         AppLogger.shared.log(
             "🔧 [LaunchDaemon] Creating, configuring, and loading all services with single admin prompt")
 
@@ -405,10 +499,10 @@ class LaunchDaemonInstaller {
         }
 
         if featureFlagValue {
-            AppLogger.shared.log("📱 [LaunchDaemon] ✅ Feature flag is TRUE - Using SMAppService path for Kanata, launchctl for VirtualHID")
+            AppLogger.shared.log("📱 [LaunchDaemon] ✅ DECISION: Feature flag is TRUE - Using SMAppService path for Kanata, launchctl for VirtualHID")
             return await createConfigureAndLoadAllServicesWithSMAppService()
         } else {
-            AppLogger.shared.log("🔧 [LaunchDaemon] ⚠️ Feature flag is FALSE - Using launchctl path for all services")
+            AppLogger.shared.log("🔧 [LaunchDaemon] ⚠️ DECISION: Feature flag is FALSE - Using launchctl path for all services")
             return createConfigureAndLoadAllServicesViaLaunchctl()
         }
     }
@@ -451,9 +545,11 @@ class LaunchDaemonInstaller {
             let kanataSuccess = await createKanataLaunchDaemon()
 
             if !kanataSuccess {
-                AppLogger.shared.log("❌ [LaunchDaemon] SMAppService registration failed, falling back to launchctl")
-                // Fall back to launchctl for Kanata
-                return createConfigureAndLoadAllServicesViaLaunchctl()
+                AppLogger.shared.log("⚠️ [LaunchDaemon] SMAppService registration failed - NOT falling back to launchctl")
+                AppLogger.shared.log("💡 [LaunchDaemon] User may need to approve in System Settings, or migration may be needed")
+                // Don't fall back to launchctl - return false so caller can handle it
+                // This prevents recreating the legacy plist after migration
+                return false
             }
 
             AppLogger.shared.info("✅ [LaunchDaemon] All services installed (VirtualHID via launchctl, Kanata via SMAppService)")
@@ -466,38 +562,60 @@ class LaunchDaemonInstaller {
     }
 
     /// Creates, installs, configures, and loads all services via launchctl (legacy path)
+    /// GUARD: Skips Kanata plist creation if SMAppService is active
     private func createConfigureAndLoadAllServicesViaLaunchctl() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing all services via launchctl")
 
+        // GUARD: Check if SMAppService is active for Kanata - if so, skip Kanata plist creation
+        let isSMAppServiceActive = KanataDaemonManager.isUsingSMAppService
+
+        if isSMAppServiceActive {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] SMAppService is active for Kanata - skipping Kanata plist creation")
+            AppLogger.shared.log("💡 [LaunchDaemon] Only installing VirtualHID services via launchctl")
+        }
+
         let kanataBinaryPath = getKanataBinaryPath()
 
-        // Generate all plist contents
-        let kanataPlist = generateKanataPlist(binaryPath: kanataBinaryPath)
+        // Generate plist contents (skip Kanata if SMAppService is active)
+        let kanataPlist = isSMAppServiceActive ? nil : generateKanataPlist(binaryPath: kanataBinaryPath)
         let vhidDaemonPlist = generateVHIDDaemonPlist()
         let vhidManagerPlist = generateVHIDManagerPlist()
 
-        // Create temporary files for all plists
+        // Create temporary files for all plists (skip Kanata if SMAppService is active)
         let tempDir = NSTemporaryDirectory()
-        let kanataTempPath = "\(tempDir)\(Self.kanataServiceID).plist"
+        let kanataTempPath = isSMAppServiceActive ? nil : "\(tempDir)\(Self.kanataServiceID).plist"
         let vhidDaemonTempPath = "\(tempDir)\(Self.vhidDaemonServiceID).plist"
         let vhidManagerTempPath = "\(tempDir)\(Self.vhidManagerServiceID).plist"
 
         do {
-            // Write all plist contents to temporary files
-            try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+            // Write plist contents to temporary files (skip Kanata if SMAppService is active)
+            if let kanataPlist = kanataPlist, let kanataTempPath = kanataTempPath {
+                try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+            }
             try vhidDaemonPlist.write(toFile: vhidDaemonTempPath, atomically: true, encoding: .utf8)
             try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
 
-            // Execute consolidated admin operations with a single prompt
-            // Use improved osascript approach with proper entitlements and main thread execution
-            let success = executeConsolidatedInstallationImproved(
-                kanataTemp: kanataTempPath,
-                vhidDaemonTemp: vhidDaemonTempPath,
-                vhidManagerTemp: vhidManagerTempPath
-            )
+            // Execute consolidated admin operations (skip Kanata if SMAppService is active)
+            let success: Bool
+            if isSMAppServiceActive {
+                // Only install VirtualHID services
+                success = executeConsolidatedInstallationForVHIDOnly(
+                    vhidDaemonTemp: vhidDaemonTempPath,
+                    vhidManagerTemp: vhidManagerTempPath
+                )
+            } else {
+                // Install all services including Kanata
+                success = executeConsolidatedInstallationImproved(
+                    kanataTemp: kanataTempPath!,
+                    vhidDaemonTemp: vhidDaemonTempPath,
+                    vhidManagerTemp: vhidManagerTempPath
+                )
+            }
 
             // Clean up temporary files
-            try? FileManager.default.removeItem(atPath: kanataTempPath)
+            if let kanataTempPath = kanataTempPath {
+                try? FileManager.default.removeItem(atPath: kanataTempPath)
+            }
             try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
             try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
 
@@ -600,7 +718,40 @@ class LaunchDaemonInstaller {
     }
 
     /// Checks if a LaunchDaemon service is currently loaded
+    /// Uses state determination for Kanata service to ensure consistent detection
     func isServiceLoaded(serviceID: String) -> Bool {
+        // Special handling for Kanata service: Use state determination for consistent detection
+        if serviceID == Self.kanataServiceID && FeatureFlags.useSMAppServiceForDaemon {
+            let state = KanataDaemonManager.determineServiceManagementState()
+            AppLogger.shared.log("🔍 [LaunchDaemon] Kanata service state: \(state.description)")
+
+            switch state {
+            case .legacyActive:
+                // Legacy plist exists - check launchctl status
+                // Fall through to launchctl check below
+                AppLogger.shared.log("🔍 [LaunchDaemon] Legacy plist exists - checking launchctl status")
+            case .smappserviceActive, .smappservicePending:
+                // SMAppService is managing - consider it loaded
+                AppLogger.shared.log("🔍 [LaunchDaemon] Kanata service loaded via SMAppService (state: \(state.description))")
+                return true
+            case .conflicted:
+                // Both active - consider it loaded (SMAppService takes precedence)
+                AppLogger.shared.log("🔍 [LaunchDaemon] Conflicted state - considering loaded (SMAppService active)")
+                return true
+            case .unknown:
+                // Process running but unclear - check process, consider loaded if running
+                if pgrepKanataProcess() {
+                    AppLogger.shared.log("🔍 [LaunchDaemon] Unknown state but process running - considering loaded")
+                    return true
+                }
+                return false
+            case .uninstalled:
+                // Not installed
+                AppLogger.shared.log("🔍 [LaunchDaemon] Service not installed (state: \(state.description))")
+                return false
+            }
+        }
+
         if Self.isTestMode {
             let exists = FileManager.default.fileExists(
                 atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
@@ -625,6 +776,25 @@ class LaunchDaemonInstaller {
             return isLoaded
         } catch {
             AppLogger.shared.log("❌ [LaunchDaemon] Error checking service \(serviceID): \(error)")
+            return false
+        }
+    }
+
+    /// Check if Kanata process is running (helper for SMAppService detection)
+    nonisolated func pgrepKanataProcess() -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-f", "kanata.*--cfg"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+            return task.terminationStatus == 0
+        } catch {
             return false
         }
     }
@@ -1686,11 +1856,28 @@ class LaunchDaemonInstaller {
 
     /// Install LaunchDaemon service files without loading/starting them
     /// Used for adopting orphaned processes - installs management files but doesn't interfere with running process
+    /// GUARD: Uses state determination to prevent installing Kanata if SMAppService is managing it
     func createAllLaunchDaemonServicesInstallOnly() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing service files only (no load/start)...")
 
-        // Create all required plist files
-        let kanataSuccess = await createKanataLaunchDaemon()
+        // GUARD: Use state determination to check if SMAppService is managing Kanata
+        let state = KanataDaemonManager.determineServiceManagementState()
+        AppLogger.shared.log("🔍 [LaunchDaemon] Current state: \(state.description)")
+
+        // If SMAppService is managing Kanata, skip Kanata installation to prevent reverting to launchctl
+        // Also skip if state is unknown but process is running (likely SMAppService managed)
+        let shouldSkipKanata = state.isSMAppServiceManaged || (state == .unknown && pgrepKanataProcess())
+
+        AppLogger.shared.log("🔍 [LaunchDaemon] Install-only check: state=\(state.description), shouldSkipKanata=\(shouldSkipKanata)")
+
+        // Create all required plist files (skip Kanata if SMAppService is active)
+        let kanataSuccess: Bool
+        if shouldSkipKanata {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Skipping Kanata installation - SMAppService is active or migrated (state: \(state.description))")
+            kanataSuccess = true // Consider it success since we're intentionally skipping
+        } else {
+            kanataSuccess = await createKanataLaunchDaemon()
+        }
         let vhidDaemonSuccess = createVHIDDaemonService()
         let vhidManagerSuccess = createVHIDManagerService()
 
@@ -1812,17 +1999,54 @@ class LaunchDaemonInstaller {
         }
 
         // Step 1: Install missing services first if needed
-        if !toInstall.isEmpty {
-            AppLogger.shared.log("🔧 [LaunchDaemon] Installing missing services: \(toInstall)")
+        // CRITICAL: Use state determination to check if SMAppService is managing Kanata
+        // IMPORTANT: Don't install Kanata if SMAppService is managing it (even if launchctl print fails)
+        let needsInstallation = !toInstall.isEmpty
+
+        // Use state determination to determine current state
+        let state = KanataDaemonManager.determineServiceManagementState()
+        AppLogger.shared.log("🔍 [LaunchDaemon] Current state: \(state.description)")
+
+        // Check if migration is needed (legacy exists but feature flag requires SMAppService)
+        let needsMigration = state.needsMigration(featureFlagEnabled: FeatureFlags.useSMAppServiceForDaemon)
+
+        // CRITICAL FIX: If Kanata is in toInstall but SMAppService is managing it, remove it from toInstall
+        // This prevents reverting to launchctl after migration
+        if toInstall.contains(Self.kanataServiceID) {
+            if state.isSMAppServiceManaged {
+                AppLogger.shared.log("⚠️ [LaunchDaemon] Kanata is managed by SMAppService (state: \(state.description)) - skipping installation to prevent revert")
+                toInstall.removeAll { $0 == Self.kanataServiceID }
+            } else if state == .unknown && pgrepKanataProcess() {
+                // Unknown state but process running - likely SMAppService managed, skip installation
+                AppLogger.shared.log("⚠️ [LaunchDaemon] Unknown state but process running - skipping installation to prevent revert")
+                toInstall.removeAll { $0 == Self.kanataServiceID }
+            }
+        }
+
+        AppLogger.shared.log("🔍 [LaunchDaemon] Installation check: needsInstallation=\(needsInstallation), needsMigration=\(needsMigration)")
+        AppLogger.shared.log("🔍 [LaunchDaemon] Feature flag: useSMAppServiceForDaemon=\(FeatureFlags.useSMAppServiceForDaemon)")
+        AppLogger.shared.log("🔍 [LaunchDaemon] Services to install after state check: \(toInstall)")
+
+        // Recalculate needsInstallation after removing SMAppService-managed services
+        let finalNeedsInstallation = !toInstall.isEmpty
+
+        if finalNeedsInstallation || needsMigration {
+            if needsMigration {
+                AppLogger.shared.log("🔄 [LaunchDaemon] Migration needed - service using launchctl but feature flag requires SMAppService")
+            } else {
+                AppLogger.shared.log("🔧 [LaunchDaemon] Installing missing services: \(toInstall)")
+            }
             let installSuccess = await createConfigureAndLoadAllServices()
             if !installSuccess {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to install missing services")
+                AppLogger.shared.log("❌ [LaunchDaemon] Failed to install/migrate services")
                 return false
             }
-            AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed missing services")
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed/migrated services")
 
             // Wait for installation to settle
             try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        } else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] No installation/migration needed - services using correct method")
         }
 
         // Step 2: Handle unhealthy services
@@ -2130,10 +2354,19 @@ class LaunchDaemonInstaller {
 
     // MARK: - TCP Configuration Detection
 
+    /// Gets the correct plist path for Kanata service
+    /// Returns SMAppService plist path if active, otherwise legacy plist path
+    /// Uses KanataDaemonManager.getActivePlistPath() as the single source of truth
+    nonisolated func getKanataPlistPath() -> String {
+        return KanataDaemonManager.getActivePlistPath()
+    }
+
     /// Gets the current program arguments from the Kanata LaunchDaemon plist
+    /// Checks SMAppService plist if active, otherwise checks legacy plist
     func getKanataProgramArguments() -> [String]? {
-        guard let plistDict = NSDictionary(contentsOfFile: Self.kanataPlistPath) as? [String: Any] else {
-            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot read Kanata plist at \(Self.kanataPlistPath)")
+        let plistPath = getKanataPlistPath()
+        guard let plistDict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot read Kanata plist at \(plistPath)")
             return nil
         }
 
@@ -2147,7 +2380,14 @@ class LaunchDaemonInstaller {
     }
 
     /// Checks if the current service configuration matches the expected TCP settings (both arguments and environment variables)
+    /// For SMAppService, always returns true since SMAppService manages its own plist from app bundle
     func isServiceConfigurationCurrent() -> Bool {
+        // If SMAppService is active, configuration is always "current" since it's managed by the app bundle
+        if KanataDaemonManager.isUsingSMAppService {
+            AppLogger.shared.log("🔍 [LaunchDaemon] SMAppService is active - configuration is always current (managed by app bundle)")
+            return true
+        }
+
         guard let currentArgs = getKanataProgramArguments() else {
             AppLogger.shared.log("🔍 [LaunchDaemon] Cannot check TCP configuration - plist unreadable")
             return false
@@ -2179,9 +2419,11 @@ class LaunchDaemonInstaller {
     }
 
     /// Gets environment variables from the current Kanata plist
+    /// Checks SMAppService plist if active, otherwise checks legacy plist
     private func getKanataEnvironmentVariables() -> [String: String] {
-        guard let plistDict = NSDictionary(contentsOfFile: Self.kanataPlistPath) as? [String: Any] else {
-            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot read Kanata plist for environment variables")
+        let plistPath = getKanataPlistPath()
+        guard let plistDict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] Cannot read Kanata plist for environment variables at \(plistPath)")
             return [:]
         }
 
@@ -2193,10 +2435,21 @@ class LaunchDaemonInstaller {
         return envVarsDict
     }
 
-    /// Regenerates the Kanata service plist with current settings and reloads the service
+    /// Regenerates Kanata service plist with current TCP settings
+    /// GUARD: Skips regeneration if SMAppService is active (SMAppService manages its own plist)
     @MainActor
     func regenerateServiceWithCurrentSettings() -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Regenerating Kanata service with current TCP settings")
+
+        // GUARD: Check if SMAppService is active - if so, don't regenerate legacy plist
+        let isSMAppServiceActive = KanataDaemonManager.isUsingSMAppService
+
+        if isSMAppServiceActive {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] SMAppService is active - skipping legacy plist regeneration")
+            AppLogger.shared.log("💡 [LaunchDaemon] SMAppService manages its own plist from app bundle")
+            AppLogger.shared.log("💡 [LaunchDaemon] To update config, update app bundle plist and re-register")
+            return true // Return success since SMAppService is managing it
+        }
 
         let kanataBinaryPath = getKanataBinaryPath()
         let plistContent = generateKanataPlist(binaryPath: kanataBinaryPath)
