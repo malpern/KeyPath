@@ -1,7 +1,7 @@
-import XCTest
 @testable import KeyPath
-@testable import KeyPathPermissions
 import KeyPathCore
+@testable import KeyPathPermissions
+import XCTest
 
 @MainActor
 final class PermissionOracleXCTests: XCTestCase {
@@ -30,4 +30,3 @@ final class PermissionOracleXCTests: XCTestCase {
         XCTAssertEqual(first.timestamp.timeIntervalSince1970, second.timestamp.timeIntervalSince1970)
     }
 }
-

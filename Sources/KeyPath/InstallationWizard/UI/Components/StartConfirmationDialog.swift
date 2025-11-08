@@ -108,7 +108,7 @@ struct StartConfirmationDialog: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                             onConfirm()
                         }
-                    }) {
+                    }, label: {
                         HStack {
                             Image(systemName: "play.fill")
                                 .font(.system(size: 16, weight: .medium))
@@ -120,7 +120,7 @@ struct StartConfirmationDialog: View {
                         .frame(height: 48)
                         .background(Color.blue.gradient)
                         .cornerRadius(12)
-                    }
+                    })
                     .buttonStyle(.plain)
 
                     Button(action: {
@@ -130,13 +130,13 @@ struct StartConfirmationDialog: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                             onCancel()
                         }
-                    }) {
+                    }, label: {
                         Text("Cancel")
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
-                    }
+                    })
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 32)

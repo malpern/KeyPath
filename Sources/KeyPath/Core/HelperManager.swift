@@ -1,6 +1,6 @@
 import Foundation
-import ServiceManagement
 import KeyPathCore
+import ServiceManagement
 
 /// Manager for XPC communication with the privileged helper
 ///
@@ -12,11 +12,13 @@ import KeyPathCore
 /// - SMJobBless calls hop to MainActor for Authorization UI safety.
 actor HelperManager {
     // MARK: - SMAppService indirection for testability
+
     // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
     // Default implementation wraps Apple's `SMAppService`.
     nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
         NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
     }
+
     // MARK: - Singleton
 
     static let shared = HelperManager()
@@ -64,7 +66,7 @@ actor HelperManager {
         }
 
         // Best-effort: verify embedded helper signature/requirement before connecting
-        self.verifyEmbeddedHelperSignature()
+        verifyEmbeddedHelperSignature()
 
         // Create new connection
         AppLogger.shared.log("🔗 [HelperManager] Creating XPC connection to \(Self.helperMachServiceName)")
@@ -586,7 +588,7 @@ actor HelperManager {
 extension HelperManager {
     /// Verify the embedded helper's designated requirement roughly matches expectations.
     /// Logs warnings on mismatch; does not block connection (to avoid false positives during dev).
-    nonisolated private func verifyEmbeddedHelperSignature() {
+    private nonisolated func verifyEmbeddedHelperSignature() {
         let fm = FileManager.default
         let bundlePath = Bundle.main.bundlePath
         let helperPath = bundlePath + "/Contents/Library/HelperTools/KeyPathHelper"

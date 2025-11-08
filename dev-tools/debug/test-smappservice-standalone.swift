@@ -1,8 +1,8 @@
 #!/usr/bin/env swift
 
 import Foundation
-import ServiceManagement
 import OSLog
+import ServiceManagement
 
 /// Standalone SMAppService POC test - works with existing app bundle or creates minimal test
 ///
@@ -154,4 +154,3 @@ if createTestPlist {
     print("📋 Alternative: Test with existing helper plist (if app is built):")
     print("   swift run smappservice-poc com.keypath.helper.plist lifecycle --verbose")
 }
-

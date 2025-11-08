@@ -60,9 +60,9 @@ struct WizardButtonBar: View {
         secondary: SecondaryButton? = nil,
         primary: PrimaryButton
     ) {
-        self.cancelButton = cancel
-        self.secondaryButton = secondary
-        self.primaryButton = primary
+        cancelButton = cancel
+        secondaryButton = secondary
+        primaryButton = primary
     }
 
     var body: some View {

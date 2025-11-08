@@ -78,7 +78,8 @@ let package = Package(
                 "InstallationWizard/README.md"
             ],
             resources: [
-                .process("Resources")
+                .process("Resources"),
+                .copy("com.keypath.kanata.plist")
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),

@@ -1,7 +1,7 @@
 import Foundation
 import KeyPathCore
-import KeyPathWizardCore
 import KeyPathPermissions
+import KeyPathWizardCore
 import SwiftUI
 
 enum CoordinatorPermissionType: String, CaseIterable {

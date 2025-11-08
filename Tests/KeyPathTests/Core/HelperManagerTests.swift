@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPath
 import ServiceManagement
+import XCTest
 
 final class HelperManagerTests: XCTestCase {
     private var originalFactory: ((String) -> SMAppServiceProtocol)!
@@ -42,4 +42,3 @@ private struct FakeSMAppService: SMAppServiceProtocol {
     func register() throws { throw registerError }
     func unregister() async throws {}
 }
-

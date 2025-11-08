@@ -1,6 +1,6 @@
 import AppKit
-import KeyPathCore
 import Foundation
+import KeyPathCore
 
 // MARK: - Protocol
 
@@ -32,7 +32,10 @@ final class KarabinerConflictService: KarabinerConflictManaging {
     // MARK: - Constants
 
     private let driverPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
-    private let daemonPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+    private let daemonPath = "/Library/Application Support/org.pqrs/" +
+        "Karabiner-DriverKit-VirtualHIDDevice/Applications/" +
+        "Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/" +
+        "Karabiner-VirtualHIDDevice-Daemon"
     private let disabledMarkerPath = "\(NSHomeDirectory())/.keypath/karabiner-grabber-disabled"
     private let vhidDaemonLabel = "com.keypath.karabiner-vhiddaemon"
     private let vhidDaemonPlist = "/Library/LaunchDaemons/com.keypath.karabiner-vhiddaemon.plist"

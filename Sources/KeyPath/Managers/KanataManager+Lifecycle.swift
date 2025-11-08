@@ -1,9 +1,9 @@
 import ApplicationServices
 import Foundation
-import KeyPathCore
-import KeyPathPermissions
-import KeyPathDaemonLifecycle
 import IOKit.hidsystem
+import KeyPathCore
+import KeyPathDaemonLifecycle
+import KeyPathPermissions
 import Network
 import SwiftUI
 

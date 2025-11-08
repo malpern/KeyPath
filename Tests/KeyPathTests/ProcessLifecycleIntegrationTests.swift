@@ -1,13 +1,13 @@
 import XCTest
 
 @testable import KeyPath
-import KeyPathDaemonLifecycle
 import KeyPathCore
+import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 
-@MainActor
 /// Integration tests for ProcessLifecycleManager - tests the actual system
 /// Updated to work with the simplified ProcessLifecycleManager that uses PID files
+@MainActor
 final class ProcessLifecycleIntegrationTests: XCTestCase {
     var processManager: ProcessLifecycleManager!
 

@@ -1,6 +1,6 @@
 import Foundation
-import Network
 import KeyPathCore
+import Network
 
 /// Simple completion flag for thread-safe continuation handling
 private final class CompletionFlag: @unchecked Sendable {
@@ -235,6 +235,7 @@ actor KanataTCPClient {
     // MARK: - Server Operations
 
     // MARK: - Protocol Models
+
     struct TcpHelloOk: Codable, Sendable {
         let version: String
         let protocolVersion: Int
@@ -266,11 +267,11 @@ actor KanataTCPClient {
             }
 
             // Minimal form: { "HelloOk": { "server": "kanata", "capabilities": [..] } }
-            let serverString = (try container.decodeIfPresent(String.self, forKey: .server)) ?? "kanata"
-            let caps = (try container.decodeIfPresent([String].self, forKey: .capabilities)) ?? []
-            self.version = serverString
-            self.protocolVersion = 1
-            self.capabilities = caps
+            let serverString = try (container.decodeIfPresent(String.self, forKey: .server)) ?? "kanata"
+            let caps = try (container.decodeIfPresent([String].self, forKey: .capabilities)) ?? []
+            version = serverString
+            protocolVersion = 1
+            capabilities = caps
         }
 
         func encode(to encoder: Encoder) throws {
@@ -292,6 +293,7 @@ actor KanataTCPClient {
         let duration_ms: UInt64?
         let epoch: UInt64?
     }
+
     struct TcpStatusInfo: Codable, Sendable {
         let engine_version: String?
         let uptime_s: UInt64?
@@ -459,11 +461,11 @@ actor KanataTCPClient {
                 conn.stateUpdateHandler = { state in
                     switch state {
                     case .ready:
-                        let payload = "{\"Subscribe\":{\"events\":[\"reload\",\"ready\"]}}\n".data(using: .utf8)!
+                        let payload = Data("{\"Subscribe\":{\"events\":[\"reload\",\"ready\"]}}\n".utf8)
                         conn.send(content: payload, completion: .contentProcessed { _ in
                             conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, error in
                                 if completionFlag.markCompleted() {
-                                    if let error { continuation.resume(throwing: error) ; return }
+                                    if let error { continuation.resume(throwing: error); return }
                                     guard let content, let s = String(data: content, encoding: .utf8) else {
                                         continuation.resume(returning: nil); return
                                     }
@@ -687,7 +689,7 @@ actor KanataTCPClient {
     }
 
     /// Extract a named server message (second line) from a newline-delimited response
-    private func extractMessage<T: Decodable>(named name: String, into type: T.Type, from data: Data) throws -> T? {
+    private func extractMessage<T: Decodable>(named name: String, into _: T.Type, from data: Data) throws -> T? {
         guard let s = String(data: data, encoding: .utf8) else { return nil }
         // Split by newlines; look for an object where the top-level key is the provided name
         for line in s.split(separator: "\n").map(String.init) {

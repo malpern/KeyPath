@@ -1,0 +1,11 @@
+# SwiftFormat Configuration
+# Match SwiftLint rules to avoid conflicts
+
+# Disable trailing commas (SwiftLint doesn't allow them in collection literals)
+--disable trailingCommas
+
+# Match SwiftLint preferences
+--indent 4
+--tabwidth 4
+--maxwidth 200
+--linebreaks lf

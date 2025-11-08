@@ -45,7 +45,7 @@ struct EmergencyStopPauseCard: View {
                             }
                         }
                     }
-                }) {
+                }, label: {
                     HStack(spacing: 8) {
                         if isRestarting {
                             ProgressView()
@@ -62,7 +62,7 @@ struct EmergencyStopPauseCard: View {
                     .background(Color.accentColor)
                     .foregroundColor(.white)
                     .cornerRadius(8)
-                }
+                })
                 .buttonStyle(.plain)
                 .disabled(isRestarting)
             }
@@ -85,4 +85,3 @@ struct EmergencyStopPauseCard: View {
         .padding()
         .preferredColorScheme(.light)
 }
-

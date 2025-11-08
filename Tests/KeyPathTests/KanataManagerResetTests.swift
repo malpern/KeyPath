@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class KanataManagerResetTests: XCTestCase {
@@ -25,4 +25,3 @@ final class KanataManagerResetTests: XCTestCase {
         )
     }
 }
-

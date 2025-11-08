@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPath
 import Network
+import XCTest
 
 final class TCPClientIntegrationTests: XCTestCase {
     private let port: Int = 37001
@@ -48,14 +48,14 @@ final class TCPClientIntegrationTests: XCTestCase {
         // Use a raw connection to inspect bytes
         let exp = expectation(description: "recv")
         final class ReceivedData: @unchecked Sendable {
-            var value: Data = Data()
+            var value: Data = .init()
         }
         let received = ReceivedData()
 
         let conn = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(integerLiteral: UInt16(port)), using: .tcp)
         conn.stateUpdateHandler = { (state: NWConnection.State) in
             if case .ready = state {
-                let payload = "{\"Reload\":{\"wait\":true,\"timeout_ms\":1200}}\n".data(using: .utf8)!
+                let payload = Data("{\"Reload\":{\"wait\":true,\"timeout_ms\":1200}}\n".utf8)
                 conn.send(content: payload, completion: .contentProcessed { (_: NWError?) in
                     conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, _ in
                         if let content { received.value = content }
@@ -100,14 +100,14 @@ final class TCPClientIntegrationTests: XCTestCase {
 
         let exp = expectation(description: "recv-timeout")
         final class ReceivedData: @unchecked Sendable {
-            var value: Data = Data()
+            var value: Data = .init()
         }
         let received = ReceivedData()
 
         let conn = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(integerLiteral: UInt16(port)), using: .tcp)
         conn.stateUpdateHandler = { (state: NWConnection.State) in
             if case .ready = state {
-                let payload = "{\"Reload\":{\"wait\":true,\"timeout_ms\":1}}\n".data(using: .utf8)!
+                let payload = Data("{\"Reload\":{\"wait\":true,\"timeout_ms\":1}}\n".utf8)
                 conn.send(content: payload, completion: .contentProcessed { (_: NWError?) in
                     conn.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, _, _ in
                         if let content { received.value = content }
@@ -127,4 +127,3 @@ final class TCPClientIntegrationTests: XCTestCase {
         // Accept either timeout or immediate success; framing is the key invariant
     }
 }
-

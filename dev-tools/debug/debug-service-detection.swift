@@ -53,6 +53,7 @@ if printExitCode == 0 {
 } else {
     print("❌ Service is not loaded")
 }
+
 print()
 
 // Test 2: Check if config file exists and is readable
@@ -78,6 +79,7 @@ if fm.fileExists(atPath: configPath) {
 } else {
     print("❌ Config file missing: \(configPath)")
 }
+
 print()
 
 // Test 3: Check what the wizard detection logic might be looking for
@@ -93,7 +95,7 @@ if printExitCode == 0 {
     print("   Has crashes: \(hasCrashes ? "⚠️  YES" : "✅ NO")")
     print("   Inefficient: \(isInefficient ? "⚠️  YES" : "✅ NO")")
 
-    if isRunning && !hasCrashes && !isInefficient {
+    if isRunning, !hasCrashes, !isInefficient {
         print("   🎯 Service appears healthy - wizard should show green!")
     } else {
         print("   🔍 Service has issues - this explains the red X")
@@ -105,6 +107,7 @@ if printExitCode == 0 {
 } else {
     print("   ❌ Service not loaded - definitely explains red X")
 }
+
 print()
 
 // Test 4: Check recent kanata logs for errors
@@ -124,6 +127,7 @@ if logExitCode == 0 {
 } else {
     print("   ❌ Cannot read kanata logs")
 }
+
 print()
 
 print("🏁 Summary:")

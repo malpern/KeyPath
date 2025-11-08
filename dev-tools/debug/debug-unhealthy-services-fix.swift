@@ -214,7 +214,8 @@ extension String {
             let rx = try NSRegularExpression(pattern: pattern)
             let nsRange = NSRange(startIndex..., in: self)
             guard let m = rx.firstMatch(in: self, range: nsRange), m.numberOfRanges >= 2,
-                  let range = Range(m.range(at: 1), in: self) else {
+                  let range = Range(m.range(at: 1), in: self)
+            else {
                 return nil
             }
             return Int(self[range])

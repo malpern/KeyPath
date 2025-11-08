@@ -276,10 +276,9 @@ public class UIAutomationFramework {
 
 // MARK: - Supporting Types
 
-/// Represents a key mapping configuration
-// Note: KeyMapping is imported from the main KeyPath module via @testable import
-
 // Extension to add description property for test compatibility
+/// Represents a key mapping configuration
+/// Note: KeyMapping is imported from the main KeyPath module via @testable import
 extension KeyMapping {
     var description: String {
         "\(input) → \(output)"

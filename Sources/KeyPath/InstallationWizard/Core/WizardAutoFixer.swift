@@ -1,9 +1,9 @@
 import AppKit
 import Foundation
-import os
 import KeyPathCore
-import KeyPathWizardCore
 import KeyPathDaemonLifecycle
+import KeyPathWizardCore
+import os
 
 /// Handles automatic fixing of detected issues - pure action logic
 class WizardAutoFixer: AutoFixCapable {
@@ -1048,20 +1048,63 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔧 [AutoFixer] - All services healthy: \(status.allServicesHealthy)")
 
         // Step 1: Install any missing services first
-        if !status.allServicesLoaded {
-            AppLogger.shared.log(
-                "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services first"
-            )
+        // CRITICAL: Also check if we need to migrate from launchctl to SMAppService
+        // IMPORTANT: Don't install Kanata if SMAppService is managing it (even if launchctl print fails)
+        let needsInstallation = !status.allServicesLoaded
+
+        // Check migration status on MainActor since KanataDaemonManager is actor-isolated
+        let needsMigration = await MainActor.run {
+            FeatureFlags.useSMAppServiceForDaemon && KanataDaemonManager.shared.hasLegacyInstallation() && !KanataDaemonManager.isRegisteredViaSMAppService()
+        }
+
+        // CRITICAL FIX: Check if Kanata is actually managed by SMAppService before installing
+        // This prevents reverting to launchctl after migration
+        let smAppServiceStatus = await MainActor.run {
+            KanataDaemonManager.shared.getStatus()
+        }
+        let isSMAppServiceActive = await MainActor.run {
+            KanataDaemonManager.isUsingSMAppService
+        }
+        // Also check if process is running (SMAppService might have status .notFound but process is running)
+        // pgrepKanataProcess() is synchronous and doesn't need MainActor
+        let isProcessRunning = launchDaemonInstaller.pgrepKanataProcess()
+
+        // If SMAppService is managing Kanata (enabled OR requiresApproval) OR process is running, don't trigger installation
+        // .requiresApproval means migration succeeded but user needs to approve
+        let shouldSkipInstallation = (isSMAppServiceActive || smAppServiceStatus == .requiresApproval || isProcessRunning) && needsInstallation
+
+        AppLogger.shared.log("🔍 [AutoFixer] Installation check: needsInstallation=\(needsInstallation), needsMigration=\(needsMigration)")
+        AppLogger.shared.log("🔍 [AutoFixer] Feature flag: useSMAppServiceForDaemon=\(FeatureFlags.useSMAppServiceForDaemon)")
+        AppLogger.shared.log("🔍 [AutoFixer] SMAppService status: \(smAppServiceStatus.rawValue) (\(String(describing: smAppServiceStatus)))")
+        AppLogger.shared.log("🔍 [AutoFixer] SMAppService active: \(isSMAppServiceActive), Process running: \(isProcessRunning)")
+        AppLogger.shared.log("🔍 [AutoFixer] Should skip installation: \(shouldSkipInstallation)")
+
+        let (hasLegacy, isRegistered) = await MainActor.run {
+            (KanataDaemonManager.shared.hasLegacyInstallation(), KanataDaemonManager.isRegisteredViaSMAppService())
+        }
+        AppLogger.shared.log("🔍 [AutoFixer] Legacy installation: \(hasLegacy)")
+        AppLogger.shared.log("🔍 [AutoFixer] SMAppService registered: \(isRegistered)")
+
+        if (needsInstallation && !shouldSkipInstallation) || needsMigration {
+            if needsMigration {
+                AppLogger.shared.log(
+                    "🔄 [AutoFixer] Step 2: Migration needed - service using launchctl but feature flag requires SMAppService"
+                )
+            } else {
+                AppLogger.shared.log(
+                    "🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services first"
+                )
+            }
             do {
                 try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()
-                AppLogger.shared.info("✅ [AutoFixer] Installed missing services")
+                AppLogger.shared.info("✅ [AutoFixer] Installed/migrated services")
             } catch {
-                AppLogger.shared.error("❌ [AutoFixer] Failed to install missing services: \(error)")
+                AppLogger.shared.error("❌ [AutoFixer] Failed to install/migrate services: \(error)")
                 return false
             }
         } else {
             AppLogger.shared.log(
-                "🔧 [AutoFixer] Step 2: All services already loaded, skipping installation")
+                "🔧 [AutoFixer] Step 2: All services already loaded and using correct method, skipping installation")
         }
 
         // Step 2: Restart any unhealthy services

@@ -32,7 +32,7 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         case let .shouldBeRunning(source):
             AppLogger.shared.log(
                 "🚀 [ProcessLifecycleManager] Ensuring process running (source: \(source))")
-            // Add actual process start logic here
+        // Add actual process start logic here
         case .shouldBeStopped:
             AppLogger.shared.log("🛑 [ProcessLifecycleManager] Ensuring process is stopped")
             // Add actual process stop logic here
@@ -329,5 +329,3 @@ public final class ProcessLifecycleManager: @unchecked Sendable {
         return isThisProcessManaged
     }
 }
-
-

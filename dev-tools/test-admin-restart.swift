@@ -64,7 +64,8 @@ do {
                     let nsRange = NSRange(text.startIndex..., in: text)
                     guard let match = rx.firstMatch(in: text, range: nsRange),
                           match.numberOfRanges >= 2,
-                          let range = Range(match.range(at: 1), in: text) else {
+                          let range = Range(match.range(at: 1), in: text)
+                    else {
                         return nil
                     }
                     return Int(text[range])

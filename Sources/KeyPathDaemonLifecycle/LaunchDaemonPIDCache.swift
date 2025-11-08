@@ -85,6 +85,7 @@ public actor LaunchDaemonPIDCache {
     }
 
     // MARK: - Private Implementation
+
     private func fetchLaunchDaemonPIDWithTimeout() async throws -> pid_t? {
         try await withThrowingTaskGroup(of: pid_t?.self) { group in
             group.addTask {
@@ -172,5 +173,3 @@ public enum CacheConfidence: Sendable {
     case low // Stale cache (> 10s old) or error fallback
     case none // No cache available
 }
-
-

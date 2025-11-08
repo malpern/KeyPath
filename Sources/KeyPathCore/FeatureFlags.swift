@@ -46,6 +46,7 @@ public final class FeatureFlags {
 extension FeatureFlags: @unchecked Sendable {}
 
 // MARK: - Persisted flags (UserDefaults-backed)
+
 public extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
 
@@ -60,6 +61,3 @@ public extension FeatureFlags {
         UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
     }
 }
-
-
-

@@ -1,7 +1,7 @@
 import AppKit
-import KeyPathCore
 import Carbon
 import Foundation
+import KeyPathCore
 import SwiftUI
 
 // Import the event processing infrastructure

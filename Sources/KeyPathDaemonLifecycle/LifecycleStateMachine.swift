@@ -306,6 +306,7 @@ public final class LifecycleStateMachine: ObservableObject {
 }
 
 // MARK: - Convenience Properties
+
 public extension LifecycleStateMachine {
     /// Whether Kanata is currently running and operational
     var isRunning: Bool { currentState.isOperational }
@@ -322,12 +323,3 @@ public extension LifecycleStateMachine {
     /// Current state display string for UI
     var stateDisplay: String { currentState.displayName }
 }
-
-
-
-
-
-
-
-
-

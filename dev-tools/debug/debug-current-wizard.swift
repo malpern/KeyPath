@@ -11,7 +11,7 @@ print("\n1. Service Status Detection:")
 let services = [
     ("com.keypath.kanata", "Kanata", false),
     ("com.keypath.vhiddaemon", "VHID Daemon", false),
-    ("com.keypath.vhidmanager", "VHID Manager", true)  // true = one-shot
+    ("com.keypath.vhidmanager", "VHID Manager", true), // true = one-shot
 ]
 
 var loadedCount = 0
@@ -53,8 +53,8 @@ for (serviceID, name, isOneShot) in services {
 
             // Apply health logic
             let healthy: Bool = isOneShot
-                ? (lastExitCode == 0)                    // one-shot OK without PID if exit was clean
-                : (hasPID && lastExitCode == 0)          // keep-alive services must be running and clean
+                ? (lastExitCode == 0) // one-shot OK without PID if exit was clean
+                : (hasPID && lastExitCode == 0) // keep-alive services must be running and clean
 
             print("Healthy: \(healthy)")
 
@@ -109,7 +109,8 @@ func extractInt(from text: String, pattern: String) -> Int? {
         let nsRange = NSRange(text.startIndex..., in: text)
         guard let match = rx.firstMatch(in: text, range: nsRange),
               match.numberOfRanges >= 2,
-              let range = Range(match.range(at: 1), in: text) else {
+              let range = Range(match.range(at: 1), in: text)
+        else {
             return nil
         }
         return Int(text[range])

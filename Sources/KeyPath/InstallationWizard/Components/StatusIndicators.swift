@@ -1,6 +1,6 @@
-import SwiftUI
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
+import SwiftUI
 
 // MARK: - Summary Item View
 

@@ -73,13 +73,28 @@ final class PrivilegedOperationsCoordinator {
         AppLogger.shared.log("✅ [PrivCoordinator] Cleanup completed")
     }
 
-    /// Install all LaunchDaemon services with consolidated single-prompt method
+    /// Install all LaunchDaemon services with explicit parameters
+    /// GUARD: Bypasses helper path if SMAppService is enabled (helper doesn't check SMAppService)
     func installAllLaunchDaemonServices(
         kanataBinaryPath: String,
         kanataConfigPath: String,
         tcpPort: Int
     ) async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Installing all LaunchDaemon services")
+
+        // GUARD: If SMAppService is enabled, bypass helper and use sudo path
+        // HelperService doesn't check SMAppService and would recreate legacy plist
+        if FeatureFlags.useSMAppServiceForDaemon {
+            AppLogger.shared.log("📱 [PrivCoordinator] SMAppService enabled - bypassing helper path to prevent legacy plist creation")
+            // Assert: Verify we're not going through helper when SMAppService is enabled
+            assert(Self.operationMode != .privilegedHelper || !FeatureFlags.useSMAppServiceForDaemon, "Guard violation: Helper path bypassed when SMAppService enabled")
+            try await sudoInstallAllServices(
+                kanataBinaryPath: kanataBinaryPath,
+                kanataConfigPath: kanataConfigPath,
+                tcpPort: tcpPort
+            )
+            return
+        }
 
         switch Self.operationMode {
         case .privilegedHelper:
@@ -98,8 +113,19 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Install all LaunchDaemon services (convenience overload - uses PreferencesService for config)
+    /// GUARD: Bypasses helper path if SMAppService is enabled (helper doesn't check SMAppService)
     func installAllLaunchDaemonServices() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Installing all LaunchDaemon services (using preferences)")
+
+        // GUARD: If SMAppService is enabled, bypass helper and use sudo path
+        // HelperService doesn't check SMAppService and would recreate legacy plist
+        if FeatureFlags.useSMAppServiceForDaemon {
+            AppLogger.shared.log("📱 [PrivCoordinator] SMAppService enabled - bypassing helper path to prevent legacy plist creation")
+            // Assert: Verify we're not going through helper when SMAppService is enabled
+            assert(Self.operationMode != .privilegedHelper || !FeatureFlags.useSMAppServiceForDaemon, "Guard violation: Helper path bypassed when SMAppService enabled")
+            try await sudoInstallAllServicesWithPreferences()
+            return
+        }
 
         switch Self.operationMode {
         case .privilegedHelper:
@@ -342,6 +368,21 @@ final class PrivilegedOperationsCoordinator {
     }
 
     private func helperRegenerateConfig() async throws {
+        AppLogger.shared.log("🔧 [PrivCoordinator] *** DECISION POINT *** helperRegenerateConfig() called")
+
+        // Check if SMAppService path is enabled - if so, use sudo path directly
+        // (Helper doesn't support SMAppService yet)
+        let featureFlagValue = FeatureFlags.useSMAppServiceForDaemon
+        AppLogger.shared.log("🔍 [PrivCoordinator] Feature flag check in helperRegenerateConfig(): useSMAppServiceForDaemon = \(featureFlagValue)")
+
+        if featureFlagValue {
+            AppLogger.shared.log("📱 [PrivCoordinator] ✅ DECISION: Feature flag enabled - bypassing helper to use SMAppService path")
+            try await sudoRegenerateConfig()
+            return
+        }
+
+        // Otherwise, try helper first
+        AppLogger.shared.log("🔧 [PrivCoordinator] ⚠️ DECISION: Feature flag disabled - trying helper path first")
         do {
             try await HelperManager.shared.regenerateServiceConfiguration()
         } catch {
@@ -524,7 +565,7 @@ final class PrivilegedOperationsCoordinator {
         // For now, this delegates to LaunchDaemonInstaller's existing implementation
         // Once we extract all the logic, we'll move it here
         let installer = LaunchDaemonInstaller()
-        let success = installer.createConfigureAndLoadAllServices()
+        let success = await installer.createConfigureAndLoadAllServices()
 
         if !success {
             throw PrivilegedOperationError.installationFailed("LaunchDaemon installation failed")
@@ -534,7 +575,7 @@ final class PrivilegedOperationsCoordinator {
     /// Install all LaunchDaemon services (convenience - uses PreferencesService)
     private func sudoInstallAllServicesWithPreferences() async throws {
         let installer = LaunchDaemonInstaller()
-        let success = installer.createConfigureAndLoadAllServices()
+        let success = await installer.createConfigureAndLoadAllServices()
 
         if !success {
             throw PrivilegedOperationError.installationFailed("LaunchDaemon installation failed")
@@ -552,12 +593,38 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Regenerate service configuration using LaunchDaemonInstaller
+    /// Uses SMAppService path if feature flag is enabled, otherwise uses launchctl
     private func sudoRegenerateConfig() async throws {
-        let installer = LaunchDaemonInstaller()
-        let success = installer.regenerateServiceWithCurrentSettings()
+        AppLogger.shared.log("🔧 [PrivCoordinator] *** DECISION POINT *** sudoRegenerateConfig() called")
 
-        if !success {
-            throw PrivilegedOperationError.operationFailed("Config regeneration failed")
+        // Check if SMAppService path is enabled for Kanata
+        let featureFlagValue = FeatureFlags.useSMAppServiceForDaemon
+        AppLogger.shared.log("🔍 [PrivCoordinator] Feature flag check in regenerateServiceConfiguration(): useSMAppServiceForDaemon = \(featureFlagValue)")
+        AppLogger.shared.log("🔍 [PrivCoordinator] Feature flag UserDefaults key: USE_SMAPPSERVICE_FOR_DAEMON")
+        if let userDefaultsValue = UserDefaults.standard.object(forKey: "USE_SMAPPSERVICE_FOR_DAEMON") {
+            AppLogger.shared.log("🔍 [PrivCoordinator] UserDefaults has explicit value: \(userDefaultsValue)")
+        } else {
+            AppLogger.shared.log("🔍 [PrivCoordinator] UserDefaults has no explicit value - using default: true")
+        }
+
+        if featureFlagValue {
+            AppLogger.shared.log("📱 [PrivCoordinator] ✅ DECISION: Feature flag is TRUE - Using SMAppService path for regeneration")
+            // Use createConfigureAndLoadAllServices() which includes SMAppService path for Kanata
+            let installer = LaunchDaemonInstaller()
+            let success = await installer.createConfigureAndLoadAllServices()
+
+            if !success {
+                throw PrivilegedOperationError.operationFailed("Service regeneration via SMAppService failed")
+            }
+        } else {
+            AppLogger.shared.log("🔧 [PrivCoordinator] ⚠️ DECISION: Feature flag is FALSE - Using launchctl path for regeneration")
+            // Use existing launchctl-based regeneration
+            let installer = LaunchDaemonInstaller()
+            let success = installer.regenerateServiceWithCurrentSettings()
+
+            if !success {
+                throw PrivilegedOperationError.operationFailed("Config regeneration failed")
+            }
         }
     }
 
@@ -584,7 +651,7 @@ final class PrivilegedOperationsCoordinator {
     /// Install LaunchDaemon services without loading them using LaunchDaemonInstaller
     private func sudoInstallServicesWithoutLoading() async throws {
         let installer = LaunchDaemonInstaller()
-        let success = installer.createAllLaunchDaemonServicesInstallOnly()
+        let success = await installer.createAllLaunchDaemonServicesInstallOnly()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Service installation (install-only) failed")
@@ -760,7 +827,8 @@ final class PrivilegedOperationsCoordinator {
     }
 
     /// Execute a shell command with administrator privileges using osascript
-    private func sudoExecuteCommand(_ command: String, description: String) async throws {
+    /// Public method for use by KanataDaemonManager migration
+    func sudoExecuteCommand(_ command: String, description: String) async throws {
         let escaped = escapeForAppleScript(command)
         let prompt = "KeyPath needs administrator access to \(description.lowercased())."
 

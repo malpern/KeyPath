@@ -1,5 +1,5 @@
-import Foundation
 import AppKit
+import Foundation
 import KeyPathCore
 
 /// Protocol for managing Kanata configuration files
@@ -67,8 +67,8 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         self.configBackupManager = configBackupManager
         self.configFileWatcher = configFileWatcher
 
-        self.configPath = configurationService.configurationPath
-        self.configDirectory = configurationService.configDirectory
+        configPath = configurationService.configurationPath
+        configDirectory = configurationService.configDirectory
     }
 
     func buildKanataArguments(checkOnly: Bool = false) -> [String] {

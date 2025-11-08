@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
-import UserNotifications
 import KeyPathCore
 import KeyPathWizardCore
+import UserNotifications
 
 /// Manages local user notifications for KeyPath
 @MainActor

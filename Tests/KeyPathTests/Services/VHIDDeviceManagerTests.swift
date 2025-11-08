@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 final class VHIDDeviceManagerTests: XCTestCase {
     override func tearDown() {
@@ -27,4 +27,3 @@ final class VHIDDeviceManagerTests: XCTestCase {
         XCTAssertFalse(mgr.detectRunning(), "No daemon should be reported as not running")
     }
 }
-

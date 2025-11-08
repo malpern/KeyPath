@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPath
 import KeyPathCore
+import XCTest
 
 final class ConfigApplyTypesTests: XCTestCase {
     func testFeatureFlagDefaultsOff() {
@@ -44,4 +44,3 @@ final class ConfigApplyTypesTests: XCTestCase {
         XCTAssertEqual(c1, c2)
     }
 }
-

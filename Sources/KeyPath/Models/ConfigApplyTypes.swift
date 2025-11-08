@@ -60,5 +60,3 @@ public struct ConfigDiagnostics: Equatable, Sendable {
         self.timestamp = timestamp
     }
 }
-
-

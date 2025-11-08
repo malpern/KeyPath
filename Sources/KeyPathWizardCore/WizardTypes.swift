@@ -1,6 +1,6 @@
 import Foundation
-import SwiftUI
 import KeyPathDaemonLifecycle
+import SwiftUI
 
 // MARK: - Core Types
 
@@ -424,6 +424,7 @@ public struct ConfigPathMismatch {
 }
 
 // MARK: - Constants
+
 public enum WizardConstants {
     public enum Titles {
         public static let inputMonitoring = "Input Monitoring"
@@ -468,6 +469,7 @@ public protocol WizardNavigating {
 }
 
 // MARK: - Helper Extensions
+
 public extension Array where Element == WizardIssue {
     /// Formats issues into a tooltip-friendly string for hover text
     /// Returns empty string if no issues, single issue details if one issue,
@@ -495,5 +497,3 @@ public extension Array where Element == WizardIssue {
             .joined(separator: "\n\n")
     }
 }
-
-

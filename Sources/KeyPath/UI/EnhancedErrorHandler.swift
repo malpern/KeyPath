@@ -81,7 +81,7 @@ struct ErrorInfo: Identifiable {
                         ]
                     )
                 }
-                // Fall through to generic config error handling
+            // Fall through to generic config error handling
             case .configuration(.validationFailed):
                 // Actual configuration validation errors
                 return ErrorInfo(

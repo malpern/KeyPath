@@ -1,6 +1,6 @@
-import SwiftUI
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
+import SwiftUI
 
 /// Karabiner driver and virtual HID components setup page
 struct WizardKarabinerComponentsPage: View {
@@ -406,7 +406,7 @@ struct WizardKarabinerComponentsPage: View {
     @MainActor
     private func attemptAutoInstallDriver(maxAttempts: Int) async -> Bool {
         let attempts = max(1, maxAttempts)
-        for i in 1...attempts {
+        for i in 1 ... attempts {
             AppLogger.shared.log("🧪 [Karabiner Fix] Auto-install attempt #\(i)")
             let ok = await performAutoFix(.installCorrectVHIDDriver)
             if ok { return true }

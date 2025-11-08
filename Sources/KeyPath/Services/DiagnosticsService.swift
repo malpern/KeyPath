@@ -113,7 +113,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         return events
     }
 
-    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic] {
+    func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] {
         await getSystemDiagnostics()
     }
 
@@ -640,6 +640,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     // MARK: - TCP helpers (best-effort)
+
     private func fetchTcpStatusInfo() async -> KanataTCPClient.TcpStatusInfo? {
         let client = KanataTCPClient(port: 37001)
         do {

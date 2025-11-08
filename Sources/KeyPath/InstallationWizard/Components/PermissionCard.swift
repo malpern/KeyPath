@@ -1,7 +1,7 @@
 import AppKit
-import KeyPathWizardCore
-import KeyPathCore
 import Foundation
+import KeyPathCore
+import KeyPathWizardCore
 import SwiftUI
 
 struct PermissionCard: View {

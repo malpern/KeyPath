@@ -50,6 +50,7 @@ final class FeatureFlags {
 extension FeatureFlags: @unchecked Sendable {}
 
 // MARK: - Persisted flags (UserDefaults-backed)
+
 extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
     private static let tcpProtocolV2Key = "TCP_PROTOCOL_V2_ENABLED"
@@ -76,5 +77,29 @@ extension FeatureFlags {
 
     static func setTcpProtocolV2Enabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: tcpProtocolV2Key)
+    }
+
+    // MARK: - SMAppService Daemon Management
+
+    private static let useSMAppServiceForDaemonKey = "USE_SMAPPSERVICE_FOR_DAEMON"
+
+    /// Whether to use SMAppService for Kanata daemon management (default: true)
+    /// When enabled, uses SMAppService instead of launchctl for daemon registration
+    static var useSMAppServiceForDaemon: Bool {
+        let userDefaultsValue = UserDefaults.standard.object(forKey: useSMAppServiceForDaemonKey)
+        let defaultValue = true // default ON (use SMAppService)
+
+        if userDefaultsValue == nil {
+            // Logging removed to avoid import dependency - can be added back if needed
+            return defaultValue
+        }
+
+        let boolValue = UserDefaults.standard.bool(forKey: useSMAppServiceForDaemonKey)
+        // Logging removed to avoid import dependency - can be added back if needed
+        return boolValue
+    }
+
+    static func setUseSMAppServiceForDaemon(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: useSMAppServiceForDaemonKey)
     }
 }

@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class SimpleModsSmokeTests: XCTestCase {
@@ -17,14 +17,12 @@ final class SimpleModsSmokeTests: XCTestCase {
         try? service.load()
 
         // Pick a simple mapping unlikely to already exist; fall back if needed
-        let candidateMappings = [("f1","f2"), ("2","3"), ("caps","escape")]
+        let candidateMappings = [("f1", "f2"), ("2", "3"), ("caps", "escape")]
         var added = false
-        for (fromKey, toKey) in candidateMappings {
-            if !service.installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey }) {
-                service.addMapping(fromKey: fromKey, toKey: toKey)
-                added = true
-                break
-            }
+        for (fromKey, toKey) in candidateMappings where !service.installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey }) {
+            service.addMapping(fromKey: fromKey, toKey: toKey)
+            added = true
+            break
         }
         XCTAssertTrue(added, "Could not find a mapping candidate to add")
 
@@ -45,4 +43,3 @@ final class SimpleModsSmokeTests: XCTestCase {
         XCTAssertTrue(status.last_reload?.duration_ms != nil, "Expected last_reload.duration_ms to be present for UI toast")
     }
 }
-

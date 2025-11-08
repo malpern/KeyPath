@@ -1,6 +1,6 @@
 import Foundation
-import XCTest
 @testable import KeyPath
+import XCTest
 
 @MainActor
 final class HealthCheckServiceTests: XCTestCase {
@@ -8,7 +8,7 @@ final class HealthCheckServiceTests: XCTestCase {
     final class FakeDiagnosticsManager: DiagnosticsManaging {
         var nextStatus: ServiceHealthStatus = .healthy()
 
-        func addDiagnostic(_ diagnostic: KanataDiagnostic) {}
+        func addDiagnostic(_: KanataDiagnostic) {}
         func getDiagnostics() -> [KanataDiagnostic] { [] }
         func clearDiagnostics() {}
         func startLogMonitoring() {}
@@ -50,4 +50,3 @@ final class HealthCheckServiceTests: XCTestCase {
         XCTAssertEqual(decision.reason, "tcp down")
     }
 }
-

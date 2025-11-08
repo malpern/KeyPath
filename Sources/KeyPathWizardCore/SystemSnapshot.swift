@@ -1,7 +1,7 @@
 import Foundation
 import KeyPathCore
-import KeyPathPermissions
 import KeyPathDaemonLifecycle
+import KeyPathPermissions
 
 /// Complete snapshot of system state at a point in time
 /// This is a pure data structure with no side effects - just state and computed properties
@@ -140,6 +140,7 @@ public struct SystemSnapshot: Sendable {
 }
 
 // MARK: - Component Status
+
 public struct ComponentStatus: Sendable {
     public let kanataBinaryInstalled: Bool
     public let karabinerDriverInstalled: Bool
@@ -178,6 +179,7 @@ public struct ComponentStatus: Sendable {
 }
 
 // MARK: - Conflict Status
+
 public struct ConflictStatus: Sendable {
     public let conflicts: [SystemConflict]
     public let canAutoResolve: Bool
@@ -192,6 +194,7 @@ public struct ConflictStatus: Sendable {
 }
 
 // MARK: - Health Status
+
 public struct HealthStatus: Sendable {
     public let kanataRunning: Bool
     public let karabinerDaemonRunning: Bool
@@ -209,6 +212,7 @@ public struct HealthStatus: Sendable {
 }
 
 // MARK: - Helper Status
+
 public struct HelperStatus: Sendable {
     public let isInstalled: Bool
     public let version: String?
@@ -225,6 +229,7 @@ public struct HelperStatus: Sendable {
 }
 
 // MARK: - Issue Types
+
 public enum Issue: Equatable {
     case permissionMissing(app: String, permission: String, action: String)
     case componentMissing(name: String, autoFix: Bool)
@@ -292,5 +297,3 @@ public enum Issue: Equatable {
         }
     }
 }
-
-

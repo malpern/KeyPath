@@ -66,7 +66,7 @@ print(osascriptCommand)
 print()
 
 // Check if the command is too long - macOS has limits on argument length
-if osascriptCommand.count > 262144 {  // 256KB limit
+if osascriptCommand.count > 262_144 { // 256KB limit
     print("⚠️  WARNING: Command is very long (\(osascriptCommand.count) chars) - this might cause issues")
 } else {
     print("✅ Command length is acceptable (\(osascriptCommand.count) chars)")

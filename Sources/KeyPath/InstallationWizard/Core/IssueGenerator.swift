@@ -1,6 +1,6 @@
 import Foundation
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
 
 /// Responsible for generating WizardIssue objects from detection results
 /// Converts detection data into user-facing issue descriptions

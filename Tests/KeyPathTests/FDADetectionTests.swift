@@ -10,7 +10,7 @@ final class FDADetectionTests: XCTestCase {
         // Note: This test assumes we're running without FDA
 
         let testPath = "\(NSHomeDirectory())/Library/Safari/.keypath_fda_test"
-        let testData = "FDA_TEST".data(using: .utf8)!
+        let testData = Data("FDA_TEST".utf8)
 
         // Check if we already have FDA access first
         let bookmarksPath = "\(NSHomeDirectory())/Library/Safari/Bookmarks.plist"
@@ -24,8 +24,7 @@ final class FDADetectionTests: XCTestCase {
             try? FileManager.default.removeItem(atPath: testPath)
         } else {
             // Should fail to write to protected location without FDA
-            XCTAssertThrowsError(try testData.write(to: URL(fileURLWithPath: testPath))) {
-                error in
+            XCTAssertThrowsError(try testData.write(to: URL(fileURLWithPath: testPath))) { error in
                 // Should be a permission error
                 XCTAssertNotNil(error)
             }
@@ -153,7 +152,7 @@ final class FDADetectionTests: XCTestCase {
         // FDA check should be fast
         measure {
             let protectedTestPath = "\(NSHomeDirectory())/Library/Safari/.keypath_fda_test"
-            let testData = "FDA_TEST".data(using: .utf8)!
+            let testData = Data("FDA_TEST".utf8)
 
             // Attempt write (will fail without FDA, but that's ok)
             _ = try? testData.write(to: URL(fileURLWithPath: protectedTestPath))

@@ -601,6 +601,7 @@ extension HelperService {
         }
         return cp.status == 0
     }
+
     @discardableResult
     static func run(_ launchPath: String, _ args: [String]) -> (status: Int32, out: String) {
         let p = Process()
@@ -717,7 +718,10 @@ extension HelperService {
     private static let kanataServiceID = "com.keypath.kanata"
     private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
     private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
-    private static let vhidDaemonPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+    private static let vhidDaemonPath = "/Library/Application Support/org.pqrs/" +
+        "Karabiner-DriverKit-VirtualHIDDevice/Applications/" +
+        "Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/" +
+        "Karabiner-VirtualHIDDevice-Daemon"
     private static let vhidManagerPath = "/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager"
     private static let karabinerTeamID = "G43BCU2T37"
     private static let karabinerDriverBundleID = "org.pqrs.driver.Karabiner-DriverKit-VirtualHIDDevice"

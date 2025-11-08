@@ -22,14 +22,10 @@ final class LaunchDaemonInstallerTests: XCTestCase {
         let lines = script.components(separatedBy: .newlines)
         var bootstrapServices: [String] = []
 
-        for line in lines {
-            // Match lines like: launchctl bootstrap system '/Library/LaunchDaemons/com.keypath.*.plist'
-            // or with Swift interpolation: launchctl bootstrap system '\(vhidDaemonFinal)'
-            if line.contains("launchctl bootstrap system") {
-                // Extract service name from the plist path or variable name
-                if let serviceMatch = extractServiceNameFromBootstrap(from: line) {
-                    bootstrapServices.append(serviceMatch)
-                }
+        for line in lines where line.contains("launchctl bootstrap system") {
+            // Extract service name from the plist path or variable name
+            if let serviceMatch = extractServiceNameFromBootstrap(from: line) {
+                bootstrapServices.append(serviceMatch)
             }
         }
 
@@ -60,10 +56,8 @@ final class LaunchDaemonInstallerTests: XCTestCase {
             "com.keypath.karabiner-vhidmanager"
         ]
 
-        for pattern in patterns {
-            if line.contains(pattern) {
-                return pattern
-            }
+        for pattern in patterns where line.contains(pattern) {
+            return pattern
         }
 
         return nil
@@ -74,20 +68,16 @@ final class LaunchDaemonInstallerTests: XCTestCase {
         let lines = script.components(separatedBy: .newlines)
         var kickstartServices: [String] = []
 
-        for line in lines {
-            // Match lines like: launchctl kickstart -k system/com.keypath.*
-            // or with Swift interpolation: launchctl kickstart -k system/\(Self.kanataServiceID)
-            if line.contains("launchctl kickstart") {
-                // Extract service name - handle both direct names and Swift constants
-                if line.contains("Self.vhidDaemonServiceID") || line.contains("vhidDaemonServiceID") {
-                    kickstartServices.append("com.keypath.karabiner-vhiddaemon")
-                } else if line.contains("Self.vhidManagerServiceID") || line.contains("vhidManagerServiceID") {
-                    kickstartServices.append("com.keypath.karabiner-vhidmanager")
-                } else if line.contains("Self.kanataServiceID") || line.contains("kanataServiceID") {
-                    kickstartServices.append("com.keypath.kanata")
-                } else if let serviceMatch = extractServiceName(from: line) {
-                    kickstartServices.append(serviceMatch)
-                }
+        for line in lines where line.contains("launchctl kickstart") {
+            // Extract service name - handle both direct names and Swift constants
+            if line.contains("Self.vhidDaemonServiceID") || line.contains("vhidDaemonServiceID") {
+                kickstartServices.append("com.keypath.karabiner-vhiddaemon")
+            } else if line.contains("Self.vhidManagerServiceID") || line.contains("vhidManagerServiceID") {
+                kickstartServices.append("com.keypath.karabiner-vhidmanager")
+            } else if line.contains("Self.kanataServiceID") || line.contains("kanataServiceID") {
+                kickstartServices.append("com.keypath.kanata")
+            } else if let serviceMatch = extractServiceName(from: line) {
+                kickstartServices.append(serviceMatch)
             }
         }
 

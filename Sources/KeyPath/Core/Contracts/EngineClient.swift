@@ -39,4 +39,3 @@ protocol EngineClient: Sendable {
     /// Reload the current configuration in the engine.
     func reloadConfig() async -> EngineReloadResult
 }
-

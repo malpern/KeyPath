@@ -1,6 +1,6 @@
-import SwiftUI
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
+import SwiftUI
 
 /// Simplified system status overview component for the summary page
 struct WizardSystemStatusOverview: View {
@@ -425,9 +425,11 @@ struct WizardSystemStatusOverview: View {
         }
 
         // Resolve TCP port from LaunchDaemon plist, then probe Hello/Status quickly
-        let plistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+        // Check SMAppService plist first if active, otherwise fall back to legacy plist
+        let plistPath = KanataDaemonManager.getActivePlistPath()
+
         guard let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
-           let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+              let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
               let args = plist["ProgramArguments"] as? [String],
               let idx = args.firstIndex(of: "--port"), args.count > idx + 1,
               let port = Int(args[idx + 1].split(separator: ":").last ?? Substring(""))
@@ -439,7 +441,7 @@ struct WizardSystemStatusOverview: View {
         let t0 = CFAbsoluteTimeGetCurrent()
         let ok = probeTCPHelloRequiresStatus(port: port, timeoutMs: 300)
         let dt = CFAbsoluteTimeGetCurrent() - t0
-        AppLogger.shared.log("🌐 [WizardCommSummary] probe result: ok=\(ok) port=\(port) duration_ms=\(Int(dt*1000))")
+        AppLogger.shared.log("🌐 [WizardCommSummary] probe result: ok=\(ok) port=\(port) duration_ms=\(Int(dt * 1000))")
         return ok ? .completed : .failed
     }
 
@@ -484,8 +486,8 @@ struct WizardSystemStatusOverview: View {
 // MARK: - TCP Probe (synchronous, tiny timeout)
 
 private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
-    var readStream: Unmanaged<CFReadStream>? = nil
-    var writeStream: Unmanaged<CFWriteStream>? = nil
+    var readStream: Unmanaged<CFReadStream>?
+    var writeStream: Unmanaged<CFWriteStream>?
     CFStreamCreatePairWithSocketToHost(nil, "127.0.0.1" as CFString, UInt32(port), &readStream, &writeStream)
     guard let r = readStream?.takeRetainedValue(), let w = writeStream?.takeRetainedValue() else { return false }
     let input = r as InputStream

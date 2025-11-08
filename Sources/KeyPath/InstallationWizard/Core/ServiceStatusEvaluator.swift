@@ -1,6 +1,6 @@
 import Foundation
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
 
 // MARK: - Service Process Status
 

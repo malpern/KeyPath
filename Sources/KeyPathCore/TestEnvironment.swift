@@ -22,10 +22,8 @@ public enum TestEnvironment {
 
         // Check for CI environment variables
         let ciIndicators = ["CI", "GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"]
-        for indicator in ciIndicators {
-            if ProcessInfo.processInfo.environment[indicator] != nil {
-                return true
-            }
+        for indicator in ciIndicators where ProcessInfo.processInfo.environment[indicator] != nil {
+            return true
         }
 
         return false
@@ -147,5 +145,3 @@ public enum MockSystemData {
     /// Mock permission status
     public static let mockHasPermissions = true
 }
-
-
