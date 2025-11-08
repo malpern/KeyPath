@@ -1,5 +1,6 @@
 import KeyPathCore
 import KeyPathWizardCore
+import AppKit
 import SwiftUI
 
 /// Simplified summary page using extracted components
@@ -62,6 +63,10 @@ struct WizardSummaryPage: View {
                     withAnimation(WizardDesign.Animation.statusTransition) {
                         headerMode = isEverythingComplete ? .success : .issues
                     }
+                    // Clear any stray first responder to avoid focus ring artifact at launch
+                    DispatchQueue.main.async {
+                        NSApp.keyWindow?.makeFirstResponder(nil)
+                    }
                 }
                 .onChange(of: isEverythingComplete) { complete in
                     // Transition to success immediately when everything turns green
@@ -96,6 +101,7 @@ struct WizardSummaryPage: View {
                 )
                 .padding(.bottom, WizardDesign.Spacing.elementGap) // Reduce bottom padding
         }
+        .modifier(WizardDesign.DisableFocusEffects())
         .background(WizardDesign.Colors.wizardBackground)
     }
 
