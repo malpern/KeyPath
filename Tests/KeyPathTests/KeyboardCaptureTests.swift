@@ -20,10 +20,6 @@ final class KeyboardCaptureTests: XCTestCase {
         )
     }
 
-    override func tearDown() {
-        super.tearDown()
-    }
-
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
