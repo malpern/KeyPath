@@ -9,7 +9,7 @@ struct WizardPreflightView: View {
         VStack(spacing: 12) {
             ProgressView(value: progress)
                 .progressViewStyle(.linear)
-                .animation(.easeInOut(duration: 0.6), value: progress)
+                .animation(.easeInOut(duration: 0.35), value: progress)
                 .padding(.horizontal, 24)
 
             Text("Setting up KeyPath")
@@ -19,22 +19,20 @@ struct WizardPreflightView: View {
         .padding(.vertical, 16)
         .onAppear {
             ticking = true
-            // Smooth, time-based ramp to ~90% while checks run; container swaps view when done
+            // Smooth, time-based ramp to ~95% while checks run; container swaps view when done
             Task { @MainActor in
-                while ticking && progress < 0.9 {
-                    try? await Task.sleep(nanoseconds: 180_000_000) // ~0.18s
-                    progress = min(progress + 0.06, 0.9)
+                while ticking && progress < 0.95 {
+                    try? await Task.sleep(nanoseconds: 120_000_000) // ~0.12s
+                    progress = min(progress + 0.10, 0.95)
                 }
             }
         }
         .onDisappear {
             // Finish animation quickly when replaced by summary
             ticking = false
-            withAnimation(.easeInOut(duration: 0.25)) {
+            withAnimation(.easeInOut(duration: 0.2)) {
                 progress = 1.0
             }
         }
     }
 }
-
-

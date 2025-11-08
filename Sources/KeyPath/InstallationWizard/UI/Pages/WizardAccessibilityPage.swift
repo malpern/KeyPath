@@ -414,22 +414,22 @@ struct WizardAccessibilityPage: View {
                 }
             }
         } else {
-            let instructions = """
-            KeyPath will now close so you can grant permissions:
+        let instructions = """
+        KeyPath will now close so you can grant permissions:
 
-            1. Add KeyPath and kanata to Accessibility (use the '+' button)
-            2. Make sure both checkboxes are enabled
-            3. Restart KeyPath when you're done
+        1. Add KeyPath and kanata to Accessibility (use the '+' button)
+        2. Make sure both checkboxes are enabled
+        3. Restart KeyPath when you're done
 
-            KeyPath will automatically restart the keyboard service to pick up your new permissions.
-            """
+        KeyPath will automatically restart the keyboard service to pick up your new permissions.
+        """
 
-            PermissionGrantCoordinator.shared.initiatePermissionGrant(
-                for: .accessibility,
-                instructions: instructions,
+        PermissionGrantCoordinator.shared.initiatePermissionGrant(
+            for: .accessibility,
+            instructions: instructions,
                 onComplete: { onDismiss?() }
             )
-        }
+            }
     }
 
     private func openAccessibilitySettings() {

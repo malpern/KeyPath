@@ -44,22 +44,20 @@ struct InstallationWizardView: View {
                         .frame(height: 140)
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 } else {
-                    pageContent()
-                        .frame(maxWidth: .infinity)
-                        .overlay {
-                            if asyncOperationManager.hasRunningOperations {
-                                operationProgressOverlay()
-                                    .allowsHitTesting(false) // Don't block X button interaction
-                            }
-                        }
+            pageContent()
+                .frame(maxWidth: .infinity)
+                .overlay {
+                    if asyncOperationManager.hasRunningOperations {
+                        operationProgressOverlay()
+                            .allowsHitTesting(false) // Don't block X button interaction
+                    }
                 }
+        }
             }
         }
         .frame(
-            width: isInitializing
-                ? 480
-                : navigationCoordinator.currentPage == .summary
-                ? WizardDesign.Layout.pageWidth * CGFloat(0.7)
+            width: (isInitializing || navigationCoordinator.currentPage == .summary)
+                ? WizardDesign.Layout.pageWidth * CGFloat(0.5) // Match list width; only height changes
                 : WizardDesign.Layout.pageWidth
         )
         .background(VisualEffectBackground())
@@ -350,7 +348,7 @@ struct InstallationWizardView: View {
                     try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
                 }
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    isInitializing = false
+                isInitializing = false
                 }
             }
 
