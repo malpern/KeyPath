@@ -606,6 +606,18 @@ enum WizardDesign {
             }
         }
     }
+
+    // MARK: - Utilities
+    /// Disable focus visuals on macOS 14+ to avoid blue focus ring artifacts
+    struct DisableFocusEffects: ViewModifier {
+        func body(content: Content) -> some View {
+            if #available(macOS 14.0, *) {
+                content.focusEffectDisabled(true)
+            } else {
+                content
+            }
+        }
+    }
 }
 
 // MARK: - View Extensions

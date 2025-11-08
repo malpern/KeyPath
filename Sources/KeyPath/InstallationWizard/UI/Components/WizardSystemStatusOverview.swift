@@ -61,6 +61,8 @@ struct WizardSystemStatusOverview: View {
             .padding(.vertical, WizardDesign.Spacing.sectionGap)
             .frame(maxWidth: .infinity, alignment: .center)
         }
+        .focusable(false)
+        .modifier(WizardDesign.DisableFocusEffects())
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Color.clear)
         .animation(WizardDesign.Animation.statusTransition, value: showAllItems)

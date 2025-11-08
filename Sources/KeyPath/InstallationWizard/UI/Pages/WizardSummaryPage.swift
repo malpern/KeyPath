@@ -40,7 +40,7 @@ struct WizardSummaryPage: View {
                         .font(WizardDesign.Typography.sectionTitle)
                         .fontWeight(.semibold)
                 }
-                .padding(.top, 36)
+                .padding(.top, 20)
                 .padding(.bottom, WizardDesign.Spacing.sectionGap)
                 .overlay(alignment: .topTrailing) {
                     Button {
