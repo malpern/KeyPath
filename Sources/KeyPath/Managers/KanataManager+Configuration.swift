@@ -33,6 +33,20 @@ extension KanataManager {
 
     /// Main reload method using TCP protocol
     func triggerConfigReload() async -> ReloadResult {
+        // Phase 2: Just-in-time permission gating for reload
+        if FeatureFlags.useJustInTimePermissionRequests {
+            var allowed = false
+            await PermissionGate.shared.checkAndRequestPermissions(
+                for: .configurationReload,
+                onGranted: { allowed = true },
+                onDenied: { allowed = false }
+            )
+            if !allowed {
+                AppLogger.shared.warn("⚠️ [Reload] Blocked by missing permission (JIT gate)")
+                return ReloadResult(success: false, response: nil, errorMessage: "Permission required", protocol: nil)
+            }
+        }
+
         // Try TCP reload
         AppLogger.shared.debug("📡 [Reload] Attempting TCP reload")
         let tcpResult = await triggerTCPReload()

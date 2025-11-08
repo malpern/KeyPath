@@ -15,6 +15,7 @@ struct WizardInputMonitoringPage: View {
 
     @State private var showingStaleEntryCleanup = false
     @State private var staleEntryDetails: [String] = []
+    @State private var permissionPollingTask: Task<Void, Never>?
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
@@ -250,6 +251,10 @@ struct WizardInputMonitoringPage: View {
         .onAppear {
             checkForStaleEntries()
         }
+        .onDisappear {
+            permissionPollingTask?.cancel()
+            permissionPollingTask = nil
+        }
     }
 
     // MARK: - Helper Methods
@@ -348,7 +353,8 @@ struct WizardInputMonitoringPage: View {
 
     // Automatic prompt polling (Phase 1)
     private func startPermissionPolling(for type: CoordinatorPermissionType) {
-        Task {
+        permissionPollingTask?.cancel()
+        permissionPollingTask = Task { [onRefresh] in
             var attempts = 0
             let maxAttempts = 30 // 30 seconds
             while attempts < maxAttempts {
@@ -367,6 +373,7 @@ struct WizardInputMonitoringPage: View {
                     await onRefresh()
                     return
                 }
+                if Task.isCancelled { return }
             }
         }
     }

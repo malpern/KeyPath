@@ -11,6 +11,7 @@ struct WizardAccessibilityPage: View {
     let onNavigateToPage: ((WizardPage) -> Void)?
     let onDismiss: (() -> Void)?
     let kanataManager: KanataManager
+    @State private var permissionPollingTask: Task<Void, Never>?
 
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
@@ -263,6 +264,10 @@ struct WizardAccessibilityPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
+        .onDisappear {
+            permissionPollingTask?.cancel()
+            permissionPollingTask = nil
+        }
     }
 
     // MARK: - Helper Methods
@@ -334,7 +339,8 @@ struct WizardAccessibilityPage: View {
                 return
             }
             // Poll for grant (KeyPath + Kanata) using Oracle snapshot
-            Task {
+            permissionPollingTask?.cancel()
+            permissionPollingTask = Task { [onRefresh] in
                 var attempts = 0
                 let maxAttempts = 30
                 while attempts < maxAttempts {
@@ -346,6 +352,7 @@ struct WizardAccessibilityPage: View {
                         await onRefresh()
                         return
                     }
+                    if Task.isCancelled { return }
                 }
             }
         } else {

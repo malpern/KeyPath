@@ -7,6 +7,7 @@ enum PGPermissionType: Hashable {
     case accessibility
 }
 
+
 enum PermissionGatedFeature {
     case keyboardRemapping
     case emergencyStop

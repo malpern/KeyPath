@@ -438,39 +438,42 @@ struct ContentView: View {
     }
 
     private func startEmergencyMonitoringIfPossible() {
-        // Initialize KeyboardCapture lazily if needed and we have permissions
-        if keyboardCapture == nil {
-            Task {
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
-                await MainActor.run {
-                    if snapshot.keyPath.accessibility.isReady {
-                        keyboardCapture = KeyboardCapture()
-                        AppLogger.shared.log("🎹 [ContentView] KeyboardCapture initialized for emergency monitoring")
-                    } else {
-                        // Don't have permissions yet - we'll try again later
-                        return
+        // Phase 2: JIT permission gate for emergency monitoring (AX)
+        if FeatureFlags.useJustInTimePermissionRequests {
+            Task { @MainActor in
+                await PermissionGate.shared.checkAndRequestPermissions(
+                    for: .emergencyStop,
+                    onGranted: {
+                        await self.startEmergencyMonitoringInternal()
+                    },
+                    onDenied: {
+                        // No-op; user can try again later
                     }
-                }
+                )
             }
+            return
+        }
+        Task { @MainActor in
+            await startEmergencyMonitoringInternal()
+        }
+    }
+
+    @MainActor
+    private func startEmergencyMonitoringInternal() async {
+        if keyboardCapture == nil {
+            keyboardCapture = KeyboardCapture()
+            AppLogger.shared.log("🎹 [ContentView] KeyboardCapture initialized for emergency monitoring")
         }
 
         guard let capture = keyboardCapture else { return }
 
-        // We have permissions, start monitoring
         capture.startEmergencyMonitoring {
-            // Stop Kanata when emergency stop is detected
             Task { @MainActor in
                 await kanataManager.stopKanata()
                 kanataManager.emergencyStopActivated = true
                 showStatusMessage(message: "🚨 Emergency stop activated - Kanata stopped")
-                // Surface a system notification if app is not frontmost
                 UserNotificationService.shared.notifyLaunchFailure(.serviceFailure("Emergency stop activated"))
                 showingEmergencyAlert = true
-
-                // Update dialog if it's showing
-                if showingEmergencyStopDialog {
-                    // Dialog will observe the state change
-                }
             }
         }
     }
