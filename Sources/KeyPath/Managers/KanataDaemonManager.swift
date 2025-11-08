@@ -95,78 +95,109 @@ class KanataDaemonManager {
     /// Register Kanata daemon via SMAppService
     /// - Throws: KanataDaemonError if registration fails
     func register() async throws {
-        AppLogger.shared.log("🔧 [KanataDaemonManager] Registering Kanata daemon via SMAppService")
+        AppLogger.shared.log("🔧 [KanataDaemonManager] *** ENTRY POINT *** Registering Kanata daemon via SMAppService")
+        AppLogger.shared.log("🔍 [KanataDaemonManager] macOS version check: \(ProcessInfo.processInfo.operatingSystemVersionString)")
         guard #available(macOS 13, *) else {
+            AppLogger.shared.log("❌ [KanataDaemonManager] macOS version too old for SMAppService")
             throw KanataDaemonError.registrationFailed("Requires macOS 13+ for SMAppService")
         }
+        AppLogger.shared.log("✅ [KanataDaemonManager] macOS version OK for SMAppService")
 
         // Validate plist exists in app bundle
         // Check both the expected location (for build scripts) and bundle resources (for SPM builds)
         let bundlePath = Bundle.main.bundlePath
         let expectedPlistPath = "\(bundlePath)/Contents/Library/LaunchDaemons/\(Self.kanataPlistName)"
+        AppLogger.shared.log("🔍 [KanataDaemonManager] Bundle path: \(bundlePath)")
+        AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for plist at: \(expectedPlistPath)")
 
         // First check the expected location (build scripts place it here)
         if FileManager.default.fileExists(atPath: expectedPlistPath) {
-            // Found at expected location - continue
+            AppLogger.shared.log("✅ [KanataDaemonManager] Found plist at expected location: \(expectedPlistPath)")
         } else if let resourcePath = Bundle.main.path(forResource: "com.keypath.kanata", ofType: "plist") {
             // Found in bundle resources (SPM build) - this is acceptable
             AppLogger.shared.log("ℹ️ [KanataDaemonManager] Found plist in bundle resources: \(resourcePath)")
         } else {
+            AppLogger.shared.log("❌ [KanataDaemonManager] Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)")
             throw KanataDaemonError.registrationFailed("Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)")
         }
 
         // Validate kanata binary exists in app bundle
         let kanataPath = "\(bundlePath)/Contents/Library/KeyPath/kanata"
+        AppLogger.shared.log("🔍 [KanataDaemonManager] Checking for Kanata binary at: \(kanataPath)")
         guard FileManager.default.fileExists(atPath: kanataPath) else {
+            AppLogger.shared.log("❌ [KanataDaemonManager] Kanata binary not found at: \(kanataPath)")
             throw KanataDaemonError.registrationFailed("Kanata binary not found in app bundle: \(kanataPath)")
         }
+        AppLogger.shared.log("✅ [KanataDaemonManager] Kanata binary found")
 
         let svc = Self.smServiceFactory(Self.kanataPlistName)
-        AppLogger.shared.log("🔍 [KanataDaemonManager] SMAppService status: \(svc.status.rawValue) (0=notRegistered, 1=enabled, 2=requiresApproval, 3=notFound)")
+        let initialStatus = svc.status
+        AppLogger.shared.log("🔍 [KanataDaemonManager] SMAppService created with plist name: \(Self.kanataPlistName)")
+        AppLogger.shared.log("🔍 [KanataDaemonManager] Initial SMAppService status: \(initialStatus.rawValue) (0=notRegistered, 1=enabled, 2=requiresApproval, 3=notFound)")
+        AppLogger.shared.log("🔍 [KanataDaemonManager] Initial SMAppService status description: \(String(describing: initialStatus))")
 
-        switch svc.status {
+        switch initialStatus {
         case .enabled:
             // Already enabled - treat as success
-            AppLogger.shared.info("✅ [KanataDaemonManager] Daemon already enabled")
+            AppLogger.shared.info("✅ [KanataDaemonManager] Daemon already enabled - no registration needed")
             return
 
         case .requiresApproval:
+            AppLogger.shared.log("⚠️ [KanataDaemonManager] Status is .requiresApproval - user needs to approve in System Settings")
             throw KanataDaemonError.registrationFailed("Approval required in System Settings → Login Items.")
 
         case .notRegistered:
+            AppLogger.shared.log("📝 [KanataDaemonManager] Status is .notRegistered - attempting registration...")
             do {
+                AppLogger.shared.log("🔧 [KanataDaemonManager] Calling svc.register()...")
                 try svc.register()
-                AppLogger.shared.info("✅ [KanataDaemonManager] Daemon registered (status: \(svc.status))")
+                let newStatus = svc.status
+                AppLogger.shared.log("🔍 [KanataDaemonManager] After register(), status changed to: \(newStatus.rawValue) (\(String(describing: newStatus)))")
+                AppLogger.shared.info("✅ [KanataDaemonManager] Daemon registered successfully")
                 return
             } catch {
+                let errorStatus = svc.status
+                AppLogger.shared.log("❌ [KanataDaemonManager] Registration failed with error: \(error)")
+                AppLogger.shared.log("🔍 [KanataDaemonManager] Status after error: \(errorStatus.rawValue) (\(String(describing: errorStatus)))")
+
                 // If another thread already registered or approval raced, treat Enabled as success
-                if svc.status == .enabled {
+                if errorStatus == .enabled {
                     AppLogger.shared.info("✅ [KanataDaemonManager] Daemon became Enabled during registration race; treating as success")
                     return
                 }
-                if svc.status == .requiresApproval {
+                if errorStatus == .requiresApproval {
+                    AppLogger.shared.log("⚠️ [KanataDaemonManager] Status changed to .requiresApproval after error")
                     throw KanataDaemonError.registrationFailed("Approval required in System Settings → Login Items.")
                 }
+                AppLogger.shared.log("❌ [KanataDaemonManager] Registration failed with final status: \(errorStatus)")
                 throw KanataDaemonError.registrationFailed("SMAppService register failed: \(error.localizedDescription)")
             }
 
         case .notFound:
             // .notFound means the system hasn't seen the daemon yet, but registration might still work
-            AppLogger.shared.log("⚠️ [KanataDaemonManager] Daemon status is .notFound - attempting registration anyway to get detailed error")
+            AppLogger.shared.log("⚠️ [KanataDaemonManager] Status is .notFound - attempting registration anyway to get detailed error")
             do {
+                AppLogger.shared.log("🔧 [KanataDaemonManager] Calling svc.register() despite .notFound status...")
                 try svc.register()
+                let newStatus = svc.status
+                AppLogger.shared.log("🔍 [KanataDaemonManager] After register(), status changed to: \(newStatus.rawValue) (\(String(describing: newStatus)))")
                 AppLogger.shared.info("✅ [KanataDaemonManager] Daemon registered successfully despite initial .notFound status")
                 return
             } catch {
+                let errorStatus = svc.status
                 AppLogger.shared.log("❌ [KanataDaemonManager] Registration failed with detailed error: \(error)")
+                AppLogger.shared.log("🔍 [KanataDaemonManager] Status after error: \(errorStatus.rawValue) (\(String(describing: errorStatus)))")
                 throw KanataDaemonError.registrationFailed("SMAppService register failed: \(error.localizedDescription)")
             }
 
         @unknown default:
+            AppLogger.shared.log("⚠️ [KanataDaemonManager] Unknown status case: \(initialStatus.rawValue) - attempting registration anyway")
             do {
                 try svc.register()
+                AppLogger.shared.info("✅ [KanataDaemonManager] Registration succeeded for unknown status case")
                 return
             } catch {
+                AppLogger.shared.log("❌ [KanataDaemonManager] Registration failed for unknown status case: \(error)")
                 throw KanataDaemonError.registrationFailed("SMAppService register failed: \(error.localizedDescription)")
             }
         }

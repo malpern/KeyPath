@@ -307,11 +307,14 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating Kanata LaunchDaemon service")
 
         // Check if SMAppService path is enabled
-        if FeatureFlags.useSMAppServiceForDaemon {
-            AppLogger.shared.log("📱 [LaunchDaemon] Using SMAppService path for Kanata daemon")
+        let featureFlagValue = FeatureFlags.useSMAppServiceForDaemon
+        AppLogger.shared.log("🔍 [LaunchDaemon] Feature flag check in createKanataLaunchDaemon(): useSMAppServiceForDaemon = \(featureFlagValue)")
+
+        if featureFlagValue {
+            AppLogger.shared.log("📱 [LaunchDaemon] ✅ Feature flag is TRUE - Using SMAppService path for Kanata daemon")
             return await createKanataLaunchDaemonViaSMAppService()
         } else {
-            AppLogger.shared.log("🔧 [LaunchDaemon] Using launchctl path for Kanata daemon")
+            AppLogger.shared.log("🔧 [LaunchDaemon] ⚠️ Feature flag is FALSE - Using launchctl path for Kanata daemon")
             return createKanataLaunchDaemonViaLaunchctl()
         }
     }
@@ -319,19 +322,26 @@ class LaunchDaemonInstaller {
     /// Creates and installs Kanata LaunchDaemon via SMAppService
     @MainActor
     private func createKanataLaunchDaemonViaSMAppService() async -> Bool {
+        AppLogger.shared.log("📱 [LaunchDaemon] *** ENTRY POINT *** createKanataLaunchDaemonViaSMAppService() called")
         AppLogger.shared.log("📱 [LaunchDaemon] Registering Kanata daemon via SMAppService")
 
         guard #available(macOS 13, *) else {
             AppLogger.shared.log("❌ [LaunchDaemon] SMAppService requires macOS 13+, falling back to launchctl")
             return createKanataLaunchDaemonViaLaunchctl()
         }
+        AppLogger.shared.log("✅ [LaunchDaemon] macOS version OK for SMAppService")
 
         do {
+            AppLogger.shared.log("🔧 [LaunchDaemon] Calling KanataDaemonManager.shared.register()...")
             try await KanataDaemonManager.shared.register()
-            AppLogger.shared.info("✅ [LaunchDaemon] Kanata daemon registered via SMAppService")
+            AppLogger.shared.info("✅ [LaunchDaemon] Kanata daemon registered via SMAppService - SUCCESS")
             return true
         } catch {
             AppLogger.shared.log("❌ [LaunchDaemon] SMAppService registration failed: \(error.localizedDescription)")
+            AppLogger.shared.log("❌ [LaunchDaemon] Error type: \(type(of: error))")
+            if let kanataError = error as? KanataDaemonError {
+                AppLogger.shared.log("❌ [LaunchDaemon] KanataDaemonError details: \(kanataError.localizedDescription)")
+            }
             AppLogger.shared.log("🔄 [LaunchDaemon] Falling back to launchctl path")
             return createKanataLaunchDaemonViaLaunchctl()
         }
@@ -339,13 +349,18 @@ class LaunchDaemonInstaller {
 
     /// Creates and installs Kanata LaunchDaemon via launchctl (legacy path)
     private func createKanataLaunchDaemonViaLaunchctl() -> Bool {
-        AppLogger.shared.log("🔧 [LaunchDaemon] Installing Kanata LaunchDaemon via launchctl")
+        AppLogger.shared.log("🔧 [LaunchDaemon] *** ENTRY POINT *** createKanataLaunchDaemonViaLaunchctl() called")
+        AppLogger.shared.log("🔧 [LaunchDaemon] Installing Kanata LaunchDaemon via launchctl (legacy path)")
 
         let kanataBinaryPath = getKanataBinaryPath()
+        AppLogger.shared.log("🔍 [LaunchDaemon] Kanata binary path: \(kanataBinaryPath)")
         let plistContent = generateKanataPlist(binaryPath: kanataBinaryPath)
         let plistPath = "\(Self.launchDaemonsPath)/\(Self.kanataServiceID).plist"
+        AppLogger.shared.log("🔍 [LaunchDaemon] Plist path: \(plistPath)")
 
-        return installPlist(content: plistContent, path: plistPath, serviceID: Self.kanataServiceID)
+        let result = installPlist(content: plistContent, path: plistPath, serviceID: Self.kanataServiceID)
+        AppLogger.shared.log("🔍 [LaunchDaemon] installPlist() returned: \(result)")
+        return result
     }
 
     /// Creates and installs the VirtualHIDDevice Daemon LaunchDaemon service
@@ -380,11 +395,20 @@ class LaunchDaemonInstaller {
             "🔧 [LaunchDaemon] Creating, configuring, and loading all services with single admin prompt")
 
         // Check if SMAppService path is enabled for Kanata
-        if FeatureFlags.useSMAppServiceForDaemon {
-            AppLogger.shared.log("📱 [LaunchDaemon] Using SMAppService path for Kanata, launchctl for VirtualHID")
+        let featureFlagValue = FeatureFlags.useSMAppServiceForDaemon
+        AppLogger.shared.log("🔍 [LaunchDaemon] Feature flag check: useSMAppServiceForDaemon = \(featureFlagValue)")
+        AppLogger.shared.log("🔍 [LaunchDaemon] Feature flag UserDefaults key: USE_SMAPPSERVICE_FOR_DAEMON")
+        if let userDefaultsValue = UserDefaults.standard.object(forKey: "USE_SMAPPSERVICE_FOR_DAEMON") {
+            AppLogger.shared.log("🔍 [LaunchDaemon] UserDefaults has explicit value: \(userDefaultsValue)")
+        } else {
+            AppLogger.shared.log("🔍 [LaunchDaemon] UserDefaults has no explicit value - using default: true")
+        }
+
+        if featureFlagValue {
+            AppLogger.shared.log("📱 [LaunchDaemon] ✅ Feature flag is TRUE - Using SMAppService path for Kanata, launchctl for VirtualHID")
             return await createConfigureAndLoadAllServicesWithSMAppService()
         } else {
-            AppLogger.shared.log("🔧 [LaunchDaemon] Using launchctl path for all services")
+            AppLogger.shared.log("🔧 [LaunchDaemon] ⚠️ Feature flag is FALSE - Using launchctl path for all services")
             return createConfigureAndLoadAllServicesViaLaunchctl()
         }
     }
