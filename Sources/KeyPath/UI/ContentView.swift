@@ -79,9 +79,16 @@ struct ContentView: View {
     @State private var lastInputDisabledReason: String = ""
     @State private var lastOutputDisabledReason: String = ""
     @State private var isInitialConfigLoad = true
+    @State private var showSetupBanner = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if FeatureFlags.allowOptionalWizard && showSetupBanner {
+                SetupBanner {
+                    showingInstallationWizard = true
+                }
+                .padding(.horizontal, 8)
+            }
             // Header
             ContentViewHeader(
                 validator: stateController, // 🎯 Phase 3: New controller
@@ -164,6 +171,14 @@ struct ContentView: View {
         .padding(.top, 40)
         .padding(.bottom, 0)
         .frame(width: 500, alignment: .top)
+        .onAppear {
+            if FeatureFlags.allowOptionalWizard {
+                Task { @MainActor in
+                    let snapshot = await PermissionOracle.shared.currentSnapshot()
+                    showSetupBanner = !snapshot.isSystemReady
+                }
+            }
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Fixed 80px space at bottom for toast - always present, stable layout
             Group {
