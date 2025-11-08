@@ -14,6 +14,10 @@ This plan outlines a three-phase approach to modernize KeyPath's permission hand
 ### Goal
 Replace manual System Settings navigation with automatic system permission dialogs using Apple's standard APIs.
 
+### Important Constraints (Kanata)
+- Auto-prompt APIs (`IOHIDRequestAccess`, `AXIsProcessTrustedWithOptions`) apply to the calling process only (KeyPath.app). They cannot auto-enroll `kanata` in TCC.
+- For `kanata`, we will guide the user in the wizard and verify via `PermissionOracle` (TCC read for kanata path). No background auto-prompt for `kanata` is attempted.
+
 ### Current Problem
 - Users must manually navigate System Settings
 - 7-step process: Click '+', navigate, add KeyPath, add kanata, enable checkboxes, restart
@@ -94,6 +98,11 @@ class PermissionRequestService {
     }
 }
 ```
+
+#### 1.1.1 Guardrails
+- Foreground-only prompting: avoid hidden/behind-window system dialogs.
+- Prompt cooldown (20 minutes default): avoid nagging if the user chooses “Later”.
+- Small inter-prompt delay to avoid stacking dialogs.
 
 #### 1.2 Update Wizard Pages to Use Automatic Prompts
 
@@ -176,6 +185,11 @@ private func startPermissionPolling(for type: CoordinatorPermissionType) {
 **Alternative Approach**: Create a small helper tool that runs as kanata's user context to request permissions, but this adds complexity.
 
 **Recommendation**: For Phase 1, request KeyPath.app permissions automatically, and provide clear instructions for kanata (which is less common to need manual approval anyway).
+
+#### 1.5 Logging & Validation
+- App logs: `~/Library/Logs/KeyPath/keypath-debug.log`
+- Expected messages: Permission flow entry points (wizard pages), Oracle snapshots, banner visibility toggles.
+- Unified log (optional): `log show --last 10m --predicate 'process == "KeyPath"'`
 
 ### Testing Plan
 
