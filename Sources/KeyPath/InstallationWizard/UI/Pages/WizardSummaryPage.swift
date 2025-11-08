@@ -26,10 +26,10 @@ struct WizardSummaryPage: View {
     }
 
     @State private var headerMode: HeaderMode = .pending
+    @State private var showAllItems: Bool = false
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
                 // Animated header (pending -> issues/success)
                 VStack(spacing: WizardDesign.Spacing.elementGap) {
                     Image(systemName: headerIconName)
@@ -43,11 +43,27 @@ struct WizardSummaryPage: View {
                 }
                 .padding(.top, 36)
                 .padding(.bottom, WizardDesign.Spacing.sectionGap)
+                .overlay(alignment: .topTrailing) {
+                    Button {
+                        withAnimation(WizardDesign.Animation.statusTransition) {
+                            showAllItems.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "eye.slash")
+                            .foregroundColor(showAllItems ? .primary : .secondary)
+                            .font(.system(size: 16, weight: .regular))
+                            .padding(8)
+                    }
+                    .buttonStyle(.plain)
+                    .help(showAllItems ? "Show issues only" : "Show all items")
+                    .accessibilityLabel(showAllItems ? "Show issues only" : "Show all items")
+                    .padding(.trailing, WizardDesign.Spacing.pageVertical)
+                }
                 .onAppear {
                     headerMode = .pending
                     // After 3 seconds, transition based on current status
                     Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                        try? await Task.sleep(nanoseconds: 6_000_000_000)
                         withAnimation(WizardDesign.Animation.statusTransition) {
                             headerMode = isEverythingComplete ? .success : .issues
                         }
@@ -68,11 +84,14 @@ struct WizardSummaryPage: View {
                     issues: issues,
                     stateInterpreter: stateInterpreter,
                     onNavigateToPage: onNavigateToPage,
-                    kanataIsRunning: kanataManager.isRunning
+                    kanataIsRunning: kanataManager.isRunning,
+                    showAllItems: showAllItems
                 )
-                .frame(maxHeight: geometry.size.height * 0.78)
+                // Natural height — let the list dictate its own height
+                .fixedSize(horizontal: false, vertical: true)
 
-                Spacer(minLength: WizardDesign.Spacing.labelGap)
+                // Minimal separation before action section
+                Spacer(minLength: 0)
 
                 // Action Section
                 WizardActionSection(
@@ -82,8 +101,6 @@ struct WizardSummaryPage: View {
                     onDismiss: onDismiss
                 )
                 .padding(.bottom, WizardDesign.Spacing.elementGap) // Reduce bottom padding
-            }
-            .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .background(WizardDesign.Colors.wizardBackground)
     }
@@ -110,7 +127,9 @@ struct WizardSummaryPage: View {
         case .pending:
             return "Setting up Keypath"
         case .issues:
-            return "Setup issues detected"
+            let n = failedIssueCount
+            let suffix = n == 1 ? "issue" : "issues"
+            return "\(n) setup \(suffix) to resolve"
         case .success:
             return "KeyPath Ready"
         }
@@ -136,5 +155,65 @@ struct WizardSummaryPage: View {
         case .success:
             return WizardDesign.Colors.success
         }
+    }
+
+    // MARK: - Issue Counting (summary indicator)
+
+    private var failedIssueCount: Int {
+        var count = 0
+
+        // 1. Privileged Helper not installed (red)
+        let hasHelperNotInstalled = issues.contains { issue in
+            if case let .component(req) = issue.identifier { return req == .privilegedHelper }
+            return false
+        }
+        if hasHelperNotInstalled { count += 1 }
+
+        // 2. Conflicts (any => red)
+        let hasConflicts = issues.contains { $0.category == .conflicts }
+        if hasConflicts { count += 1 }
+
+        // 3. Input Monitoring (any missing => red)
+        let hasInputMonitoringIssues = issues.contains { issue in
+            if case let .permission(p) = issue.identifier {
+                return p == .keyPathInputMonitoring || p == .kanataInputMonitoring
+            }
+            return false
+        }
+        if hasInputMonitoringIssues { count += 1 }
+
+        // 4. Accessibility (any missing => red)
+        let hasAccessibilityIssues = issues.contains { issue in
+            if case let .permission(p) = issue.identifier {
+                return p == .keyPathAccessibility || p == .kanataAccessibility
+            }
+            return false
+        }
+        if hasAccessibilityIssues { count += 1 }
+
+        // 5. Karabiner Driver status (failed => red)
+        let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
+            systemState: systemState,
+            issues: issues
+        )
+        if karabinerStatus == .failed { count += 1 }
+
+        // 6. Kanata Engine Setup (failed => red)
+        let hasKanataIssues = issues.contains { issue in
+            if issue.category == .installation {
+                switch issue.identifier {
+                case .component(.kanataBinaryMissing),
+                     .component(.kanataService),
+                     .component(.orphanedKanataProcess):
+                    return true
+                default:
+                    return false
+                }
+            }
+            return false
+        }
+        if hasKanataIssues { count += 1 }
+
+        return max(count, 1) // never show 0 in error mode
     }
 }

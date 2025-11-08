@@ -97,23 +97,8 @@ struct WizardActionSection: View {
     }
 
     private var statusDescription: String? {
-        // Check full configuration first
-        if systemState == .active, isFullyConfigured {
-            return nil // No description needed for success state
-        }
-
-        // If active but not fully configured, explain the issue
-        if systemState == .active, !isFullyConfigured { return nil }
-
-        // Otherwise use systemState-based logic
-        switch systemState {
-        case .serviceNotRunning, .ready:
-            return "All components are installed but the Kanata service is not active."
-        case .conflictsDetected:
-            return "Please resolve conflicts to continue."
-        default:
-            return "Complete the setup process to start using KeyPath"
-        }
+        // Summary footer text removed; overall status is communicated in the header.
+        return nil
     }
 
     @ViewBuilder

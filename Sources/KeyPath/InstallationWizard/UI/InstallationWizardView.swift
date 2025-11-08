@@ -52,7 +52,11 @@ struct InstallationWizardView: View {
                     }
                 }
         }
-        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .frame(
+            width: navigationCoordinator.currentPage == .summary
+                ? WizardDesign.Layout.pageWidth * CGFloat(0.7)
+                : WizardDesign.Layout.pageWidth
+        )
         .background(VisualEffectBackground())
         .withToasts(toastManager)
         .environmentObject(navigationCoordinator)

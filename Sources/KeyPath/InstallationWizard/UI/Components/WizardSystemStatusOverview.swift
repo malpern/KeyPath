@@ -10,48 +10,66 @@ struct WizardSystemStatusOverview: View {
     let onNavigateToPage: ((WizardPage) -> Void)?
     // Authoritative signal for service status - ensures consistency with detail page
     let kanataIsRunning: Bool
+    /// When false, show only items that need attention (failed). When true, show all.
+    let showAllItems: Bool
 
     var body: some View {
-        List {
-            ForEach(statusItems, id: \.id) { item in
-                VStack(alignment: .leading, spacing: 0) {
-                    WizardStatusItem(
-                        icon: item.icon,
-                        title: item.title,
-                        subtitle: item.subtitle,
-                        status: item.status,
-                        isNavigable: item.isNavigable,
-                        action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil,
-                        isFinalStatus: isFinalKeyPathStatus(item: item),
-                        showInitialClock: shouldShowInitialClock(for: item),
-                        tooltip: item.relatedIssues.asTooltipText()
-                    )
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
+                ForEach(displayItems, id: \.id) { item in
+                    // Row with subtle hover effect
+                    HoverableRow {
+                        VStack(alignment: .leading, spacing: 0) {
+                            WizardStatusItem(
+                                icon: item.icon,
+                                title: item.title,
+                                subtitle: item.subtitle,
+                                status: item.status,
+                                isNavigable: item.isNavigable,
+                                action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil,
+                                isFinalStatus: isFinalKeyPathStatus(item: item),
+                                showInitialClock: shouldShowInitialClock(for: item),
+                                tooltip: item.relatedIssues.asTooltipText()
+                            )
 
-                    // Show expanded details for failed items
-                    if item.status == .failed, !item.subItems.isEmpty {
-                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
-                            ForEach(item.subItems, id: \.id) { subItem in
-                                WizardStatusItem(
-                                    icon: subItem.icon,
-                                    title: subItem.title,
-                                    subtitle: subItem.subtitle,
-                                    status: subItem.status,
-                                    isNavigable: subItem.isNavigable,
-                                    action: subItem.isNavigable ? { onNavigateToPage?(subItem.targetPage) } : nil,
-                                    tooltip: subItem.relatedIssues.asTooltipText()
-                                )
-                                .padding(.leading, WizardDesign.Spacing.indentation)
+                            // Show expanded details for failed items
+                            if item.status == .failed, !item.subItems.isEmpty {
+                                VStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
+                                    ForEach(item.subItems, id: \.id) { subItem in
+                                        WizardStatusItem(
+                                            icon: subItem.icon,
+                                            title: subItem.title,
+                                            subtitle: subItem.subtitle,
+                                            status: subItem.status,
+                                            isNavigable: subItem.isNavigable,
+                                            action: subItem.isNavigable ? { onNavigateToPage?(subItem.targetPage) } : nil,
+                                            tooltip: subItem.relatedIssues.asTooltipText()
+                                        )
+                                        .padding(.leading, WizardDesign.Spacing.indentation)
+                                    }
+                                }
+                                .padding(.top, WizardDesign.Spacing.labelGap)
                             }
                         }
-                        .padding(.top, WizardDesign.Spacing.labelGap)
                     }
+                    .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity),
+                                             removal: .opacity))
                 }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             }
+            // Center to 50% of window width (window width is fixed by layout)
+            .frame(width: WizardDesign.Layout.pageWidth * 0.5)
+            .padding(.vertical, WizardDesign.Spacing.sectionGap)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .listStyle(.inset)
-        .scrollContentBackground(.hidden)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(Color.clear)
+        .animation(WizardDesign.Animation.statusTransition, value: showAllItems)
+    }
+
+    /// Items to render given the current toggle state
+    private var displayItems: [StatusItemModel] {
+        if showAllItems { return statusItems }
+        return statusItems.filter { $0.status == .failed }
     }
 
     // MARK: - Animation Helpers
@@ -483,6 +501,36 @@ struct WizardSystemStatusOverview: View {
     }
 }
 
+// MARK: - Hoverable Row Wrapper
+
+private struct HoverableRow<Content: View>: View {
+    @State private var hovering = false
+    let content: () -> Content
+
+    init(@ViewBuilder content: @escaping () -> Content) {
+        self.content = content
+    }
+
+    var body: some View {
+        content()
+            .padding(.vertical, WizardDesign.Spacing.labelGap)
+            .padding(.horizontal, WizardDesign.Spacing.cardPadding)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(hovering ? Color.primary.opacity(0.04) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(hovering ? WizardDesign.Colors.border.opacity(0.25) : Color.clear, lineWidth: 1)
+            )
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    self.hovering = hovering
+                }
+            }
+    }
+}
+
 // MARK: - TCP Probe (synchronous, tiny timeout)
 
 private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
@@ -575,7 +623,8 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
             ],
             stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: { _ in },
-            kanataIsRunning: true // Show running in preview
+            kanataIsRunning: true, // Show running in preview
+            showAllItems: false
         )
         .padding()
     }
