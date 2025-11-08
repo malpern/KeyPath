@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 import ServiceManagement
 import SwiftUI
@@ -54,6 +55,7 @@ struct SettingsView: View {
 
     // Toasts
     @State private var settingsToastManager = WizardToastManager()
+    @State private var showSetupBanner = false
 
     private var kanataServiceStatus: String {
         switch kanataManager.currentState {
@@ -85,6 +87,12 @@ struct SettingsView: View {
 
     private var settingsContent: some View {
         VStack(spacing: 0) {
+            if FeatureFlags.allowOptionalWizard && showSetupBanner {
+                SetupBanner {
+                    showingInstallationWizard = true
+                }
+                .padding(.horizontal, 24)
+            }
             headerView
             mainContentView
         }
@@ -111,6 +119,10 @@ struct SettingsView: View {
 
             Task {
                 await kanataManager.forceRefreshStatus()
+                if FeatureFlags.allowOptionalWizard {
+                    let snapshot = await PermissionOracle.shared.currentSnapshot()
+                    showSetupBanner = !snapshot.isSystemReady
+                }
             }
         }
         .sheet(isPresented: $showingDiagnostics) {
