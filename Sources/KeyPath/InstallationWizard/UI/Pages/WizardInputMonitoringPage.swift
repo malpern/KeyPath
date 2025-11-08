@@ -255,19 +255,6 @@ struct WizardInputMonitoringPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
-        .overlay(alignment: .topTrailing) {
-            Button {
-                navigationCoordinator.navigateToPage(.summary)
-                AppLogger.shared.log("✖️ [Input Monitoring] Close pressed — navigating to summary")
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.secondary)
-                    .opacity(0.7)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            .padding(.trailing, 8)
-        }
         .onAppear {
             checkForStaleEntries()
         }

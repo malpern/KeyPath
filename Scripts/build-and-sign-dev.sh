@@ -43,6 +43,13 @@ echo "✅ Kanata daemon plist embedded: $CONTENTS/Library/LaunchDaemons/com.keyp
 # Copy main app Info.plist
 cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
 
+# Copy app icon if present
+if [ -f "Sources/KeyPath/Resources/AppIcon.icns" ]; then
+    cp "Sources/KeyPath/Resources/AppIcon.icns" "$RESOURCES/"
+else
+    echo "⚠️ WARNING: AppIcon.icns not found at Sources/KeyPath/Resources/AppIcon.icns" >&2
+fi
+
 # Create PkgInfo file (required for app bundles)
 echo "APPL????" > "$CONTENTS/PkgInfo"
 
@@ -66,16 +73,24 @@ echo "🔒 TCC identity preserved (Team ID + Bundle ID + Code Signature)"
 echo "🔍 Code signature verification..."
 codesign --verify --verbose=2 "$APP_BUNDLE"
 
-echo "📂 Deploying to ~/Applications for TCC testing..."
-USER_APPS_DIR="$HOME/Applications"
-APP_DEST="$USER_APPS_DIR/${APP_NAME}.app"
-mkdir -p "$USER_APPS_DIR"
-rm -rf "$APP_DEST"
-if ditto "$APP_BUNDLE" "$APP_DEST"; then
-    echo "✅ Deployed latest $APP_NAME to $APP_DEST"
-    echo "   (TCC permissions require app to be in Applications folder)"
+echo "📂 Deploying to Applications..."
+DEST_DIR="/Applications"
+APP_DEST="$DEST_DIR/${APP_NAME}.app"
+if [ ! -w "$DEST_DIR" ]; then
+  echo "ℹ️ /Applications not writable without privileges; attempting sudo copy..."
+  sudo rm -rf "$APP_DEST" 2>/dev/null || true
+  if sudo ditto "$APP_BUNDLE" "$APP_DEST"; then
+    echo "✅ Deployed to $APP_DEST"
+  else
+    echo "⚠️ WARNING: Failed to deploy to /Applications" >&2
+  fi
 else
-    echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
+  rm -rf "$APP_DEST" 2>/dev/null || true
+  if ditto "$APP_BUNDLE" "$APP_DEST"; then
+    echo "✅ Deployed to $APP_DEST"
+  else
+    echo "⚠️ WARNING: Failed to deploy to /Applications" >&2
+  fi
 fi
 
 echo "✨ Ready for development testing!"

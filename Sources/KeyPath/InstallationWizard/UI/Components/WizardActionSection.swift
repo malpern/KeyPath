@@ -10,21 +10,8 @@ struct WizardActionSection: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        VStack(spacing: WizardDesign.Spacing.itemGap) {
-            // Status indicator (hidden in full success state)
-            if !(systemState == .active && isFullyConfigured) {
-                HStack(spacing: WizardDesign.Spacing.labelGap) {
-                    Image(systemName: statusIcon)
-                        .foregroundColor(statusColor)
-                        .font(.system(size: 20))
-
-                    if !statusMessage.isEmpty {
-                        Text(statusMessage)
-                            .font(WizardDesign.Typography.status)
-                            .foregroundColor(statusColor)
-                    }
-                }
-            }
+        VStack(spacing: WizardDesign.Spacing.labelGap) {
+            // Footer status indicator removed - header now communicates overall status
 
             // Description text (if needed)
             if let description = statusDescription {
@@ -37,7 +24,7 @@ struct WizardActionSection: View {
             // Action button
             actionButton
         }
-        .padding(.bottom, WizardDesign.Spacing.pageVertical)
+        .padding(.bottom, WizardDesign.Spacing.elementGap)
     }
 
     // MARK: - Status Properties
@@ -116,9 +103,7 @@ struct WizardActionSection: View {
         }
 
         // If active but not fully configured, explain the issue
-        if systemState == .active, !isFullyConfigured {
-            return "Some components need attention. Review the status above."
-        }
+        if systemState == .active, !isFullyConfigured { return nil }
 
         // Otherwise use systemState-based logic
         switch systemState {

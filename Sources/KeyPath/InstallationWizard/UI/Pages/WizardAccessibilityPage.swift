@@ -266,7 +266,7 @@ struct WizardAccessibilityPage: View {
                 // When permissions granted: Cancel (left) | Continue (right, primary)
                 WizardButtonBar(
                     cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
+                    primary: WizardButtonBar.PrimaryButton(title: "Next: Input Monitoring") {
                         AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page")
                         navigateToNextPage()
                     }
@@ -275,19 +275,6 @@ struct WizardAccessibilityPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
-        .overlay(alignment: .topTrailing) {
-            Button {
-                navigationCoordinator.navigateToPage(.summary)
-                AppLogger.shared.log("✖️ [Accessibility] Close pressed — navigating to summary")
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.secondary)
-                    .opacity(0.7)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            .padding(.trailing, 8)
-        }
         .onAppear {
             // Start passive polling to reflect manual changes in System Settings
             if permissionPollingTask == nil {

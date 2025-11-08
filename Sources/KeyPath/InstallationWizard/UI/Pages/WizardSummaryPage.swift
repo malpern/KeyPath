@@ -18,28 +18,49 @@ struct WizardSummaryPage: View {
         kanataViewModel.underlyingManager
     }
 
+    // MARK: - Header Animation State
+    private enum HeaderMode {
+        case pending
+        case issues
+        case success
+    }
+
+    @State private var headerMode: HeaderMode = .pending
+
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Header - changes when everything is complete
-                Group {
-                    if isEverythingComplete {
-                        WizardPageHeader(
-                            icon: "checkmark.circle.fill",
-                            title: "KeyPath Ready",
-                            subtitle: "Your keyboard customization tool is fully configured",
-                            status: .success
-                        )
-                    } else {
-                        WizardPageHeader(
-                            icon: "keyboard.fill",
-                            title: "Welcome to KeyPath",
-                            subtitle: "Set up your keyboard customization tool",
-                            status: .info
-                        )
+                // Animated header (pending -> issues/success)
+                VStack(spacing: WizardDesign.Spacing.elementGap) {
+                    Image(systemName: headerIconName)
+                        .font(.system(size: WizardDesign.Layout.statusCircleSize))
+                        .foregroundColor(headerIconColor)
+                        .modifier(AvailabilitySymbolBounce())
+
+                    Text(headerTitle)
+                        .font(WizardDesign.Typography.sectionTitle)
+                        .fontWeight(.semibold)
+                }
+                .padding(.top, 36)
+                .padding(.bottom, WizardDesign.Spacing.sectionGap)
+                .onAppear {
+                    headerMode = .pending
+                    // After 3 seconds, transition based on current status
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                        withAnimation(WizardDesign.Animation.statusTransition) {
+                            headerMode = isEverythingComplete ? .success : .issues
+                        }
                     }
                 }
-                .padding(.bottom, WizardDesign.Spacing.sectionGap)
+                .onChange(of: isEverythingComplete) { complete in
+                    // Transition to success immediately when everything turns green
+                    if complete {
+                        withAnimation(WizardDesign.Animation.statusTransition) {
+                            headerMode = .success
+                        }
+                    }
+                }
 
                 // System Status Overview
                 WizardSystemStatusOverview(
@@ -49,9 +70,9 @@ struct WizardSummaryPage: View {
                     onNavigateToPage: onNavigateToPage,
                     kanataIsRunning: kanataManager.isRunning
                 )
-                .frame(maxHeight: geometry.size.height * 0.5) // Limit list height
+                .frame(maxHeight: geometry.size.height * 0.78)
 
-                Spacer(minLength: WizardDesign.Spacing.itemGap)
+                Spacer(minLength: WizardDesign.Spacing.labelGap)
 
                 // Action Section
                 WizardActionSection(
@@ -60,7 +81,7 @@ struct WizardSummaryPage: View {
                     onStartService: onStartService,
                     onDismiss: onDismiss
                 )
-                .padding(.bottom, WizardDesign.Spacing.pageVertical)
+                .padding(.bottom, WizardDesign.Spacing.elementGap) // Reduce bottom padding
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
@@ -82,5 +103,38 @@ struct WizardSummaryPage: View {
         // Check that there are no issues
         // If there are configuration problems, they will appear in the issues list
         return issues.isEmpty
+    }
+
+    private var headerTitle: String {
+        switch headerMode {
+        case .pending:
+            return "Setting up Keypath"
+        case .issues:
+            return "Setup issues detected"
+        case .success:
+            return "KeyPath Ready"
+        }
+    }
+
+    private var headerIconName: String {
+        switch headerMode {
+        case .pending:
+            return "keyboard.fill"
+        case .issues:
+            return "xmark.circle.fill"
+        case .success:
+            return "checkmark.circle.fill"
+        }
+    }
+
+    private var headerIconColor: Color {
+        switch headerMode {
+        case .pending:
+            return WizardDesign.Colors.info
+        case .issues:
+            return WizardDesign.Colors.error
+        case .success:
+            return WizardDesign.Colors.success
+        }
     }
 }

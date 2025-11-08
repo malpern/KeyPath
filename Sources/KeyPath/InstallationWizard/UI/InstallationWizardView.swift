@@ -37,11 +37,6 @@ struct InstallationWizardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header with page dots - always visible with fixed height
-            wizardHeader()
-                .frame(height: 90) // Reduced height for header
-
-            // Page Content takes remaining space
             pageContent()
                 .frame(maxWidth: .infinity)
                 .overlay {
@@ -62,26 +57,19 @@ struct InstallationWizardView: View {
         .withToasts(toastManager)
         .environmentObject(navigationCoordinator)
         .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
-        // Global close button overlay for all detail pages (native, consistent affordance)
+        // Global Close button overlay for all detail pages
         .overlay(alignment: .topTrailing) {
             if navigationCoordinator.currentPage != .summary {
                 Button {
                     navigationCoordinator.navigateToPage(.summary)
                     AppLogger.shared.log("✖️ [Wizard] Close pressed — navigating to summary")
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "xmark.circle.fill")
-                        Text("Back to Overview")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(6)
-                    .background(.regularMaterial, in: Capsule())
+                    Label("Close", systemImage: "xmark")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
                 .padding(.top, 8)
                 .padding(.trailing, 8)
-                .help("Back to Overview")
+                .help("Return to Overview")
             }
         }
         .onAppear {
@@ -157,39 +145,7 @@ struct InstallationWizardView: View {
 
     // MARK: - UI Components
 
-    @ViewBuilder
-    private func wizardHeader() -> some View {
-        VStack(spacing: 8) { // Reduced spacing
-            HStack(alignment: .top) {
-                HStack(spacing: 8) {
-                    Image(systemName: "keyboard")
-                        .font(.system(size: 24)) // Smaller icon
-                        .foregroundColor(.blue)
-
-                    Text("KeyPath Setup")
-                        .font(.title3) // Smaller title
-                        .fontWeight(.bold)
-                }
-
-                Spacer()
-                // Keep header minimal and native; build info moved out of title area
-            }
-
-            PageDotsIndicator(currentPage: navigationCoordinator.currentPage) { page in
-                // Don't allow manual navigation if operations are running
-                guard !asyncOperationManager.hasRunningOperations else { return }
-
-                navigationCoordinator.navigateToPage(page)
-                AppLogger.shared.log(
-                    "🔍 [Wizard] User manually navigated to \(page) - entering user interaction mode")
-            }
-            .fixedSize(horizontal: false, vertical: true) // Prevent dots from expanding
-        }
-        .fixedSize(horizontal: false, vertical: true) // Keep header at fixed height
-        .padding()
-        // Use system material for a native look; no custom gradient/chrome
-        .background(.regularMaterial)
-    }
+    // Header removed per design update; pages present their own centered titles.
 
     @ViewBuilder
     private func pageContent() -> some View {

@@ -59,8 +59,8 @@ enum WizardDesign {
         /// Standard wizard page width
         static let pageWidth: CGFloat = 700
 
-        /// Standard wizard page height
-        static let pageHeight: CGFloat = 680 // Reduced from 750 to fit content
+        /// Standard wizard page height (shorter to allow scrolling lists)
+        static let pageHeight: CGFloat = 540
 
         /// Maximum content width for readability
         static let maxContentWidth: CGFloat = 400
@@ -964,13 +964,15 @@ struct WizardPageHeader: View {
                 .fontWeight(.semibold)
 
             // Subtitle
-            Text(subtitle)
-                .font(WizardDesign.Typography.subtitle)
-                .foregroundColor(WizardDesign.Colors.secondaryText)
-                .multilineTextAlignment(.center)
-                .wizardContentSpacing()
+            if !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(WizardDesign.Typography.subtitle)
+                    .foregroundColor(WizardDesign.Colors.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .wizardContentSpacing()
+            }
         }
-        .padding(.top, 12) // Reduced padding
+        .padding(.top, 36) // Increased top padding after removing window header
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title). \(subtitle)")
         .accessibilityAddTraits(.isHeader)
