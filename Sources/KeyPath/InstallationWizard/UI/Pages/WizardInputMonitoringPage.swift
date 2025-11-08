@@ -1,4 +1,5 @@
 import KeyPathCore
+import AppKit
 import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
@@ -391,6 +392,17 @@ struct WizardInputMonitoringPage: View {
 
             // Poll for grant (KeyPath + Kanata) using Oracle snapshot
             startPermissionPolling(for: .inputMonitoring)
+
+            // Fallback: if still not granted shortly after, open System Settings panel
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let granted = snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
+                if !granted {
+                    AppLogger.shared.info("ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring")
+                    openInputMonitoringPreferencesPanel()
+                }
+            }
         } else {
             // Fallback: manual System Settings flow
             let instructions = """
@@ -412,6 +424,11 @@ struct WizardInputMonitoringPage: View {
     }
 }
 
+    private func openInputMonitoringPreferencesPanel() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            NSWorkspace.shared.open(url)
+        }
+    }
 // MARK: - Stale Entry Cleanup Instructions View
 
 struct StaleEntryCleanupInstructions: View {
