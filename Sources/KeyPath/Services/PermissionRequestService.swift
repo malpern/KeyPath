@@ -2,6 +2,7 @@ import ApplicationServices
 import Foundation
 import IOKit.hid
 import AppKit
+import KeyPathCore
 
 /// Centralized utilities for requesting system permissions using Apple's standard APIs.
 /// - Requests are debounced to avoid nagging the user.
@@ -39,14 +40,25 @@ final class PermissionRequestService {
     @discardableResult
     func requestInputMonitoringPermission() -> Bool {
         // Foreground and cooldown guards
-        if !isForeground() || withinCooldown(lastPromptIMKey) {
+        if !isForeground() {
+            AppLogger.shared.warn("⚠️ [PermissionRequest] Skipping IOHIDRequestAccess - app not foreground")
+            return false
+        }
+        if withinCooldown(lastPromptIMKey) {
+            AppLogger.shared.info("ℹ️ [PermissionRequest] Skipping IOHIDRequestAccess - within cooldown")
             return false
         }
         markPrompt(lastPromptIMKey)
 
         // IOHIDRequestAccess() automatically shows the system dialog if not granted.
         // Returns true if granted, false otherwise.
+        AppLogger.shared.log("🔐 [PermissionRequest] Requesting Input Monitoring via IOHIDRequestAccess()")
         let granted = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        if granted {
+            AppLogger.shared.log("✅ [PermissionRequest] Input Monitoring already granted")
+        } else {
+            AppLogger.shared.log("⏳ [PermissionRequest] Input Monitoring prompt likely shown")
+        }
         return granted
     }
 
@@ -55,14 +67,25 @@ final class PermissionRequestService {
     @discardableResult
     func requestAccessibilityPermission() -> Bool {
         // Foreground and cooldown guards
-        if !isForeground() || withinCooldown(lastPromptAXKey) {
+        if !isForeground() {
+            AppLogger.shared.warn("⚠️ [PermissionRequest] Skipping AX prompt - app not foreground")
+            return false
+        }
+        if withinCooldown(lastPromptAXKey) {
+            AppLogger.shared.info("ℹ️ [PermissionRequest] Skipping AX prompt - within cooldown")
             return false
         }
         markPrompt(lastPromptAXKey)
 
         let key = "kAXTrustedCheckOptionPrompt" as CFString
         let options = [key: true] as CFDictionary
+        AppLogger.shared.log("🔐 [PermissionRequest] Requesting Accessibility via AXIsProcessTrustedWithOptions()")
         let trusted = AXIsProcessTrustedWithOptions(options)
+        if trusted {
+            AppLogger.shared.log("✅ [PermissionRequest] Accessibility already granted")
+        } else {
+            AppLogger.shared.log("⏳ [PermissionRequest] Accessibility prompt likely shown")
+        }
         return trusted
     }
 
