@@ -204,6 +204,11 @@ public actor PermissionOracle {
             AppLogger.shared.log("🔮 [Oracle] Blocking issue: \(issue)")
         }
 
+        // Log transitions for AX/IM across KeyPath and Kanata
+        if let previous = lastSnapshot {
+            logPermissionTransitions(from: previous, to: snapshot)
+        }
+
         // Cache the result
         lastSnapshot = snapshot
         lastSnapshotTime = snapshot.timestamp
@@ -344,11 +349,43 @@ public actor PermissionOracle {
 
     // Add this helper to prefer the active daemon path, falling back to bundled path
     private func resolveKanataExecutablePath() -> String {
-        let active = WizardSystemPaths.kanataActiveBinary
-        if FileManager.default.fileExists(atPath: active) {
-            return active
+        // Prefer bundled path for SMAppService deployments (stable, signed path)
+        let bundled = WizardSystemPaths.bundledKanataPath
+        if FileManager.default.fileExists(atPath: bundled) {
+            return bundled
         }
-        return WizardSystemPaths.bundledKanataPath
+        // Fallback: legacy active path if present
+        return WizardSystemPaths.kanataActiveBinary
+    }
+
+    // Log granular permission transitions for observability
+    private func logPermissionTransitions(from old: Snapshot, to new: Snapshot) {
+        func logChange(subject: String, old: Status, new: Status) {
+            guard old != new else { return }
+            AppLogger.shared.log("🔄 [Oracle] Permission change: \(subject): \(old) → \(new)")
+            switch new {
+            case .granted:
+                AppLogger.shared.log("🟢 [Oracle] \(subject) granted")
+            case .denied:
+                AppLogger.shared.log("🔴 [Oracle] \(subject) denied")
+            case let .error(msg):
+                AppLogger.shared.log("⚠️ [Oracle] \(subject) error: \(msg)")
+            case .unknown:
+                AppLogger.shared.log("ℹ️ [Oracle] \(subject) unknown")
+            }
+        }
+
+        // KeyPath
+        logChange(subject: "KeyPath Accessibility", old: old.keyPath.accessibility, new: new.keyPath.accessibility)
+        logChange(subject: "KeyPath Input Monitoring", old: old.keyPath.inputMonitoring, new: new.keyPath.inputMonitoring)
+
+        // Kanata
+        logChange(subject: "Kanata Accessibility", old: old.kanata.accessibility, new: new.kanata.accessibility)
+        logChange(subject: "Kanata Input Monitoring", old: old.kanata.inputMonitoring, new: new.kanata.inputMonitoring)
+
+        if old.isSystemReady != new.isSystemReady {
+            AppLogger.shared.log("🔁 [Oracle] System readiness changed: \(old.isSystemReady) → \(new.isSystemReady)")
+        }
     }
 
     // MARK: - TCC Database Fallback (Necessary to break chicken-and-egg problem)

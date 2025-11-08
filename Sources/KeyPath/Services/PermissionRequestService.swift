@@ -1,4 +1,4 @@
-import ApplicationServices
+@preconcurrency import ApplicationServices
 import Foundation
 import IOKit.hid
 import AppKit
@@ -86,8 +86,9 @@ final class PermissionRequestService {
         }
         markPrompt(lastPromptAXKey)
 
-        let key = "kAXTrustedCheckOptionPrompt" as CFString
-        let options = [key: true] as CFDictionary
+        // Use the official CFString constant; do not substitute with a plain string
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as CFString
+        let options = [key as String: true] as CFDictionary
         AppLogger.shared.log("🔐 [PermissionRequest] Requesting Accessibility via AXIsProcessTrustedWithOptions()")
         let trusted = AXIsProcessTrustedWithOptions(options)
         if trusted {

@@ -451,12 +451,12 @@ struct ContentView: View {
                     }
                 )
             }
-            return
-        }
+                        return
+                    }
         Task { @MainActor in
             await startEmergencyMonitoringInternal()
-        }
-    }
+                }
+            }
 
     @MainActor
     private func startEmergencyMonitoringInternal() async {

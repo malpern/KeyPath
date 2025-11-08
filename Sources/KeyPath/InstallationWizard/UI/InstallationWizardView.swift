@@ -62,6 +62,28 @@ struct InstallationWizardView: View {
         .withToasts(toastManager)
         .environmentObject(navigationCoordinator)
         .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
+        // Global close button overlay for all detail pages (native, consistent affordance)
+        .overlay(alignment: .topTrailing) {
+            if navigationCoordinator.currentPage != .summary {
+                Button {
+                    navigationCoordinator.navigateToPage(.summary)
+                    AppLogger.shared.log("✖️ [Wizard] Close pressed — navigating to summary")
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "xmark.circle.fill")
+                        Text("Back to Overview")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(6)
+                    .background(.regularMaterial, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
+                .padding(.trailing, 8)
+                .help("Back to Overview")
+            }
+        }
         .onAppear {
             hasKeyboardFocus = true
             setupWizard()
@@ -150,11 +172,7 @@ struct InstallationWizardView: View {
                 }
 
                 Spacer()
-
-                // Build timestamp (close button handled by SwiftUI sheet)
-                Text("Build: \(getBuildTimestamp())")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                // Keep header minimal and native; build info moved out of title area
             }
 
             PageDotsIndicator(currentPage: navigationCoordinator.currentPage) { page in
@@ -169,7 +187,8 @@ struct InstallationWizardView: View {
         }
         .fixedSize(horizontal: false, vertical: true) // Keep header at fixed height
         .padding()
-        .background(AppGlassBackground(style: .headerStrong))
+        // Use system material for a native look; no custom gradient/chrome
+        .background(.regularMaterial)
     }
 
     @ViewBuilder

@@ -188,8 +188,14 @@ struct WizardInputMonitoringPage: View {
                                 }
                                 Spacer()
                                 if kanataInputMonitoringStatus != .completed {
-                                    Button("Fix") {
-                                        openInputMonitoringSettings()
+                                    Button("Add + Turn On") {
+                                        AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Add + Turn On clicked")
+                                        // Open System Settings → Input Monitoring, reveal kanata, copy path for Go To Folder
+                                        openInputMonitoringPreferencesPanel()
+                                        copyKanataPathToClipboard()
+                                        revealKanataInFinder()
+                                        // Begin polling for permission grant
+                                        startPermissionPolling(for: .inputMonitoring)
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
                                     .scaleEffect(0.8)
@@ -249,6 +255,19 @@ struct WizardInputMonitoringPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
+        .overlay(alignment: .topTrailing) {
+            Button {
+                navigationCoordinator.navigateToPage(.summary)
+                AppLogger.shared.log("✖️ [Input Monitoring] Close pressed — navigating to summary")
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.secondary)
+                    .opacity(0.7)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            .padding(.trailing, 8)
+        }
         .onAppear {
             checkForStaleEntries()
         }
@@ -405,22 +424,22 @@ struct WizardInputMonitoringPage: View {
             }
         } else {
             // Fallback: manual System Settings flow
-            let instructions = """
-            KeyPath will now close so you can grant permissions:
+        let instructions = """
+        KeyPath will now close so you can grant permissions:
 
-            1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
-            2. Make sure both checkboxes are enabled
-            3. Restart KeyPath when you're done
+        1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
+        2. Make sure both checkboxes are enabled
+        3. Restart KeyPath when you're done
 
-            KeyPath will automatically restart the keyboard service to pick up your new permissions.
-            """
+        KeyPath will automatically restart the keyboard service to pick up your new permissions.
+        """
 
-            PermissionGrantCoordinator.shared.initiatePermissionGrant(
-                for: .inputMonitoring,
-                instructions: instructions,
+        PermissionGrantCoordinator.shared.initiatePermissionGrant(
+            for: .inputMonitoring,
+            instructions: instructions,
                 onComplete: { onDismiss?() }
             )
-        }
+            }
     }
 }
 
@@ -428,6 +447,23 @@ struct WizardInputMonitoringPage: View {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    // MARK: - Helpers for Kanata add flow
+    private func revealKanataInFinder() {
+        let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+        let dir = (path as NSString).deletingLastPathComponent
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+        _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
+        AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed kanata in Finder: \(path)")
+    }
+
+    private func copyKanataPathToClipboard() {
+        let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(path, forType: .string)
+        AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied kanata path to clipboard: \(path)")
     }
 // MARK: - Stale Entry Cleanup Instructions View
 
