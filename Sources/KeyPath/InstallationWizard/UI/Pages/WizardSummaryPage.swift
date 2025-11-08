@@ -18,19 +18,18 @@ struct WizardSummaryPage: View {
         kanataViewModel.underlyingManager
     }
 
-    // MARK: - Header Animation State
+    // MARK: - Header State (no pending phase)
     private enum HeaderMode {
-        case pending
         case issues
         case success
     }
 
-    @State private var headerMode: HeaderMode = .pending
+    @State private var headerMode: HeaderMode = .issues
     @State private var showAllItems: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
-                // Animated header (pending -> issues/success)
+                // Final header (issues or success)
                 VStack(spacing: WizardDesign.Spacing.elementGap) {
                     Image(systemName: headerIconName)
                         .font(.system(size: WizardDesign.Layout.statusCircleSize))
@@ -60,13 +59,8 @@ struct WizardSummaryPage: View {
                     .padding(.trailing, WizardDesign.Spacing.pageVertical)
                 }
                 .onAppear {
-                    headerMode = .pending
-                    // After 3 seconds, transition based on current status
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 6_000_000_000)
-                        withAnimation(WizardDesign.Animation.statusTransition) {
-                            headerMode = isEverythingComplete ? .success : .issues
-                        }
+                    withAnimation(WizardDesign.Animation.statusTransition) {
+                        headerMode = isEverythingComplete ? .success : .issues
                     }
                 }
                 .onChange(of: isEverythingComplete) { complete in
@@ -124,8 +118,6 @@ struct WizardSummaryPage: View {
 
     private var headerTitle: String {
         switch headerMode {
-        case .pending:
-            return "Setting up Keypath"
         case .issues:
             let n = failedIssueCount
             let suffix = n == 1 ? "issue" : "issues"
@@ -137,8 +129,6 @@ struct WizardSummaryPage: View {
 
     private var headerIconName: String {
         switch headerMode {
-        case .pending:
-            return "keyboard.fill"
         case .issues:
             return "xmark.circle.fill"
         case .success:
@@ -148,8 +138,6 @@ struct WizardSummaryPage: View {
 
     private var headerIconColor: Color {
         switch headerMode {
-        case .pending:
-            return WizardDesign.Colors.info
         case .issues:
             return WizardDesign.Colors.error
         case .success:
