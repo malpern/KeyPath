@@ -54,6 +54,9 @@ extension FeatureFlags: @unchecked Sendable {}
 extension FeatureFlags {
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
     private static let tcpProtocolV2Key = "TCP_PROTOCOL_V2_ENABLED"
+    private static let useAutomaticPermissionPromptsKey = "USE_AUTOMATIC_PERMISSION_PROMPTS"
+    private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
+    private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
 
     static var captureListenOnlyEnabled: Bool {
         if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
@@ -101,5 +104,43 @@ extension FeatureFlags {
 
     static func setUseSMAppServiceForDaemon(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: useSMAppServiceForDaemonKey)
+    }
+
+    // MARK: - Permission UX flags
+
+    /// Phase 1: Automatic system prompts for KeyPath.app (default ON)
+    static var useAutomaticPermissionPrompts: Bool {
+        if UserDefaults.standard.object(forKey: useAutomaticPermissionPromptsKey) == nil {
+            return true // default ON
+        }
+        return UserDefaults.standard.bool(forKey: useAutomaticPermissionPromptsKey)
+    }
+
+    static func setUseAutomaticPermissionPrompts(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: useAutomaticPermissionPromptsKey)
+    }
+
+    /// Phase 2: Just-in-time permission requests (default OFF)
+    static var useJustInTimePermissionRequests: Bool {
+        if UserDefaults.standard.object(forKey: useJustInTimePermissionRequestsKey) == nil {
+            return false // default OFF
+        }
+        return UserDefaults.standard.bool(forKey: useJustInTimePermissionRequestsKey)
+    }
+
+    static func setUseJustInTimePermissionRequests(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: useJustInTimePermissionRequestsKey)
+    }
+
+    /// Phase 3: Optional wizard (non-blocking) (default OFF)
+    static var allowOptionalWizard: Bool {
+        if UserDefaults.standard.object(forKey: allowOptionalWizardKey) == nil {
+            return false // default OFF
+        }
+        return UserDefaults.standard.bool(forKey: allowOptionalWizardKey)
+    }
+
+    static func setAllowOptionalWizard(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: allowOptionalWizardKey)
     }
 }

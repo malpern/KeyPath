@@ -14,6 +14,10 @@ This plan outlines a three-phase approach to modernize KeyPath's permission hand
 ### Goal
 Replace manual System Settings navigation with automatic system permission dialogs using Apple's standard APIs.
 
+### Important Constraints (Kanata)
+- Auto-prompt APIs (`IOHIDRequestAccess`, `AXIsProcessTrustedWithOptions`) apply to the calling process only (KeyPath.app). They cannot auto-enroll `kanata` in TCC.
+- For `kanata`, we will guide the user in the wizard and verify via `PermissionOracle` (TCC read for kanata path). No background auto-prompt for `kanata` is attempted.
+
 ### Current Problem
 - Users must manually navigate System Settings
 - 7-step process: Click '+', navigate, add KeyPath, add kanata, enable checkboxes, restart
@@ -94,6 +98,11 @@ class PermissionRequestService {
     }
 }
 ```
+
+#### 1.1.1 Guardrails
+- Foreground-only prompting: avoid hidden/behind-window system dialogs.
+- Prompt cooldown (20 minutes default): avoid nagging if the user chooses “Later”.
+- Small inter-prompt delay to avoid stacking dialogs.
 
 #### 1.2 Update Wizard Pages to Use Automatic Prompts
 
@@ -177,18 +186,10 @@ private func startPermissionPolling(for type: CoordinatorPermissionType) {
 
 **Recommendation**: For Phase 1, request KeyPath.app permissions automatically, and provide clear instructions for kanata (which is less common to need manual approval anyway).
 
-#### 1.5 Prompt Hygiene & Post‑Grant Activation (Pragmatic Additions)
-
-- Foreground guard: Only call `IOHIDRequestAccess()` / `AXIsProcessTrustedWithOptions()` when KeyPath is the frontmost app to avoid hidden dialogs. If not frontmost, show our pre‑dialog and ask the user to bring KeyPath to the foreground first.
-- Cooldown: Debounce permission prompts for 15–30 minutes per permission. Persist last‑prompt timestamp in `UserDefaults` to avoid nagging users who picked “Later.”
-- Unified pre‑dialog: Use a consistent SwiftUI/NSAlert pre‑dialog explaining why the permission is needed before triggering the system prompt.
-- Post‑grant “bounce”: Centralize a minimal post‑grant activation step in `PermissionGrantCoordinator` (restart event taps / notify Kanata to reload if applicable) so features work immediately after the user clicks “Allow.”
-- Telemetry/logging: Log prompt_shown / granted / denied events (local OSLog) to validate UX improvements and guide future tuning.
-
-#### 1.6 Enterprise (PPPC) Considerations
-
-- For managed environments, document Privacy Preferences Policy Control (PPPC) profiles that can pre‑grant Accessibility/Input Monitoring for KeyPath (and Kanata, if truly required).
-- App behavior should remain graceful when permissions are pre‑granted (no redundant prompts; status shows “granted”).
+#### 1.5 Logging & Validation
+- App logs: `~/Library/Logs/KeyPath/keypath-debug.log`
+- Expected messages: Permission flow entry points (wizard pages), Oracle snapshots, banner visibility toggles.
+- Unified log (optional): `log show --last 10m --predicate 'process == "KeyPath"'`
 
 ### Testing Plan
 
@@ -439,11 +440,6 @@ func reloadConfiguration() async throws {
 **File**: `Sources/KeyPath/UI/EmergencyStopPauseCard.swift`
 
 **Changes**: Wrap emergency stop detection with permission gate (if not already granted).
-
-##### Important architectural constraint (Phase 2 still respects this)
-
-- Only KeyPath.app can auto‑prompt. If any feature requires Kanata itself to have IM/AX, we cannot auto‑prompt on Kanata’s behalf. Use `PermissionOracle` (TCC check) to detect Kanata’s state and guide the user via wizard copy.
-- We are not changing who captures input or injects output in Phase 2. This phase focuses solely on modernizing prompts and request timing.
 
 #### 2.3 Create Permission Request Dialog UI
 
@@ -884,9 +880,6 @@ All flags default to `false` initially, enabled after testing.
 3. **Risk**: Optional wizard may confuse users
    - **Mitigation**: Clear setup banner, easy access to wizard
 
-4. **Risk**: Confusion about Kanata permissions vs KeyPath permissions
-   - **Mitigation**: Be explicit in copy: KeyPath can auto‑prompt; Kanata cannot be auto‑prompted by KeyPath. Use TCC detection for Kanata and provide clear guidance when user action is required.
-
 ### Dependencies
 
 - **Phase 1**: No dependencies
@@ -907,15 +900,4 @@ All flags default to `false` initially, enabled after testing.
 This three-phase plan transforms KeyPath's permission handling from a manual, frustrating process to a modern, contextual, user-friendly experience that matches Apple's recommendations and best practices from cutting-edge Mac apps.
 
 Each phase builds on the previous one, allowing for incremental rollout and risk mitigation. The plan balances immediate improvements (Phase 1) with long-term UX excellence (Phases 2-3).
-
----
-
-## Appendix: Kanata Constraints & Our Stance (No Architectural Change)
-
-- With today’s pipeline, Kanata captures input and (often) needs Input Monitoring. VirtualHID (Karabiner) helps with output injection but does not eliminate Kanata’s need for IM. Auto‑prompting on Kanata’s behalf is not possible.
-- Our plan intentionally avoids a fundamental architectural change (e.g., moving all capture/injection ownership into KeyPath). That larger shift would require weeks of work and adds risk; it is explicitly out of scope for this initiative.
-- We will:
-  - Auto‑prompt only for KeyPath.app (Phase 1), then request just‑in‑time (Phase 2), with an optional, non‑blocking wizard (Phase 3).
-  - Detect Kanata’s TCC status via `PermissionOracle` and guide users with clear wizard copy when Kanata itself requires toggles in System Settings.
-  - Add prompt hygiene (foreground guard, cooldown) and immediate post‑grant activation steps for the best possible UX under macOS constraints.
 

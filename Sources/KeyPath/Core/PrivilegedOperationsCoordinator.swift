@@ -619,11 +619,11 @@ final class PrivilegedOperationsCoordinator {
         } else {
             AppLogger.shared.log("🔧 [PrivCoordinator] ⚠️ DECISION: Feature flag is FALSE - Using launchctl path for regeneration")
             // Use existing launchctl-based regeneration
-            let installer = LaunchDaemonInstaller()
-            let success = installer.regenerateServiceWithCurrentSettings()
+        let installer = LaunchDaemonInstaller()
+        let success = installer.regenerateServiceWithCurrentSettings()
 
-            if !success {
-                throw PrivilegedOperationError.operationFailed("Config regeneration failed")
+        if !success {
+            throw PrivilegedOperationError.operationFailed("Config regeneration failed")
             }
         }
     }
