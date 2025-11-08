@@ -25,6 +25,7 @@ struct InstallationWizardView: View {
 
     // UI state
     @State private var isInitializing = true
+    @State private var preflightStart = Date()
     @State private var systemState: WizardSystemState = .initializing
     @State private var currentIssues: [WizardIssue] = []
 
@@ -298,15 +299,15 @@ struct InstallationWizardView: View {
         stateManager.configure(kanataManager: kanataManager)
         autoFixer.configure(kanataManager: kanataManager, toastManager: toastManager)
 
-        // Show UI immediately with minimal setup
+        // Show preflight UI while preparing checks
         Task {
-            // Instant UI rendering - no delay
             await MainActor.run {
-                isInitializing = false // Show wizard UI immediately
-                // Set basic default state so UI can render
+                // Start preflight timer and initial state
+                preflightStart = Date()
+                isInitializing = true
                 systemState = .initializing
                 currentIssues = []
-                AppLogger.shared.log("🚀 [Wizard] UI shown immediately, heavy checks deferred")
+                AppLogger.shared.log("🚀 [Wizard] Preflight shown, heavy checks deferred")
             }
 
             // Defer heavy system detection to background
@@ -340,8 +341,17 @@ struct InstallationWizardView: View {
             // Start at summary page - no auto navigation
             // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
-            withAnimation {
-                isInitializing = false
+            // Ensure a smooth minimum preflight duration (e.g., 1.2s)
+            let minDuration: TimeInterval = 1.2
+            let elapsed = Date().timeIntervalSince(preflightStart)
+            let remaining = max(0, minDuration - elapsed)
+            Task { @MainActor in
+                if remaining > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+                }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isInitializing = false
+                }
             }
 
             AppLogger.shared.log(
