@@ -383,7 +383,7 @@ struct WizardInputMonitoringPage: View {
 
         if FeatureFlags.useAutomaticPermissionPrompts {
             // Use automatic prompt via IOHIDRequestAccess()
-            let alreadyGranted = PermissionRequestService.shared.requestInputMonitoringPermission()
+            let alreadyGranted = PermissionRequestService.shared.requestInputMonitoringPermission(ignoreCooldown: true)
             if alreadyGranted {
                 Task { await onRefresh() }
                 return

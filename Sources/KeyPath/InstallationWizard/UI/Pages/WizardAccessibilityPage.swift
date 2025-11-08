@@ -333,7 +333,7 @@ struct WizardAccessibilityPage: View {
         AppLogger.shared.log("🔐 [WizardAccessibilityPage] Accessibility permission flow starting")
 
         if FeatureFlags.useAutomaticPermissionPrompts {
-            let alreadyGranted = PermissionRequestService.shared.requestAccessibilityPermission()
+            let alreadyGranted = PermissionRequestService.shared.requestAccessibilityPermission(ignoreCooldown: true)
             if alreadyGranted {
                 Task { await onRefresh() }
                 return

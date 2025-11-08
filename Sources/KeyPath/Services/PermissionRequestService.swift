@@ -23,6 +23,13 @@ final class PermissionRequestService {
         NSApplication.shared.isActive
     }
 
+    private func ensureForeground() {
+        if !NSApplication.shared.isActive {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            AppLogger.shared.info("ℹ️ [PermissionRequest] Activated app to foreground for system prompt")
+        }
+    }
+
     private func withinCooldown(_ key: String) -> Bool {
         let last = UserDefaults.standard.double(forKey: key)
         guard last > 0 else { return false }
@@ -38,13 +45,14 @@ final class PermissionRequestService {
     /// Request Input Monitoring permission using IOHIDRequestAccess().
     /// - Returns: true if already granted (no prompt shown), false otherwise.
     @discardableResult
-    func requestInputMonitoringPermission() -> Bool {
+    func requestInputMonitoringPermission(ignoreCooldown: Bool = false) -> Bool {
         // Foreground and cooldown guards
+        ensureForeground()
         if !isForeground() {
             AppLogger.shared.warn("⚠️ [PermissionRequest] Skipping IOHIDRequestAccess - app not foreground")
             return false
         }
-        if withinCooldown(lastPromptIMKey) {
+        if !ignoreCooldown, withinCooldown(lastPromptIMKey) {
             AppLogger.shared.info("ℹ️ [PermissionRequest] Skipping IOHIDRequestAccess - within cooldown")
             return false
         }
@@ -65,13 +73,14 @@ final class PermissionRequestService {
     /// Request Accessibility permission using AXIsProcessTrustedWithOptions().
     /// - Returns: true if already granted (no prompt shown), false otherwise.
     @discardableResult
-    func requestAccessibilityPermission() -> Bool {
+    func requestAccessibilityPermission(ignoreCooldown: Bool = false) -> Bool {
         // Foreground and cooldown guards
+        ensureForeground()
         if !isForeground() {
             AppLogger.shared.warn("⚠️ [PermissionRequest] Skipping AX prompt - app not foreground")
             return false
         }
-        if withinCooldown(lastPromptAXKey) {
+        if !ignoreCooldown, withinCooldown(lastPromptAXKey) {
             AppLogger.shared.info("ℹ️ [PermissionRequest] Skipping AX prompt - within cooldown")
             return false
         }
