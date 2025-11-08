@@ -9,11 +9,12 @@
     <key>BundleProgram</key>
     <string>Contents/Library/KeyPath/kanata</string>
     
-    <!-- Program arguments: config path and TCP port -->
+    <!-- Program arguments: program path (required even with BundleProgram) and config -->
     <!-- Note: Config path uses ~ which will be expanded by launchd -->
     <!-- TCP port defaults to 37001, can be overridden via environment if needed -->
     <key>ProgramArguments</key>
     <array>
+        <string>Contents/Library/KeyPath/kanata</string>
         <string>--cfg</string>
         <string>~/.config/keypath/keypath.kbd</string>
         <string>--port</string>
