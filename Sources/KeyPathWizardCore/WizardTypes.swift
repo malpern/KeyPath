@@ -471,29 +471,32 @@ public protocol WizardNavigating {
 // MARK: - Helper Extensions
 
 public extension Array where Element == WizardIssue {
-    /// Formats issues into a tooltip-friendly string for hover text
-    /// Returns empty string if no issues, single issue details if one issue,
-    /// or numbered list if multiple issues
+    /// Concise tooltip text: short and readable.
+    /// - Single issue: "Title — short description"
+    /// - Multiple issues: bullet list of up to 3 titles, then "… and N more"
+    /// Descriptions are truncated to ~90 chars to keep tooltips compact.
     func asTooltipText() -> String {
         guard !isEmpty else { return "" }
 
-        if count == 1 {
-            let issue = self[0]
-            return """
-            \(issue.title)
-
-            \(issue.description)
-            """
+        func truncate(_ s: String, limit: Int = 90) -> String {
+            if s.count <= limit { return s }
+            let end = s.index(s.startIndex, offsetBy: limit)
+            return String(s[s.startIndex..<end]).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
         }
 
-        // Multiple issues - show numbered list
-        return enumerated()
-            .map { index, issue in
-                """
-                \(index + 1). \(issue.title)
-                   \(issue.description)
-                """
-            }
-            .joined(separator: "\n\n")
+        if count == 1 {
+            let issue = self[0]
+            let summary = truncate(issue.description)
+            return summary.isEmpty ? issue.title : "\(issue.title) — \(summary)"
+        }
+
+        let maxItems = 3
+        let lines = prefix(maxItems).map { "• " + $0.title }
+        let remaining = count - lines.count
+        if remaining > 0 {
+            return (lines + ["… and \(remaining) more"]).joined(separator: "\n")
+        } else {
+            return lines.joined(separator: "\n")
+        }
     }
 }

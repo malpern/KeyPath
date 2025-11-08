@@ -517,14 +517,17 @@ private struct HoverableRow<Content: View>: View {
         content()
             .padding(.vertical, WizardDesign.Spacing.labelGap)
             .padding(.horizontal, WizardDesign.Spacing.cardPadding)
-            .background(
+            .overlay(alignment: .center) {
+                // 1px horizontal inset so the hover background doesn't touch edges
                 RoundedRectangle(cornerRadius: 8)
                     .fill(hovering ? Color.primary.opacity(0.04) : Color.clear)
-            )
-            .overlay(
+                    .padding(.horizontal, 1)
+            }
+            .overlay(alignment: .center) {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(hovering ? WizardDesign.Colors.border.opacity(0.25) : Color.clear, lineWidth: 1)
-            )
+                    .padding(.horizontal, 1)
+            }
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: 0.15)) {
                     self.hovering = hovering
