@@ -1042,8 +1042,18 @@ class KanataManager {
     }
 
     /// Start the automatic Kanata launch sequence
+    /// Optimization: Skips auto-launch if service is already running (just syncs state)
     func startAutoLaunch(presentWizardOnFailure: Bool = true) async {
         AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
+
+        // Optimization: Fast check if service is already running - skip auto-launch if so
+        if Self.isProcessRunningFast() {
+            AppLogger.shared.log("⏭️ [KanataManager] Service already running (fast check) - skipping auto-launch")
+            // Still sync state to ensure UI is accurate
+            await refreshStatus()
+            AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE (skipped, service running) ==========")
+            return
+        }
 
         // Check if this is a fresh install firs
         let isFreshInstall = isFirstTimeInstall()
@@ -1540,44 +1550,100 @@ class KanataManager {
         }
     }
 
+    /// Fast process check using pgrep (instant, no async overhead)
+    /// Returns true if kanata process is running, false otherwise
+    nonisolated private static func isProcessRunningFast() -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        process.arguments = ["-x", "kanata"]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            return process.terminationStatus == 0 && !output.isEmpty
+        } catch {
+            return false
+        }
+    }
+
     /// Wait for the kanata service to be ready and fully started
     /// Returns true if service becomes ready within timeout, false otherwise
-    func waitForServiceReady(timeout: TimeInterval = 10.0) async -> Bool {
+    /// Optimized with fast process check and reduced timeout/poll interval
+    func waitForServiceReady(timeout: TimeInterval = 3.0) async -> Bool {
         let startTime = Date()
 
         AppLogger.shared.log("⏳ [KanataManager] Waiting for service to be ready (timeout: \(timeout)s)")
 
-        // Fast path - already running
+        // Ultra-fast path - check process directly (instant, no async overhead)
+        if Self.isProcessRunningFast() {
+            AppLogger.shared.info("✅ [KanataManager] Service already running (fast check)")
+            // Still update status to sync internal state, but don't wait for it
+            Task {
+                await updateStatus()
+            }
+            return true
+        }
+
+        // Fast path - check internal state (may be cached)
         await updateStatus()
         if await MainActor.run(body: { currentState == .running }) {
             AppLogger.shared.info("✅ [KanataManager] Service already ready")
             return true
         }
 
-        // Poll until ready or timeou
+        // Early exit if service is in a failed state
+        let initialState = await MainActor.run { currentState }
+        if initialState == .needsHelp || initialState == .stopped {
+            AppLogger.shared.error("❌ [KanataManager] Service in failed state: \(initialState.rawValue)")
+            return false
+        }
+
+        // Poll until ready or timeout (reduced poll interval for faster detection)
+        let pollInterval: UInt64 = 250_000_000 // 0.25 seconds (faster than 0.5s)
         while Date().timeIntervalSince(startTime) < timeout {
-            // Wait a bit before checking again
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            // Wait before checking again
+            try? await Task.sleep(nanoseconds: pollInterval)
 
-            await updateStatus()
+            // Fast process check first (cheaper than full status update)
+            if Self.isProcessRunningFast() {
+                // Process is running, update status to sync state
+                await updateStatus()
+                let state = await MainActor.run { currentState }
+                if state == .running {
+                    let elapsed = Date().timeIntervalSince(startTime)
+                    AppLogger.shared.info("✅ [KanataManager] Service became ready after \(String(format: "%.2f", elapsed))s")
+                    return true
+                }
+            } else {
+                // Process not running, do full status check
+                await updateStatus()
+                let state = await MainActor.run { currentState }
 
-            let state = await MainActor.run { currentState }
+                if state == .running {
+                    let elapsed = Date().timeIntervalSince(startTime)
+                    AppLogger.shared.info("✅ [KanataManager] Service became ready after \(String(format: "%.2f", elapsed))s")
+                    return true
+                }
 
-            if state == .running {
-                let elapsed = Date().timeIntervalSince(startTime)
-                AppLogger.shared.info("✅ [KanataManager] Service became ready after \(String(format: "%.1f", elapsed))s")
-                return true
-            }
-
-            if state == .needsHelp || state == .stopped {
-                AppLogger.shared.error("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
-                return false
+                if state == .needsHelp || state == .stopped {
+                    AppLogger.shared.error("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
+                    return false
+                }
             }
 
             // Still starting, keep waiting
         }
 
-        AppLogger.shared.log("⏱️ [KanataManager] Service ready timeout after \(timeout)s")
+        let elapsed = Date().timeIntervalSince(startTime)
+        AppLogger.shared.log("⏱️ [KanataManager] Service ready timeout after \(String(format: "%.2f", elapsed))s")
         return false
     }
 

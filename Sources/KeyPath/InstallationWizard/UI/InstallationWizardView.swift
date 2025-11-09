@@ -310,6 +310,7 @@ struct InstallationWizardView: View {
                 systemState = .initializing
                 currentIssues = []
                 AppLogger.shared.log("🚀 [Wizard] Preflight shown, starting validation")
+                AppLogger.shared.log("⏱️ [TIMING] Wizard preflight START")
             }
 
             // Small delay to ensure UI is ready before starting heavy checks
@@ -334,6 +335,7 @@ struct InstallationWizardView: View {
         }
 
         AppLogger.shared.log("🔍 [Wizard] Performing initial state check")
+        AppLogger.shared.log("⏱️ [TIMING] Wizard validation START")
 
         let operation = WizardOperations.stateDetection(
             stateManager: stateManager,
@@ -346,6 +348,8 @@ struct InstallationWizardView: View {
         )
 
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
+            let wizardDuration = Date().timeIntervalSince(preflightStart)
+            AppLogger.shared.log("⏱️ [TIMING] Wizard validation COMPLETE: \(String(format: "%.3f", wizardDuration))s")
             systemState = result.state
             currentIssues = result.issues
             // Start at summary page - no auto navigation

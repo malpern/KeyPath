@@ -45,6 +45,11 @@ class MainAppStateController: ObservableObject {
     private weak var kanataManager: KanataManager?
     private var hasRunInitialValidation = false
 
+    // MARK: - Validation Cooldown (Optimization: Skip redundant validations on rapid restarts)
+
+    private var lastValidationTime: Date?
+    private let validationCooldown: TimeInterval = 30.0 // Skip validation if completed within last 30 seconds
+
     // MARK: - Initialization
 
     init() {
@@ -110,9 +115,18 @@ class MainAppStateController: ObservableObject {
 
     /// Perform initial validation on app launch
     /// Can be called multiple times - first time waits for service, subsequent times validate immediately
+    /// Optimization: Skips validation if completed within cooldown period (30s) to avoid redundant work on rapid restarts
     func performInitialValidation() async {
         guard let kanataManager else {
             AppLogger.shared.warn("⚠️ [MainAppStateController] Cannot validate - not configured")
+            return
+        }
+
+        // Optimization: Skip validation if recently completed (prevents redundant work on rapid restarts)
+        if let lastTime = lastValidationTime,
+           Date().timeIntervalSince(lastTime) < validationCooldown {
+            let timeSince = Int(Date().timeIntervalSince(lastTime))
+            AppLogger.shared.log("⏭️ [MainAppStateController] Skipping validation - completed \(timeSince)s ago (cooldown: \(Int(validationCooldown))s)")
             return
         }
 
@@ -125,9 +139,17 @@ class MainAppStateController: ObservableObject {
             // Set checking state
             validationState = .checking
 
+            let firstRunStart = Date()
+
             // Wait for services to be ready (first time only)
+            // Optimized: Reduced timeout from 10s to 3s, fast process check added
             AppLogger.shared.log("⏳ [MainAppStateController] Waiting for kanata service to be ready...")
-            let isReady = await kanataManager.waitForServiceReady(timeout: 10.0)
+            AppLogger.shared.log("⏱️ [TIMING] Service wait START")
+            let serviceWaitStart = Date()
+            let isReady = await kanataManager.waitForServiceReady(timeout: 3.0)
+            let serviceWaitDuration = Date().timeIntervalSince(serviceWaitStart)
+            AppLogger.shared.log("⏱️ [TIMING] Service wait COMPLETE: \(String(format: "%.3f", serviceWaitDuration))s (ready: \(isReady))")
+            AppLogger.shared.log("⏱️ [MainAppStateController] Service wait completed in \(String(format: "%.3f", serviceWaitDuration))s (ready: \(isReady))")
 
             if !isReady {
                 AppLogger.shared.log("⏱️ [MainAppStateController] Service did not become ready within timeout")
@@ -137,6 +159,8 @@ class MainAppStateController: ObservableObject {
 
             // Clear startup mode flag now that services are ready
             // This ensures Oracle runs full permission checks for accurate results
+            let cacheStart = Date()
+            AppLogger.shared.log("⏱️ [TIMING] Cache operations START")
             if FeatureFlags.shared.startupModeActive {
                 FeatureFlags.shared.deactivateStartupMode()
                 AppLogger.shared.log("🔍 [MainAppStateController] Cleared startup mode flag for accurate validation")
@@ -145,6 +169,17 @@ class MainAppStateController: ObservableObject {
                 await PermissionOracle.shared.invalidateCache()
                 AppLogger.shared.debug("🔍 [MainAppStateController] Invalidated Oracle cache to force fresh permission checks")
             }
+            let cacheDuration = Date().timeIntervalSince(cacheStart)
+            if cacheDuration > 0.01 {
+                AppLogger.shared.log("⏱️ [TIMING] Cache operations COMPLETE: \(String(format: "%.3f", cacheDuration))s")
+                AppLogger.shared.log("⏱️ [MainAppStateController] Cache operations completed in \(String(format: "%.3f", cacheDuration))s")
+            } else {
+                AppLogger.shared.log("⏱️ [TIMING] Cache operations COMPLETE: \(String(format: "%.3f", cacheDuration))s (skipped)")
+            }
+
+            let firstRunDuration = Date().timeIntervalSince(firstRunStart)
+            AppLogger.shared.log("⏱️ [TIMING] First-run overhead COMPLETE: \(String(format: "%.3f", firstRunDuration))s (service wait + cache)")
+            AppLogger.shared.log("⏱️ [MainAppStateController] First-run overhead: \(String(format: "%.3f", firstRunDuration))s (service wait + cache)")
         } else {
             AppLogger.shared.info("🔄 [MainAppStateController] Revalidation (skipping service wait)")
         }
@@ -154,9 +189,22 @@ class MainAppStateController: ObservableObject {
     }
 
     /// Manual refresh (explicit user action only)
+    /// If force=true, bypasses cooldown and always validates
     func refreshValidation(force: Bool = false) async {
         AppLogger.shared.info("🔄 [MainAppStateController] Manual refresh requested (force: \(force))")
+        if force {
+            // Force refresh: clear cooldown
+            lastValidationTime = nil
+            AppLogger.shared.log("🔄 [MainAppStateController] Force refresh - cooldown cleared")
+        }
         await performValidation()
+    }
+
+    /// Invalidate validation cooldown (call when system state may have changed externally)
+    /// Called automatically when wizard closes to ensure fresh validation after setup changes
+    func invalidateValidationCooldown() {
+        lastValidationTime = nil
+        AppLogger.shared.log("🔄 [MainAppStateController] Validation cooldown invalidated")
     }
 
     // MARK: - Private Implementation
@@ -169,10 +217,17 @@ class MainAppStateController: ObservableObject {
 
         validationState = .checking
 
+        let validationStart = Date()
         AppLogger.shared.log("🎯 [MainAppStateController] Running SystemValidator (Phase 3)")
+        AppLogger.shared.log("⏱️ [TIMING] Main screen validation START")
 
         // Get fresh state from validator (defensive assertions active)
+        // Note: Main screen doesn't use progress callback (wizard does)
         let snapshot = await validator.checkSystem()
+
+        let validationDuration = Date().timeIntervalSince(validationStart)
+        AppLogger.shared.log("⏱️ [TIMING] Main screen validation COMPLETE: \(String(format: "%.3f", validationDuration))s")
+        AppLogger.shared.log("⏱️ [MainAppStateController] Validation completed in \(String(format: "%.3f", validationDuration))s")
 
         // 📊 LOG RAW SNAPSHOT DATA
         AppLogger.shared.debug("📊 [MainAppStateController] === RAW SNAPSHOT DATA ===")
@@ -205,6 +260,7 @@ class MainAppStateController: ObservableObject {
         // Update published state
         issues = result.issues
         lastValidationDate = Date()
+        lastValidationTime = Date() // Track for cooldown optimization
 
         // Determine validation state
         let blockingIssues = result.issues.filter { issue in

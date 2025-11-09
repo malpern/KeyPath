@@ -157,6 +157,9 @@ class SystemValidator {
         let conflictsStart = Date()
         let healthStart = Date()
 
+        // Log validation start with structured timing marker
+        AppLogger.shared.log("⏱️ [TIMING] Validation #\(myID) START: \(String(format: "%.3f", startTime.timeIntervalSince1970))")
+
         // Run all checks in parallel, tracking progress as each completes
         // Use a Sendable enum to wrap results
         enum ValidationResult: Sendable {
@@ -179,7 +182,7 @@ class SystemValidator {
                 let start = helperStart
                 let result = await self.checkHelper()
                 let duration = Date().timeIntervalSince(start)
-                AppLogger.shared.log("⏱️ [SystemValidator] Step 1 (Helper) completed in \(String(format: "%.3f", duration))s")
+                AppLogger.shared.log("⏱️ [TIMING] Step 1 (Helper) completed in \(String(format: "%.3f", duration))s")
                 updateProgress(1)
                 return .helper(result)
             }
@@ -187,7 +190,7 @@ class SystemValidator {
                 let start = permissionsStart
                 let result = await self.checkPermissions()
                 let duration = Date().timeIntervalSince(start)
-                AppLogger.shared.log("⏱️ [SystemValidator] Step 2 (Permissions) completed in \(String(format: "%.3f", duration))s")
+                AppLogger.shared.log("⏱️ [TIMING] Step 2 (Permissions) completed in \(String(format: "%.3f", duration))s")
                 updateProgress(2)
                 return .permissions(result)
             }
@@ -195,7 +198,7 @@ class SystemValidator {
                 let start = componentsStart
                 let result = await self.checkComponents()
                 let duration = Date().timeIntervalSince(start)
-                AppLogger.shared.log("⏱️ [SystemValidator] Step 3 (Components) completed in \(String(format: "%.3f", duration))s")
+                AppLogger.shared.log("⏱️ [TIMING] Step 3 (Components) completed in \(String(format: "%.3f", duration))s")
                 updateProgress(3)
                 return .components(result)
             }
@@ -203,7 +206,7 @@ class SystemValidator {
                 let start = conflictsStart
                 let result = await self.checkConflicts()
                 let duration = Date().timeIntervalSince(start)
-                AppLogger.shared.log("⏱️ [SystemValidator] Step 4 (Conflicts) completed in \(String(format: "%.3f", duration))s")
+                AppLogger.shared.log("⏱️ [TIMING] Step 4 (Conflicts) completed in \(String(format: "%.3f", duration))s")
                 updateProgress(4)
                 return .conflicts(result)
             }
@@ -211,7 +214,7 @@ class SystemValidator {
                 let start = healthStart
                 let result = await self.checkHealth()
                 let duration = Date().timeIntervalSince(start)
-                AppLogger.shared.log("⏱️ [SystemValidator] Step 5 (Health) completed in \(String(format: "%.3f", duration))s")
+                AppLogger.shared.log("⏱️ [TIMING] Step 5 (Health) completed in \(String(format: "%.3f", duration))s")
                 updateProgress(5)
                 return .health(result)
             }
@@ -252,6 +255,9 @@ class SystemValidator {
         }
 
         progressCallback(1.0) // All done: 100%
+
+        let totalDuration = Date().timeIntervalSince(startTime)
+        AppLogger.shared.log("⏱️ [TIMING] Validation #\(myID) COMPLETE: Total duration \(String(format: "%.3f", totalDuration))s")
 
         let snapshot = SystemSnapshot(
             permissions: permissions,

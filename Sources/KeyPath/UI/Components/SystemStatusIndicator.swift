@@ -69,8 +69,10 @@ struct SystemStatusIndicator: View {
                     Image(systemName: "gear")
                         .rotationEffect(.degrees(isAnimating ? 360 : 0))
                         .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
-                        .onAppear { isAnimating = true }
-                        .onDisappear { isAnimating = false }
+                        .onAppear { 
+                            isAnimating = true 
+                        }
+                        // Don't stop animation on disappear - let it continue during transition
                         .transition(.opacity)
                 case .success:
                     Image(systemName: "checkmark.circle.fill")
@@ -90,13 +92,26 @@ struct SystemStatusIndicator: View {
                 Image(systemName: "gear")
                     .rotationEffect(.degrees(isAnimating ? 360 : 0))
                     .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
-                    .onAppear { isAnimating = true }
-                    .onDisappear { isAnimating = false }
+                    .onAppear { 
+                        isAnimating = true 
+                    }
+                    // Don't stop animation on disappear - let it continue during transition
                     .transition(.opacity)
             }
         }
         .frame(width: indicatorSize, height: indicatorSize) // Fixed size to prevent jumps
         .animation(.easeInOut(duration: 0.3), value: iconIdentifier) // Smooth animation between states
+        .onChange(of: validator.validationState) { oldState, newState in
+            // Stop animation only when we're definitely not checking anymore
+            if case .checking = newState {
+                isAnimating = true
+            } else {
+                // Small delay before stopping to allow transition to complete
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isAnimating = false
+                }
+            }
+        }
     }
 
     /// Unique identifier for the current icon state to trigger animations

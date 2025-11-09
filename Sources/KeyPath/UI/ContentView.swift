@@ -513,6 +513,14 @@ struct ContentView: View {
                 await stateController.performInitialValidation()
             }
         }
+
+        // Invalidate validation cooldown when wizard closes (system state may have changed)
+        NotificationCenter.default.addObserver(forName: .wizardClosed, object: nil, queue: .main) { [stateController] _ in
+            AppLogger.shared.log("🔄 [ContentView] Wizard closed - invalidating validation cooldown")
+            Task { @MainActor in
+                stateController.invalidateValidationCooldown()
+            }
+        }
     }
 
     // Status monitoring functions removed - now handled centrally by SimpleKanataManager
