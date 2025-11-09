@@ -137,6 +137,7 @@ struct DiagnosticsView: View {
         }
         .sheet(isPresented: $showingWizard) {
             InstallationWizardView()
+                .customizeSheetWindow() // Remove border and fix dark mode
                 .environmentObject(kanataManager)
         }
     }

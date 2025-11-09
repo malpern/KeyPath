@@ -129,9 +129,10 @@ struct SettingsView: View {
             DiagnosticsView(kanataManager: kanataManager)
         }
         .sheet(isPresented: $showingInstallationWizard) {
-            // If helper isn’t installed, start wizard on Helper page
+            // If helper isn't installed, start wizard on Helper page
             let startPage: WizardPage? = HelperManager.shared.isHelperInstalled() ? nil : .helper
             InstallationWizardView(initialPage: startPage)
+                .customizeSheetWindow() // Remove border and fix dark mode
                 .onAppear {
                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard sheet is being presented")
                 }

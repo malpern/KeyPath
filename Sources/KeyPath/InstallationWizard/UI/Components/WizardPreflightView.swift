@@ -3,7 +3,7 @@ import SwiftUI
 /// Compact preflight view shown while initial checks run
 struct WizardPreflightView: View {
     @Binding var progress: Double
-    
+
     init(progress: Binding<Double> = .constant(0.0)) {
         _progress = progress
     }
@@ -24,5 +24,6 @@ struct WizardPreflightView: View {
             .frame(height: 18)
         }
         .padding(.vertical, 16)
+        .background(WizardDesign.Colors.wizardBackground) // Dark mode-aware background
     }
 }

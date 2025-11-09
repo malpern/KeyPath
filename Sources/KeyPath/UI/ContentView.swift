@@ -213,6 +213,7 @@ struct ContentView: View {
             }()
 
             InstallationWizardView(initialPage: initialPage)
+                .customizeSheetWindow() // Remove border and fix dark mode
                 .onAppear {
                     AppLogger.shared.log("🔍 [ContentView] Installation wizard sheet is being presented")
                     if let page = initialPage {
