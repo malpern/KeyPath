@@ -384,7 +384,6 @@ struct ServiceManagementSection: View {
     @ObservedObject var kanataManager: KanataViewModel
     @State private var activeMethod: ServiceMethod = .unknown
     @State private var isMigrating = false
-    @State private var isRollingBack = false
     @State private var statusMessage: String = ""
     @State private var showSuccessMessage = false
     @State private var showErrorMessage = false
@@ -423,6 +422,7 @@ struct ServiceManagementSection: View {
 
             // Action buttons
             HStack(spacing: 8) {
+                // Migration button - only show if legacy is detected (auto-resolve should handle it, but keep as utility)
                 if activeMethod == .launchctl {
                     Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
                         guard !isMigrating else { return }
@@ -441,26 +441,6 @@ struct ServiceManagementSection: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .disabled(isMigrating)
-                }
-
-                if activeMethod == .smappservice {
-                    Button(isRollingBack ? "Rolling Back…" : "Rollback to launchctl") {
-                        guard !isRollingBack else { return }
-                        isRollingBack = true
-                        Task { @MainActor in
-                            do {
-                                try await KanataDaemonManager.shared.rollbackToLaunchctl()
-                                showToast("✅ Rolled back to launchctl", isError: false)
-                                await refreshStatus()
-                            } catch {
-                                showToast("❌ Rollback failed: \(error.localizedDescription)", isError: true)
-                            }
-                            isRollingBack = false
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(isRollingBack)
                 }
 
                 Spacer()

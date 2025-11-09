@@ -241,7 +241,7 @@ struct WizardKanataComponentsPage: View {
         if case let .component(component) = issue.identifier {
             switch component {
             case .kanataBinaryMissing:
-                return "The kanata binary needs to be installed to system location from KeyPath's bundled Developer ID signed version"
+                return "Kanata binary is bundled with KeyPath and ready for use (SMAppService uses BundleProgram)"
             case .kanataService:
                 return "Service configuration files for running kanata in the background"
             default:

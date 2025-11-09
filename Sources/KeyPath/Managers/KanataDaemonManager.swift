@@ -81,9 +81,9 @@ class KanataDaemonManager {
             self == .uninstalled
         }
 
-        /// Returns true if migration is needed (legacy exists but feature flag requires SMAppService)
-        func needsMigration(featureFlagEnabled: Bool) -> Bool {
-            self == .legacyActive && featureFlagEnabled
+        /// Returns true if migration is needed (legacy exists - we always use SMAppService now)
+        func needsMigration() -> Bool {
+            self == .legacyActive || self == .conflicted
         }
     }
 
@@ -214,24 +214,17 @@ class KanataDaemonManager {
     }
 
     /// Check if SMAppService is currently being used for Kanata daemon management
-    /// - Returns: true if feature flag is enabled AND SMAppService is registered
-    /// This is a convenience method to avoid repeating the check throughout the codebase
+    /// - Returns: true if SMAppService is registered
     nonisolated static var isUsingSMAppService: Bool {
-        FeatureFlags.useSMAppServiceForDaemon && Self.isRegisteredViaSMAppService()
+        Self.isRegisteredViaSMAppService()
     }
 
     /// Get the active plist path for Kanata service
-    /// - Returns: SMAppService plist path if active, otherwise legacy plist path
-    /// This provides a single source of truth for plist location
+    /// - Returns: SMAppService plist path (always uses SMAppService now)
     nonisolated static func getActivePlistPath() -> String {
-        if isUsingSMAppService {
-            // SMAppService-managed: plist is in app bundle
-            let bundlePath = Bundle.main.bundlePath
-            return "\(bundlePath)/Contents/Library/LaunchDaemons/\(kanataServiceID).plist"
-        } else {
-            // Legacy launchctl: plist is in /Library/LaunchDaemons
-            return "/Library/LaunchDaemons/\(kanataServiceID).plist"
-        }
+        // Always use SMAppService path
+        let bundlePath = Bundle.main.bundlePath
+        return "\(bundlePath)/Contents/Library/LaunchDaemons/\(kanataServiceID).plist"
     }
 
     // MARK: - Registration
@@ -452,26 +445,6 @@ class KanataDaemonManager {
 
         AppLogger.shared.log("❌ [KanataDaemonManager] Service did not start after migration")
         throw KanataDaemonError.migrationFailed("Service did not start after migration (status: \(finalStatus))")
-    }
-
-    /// Rollback from SMAppService to launchctl installation
-    /// - Throws: KanataDaemonError if rollback fails
-    func rollbackToLaunchctl() async throws {
-        AppLogger.shared.log("🔄 [KanataDaemonManager] Rolling back from SMAppService to launchctl")
-
-        // 1. Unregister via SMAppService
-        try await unregister()
-
-        // 2. Reinstall via launchctl (using existing LaunchDaemonInstaller)
-        AppLogger.shared.log("📝 [KanataDaemonManager] Reinstalling via launchctl...")
-        let installer = LaunchDaemonInstaller()
-        let success = await installer.createKanataLaunchDaemon()
-
-        guard success else {
-            throw KanataDaemonError.rollbackFailed("Failed to reinstall via launchctl")
-        }
-
-        AppLogger.shared.info("✅ [KanataDaemonManager] Rollback completed successfully")
     }
 }
 

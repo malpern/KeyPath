@@ -223,9 +223,10 @@ class SystemValidator {
         AppLogger.shared.log("🔍 [SystemValidator] Checking components")
 
         // Check Kanata binary installation
+        // When SMAppService is active, bundled Kanata is sufficient (via BundleProgram).
+        // When launchctl is active, system installation is required (for TCC permissions).
         let kanataBinaryDetector = KanataBinaryDetector.shared
-        let binaryResult = kanataBinaryDetector.detectCurrentStatus()
-        let kanataBinaryInstalled = binaryResult.status == .systemInstalled
+        let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
 
         // Check Karabiner driver - use extension enabled check for accurate status
         let karabinerDriverInstalled = kanataManager?.isKarabinerDriverExtensionEnabled() ?? false

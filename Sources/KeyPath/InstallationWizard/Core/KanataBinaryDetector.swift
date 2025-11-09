@@ -42,7 +42,7 @@ final class KanataBinaryDetector {
             case .systemInstalled:
                 "Kanata is properly installed at system location and ready for LaunchDaemon use"
             case .bundledAvailable:
-                "Kanata binary is bundled with the app and can be installed to system location"
+                "Kanata binary is bundled with the app and ready for SMAppService (via BundleProgram)"
             case .bundledUnsigned:
                 "Kanata binary found but lacks proper Developer ID signature"
             case .missing:
@@ -88,19 +88,32 @@ final class KanataBinaryDetector {
     }
 
     /// Check if kanata needs installation (for auto-fix logic)
+    /// With SMAppService, bundled Kanata is sufficient (via BundleProgram).
     func needsInstallation() -> Bool {
         let result = detectCurrentStatus()
-        return result.status != .systemInstalled
+        // Bundled Kanata with proper signature is ready for SMAppService
+        return result.status == .missing || result.status == .bundledUnsigned
+    }
+
+    /// Check if Kanata binary is installed and ready for use
+    /// With SMAppService, bundled Kanata is considered installed.
+    func isInstalled() -> Bool {
+        let result = detectCurrentStatus()
+        // Bundled Kanata with proper signature is ready for SMAppService
+        return result.status == .bundledAvailable || result.status == .systemInstalled
     }
 
     /// Get recommended installation action
+    /// With SMAppService, no action needed if bundled Kanata is available.
     func getRecommendedAction() -> ComponentRequirement? {
         let result = detectCurrentStatus()
 
         switch result.status {
-        case .systemInstalled:
+        case .bundledAvailable, .systemInstalled:
             return nil // No action needed
-        case .bundledAvailable, .bundledUnsigned, .missing:
+        case .bundledUnsigned:
+            return .kanataBinaryMissing // Needs proper signature
+        case .missing:
             return .kanataBinaryMissing // Needs installation
         }
     }
@@ -160,13 +173,14 @@ final class KanataBinaryDetector {
     // MARK: - Component Integration
 
     /// Convert detection result to ComponentRequirement array for SystemStatusChecker
+    /// With SMAppService, bundled Kanata is considered installed.
     func getMissingComponents() -> [ComponentRequirement] {
         let result = detectCurrentStatus()
 
         switch result.status {
-        case .systemInstalled:
+        case .bundledAvailable, .systemInstalled:
             return [] // No missing components
-        case .bundledAvailable, .bundledUnsigned, .missing:
+        case .bundledUnsigned, .missing:
             return [.kanataBinaryMissing]
         }
     }

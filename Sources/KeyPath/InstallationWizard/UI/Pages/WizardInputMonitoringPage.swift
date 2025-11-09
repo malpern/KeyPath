@@ -29,41 +29,16 @@ struct WizardInputMonitoringPage: View {
 
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Green eye icon with green check overlay
-                        ZStack {
-                            Image(systemName: "eye")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
-
-                            // Green check overlay in top right
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.success)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
+                        WizardHeroSection.success(
+                            icon: "eye",
+                            title: "Input Monitoring",
+                            subtitle: "KeyPath has permission to capture keyboard events",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
                                 }
-                                Spacer()
                             }
-                            .frame(width: 115, height: 115)
-                        }
-
-                        // Headline
-                        Text("Input Monitoring")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Subtitle
-                        Text("KeyPath has permission to capture keyboard events")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+                        )
 
                         // Component details card below the subheading - horizontally centered
                         HStack {
@@ -115,41 +90,16 @@ struct WizardInputMonitoringPage: View {
 
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Orange eye icon with warning overlay
-                        ZStack {
-                            Image(systemName: "eye")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.warning)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
-
-                            // Warning overlay in top right
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.warning)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
+                        WizardHeroSection.warning(
+                            icon: "eye",
+                            title: "Input Monitoring Required",
+                            subtitle: "KeyPath needs Input Monitoring permission to capture keyboard events for remapping",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
                                 }
-                                Spacer()
                             }
-                            .frame(width: 115, height: 115)
-                        }
-
-                        // Headline
-                        Text("Input Monitoring Required")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Subtitle
-                        Text("KeyPath needs Input Monitoring permission to capture keyboard events for remapping")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+                        )
 
                         // Component details for error state
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
@@ -208,18 +158,6 @@ struct WizardInputMonitoringPage: View {
                         .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                         .padding(.top, WizardDesign.Spacing.pageVertical)
-
-                        // Check Again link
-                        Button("Check Again") {
-                            Task {
-                                await onRefresh()
-
-                                // Oracle handles permission state - no manual marking needed
-                                AppLogger.shared.log("🔮 [WizardInputMonitoringPage] Oracle will detect permission changes automatically")
-                            }
-                        }
-                        .buttonStyle(.link)
-                        .padding(.top, WizardDesign.Spacing.elementGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 

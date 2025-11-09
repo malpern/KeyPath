@@ -27,43 +27,16 @@ struct WizardAccessibilityPage: View {
 
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Green accessibility icon with green check overlay
-                        ZStack {
-                            Image(systemName: "accessibility")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
-
-                            // Green check overlay positioned at right edge
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.success)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 15, y: -5) // Move further right and slightly up
+                        WizardHeroSection.success(
+                            icon: "accessibility",
+                            title: "Accessibility",
+                            subtitle: "KeyPath has system-level access for keyboard monitoring & safety controls",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
                                 }
-                                Spacer()
                             }
-                            .frame(width: 140, height: 115)
-                        }
-
-                        // Headline
-                        Text("Accessibility")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Subtitle
-                        Text("KeyPath has system-level access for keyboard monitoring & safety controls")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
+                        )
 
                         // Component details card below the subheading - horizontally centered
                         HStack {
@@ -115,66 +88,31 @@ struct WizardAccessibilityPage: View {
 
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Orange accessibility icon with warning overlay
-                        ZStack {
-                            Image(systemName: "accessibility")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.warning)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
-
-                            // Warning overlay positioned at right edge
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.warning)
-                                        .offset(x: 15, y: -5) // Move further right and slightly up
+                        WizardHeroSection.warning(
+                            icon: "accessibility",
+                            title: "Accessibility",
+                            subtitle: "Turn on KeyPath in Accessibility, then add and turn on kanata",
+                            iconTapAction: {
+                                Task {
+                                    await onRefresh()
                                 }
-                                Spacer()
                             }
-                            .frame(width: 155, height: 115)
-                        }
-
-                        // Headline
-                        Text("Accessibility")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Subtitle
-                        Text("Turn on KeyPath in Accessibility, then add and turn on kanata")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
+                        )
+                        
                         // Guard: recommend running from /Applications for stable permissions
                         if !isRunningFromApplicationsFolder {
                             Text("For the smoothest setup, move KeyPath to /Applications and relaunch.")
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
+                                .padding(.top, WizardDesign.Spacing.elementGap)
                         }
 
-                        // Action links below the subheader
-                        HStack(spacing: WizardDesign.Spacing.itemGap) {
-                            Button("Check Again") {
-                                Task {
-                                    await onRefresh()
-                                }
-                            }
-                            .buttonStyle(.link)
-
-                            Text("•")
-                                .foregroundColor(.secondary)
-
-                            Button("Open Settings Manually") {
-                                openAccessibilitySettings()
-                            }
-                            .buttonStyle(.link)
+                        // Action link below the subheader
+                        Button("Open Settings Manually") {
+                            openAccessibilitySettings()
                         }
+                        .buttonStyle(.link)
                         .padding(.top, WizardDesign.Spacing.elementGap)
 
                         // Component details for error state

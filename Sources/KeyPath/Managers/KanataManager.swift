@@ -1019,17 +1019,12 @@ class KanataManager {
 
     /// Check if this is a fresh install (no Kanata binary or config)
     private func isFirstTimeInstall() -> Bool {
-        // Check for system-installed Kanata binary (bundled-only doesn't count as installed)
-        let status = KanataBinaryDetector.shared.detectCurrentStatus().status
-        let hasSystemKanataBinary = switch status {
-        case .systemInstalled:
-            true
-        default:
-            false
-        }
+        // Check if Kanata binary is installed (considers SMAppService vs launchctl)
+        let detector = KanataBinaryDetector.shared
+        let isInstalled = detector.isInstalled()
 
-        if !hasSystemKanataBinary {
-            AppLogger.shared.log("🆕 [FreshInstall] No system Kanata binary found - fresh install detected")
+        if !isInstalled {
+            AppLogger.shared.log("🆕 [FreshInstall] Kanata binary not installed - fresh install detected")
             return true
         }
 
@@ -2073,29 +2068,14 @@ class KanataManager {
 
         // Use KanataBinaryDetector for consistent detection logic
         let detector = KanataBinaryDetector.shared
-        let detectionResult = detector.detectCurrentStatus()
 
-        if detectionResult.status != .systemInstalled {
-            AppLogger.shared.log(
-                "⚠️ [Installation] Kanata binary needs installation - status: \(detectionResult.status)")
-
-            // Install bundled kanata binary to system location
-            AppLogger.shared.log("🔧 [Installation] Installing bundled Kanata binary to system location...")
-
-            do {
-                try await PrivilegedOperationsCoordinator.shared.installBundledKanata()
-                AppLogger.shared.info("✅ [Installation] Successfully installed bundled Kanata binary")
-                AppLogger.shared.info("✅ [Installation] Step 1 SUCCESS: Kanata binary installed and verified")
-                stepsCompleted += 1
-            } catch {
-                AppLogger.shared.error("❌ [Installation] Step 1 FAILED: Failed to install bundled Kanata binary: \(error)")
-                AppLogger.shared.log("💡 [Installation] Check system permissions and try running KeyPath with administrator privileges")
-                stepsFailed += 1
-            }
-        } else {
-            AppLogger.shared.log(
-                "✅ [Installation] Step 1 SUCCESS: Kanata binary already exists at \(detectionResult.path ?? "unknown")")
+        // With SMAppService, bundled Kanata is sufficient - no system installation needed
+        if detector.isInstalled() {
+            AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary ready (SMAppService uses bundled path)")
             stepsCompleted += 1
+        } else {
+            AppLogger.shared.log("⚠️ [Installation] Step 1 WARNING: Kanata binary not found in bundle (SMAppService mode)")
+            stepsFailed += 1
         }
 
         // 2. Check if Karabiner driver is installed
@@ -2414,14 +2394,14 @@ class KanataManager {
     }
 
     func getInstallationStatus() -> String {
-        let detection = KanataBinaryDetector.shared.detectCurrentStatus()
+        let detector = KanataBinaryDetector.shared
+        let detection = detector.detectCurrentStatus()
         let driverInstalled = isKarabinerDriverInstalled()
 
+        // With SMAppService, bundled Kanata is sufficient
         switch detection.status {
-        case .systemInstalled:
+        case .bundledAvailable, .systemInstalled:
             return driverInstalled ? "✅ Fully installed" : "⚠️ Driver missing"
-        case .bundledAvailable:
-            return "⚠️ Bundled Kanata available (install to system required)"
         case .bundledUnsigned:
             return "⚠️ Bundled Kanata unsigned (needs Developer ID signature)"
         case .missing:
