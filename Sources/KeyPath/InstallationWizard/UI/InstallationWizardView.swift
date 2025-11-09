@@ -39,8 +39,8 @@ struct InstallationWizardView: View {
 
     var body: some View {
         ZStack {
-            // White background for cross-fade effect
-            Color.white
+            // Dark mode-aware background for cross-fade effect
+            WizardDesign.Colors.wizardBackground
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {

@@ -92,7 +92,7 @@ struct CloseButton: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 12.5, weight: .medium)) // 25% larger (10 * 1.25 = 12.5)
-                .foregroundColor(.white)
+                .foregroundColor(.primary) // Adapts to dark mode
                 .frame(width: 20, height: 20) // 25% larger (16 * 1.25 = 20)
                 .background(
                     Circle()

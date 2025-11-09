@@ -845,10 +845,10 @@ struct AnimatedStatusIcon: View {
             if showInitialClock, status == .completed || status == .failed {
                 // Clock-to-final-state animation for completed/failed items
                 if hasAnimated {
-                    // Final state with white circle background
+                    // Final state with adaptive circle background for contrast
                     ZStack {
                         Circle()
-                            .fill(Color.white)
+                            .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                             .frame(width: 16, height: 16)
                         Image(systemName: finalStateIcon)
                             .foregroundColor(finalStateColor)
@@ -887,10 +887,10 @@ struct AnimatedStatusIcon: View {
                         .font(.system(size: 16))
 
                 case .warning:
-                    // Orange warning triangle with white circle background
+                    // Orange warning triangle with adaptive circle background
                     ZStack {
                         Circle()
-                            .fill(Color.white)
+                            .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                             .frame(width: 16, height: 16)
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(WizardDesign.Colors.warning)
@@ -899,10 +899,10 @@ struct AnimatedStatusIcon: View {
                     .modifier(AvailabilitySymbolBounce())
 
                 case .completed:
-                    // Green checkmark with white circle background
+                    // Green checkmark with adaptive circle background
                     ZStack {
                         Circle()
-                            .fill(Color.white)
+                            .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                             .frame(width: 16, height: 16)
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(WizardDesign.Colors.success)
@@ -911,10 +911,10 @@ struct AnimatedStatusIcon: View {
                     .modifier(AvailabilitySymbolBounce())
 
                 case .failed:
-                    // Red X with white circle background
+                    // Red X with adaptive circle background
                     ZStack {
                         Circle()
-                            .fill(Color.white)
+                            .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                             .frame(width: 16, height: 16)
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(WizardDesign.Colors.error)

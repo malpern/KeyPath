@@ -148,10 +148,10 @@ struct WizardToastView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                // Icon with white circle background
+                // Icon with adaptive circle background
                 ZStack {
                     Circle()
-                        .fill(Color.white)
+                        .fill(Color(NSColor.controlBackgroundColor)) // Adapts to dark mode
                         .frame(width: 16, height: 16)
                     Image(systemName: toast.icon)
                         .foregroundColor(toast.color)
