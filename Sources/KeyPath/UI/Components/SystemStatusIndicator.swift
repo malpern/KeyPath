@@ -201,7 +201,7 @@ struct SystemStatusIndicator: View {
     }
 
     private var iconColor: Color {
-        guard let state = validator.validationState else { return Color.gray }
+        guard let state = validator.validationState else { return Color.secondary }
         switch state {
         case .checking:
             return Color.secondary
