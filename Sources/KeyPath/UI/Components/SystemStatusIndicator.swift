@@ -189,7 +189,7 @@ struct SystemStatusIndicator: View {
     }
 
     private var borderColor: Color {
-        guard let state = validator.validationState else { return Color.clear }
+        guard let state = validator.validationState else { return Color.secondary.opacity(0.25) }
         switch state {
         case .checking:
             return Color.secondary.opacity(0.25)
@@ -213,7 +213,7 @@ struct SystemStatusIndicator: View {
     }
 
     private var shadowColor: Color {
-        guard let state = validator.validationState else { return Color.clear }
+        guard let state = validator.validationState else { return Color.secondary.opacity(0.18) }
         switch state {
         case .checking:
             return Color.secondary.opacity(0.18)
