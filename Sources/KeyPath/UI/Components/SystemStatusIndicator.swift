@@ -16,6 +16,19 @@ struct SystemStatusIndicator: View {
 
     @State private var isAnimating: Bool = false
     @State private var isHovered: Bool = false
+    @State private var rotationDegrees: Double = 0
+    @State private var rotationSpeedDegPerSec: Double = 180 // ~2s per full rotation
+    @State private var animationPhase: AnimationPhase = .stopped
+    @State private var decelStart: Date?
+    @State private var decelInitialSpeed: Double = 0
+
+    private let displayTimer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
+    private enum AnimationPhase {
+        case spinning
+        case decelerating
+        case stopped
+    }
 
     // MARK: - Constants
 
@@ -67,9 +80,13 @@ struct SystemStatusIndicator: View {
                 switch state {
                 case .checking:
                     Image(systemName: "gear")
-                        .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                        .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
-                        .onAppear { isAnimating = true }
+                        .rotationEffect(.degrees(rotationDegrees))
+                        .onAppear {
+                            // Start or resume spinning
+                            rotationSpeedDegPerSec = 180
+                            animationPhase = .spinning
+                            isAnimating = true
+                        }
                         // Don't stop animation on disappear - let it continue during transition
                         .transition(.opacity)
                 case .success:
@@ -78,9 +95,11 @@ struct SystemStatusIndicator: View {
                 case let .failed(blockingCount, _):
                     Group {
                         if blockingCount > 0 {
-                            Image(systemName: "exclamationmark.triangle")
+                            // Match summary page error icon
+                            Image(systemName: "xmark.circle.fill")
                         } else {
-                            Image(systemName: "exclamationmark")
+                            // Warning
+                            Image(systemName: "exclamationmark.triangle")
                         }
                     }
                     .transition(.opacity)
@@ -88,24 +107,50 @@ struct SystemStatusIndicator: View {
             } else {
                 // Before first validation, show animated gear as a neutral entrypoint
                 Image(systemName: "gear")
-                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                    .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
-                    .onAppear { isAnimating = true }
+                    .rotationEffect(.degrees(rotationDegrees))
+                    .onAppear {
+                        rotationSpeedDegPerSec = 180
+                        animationPhase = .spinning
+                        isAnimating = true
+                    }
                     // Don't stop animation on disappear - let it continue during transition
                     .transition(.opacity)
             }
         }
         .frame(width: indicatorSize, height: indicatorSize) // Fixed size to prevent jumps
-        .animation(.easeInOut(duration: 0.3), value: iconIdentifier) // Smooth animation between states
+        .animation(.easeInOut(duration: 0.25), value: iconIdentifier) // Smooth transitions between states
         .onChange(of: validator.validationState) { _, newState in
-            // Stop animation only when we're definitely not checking anymore
+            // Spin during checking; decelerate to a stop when leaving checking
             if case .checking = newState {
+                rotationSpeedDegPerSec = 180
+                animationPhase = .spinning
                 isAnimating = true
             } else {
-                // Small delay before stopping to allow transition to complete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if animationPhase != .stopped {
+                    decelStart = Date()
+                    decelInitialSpeed = max(rotationSpeedDegPerSec, 60) // ensure visible slowdown
+                    animationPhase = .decelerating
+                }
+            }
+        }
+        .onReceive(displayTimer) { _ in
+            switch animationPhase {
+            case .spinning:
+                rotationDegrees = fmod(rotationDegrees + rotationSpeedDegPerSec / 60.0, 360)
+            case .decelerating:
+                guard let start = decelStart else { break }
+                let duration: Double = 0.6
+                let t = min(1.0, Date().timeIntervalSince(start) / duration)
+                // Ease-out (quadratic) speed curve
+                let currentSpeed = (1.0 - t) * (1.0 - t) * decelInitialSpeed
+                rotationDegrees = fmod(rotationDegrees + currentSpeed / 60.0, 360)
+                if t >= 1.0 || currentSpeed < 1.0 {
+                    animationPhase = .stopped
+                    rotationSpeedDegPerSec = 0
                     isAnimating = false
                 }
+            case .stopped:
+                break
             }
         }
     }
