@@ -2,6 +2,38 @@ import Foundation
 import KeyPathCore
 import Network
 
+/// ServerResponse matches the Rust protocol ServerResponse enum
+/// Format: {"status":"Ok"} or {"status":"Error","msg":"..."}
+struct TcpServerResponse: Codable, Sendable {
+    let status: String
+    let msg: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case msg
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        status = try container.decode(String.self, forKey: .status)
+        msg = try container.decodeIfPresent(String.self, forKey: .msg)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(status, forKey: .status)
+        try container.encodeIfPresent(msg, forKey: .msg)
+    }
+
+    var isOk: Bool {
+        status == "Ok"
+    }
+
+    var isError: Bool {
+        status == "Error"
+    }
+}
+
 /// Simple completion flag for thread-safe continuation handling
 private final class CompletionFlag: @unchecked Sendable {
     private var completed = false
@@ -436,8 +468,16 @@ actor KanataTCPClient {
             ]
             let requestData = try JSONSerialization.data(withJSONObject: payload)
             let responseData = try await send(requestData)
-            if let s = String(data: responseData, encoding: .utf8), s.contains("\"status\":\"Ok\"") {
-                return true
+            
+            // Parse response using structured ServerResponse
+            if let responseString = String(data: responseData, encoding: .utf8) {
+                let lines = responseString.split(separator: "\n")
+                if let firstLine = lines.first,
+                   let lineData = String(firstLine).data(using: .utf8),
+                   let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
+                   serverResponse.isOk {
+                    return true
+                }
             }
             return false
         } catch {
@@ -534,19 +574,36 @@ actor KanataTCPClient {
                 }
             }
 
-            // Fallback: Ok/Error contract
+            // Fallback: Ok/Error contract - parse using structured ServerResponse
             let responseString = String(data: responseData, encoding: .utf8) ?? ""
-            if responseString.contains("\"status\":\"Ok\"") || responseString.contains("Live reload successful") {
-                AppLogger.shared.log("✅ [TCP] Config reload successful (fallback)")
-                return .success(response: responseString)
-            } else if responseString.contains("\"status\":\"Error\"") {
-                let error = extractError(from: responseString)
-                return .failure(error: error, response: responseString)
-            } else if responseString.contains("AuthRequired") {
+            let lines = responseString.split(separator: "\n")
+            
+            // Try to parse first line as ServerResponse
+            if let firstLine = lines.first,
+               let lineData = String(firstLine).data(using: .utf8),
+               let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData) {
+                if serverResponse.isOk {
+                    AppLogger.shared.log("✅ [TCP] Config reload successful (fallback)")
+                    return .success(response: responseString)
+                } else if serverResponse.isError {
+                    let errorMsg = serverResponse.msg ?? "Unknown error"
+                    AppLogger.shared.log("❌ [TCP] Config reload failed: \(errorMsg)")
+                    return .failure(error: errorMsg, response: responseString)
+                }
+            }
+
+            // Check for AuthRequired message
+            if responseString.contains("AuthRequired") {
                 return .authenticationRequired
             }
 
-            return .failure(error: "Unexpected response format", response: String(data: responseData, encoding: .utf8) ?? "")
+            // Legacy fallback: check for "Live reload successful" string (for very old servers)
+            if responseString.contains("Live reload successful") {
+                AppLogger.shared.log("✅ [TCP] Config reload successful (legacy fallback)")
+                return .success(response: responseString)
+            }
+
+            return .failure(error: "Unexpected response format", response: responseString)
         } catch {
             AppLogger.shared.log("❌ [TCP] Reload error: \(error)")
             return .networkError(error.localizedDescription)
@@ -575,10 +632,16 @@ actor KanataTCPClient {
             let requestData = try JSONEncoder().encode(["Restart": request])
             let responseData = try await send(requestData)
 
-            if let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-               let status = json["status"] as? String, status == "Ok" {
-                AppLogger.shared.log("✅ [TCP] Kanata restart request sent")
-                return true
+            // Parse response using structured ServerResponse
+            if let responseString = String(data: responseData, encoding: .utf8) {
+                let lines = responseString.split(separator: "\n")
+                if let firstLine = lines.first,
+                   let lineData = String(firstLine).data(using: .utf8),
+                   let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
+                   serverResponse.isOk {
+                    AppLogger.shared.log("✅ [TCP] Kanata restart request sent")
+                    return true
+                }
             }
 
             AppLogger.shared.log("❌ [TCP] Unexpected restart response")
@@ -642,7 +705,65 @@ actor KanataTCPClient {
         return false
     }
 
+    /// Read newline-delimited data from connection
+    /// Accumulates data until we have at least one complete line (ending with \n)
+    private func readUntilNewline(on connection: NWConnection) async throws -> Data {
+        final class Accumulator: @unchecked Sendable {
+            var data = Data()
+        }
+        
+        let accumulator = Accumulator()
+        let maxLength = 65536
+
+        while true {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                connection.receive(minimumIncompleteLength: 1, maximumLength: maxLength) { content, _, isComplete, error in
+                    if let error {
+                        continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
+                        return
+                    }
+
+                    if let content {
+                        accumulator.data.append(content)
+                        // Check if we have at least one complete line (ending with \n)
+                        if accumulator.data.contains(0x0A) { // 0x0A is \n
+                            continuation.resume()
+                            return
+                        }
+                    }
+
+                    if isComplete {
+                        // Connection closed - return what we have if we have data, otherwise error
+                        if accumulator.data.isEmpty {
+                            continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Connection closed")))
+                        } else {
+                            // Return partial data if connection closed (may be valid for last line)
+                            continuation.resume()
+                        }
+                        return
+                    }
+
+                    // No data yet, continue reading
+                    continuation.resume()
+                }
+            }
+
+            // Check if we have complete line(s) now
+            if accumulator.data.contains(0x0A) {
+                break
+            }
+
+            // If we've accumulated too much without a newline, something is wrong
+            if accumulator.data.count >= maxLength {
+                throw KeyPathError.communication(.connectionFailed(reason: "Response too large or malformed"))
+            }
+        }
+
+        return accumulator.data
+    }
+
     /// Core TCP send/receive implementation
+    /// Properly handles newline-delimited JSON responses without arbitrary delays
     private func sendAndReceive(on connection: NWConnection, data: Data) async throws -> Data {
         try await withCheckedThrowingContinuation { continuation in
             let completionFlag = CompletionFlag()
@@ -656,21 +777,16 @@ actor KanataTCPClient {
                     return
                 }
 
-                // Receive response (TCP streams data, so we need to handle framing)
-                // Kanata sends multiple newline-delimited JSON objects
-                // Wait a bit to accumulate all responses before reading
-                DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
-                    connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { content, _, isComplete, error in
+                // Read response using proper newline-delimited framing
+                Task {
+                    do {
+                        let responseData = try await self.readUntilNewline(on: connection)
                         if completionFlag.markCompleted() {
-                            if let error {
-                                continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: error.localizedDescription)))
-                            } else if let content {
-                                continuation.resume(returning: content)
-                            } else if isComplete {
-                                continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Connection closed")))
-                            } else {
-                                continuation.resume(throwing: KeyPathError.communication(.connectionFailed(reason: "Empty response")))
-                            }
+                            continuation.resume(returning: responseData)
+                        }
+                    } catch {
+                        if completionFlag.markCompleted() {
+                            continuation.resume(throwing: error)
                         }
                     }
                 }
@@ -678,12 +794,29 @@ actor KanataTCPClient {
         }
     }
 
-    /// Extract error message from JSON response
+    /// Extract error message from JSON response using structured parsing
     private func extractError(from response: String) -> String {
-        if let data = response.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let error = json["error"] as? String {
-            return error
+        // Try to parse as ServerResponse first
+        if let data = response.data(using: .utf8) {
+            // Check if it's a single-line response
+            let lines = response.split(separator: "\n")
+            if let firstLine = lines.first,
+               let lineData = String(firstLine).data(using: .utf8) {
+                if let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
+                   serverResponse.isError {
+                    return serverResponse.msg ?? "Unknown error"
+                }
+            }
+
+            // Fallback: try parsing as generic JSON
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let error = json["error"] as? String {
+                    return error
+                }
+                if let msg = json["msg"] as? String {
+                    return msg
+                }
+            }
         }
         return "Unknown error"
     }

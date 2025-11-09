@@ -1,4 +1,5 @@
 import Foundation
+import os.lock
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
@@ -130,37 +131,126 @@ class SystemValidator {
         let startTime = Date()
         AppLogger.shared.log("🔍 [SystemValidator] Starting validation #\(myID)")
 
-        // Check system state (calls existing services)
-        // NOTE: Helper check FIRST - it's required for privileged operations
+        // Check system state in parallel for maximum performance
+        // All checks are independent - no dependencies between them
         progressCallback(0.0) // Start: 0%
+
+        // Track completion count for incremental progress updates
+        let progressLock = OSAllocatedUnfairLock(initialState: 0)
+        let totalSteps = 5.0
+        // Capture progressCallback in a nonisolated closure
+        let callback = progressCallback
+        let updateProgress = { @Sendable (stepNumber: Int) in
+            let completed = progressLock.withLock { (count: inout Int) -> Int in
+                count += 1
+                return count
+            }
+            let progress = Double(completed) / totalSteps
+            callback(progress)
+            AppLogger.shared.log("📊 [SystemValidator] Progress: \(Int(progress * 100))% (\(completed)/\(Int(totalSteps)) steps)")
+        }
+
+        // Track start times for individual step timing
         let helperStart = Date()
-        let helper = await checkHelper()
-        let helperDuration = Date().timeIntervalSince(helperStart)
-        AppLogger.shared.log("⏱️ [SystemValidator] Step 1 (Helper) completed in \(String(format: "%.3f", helperDuration))s")
-        progressCallback(0.2) // Helper done: 20%
-        
         let permissionsStart = Date()
-        let permissions = await checkPermissions()
-        let permissionsDuration = Date().timeIntervalSince(permissionsStart)
-        AppLogger.shared.log("⏱️ [SystemValidator] Step 2 (Permissions) completed in \(String(format: "%.3f", permissionsDuration))s")
-        progressCallback(0.4) // Permissions done: 40%
-        
         let componentsStart = Date()
-        let components = await checkComponents()
-        let componentsDuration = Date().timeIntervalSince(componentsStart)
-        AppLogger.shared.log("⏱️ [SystemValidator] Step 3 (Components) completed in \(String(format: "%.3f", componentsDuration))s")
-        progressCallback(0.6) // Components done: 60%
-        
         let conflictsStart = Date()
-        let conflicts = await checkConflicts()
-        let conflictsDuration = Date().timeIntervalSince(conflictsStart)
-        AppLogger.shared.log("⏱️ [SystemValidator] Step 4 (Conflicts) completed in \(String(format: "%.3f", conflictsDuration))s")
-        progressCallback(0.8) // Conflicts done: 80%
-        
         let healthStart = Date()
-        let health = await checkHealth()
-        let healthDuration = Date().timeIntervalSince(healthStart)
-        AppLogger.shared.log("⏱️ [SystemValidator] Step 5 (Health) completed in \(String(format: "%.3f", healthDuration))s")
+
+        // Run all checks in parallel, tracking progress as each completes
+        // Use a Sendable enum to wrap results
+        enum ValidationResult: Sendable {
+            case helper(HelperStatus)
+            case permissions(PermissionOracle.Snapshot)
+            case components(ComponentStatus)
+            case conflicts(ConflictStatus)
+            case health(HealthStatus)
+        }
+
+        let (helper, permissions, components, conflicts, health) = await withTaskGroup(of: ValidationResult.self) { group in
+            var helperResult: HelperStatus?
+            var permissionsResult: PermissionOracle.Snapshot?
+            var componentsResult: ComponentStatus?
+            var conflictsResult: ConflictStatus?
+            var healthResult: HealthStatus?
+
+            // Add all tasks to group with progress tracking
+            group.addTask {
+                let start = helperStart
+                let result = await self.checkHelper()
+                let duration = Date().timeIntervalSince(start)
+                AppLogger.shared.log("⏱️ [SystemValidator] Step 1 (Helper) completed in \(String(format: "%.3f", duration))s")
+                updateProgress(1)
+                return .helper(result)
+            }
+            group.addTask {
+                let start = permissionsStart
+                let result = await self.checkPermissions()
+                let duration = Date().timeIntervalSince(start)
+                AppLogger.shared.log("⏱️ [SystemValidator] Step 2 (Permissions) completed in \(String(format: "%.3f", duration))s")
+                updateProgress(2)
+                return .permissions(result)
+            }
+            group.addTask {
+                let start = componentsStart
+                let result = await self.checkComponents()
+                let duration = Date().timeIntervalSince(start)
+                AppLogger.shared.log("⏱️ [SystemValidator] Step 3 (Components) completed in \(String(format: "%.3f", duration))s")
+                updateProgress(3)
+                return .components(result)
+            }
+            group.addTask {
+                let start = conflictsStart
+                let result = await self.checkConflicts()
+                let duration = Date().timeIntervalSince(start)
+                AppLogger.shared.log("⏱️ [SystemValidator] Step 4 (Conflicts) completed in \(String(format: "%.3f", duration))s")
+                updateProgress(4)
+                return .conflicts(result)
+            }
+            group.addTask {
+                let start = healthStart
+                let result = await self.checkHealth()
+                let duration = Date().timeIntervalSince(start)
+                AppLogger.shared.log("⏱️ [SystemValidator] Step 5 (Health) completed in \(String(format: "%.3f", duration))s")
+                updateProgress(5)
+                return .health(result)
+            }
+
+            // Collect results as they complete
+            for await result in group {
+                switch result {
+                case .helper(let value): helperResult = value
+                case .permissions(let value): permissionsResult = value
+                case .components(let value): componentsResult = value
+                case .conflicts(let value): conflictsResult = value
+                case .health(let value): healthResult = value
+                }
+            }
+
+            // Extract results with fallback values if cast fails
+            return (
+                helperResult ?? HelperStatus.empty,
+                permissionsResult ?? {
+                    let now = Date()
+                    let defaultSet = PermissionOracle.PermissionSet(
+                        accessibility: .unknown,
+                        inputMonitoring: .unknown,
+                        source: "fallback",
+                        confidence: .low,
+                        timestamp: now
+                    )
+                    return PermissionOracle.Snapshot(
+                        keyPath: defaultSet,
+                        kanata: defaultSet,
+                        timestamp: now
+                    )
+                }(),
+                componentsResult ?? ComponentStatus.empty,
+                conflictsResult ?? ConflictStatus.empty,
+                healthResult ?? HealthStatus.empty
+            )
+        }
+
         progressCallback(1.0) // All done: 100%
 
         let snapshot = SystemSnapshot(

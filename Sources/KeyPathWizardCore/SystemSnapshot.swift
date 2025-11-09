@@ -176,6 +176,19 @@ public struct ComponentStatus: Sendable {
             launchDaemonServicesHealthy &&
             !vhidVersionMismatch
     }
+
+    /// Convenience factory for empty/fallback state
+    public static var empty: ComponentStatus {
+        ComponentStatus(
+            kanataBinaryInstalled: false,
+            karabinerDriverInstalled: false,
+            karabinerDaemonRunning: false,
+            vhidDeviceInstalled: false,
+            vhidDeviceHealthy: false,
+            launchDaemonServicesHealthy: false,
+            vhidVersionMismatch: false
+        )
+    }
 }
 
 // MARK: - Conflict Status
@@ -191,6 +204,11 @@ public struct ConflictStatus: Sendable {
 
     public var hasConflicts: Bool { !conflicts.isEmpty }
     public var conflictCount: Int { conflicts.count }
+
+    /// Convenience factory for empty/fallback state
+    public static var empty: ConflictStatus {
+        ConflictStatus(conflicts: [], canAutoResolve: false)
+    }
 }
 
 // MARK: - Health Status
@@ -209,6 +227,11 @@ public struct HealthStatus: Sendable {
     public var isHealthy: Bool {
         kanataRunning && karabinerDaemonRunning && vhidHealthy
     }
+
+    /// Convenience factory for empty/fallback state
+    public static var empty: HealthStatus {
+        HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false)
+    }
 }
 
 // MARK: - Helper Status
@@ -226,6 +249,11 @@ public struct HelperStatus: Sendable {
 
     public var isReady: Bool { isInstalled && isWorking }
     public var displayVersion: String { version ?? "Unknown" }
+
+    /// Convenience factory for empty/fallback state
+    public static var empty: HelperStatus {
+        HelperStatus(isInstalled: false, version: nil, isWorking: false)
+    }
 }
 
 // MARK: - Issue Types

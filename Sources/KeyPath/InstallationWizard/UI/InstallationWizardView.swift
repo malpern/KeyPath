@@ -42,7 +42,7 @@ struct InstallationWizardView: View {
             // Dark mode-aware background for cross-fade effect
             WizardDesign.Colors.wizardBackground
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 Group {
                     if isInitializing {
@@ -351,25 +351,18 @@ struct InstallationWizardView: View {
             // Start at summary page - no auto navigation
             // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
-            // Wait for minimum preflight duration for smooth UX
+            // Transition to results immediately when validation completes
             // Note: Progress should already be at 100% when validation completes
             Task { @MainActor in
                 // Small delay to ensure progress callback has been processed
-                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-                
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+
                 // Ensure progress is at 100% (should already be, but verify)
                 if evaluationProgress < 1.0 {
                     evaluationProgress = 1.0
                 }
-                
-                // Ensure a smooth minimum preflight duration (e.g., 1.2s)
-                let minDuration: TimeInterval = 1.2
-                let elapsed = Date().timeIntervalSince(preflightStart)
-                let remaining = max(0, minDuration - elapsed)
-                if remaining > 0 {
-                    try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
-                }
-                
+
+                // Transition immediately - no minimum duration enforced
                 withAnimation(.easeInOut(duration: 0.25)) {
                     isInitializing = false
                 }

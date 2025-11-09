@@ -1,10 +1,30 @@
 import Foundation
 import KeyPathCore
 import Security
+import os.lock
 
 /// Manages package installation via Homebrew and other package managers
 /// Implements the package management integration identified in the installer improvement analysis
 class PackageManager {
+    // MARK: - Code Signing Cache
+
+    /// Cache for code signing status to avoid expensive Security framework calls
+    /// Cache key: file path
+    /// Cache value: (status, modificationDate, fileSize)
+    private struct CacheEntry {
+        let status: CodeSigningStatus
+        let modificationDate: Date
+        let fileSize: Int64
+    }
+
+    /// Maximum number of entries in the code signing cache (LRU eviction)
+    private static let maxCacheSize = 50
+
+    nonisolated(unsafe) private static var codeSigningCache: [String: CacheEntry] = [:]
+    /// Tracks access order for LRU eviction (most recently used at end)
+    nonisolated(unsafe) private static var cacheAccessOrder: [String] = []
+    private static let cacheLock = OSAllocatedUnfairLock(initialState: ())
+
     // MARK: - Types
 
     enum InstallationResult {
@@ -149,8 +169,69 @@ class PackageManager {
 
     /// Detect the code signing status of a kanata binary
     /// Public wrapper for code signing detection
+    /// Caches results based on file modification date and size for performance
     func getCodeSigningStatus(at path: String) -> CodeSigningStatus {
-        detectCodeSigningStatus(at: path)
+        // Read file attributes once (used for both cache validation and caching)
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let modDate = attributes[.modificationDate] as? Date,
+              let fileSize = attributes[.size] as? Int64 else {
+            // Can't cache without metadata - perform check and return
+            return detectCodeSigningStatus(at: path)
+        }
+
+        // Check cache first (thread-safe)
+        let cached: CacheEntry? = Self.cacheLock.withLock {
+            return Self.codeSigningCache[path]
+        }
+
+        if let cached = cached {
+            // Cache is valid if modification date and size match
+            if modDate == cached.modificationDate && fileSize == cached.fileSize {
+                AppLogger.shared.log("✅ [PackageManager] Code signing cache hit for \(path)")
+                // Update access order (move to end = most recently used)
+                Self.cacheLock.withLock {
+                    if let index = Self.cacheAccessOrder.firstIndex(of: path) {
+                        Self.cacheAccessOrder.remove(at: index)
+                    }
+                    Self.cacheAccessOrder.append(path)
+                }
+                return cached.status
+            } else {
+                AppLogger.shared.log("🔄 [PackageManager] Code signing cache invalidated (file changed): \(path)")
+                Self.cacheLock.withLock {
+                    Self.codeSigningCache.removeValue(forKey: path)
+                    Self.cacheAccessOrder.removeAll { $0 == path }
+                }
+            }
+        }
+
+        // Cache miss or invalidated - perform actual check
+        let status = detectCodeSigningStatus(at: path)
+
+        // Cache the result with already-read file metadata
+        Self.cacheLock.withLock {
+            // Evict oldest entry if cache is at capacity (LRU)
+            if Self.codeSigningCache.count >= Self.maxCacheSize {
+                if let oldestPath = Self.cacheAccessOrder.first {
+                    Self.codeSigningCache.removeValue(forKey: oldestPath)
+                    Self.cacheAccessOrder.removeFirst()
+                    AppLogger.shared.log("🗑️ [PackageManager] Evicted oldest cache entry: \(oldestPath)")
+                }
+            }
+
+            // Add new entry
+            Self.codeSigningCache[path] = CacheEntry(
+                status: status,
+                modificationDate: modDate,
+                fileSize: fileSize
+            )
+            // Add to end of access order (most recently used)
+            Self.cacheAccessOrder.removeAll { $0 == path }
+            Self.cacheAccessOrder.append(path)
+        }
+        AppLogger.shared.log("💾 [PackageManager] Cached code signing status for \(path)")
+
+        return status
     }
 
     private func detectCodeSigningStatus(at path: String) -> CodeSigningStatus {

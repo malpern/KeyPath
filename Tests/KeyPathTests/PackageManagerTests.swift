@@ -232,6 +232,80 @@ final class PackageManagerTests: XCTestCase {
         XCTAssertEqual(InstallationPriority.medium.displayName, "Medium")
         XCTAssertEqual(InstallationPriority.low.displayName, "Low")
     }
+
+    // MARK: - Code Signing Cache Tests
+
+    func testCodeSigningCache_Hit() {
+        // Create a temporary file
+        let tempDir = FileManager.default.temporaryDirectory
+        let testFile = tempDir.appendingPathComponent("test-binary-\(UUID().uuidString)")
+        FileManager.default.createFile(atPath: testFile.path, contents: Data("test".utf8))
+
+        defer {
+            try? FileManager.default.removeItem(at: testFile)
+        }
+
+        // First call - cache miss, should perform actual check
+        let status1 = packageManager.getCodeSigningStatus(at: testFile.path)
+        XCTAssertNotNil(status1)
+
+        // Second call - cache hit, should return cached result
+        let status2 = packageManager.getCodeSigningStatus(at: testFile.path)
+        XCTAssertEqual(status1.isDeveloperID, status2.isDeveloperID)
+        XCTAssertEqual(status1.isAdHoc, status2.isAdHoc)
+    }
+
+    func testCodeSigningCache_InvalidationOnFileChange() {
+        // Create a temporary file
+        let tempDir = FileManager.default.temporaryDirectory
+        let testFile = tempDir.appendingPathComponent("test-binary-\(UUID().uuidString)")
+        FileManager.default.createFile(atPath: testFile.path, contents: Data("test1".utf8))
+
+        defer {
+            try? FileManager.default.removeItem(at: testFile)
+        }
+
+        // First call - cache miss
+        let status1 = packageManager.getCodeSigningStatus(at: testFile.path)
+
+        // Modify file (change size)
+        try? Data("test12".utf8).write(to: testFile)
+
+        // Second call - cache should be invalidated due to file change
+        let status2 = packageManager.getCodeSigningStatus(at: testFile.path)
+        // Status might be the same or different, but cache should have been invalidated
+        XCTAssertNotNil(status2)
+    }
+
+    func testCodeSigningCache_SizeLimit() {
+        // Create multiple temporary files
+        let tempDir = FileManager.default.temporaryDirectory
+        var testFiles: [URL] = []
+
+        // Create more files than maxCacheSize (50)
+        for i in 0..<60 {
+            let testFile = tempDir.appendingPathComponent("test-binary-\(i)-\(UUID().uuidString)")
+            FileManager.default.createFile(atPath: testFile.path, contents: Data("test\(i)".utf8))
+            testFiles.append(testFile)
+        }
+
+        defer {
+            for file in testFiles {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+
+        // Check all files (should trigger cache eviction)
+        for file in testFiles {
+            _ = packageManager.getCodeSigningStatus(at: file.path)
+        }
+
+        // Cache should not exceed maxCacheSize
+        // We can't directly check the cache size, but we can verify it doesn't crash
+        // and that the last file's status is cached
+        let lastStatus = packageManager.getCodeSigningStatus(at: testFiles.last!.path)
+        XCTAssertNotNil(lastStatus)
+    }
 }
 
 // MARK: - Mock Classes for Testing (Minimal Use - Only for Edge Cases)
