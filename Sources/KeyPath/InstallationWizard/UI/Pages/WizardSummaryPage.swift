@@ -55,9 +55,7 @@ struct WizardSummaryPage: View {
                     .frame(maxHeight: listMaxHeight)
                     .transition(.opacity) // Simple fade in, no sliding
                 } else {
-                    // Reserve space during validation to keep window size stable
-                    Spacer()
-                        .frame(height: listMaxHeight)
+                    // During validation, don't reserve list space; allow compact height
                 }
 
                 // Minimal separation before action section
@@ -75,9 +73,7 @@ struct WizardSummaryPage: View {
                     .padding(.bottom, WizardDesign.Spacing.elementGap) // Reduce bottom padding
                     .transition(.opacity)
                 } else {
-                    // Reserve space during validation to keep window size stable
-                    Spacer()
-                        .frame(height: 60) // Approximate height for action section
+                    // No action section during validation; keep window minimal
                 }
             }
 
@@ -110,6 +106,7 @@ struct WizardSummaryPage: View {
             .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
             .frame(maxWidth: .infinity) // Center horizontally
             .padding(.top, iconTopPadding) // Icon pinned from top (issues icon closer by 30%)
+            .offset(y: iconVerticalTweak) // Optical alignment tweak shared with hover ring
             .overlay(alignment: .center) {
                 // Subtle hover ring when clickable (issues mode only)
                 if headerMode == .issues {
@@ -118,6 +115,7 @@ struct WizardSummaryPage: View {
                         .frame(width: WizardDesign.Layout.statusCircleSize + 8, height: WizardDesign.Layout.statusCircleSize + 8)
                         .animation(.easeInOut(duration: 0.15), value: iconHovering)
                         .allowsHitTesting(false)
+                        .offset(y: iconVerticalTweak)
                 }
             }
             .contentShape(Circle())
@@ -253,6 +251,9 @@ struct WizardSummaryPage: View {
     private var listMaxHeight: CGFloat {
         460
     }
+
+    // Small optical alignment to normalize SF Symbol vertical metrics
+    private var iconVerticalTweak: CGFloat { 2.0 }
 
     // MARK: - Issue Counting (summary indicator)
 

@@ -180,7 +180,8 @@ struct WizardSystemStatusOverview: View {
     /// Items to render given the current toggle state
     private var displayItems: [StatusItemModel] {
         if showAllItems { return statusItems }
-        return statusItems.filter { $0.status == .failed }
+        // Errors view: include any non-completed (failed or warning or notStarted)
+        return statusItems.filter { $0.status != .completed }
     }
 
     // MARK: - Geometry Preference
@@ -245,7 +246,7 @@ struct WizardSystemStatusOverview: View {
             if hasNotInstalledIssue {
                 return .failed // Red - not installed
             } else if hasUnhealthyIssue {
-                return .warning // Orange - installed but not working
+                return .failed // Treat unhealthy/not responding as error (red)
             } else {
                 return .completed // Green - installed and working
             }
