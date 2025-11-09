@@ -29,9 +29,12 @@ struct WizardConflictsPage: View {
 
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Use WizardHeroSection for consistency and icon tap action
-                        WizardHeroSection.success(
+                        // Use WizardHeroSection without overlay for clean success state
+                        WizardHeroSection(
                             icon: "checkmark.circle.fill",
+                            iconColor: WizardDesign.Colors.success,
+                            overlayIcon: nil,
+                            overlayColor: nil,
                             title: "No Conflicts Detected",
                             subtitle: "No conflicting keyboard remapping software found",
                             iconTapAction: {
