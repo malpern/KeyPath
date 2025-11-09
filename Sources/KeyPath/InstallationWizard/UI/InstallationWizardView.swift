@@ -310,11 +310,11 @@ struct InstallationWizardView: View {
                 isInitializing = true
                 systemState = .initializing
                 currentIssues = []
-                AppLogger.shared.log("🚀 [Wizard] Preflight shown, heavy checks deferred")
+                AppLogger.shared.log("🚀 [Wizard] Preflight shown, starting validation")
             }
 
-            // Defer heavy system detection to background
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s delay for heavy checks
+            // Small delay to ensure UI is ready before starting heavy checks
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay (reduced from 500ms)
 
             guard !Task.isCancelled else { return }
             await performInitialStateCheck()
@@ -339,6 +339,7 @@ struct InstallationWizardView: View {
         let operation = WizardOperations.stateDetection(
             stateManager: stateManager,
             progressCallback: { progress in
+                // Update progress on MainActor (callback may be called from background)
                 Task { @MainActor in
                     evaluationProgress = progress
                 }
@@ -351,11 +352,15 @@ struct InstallationWizardView: View {
             // Start at summary page - no auto navigation
             // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
-            // Wait for progress to reach 100% before transitioning
+            // Wait for minimum preflight duration for smooth UX
+            // Note: Progress should already be at 100% when validation completes
             Task { @MainActor in
-                // Ensure progress is at 100% before transitioning
-                while evaluationProgress < 1.0 {
-                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms check interval
+                // Small delay to ensure progress callback has been processed
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                
+                // Ensure progress is at 100% (should already be, but verify)
+                if evaluationProgress < 1.0 {
+                    evaluationProgress = 1.0
                 }
                 
                 // Ensure a smooth minimum preflight duration (e.g., 1.2s)
