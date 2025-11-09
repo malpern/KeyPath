@@ -31,21 +31,21 @@ mkdir -p "$CONTENTS/Library/KeyPath"
 mkdir -p "$CONTENTS/Library/LaunchDaemons"
 
 # Copy main executable
-cp "$BUILD_DIR/KeyPath" "$MACOS/"
+ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
 
 # Copy bundled kanata binary
-cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
+ditto "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 
 # Copy Kanata daemon plist for SMAppService
-cp "Sources/KeyPath/com.keypath.kanata.plist" "$CONTENTS/Library/LaunchDaemons/com.keypath.kanata.plist"
+ditto "Sources/KeyPath/com.keypath.kanata.plist" "$CONTENTS/Library/LaunchDaemons/com.keypath.kanata.plist"
 echo "✅ Kanata daemon plist embedded: $CONTENTS/Library/LaunchDaemons/com.keypath.kanata.plist"
 
 # Copy main app Info.plist
-cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
+ditto "Sources/KeyPath/Info.plist" "$CONTENTS/Info.plist"
 
 # Copy app icon if present
 if [ -f "Sources/KeyPath/Resources/AppIcon.icns" ]; then
-    cp "Sources/KeyPath/Resources/AppIcon.icns" "$RESOURCES/"
+    ditto "Sources/KeyPath/Resources/AppIcon.icns" "$RESOURCES/AppIcon.icns"
 else
     echo "⚠️ WARNING: AppIcon.icns not found at Sources/KeyPath/Resources/AppIcon.icns" >&2
 fi

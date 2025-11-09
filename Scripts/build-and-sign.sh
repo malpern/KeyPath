@@ -33,10 +33,10 @@ mkdir -p "$RESOURCES"
 mkdir -p "$CONTENTS/Library/KeyPath"
 
 # Copy main executable
-cp "$BUILD_DIR/KeyPath" "$MACOS/"
+ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
 
 # Copy bundled kanata binary
-cp "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
+ditto "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 
 # Embed privileged helper for SMJobBless
 echo "📦 Embedding privileged helper (SMAppService layout)..."
@@ -45,24 +45,24 @@ LAUNCH_DAEMONS="$CONTENTS/Library/LaunchDaemons"
 mkdir -p "$HELPER_TOOLS" "$LAUNCH_DAEMONS"
 
 # Copy helper binary into bundle-local HelperTools
-cp "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
+ditto "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
 
 # Copy daemon plist into bundle-local LaunchDaemons with final name
-cp "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
+ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
 
 # Copy Kanata daemon plist for SMAppService
-cp "Sources/KeyPath/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
+ditto "Sources/KeyPath/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
 echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
 echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
 echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
 # Copy main app Info.plist
-cp "Sources/KeyPath/Info.plist" "$CONTENTS/"
+ditto "Sources/KeyPath/Info.plist" "$CONTENTS/Info.plist"
 
 # Copy app icon
 if [ -f "Sources/KeyPath/Resources/AppIcon.icns" ]; then
-    cp "Sources/KeyPath/Resources/AppIcon.icns" "$RESOURCES/"
+    ditto "Sources/KeyPath/Resources/AppIcon.icns" "$RESOURCES/AppIcon.icns"
     echo "✅ Copied app icon"
 else
     echo "⚠️ WARNING: AppIcon.icns not found"
