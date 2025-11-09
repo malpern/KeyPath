@@ -136,13 +136,11 @@ class MainAppStateController: ObservableObject {
             hasRunInitialValidation = true
             AppLogger.shared.log("🎯 [MainAppStateController] Performing INITIAL validation (Phase 3)")
 
-            // Set checking state
-            validationState = .checking
-
             let firstRunStart = Date()
 
             // Wait for services to be ready (first time only)
             // Optimized: Reduced timeout from 10s to 3s, fast process check added
+            // NOTE: Don't show spinner during service wait - only show during actual validation
             AppLogger.shared.log("⏳ [MainAppStateController] Waiting for kanata service to be ready...")
             AppLogger.shared.log("⏱️ [TIMING] Service wait START")
             let serviceWaitStart = Date()
@@ -183,6 +181,10 @@ class MainAppStateController: ObservableObject {
         } else {
             AppLogger.shared.info("🔄 [MainAppStateController] Revalidation (skipping service wait)")
         }
+
+        // Set checking state ONLY when we're about to start actual validation
+        // This prevents showing spinner during service wait (which is a background operation)
+        validationState = .checking
 
         // Run validation (always)
         await performValidation()
