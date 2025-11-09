@@ -65,84 +65,77 @@ struct WizardKanataServicePage: View {
         VStack(spacing: 0) {
             // Use experimental hero design when service is running
             if serviceStatus == .running {
-                VStack(spacing: 0) {
-                    Spacer()
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    // Green gears icon with green check overlay
+                    ZStack {
+                        Image(systemName: "gearshape.2")
+                            .font(.system(size: 115, weight: .light))
+                            .foregroundColor(WizardDesign.Colors.success)
+                            .symbolRenderingMode(.hierarchical)
+                            .modifier(AvailabilitySymbolBounce())
 
-                    // Centered hero block with padding
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Green gears icon with green check overlay
-                        ZStack {
-                            Image(systemName: "gearshape.2")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
-
-                            // Green check overlay in top right
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.success)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 15, y: -5) // Move to the right
-                                }
+                        // Green check overlay in top right
+                        VStack {
+                            HStack {
                                 Spacer()
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 40, weight: .medium))
+                                    .foregroundColor(WizardDesign.Colors.success)
+                                    .background(WizardDesign.Colors.wizardBackground)
+                                    .clipShape(Circle())
+                                    .offset(x: 15, y: -5) // Move to the right
                             }
-                            .frame(width: 115, height: 115)
+                            Spacer()
                         }
-
-                        // Headline
-                        Text("Kanata Service")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Subtitle
-                        Text("Service is running and processing keyboard events")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
-
-                        // Service control links below the subheader
-                        HStack(spacing: WizardDesign.Spacing.itemGap) {
-                            Button(action: startService) {
-                                Text("Start")
-                            }
-                            .buttonStyle(.link)
-                            .disabled(true)
-                            .foregroundColor(.secondary)
-
-                            Text("•")
-                                .foregroundColor(.secondary)
-
-                            Button(action: restartService) {
-                                Text("Restart")
-                            }
-                            .buttonStyle(.link)
-                            .foregroundColor(.red)
-                            .disabled(isPerformingAction)
-
-                            Text("•")
-                                .foregroundColor(.secondary)
-
-                            Button(action: stopService) {
-                                Text("Stop")
-                            }
-                            .buttonStyle(.link)
-                            .foregroundColor(.red)
-                            .disabled(isPerformingAction)
-                        }
-                        .padding(.top, WizardDesign.Spacing.elementGap)
+                        .frame(width: 115, height: 115)
                     }
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
-                    Spacer()
+                    // Headline
+                    Text("Kanata Service")
+                        .font(.system(size: 23, weight: .semibold, design: .default))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+
+                    // Subtitle
+                    Text("Service is running and processing keyboard events")
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+
+                    // Service control links below the subheader
+                    HStack(spacing: WizardDesign.Spacing.itemGap) {
+                        Button(action: startService) {
+                            Text("Start")
+                        }
+                        .buttonStyle(.link)
+                        .disabled(true)
+                        .foregroundColor(.secondary)
+
+                        Text("•")
+                            .foregroundColor(.secondary)
+
+                        Button(action: restartService) {
+                            Text("Restart")
+                        }
+                        .buttonStyle(.link)
+                        .foregroundColor(.red)
+                        .disabled(isPerformingAction)
+
+                        Text("•")
+                            .foregroundColor(.secondary)
+
+                        Button(action: stopService) {
+                            Text("Stop")
+                        }
+                        .buttonStyle(.link)
+                        .foregroundColor(.red)
+                        .disabled(isPerformingAction)
+                    }
+                    .padding(.top, WizardDesign.Spacing.elementGap)
                 }
+                .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Header for other states with action link

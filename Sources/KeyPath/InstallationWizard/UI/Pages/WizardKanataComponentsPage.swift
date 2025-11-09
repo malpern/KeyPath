@@ -18,10 +18,7 @@ struct WizardKanataComponentsPage: View {
         VStack(spacing: 0) {
             // Use experimental hero design when engine is installed
             if kanataRelatedIssues.isEmpty, componentStatus(for: "Kanata Binary") == .completed {
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    // Centered hero block with padding
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.success(
                         icon: "cpu.fill",
                         title: "Kanata Engine Setup",
@@ -69,9 +66,8 @@ struct WizardKanataComponentsPage: View {
                     .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                     .padding(.top, WizardDesign.Spacing.pageVertical)
-
-                    Spacer()
                 }
+                .heroSectionContainer()
                 .frame(maxWidth: .infinity)
             } else {
                 // Header for setup/error states with action link

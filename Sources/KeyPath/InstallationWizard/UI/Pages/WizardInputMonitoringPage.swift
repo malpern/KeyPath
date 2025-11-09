@@ -24,145 +24,131 @@ struct WizardInputMonitoringPage: View {
         VStack(spacing: 0) {
             // Use experimental hero design when permissions are granted
             if !hasInputMonitoringIssues {
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    // Centered hero block with padding
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        WizardHeroSection.success(
-                            icon: "eye",
-                            title: "Input Monitoring",
-                            subtitle: "KeyPath has permission to capture keyboard events",
-                            iconTapAction: {
-                                Task {
-                                    await onRefresh()
-                                }
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    WizardHeroSection.success(
+                        icon: "eye",
+                        title: "Input Monitoring",
+                        subtitle: "KeyPath has permission to capture keyboard events",
+                        iconTapAction: {
+                            Task {
+                                await onRefresh()
                             }
-                        )
-
-                        // Component details card below the subheading - horizontally centered
-                        HStack {
-                            Spacer()
-                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                    HStack(spacing: 0) {
-                                        Text("KeyPath.app")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Main application captures keyboard input")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
-
-                                HStack(spacing: 12) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                    HStack(spacing: 0) {
-                                        Text("kanata")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Remapping engine processes keyboard events")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
-                            }
-                            Spacer()
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(WizardDesign.Spacing.cardPadding)
-                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.pageVertical)
-                    }
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+                    )
 
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-            } else {
-                // Use hero design for error state too, with blue links below
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    // Centered hero block with padding
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        WizardHeroSection.warning(
-                            icon: "eye",
-                            title: "Input Monitoring Required",
-                            subtitle: "KeyPath needs Input Monitoring permission to capture keyboard events for remapping",
-                            iconTapAction: {
-                                Task {
-                                    await onRefresh()
-                                }
-                            }
-                        )
-
-                        // Component details for error state
+                    // Component details card below the subheading - horizontally centered
+                    HStack {
+                        Spacer()
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                             HStack(spacing: 12) {
-                                Image(systemName: keyPathInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .red)
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
                                 HStack(spacing: 0) {
                                     Text("KeyPath.app")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                    Text(" - Main application needs permission")
+                                    Text(" - Main application captures keyboard input")
                                         .font(.headline)
                                         .fontWeight(.regular)
                                 }
-                                Spacer()
-                                if keyPathInputMonitoringStatus != .completed {
-                                    Button("Fix") {
-                                        openInputMonitoringSettings()
-                                    }
-                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                    .scaleEffect(0.8)
-                                }
                             }
-                            .help(keyPathInputMonitoringIssues.asTooltipText())
 
                             HStack(spacing: 12) {
-                                Image(systemName: kanataInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .red)
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
                                 HStack(spacing: 0) {
                                     Text("kanata")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                    Text(" - Remapping engine needs permission")
+                                    Text(" - Remapping engine processes keyboard events")
                                         .font(.headline)
                                         .fontWeight(.regular)
                                 }
-                                Spacer()
-                                if kanataInputMonitoringStatus != .completed {
-                                    Button("Add + Turn On") {
-                                        AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Add + Turn On clicked")
-                                        // Open System Settings → Input Monitoring, reveal kanata, copy path for Go To Folder
-                                        openInputMonitoringPreferencesPanel()
-                                        copyKanataPathToClipboard()
-                                        revealKanataInFinder()
-                                        // Begin polling for permission grant
-                                        startPermissionPolling(for: .inputMonitoring)
-                                    }
-                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                    .scaleEffect(0.8)
-                                }
                             }
-                            .help(kanataInputMonitoringIssues.asTooltipText())
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(WizardDesign.Spacing.cardPadding)
-                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.pageVertical)
+                        Spacer()
                     }
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
-
-                    Spacer()
+                    .frame(maxWidth: .infinity)
+                    .padding(WizardDesign.Spacing.cardPadding)
+                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                    .padding(.top, WizardDesign.Spacing.pageVertical)
                 }
+                .heroSectionContainer()
+                .frame(maxWidth: .infinity)
+            } else {
+                // Use hero design for error state too, with blue links below
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    WizardHeroSection.warning(
+                        icon: "eye",
+                        title: "Input Monitoring Required",
+                        subtitle: "KeyPath needs Input Monitoring permission to capture keyboard events for remapping",
+                        iconTapAction: {
+                            Task {
+                                await onRefresh()
+                            }
+                        }
+                    )
+
+                    // Component details for error state
+                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                        HStack(spacing: 12) {
+                            Image(systemName: keyPathInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(keyPathInputMonitoringStatus == .completed ? .green : .red)
+                            HStack(spacing: 0) {
+                                Text("KeyPath.app")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                Text(" - Main application needs permission")
+                                    .font(.headline)
+                                    .fontWeight(.regular)
+                            }
+                            Spacer()
+                            if keyPathInputMonitoringStatus != .completed {
+                                Button("Fix") {
+                                    openInputMonitoringSettings()
+                                }
+                                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                .scaleEffect(0.8)
+                            }
+                        }
+                        .help(keyPathInputMonitoringIssues.asTooltipText())
+
+                        HStack(spacing: 12) {
+                            Image(systemName: kanataInputMonitoringStatus == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(kanataInputMonitoringStatus == .completed ? .green : .red)
+                            HStack(spacing: 0) {
+                                Text("kanata")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                Text(" - Remapping engine needs permission")
+                                    .font(.headline)
+                                    .fontWeight(.regular)
+                            }
+                            Spacer()
+                            if kanataInputMonitoringStatus != .completed {
+                                Button("Add + Turn On") {
+                                    AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Add + Turn On clicked")
+                                    // Open System Settings → Input Monitoring, reveal kanata, copy path for Go To Folder
+                                    openInputMonitoringPreferencesPanel()
+                                    copyKanataPathToClipboard()
+                                    revealKanataInFinder()
+                                    // Begin polling for permission grant
+                                    startPermissionPolling(for: .inputMonitoring)
+                                }
+                                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                .scaleEffect(0.8)
+                            }
+                        }
+                        .help(kanataInputMonitoringIssues.asTooltipText())
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(WizardDesign.Spacing.cardPadding)
+                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                    .padding(.top, WizardDesign.Spacing.pageVertical)
+                }
+                .heroSectionContainer()
                 .frame(maxWidth: .infinity)
             }
 

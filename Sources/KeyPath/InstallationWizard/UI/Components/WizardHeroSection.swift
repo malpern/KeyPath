@@ -75,7 +75,7 @@ struct WizardHeroSection: View {
                 .buttonStyle(.link)
             }
         }
-        .padding(.vertical, WizardDesign.Spacing.pageVertical)
+        // Padding removed - pages control padding via heroSectionContainer() modifier
     }
     
     // MARK: - Icon View

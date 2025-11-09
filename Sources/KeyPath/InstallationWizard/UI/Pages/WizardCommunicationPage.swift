@@ -28,52 +28,45 @@ struct WizardCommunicationPage: View {
         VStack(spacing: 0) {
             // Use experimental hero design when communication is working
             if commStatus.isSuccess {
-                VStack(spacing: 0) {
-                    Spacer()
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    // Green globe with green check overlay
+                    ZStack {
+                        Image(systemName: "globe")
+                            .font(.system(size: 115, weight: .light))
+                            .foregroundColor(WizardDesign.Colors.success)
+                            .symbolRenderingMode(.hierarchical)
+                            .modifier(BounceIfAvailable())
 
-                    // Centered hero block with padding
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Green globe with green check overlay
-                        ZStack {
-                            Image(systemName: "globe")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(BounceIfAvailable())
-
-                            // Green check overlay in top right
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.success)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 15, y: -5) // Move further right and slightly up
-                                }
+                        // Green check overlay in top right
+                        VStack {
+                            HStack {
                                 Spacer()
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 40, weight: .medium))
+                                    .foregroundColor(WizardDesign.Colors.success)
+                                    .background(WizardDesign.Colors.wizardBackground)
+                                    .clipShape(Circle())
+                                    .offset(x: 15, y: -5) // Move further right and slightly up
                             }
-                            .frame(width: 140, height: 115)
+                            Spacer()
                         }
-
-                        // Large headline (23pt)
-                        Text("Communication Ready")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Supporting copy (17pt)
-                        Text("TCP server is running for instant config reloading & external integrations")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+                        .frame(width: 140, height: 115)
                     }
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
-                    Spacer()
+                    // Large headline (23pt)
+                    Text("Communication Ready")
+                        .font(.system(size: 23, weight: .semibold, design: .default))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+
+                    // Supporting copy (17pt)
+                    Text("TCP server is running for instant config reloading & external integrations")
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 }
+                .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Header for setup/error states with action link

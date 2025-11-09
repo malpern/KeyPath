@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import ServiceManagement
+import Darwin
 
 /// Manager for XPC communication with the privileged helper
 ///
@@ -60,9 +61,25 @@ actor HelperManager {
     /// - Returns: The active XPC connection
     /// - Throws: HelperError if connection cannot be established
     private func getConnection() throws -> NSXPCConnection {
-        // Return existing connection if still valid
-        if let connection {
-            return connection
+        // Check if existing connection is still valid
+        if let existingConnection = connection {
+            // Verify connection is still alive by checking if we can get process identifier
+            // If connection is invalidated, processIdentifier will be 0 or connection will be nil
+            let pid = existingConnection.processIdentifier
+            if pid > 0 {
+                // Connection appears valid - but verify helper process is still running
+                // This catches cases where helper restarted but connection wasn't invalidated
+                if isHelperProcessRunning(pid: pid) {
+                    AppLogger.shared.log("♻️ [HelperManager] Reusing existing XPC connection (PID: \(pid))")
+                    return existingConnection
+                } else {
+                    AppLogger.shared.log("⚠️ [HelperManager] Cached connection points to dead helper process (PID: \(pid)) - clearing")
+                    connection = nil
+                }
+            } else {
+                AppLogger.shared.log("⚠️ [HelperManager] Cached connection has invalid PID - clearing")
+                connection = nil
+            }
         }
 
         // Best-effort: verify embedded helper signature/requirement before connecting
@@ -91,9 +108,26 @@ actor HelperManager {
         newConnection.resume()
 
         connection = newConnection
-        AppLogger.shared.info("✅ [HelperManager] XPC connection established")
+        AppLogger.shared.info("✅ [HelperManager] XPC connection established (PID: \(newConnection.processIdentifier))")
 
         return newConnection
+    }
+
+    /// Check if helper process is still running
+    /// - Parameter pid: Process ID to check
+    /// - Returns: true if process exists, false otherwise
+    private func isHelperProcessRunning(pid: Int32) -> Bool {
+        // Use kill(pid, 0) to check if process exists (doesn't actually kill, just checks)
+        // Returns 0 if process exists, -1 with errno set if it doesn't
+        // EPERM means process exists but we don't have permission (still means it's running)
+        let result = kill(pid, 0)
+        if result == 0 {
+            return true
+        }
+        // Check errno - EPERM means process exists but we can't signal it (still running)
+        // ESRCH means process doesn't exist
+        let error = errno
+        return error == EPERM
     }
 
     /// Close the XPC connection
@@ -104,8 +138,11 @@ actor HelperManager {
     }
 
     func clearConnection() {
+        AppLogger.shared.log("🧹 [HelperManager] Clearing XPC connection cache")
         connection?.invalidate()
         connection = nil
+        // Clear cached version when connection is cleared (might be stale)
+        cachedHelperVersion = nil
     }
 
     // MARK: - Helper Status
@@ -163,25 +200,36 @@ actor HelperManager {
                     var value: String?
                 }
                 let versionHolder = VersionHolder()
+                AppLogger.shared.log("📤 [HelperManager] Calling proxy.getVersion()")
                 proxy.getVersion { version, error in
+                    let threadName = Thread.current.isMainThread ? "main" : "background"
+                    AppLogger.shared.log("📥 [HelperManager] getVersion callback received on \(threadName) thread")
                     if let version {
+                        AppLogger.shared.log("✅ [HelperManager] getVersion callback: version=\(version)")
                         versionHolder.value = version
                     } else {
                         let msg = error ?? "Unknown error"
                         AppLogger.shared.log("❌ [HelperManager] getVersion callback error: \(msg)")
                     }
+                    AppLogger.shared.log("📥 [HelperManager] Signaling semaphore")
                     sema.signal()
                 }
+                AppLogger.shared.log("📤 [HelperManager] proxy.getVersion() call dispatched, waiting for callback")
                 DispatchQueue.global(qos: .utility).async {
                     let waited = sema.wait(timeout: .now() + 3)
                     if waited == .timedOut {
-                        AppLogger.shared.log("⚠️ [HelperManager] getVersion timed out")
+                        AppLogger.shared.log("⚠️ [HelperManager] getVersion timed out - clearing connection cache")
+                        // Clear connection on timeout - it's likely stale
+                        Task { await HelperManager.shared.clearConnection() }
                         continuation.resume(returning: nil)
                     } else {
                         if let v = versionHolder.value {
                             AppLogger.shared.info("✅ [HelperManager] Helper version: \(v)")
                             continuation.resume(returning: v)
                         } else {
+                            AppLogger.shared.log("⚠️ [HelperManager] getVersion callback completed but no version received - clearing connection cache")
+                            // Clear connection if callback completed but no version (connection issue)
+                            Task { await HelperManager.shared.clearConnection() }
                             continuation.resume(returning: nil)
                         }
                     }

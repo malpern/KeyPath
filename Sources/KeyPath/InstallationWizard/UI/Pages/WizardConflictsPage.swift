@@ -24,34 +24,27 @@ struct WizardConflictsPage: View {
         VStack(spacing: 0) {
             if issues.isEmpty {
                 // Large centered hero section - Icon, Headline, and Supporting Copy
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    // Centered hero block with padding
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Use WizardHeroSection without overlay for clean success state
-                        WizardHeroSection(
-                            icon: "checkmark.circle.fill",
-                            iconColor: WizardDesign.Colors.success,
-                            overlayIcon: nil,
-                            overlayColor: nil,
-                            title: "No Conflicts Detected",
-                            subtitle: "No conflicting keyboard remapping software found",
-                            iconTapAction: {
-                                isScanning = true
-                                onRefresh()
-                                // Keep spinner visible for a moment so user sees the action
-                                Task {
-                                    try? await Task.sleep(nanoseconds: 500_000_000)
-                                    isScanning = false
-                                }
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                    // Use WizardHeroSection without overlay for clean success state
+                    WizardHeroSection(
+                        icon: "checkmark.circle.fill",
+                        iconColor: WizardDesign.Colors.success,
+                        overlayIcon: nil,
+                        overlayColor: nil,
+                        title: "No Conflicts Detected",
+                        subtitle: "No conflicting keyboard remapping software found",
+                        iconTapAction: {
+                            isScanning = true
+                            onRefresh()
+                            // Keep spinner visible for a moment so user sees the action
+                            Task {
+                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                isScanning = false
                             }
-                        )
-                    }
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical) // Add padding above and below the hero block
-
-                    Spacer()
+                        }
+                    )
                 }
+                .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 // No component details - conflicts are system-wide, no individual components to fix

@@ -18,7 +18,18 @@ class HelperService: NSObject, HelperProtocol {
     func getVersion(reply: @escaping (String?, String?) -> Void) {
         NSLog("[KeyPathHelper] getVersion requested")
         logger.info("getVersion requested")
+        
+        // Log thread/queue info
+        let threadName = Thread.current.isMainThread ? "main" : "background"
+        NSLog("[KeyPathHelper] getVersion executing on \(threadName) thread")
+        logger.info("getVersion executing on \(threadName) thread")
+        
+        // Call reply and log it
+        NSLog("[KeyPathHelper] Calling reply with version: \(Self.version)")
+        logger.info("Calling reply with version: \(Self.version)")
         reply(Self.version, nil)
+        NSLog("[KeyPathHelper] Reply callback completed")
+        logger.info("Reply callback completed")
     }
 
     // MARK: - LaunchDaemon Operations

@@ -41,63 +41,56 @@ struct WizardFullDiskAccessPage: View {
     var body: some View {
         VStack(spacing: 0) {
             // Large centered hero section - Icon, Headline, and Supporting Copy
-            VStack(spacing: 0) {
-                Spacer()
+            VStack(spacing: WizardDesign.Spacing.sectionGap) {
+                // Basic folder icon with appropriate overlay
+                ZStack {
+                    Image(systemName: "folder")
+                        .font(.system(size: 115, weight: .light))
+                        .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.info)
+                        .symbolRenderingMode(.hierarchical)
+                        .modifier(AvailabilitySymbolBounce())
 
-                // Centered hero block with padding
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    // Basic folder icon with appropriate overlay
-                    ZStack {
-                        Image(systemName: "folder")
-                            .font(.system(size: 115, weight: .light))
-                            .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.info)
-                            .symbolRenderingMode(.hierarchical)
-                            .modifier(AvailabilitySymbolBounce())
-
-                        // Overlay hanging off right side based on FDA status
-                        VStack {
-                            HStack {
-                                Spacer()
-                                Image(systemName: hasFullDiskAccess ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 40, weight: .medium))
-                                    .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.secondaryText)
-                                    .background(WizardDesign.Colors.wizardBackground)
-                                    .clipShape(Circle())
-                                    .offset(x: 25, y: -5) // Hang further off the right side
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
+                    // Overlay hanging off right side based on FDA status
+                    VStack {
+                        HStack {
                             Spacer()
+                            Image(systemName: hasFullDiskAccess ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 40, weight: .medium))
+                                .foregroundColor(hasFullDiskAccess ? WizardDesign.Colors.success : WizardDesign.Colors.secondaryText)
+                                .background(WizardDesign.Colors.wizardBackground)
+                                .clipShape(Circle())
+                                .offset(x: 25, y: -5) // Hang further off the right side
+                                .contentTransition(.symbolEffect(.replace))
                         }
-                        .frame(width: 115, height: 115)
+                        Spacer()
                     }
-
-                    // Larger headline (19pt + 20% = 23pt)
-                    Text(hasFullDiskAccess ? "Full Disk Access" : "Enable Full Disk Access (optional)")
-                        .font(.system(size: 23, weight: .semibold, design: .default))
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-
-                    // Supporting copy - more descriptive since no content card
-                    Text(hasFullDiskAccess ? "Enhanced diagnostics and automatic issue resolution" : "Optional: Enhanced diagnostics and automatic issue resolution")
-                        .font(.system(size: 17, weight: .regular))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-
-                    // Help link below subheader (only when FDA not granted)
-                    if !hasFullDiskAccess {
-                        Button("Why is this safe?") {
-                            showingDetails = true
-                        }
-                        .buttonStyle(.link)
-                        .font(WizardDesign.Typography.caption)
-                        .padding(.top, WizardDesign.Spacing.elementGap)
-                    }
+                    .frame(width: 115, height: 115)
                 }
-                .padding(.vertical, WizardDesign.Spacing.pageVertical) // Add padding above and below the hero block
 
-                Spacer()
+                // Larger headline (19pt + 20% = 23pt)
+                Text(hasFullDiskAccess ? "Full Disk Access" : "Enable Full Disk Access (optional)")
+                    .font(.system(size: 23, weight: .semibold, design: .default))
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+
+                // Supporting copy - more descriptive since no content card
+                Text(hasFullDiskAccess ? "Enhanced diagnostics and automatic issue resolution" : "Optional: Enhanced diagnostics and automatic issue resolution")
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+
+                // Help link below subheader (only when FDA not granted)
+                if !hasFullDiskAccess {
+                    Button("Why is this safe?") {
+                        showingDetails = true
+                    }
+                    .buttonStyle(.link)
+                    .font(WizardDesign.Typography.caption)
+                    .padding(.top, WizardDesign.Spacing.elementGap)
+                }
             }
+            .heroSectionContainer()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             Spacer()

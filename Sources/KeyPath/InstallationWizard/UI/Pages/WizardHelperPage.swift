@@ -85,164 +85,151 @@ struct WizardHelperPage: View {
     // MARK: - Success View (Hero Style)
 
     private var successView: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Green shield icon with check overlay
+            ZStack {
+                Image(systemName: "shield.checkered")
+                    .font(.system(size: 115, weight: .light))
+                    .foregroundColor(WizardDesign.Colors.success)
+                    .symbolRenderingMode(.hierarchical)
+                    .modifier(AvailabilitySymbolBounce())
 
-            // Centered hero block
-            VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                // Green shield icon with check overlay
-                ZStack {
-                    Image(systemName: "shield.checkered")
-                        .font(.system(size: 115, weight: .light))
-                        .foregroundColor(WizardDesign.Colors.success)
-                        .symbolRenderingMode(.hierarchical)
-                        .modifier(AvailabilitySymbolBounce())
-
-                    // Green check overlay
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 40, weight: .medium))
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .background(WizardDesign.Colors.wizardBackground)
-                                .clipShape(Circle())
-                                .offset(x: 15, y: -5)
-                        }
+                // Green check overlay
+                VStack {
+                    HStack {
                         Spacer()
-                    }
-                    .frame(width: 115, height: 115)
-                }
-
-                // Headline
-                Text("Privileged Helper")
-                    .font(.system(size: 23, weight: .semibold, design: .default))
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-
-                // Subtitle
-                Text(versionText)
-                    .font(.system(size: 17, weight: .regular))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-
-                // Details card
-                HStack {
-                    Spacer()
-                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("XPC Communication")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                        }
-
-                        HStack(spacing: 12) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("System Operations Available")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                        }
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 40, weight: .medium))
+                            .foregroundColor(WizardDesign.Colors.success)
+                            .background(WizardDesign.Colors.wizardBackground)
+                            .clipShape(Circle())
+                            .offset(x: 15, y: -5)
                     }
                     Spacer()
                 }
-                .padding(WizardDesign.Spacing.cardPadding)
-                .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                .frame(width: 115, height: 115)
             }
-            .padding(.horizontal, 60)
 
-            Spacer()
+            // Headline
+            Text("Privileged Helper")
+                .font(.system(size: 23, weight: .semibold, design: .default))
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.center)
+
+            // Subtitle
+            Text(versionText)
+                .font(.system(size: 17, weight: .regular))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            // Details card
+            HStack {
+                Spacer()
+                VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("XPC Communication")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("System Operations Available")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                }
+                Spacer()
+            }
+            .padding(WizardDesign.Spacing.cardPadding)
+            .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 60)
         }
+        .heroSectionContainer()
     }
 
     // MARK: - Setup View (Hero Style for Error State)
 
     private var setupView: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        VStack(spacing: WizardDesign.Spacing.sectionGap) {
+            // Icon with warning/error overlay
+            ZStack {
+                Image(systemName: "shield.checkered")
+                    .font(.system(size: 115, weight: .light))
+                    .foregroundColor(isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error)
+                    .symbolRenderingMode(.hierarchical)
 
-            // Centered hero block
-            VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                // Icon with warning/error overlay
-                ZStack {
-                    Image(systemName: "shield.checkered")
-                        .font(.system(size: 115, weight: .light))
-                        .foregroundColor(isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error)
-                        .symbolRenderingMode(.hierarchical)
-
-                    // Warning/Error overlay
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Image(systemName: isInstalled ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
-                                .font(.system(size: 40, weight: .medium))
-                                .foregroundColor(isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error)
-                                .background(WizardDesign.Colors.wizardBackground)
-                                .clipShape(Circle())
-                                .offset(x: 15, y: -5)
-                        }
+                // Warning/Error overlay
+                VStack {
+                    HStack {
                         Spacer()
+                        Image(systemName: isInstalled ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
+                            .font(.system(size: 40, weight: .medium))
+                            .foregroundColor(isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error)
+                            .background(WizardDesign.Colors.wizardBackground)
+                            .clipShape(Circle())
+                            .offset(x: 15, y: -5)
                     }
-                    .frame(width: 115, height: 115)
+                    Spacer()
                 }
+                .frame(width: 115, height: 115)
+            }
 
-                // Headline
-                Text("Privileged Helper")
-                    .font(.system(size: 23, weight: .semibold, design: .default))
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
+            // Headline
+            Text("Privileged Helper")
+                .font(.system(size: 23, weight: .semibold, design: .default))
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.center)
 
-                // Subtitle
-                Text(isInstalled ? "Helper is installed but not responding" : "Helper is not installed")
-                    .font(.system(size: 17, weight: .regular))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+            // Subtitle
+            Text(isInstalled ? "Helper is installed but not responding" : "Helper is not installed")
+                .font(.system(size: 17, weight: .regular))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
 
-                // Description
-                Text("The privileged helper enables system operations without repeated admin password prompts.")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+            // Description
+            Text("The privileged helper enables system operations without repeated admin password prompts.")
+                .font(.system(size: 15, weight: .regular))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            // Install/Reinstall button
+            if !isInstalled {
+                Button("Install Helper") {
+                    Task { await installHelper() }
+                }
+                .buttonStyle(WizardDesign.Component.PrimaryButton())
+                .disabled(isWorking || isFixing)
+            } else {
+                Button("Reinstall Helper") {
+                    Task { await reinstallHelper() }
+                }
+                .buttonStyle(WizardDesign.Component.PrimaryButton())
+                .disabled(isWorking || isFixing)
+            }
+
+            // Error message if present
+            if let lastError {
+                Text(lastError)
+                    .font(.caption)
+                    .foregroundColor(lastError.contains("successfully") ? .green : .orange)
                     .padding(.horizontal, 40)
-
-                // Install/Reinstall button
-                if !isInstalled {
-                    Button("Install Helper") {
-                        Task { await installHelper() }
+                    .multilineTextAlignment(.center)
+                // If approval is required, offer a quick link to System Settings
+                if lastError.localizedCaseInsensitiveContains("approval required") {
+                    Button("Open System Settings → Login Items") {
+                        openSystemSettings()
                     }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    .disabled(isWorking || isFixing)
-                } else {
-                    Button("Reinstall Helper") {
-                        Task { await reinstallHelper() }
-                    }
-                    .buttonStyle(WizardDesign.Component.PrimaryButton())
-                    .disabled(isWorking || isFixing)
-                }
-
-                // Error message if present
-                if let lastError {
-                    Text(lastError)
-                        .font(.caption)
-                        .foregroundColor(lastError.contains("successfully") ? .green : .orange)
-                        .padding(.horizontal, 40)
-                        .multilineTextAlignment(.center)
-                    // If approval is required, offer a quick link to System Settings
-                    if lastError.localizedCaseInsensitiveContains("approval required") {
-                        Button("Open System Settings → Login Items") {
-                            openSystemSettings()
-                        }
-                        .buttonStyle(WizardDesign.Component.SecondaryButton())
-                    }
+                    .buttonStyle(WizardDesign.Component.SecondaryButton())
                 }
             }
-            .padding(.horizontal, 60)
-            .padding(.vertical, WizardDesign.Spacing.pageVertical)
-
-            Spacer()
         }
+        .padding(.horizontal, 60)
+        .heroSectionContainer()
     }
 
     // MARK: - Actions

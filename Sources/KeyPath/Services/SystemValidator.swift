@@ -133,19 +133,34 @@ class SystemValidator {
         // Check system state (calls existing services)
         // NOTE: Helper check FIRST - it's required for privileged operations
         progressCallback(0.0) // Start: 0%
+        let helperStart = Date()
         let helper = await checkHelper()
+        let helperDuration = Date().timeIntervalSince(helperStart)
+        AppLogger.shared.log("⏱️ [SystemValidator] Step 1 (Helper) completed in \(String(format: "%.3f", helperDuration))s")
         progressCallback(0.2) // Helper done: 20%
         
+        let permissionsStart = Date()
         let permissions = await checkPermissions()
+        let permissionsDuration = Date().timeIntervalSince(permissionsStart)
+        AppLogger.shared.log("⏱️ [SystemValidator] Step 2 (Permissions) completed in \(String(format: "%.3f", permissionsDuration))s")
         progressCallback(0.4) // Permissions done: 40%
         
+        let componentsStart = Date()
         let components = await checkComponents()
+        let componentsDuration = Date().timeIntervalSince(componentsStart)
+        AppLogger.shared.log("⏱️ [SystemValidator] Step 3 (Components) completed in \(String(format: "%.3f", componentsDuration))s")
         progressCallback(0.6) // Components done: 60%
         
+        let conflictsStart = Date()
         let conflicts = await checkConflicts()
+        let conflictsDuration = Date().timeIntervalSince(conflictsStart)
+        AppLogger.shared.log("⏱️ [SystemValidator] Step 4 (Conflicts) completed in \(String(format: "%.3f", conflictsDuration))s")
         progressCallback(0.8) // Conflicts done: 80%
         
+        let healthStart = Date()
         let health = await checkHealth()
+        let healthDuration = Date().timeIntervalSince(healthStart)
+        AppLogger.shared.log("⏱️ [SystemValidator] Step 5 (Health) completed in \(String(format: "%.3f", healthDuration))s")
         progressCallback(1.0) // All done: 100%
 
         let snapshot = SystemSnapshot(

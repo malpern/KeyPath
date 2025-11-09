@@ -21,10 +21,7 @@ struct WizardKarabinerComponentsPage: View {
         VStack(spacing: 0) {
             // Use experimental hero design when driver is installed
             if !hasKarabinerIssues {
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    // Centered hero block with padding
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.success(
                         icon: "keyboard.macwindow",
                         title: "Karabiner Driver",
@@ -72,17 +69,12 @@ struct WizardKarabinerComponentsPage: View {
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                         .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
-
-                    Spacer()
                 }
+                .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Use hero design for error state too, with blue links below
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    // Centered hero block with padding
+                VStack(spacing: WizardDesign.Spacing.sectionGap) {
                     WizardHeroSection.warning(
                         icon: "keyboard.macwindow",
                         title: "Karabiner Driver Required",
@@ -152,10 +144,8 @@ struct WizardKarabinerComponentsPage: View {
                     .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                     .padding(.top, WizardDesign.Spacing.sectionGap)
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
-
-                    Spacer()
                 }
+                .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }

@@ -231,6 +231,23 @@ enum WizardDesign {
         )
     }
 
+    // MARK: - View Modifiers
+
+    /// Standardized hero section container modifier
+    /// Wraps content in Spacer() above/below with consistent vertical padding
+    struct HeroSectionContainer: ViewModifier {
+        func body(content: Content) -> some View {
+            VStack(spacing: 0) {
+                Spacer()
+
+                content
+                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+
+                Spacer()
+            }
+        }
+    }
+
     // MARK: - Component Styles
 
     enum Component {
@@ -1005,5 +1022,14 @@ private struct TapGestureModifier: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+// MARK: - View Extension
+
+extension View {
+    /// Wraps content in a standardized hero section container with Spacer() and padding
+    func heroSectionContainer() -> some View {
+        modifier(WizardDesign.HeroSectionContainer())
     }
 }
