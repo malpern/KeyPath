@@ -18,7 +18,7 @@ class WizardStateManager: ObservableObject {
         AppLogger.shared.log("🎯 [WizardStateManager] Configured with NEW SystemValidator (Phase 2)")
     }
 
-    func detectCurrentState() async -> SystemStateResult {
+    func detectCurrentState(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async -> SystemStateResult {
         guard let validator else {
             return SystemStateResult(
                 state: .initializing,
@@ -30,7 +30,7 @@ class WizardStateManager: ObservableObject {
 
         // 🎯 NEW: Use SystemValidator and adapt to old format
         AppLogger.shared.log("🎯 [WizardStateManager] Using SystemValidator (Phase 2)")
-        let snapshot = await validator.checkSystem()
+        let snapshot = await validator.checkSystem(progressCallback: progressCallback)
         return SystemSnapshotAdapter.adapt(snapshot)
     }
 }

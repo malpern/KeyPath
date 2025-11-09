@@ -158,31 +158,11 @@ struct WizardKarabinerComponentsPage: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            // Bottom buttons - HIG compliant button order
-            if hasKarabinerIssues {
-                // When issues exist: Back (left) | Continue Anyway (middle) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    secondary: WizardButtonBar.SecondaryButton(title: "Continue Anyway") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Karabiner Components page despite issues")
-                        navigateToNextPage()
-                    },
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue", action: navigateToNextPage)
-                )
-            } else {
-                // When all components are working: Back (left) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Karabiner Components page")
-                        navigateToNextPage()
-                    }
-                )
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .sheet(isPresented: $showingInstallationGuide) {
             KarabinerInstallationGuideSheet(kanataManager: kanataManager)
         }
@@ -196,26 +176,6 @@ struct WizardKarabinerComponentsPage: View {
             systemState: systemState,
             issues: issues
         ) != .completed
-    }
-
-    private func navigateToNextPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex < allPages.count - 1
-        else { return }
-        let nextPage = allPages[currentIndex + 1]
-        navigationCoordinator.navigateToPage(nextPage)
-        AppLogger.shared.log("➡️ [Karabiner Components] Navigated to next page: \(nextPage.displayName)")
-    }
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [Karabiner Components] Navigated to previous page: \(previousPage.displayName)")
     }
 
     private var karabinerRelatedIssues: [WizardIssue] {

@@ -31,8 +31,8 @@ class SystemValidator {
     private static var countingOwner: ObjectIdentifier?
     /// Serialize validations across the test process to avoid cross-test interference
     private actor TestGate {
-        func run(_ validator: SystemValidator) async -> SystemSnapshot {
-            await validator.performValidationBody()
+        func run(_ validator: SystemValidator, progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async -> SystemSnapshot {
+            await validator.performValidationBody(progressCallback: progressCallback)
         }
     }
 
@@ -72,7 +72,9 @@ class SystemValidator {
     /// If validation is already in progress, this will wait for it to complete
     /// rather than starting a concurrent validation. This prevents validation spam
     /// when multiple UI components request validation simultaneously.
-    func checkSystem() async -> SystemSnapshot {
+    ///
+    /// - Parameter progressCallback: Optional callback that receives progress updates (0.0 to 1.0)
+    func checkSystem(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async -> SystemSnapshot {
         // If validation is already in progress, wait for it
         if let inProgress = inProgressValidation {
             AppLogger.shared.log("🔍 [SystemValidator] Validation already in progress - waiting for result")
@@ -81,7 +83,7 @@ class SystemValidator {
 
         // Start new validation
         let validationTask = Task<SystemSnapshot, Never> { @MainActor in
-            await self.performValidation()
+            await self.performValidation(progressCallback: progressCallback)
         }
 
         inProgressValidation = validationTask
@@ -92,12 +94,12 @@ class SystemValidator {
 
     /// Perform the actual validation work
     /// This is called by checkSystem() and should not be called directly
-    private func performValidation() async -> SystemSnapshot {
-        if TestEnvironment.isRunningTests { return await Self.testGate.run(self) }
-        return await performValidationBody()
+    private func performValidation(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async -> SystemSnapshot {
+        if TestEnvironment.isRunningTests { return await Self.testGate.run(self, progressCallback: progressCallback) }
+        return await performValidationBody(progressCallback: progressCallback)
     }
 
-    private func performValidationBody() async -> SystemSnapshot {
+    private func performValidationBody(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async -> SystemSnapshot {
         // If cancelled before we start, return a minimal snapshot without mutating counters
         if Task.isCancelled {
             return Self.makeCancelledSnapshot()
@@ -130,11 +132,21 @@ class SystemValidator {
 
         // Check system state (calls existing services)
         // NOTE: Helper check FIRST - it's required for privileged operations
+        progressCallback(0.0) // Start: 0%
         let helper = await checkHelper()
+        progressCallback(0.2) // Helper done: 20%
+        
         let permissions = await checkPermissions()
+        progressCallback(0.4) // Permissions done: 40%
+        
         let components = await checkComponents()
+        progressCallback(0.6) // Components done: 60%
+        
         let conflicts = await checkConflicts()
+        progressCallback(0.8) // Conflicts done: 80%
+        
         let health = await checkHealth()
+        progressCallback(1.0) // All done: 100%
 
         let snapshot = SystemSnapshot(
             permissions: permissions,

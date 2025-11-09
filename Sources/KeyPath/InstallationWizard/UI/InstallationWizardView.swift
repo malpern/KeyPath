@@ -26,6 +26,7 @@ struct InstallationWizardView: View {
     // UI state
     @State private var isInitializing = true
     @State private var preflightStart = Date()
+    @State private var evaluationProgress: Double = 0.0
     @State private var systemState: WizardSystemState = .initializing
     @State private var currentIssues: [WizardIssue] = []
 
@@ -45,7 +46,7 @@ struct InstallationWizardView: View {
             VStack(spacing: 0) {
                 Group {
                     if isInitializing {
-                        WizardPreflightView()
+                        WizardPreflightView(progress: $evaluationProgress)
                             .frame(height: 140)
                             .transition(.opacity)
                     } else {
@@ -305,6 +306,7 @@ struct InstallationWizardView: View {
             await MainActor.run {
                 // Start preflight timer and initial state
                 preflightStart = Date()
+                evaluationProgress = 0.0
                 isInitializing = true
                 systemState = .initializing
                 currentIssues = []
@@ -334,7 +336,14 @@ struct InstallationWizardView: View {
 
         AppLogger.shared.log("🔍 [Wizard] Performing initial state check")
 
-        let operation = WizardOperations.stateDetection(stateManager: stateManager)
+        let operation = WizardOperations.stateDetection(
+            stateManager: stateManager,
+            progressCallback: { progress in
+                Task { @MainActor in
+                    evaluationProgress = progress
+                }
+            }
+        )
 
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             systemState = result.state
@@ -342,16 +351,23 @@ struct InstallationWizardView: View {
             // Start at summary page - no auto navigation
             // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
-            // Ensure a smooth minimum preflight duration (e.g., 1.2s)
-            let minDuration: TimeInterval = 1.2
-            let elapsed = Date().timeIntervalSince(preflightStart)
-            let remaining = max(0, minDuration - elapsed)
+            // Wait for progress to reach 100% before transitioning
             Task { @MainActor in
+                // Ensure progress is at 100% before transitioning
+                while evaluationProgress < 1.0 {
+                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms check interval
+                }
+                
+                // Ensure a smooth minimum preflight duration (e.g., 1.2s)
+                let minDuration: TimeInterval = 1.2
+                let elapsed = Date().timeIntervalSince(preflightStart)
+                let remaining = max(0, minDuration - elapsed)
                 if remaining > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
                 }
+                
                 withAnimation(.easeInOut(duration: 0.25)) {
-                isInitializing = false
+                    isInitializing = false
                 }
             }
 
@@ -413,7 +429,10 @@ struct InstallationWizardView: View {
         switch navigationCoordinator.currentPage {
         case .summary:
             // Full check only for summary page
-            let operation = WizardOperations.stateDetection(stateManager: stateManager)
+            let operation = WizardOperations.stateDetection(
+                stateManager: stateManager,
+                progressCallback: { _ in }
+            )
             asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
                 let oldState = systemState
                 let oldPage = navigationCoordinator.currentPage
@@ -720,7 +739,10 @@ struct InstallationWizardView: View {
         refreshTask?.cancel()
 
         // Use async operation manager for non-blocking refresh
-        let operation = WizardOperations.stateDetection(stateManager: stateManager)
+        let operation = WizardOperations.stateDetection(
+            stateManager: stateManager,
+            progressCallback: { _ in }
+        )
 
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             systemState = result.state
@@ -1058,14 +1080,21 @@ struct KeyboardNavigationModifier: ViewModifier {
 
 extension WizardOperations {
     /// State detection operation (UI-layer only - uses WizardStateManager from UI target)
-    static func stateDetection(stateManager: WizardStateManager) -> AsyncOperation<SystemStateResult> {
+    static func stateDetection(
+        stateManager: WizardStateManager,
+        progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
+    ) -> AsyncOperation<SystemStateResult> {
         AsyncOperation<SystemStateResult>(
             id: "state_detection",
             name: "System State Detection"
-        ) { progressCallback in
-            progressCallback(0.1)
-            let result = await stateManager.detectCurrentState()
+        ) { operationProgressCallback in
+            // Forward progress from SystemValidator to the operation callback
+            let result = await stateManager.detectCurrentState { progress in
+                progressCallback(progress)
+                operationProgressCallback(progress)
+            }
             progressCallback(1.0)
+            operationProgressCallback(1.0)
             return result
         }
     }

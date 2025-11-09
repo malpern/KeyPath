@@ -185,18 +185,6 @@ struct WizardCommunicationPage: View {
         }
     }
 
-    // MARK: - Helper Methods
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [Communication] Navigated to previous page: \(previousPage.displayName)")
-    }
-
     // MARK: - Communication Status Check (Using Shared SystemStatusChecker)
 
     private func checkCommunicationStatus() async {
