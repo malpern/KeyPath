@@ -6,7 +6,6 @@ import SwiftUI
 struct WizardConflictsPage: View {
     let issues: [WizardIssue]
     let isFixing: Bool
-    let onAutoFix: () -> Void
     let onRefresh: () -> Void
     let kanataManager: KanataManager
 
@@ -78,7 +77,6 @@ struct WizardConflictsPage: View {
                         CleanConflictsCard(
                             conflictCount: issues.count,
                             isFixing: isFixing,
-                            onAutoFix: onAutoFix,
                             onRefresh: onRefresh,
                             issues: issues,
                             kanataManager: kanataManager
@@ -112,7 +110,6 @@ struct WizardConflictsPage: View {
 struct CleanConflictsCard: View {
     let conflictCount: Int
     let isFixing: Bool
-    let onAutoFix: () -> Void
     let onRefresh: () -> Void
     let issues: [WizardIssue]
     let kanataManager: KanataManager
@@ -158,7 +155,7 @@ struct CleanConflictsCard: View {
 
                         if !success {
                             // Show error message explaining what happened
-                            statusMessage = "Permanent fix cancelled or failed. Try the temporary fix below."
+                            statusMessage = "Permanent fix cancelled or failed. Please try again or manually disable Karabiner Elements in System Settings."
                             showErrorMessage = true
 
                             // Hide error message after a few seconds
@@ -201,14 +198,6 @@ struct CleanConflictsCard: View {
                     .frame(minWidth: 240, minHeight: 44)
                 })
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
-                .disabled(isFixing || isPerformingPermanentFix)
-
-                // Secondary Option - Temporary Fix
-                Button(action: onAutoFix) {
-                    Text("Temporary Fix Only")
-                        .font(.subheadline)
-                }
-                .buttonStyle(WizardDesign.Component.SecondaryButton())
                 .disabled(isFixing || isPerformingPermanentFix)
 
                 // Status Messages

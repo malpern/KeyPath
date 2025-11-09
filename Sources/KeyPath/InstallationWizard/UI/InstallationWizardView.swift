@@ -180,7 +180,6 @@ struct InstallationWizardView: View {
                 WizardConflictsPage(
                     issues: currentIssues.filter { $0.category == .conflicts },
                     isFixing: asyncOperationManager.hasRunningOperations,
-                    onAutoFix: performAutoFix,
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
                 )
