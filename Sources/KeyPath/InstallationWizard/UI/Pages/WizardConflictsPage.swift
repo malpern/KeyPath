@@ -30,29 +30,12 @@ struct WizardConflictsPage: View {
 
                     // Centered hero block with padding
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Large green check for success
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 115, weight: .light))
-                            .foregroundColor(WizardDesign.Colors.success)
-                            .symbolRenderingMode(.hierarchical)
-                            .modifier(AvailabilitySymbolBounce())
-
-                        // Larger headline (23pt to match Full Disk Access)
-                        Text("No Conflicts Detected")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Supporting copy - shortened
-                        Text("No conflicting keyboard remapping software found")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-
-                        // Blue links under the subheading
-                        HStack(spacing: WizardDesign.Spacing.itemGap) {
-                            Button(action: {
+                        // Use WizardHeroSection for consistency and icon tap action
+                        WizardHeroSection.success(
+                            icon: "checkmark.circle.fill",
+                            title: "No Conflicts Detected",
+                            subtitle: "No conflicting keyboard remapping software found",
+                            iconTapAction: {
                                 isScanning = true
                                 onRefresh()
                                 // Keep spinner visible for a moment so user sees the action
@@ -60,36 +43,23 @@ struct WizardConflictsPage: View {
                                     try? await Task.sleep(nanoseconds: 500_000_000)
                                     isScanning = false
                                 }
-                            }, label: {
-                                HStack(spacing: 4) {
-                                    if isScanning {
-                                        ProgressView()
-                                            .scaleEffect(0.6)
-                                            .progressViewStyle(CircularProgressViewStyle())
-                                    }
-                                    Text(isScanning ? "Scanning..." : "Check Again")
-                                }
-                            })
-                            .buttonStyle(.link)
-                            .disabled(isFixing || isScanning)
-
-                            Text("•")
-                                .foregroundColor(.secondary)
-
-                            Button("Reset Everything") {
-                                Task { @MainActor in
-                                    isScanning = true
-                                    let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
-                                    _ = await autoFixer.resetEverything()
-                                    onRefresh()
-                                    isScanning = false
-                                }
                             }
-                            .buttonStyle(.link)
-                            .foregroundColor(.red)
-                            .disabled(isFixing || isScanning)
-                            .help("Kill all processes, clear PID files, and reset to clean state")
+                        )
+
+                        // Keep "Reset Everything" link below (not part of refresh)
+                        Button("Reset Everything") {
+                            Task { @MainActor in
+                                isScanning = true
+                                let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
+                                _ = await autoFixer.resetEverything()
+                                onRefresh()
+                                isScanning = false
+                            }
                         }
+                        .buttonStyle(.link)
+                        .foregroundColor(.red)
+                        .disabled(isFixing || isScanning)
+                        .help("Kill all processes, clear PID files, and reset to clean state")
                         .padding(.top, WizardDesign.Spacing.elementGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical) // Add padding above and below the hero block
@@ -102,28 +72,21 @@ struct WizardConflictsPage: View {
             } else {
                 // Original design for when conflicts are detected
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    // Custom header with colored triangle icon
-                    VStack(spacing: WizardDesign.Spacing.elementGap) {
-                        // Simple warning icon for errors
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 115, weight: .light))
-                            .foregroundColor(WizardDesign.Colors.error)
-                            .symbolRenderingMode(.hierarchical)
-                            .modifier(AvailabilitySymbolBounce())
-
-                        // Title
-                        Text("Conflicts Detected")
-                            .font(WizardDesign.Typography.sectionTitle)
-                            .fontWeight(.semibold)
-
-                        // Subtitle
-                        Text("\(issues.count) conflicting process\(issues.count == 1 ? "" : "es") found that must be resolved.")
-                            .font(WizardDesign.Typography.subtitle)
-                            .foregroundColor(WizardDesign.Colors.secondaryText)
-                            .multilineTextAlignment(.center)
-                            .wizardContentSpacing()
-                    }
-                    .padding(.top, WizardDesign.Spacing.pageVertical)
+                    // Use WizardHeroSection for consistency and icon tap action
+                    WizardHeroSection.error(
+                        icon: "exclamationmark.triangle.fill",
+                        title: "Conflicts Detected",
+                        subtitle: "\(issues.count) conflicting process\(issues.count == 1 ? "" : "es") found that must be resolved.",
+                        iconTapAction: {
+                            isScanning = true
+                            onRefresh()
+                            // Keep spinner visible for a moment so user sees the action
+                            Task {
+                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                isScanning = false
+                            }
+                        }
+                    )
 
                     // Main content area with conflicts
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
