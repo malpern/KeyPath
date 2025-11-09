@@ -921,6 +921,17 @@ struct SettingsView: View {
                              )
 
                              SettingsButton(
+                                 title: "Reset Everything",
+                                 systemImage: "exclamationmark.triangle.fill",
+                                 style: .destructive,
+                                 accessibilityId: "reset-everything-button",
+                                 accessibilityHint: "Force kill all processes, clear PID files, reset state - does not restart service",
+                                 action: {
+                                     showingResetEverythingConfirmation = true
+                                 }
+                             )
+
+                             SettingsButton(
                                  title: "Show Enhanced Diagnostics",
                                  systemImage: "info.circle",
                                  accessibilityId: "enhanced-diagnostics-button",
