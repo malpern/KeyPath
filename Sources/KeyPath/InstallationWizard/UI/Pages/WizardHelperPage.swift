@@ -239,6 +239,7 @@ struct WizardHelperPage: View {
                 }
             }
             .padding(.horizontal, 60)
+            .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
             Spacer()
         }
