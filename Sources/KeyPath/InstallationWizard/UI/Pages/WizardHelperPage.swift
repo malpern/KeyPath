@@ -72,8 +72,10 @@ struct WizardHelperPage: View {
                 setupView
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .task {
             // Check helper version on appear
             helperVersion = await HelperManager.shared.getHelperVersion()
@@ -152,19 +154,6 @@ struct WizardHelperPage: View {
             .padding(.horizontal, 60)
 
             Spacer()
-
-            // Continue button at bottom
-            HStack {
-                Spacer()
-                Button("Continue") {
-                    AppLogger.shared.log("ℹ️ [Wizard] User continuing from Helper page")
-                    navigateToNextPage()
-                }
-                .buttonStyle(WizardDesign.Component.PrimaryButton())
-                Spacer()
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, WizardDesign.Spacing.sectionGap)
         }
     }
 
@@ -252,16 +241,6 @@ struct WizardHelperPage: View {
             .padding(.horizontal, 60)
 
             Spacer()
-
-            // Bottom buttons - HIG compliant button order
-            WizardButtonBar(
-                cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                secondary: WizardButtonBar.SecondaryButton(title: "Continue Anyway") {
-                    AppLogger.shared.log("ℹ️ [Wizard] User continuing from Helper page despite issues")
-                    navigateToNextPage()
-                },
-                primary: WizardButtonBar.PrimaryButton(title: "Continue", action: navigateToNextPage)
-            )
         }
     }
 
@@ -293,25 +272,6 @@ struct WizardHelperPage: View {
             }
             onRefresh()
         }
-    }
-
-    private func navigateToNextPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex < allPages.count - 1
-        else { return }
-        let nextPage = allPages[currentIndex + 1]
-        navigationCoordinator.navigateToPage(nextPage)
-    }
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [Helper] Navigated to previous page: \(previousPage.displayName)")
     }
 
     private func withWorking(_ body: @escaping () async -> Void) async {

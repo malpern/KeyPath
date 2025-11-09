@@ -97,6 +97,40 @@ extension WizardNavigationCoordinator {
         // based on current system state
         WizardPage.allCases
     }
+
+    /// Check if we can navigate to the previous page
+    var canNavigateBack: Bool {
+        guard let currentIndex = WizardPage.orderedPages.firstIndex(of: currentPage) else {
+            return false
+        }
+        return currentIndex > 0
+    }
+
+    /// Check if we can navigate to the next page
+    var canNavigateForward: Bool {
+        guard let currentIndex = WizardPage.orderedPages.firstIndex(of: currentPage) else {
+            return false
+        }
+        return currentIndex < WizardPage.orderedPages.count - 1
+    }
+
+    /// Get the previous page in the ordered sequence
+    var previousPage: WizardPage? {
+        guard let currentIndex = WizardPage.orderedPages.firstIndex(of: currentPage),
+              currentIndex > 0 else {
+            return nil
+        }
+        return WizardPage.orderedPages[currentIndex - 1]
+    }
+
+    /// Get the next page in the ordered sequence
+    var nextPage: WizardPage? {
+        guard let currentIndex = WizardPage.orderedPages.firstIndex(of: currentPage),
+              currentIndex < WizardPage.orderedPages.count - 1 else {
+            return nil
+        }
+        return WizardPage.orderedPages[currentIndex + 1]
+    }
 }
 
 // MARK: - Animation Helpers

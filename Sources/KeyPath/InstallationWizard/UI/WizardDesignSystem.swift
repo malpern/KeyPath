@@ -41,6 +41,10 @@ enum WizardDesign {
 
         /// Text line spacing (between title and subtitle)
         static let textLineSpacing: CGFloat = 2
+
+        /// Navigation control positioning
+        static let navigationControlTop: CGFloat = 8
+        static let navigationControlLeading: CGFloat = 8
     }
 
     enum Toast {
@@ -804,11 +808,7 @@ struct WizardStatusItem: View {
         }
         .padding(.vertical, WizardDesign.Spacing.labelGap)
         .contentShape(Rectangle())
-        .onTapGesture {
-            if isNavigable {
-                action?()
-            }
-        }
+        .modifier(TapGestureModifier(isNavigable: isNavigable, action: action))
         .help(tooltip ?? "") // Show tooltip on hover if provided
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title): \(statusText)")
@@ -988,5 +988,22 @@ struct WizardPageHeader: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title). \(subtitle)")
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+// MARK: - Tap Gesture Modifier
+
+private struct TapGestureModifier: ViewModifier {
+    let isNavigable: Bool
+    let action: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if isNavigable, let action = action {
+            content.onTapGesture {
+                action()
+            }
+        } else {
+            content
+        }
     }
 }

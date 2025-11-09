@@ -101,13 +101,13 @@ struct WizardInputMonitoringPage: View {
                         .padding(WizardDesign.Spacing.cardPadding)
                         .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                        .padding(.top, WizardDesign.Spacing.pageVertical)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
                     Spacer()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
             } else {
                 // Use hero design for error state too, with blue links below
                 VStack(spacing: 0) {
@@ -207,7 +207,7 @@ struct WizardInputMonitoringPage: View {
                         .padding(WizardDesign.Spacing.cardPadding)
                         .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                        .padding(.top, WizardDesign.Spacing.pageVertical)
 
                         // Check Again link
                         Button("Check Again") {
@@ -225,36 +225,14 @@ struct WizardInputMonitoringPage: View {
 
                     Spacer()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
             }
 
             Spacer()
-
-            // Bottom buttons - HIG compliant button order
-            if hasInputMonitoringIssues {
-                // When permissions needed: Cancel (left) | Continue Anyway (middle) | Grant Permission (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    secondary: WizardButtonBar.SecondaryButton(title: "Continue Anyway") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Input Monitoring page despite issues")
-                        navigationCoordinator.userInteractionMode = true
-                        navigateToNextPage()
-                    },
-                    primary: WizardButtonBar.PrimaryButton(title: "Grant Permission", action: openInputMonitoringSettings)
-                )
-            } else {
-                // When permissions granted: Cancel (left) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Input Monitoring page")
-                        navigateToNextPage()
-                    }
-                )
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .onAppear {
             checkForStaleEntries()
         }
@@ -262,29 +240,6 @@ struct WizardInputMonitoringPage: View {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
         }
-    }
-
-    // MARK: - Helper Methods
-
-    private func navigateToNextPage() {
-        if let next = navigationCoordinator.getNextPage(for: systemState, issues: issues) {
-            navigationCoordinator.userInteractionMode = true // respect user choice
-            navigationCoordinator.navigateToPage(next)
-            AppLogger.shared.log("➡️ [Input Monitoring] Navigated to next page: \(next.displayName)")
-        } else {
-            AppLogger.shared.log("ℹ️ [Input Monitoring] No next page determined by NavigationEngine")
-            onDismiss?()
-        }
-    }
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [Input Monitoring] Navigated to previous page: \(previousPage.displayName)")
     }
 
     // MARK: - Computed Properties
@@ -580,7 +535,8 @@ struct WizardInputMonitoringPage_Previews: PreviewProvider {
             onDismiss: nil,
             kanataManager: manager
         )
-        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .frame(width: WizardDesign.Layout.pageWidth)
+        .fixedSize(horizontal: false, vertical: true)
         .environmentObject(viewModel)
     }
 }

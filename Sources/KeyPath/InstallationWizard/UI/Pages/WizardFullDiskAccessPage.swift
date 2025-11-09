@@ -102,44 +102,11 @@ struct WizardFullDiskAccessPage: View {
 
             Spacer()
 
-            // Bottom buttons - HIG compliant button order
-            if !hasFullDiskAccess {
-                // When FDA not granted: Back (left) | Grant Full Disk Access (middle) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    secondary: WizardButtonBar.SecondaryButton(title: "Grant Full Disk Access") {
-                        AppLogger.shared.log("🔒 [FDA Page] Grant Full Disk Access button clicked")
-                        openFullDiskAccessSettings()
-                        // Close Settings windows if they're open
-                        for window in NSApplication.shared.windows {
-                            let windowTitle = window.title
-                            if windowTitle.contains("Settings") {
-                                AppLogger.shared.log("🔒 [FDA Page] Closing Settings window: '\(windowTitle)'")
-                                window.close()
-                            }
-                        }
-                        // Dismiss the wizard using SwiftUI's dismiss action
-                        AppLogger.shared.log("🔒 [FDA Page] Dismissing wizard")
-                        dismiss()
-                    },
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Full Disk Access page")
-                        navigateToNextPage()
-                    }
-                )
-            } else {
-                // When FDA granted: Back (left) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Full Disk Access page")
-                        navigateToNextPage()
-                    }
-                )
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .onAppear {
             // Check status when page appears
             checkFullDiskAccess()
@@ -188,26 +155,6 @@ struct WizardFullDiskAccessPage: View {
     }
 
     // MARK: - Helper Methods
-
-    private func navigateToNextPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex < allPages.count - 1
-        else { return }
-        let nextPage = allPages[currentIndex + 1]
-        navigationCoordinator.navigateToPage(nextPage)
-        AppLogger.shared.log("➡️ [FDA] Navigated to next page: \(nextPage.displayName)")
-    }
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [FDA] Navigated to previous page: \(previousPage.displayName)")
-    }
 
     private func checkFullDiskAccess() {
         // Check cache first

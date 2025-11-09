@@ -22,148 +22,72 @@ struct WizardKanataComponentsPage: View {
                     Spacer()
 
                     // Centered hero block with padding
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Green CPU icon with green check overlay
-                        ZStack {
-                            Image(systemName: "cpu.fill")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
+                    WizardHeroSection.success(
+                        icon: "cpu.fill",
+                        title: "Kanata Engine Setup",
+                        subtitle: "Kanata binary is installed & configured for advanced keyboard remapping functionality"
+                    )
 
-                            // Green check overlay moved to the right
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.success)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 15, y: -5) // Move to the right
+                    // Component details card below the subheading - horizontally centered
+                    HStack {
+                        Spacer()
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                            // Kanata Binary (always shown in success state)
+                            HStack(spacing: 12) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                HStack(spacing: 0) {
+                                    Text("Kanata Binary")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - KeyPath's bundled & Developer ID signed version")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
                                 }
-                                Spacer()
                             }
-                            .frame(width: 115, height: 115)
-                        }
 
-                        // Headline
-                        Text("Kanata Engine Setup")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Subtitle
-                        Text("Kanata binary is installed & configured for advanced keyboard remapping functionality")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
-
-                        // Component details card below the subheading - horizontally centered
-                        HStack {
-                            Spacer()
-                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                                // Kanata Binary (always shown in success state)
+                            // Kanata Service (if service is configured)
+                            if componentStatus(for: "Kanata Service") == .completed {
                                 HStack(spacing: 12) {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.green)
                                     HStack(spacing: 0) {
-                                        Text("Kanata Binary")
+                                        Text("Kanata Service")
                                             .font(.headline)
                                             .fontWeight(.semibold)
-                                        Text(" - KeyPath's bundled & Developer ID signed version")
+                                        Text(" - System service configuration & management")
                                             .font(.headline)
                                             .fontWeight(.regular)
                                     }
                                 }
-
-                                // Kanata Service (if service is configured)
-                                if componentStatus(for: "Kanata Service") == .completed {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.green)
-                                        HStack(spacing: 0) {
-                                            Text("Kanata Service")
-                                                .font(.headline)
-                                                .fontWeight(.semibold)
-                                            Text(" - System service configuration & management")
-                                                .font(.headline)
-                                                .fontWeight(.regular)
-                                        }
-                                    }
-                                }
                             }
-                            Spacer()
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(WizardDesign.Spacing.cardPadding)
-                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                        Spacer()
                     }
-                    .padding(.vertical, WizardDesign.Spacing.pageVertical)
+                    .frame(maxWidth: .infinity)
+                    .padding(WizardDesign.Spacing.cardPadding)
+                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                    .padding(.top, WizardDesign.Spacing.pageVertical)
 
                     Spacer()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
             } else {
                 // Header for setup/error states with action link
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    // Custom header with colored CPU icon
-                    VStack(spacing: WizardDesign.Spacing.elementGap) {
-                        // Orange CPU icon with warning overlay
-                        ZStack {
-                            Image(systemName: "cpu.fill")
-                                .font(.system(size: 60, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.warning)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
-
-                            // Warning overlay moved to the right
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 24, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.warning)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 8, y: -3) // Move to the right for smaller icon
-                                }
-                                Spacer()
-                            }
-                            .frame(width: 60, height: 60)
-                        }
-                        .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
-
-                        // Title
-                        Text("Kanata Engine Setup")
-                            .font(WizardDesign.Typography.sectionTitle)
-                            .fontWeight(.semibold)
-
-                        // Subtitle
-                        Text("Install and configure the Kanata keyboard remapping engine")
-                            .font(WizardDesign.Typography.subtitle)
-                            .foregroundColor(WizardDesign.Colors.secondaryText)
-                            .multilineTextAlignment(.center)
-                            .wizardContentSpacing()
-                    }
-                    .padding(.top, 12)
-
-                    // Check Status link under the subheader
-                    Button("Check Status") {
+                WizardHeroSection.warning(
+                    icon: "cpu.fill",
+                    title: "Kanata Engine Setup",
+                    subtitle: "Install and configure the Kanata keyboard remapping engine",
+                    iconTapAction: {
                         Task {
                             onRefresh()
                         }
                     }
-                    .buttonStyle(.link)
-                }
-            }
+                )
 
-            // Component details for error/setup states
-            if !(kanataRelatedIssues.isEmpty && componentStatus(for: "Kanata Binary") == .completed) {
+                // Component details for error/setup states
+                if !(kanataRelatedIssues.isEmpty && componentStatus(for: "Kanata Binary") == .completed) {
                 ScrollView {
                     VStack(spacing: WizardDesign.Spacing.elementGap) {
                         // Static components that should be present
@@ -225,81 +149,21 @@ struct WizardKanataComponentsPage: View {
                         }
                     }
                     .padding(.horizontal, 40)
+                    .padding(.bottom, WizardDesign.Spacing.pageVertical)
+                }
                 }
             }
 
             Spacer()
 
-            // Bottom buttons - HIG compliant button order
-            if needsManualInstallation, kanataRelatedIssues.count > 0 || componentStatus(for: "Kanata Binary") != .completed {
-                // When installation needed: Back (left) | Install Kanata (middle) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    secondary: WizardButtonBar.SecondaryButton(title: "Install Kanata") {
-                        installBundledKanata()
-                    },
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Components page")
-                        Task {
-                            await navigateToNextPage()
-                        }
-                    }
-                )
-            } else {
-                // When everything installed: Back (left) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Components page")
-                        Task {
-                            await navigateToNextPage()
-                        }
-                    }
-                )
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
     }
 
     // MARK: - Helper Methods
-
-    private func navigateToNextPage() async {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex < allPages.count - 1
-        else { return }
-        let nextPage = allPages[currentIndex + 1]
-
-        // Show spinning cursor during state refresh
-        await MainActor.run {
-            NSCursor.operationNotAllowed.push()
-        }
-
-        // Pre-fetch state for pages that need async checks
-        if nextPage == .service {
-            // Refresh state so Service page has current data
-            onRefresh()
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds for refresh to complete
-        }
-
-        // Restore cursor and navigate
-        await MainActor.run {
-            NSCursor.pop()
-            navigationCoordinator.navigateToPage(nextPage)
-            AppLogger.shared.log("➡️ [Kanata Components] Navigated to next page: \(nextPage.displayName)")
-        }
-    }
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [Kanata Components] Navigated to previous page: \(previousPage.displayName)")
-    }
 
     private var kanataRelatedIssues: [WizardIssue] {
         issues.filter { issue in

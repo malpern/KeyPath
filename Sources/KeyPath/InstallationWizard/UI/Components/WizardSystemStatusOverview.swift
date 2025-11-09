@@ -1,6 +1,7 @@
 import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
+import AppKit
 
 /// Simplified system status overview component for the summary page
 struct WizardSystemStatusOverview: View {
@@ -18,7 +19,10 @@ struct WizardSystemStatusOverview: View {
             LazyVStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
                 ForEach(displayItems, id: \.id) { item in
                     // Row with subtle hover effect
-                    HoverableRow {
+                    HoverableRow(
+                        isNavigable: item.isNavigable,
+                        onTap: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil
+                    ) {
                         VStack(alignment: .leading, spacing: 0) {
                             WizardStatusItem(
                                 icon: item.icon,
@@ -26,7 +30,7 @@ struct WizardSystemStatusOverview: View {
                                 subtitle: item.subtitle,
                                 status: item.status,
                                 isNavigable: item.isNavigable,
-                                action: item.isNavigable ? { onNavigateToPage?(item.targetPage) } : nil,
+                                action: nil, // Tap handled at HoverableRow level
                                 isFinalStatus: isFinalKeyPathStatus(item: item),
                                 showInitialClock: shouldShowInitialClock(for: item),
                                 tooltip: item.relatedIssues.asTooltipText()
@@ -63,9 +67,27 @@ struct WizardSystemStatusOverview: View {
         }
         .focusable(false)
         .modifier(WizardDesign.DisableFocusEffects())
+        .background(NoFocusRingBackground())
+        .onAppear {
+            // Aggressively disable focus ring on underlying NSView
+            DispatchQueue.main.async {
+                if let window = NSApp.keyWindow,
+                   let contentView = window.contentView {
+                    disableFocusRings(in: contentView)
+                }
+            }
+        }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Color.clear)
         .animation(WizardDesign.Animation.statusTransition, value: showAllItems)
+    }
+
+    /// Recursively disable focus rings in all subviews
+    private func disableFocusRings(in view: NSView) {
+        view.focusRingType = .none
+        for subview in view.subviews {
+            disableFocusRings(in: subview)
+        }
     }
 
     /// Items to render given the current toggle state
@@ -507,9 +529,17 @@ struct WizardSystemStatusOverview: View {
 
 private struct HoverableRow<Content: View>: View {
     @State private var hovering = false
+    let isNavigable: Bool
+    let onTap: (() -> Void)?
     let content: () -> Content
 
-    init(@ViewBuilder content: @escaping () -> Content) {
+    init(
+        isNavigable: Bool = false,
+        onTap: (() -> Void)? = nil,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.isNavigable = isNavigable
+        self.onTap = onTap
         self.content = content
     }
 
@@ -517,6 +547,7 @@ private struct HoverableRow<Content: View>: View {
         content()
             .padding(.vertical, WizardDesign.Spacing.labelGap)
             .padding(.horizontal, WizardDesign.Spacing.cardPadding)
+            .contentShape(Rectangle())
             .overlay(alignment: .center) {
                 // 1px horizontal inset so the hover background doesn't touch edges
                 RoundedRectangle(cornerRadius: 8)
@@ -531,6 +562,11 @@ private struct HoverableRow<Content: View>: View {
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: 0.15)) {
                     self.hovering = hovering
+                }
+            }
+            .onTapGesture {
+                if isNavigable {
+                    onTap?()
                 }
             }
     }
@@ -606,6 +642,21 @@ private struct StatusItemModel {
         self.targetPage = targetPage
         self.subItems = subItems
         self.relatedIssues = relatedIssues
+    }
+}
+
+// MARK: - Focus Ring Suppression
+
+/// NSViewRepresentable that suppresses focus ring drawing on macOS
+private struct NoFocusRingBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        view.focusRingType = .none
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        nsView.focusRingType = .none
     }
 }
 

@@ -146,59 +146,33 @@ struct WizardKanataServicePage: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Header for other states with action link
-                VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    // Custom header with colored play icon
-                    VStack(spacing: WizardDesign.Spacing.elementGap) {
-                        // Colored gears icon with appropriate overlay
-                        ZStack {
-                            Image(systemName: "gearshape.2")
-                                .font(.system(size: 60, weight: .light))
-                                .foregroundColor(serviceStatus.color)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
 
-                            // Status overlay in top right
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: serviceStatus.icon)
-                                        .font(.system(size: 24, weight: .medium))
-                                        .foregroundColor(serviceStatus.color)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 8, y: -3) // Move to the right for smaller icon
-                                        .contentTransition(.symbolEffect(.replace))
-                                }
-                                Spacer()
-                            }
-                            .frame(width: 60, height: 60)
-                        }
-                        .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
+                WizardHeroSection(
 
-                        // Title
-                        Text("Kanata Service")
-                            .font(WizardDesign.Typography.sectionTitle)
-                            .fontWeight(.semibold)
+                    icon: "gearshape.2",
 
-                        // Subtitle
-                        Text("Monitor and control the keyboard remapping service")
-                            .font(WizardDesign.Typography.subtitle)
-                            .foregroundColor(WizardDesign.Colors.secondaryText)
-                            .multilineTextAlignment(.center)
-                            .wizardContentSpacing()
-                    }
-                    .padding(.top, 12)
+                    iconColor: serviceStatus.color,
 
-                    // Check Status link under the subheader
-                    Button("Check Status") {
+                    overlayIcon: serviceStatus.icon,
+
+                    overlayColor: serviceStatus.color,
+
+                    overlaySize: .small,
+
+                    title: "Kanata Service",
+
+                    subtitle: "Monitor and control the keyboard remapping service",
+
+                    iconTapAction: {
+
                         refreshStatus()
-                    }
-                    .buttonStyle(.link)
-                }
-            }
 
-            // No content card - service status is shown in hero section
-            if serviceStatus != .running {
+                    }
+
+                )
+
+                // No content card - service status is shown in hero section
+                if serviceStatus != .running {
                 VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
                         Text("Service Status: \(serviceStatus.description)")
@@ -247,46 +221,18 @@ struct WizardKanataServicePage: View {
                 .padding(WizardDesign.Spacing.cardPadding)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                .padding(.top, WizardDesign.Spacing.pageVertical)
+                .padding(.bottom, WizardDesign.Spacing.pageVertical)
+                }
             }
 
             Spacer()
 
-            // Bottom buttons - HIG compliant button order
-            if serviceStatus != .running {
-                // When service not running: Back (left) | Start (middle) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    secondary: WizardButtonBar.SecondaryButton(
-                        title: serviceStatus == .starting ? "Starting..." : "Start",
-                        action: startService,
-                        isEnabled: !isPerformingAction && serviceStatus != .running
-                    ),
-                    primary: WizardButtonBar.PrimaryButton(
-                        title: "Continue",
-                        action: {
-                            AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Service page")
-                            Task {
-                                await navigateToNextPage()
-                            }
-                        },
-                        isLoading: serviceStatus == .starting
-                    )
-                )
-            } else {
-                // When service running: Back (left) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Kanata Service page")
-                        Task {
-                            await navigateToNextPage()
-                        }
-                    }
-                )
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .onAppear {
             startAutoRefresh()
             refreshStatus()
@@ -297,44 +243,6 @@ struct WizardKanataServicePage: View {
     }
 
     // MARK: - Helper Methods
-
-    private func navigateToNextPage() async {
-        // Navigate to next page in sequence (Communication is after Service)
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex < allPages.count - 1
-        else { return }
-        let nextPage = allPages[currentIndex + 1]
-
-        // Show spinning cursor during state refresh
-        await MainActor.run {
-            NSCursor.operationNotAllowed.push()
-        }
-
-        // Pre-fetch state for pages that need async checks
-        if nextPage == .communication {
-            // Refresh state so Communication page has current data
-            onRefresh()
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds for refresh to complete
-        }
-
-        // Restore cursor and navigate
-        await MainActor.run {
-            NSCursor.pop()
-            navigationCoordinator.navigateToPage(nextPage)
-            AppLogger.shared.log("➡️ [Kanata Service] Navigated to next page: \(nextPage.displayName)")
-        }
-    }
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [Kanata Service] Navigated to previous page: \(previousPage.displayName)")
-    }
 
     // MARK: - Computed Properties
 

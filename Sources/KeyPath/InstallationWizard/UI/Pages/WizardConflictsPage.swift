@@ -106,11 +106,10 @@ struct WizardConflictsPage: View {
                     VStack(spacing: WizardDesign.Spacing.elementGap) {
                         // Simple warning icon for errors
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 60, weight: .light))
+                            .font(.system(size: 115, weight: .light))
                             .foregroundColor(WizardDesign.Colors.error)
                             .symbolRenderingMode(.hierarchical)
                             .modifier(AvailabilitySymbolBounce())
-                            .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
 
                         // Title
                         Text("Conflicts Detected")
@@ -124,7 +123,7 @@ struct WizardConflictsPage: View {
                             .multilineTextAlignment(.center)
                             .wizardContentSpacing()
                     }
-                    .padding(.top, 12)
+                    .padding(.top, WizardDesign.Spacing.pageVertical)
 
                     // Main content area with conflicts
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.itemGap) {
@@ -147,75 +146,17 @@ struct WizardConflictsPage: View {
                 }
             }
 
-            // Smaller spacing before buttons
             Spacer()
                 .frame(height: WizardDesign.Spacing.sectionGap)
-
-            // Primary Continue button for no-conflict state, existing buttons for conflict state
-            if issues.isEmpty {
-                // No conflicts - Back (left) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    primary: WizardButtonBar.PrimaryButton(title: "Continue") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Conflicts page")
-                        navigateToNextPage()
-                    }
-                )
-            } else {
-                // Conflicts detected - Back (left) | Check Again, Reset Everything (middle) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    secondary: WizardButtonBar.SecondaryButton(
-                        title: "Check Again",
-                        action: {
-                            isScanning = true
-                            onRefresh()
-                            // Keep spinner visible for a moment so user sees the action
-                            Task {
-                                try? await Task.sleep(nanoseconds: 500_000_000)
-                                isScanning = false
-                            }
-                        },
-                        isEnabled: !isFixing && !isScanning
-                    ),
-                    primary: WizardButtonBar.PrimaryButton(
-                        title: "Continue",
-                        action: {
-                            AppLogger.shared.log("ℹ️ [Wizard] User continuing from Conflicts page")
-                            navigateToNextPage()
-                        }
-                    )
-                )
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .onAppear {
             // Force a refresh when the page appears to avoid stale conflict snapshots
             onRefresh()
         }
-    }
-
-    // MARK: - Helper Methods
-
-    private func navigateToNextPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex < allPages.count - 1
-        else { return }
-        let nextPage = allPages[currentIndex + 1]
-        navigationCoordinator.navigateToPage(nextPage)
-        AppLogger.shared.log("➡️ [Conflicts] Navigated to next page: \(nextPage.displayName)")
-    }
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [Conflicts] Navigated to previous page: \(previousPage.displayName)")
     }
 }
 

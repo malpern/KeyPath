@@ -118,7 +118,7 @@ struct WizardOperationProgress: View {
         // Just the spinning gear - no text, no progress bar, minimal padding
         Image(systemName: "gear")
             .font(.system(size: 32))
-            .foregroundColor(.blue)
+            .foregroundColor(.secondary)
             .rotationEffect(.degrees(rotationAngle))
             .onAppear {
                 withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {

@@ -25,76 +25,46 @@ struct WizardKarabinerComponentsPage: View {
                     Spacer()
 
                     // Centered hero block with padding
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Green keyboard icon with green check overlay
-                        ZStack {
-                            Image(systemName: "keyboard.macwindow")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.success)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
-
-                            // Green check overlay hanging off right edge
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.success)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 15, y: -5) // Hang off the right edge
-                                }
-                                Spacer()
+                    WizardHeroSection.success(
+                        icon: "keyboard.macwindow",
+                        title: "Karabiner Driver",
+                        subtitle: "Virtual keyboard driver is installed & configured for input capture",
+                        iconTapAction: {
+                            Task {
+                                onRefresh()
                             }
-                            .frame(width: 115, height: 115)
                         }
+                    )
 
-                        // Headline
-                        Text("Karabiner Driver")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Subtitle
-                        Text("Virtual keyboard driver is installed & configured for input capture")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
-
-                        // Component details card below the subheading - horizontally centered
-                        HStack {
-                            Spacer()
-                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                    HStack(spacing: 0) {
-                                        Text("Karabiner Driver")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Virtual keyboard driver for input capture")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
-
-                                HStack(spacing: 12) {
-                                    Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
-                                    HStack(spacing: 0) {
-                                        Text("Background Services")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Karabiner services in Login Items for startup")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
+                    // Component details card below the subheading - horizontally centered
+                    HStack {
+                        Spacer()
+                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                HStack(spacing: 0) {
+                                    Text("Karabiner Driver")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Virtual keyboard driver for input capture")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
                                 }
                             }
-                            Spacer()
+
+                            HStack(spacing: 12) {
+                                Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("Background Services")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Karabiner services in Login Items for startup")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
+                                }
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -113,123 +83,81 @@ struct WizardKarabinerComponentsPage: View {
                     Spacer()
 
                     // Centered hero block with padding
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        // Orange keyboard icon with warning overlay
-                        ZStack {
-                            Image(systemName: "keyboard.macwindow")
-                                .font(.system(size: 115, weight: .light))
-                                .foregroundColor(WizardDesign.Colors.warning)
-                                .symbolRenderingMode(.hierarchical)
-                                .modifier(AvailabilitySymbolBounce())
-
-                            // Warning overlay hanging off right edge
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 40, weight: .medium))
-                                        .foregroundColor(WizardDesign.Colors.warning)
-                                        .background(WizardDesign.Colors.wizardBackground)
-                                        .clipShape(Circle())
-                                        .offset(x: 15, y: -5) // Hang off the right edge
-                                }
-                                Spacer()
-                            }
-                            .frame(width: 115, height: 115)
-                        }
-
-                        // Headline
-                        Text("Karabiner Driver Required")
-                            .font(.system(size: 23, weight: .semibold, design: .default))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-
-                        // Subtitle
-                        Text("Karabiner virtual keyboard driver needs to be installed & configured for input capture")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
-
-                        // Component details for error state
-                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                            HStack(spacing: 12) {
-                                Image(systemName: componentStatus(for: .driver) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(componentStatus(for: .driver) == .completed ? .green : .red)
-                                HStack(spacing: 0) {
-                                    Text("Karabiner Driver")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - Virtual keyboard driver")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
-                                }
-                                Spacer()
-                                if componentStatus(for: .driver) != .completed {
-                                    Button("Fix") {
-                                        handleKarabinerDriverFix()
-                                    }
-                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                    .scaleEffect(0.8)
-                                }
-                            }
-                            .help(driverIssues.asTooltipText())
-
-                            if let note = lastDriverFixNote, componentStatus(for: .driver) != .completed {
-                                Text("Last fix: \(note)")
-                                    .font(.footnote)
-                                    .foregroundColor(.secondary)
-                                    .padding(.leading, 28)
-                            }
-
-                            HStack(spacing: 12) {
-                                Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
-                                HStack(spacing: 0) {
-                                    Text("Background Services")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - Login Items for automatic startup")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
-                                }
-                                Spacer()
-                                if componentStatus(for: .backgroundServices) != .completed {
-                                    Button("Fix") {
-                                        handleBackgroundServicesFix()
-                                    }
-                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                    .scaleEffect(0.8)
-                                }
-                            }
-                            .help(backgroundServicesIssues.asTooltipText())
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(WizardDesign.Spacing.cardPadding)
-                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.sectionGap)
-
-                        // Check Status link
-                        Button("Check Status") {
+                    WizardHeroSection.warning(
+                        icon: "keyboard.macwindow",
+                        title: "Karabiner Driver Required",
+                        subtitle: "Karabiner virtual keyboard driver needs to be installed & configured for input capture",
+                        iconTapAction: {
                             Task {
                                 onRefresh()
                             }
                         }
-                        .buttonStyle(.link)
-                        .padding(.top, WizardDesign.Spacing.elementGap)
+                    )
+
+                    // Component details for error state
+                    VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
+                        HStack(spacing: 12) {
+                            Image(systemName: componentStatus(for: .driver) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(componentStatus(for: .driver) == .completed ? .green : .red)
+                            HStack(spacing: 0) {
+                                Text("Karabiner Driver")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                Text(" - Virtual keyboard driver")
+                                    .font(.headline)
+                                    .fontWeight(.regular)
+                            }
+                            Spacer()
+                            if componentStatus(for: .driver) != .completed {
+                                Button("Fix") {
+                                    handleKarabinerDriverFix()
+                                }
+                                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                .scaleEffect(0.8)
+                            }
+                        }
+                        .help(driverIssues.asTooltipText())
+
+                        if let note = lastDriverFixNote, componentStatus(for: .driver) != .completed {
+                            Text("Last fix: \(note)")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .padding(.leading, 28)
+                        }
+
+                        HStack(spacing: 12) {
+                            Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
+                            HStack(spacing: 0) {
+                                Text("Background Services")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                Text(" - Login Items for automatic startup")
+                                    .font(.headline)
+                                    .fontWeight(.regular)
+                            }
+                            Spacer()
+                            if componentStatus(for: .backgroundServices) != .completed {
+                                Button("Fix") {
+                                    handleBackgroundServicesFix()
+                                }
+                                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                .scaleEffect(0.8)
+                            }
+                        }
+                        .help(backgroundServicesIssues.asTooltipText())
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(WizardDesign.Spacing.cardPadding)
+                    .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, WizardDesign.Spacing.pageVertical)
+                    .padding(.top, WizardDesign.Spacing.sectionGap)
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            Spacer()
-
-            Spacer()
 
             // Bottom buttons - HIG compliant button order
             if hasKarabinerIssues {

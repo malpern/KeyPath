@@ -83,7 +83,7 @@ struct WizardCommunicationPage: View {
                         // Colored globe with overlay icon
                         ZStack {
                             Image(systemName: "globe")
-                                .font(.system(size: 60, weight: .light))
+                                .font(.system(size: 115, weight: .light))
                                 .foregroundColor(commStatus.globeColor)
                                 .symbolRenderingMode(.hierarchical)
                                 .modifier(BounceIfAvailable())
@@ -173,16 +173,11 @@ struct WizardCommunicationPage: View {
             Spacer()
 
             // Bottom buttons - HIG compliant button order
-            WizardButtonBar(
-                cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                primary: WizardButtonBar.PrimaryButton(title: "Done") {
-                    AppLogger.shared.log("ℹ️ [Wizard] User completing wizard from Communication page")
-                    navigationCoordinator.navigateToPage(.summary)
-                }
-            )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .onAppear {
             Task {
                 await checkCommunicationStatus()

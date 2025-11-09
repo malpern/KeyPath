@@ -101,13 +101,13 @@ struct WizardAccessibilityPage: View {
                         .padding(WizardDesign.Spacing.cardPadding)
                         .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                        .padding(.top, WizardDesign.Spacing.pageVertical)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
                     Spacer()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
             } else {
                 // Use hero design for error state too, with blue links below
                 VStack(spacing: 0) {
@@ -236,45 +236,20 @@ struct WizardAccessibilityPage: View {
                         .padding(WizardDesign.Spacing.cardPadding)
                         .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.sectionGap)
+                        .padding(.top, WizardDesign.Spacing.pageVertical)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
                     Spacer()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
             }
 
             Spacer()
-
-            // Bottom buttons - HIG compliant button order
-            if hasAccessibilityIssues {
-                // When permissions needed: Cancel (left) | Continue Anyway (middle) | Grant Permission (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    secondary: WizardButtonBar.SecondaryButton(title: "Continue Anyway") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page despite issues")
-                        navigateToNextPage()
-                    },
-                    primary: WizardButtonBar.PrimaryButton(title: "Grant Permission") {
-                        // Set service bounce flag before showing permission grant
-                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Accessibility permission grant via primary button")
-                        openAccessibilityPermissionGrant()
-                    }
-                )
-            } else {
-                // When permissions granted: Cancel (left) | Continue (right, primary)
-                WizardButtonBar(
-                    cancel: WizardButtonBar.CancelButton(title: "Back", action: navigateToPreviousPage),
-                    primary: WizardButtonBar.PrimaryButton(title: "Next: Input Monitoring") {
-                        AppLogger.shared.log("ℹ️ [Wizard] User continuing from Accessibility page")
-                        navigateToNextPage()
-                    }
-                )
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .onAppear {
             // Start passive polling to reflect manual changes in System Settings
             if permissionPollingTask == nil {
@@ -300,28 +275,6 @@ struct WizardAccessibilityPage: View {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
         }
-    }
-
-    // MARK: - Helper Methods
-
-    private func navigateToNextPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex < allPages.count - 1
-        else { return }
-        let nextPage = allPages[currentIndex + 1]
-        navigationCoordinator.navigateToPage(nextPage)
-        AppLogger.shared.log("➡️ [Accessibility] Navigated to next page: \(nextPage.displayName)")
-    }
-
-    private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-        let previousPage = allPages[currentIndex - 1]
-        navigationCoordinator.navigateToPage(previousPage)
-        AppLogger.shared.log("⬅️ [Accessibility] Navigated to previous page: \(previousPage.displayName)")
     }
 
     // MARK: - Computed Properties
@@ -486,7 +439,8 @@ struct WizardAccessibilityPage_Previews: PreviewProvider {
             onDismiss: nil,
             kanataManager: manager
         )
-        .frame(width: WizardDesign.Layout.pageWidth, height: WizardDesign.Layout.pageHeight)
+        .frame(width: WizardDesign.Layout.pageWidth)
+        .fixedSize(horizontal: false, vertical: true)
         .environmentObject(viewModel)
     }
 }

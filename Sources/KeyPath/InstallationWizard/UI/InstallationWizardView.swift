@@ -37,46 +37,49 @@ struct InstallationWizardView: View {
     @FocusState private var hasKeyboardFocus: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            Group {
-                if isInitializing {
-                    WizardPreflightView()
-                        .frame(height: 140)
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                } else {
-            pageContent()
-                .frame(maxWidth: .infinity)
-                .overlay {
-                    if asyncOperationManager.hasRunningOperations {
-                        operationProgressOverlay()
-                            .allowsHitTesting(false) // Don't block X button interaction
+        ZStack {
+            // White background for cross-fade effect
+            Color.white
+                .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                Group {
+                    if isInitializing {
+                        WizardPreflightView()
+                            .frame(height: 140)
+                            .transition(.opacity)
+                    } else {
+                pageContent()
+                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .overlay {
+                        if asyncOperationManager.hasRunningOperations {
+                            operationProgressOverlay()
+                                .allowsHitTesting(false) // Don't block X button interaction
+                        }
                     }
-                }
-        }
             }
+                }
+            }
+            .frame(
+                width: (isInitializing || navigationCoordinator.currentPage == .summary)
+                    ? WizardDesign.Layout.pageWidth * CGFloat(0.5) // Match list width; only height changes
+                    : WizardDesign.Layout.pageWidth
+            )
+            .fixedSize(horizontal: true, vertical: false) // Allow vertical growth, fix width
+            .animation(.easeInOut(duration: 0.3), value: navigationCoordinator.currentPage)
+            .animation(.easeInOut(duration: 0.3), value: isInitializing)
+            .background(VisualEffectBackground())
         }
-        .frame(
-            width: (isInitializing || navigationCoordinator.currentPage == .summary)
-                ? WizardDesign.Layout.pageWidth * CGFloat(0.5) // Match list width; only height changes
-                : WizardDesign.Layout.pageWidth
-        )
-        .background(VisualEffectBackground())
         .withToasts(toastManager)
         .environmentObject(navigationCoordinator)
         .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
         // Global Close button overlay for all detail pages
         .overlay(alignment: .topTrailing) {
             if navigationCoordinator.currentPage != .summary {
-                Button {
-                    navigationCoordinator.navigateToPage(.summary)
-                    AppLogger.shared.log("✖️ [Wizard] Close pressed — navigating to summary")
-                } label: {
-                    Label("Close", systemImage: "xmark")
-                }
-                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                .padding(.top, 8)
-                .padding(.trailing, 8)
-                .help("Return to Overview")
+                CloseButton()
+                    .padding(.top, 8 + 4) // Extra padding from edge
+                    .padding(.trailing, 8 + 4) // Extra padding from edge
             }
         }
         .onAppear {
@@ -245,7 +248,7 @@ struct InstallationWizardView: View {
                 )
             }
         }
-        .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+        .transition(.opacity)
         .animation(.easeInOut(duration: 0.3), value: navigationCoordinator.currentPage)
     }
 
