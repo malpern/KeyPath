@@ -29,6 +29,8 @@ struct InstallationWizardView: View {
     @State private var evaluationProgress: Double = 0.0
     @State private var systemState: WizardSystemState = .initializing
     @State private var currentIssues: [WizardIssue] = []
+    @State private var showAllSummaryItems: Bool = false
+    @State private var navSequence: [WizardPage] = []
 
     // Task management for race condition prevention
     @State private var refreshTask: Task<Void, Never>?
@@ -179,7 +181,9 @@ struct InstallationWizardView: View {
                     onNavigateToPage: { page in
                         navigationCoordinator.navigateToPage(page)
                     },
-                    isValidating: isValidating
+                    isValidating: isValidating,
+                    showAllItems: $showAllSummaryItems,
+                    navSequence: $navSequence
                 )
             case .fullDiskAccess:
                 WizardFullDiskAccessPage()
@@ -974,27 +978,30 @@ struct InstallationWizardView: View {
 
     /// Navigate to the previous page using keyboard left arrow
     private func navigateToPreviousPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex > 0
-        else { return }
-
-        let previousPage = allPages[currentIndex - 1]
+        guard navigationCoordinator.currentPage != .summary else { return }
+        let defaultSequence: [WizardPage] = [
+            .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
+            .karabinerComponents, .kanataComponents, .service, .communication
+        ]
+        let sequence = navSequence.isEmpty ? defaultSequence : navSequence
+        guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage), idx > 0 else { return }
+        let previousPage = sequence[idx - 1]
         navigationCoordinator.navigateToPage(previousPage)
-
         AppLogger.shared.log("⬅️ [Keyboard] Navigated to previous page: \(previousPage.displayName)")
     }
 
     /// Navigate to the next page using keyboard right arrow
     private func navigateToNextPage() {
-        let allPages = WizardPage.allCases
-        guard let currentIndex = allPages.firstIndex(of: navigationCoordinator.currentPage),
-              currentIndex < allPages.count - 1
-        else { return }
-
-        let nextPage = allPages[currentIndex + 1]
+        guard navigationCoordinator.currentPage != .summary else { return }
+        let defaultSequence: [WizardPage] = [
+            .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
+            .karabinerComponents, .kanataComponents, .service, .communication
+        ]
+        let sequence = navSequence.isEmpty ? defaultSequence : navSequence
+        guard let idx = sequence.firstIndex(of: navigationCoordinator.currentPage),
+              idx < sequence.count - 1 else { return }
+        let nextPage = sequence[idx + 1]
         navigationCoordinator.navigateToPage(nextPage)
-
         AppLogger.shared.log("➡️ [Keyboard] Navigated to next page: \(nextPage.displayName)")
     }
 

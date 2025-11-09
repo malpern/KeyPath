@@ -13,6 +13,8 @@ struct WizardSummaryPage: View {
     let onDismiss: () -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
     let isValidating: Bool // Show spinning gear during validation
+    @Binding var showAllItems: Bool // Lifted to parent to drive navigation sequence
+    @Binding var navSequence: [WizardPage] // Ordered pages for back/next navigation
 
     // Access underlying KanataManager for business logic
     private var kanataManager: KanataManager {
@@ -27,8 +29,8 @@ struct WizardSummaryPage: View {
     }
 
     @State private var headerMode: HeaderMode = .validating
-    @State private var showAllItems: Bool = false
     @State private var gearRotation: Double = 0 // For continuous spinning animation
+    @State private var iconHovering: Bool = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -47,7 +49,8 @@ struct WizardSummaryPage: View {
                         stateInterpreter: stateInterpreter,
                         onNavigateToPage: onNavigateToPage,
                         kanataIsRunning: kanataManager.isRunning,
-                        showAllItems: showAllItems
+                        showAllItems: showAllItems,
+                        navSequence: $navSequence
                     )
                     .frame(maxHeight: listMaxHeight)
                     .transition(.opacity) // Simple fade in, no sliding
@@ -107,6 +110,32 @@ struct WizardSummaryPage: View {
             .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
             .frame(maxWidth: .infinity) // Center horizontally
             .padding(.top, iconTopPadding) // Icon pinned from top (issues icon closer by 30%)
+            .overlay(alignment: .center) {
+                // Subtle hover ring when clickable (issues mode only)
+                if headerMode == .issues {
+                    Circle()
+                        .stroke(Color.primary.opacity(iconHovering ? 0.15 : 0.0), lineWidth: 2)
+                        .frame(width: WizardDesign.Layout.statusCircleSize + 8, height: WizardDesign.Layout.statusCircleSize + 8)
+                        .animation(.easeInOut(duration: 0.15), value: iconHovering)
+                        .allowsHitTesting(false)
+                }
+            }
+            .contentShape(Circle())
+            .onHover { hovering in
+                if headerMode == .issues {
+                    iconHovering = hovering
+                } else {
+                    iconHovering = false
+                }
+            }
+            .onTapGesture {
+                // Toggle showAll when in issues mode; animate list transition
+                if headerMode == .issues {
+                    withAnimation(WizardDesign.Animation.statusTransition) {
+                        showAllItems.toggle()
+                    }
+                }
+            }
             .transition(.opacity) // Simple opacity transition, no scaling
             .onAppear {
                 // Initialize header mode based on validation state
@@ -152,30 +181,7 @@ struct WizardSummaryPage: View {
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity) // Center horizontally
                 .padding(.top, 60 + WizardDesign.Layout.statusCircleSize + WizardDesign.Spacing.elementGap)
-            // Eye icon - positioned independently in top-trailing corner
-            if !isValidating {
-                VStack {
-                    HStack {
-                        Spacer()
-                        Button {
-                            withAnimation(WizardDesign.Animation.statusTransition) {
-                                showAllItems.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "eye.slash")
-                                .foregroundColor(showAllItems ? .primary : .secondary)
-                                .font(.system(size: 16, weight: .regular))
-                                .padding(8)
-                        }
-                        .buttonStyle(.plain)
-                        .help(showAllItems ? "Show issues only" : "Show all items")
-                        .accessibilityLabel(showAllItems ? "Show issues only" : "Show all items")
-                        .padding(.trailing, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, 8)
-                    }
-                    Spacer()
-                }
-            }
+            // Eye icon removed - error icon toggles list filtering
         }
         .modifier(WizardDesign.DisableFocusEffects())
         .background(WizardDesign.Colors.wizardBackground)

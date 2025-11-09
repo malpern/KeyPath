@@ -69,9 +69,7 @@ struct SystemStatusIndicator: View {
                     Image(systemName: "gear")
                         .rotationEffect(.degrees(isAnimating ? 360 : 0))
                         .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
-                        .onAppear { 
-                            isAnimating = true 
-                        }
+                        .onAppear { isAnimating = true }
                         // Don't stop animation on disappear - let it continue during transition
                         .transition(.opacity)
                 case .success:
@@ -92,16 +90,14 @@ struct SystemStatusIndicator: View {
                 Image(systemName: "gear")
                     .rotationEffect(.degrees(isAnimating ? 360 : 0))
                     .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: isAnimating)
-                    .onAppear { 
-                        isAnimating = true 
-                    }
+                    .onAppear { isAnimating = true }
                     // Don't stop animation on disappear - let it continue during transition
                     .transition(.opacity)
             }
         }
         .frame(width: indicatorSize, height: indicatorSize) // Fixed size to prevent jumps
         .animation(.easeInOut(duration: 0.3), value: iconIdentifier) // Smooth animation between states
-        .onChange(of: validator.validationState) { oldState, newState in
+        .onChange(of: validator.validationState) { _, newState in
             // Stop animation only when we're definitely not checking anymore
             if case .checking = newState {
                 isAnimating = true
@@ -130,7 +126,7 @@ struct SystemStatusIndicator: View {
         guard let state = validator.validationState else { return Color.clear }
         switch state {
         case .checking:
-            return Color.blue.opacity(0.1)
+            return Color.secondary.opacity(0.12)
         case .success:
             return Color.green.opacity(0.1)
         case let .failed(blockingCount, _):
@@ -151,7 +147,7 @@ struct SystemStatusIndicator: View {
         guard let state = validator.validationState else { return Color.clear }
         switch state {
         case .checking:
-            return Color.blue.opacity(0.3)
+            return Color.secondary.opacity(0.25)
         case .success:
             return Color.green.opacity(0.3)
         case let .failed(blockingCount, _):
@@ -163,7 +159,7 @@ struct SystemStatusIndicator: View {
         guard let state = validator.validationState else { return Color.gray }
         switch state {
         case .checking:
-            return Color.blue
+            return Color.secondary
         case .success:
             return Color.green
         case let .failed(blockingCount, _):
@@ -175,7 +171,7 @@ struct SystemStatusIndicator: View {
         guard let state = validator.validationState else { return Color.clear }
         switch state {
         case .checking:
-            return Color.blue.opacity(0.2)
+            return Color.secondary.opacity(0.18)
         case .success:
             return Color.green.opacity(0.2)
         case let .failed(blockingCount, _):

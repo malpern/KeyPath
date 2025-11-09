@@ -13,6 +13,8 @@ struct WizardSystemStatusOverview: View {
     let kanataIsRunning: Bool
     /// When false, show only items that need attention (failed). When true, show all.
     let showAllItems: Bool
+    /// Ordered navigation sequence, synced to current display filter
+    @Binding var navSequence: [WizardPage]
 
     @State private var scrollOffset: CGFloat = 0
     @State private var contentHeight: CGFloat = 0
@@ -118,6 +120,10 @@ struct WizardSystemStatusOverview: View {
             scrollOffset = value.minY
             contentHeight = value.height
         }
+        .onAppear { updateNavSequence() }
+        .onChange(of: showAllItems) { _, _ in updateNavSequence() }
+        .onChange(of: issues.count) { _, _ in updateNavSequence() }
+        .onChange(of: systemState) { _, _ in updateNavSequence() }
         .overlay(alignment: .top) {
             if canShowTopFade {
                 LinearGradient(
@@ -410,6 +416,21 @@ struct WizardSystemStatusOverview: View {
         }
 
         return items
+    }
+
+    // MARK: - Navigation Sequence Sync
+
+    private func updateNavSequence() {
+        var seen = Set<WizardPage>()
+        var ordered: [WizardPage] = []
+        for item in displayItems {
+            let page = item.targetPage
+            if page != .summary && !seen.contains(page) {
+                seen.insert(page)
+                ordered.append(page)
+            }
+        }
+        navSequence = ordered
     }
 
     // MARK: - Dependency Logic
@@ -775,7 +796,8 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
             stateInterpreter: WizardStateInterpreter(),
             onNavigateToPage: { _ in },
             kanataIsRunning: true, // Show running in preview
-            showAllItems: false
+            showAllItems: false,
+            navSequence: .constant([])
         )
         .padding()
     }
