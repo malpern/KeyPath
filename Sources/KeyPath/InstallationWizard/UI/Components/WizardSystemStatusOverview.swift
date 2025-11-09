@@ -14,6 +14,10 @@ struct WizardSystemStatusOverview: View {
     /// When false, show only items that need attention (failed). When true, show all.
     let showAllItems: Bool
 
+    @State private var scrollOffset: CGFloat = 0
+    @State private var contentHeight: CGFloat = 0
+    @State private var containerHeight: CGFloat = 0
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: WizardDesign.Spacing.labelGap) {
@@ -60,11 +64,26 @@ struct WizardSystemStatusOverview: View {
                                              removal: .opacity))
                 }
             }
+            // Track content geometry to compute scroll affordance
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(
+                            key: ContentGeometryKey.self,
+                            value: ContentGeometry(
+                                minY: proxy.frame(in: .named("WizardOverviewScroll")).minY,
+                                height: proxy.size.height
+                            )
+                        )
+                }
+            )
             // Center to 50% of window width (window width is fixed by layout)
             .frame(width: WizardDesign.Layout.pageWidth * 0.5)
             .padding(.vertical, WizardDesign.Spacing.sectionGap)
             .frame(maxWidth: .infinity, alignment: .center)
         }
+        .coordinateSpace(name: "WizardOverviewScroll")
+        .scrollIndicators(.hidden) // Hide scroll indicators to avoid visual clutter
         .focusable(false)
         .modifier(WizardDesign.DisableFocusEffects())
         .background(NoFocusRingBackground())
@@ -75,6 +94,58 @@ struct WizardSystemStatusOverview: View {
                    let contentView = window.contentView {
                     disableFocusRings(in: contentView)
                 }
+            }
+        }
+        // Track container height for fade logic
+        .background(
+            GeometryReader { proxy in
+                if #available(macOS 14.0, *) {
+                    Color.clear
+                        .onAppear { containerHeight = proxy.size.height }
+                        .onChange(of: proxy.size.height) { _, newValue in
+                            containerHeight = newValue
+                        }
+                } else {
+                    Color.clear
+                        .onAppear { containerHeight = proxy.size.height }
+                        .onChange(of: proxy.size.height) { newValue in
+                            containerHeight = newValue
+                        }
+                }
+            }
+        )
+        .onPreferenceChange(ContentGeometryKey.self) { value in
+            scrollOffset = value.minY
+            contentHeight = value.height
+        }
+        .overlay(alignment: .top) {
+            if canShowTopFade {
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        WizardDesign.Colors.wizardBackground,
+                        WizardDesign.Colors.wizardBackground.opacity(0.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 14)
+                .allowsHitTesting(false)
+                .transition(.opacity)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if canShowBottomFade {
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        WizardDesign.Colors.wizardBackground.opacity(0.0),
+                        WizardDesign.Colors.wizardBackground
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 14)
+                .allowsHitTesting(false)
+                .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -90,10 +161,34 @@ struct WizardSystemStatusOverview: View {
         }
     }
 
+    private var canShowTopFade: Bool {
+        // Negative minY means scrolled down; show top fade when there is content above
+        scrollOffset < -1
+    }
+
+    private var canShowBottomFade: Bool {
+        // Remaining content below container?
+        (contentHeight + scrollOffset) - containerHeight > 1
+    }
+
     /// Items to render given the current toggle state
     private var displayItems: [StatusItemModel] {
         if showAllItems { return statusItems }
         return statusItems.filter { $0.status == .failed }
+    }
+
+    // MARK: - Geometry Preference
+
+    private struct ContentGeometry: Equatable {
+        let minY: CGFloat
+        let height: CGFloat
+    }
+
+    private struct ContentGeometryKey: PreferenceKey {
+        static let defaultValue: ContentGeometry = .init(minY: 0, height: 0)
+        static func reduce(value: inout ContentGeometry, nextValue: () -> ContentGeometry) {
+            value = nextValue()
+        }
     }
 
     // MARK: - Animation Helpers

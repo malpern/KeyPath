@@ -12,94 +12,170 @@ struct WizardSummaryPage: View {
     let onStartService: () -> Void
     let onDismiss: () -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
-    let isInitializing: Bool
+    let isValidating: Bool // Show spinning gear during validation
 
     // Access underlying KanataManager for business logic
     private var kanataManager: KanataManager {
         kanataViewModel.underlyingManager
     }
 
-    // MARK: - Header State (no pending phase)
+    // MARK: - Header State
     private enum HeaderMode {
-        case issues
-        case success
+        case validating // Spinning gear
+        case issues // Error icon
+        case success // Green check
     }
 
-    @State private var headerMode: HeaderMode = .issues
+    @State private var headerMode: HeaderMode = .validating
     @State private var showAllItems: Bool = false
+    @State private var gearRotation: Double = 0 // For continuous spinning animation
 
     var body: some View {
-        VStack(spacing: 0) {
-                // Final header (issues or success)
-                VStack(spacing: WizardDesign.Spacing.elementGap) {
-                    Image(systemName: headerIconName)
-                        .font(.system(size: WizardDesign.Layout.statusCircleSize))
-                        .foregroundColor(headerIconColor)
-                        .modifier(AvailabilitySymbolBounce())
-
-                    Text(headerTitle)
-                        .font(WizardDesign.Typography.sectionTitle)
-                        .fontWeight(.semibold)
-                }
-                .padding(.top, 20)
-                .padding(.bottom, WizardDesign.Spacing.sectionGap)
-                .overlay(alignment: .topTrailing) {
-                    Button {
-                        withAnimation(WizardDesign.Animation.statusTransition) {
-                            showAllItems.toggle()
-                        }
-                    } label: {
-                        Image(systemName: "eye.slash")
-                            .foregroundColor(showAllItems ? .primary : .secondary)
-                            .font(.system(size: 16, weight: .regular))
-                            .padding(8)
-                    }
-                    .buttonStyle(.plain)
-                    .help(showAllItems ? "Show issues only" : "Show all items")
-                    .accessibilityLabel(showAllItems ? "Show issues only" : "Show all items")
-                    .padding(.trailing, WizardDesign.Spacing.pageVertical)
-                }
-                .onAppear {
-                    withAnimation(WizardDesign.Animation.statusTransition) {
-                        headerMode = isEverythingComplete ? .success : .issues
-                    }
-                    // Clear any stray first responder to avoid focus ring artifact at launch
-                    DispatchQueue.main.async {
-                        NSApp.keyWindow?.makeFirstResponder(nil)
-                    }
-                }
-                .onChange(of: isEverythingComplete) { complete in
-                    // Transition to success immediately when everything turns green
-                    if complete {
-                        withAnimation(WizardDesign.Animation.statusTransition) {
-                            headerMode = .success
-                        }
-                    }
-                }
+        ZStack(alignment: .top) {
+            // Content area (issues list and actions) - positioned below fixed header
+            VStack(spacing: 0) {
+                // Spacer to push content below the fixed header area
+                Spacer()
+                    .frame(height: 180) // Space for header (60pt top + 120pt header)
 
                 // System Status Overview
-                WizardSystemStatusOverview(
-                    systemState: systemState,
-                    issues: issues,
-                    stateInterpreter: stateInterpreter,
-                    onNavigateToPage: onNavigateToPage,
-                    kanataIsRunning: kanataManager.isRunning,
-                    showAllItems: showAllItems
-                )
-                // Natural height — let the list dictate its own height
-                .fixedSize(horizontal: false, vertical: true)
+                // Cap list region height so window grows until cap, then scrolls internally
+                if !isValidating {
+                    WizardSystemStatusOverview(
+                        systemState: systemState,
+                        issues: issues,
+                        stateInterpreter: stateInterpreter,
+                        onNavigateToPage: onNavigateToPage,
+                        kanataIsRunning: kanataManager.isRunning,
+                        showAllItems: showAllItems
+                    )
+                    .frame(maxHeight: listMaxHeight)
+                    .transition(.opacity) // Simple fade in, no sliding
+                } else {
+                    // Reserve space during validation to keep window size stable
+                    Spacer()
+                        .frame(height: listMaxHeight)
+                }
 
                 // Minimal separation before action section
                 Spacer(minLength: 0)
 
                 // Action Section
-                WizardActionSection(
-                    systemState: systemState,
-                    isFullyConfigured: isEverythingComplete,
-                    onStartService: onStartService,
-                    onDismiss: onDismiss
-                )
-                .padding(.bottom, WizardDesign.Spacing.elementGap) // Reduce bottom padding
+                // Always reserve space to prevent window resizing
+                if !isValidating {
+                    WizardActionSection(
+                        systemState: systemState,
+                        isFullyConfigured: isEverythingComplete,
+                        onStartService: onStartService,
+                        onDismiss: onDismiss
+                    )
+                    .padding(.bottom, WizardDesign.Spacing.elementGap) // Reduce bottom padding
+                    .transition(.opacity)
+                } else {
+                    // Reserve space during validation to keep window size stable
+                    Spacer()
+                        .frame(height: 60) // Approximate height for action section
+                }
+            }
+
+            // Icon - absolutely positioned, independent of text
+            Group {
+                if headerMode == .validating {
+                    // Spinning gear during validation - continuous rotation
+                    Image(systemName: "gear")
+                        .font(.system(size: WizardDesign.Layout.statusCircleSize))
+                        .foregroundColor(.secondary)
+                        .rotationEffect(.degrees(gearRotation))
+                        .onAppear {
+                            // Start continuous rotation when gear appears
+                            withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+                                gearRotation = 360
+                            }
+                        }
+                        .onDisappear {
+                            // Stop rotation when gear disappears
+                            gearRotation = 0
+                        }
+                } else {
+                    // Final state icon (error or success) - simple fade transition
+                    Image(systemName: headerIconName)
+                        .font(.system(size: WizardDesign.Layout.statusCircleSize))
+                        .foregroundColor(headerIconColor)
+                        .modifier(AvailabilitySymbolBounce())
+                }
+            }
+            .frame(width: WizardDesign.Layout.statusCircleSize, height: WizardDesign.Layout.statusCircleSize)
+            .frame(maxWidth: .infinity) // Center horizontally
+            .padding(.top, iconTopPadding) // Icon pinned from top (issues icon closer by 30%)
+            .transition(.opacity) // Simple opacity transition, no scaling
+            .onAppear {
+                // Initialize header mode based on validation state
+                if isValidating {
+                    headerMode = .validating
+                } else {
+                    headerMode = isEverythingComplete ? .success : .issues
+                }
+                // Aggressively clear focus to avoid blue focus ring artifacts
+                DispatchQueue.main.async {
+                    NSApp.keyWindow?.makeFirstResponder(nil)
+                    // Also disable focus rings on the window itself
+                    if let window = NSApp.keyWindow {
+                        window.contentView?.subviews.forEach { view in
+                            view.focusRingType = .none
+                        }
+                    }
+                }
+            }
+            .onChange(of: isValidating) { _, newValue in
+                if !newValue {
+                    // Transition from gear to final state - clear focus during transition
+                    DispatchQueue.main.async {
+                        NSApp.keyWindow?.makeFirstResponder(nil)
+                    }
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        headerMode = isEverythingComplete ? .success : .issues
+                    }
+                }
+            }
+            .onChange(of: isEverythingComplete) { _, newValue in
+                // Update header mode if validation is complete
+                if !isValidating {
+                    withAnimation(WizardDesign.Animation.statusTransition) {
+                        headerMode = newValue ? .success : .issues
+                    }
+                }
+            }
+
+            // Title text - positioned below icon, independent
+            Text(headerTitle)
+                .font(WizardDesign.Typography.sectionTitle)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity) // Center horizontally
+                .padding(.top, 60 + WizardDesign.Layout.statusCircleSize + WizardDesign.Spacing.elementGap)
+            // Eye icon - positioned independently in top-trailing corner
+            if !isValidating {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button {
+                            withAnimation(WizardDesign.Animation.statusTransition) {
+                                showAllItems.toggle()
+                            }
+                        } label: {
+                            Image(systemName: "eye.slash")
+                                .foregroundColor(showAllItems ? .primary : .secondary)
+                                .font(.system(size: 16, weight: .regular))
+                                .padding(8)
+                        }
+                        .buttonStyle(.plain)
+                        .help(showAllItems ? "Show issues only" : "Show all items")
+                        .accessibilityLabel(showAllItems ? "Show issues only" : "Show all items")
+                        .padding(.trailing, WizardDesign.Spacing.pageVertical)
+                        .padding(.top, 8)
+                    }
+                    Spacer()
+                }
+            }
         }
         .modifier(WizardDesign.DisableFocusEffects())
         .background(WizardDesign.Colors.wizardBackground)
@@ -124,6 +200,8 @@ struct WizardSummaryPage: View {
 
     private var headerTitle: String {
         switch headerMode {
+        case .validating:
+            return "Setting up KeyPath"
         case .issues:
             let n = failedIssueCount
             let suffix = n == 1 ? "issue" : "issues"
@@ -135,6 +213,8 @@ struct WizardSummaryPage: View {
 
     private var headerIconName: String {
         switch headerMode {
+        case .validating:
+            return "gear" // Not used, but required for exhaustive switch
         case .issues:
             return "xmark.circle.fill"
         case .success:
@@ -144,11 +224,28 @@ struct WizardSummaryPage: View {
 
     private var headerIconColor: Color {
         switch headerMode {
+        case .validating:
+            return .secondary // Not used, but required for exhaustive switch
         case .issues:
             return WizardDesign.Colors.error
         case .success:
             return WizardDesign.Colors.success
         }
+    }
+
+    // Adjust icon top padding: bring the issues icon 30% closer to the top
+    private var iconTopPadding: CGFloat {
+        switch headerMode {
+        case .issues:
+            return CGFloat(60) * 0.7 // 30% closer to top
+        default:
+            return 60
+        }
+    }
+
+    // Max height for list region before internal scrolling kicks in
+    private var listMaxHeight: CGFloat {
+        460
     }
 
     // MARK: - Issue Counting (summary indicator)

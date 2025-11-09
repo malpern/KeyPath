@@ -24,7 +24,7 @@ struct InstallationWizardView: View {
     @State private var toastManager = WizardToastManager()
 
     // UI state
-    @State private var isInitializing = true
+    @State private var isValidating: Bool = true // Track validation state for gear icon
     @State private var preflightStart = Date()
     @State private var evaluationProgress: Double = 0.0
     @State private var systemState: WizardSystemState = .initializing
@@ -44,37 +44,44 @@ struct InstallationWizardView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Group {
-                    if isInitializing {
-                        WizardPreflightView(progress: $evaluationProgress)
-                            .frame(height: 140)
-                            .transition(.opacity)
-                    } else {
+                // Always show page content - no preflight view
                 pageContent()
                     .frame(maxWidth: .infinity)
                     .fixedSize(horizontal: false, vertical: true)
                     .overlay {
-                        if asyncOperationManager.hasRunningOperations {
+                        // Don't show overlay during validation - summary page has its own gear
+                        if asyncOperationManager.hasRunningOperations && !isValidating {
                             operationProgressOverlay()
                                 .allowsHitTesting(false) // Don't block X button interaction
                         }
                     }
             }
-                }
-            }
             .frame(
-                width: (isInitializing || navigationCoordinator.currentPage == .summary)
+                width: (navigationCoordinator.currentPage == .summary)
                     ? WizardDesign.Layout.pageWidth * CGFloat(0.5) // Match list width; only height changes
-                    : WizardDesign.Layout.pageWidth
+                    : WizardDesign.Layout.pageWidth,
+                height: nil
             )
-            .fixedSize(horizontal: true, vertical: false) // Allow vertical growth, fix width
-            .animation(.easeInOut(duration: 0.3), value: navigationCoordinator.currentPage)
-            .animation(.easeInOut(duration: 0.3), value: isInitializing)
-            .background(VisualEffectBackground())
+            .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 720 : .infinity) // Grow up to cap, then scroll
+            .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
+            // Remove animation on frame changes to prevent window movement
+            .background(WizardDesign.Colors.wizardBackground) // Simple solid background, no visual effect
         }
         .withToasts(toastManager)
         .environmentObject(navigationCoordinator)
         .focused($hasKeyboardFocus) // Enable focus for reliable ESC key handling
+        // Aggressively disable focus rings during validation
+        .onChange(of: isValidating) { _, newValue in
+            if newValue {
+                // Clear focus when validation starts
+                DispatchQueue.main.async {
+                    NSApp.keyWindow?.makeFirstResponder(nil)
+                    if let window = NSApp.keyWindow, let contentView = window.contentView {
+                        disableFocusRings(in: contentView)
+                    }
+                }
+            }
+        }
         // Global Close button overlay for all detail pages
         .overlay(alignment: .topTrailing) {
             if navigationCoordinator.currentPage != .summary {
@@ -172,7 +179,7 @@ struct InstallationWizardView: View {
                     onNavigateToPage: { page in
                         navigationCoordinator.navigateToPage(page)
                     },
-                    isInitializing: isInitializing
+                    isValidating: isValidating
                 )
             case .fullDiskAccess:
                 WizardFullDiskAccessPage()
@@ -300,21 +307,21 @@ struct InstallationWizardView: View {
         stateManager.configure(kanataManager: kanataManager)
         autoFixer.configure(kanataManager: kanataManager, toastManager: toastManager)
 
-        // Show preflight UI while preparing checks
+        // Show summary page immediately with validation state
         Task {
             await MainActor.run {
-                // Start preflight timer and initial state
+                // Start validation state
                 preflightStart = Date()
                 evaluationProgress = 0.0
-                isInitializing = true
+                isValidating = true
                 systemState = .initializing
                 currentIssues = []
-                AppLogger.shared.log("🚀 [Wizard] Preflight shown, starting validation")
-                AppLogger.shared.log("⏱️ [TIMING] Wizard preflight START")
+                AppLogger.shared.log("🚀 [Wizard] Summary page shown immediately, starting validation")
+                AppLogger.shared.log("⏱️ [TIMING] Wizard validation START")
             }
 
             // Small delay to ensure UI is ready before starting heavy checks
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay (reduced from 500ms)
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay
 
             guard !Task.isCancelled else { return }
             await performInitialStateCheck()
@@ -356,19 +363,10 @@ struct InstallationWizardView: View {
             // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
             // Transition to results immediately when validation completes
-            // Note: Progress should already be at 100% when validation completes
             Task { @MainActor in
-                // Small delay to ensure progress callback has been processed
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-
-                // Ensure progress is at 100% (should already be, but verify)
-                if evaluationProgress < 1.0 {
-                    evaluationProgress = 1.0
-                }
-
-                // Transition immediately - no minimum duration enforced
+                // Mark validation as complete - this will transition gear to final icon
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    isInitializing = false
+                    isValidating = false
                 }
             }
 
@@ -842,7 +840,7 @@ struct InstallationWizardView: View {
             AppLogger.shared.log("🔴 [FORCE-CLOSE] MainActor task - clearing operations")
             asyncOperationManager.runningOperations.removeAll()
             asyncOperationManager.operationProgress.removeAll()
-            isInitializing = false // Stop any initializing spinners
+            isValidating = false // Stop validation state
             AppLogger.shared.log("🔴 [FORCE-CLOSE] Operation state cleared")
             AppLogger.shared.flushBuffer()
         }
@@ -1097,6 +1095,18 @@ extension WizardOperations {
             progressCallback(1.0)
             operationProgressCallback(1.0)
             return result
+        }
+    }
+}
+
+// MARK: - Focus Ring Suppression Helper
+
+extension InstallationWizardView {
+    /// Recursively disable focus rings in all subviews
+    private func disableFocusRings(in view: NSView) {
+        view.focusRingType = .none
+        for subview in view.subviews {
+            disableFocusRings(in: subview)
         }
     }
 }
