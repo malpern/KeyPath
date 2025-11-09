@@ -31,6 +31,7 @@ struct SettingsView: View {
     @Environment(\.preferencesService) private var preferences: PreferencesService
     @State private var showingResetConfirmation = false
     @State private var showingDevResetConfirmation = false
+    @State private var showingResetEverythingConfirmation = false
     @State private var showingDiagnostics = false
     @State private var showingInstallationWizard = false
     @State private var showingTCPPortAlert = false
@@ -206,6 +207,26 @@ struct SettingsView: View {
             • Restart the service via KanataManager
             • Refresh system status
 
+            TCC permissions will NOT be affected.
+            """)
+        }
+        .alert("Reset Everything?", isPresented: $showingResetEverythingConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) {
+                Task {
+                    await performResetEverything()
+                }
+            }
+        } message: {
+            Text("""
+            This will perform a complete reset:
+
+            • Force kill all kanata processes
+            • Remove PID files
+            • Clear KanataManager state (errors, diagnostics)
+            • Wait 2 seconds for system to settle
+
+            The service will NOT be restarted automatically.
             TCC permissions will NOT be affected.
             """)
         }
@@ -560,6 +581,17 @@ struct SettingsView: View {
                     accessibilityHint: "Stop daemon, clear logs, restart - does not touch TCC permissions",
                     action: {
                         showingDevResetConfirmation = true
+                    }
+                )
+
+                SettingsButton(
+                    title: "Reset Everything",
+                    systemImage: "exclamationmark.triangle.fill",
+                    style: .destructive,
+                    accessibilityId: "reset-everything-button",
+                    accessibilityHint: "Force kill all processes, clear PID files, reset state - does not restart service",
+                    action: {
+                        showingResetEverythingConfirmation = true
                     }
                 )
 
@@ -1392,6 +1424,29 @@ struct SettingsView: View {
         await kanataManager.forceRefreshStatus()
 
         AppLogger.shared.log("🔧 [SettingsView] ========== DEV RESET COMPLETED ==========")
+    }
+
+    // MARK: - Reset Everything Function
+
+    private func performResetEverything() async {
+        AppLogger.shared.log("💣 [SettingsView] ========== RESET EVERYTHING STARTED ==========")
+
+        // Use WizardAutoFixer to perform the reset
+        let autoFixer = WizardAutoFixer(kanataManager: kanataManager.underlyingManager)
+        let success = await autoFixer.resetEverything()
+
+        if success {
+            AppLogger.shared.log("✅ [SettingsView] Reset Everything completed successfully")
+            settingsToastManager.showSuccess("Reset complete - all processes killed and state cleared")
+            
+            // Refresh status to reflect changes
+            await kanataManager.forceRefreshStatus()
+        } else {
+            AppLogger.shared.log("❌ [SettingsView] Reset Everything failed")
+            settingsToastManager.showError("Reset failed - check logs for details")
+        }
+
+        AppLogger.shared.log("💣 [SettingsView] ========== RESET EVERYTHING COMPLETED ==========")
     }
 }
 

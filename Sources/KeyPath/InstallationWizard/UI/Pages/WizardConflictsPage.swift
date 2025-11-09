@@ -45,22 +45,6 @@ struct WizardConflictsPage: View {
                                 }
                             }
                         )
-
-                        // Keep "Reset Everything" link below (not part of refresh)
-                        Button("Reset Everything") {
-                            Task { @MainActor in
-                                isScanning = true
-                                let autoFixer = WizardAutoFixer(kanataManager: kanataManager)
-                                _ = await autoFixer.resetEverything()
-                                onRefresh()
-                                isScanning = false
-                            }
-                        }
-                        .buttonStyle(.link)
-                        .foregroundColor(.red)
-                        .disabled(isFixing || isScanning)
-                        .help("Kill all processes, clear PID files, and reset to clean state")
-                        .padding(.top, WizardDesign.Spacing.elementGap)
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical) // Add padding above and below the hero block
 
