@@ -1668,12 +1668,28 @@ class LaunchDaemonInstaller {
     // MARK: - Status Methods
 
     /// Gets comprehensive status of all LaunchDaemon services
+    /// OPTIMIZED: For SMAppService-managed Kanata, skips expensive launchctl checks
     @MainActor func getServiceStatus() -> LaunchDaemonStatus {
-        let kanataLoaded = isServiceLoaded(serviceID: Self.kanataServiceID)
+        // Fast path: Check Kanata state first to avoid expensive checks if SMAppService is managing it
+        let kanataState = KanataDaemonManager.determineServiceManagementState()
+        let kanataLoaded: Bool
+        let kanataHealthy: Bool
+        
+        if kanataState.isSMAppServiceManaged {
+            // SMAppService is managing Kanata - use fast checks
+            kanataLoaded = true // SMAppService managed = loaded
+            // For health, just check if process is running (faster than launchctl print)
+            kanataHealthy = pgrepKanataProcess()
+            AppLogger.shared.log("🔍 [LaunchDaemon] Kanata SMAppService-managed: loaded=true, healthy=\(kanataHealthy)")
+        } else {
+            // Legacy or unknown - use full checks
+            kanataLoaded = isServiceLoaded(serviceID: Self.kanataServiceID)
+            kanataHealthy = isServiceHealthy(serviceID: Self.kanataServiceID)
+        }
+        
+        // VHID services always use launchctl (no SMAppService option)
         let vhidDaemonLoaded = isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerLoaded = isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-
-        let kanataHealthy = isServiceHealthy(serviceID: Self.kanataServiceID)
         let vhidDaemonHealthy = isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerHealthy = isServiceHealthy(serviceID: Self.vhidManagerServiceID)
 
