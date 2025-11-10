@@ -3,6 +3,7 @@ import KeyPathPermissions
 import KeyPathWizardCore
 import ServiceManagement
 import SwiftUI
+import AppKit
 
 // MARK: - File Navigation (1,352 lines)
 
@@ -53,6 +54,10 @@ struct SettingsView: View {
     @State private var showingHelperLogs = false
     @State private var helperLogLines: [String] = []
     @State private var disableGrabberInProgress = false
+    @State private var duplicateAppCopies: [String] = []
+    @State private var showingCleanupRepair = false
+    @State private var showingRemoveDuplicatesConfirm = false
+    @State private var removeDuplicatesInProgress = false
 
     // Toasts
     @State private var settingsToastManager = WizardToastManager()
@@ -88,13 +93,36 @@ struct SettingsView: View {
 
     private var settingsContent: some View {
         VStack(spacing: 0) {
+            // Header banner with concise guidance
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Settings")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.primary)
+                    Text("Manage KeyPath setup and health. Advanced tools are in Diagnostics.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .accessibilityIdentifier("settings-done-button")
+                .accessibilityLabel("Close Settings")
+                .accessibilityHint("Close the settings window")
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .appGlassHeader()
+
             if FeatureFlags.allowOptionalWizard && showSetupBanner {
                 SetupBanner {
                     showingInstallationWizard = true
                 }
                 .padding(.horizontal, 24)
             }
-            headerView
             mainContentView
         }
         .frame(width: 480, height: 520)
@@ -124,6 +152,8 @@ struct SettingsView: View {
                     let snapshot = await PermissionOracle.shared.currentSnapshot()
                     showSetupBanner = !snapshot.isSystemReady
                 }
+                // Detect duplicate app copies once for inline hint
+                duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
             }
         }
         .sheet(isPresented: $showingDiagnostics) {
@@ -184,11 +214,20 @@ struct SettingsView: View {
         }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) {}
+            Button("Open Backups Folder") {
+                let backupsPath = "\(NSHomeDirectory())/.config/keypath/.backups"
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: backupsPath)
+            }
             Button("Reset", role: .destructive) {
                 resetToDefaultConfig()
             }
         } message: {
-            Text("This will reset your configuration to the default mapping (Caps Lock → Escape). Your current configuration will be lost.")
+            Text("""
+            This will reset your configuration to the default mapping (Caps Lock → Escape).
+
+            A safety backup of your current config will be created in:
+            ~/.config/keypath/.backups
+            """)
         }
         .alert("Developer Reset", isPresented: $showingDevResetConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -232,44 +271,34 @@ struct SettingsView: View {
         }
     }
 
-    private var headerView: some View {
-        HStack {
-            Text("Settings")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.primary)
-
-            Spacer()
-
-            Button("Done") {
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .accessibilityIdentifier("settings-done-button")
-            .accessibilityLabel("Close Settings")
-            .accessibilityHint("Close the settings window")
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
-        .appGlassHeader()
-    }
-
     private var mainContentView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                // Elevated action: Open Setup Wizard
+                HStack {
+                    Button("Open Setup Wizard…") {
+                        AppLogger.shared.log("🎭 [SettingsView] Elevated wizard trigger")
+                        showingInstallationWizard = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    Spacer()
+                }
+                // 1) Service Status (with actions)
                 statusSection
                 Divider()
-                serviceControlSection
-                Divider()
+                // 2) Configuration (moved up)
                 configurationSection
                 Divider()
+                // 3) Troubleshooting (Diagnostics - single entry point)
                 diagnosticsSection
                 Divider()
-                helperManagementSection
-                Divider()
-                developerToolsSection
-                Divider()
-                startupSection
+                // 4) Startup (show only if legacy LaunchAgent detected)
+                if LaunchAgentManager.isInstalled() || LaunchAgentManager.isLoaded() {
+                    startupSection
+                    Divider()
+                }
+                // Developer tools moved into Diagnostics → Advanced
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
@@ -297,39 +326,40 @@ struct SettingsView: View {
                     .foregroundColor(.secondary)
                     .accessibilityIdentifier("low-power-paused-note")
             }
-        }
-    }
 
-    private var serviceControlSection: some View {
-        SettingsSection(title: "Service Control") {
+            Divider()
+
+            // Attach service control actions to bottom of Status
             VStack(spacing: 10) {
-                SettingsButton(
-                    title: "Restart Service",
-                    systemImage: "arrow.clockwise.circle",
-                    accessibilityId: "restart-service-button",
-                    accessibilityHint: "Stop and restart the Kanata keyboard service",
-                    action: {
-                        Task {
-                            AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
-                            await kanataManager.manualStop()
-                            try? await Task.sleep(nanoseconds: 1_000_000_000)
-                            await kanataManager.manualStart()
+                HStack(spacing: 10) {
+                    SettingsButton(
+                        title: "Restart Service",
+                        systemImage: "arrow.clockwise.circle",
+                        accessibilityId: "restart-service-button",
+                        accessibilityHint: "Stop and restart the Kanata keyboard service",
+                        action: {
+                            Task {
+                                AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
+                                await kanataManager.manualStop()
+                                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                                await kanataManager.manualStart()
+                            }
                         }
-                    }
-                )
+                    )
 
-                SettingsButton(
-                    title: "Refresh Status",
-                    systemImage: "arrow.clockwise",
-                    accessibilityId: "refresh-status-button",
-                    accessibilityHint: "Check the current status of the Kanata service",
-                    action: {
-                        Task {
-                            AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
-                            await kanataManager.forceRefreshStatus()
+                    SettingsButton(
+                        title: "Refresh Status",
+                        systemImage: "arrow.clockwise",
+                        accessibilityId: "refresh-status-button",
+                        accessibilityHint: "Check the current status of the Kanata service",
+                        action: {
+                            Task {
+                                AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
+                                await kanataManager.forceRefreshStatus()
+                            }
                         }
-                    }
-                )
+                    )
+                }
 
                 SettingsButton(
                     title: "Stop Kanata Service",
@@ -345,17 +375,6 @@ struct SettingsView: View {
                         }
                     }
                 )
-
-                SettingsButton(
-                    title: "Run Installation Wizard",
-                    systemImage: "wrench.and.screwdriver",
-                    accessibilityId: "run-installation-wizard-button",
-                    accessibilityHint: "Launch the installation wizard to configure KeyPath",
-                    action: {
-                        AppLogger.shared.log("🎭 [SettingsView] Manual wizard trigger")
-                        showingInstallationWizard = true
-                    }
-                )
             }
         }
     }
@@ -363,6 +382,26 @@ struct SettingsView: View {
     private var configurationSection: some View {
         SettingsSection(title: "Configuration") {
             VStack(spacing: 10) {
+                // Brief summary of current configuration
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    let ruleCount = kanataManager.keyMappings.count
+                    Image(systemName: "list.bullet.rectangle")
+                        .foregroundColor(.secondary)
+                    Text("Rules:")
+                        .foregroundColor(.secondary)
+                    Text("\(ruleCount) mapping\(ruleCount == 1 ? "" : "s")")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Button {
+                        NotificationCenter.default.post(name: NSNotification.Name("ShowRulesSummary"), object: nil)
+                    } label: {
+                        Label("View Rules…", systemImage: "list.bullet")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Open a window with a summary of all key mappings")
+                }
+
                 SettingsButton(
                     title: "Edit Configuration",
                     systemImage: "doc.text",
@@ -389,160 +428,13 @@ struct SettingsView: View {
 
     private var diagnosticsSection: some View {
         SettingsSection(title: "Diagnostics") {
-            VStack(spacing: 10) {
-                SettingsButton(
-                    title: "Show Diagnostics",
-                    systemImage: "stethoscope",
-                    accessibilityId: "show-diagnostics-button",
-                    accessibilityHint: "View detailed system diagnostics and troubleshooting information",
-                    action: {
-                        showingDiagnostics = true
-                    }
-                )
-
-                HStack(spacing: 10) {
-                    SettingsButton(
-                        title: "KeyPath Logs",
-                        systemImage: "doc.text",
-                        accessibilityId: "keypath-logs-button",
-                        accessibilityHint: "Open KeyPath application log files",
-                        action: {
-                            openKeyPathLogs()
-                        }
-                    )
-
-                    SettingsButton(
-                        title: "Kanata Logs",
-                        systemImage: "terminal",
-                        accessibilityId: "kanata-logs-button",
-                        accessibilityHint: "Open Kanata service log files",
-                        action: {
-                            openKanataLogs()
-                        }
-                    )
-
-                    SettingsButton(
-                        title: "Disable Karabiner Grabber",
-                        systemImage: "nosign",
-                        disabled: disableGrabberInProgress,
-                        accessibilityId: "disable-karabiner-grabber-button",
-                        accessibilityHint: "Use the privileged helper to disable Karabiner's grabber services",
-                        action: {
-                            Task { @MainActor in
-                                disableGrabberInProgress = true
-                                do {
-                                    try await PrivilegedOperationsCoordinator.shared.disableKarabinerGrabber()
-                                    settingsToastManager.showSuccess("Disabled Karabiner grabber via helper")
-                                } catch {
-                                    settingsToastManager.showError("Failed to disable grabber: \(error.localizedDescription)")
-                                }
-                                disableGrabberInProgress = false
-                            }
-                        }
-                    )
-                }
-
-                diagnosticSummaryView
-            }
-        }
-    }
-
-    private var helperManagementSection: some View {
-        SettingsSection(title: "Privileged Helper") {
-            VStack(spacing: 10) {
-                // Status row
-                HStack {
-                    Circle()
-                        .fill(helperInstalled ? Color.green : Color.orange)
-                        .frame(width: 10, height: 10)
-                    Text("Status:")
-                        .foregroundColor(.secondary)
-                    Text(helperInstalled ? (helperVersion.map { "Installed (v\($0))" } ?? "Installed") : "Not Installed")
-                        .fontWeight(.medium)
-                    Spacer()
-                }
-
-                // Actions
-                HStack(spacing: 10) {
-                    SettingsButton(
-                        title: "Test XPC",
-                        systemImage: "bolt.horizontal.circle",
-                        disabled: helperInProgress,
-                        accessibilityId: "helper-test-xpc-button",
-                        accessibilityHint: "Attempt to contact the helper and read its version",
-                        action: { Task { await testHelperXPC() } }
-                    )
-
-                    SettingsButton(
-                        title: "Bless Diagnostics",
-                        systemImage: "text.magnifyingglass",
-                        disabled: helperInProgress,
-                        accessibilityId: "helper-diagnostics-button",
-                        accessibilityHint: "Show SMAppService/launchd diagnostics for the helper",
-                        action: { runHelperDiagnostics() }
-                    )
-
-                    SettingsButton(
-                        title: "Helper Logs…",
-                        systemImage: "doc.text.magnifyingglass",
-                        disabled: helperInProgress,
-                        accessibilityId: "helper-logs-button",
-                        accessibilityHint: "Show recent KeyPathHelper logs",
-                        action: { Task { await showHelperLogs() } }
-                    )
-
-                    SettingsButton(
-                        title: "Uninstall Helper",
-                        systemImage: "trash",
-                        style: .destructive,
-                        disabled: helperInProgress || !helperInstalled,
-                        accessibilityId: "helper-uninstall-button",
-                        accessibilityHint: "Unregister the privileged helper",
-                        action: { showingHelperUninstallConfirm = true }
-                    )
-                }
-
-                // Optional: route installs to the Wizard
-                if !helperInstalled {
-                    SettingsButton(
-                        title: "Install via Wizard",
-                        systemImage: "wrench.and.screwdriver",
-                        accessibilityId: "helper-install-via-wizard-button",
-                        accessibilityHint: "Open the setup wizard at the Helper step",
-                        action: { showingInstallationWizard = true }
-                    )
-                }
-
-                if let msg = helperMessage, !msg.isEmpty {
-                    Text(msg)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
-                }
-            }
-            .onAppear {
-                Task { await refreshHelperStatus() }
-            }
-            .sheet(isPresented: $showingHelperDiagnostics) {
-                ScrollView {
-                    Text(helperDiagnosticsText.isEmpty ? "No diagnostics available" : helperDiagnosticsText)
-                        .font(.system(.footnote, design: .monospaced))
-                        .textSelection(.enabled)
-                        .padding()
-                        .frame(minWidth: 520, minHeight: 360, alignment: .topLeading)
-                }
-            }
-            .sheet(isPresented: $showingHelperLogs) {
-                HelperLogsView(lines: helperLogLines) { showingHelperLogs = false }
-            }
-            .alert("Uninstall Privileged Helper?", isPresented: $showingHelperUninstallConfirm) {
-                Button("Cancel", role: .cancel) { showingHelperUninstallConfirm = false }
-                Button("Uninstall", role: .destructive) {
-                    Task { await uninstallHelper() }
-                }
-            } message: {
-                Text("This will unregister the helper from the system. You can reinstall it later via the Setup Wizard.")
-            }
+            SettingsButton(
+                title: "Open Diagnostics…",
+                systemImage: "stethoscope",
+                accessibilityId: "show-diagnostics-button",
+                accessibilityHint: "Open the Diagnostics window for advanced tools and logs",
+                action: { showingDiagnostics = true }
+            )
         }
     }
 
@@ -571,42 +463,7 @@ struct SettingsView: View {
         }
     }
 
-    private var developerToolsSection: some View {
-        SettingsSection(title: "Developer Tools") {
-            VStack(spacing: 10) {
-                SettingsButton(
-                    title: "Reset (Dev Only)",
-                    systemImage: "arrow.clockwise.circle.fill",
-                    accessibilityId: "reset-dev-button",
-                    accessibilityHint: "Stop daemon, clear logs, restart - does not touch TCC permissions",
-                    action: {
-                        showingDevResetConfirmation = true
-                    }
-                )
-
-                SettingsButton(
-                    title: "Reset Everything",
-                    systemImage: "exclamationmark.triangle.fill",
-                    style: .destructive,
-                    accessibilityId: "reset-everything-button",
-                    accessibilityHint: "Force kill all processes, clear PID files, reset state - does not restart service",
-                    action: {
-                        showingResetEverythingConfirmation = true
-                    }
-                )
-
-                SettingsButton(
-                    title: "Show Enhanced Diagnostics",
-                    systemImage: "info.circle",
-                    accessibilityId: "enhanced-diagnostics-button",
-                    accessibilityHint: "View enhanced diagnostics with system status, signatures, and TCC probes",
-                    action: {
-                        showingDiagnostics = true
-                    }
-                )
-            }
-        }
-    }
+    // Developer tools section removed; actions moved to Diagnostics → Advanced
 
     private var startupSection: some View {
         SettingsSection(title: "Startup") {
@@ -672,6 +529,38 @@ struct SettingsView: View {
         await MainActor.run {
             helperLogLines = lines
             showingHelperLogs = true
+        }
+    }
+
+    private func removeDuplicateAppCopies() async {
+        await MainActor.run { removeDuplicatesInProgress = true; showingRemoveDuplicatesConfirm = false }
+        defer { Task { await MainActor.run { removeDuplicatesInProgress = false } } }
+        let fileManager = FileManager.default
+        // Prefer to keep the /Applications copy if present
+        let keepPath = "/Applications/KeyPath.app"
+        let copies = duplicateAppCopies
+        var removedCount = 0
+        for path in copies {
+            if path == keepPath { continue }
+            let url = URL(fileURLWithPath: path)
+            if fileManager.fileExists(atPath: path) {
+                do {
+                    try fileManager.trashItem(at: url, resultingItemURL: nil)
+                    removedCount += 1
+                } catch {
+                    // If trashing fails (e.g., permission), try reveal so the user can act
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
+            }
+        }
+        // Refresh duplicate list
+        await MainActor.run {
+            duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
+            if removedCount > 0 {
+                settingsToastManager.showSuccess("Removed \(removedCount) extra copy\(removedCount == 1 ? "" : "ies")")
+            } else {
+                settingsToastManager.showInfo("No extra copies removed")
+            }
         }
     }
 
@@ -1331,60 +1220,14 @@ struct SettingsView: View {
     private func stopKanataService() async {
         AppLogger.shared.log("🛑 [SettingsView] ========== STOPPING KANATA SERVICE ==========")
 
-        do {
-            // Step 1: Use SimpleKanataManager to stop gracefully first
-            AppLogger.shared.log("🛑 [SettingsView] Step 1: Stopping via SimpleKanataManager")
-            await kanataManager.manualStop()
+        // Use KanataManager/Privileged helper path exclusively (SMAppService-backed)
+        AppLogger.shared.log("🛑 [SettingsView] Stopping via KanataManager (SMAppService-backed)")
+        await kanataManager.manualStop()
 
-            // Step 2: Force kill the launchd service
-            AppLogger.shared.log("🛑 [SettingsView] Step 2: Force killing launchd service")
-            let killProcess = Process()
-            killProcess.launchPath = "/usr/bin/sudo"
-            killProcess.arguments = ["launchctl", "kill", "TERM", "system/com.keypath.kanata"]
+        AppLogger.shared.log("🛑 [SettingsView] ========== KANATA SERVICE STOPPED ==========")
 
-            try killProcess.run()
-            killProcess.waitUntilExit()
-
-            if killProcess.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [SettingsView] Successfully killed launchd service")
-            } else {
-                AppLogger.shared.log("⚠️ [SettingsView] launchctl kill returned status: \(killProcess.terminationStatus)")
-            }
-
-            // Step 3: Kill any remaining kanata processes
-            AppLogger.shared.log("🛑 [SettingsView] Step 3: Killing any remaining kanata processes")
-            let pkillProcess = Process()
-            pkillProcess.launchPath = "/usr/bin/sudo"
-            pkillProcess.arguments = ["pkill", "-f", "kanata"]
-
-            try pkillProcess.run()
-            pkillProcess.waitUntilExit()
-
-            AppLogger.shared.log("✅ [SettingsView] Killed remaining kanata processes (if any)")
-
-            // Step 4: Unload the service to prevent auto-reloading
-            AppLogger.shared.log("🛑 [SettingsView] Step 4: Unloading service to prevent auto-reload")
-            let unloadProcess = Process()
-            unloadProcess.launchPath = "/usr/bin/sudo"
-            unloadProcess.arguments = ["launchctl", "unload", "/Library/LaunchDaemons/com.keypath.kanata.plist"]
-
-            try unloadProcess.run()
-            unloadProcess.waitUntilExit()
-
-            if unloadProcess.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [SettingsView] Successfully unloaded service")
-            } else {
-                AppLogger.shared.log("⚠️ [SettingsView] Service may not have been loaded (status: \(unloadProcess.terminationStatus))")
-            }
-
-            AppLogger.shared.log("🛑 [SettingsView] ========== KANATA SERVICE STOPPED ==========")
-
-            // Refresh status to reflect changes
-            await kanataManager.forceRefreshStatus()
-
-        } catch {
-            AppLogger.shared.log("❌ [SettingsView] Error stopping Kanata service: \(error)")
-        }
+        // Refresh status to reflect changes
+        await kanataManager.forceRefreshStatus()
     }
 
     // MARK: - Developer Reset Function
@@ -1413,10 +1256,8 @@ struct SettingsView: View {
             let clearProcess = Process()
             clearProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
             clearProcess.arguments = ["sh", "-c", "echo '' > /var/log/kanata.log"]
-
             try clearProcess.run()
             clearProcess.waitUntilExit()
-
             AppLogger.shared.log("🔧 [SettingsView] Logs cleared with status: \(clearProcess.terminationStatus)")
         } catch {
             AppLogger.shared.log("⚠️ [SettingsView] Error clearing logs: \(error)")
@@ -1436,27 +1277,22 @@ struct SettingsView: View {
 
         AppLogger.shared.log("🔧 [SettingsView] ========== DEV RESET COMPLETED ==========")
     }
-
-    // MARK: - Reset Everything Function
-
     private func performResetEverything() async {
         AppLogger.shared.log("💣 [SettingsView] ========== RESET EVERYTHING STARTED ==========")
-
-        // Use WizardAutoFixer to perform the reset
-        let autoFixer = WizardAutoFixer(kanataManager: kanataManager.underlyingManager)
+        let autoFixer = WizardAutoFixer(
+            kanataManager: kanataManager.underlyingManager
+        )
         let success = await autoFixer.resetEverything()
 
         if success {
             AppLogger.shared.log("✅ [SettingsView] Reset Everything completed successfully")
             settingsToastManager.showSuccess("Reset complete - all processes killed and state cleared")
-            
             // Refresh status to reflect changes
             await kanataManager.forceRefreshStatus()
         } else {
             AppLogger.shared.log("❌ [SettingsView] Reset Everything failed")
             settingsToastManager.showError("Reset failed - check logs for details")
         }
-
         AppLogger.shared.log("💣 [SettingsView] ========== RESET EVERYTHING COMPLETED ==========")
     }
 }

@@ -115,8 +115,9 @@ struct ContentView: View {
                                 .frame(width: 16, height: 16)
                             Text(kanataManager.saveStatus.message)
                                 .font(.caption)
+                        } else {
+                            Text("Save")
                         }
-                        Text("Save")
                     }
                     .frame(minWidth: 100)
                 })
@@ -785,7 +786,7 @@ struct ContentViewHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .bottom, spacing: 8) {
                 Button(action: {
                     AppLogger.shared.log(
                         "🔧 [ContentViewHeader] Keyboard icon tapped - launching installation wizard")
@@ -814,8 +815,10 @@ struct ContentViewHeader: View {
                         kanataManager.requestWizardPresentation()
                     }
                 )
+                .frame(height: 28, alignment: .bottom) // lock indicator height to keep row baseline stable
             }
             .fixedSize(horizontal: false, vertical: true)
+            .frame(height: 36, alignment: .bottom) // Lock header row height to prevent spacing shifts
 
             Text("Record keyboard shortcuts and create custom key mappings")
                 .font(.subheadline)

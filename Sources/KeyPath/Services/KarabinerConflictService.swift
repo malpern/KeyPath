@@ -20,8 +20,6 @@ protocol KarabinerConflictManaging: AnyObject {
     func startKarabinerDaemon() async -> Bool
     func restartKarabinerDaemon() async -> Bool
 
-    // Utilities
-    func getKillKarabinerCommand() -> String
 }
 
 // MARK: - Implementation
@@ -292,12 +290,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
 
     // MARK: - Utility Methods
 
-    func getKillKarabinerCommand() -> String {
-        """
-        sudo launchctl unload /Library/LaunchDaemons/org.pqrs.karabiner.karabiner_grabber.plist
-        sudo pkill -f karabiner_grabber
-        """
-    }
+    // Removed legacy command string helper to avoid reintroducing unload/load usage
 
     // MARK: - Private Helper Methods
 

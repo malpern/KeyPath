@@ -31,30 +31,64 @@ struct DiagnosticsView: View {
     @State private var showTechnicalDetails: Set<Int> = []
     @State private var isRunningDiagnostics = false
     @State private var showingWizard = false
+    @State private var selectedTab: Tab = .summary
+    @State private var exporting = false
+    @State private var exportMessage: String?
+    // Helper management state (moved from Settings)
+    @State private var helperInstalled: Bool = HelperManager.shared.isHelperInstalled()
+    @State private var helperVersion: String?
+    @State private var helperInProgress = false
+    @State private var helperMessage: String?
+    @State private var showingHelperDiagnostics = false
+    @State private var helperDiagnosticsText: String = ""
+    @State private var showingHelperLogs = false
+    @State private var helperLogLines: [String] = []
+    @State private var showingHelperCleanup = false
+    @State private var showingHelperUninstallConfirm = false
+    @State private var disableGrabberInProgress = false
+    // Recovery tools
+    @State private var showingDevResetConfirmation = false
+    @State private var showingResetEverythingConfirmation = false
+    @State private var isResetting = false
+
+    enum Tab: String, CaseIterable {
+        case summary = "Summary"
+        case logs = "Logs"
+        case advanced = "Advanced"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             // Header with navigation-style toolbar
             HStack {
-                Button("Refresh") {
+                // Left: segmented tabs
+                Picker("", selection: $selectedTab) {
+                    ForEach(Tab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 300)
+
+                Spacer()
+
+                // Right: actions
+                Button(isRunningDiagnostics ? "Refreshing…" : "Refresh") {
                     runDiagnostics()
                 }
                 .disabled(isRunningDiagnostics)
                 .buttonStyle(.bordered)
 
-                Spacer()
-
-                Text("Diagnostics")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Button("Done") {
-                    dismiss()
+                Button("Support Report…") {
+                    Task { exporting = true; exportMessage = await exportSupportReport(); exporting = false }
                 }
                 .buttonStyle(.borderedProminent)
-                .fontWeight(.semibold)
+                .disabled(exporting)
+                .accessibilityLabel("Generate Support Report")
+                .accessibilityHint("Creates a zip on your Desktop with logs and diagnostics")
+
+                Button("Done") { dismiss() }
+                    .buttonStyle(.bordered)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -62,83 +96,146 @@ struct DiagnosticsView: View {
 
             Divider()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Running diagnostics indicator
-                    if isRunningDiagnostics {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Running diagnostics...")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+            Group {
+                switch selectedTab {
+                case .summary:
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            if isRunningDiagnostics {
+                                HStack {
+                                    ProgressView().scaleEffect(0.8)
+                                    Text("Running diagnostics…").font(.subheadline).foregroundColor(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding()
+                                .background(Color.secondary.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                            ProcessStatusSection(kanataManager: kanataManager)
+                            PermissionStatusSection(kanataManager: kanataManager, onShowWizard: { showingWizard = true })
+                            // Keep a concise health snapshot
+                            EnhancedStatusSection(kanataManager: kanataManager)
+                            if !systemDiagnostics.isEmpty {
+                                DiagnosticSection(
+                                    title: "System Diagnostics",
+                                    diagnostics: systemDiagnostics,
+                                    showTechnicalDetails: $showTechnicalDetails,
+                                    kanataManager: kanataManager
+                                )
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding()
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(20)
                     }
-
-                    // Process Status
-                    ProcessStatusSection(kanataManager: kanataManager)
-
-                    // Service Management (SMAppService vs launchctl)
-                    ServiceManagementSection(kanataManager: kanataManager)
-
-                    // Enhanced System Status
-                    EnhancedStatusSection(kanataManager: kanataManager)
-
-                    // Build Info
-                    VStack(alignment: .leading, spacing: 4) {
-                        let bi = BuildInfo.current()
-                        let dot = " • "
-                        Text("Build: \(bi.version) (\(bi.build))\(dot)Git: \(String(bi.git.prefix(7)))\(dot)\(bi.date)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                case .logs:
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            LogAccessSection(
+                                onOpenKeyPathLogs: openKeyPathLogs,
+                                onOpenKanataLogs: openKanataLogs
+                            )
+                        }
+                        .padding(20)
                     }
-                    .padding(.bottom, 6)
-
-                    // System Diagnostics (includes TCP status, engine status, etc.)
-                    if !systemDiagnostics.isEmpty {
-                        DiagnosticSection(
-                            title: "System Diagnostics",
-                            diagnostics: systemDiagnostics,
-                            showTechnicalDetails: $showTechnicalDetails,
-                            kanataManager: kanataManager
-                        )
+                case .advanced:
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            ServiceManagementSection(kanataManager: kanataManager)
+                            HelperManagementAdvancedSection(
+                                helperInstalled: $helperInstalled,
+                                helperVersion: $helperVersion,
+                                helperInProgress: $helperInProgress,
+                                helperMessage: $helperMessage,
+                                showingHelperDiagnostics: $showingHelperDiagnostics,
+                                helperDiagnosticsText: $helperDiagnosticsText,
+                                showingHelperLogs: $showingHelperLogs,
+                                helperLogLines: $helperLogLines,
+                                showingHelperCleanup: $showingHelperCleanup,
+                                showingHelperUninstallConfirm: $showingHelperUninstallConfirm,
+                                onRefreshStatus: { await refreshHelperStatus() },
+                                onTestXPC: { await testHelperXPC() },
+                                onShowHelperLogs: { await showHelperLogs() },
+                                onRunHelperDiagnostics: { runHelperDiagnostics() },
+                                onUninstallHelper: { await uninstallHelper() },
+                                onDisableGrabber: {
+                                    await disableKarabinerGrabber()
+                                }
+                            )
+                            RecoveryToolsSection(
+                                isResetting: $isResetting,
+                                onDevReset: { await performDevReset() },
+                                onResetEverything: { await performResetEverything() },
+                                showingDevResetConfirmation: $showingDevResetConfirmation,
+                                showingResetEverythingConfirmation: $showingResetEverythingConfirmation
+                            )
+                            ConfigStatusSection(kanataManager: kanataManager)
+                            if !kanataManager.diagnostics.isEmpty {
+                                DiagnosticSection(
+                                    title: "Runtime Issues",
+                                    diagnostics: kanataManager.diagnostics,
+                                    showTechnicalDetails: $showTechnicalDetails,
+                                    kanataManager: kanataManager
+                                )
+                            }
+                        }
+                        .padding(20)
                     }
-
-                    // Runtime Diagnostics (process crashes, config errors, etc.)
-                    if !kanataManager.diagnostics.isEmpty {
-                        DiagnosticSection(
-                            title: "Runtime Issues",
-                            diagnostics: kanataManager.diagnostics,
-                            showTechnicalDetails: $showTechnicalDetails,
-                            kanataManager: kanataManager
-                        )
-                    }
-
-                    // Config File Status
-                    ConfigStatusSection(kanataManager: kanataManager)
-
-                    // Log Access Section
-                    LogAccessSection(
-                        onOpenKeyPathLogs: openKeyPathLogs,
-                        onOpenKanataLogs: openKanataLogs
-                    )
                 }
-                .padding(20)
             }
             .background(Color(NSColor.windowBackgroundColor))
+        }
+        .alert("Developer Reset", isPresented: $showingDevResetConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) {
+                Task { await performDevReset() }
+            }
+        } message: {
+            Text("Stops the daemon, clears logs, waits briefly, restarts service. TCC permissions are not touched.")
+        }
+        .alert("Reset Everything?", isPresented: $showingResetEverythingConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) {
+                Task { await performResetEverything() }
+            }
+        } message: {
+            Text("Force kills Kanata, clears PID/state, and resets manager state. Does not restart automatically.")
         }
         .frame(width: 600, height: 700)
         .onAppear {
             runDiagnostics()
+            Task { await refreshHelperStatus() }
         }
         .sheet(isPresented: $showingWizard) {
             InstallationWizardView()
                 .customizeSheetWindow() // Remove border and fix dark mode
                 .environmentObject(kanataManager)
+        }
+        .sheet(isPresented: $showingHelperLogs) {
+            HelperLogsView(lines: helperLogLines) { showingHelperLogs = false }
+        }
+        .sheet(isPresented: $showingHelperCleanup) {
+            CleanupAndRepairView()
+        }
+        .sheet(isPresented: $showingHelperDiagnostics) {
+            ScrollView {
+                Text(helperDiagnosticsText.isEmpty ? "No diagnostics available" : helperDiagnosticsText)
+                    .font(.system(.footnote, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding()
+                    .frame(minWidth: 520, minHeight: 360, alignment: .topLeading)
+            }
+        }
+        .alert("Uninstall Privileged Helper?", isPresented: $showingHelperUninstallConfirm) {
+            Button("Cancel", role: .cancel) { showingHelperUninstallConfirm = false }
+            Button("Uninstall", role: .destructive) {
+                Task { await uninstallHelper() }
+            }
+        } message: {
+            Text("This will unregister the helper from the system. You can reinstall it later via the Setup Wizard.")
+        }
+        .alert("Support Report", isPresented: .constant(exportMessage != nil)) {
+            Button("OK") { exportMessage = nil }
+        } message: {
+            Text(exportMessage ?? "")
         }
     }
 
@@ -154,6 +251,143 @@ struct DiagnosticsView: View {
                 isRunningDiagnostics = false
             }
         }
+    }
+
+    // Minimal export: zip KeyPath logs and helper logs to Desktop
+    private func exportSupportReport() async -> String {
+        let desktop = NSHomeDirectory() + "/Desktop"
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: " ", with: "_")
+        let zipPath = "\(desktop)/KeyPath-Support-Report-\(timestamp).zip"
+
+        let appLog = NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log"
+        let helperStdout = "/var/log/com.keypath.helper.stdout.log"
+        let helperStderr = "/var/log/com.keypath.helper.stderr.log"
+        let tempDir = NSTemporaryDirectory() + "kp_support_\(UUID().uuidString)"
+
+        do {
+            try FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
+            // Copy present files (ignore missing)
+            if FileManager.default.fileExists(atPath: appLog) {
+                try FileManager.default.copyItem(atPath: appLog, toPath: tempDir + "/keypath-debug.log")
+            }
+            if FileManager.default.fileExists(atPath: helperStdout) {
+                try FileManager.default.copyItem(atPath: helperStdout, toPath: tempDir + "/helper-stdout.log")
+            }
+            if FileManager.default.fileExists(atPath: helperStderr) {
+                try FileManager.default.copyItem(atPath: helperStderr, toPath: tempDir + "/helper-stderr.log")
+            }
+            // Add a brief environment summary
+            let bi = BuildInfo.current()
+            let summary = "KeyPath \(bi.version) (\(bi.build))\nmacOS \(ProcessInfo.processInfo.operatingSystemVersionString)\n"
+            try summary.write(toFile: tempDir + "/summary.txt", atomically: true, encoding: .utf8)
+            // Bless/SMAppService diagnostics (text)
+            let bless = HelperManager.shared.runBlessDiagnostics()
+            try bless.write(toFile: tempDir + "/bless-diagnostics.txt", atomically: true, encoding: .utf8)
+            // README
+            let readme = """
+            KeyPath Support Report
+            ----------------------
+            Files included:
+            - keypath-debug.log: KeyPath application log
+            - helper-stdout.log/helper-stderr.log: helper logs (if present)
+            - bless-diagnostics.txt: SMAppService and launchd status for helper
+            - summary.txt: app and OS versions
+
+            Generated: \(Date().formatted(date: .abbreviated, time: .standard))
+            """
+            try readme.write(toFile: tempDir + "/README.txt", atomically: true, encoding: .utf8)
+
+            // Zip
+            let p = Process()
+            p.launchPath = "/usr/bin/zip"
+            p.arguments = ["-r", zipPath, "."]
+            p.currentDirectoryPath = tempDir
+            try p.run()
+            p.waitUntilExit()
+
+            return p.terminationStatus == 0 ? "Saved to Desktop: \(zipPath)" : "Failed to create report (zip exit \(p.terminationStatus))"
+        } catch {
+            return "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Helper management (moved from Settings)
+    private func refreshHelperStatus() async {
+        await MainActor.run { helperInstalled = HelperManager.shared.isHelperInstalled() }
+        let v = await HelperManager.shared.getHelperVersion()
+        await MainActor.run { helperVersion = v }
+    }
+
+    // MARK: - Recovery tools
+    private func performDevReset() async {
+        await MainActor.run { isResetting = true }
+        defer { Task { await MainActor.run { isResetting = false } } }
+        // Stop → wait → start → refresh
+        await kanataManager.manualStop()
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        await kanataManager.manualStart()
+        await kanataManager.forceRefreshStatus()
+    }
+
+    private func performResetEverything() async {
+        await MainActor.run { isResetting = true }
+        defer { Task { await MainActor.run { isResetting = false } } }
+        let autoFixer = WizardAutoFixer(kanataManager: kanataManager.underlyingManager)
+        _ = await autoFixer.resetEverything()
+        await kanataManager.forceRefreshStatus()
+    }
+
+    private func testHelperXPC() async {
+        await MainActor.run { helperInProgress = true; helperMessage = nil }
+        defer { Task { await MainActor.run { helperInProgress = false } } }
+        let v = await HelperManager.shared.getHelperVersion()
+        await MainActor.run {
+            if let v {
+                helperMessage = "XPC OK (v\(v))"
+            } else {
+                helperMessage = "XPC failed (helper unreachable)"
+            }
+        }
+        await refreshHelperStatus()
+    }
+
+    private func runHelperDiagnostics() {
+        helperDiagnosticsText = HelperManager.shared.runBlessDiagnostics()
+        showingHelperDiagnostics = true
+    }
+
+    private func showHelperLogs() async {
+        await MainActor.run { helperInProgress = true }
+        defer { Task { await MainActor.run { helperInProgress = false } } }
+        let lines = HelperManager.shared.lastHelperLogs(count: 50, windowSeconds: 600)
+        await MainActor.run {
+            helperLogLines = lines
+            showingHelperLogs = true
+        }
+    }
+
+    private func uninstallHelper() async {
+        await MainActor.run { helperInProgress = true; helperMessage = nil }
+        defer { Task { await MainActor.run { helperInProgress = false; showingHelperUninstallConfirm = false } } }
+        do {
+            try await HelperManager.shared.uninstallHelper()
+            await MainActor.run { helperMessage = "Helper uninstalled" }
+            await refreshHelperStatus()
+        } catch {
+            await MainActor.run { helperMessage = "Uninstall failed: \(error.localizedDescription)" }
+        }
+    }
+
+    private func disableKarabinerGrabber() async {
+        await MainActor.run { disableGrabberInProgress = true }
+        defer { Task { await MainActor.run { disableGrabberInProgress = false } } }
+        do {
+            try await PrivilegedOperationsCoordinator.shared.disableKarabinerGrabber()
+        } catch { /* no toast here; diagnostics view keeps minimal chrome */ }
     }
 
     private func openKeyPathLogs() {
@@ -272,7 +506,7 @@ struct ProcessStatusSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Process Status")
+            Text("Service Status")
                 .font(.headline)
                 .foregroundColor(.primary)
 
@@ -282,7 +516,7 @@ struct ProcessStatusSection: View {
                     .font(.title3)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(kanataManager.isRunning ? "Kanata is running" : "Kanata is not running")
+                    Text(kanataManager.isRunning ? "Service running" : "Service not running")
                         .font(.body)
                         .fontWeight(.medium)
 
@@ -311,15 +545,15 @@ struct ProcessStatusSection: View {
             }
 
             HStack {
-                Button(isRegenerating ? "Regenerating…" : "Regenerate Services") {
+                Button(isRegenerating ? "Rebuilding…" : "Rebuild Services") {
                     guard !isRegenerating else { return }
                     isRegenerating = true
                     Task { @MainActor in
                         let ok = await kanataManager.regenerateServices()
                         if ok {
-                            showToast("✅ Services regenerated", isError: false)
+                            showToast("✅ Services rebuilt", isError: false)
                         } else {
-                            let msg = kanataManager.lastError ?? "Regenerate services failed"
+                            let msg = kanataManager.lastError ?? "Rebuild services failed"
                             showToast("❌ \(msg)", isError: true)
                         }
                         isRegenerating = false
@@ -424,7 +658,7 @@ struct ServiceManagementSection: View {
             // Action buttons
             HStack(spacing: 8) {
                 // Migration button - only show if legacy is detected (auto-resolve should handle it, but keep as utility)
-                if activeMethod == .launchctl {
+                if activeMethod == .launchctl && KanataDaemonManager.shared.hasLegacyInstallation() {
                     Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
                         guard !isMigrating else { return }
                         isMigrating = true
@@ -566,7 +800,7 @@ struct PermissionStatusSection: View {
                     .fill(allPermissions ? Color.green : Color.red)
                     .frame(width: 8, height: 8)
 
-                Text(allPermissions ? "All permissions granted" : "Missing permissions")
+                Text(allPermissions ? "All permissions granted" : "Permissions required")
                     .font(.body)
 
                 Spacer()
@@ -605,6 +839,132 @@ struct PermissionStatusSection: View {
         .padding()
         .background(allPermissions ? Color.green.opacity(0.05) : Color.red.opacity(0.05))
         .cornerRadius(8)
+        // Always source from PermissionOracle for consistency with the Wizard
+        .task {
+            snapshot = await PermissionOracle.shared.currentSnapshot()
+        }
+        .onChange(of: kanataManager.currentState) { _, _ in
+            Task { snapshot = await PermissionOracle.shared.currentSnapshot() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
+            Task { snapshot = await PermissionOracle.shared.currentSnapshot() }
+        }
+    }
+}
+
+// MARK: - Helper Management (Advanced tab)
+
+struct HelperManagementAdvancedSection: View {
+    @Binding var helperInstalled: Bool
+    @Binding var helperVersion: String?
+    @Binding var helperInProgress: Bool
+    @Binding var helperMessage: String?
+    @Binding var showingHelperDiagnostics: Bool
+    @Binding var helperDiagnosticsText: String
+    @Binding var showingHelperLogs: Bool
+    @Binding var helperLogLines: [String]
+    @Binding var showingHelperCleanup: Bool
+    @Binding var showingHelperUninstallConfirm: Bool
+
+    let onRefreshStatus: () async -> Void
+    let onTestXPC: () async -> Void
+    let onShowHelperLogs: () async -> Void
+    let onRunHelperDiagnostics: () -> Void
+    let onUninstallHelper: () async -> Void
+    let onDisableGrabber: () async -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Privileged Helper")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            // Status
+            HStack {
+                Circle()
+                    .fill(helperInstalled ? Color.green : Color.orange)
+                    .frame(width: 10, height: 10)
+                Text(helperInstalled ? (helperVersion.map { "Installed (v\($0))" } ?? "Installed") : "Not Installed")
+                    .fontWeight(.medium)
+                Spacer()
+                Button("Refresh") { Task { await onRefreshStatus() } }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+
+            // Actions
+            HStack(spacing: 8) {
+                Button("Cleanup & Repair…") { showingHelperCleanup = true }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(helperInProgress)
+
+                Button("Test XPC") { Task { await onTestXPC() } }
+                    .buttonStyle(.bordered)
+                    .disabled(helperInProgress)
+
+                Button("Diagnostics") { onRunHelperDiagnostics() }
+                    .buttonStyle(.bordered)
+                    .disabled(helperInProgress)
+
+                Button("Logs…") { Task { await onShowHelperLogs() } }
+                    .buttonStyle(.bordered)
+                    .disabled(helperInProgress)
+
+                Spacer()
+
+                Button("Uninstall", role: .destructive) { showingHelperUninstallConfirm = true }
+                    .buttonStyle(.bordered)
+                    .disabled(helperInProgress || !helperInstalled)
+            }
+
+            // Tools
+            HStack(spacing: 8) {
+                Button("Disable Karabiner Grabber") { Task { await onDisableGrabber() } }
+                    .buttonStyle(.bordered)
+            }
+
+            if let msg = helperMessage, !msg.isEmpty {
+                Text(msg)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(16)
+        .appGlassCard()
+    }
+}
+
+struct RecoveryToolsSection: View {
+    @Binding var isResetting: Bool
+    let onDevReset: () async -> Void
+    let onResetEverything: () async -> Void
+    @Binding var showingDevResetConfirmation: Bool
+    @Binding var showingResetEverythingConfirmation: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Recovery Tools")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            HStack(spacing: 8) {
+                Button(isResetting ? "Resetting…" : "Developer Reset") {
+                    showingDevResetConfirmation = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(isResetting)
+
+                Button(isResetting ? "Resetting…" : "Reset Everything") {
+                    showingResetEverythingConfirmation = true
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .disabled(isResetting)
+            }
+        }
+        .padding(16)
+        .appGlassCard()
     }
 }
 
@@ -982,7 +1342,7 @@ struct EnhancedStatusSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Enhanced System Status")
+            Text("System Status")
                 .font(.headline)
                 .foregroundColor(.primary)
 
@@ -990,7 +1350,7 @@ struct EnhancedStatusSection: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.7)
-                    Text("Gathering system information...")
+                    Text("Collecting system info…")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -1000,15 +1360,15 @@ struct EnhancedStatusSection: View {
                     // Kanata Binary Info
                     SystemInfoRow(label: "Kanata Version", value: kanataVersion, icon: "hammer")
                     SystemInfoRow(label: "Code Signature", value: codeSignature, icon: "checkmark.seal")
-                    SystemInfoRow(label: "Canonical Path", value: canonicalPath, icon: "folder")
-                    SystemInfoRow(label: "Inode", value: inode, icon: "number")
+                    SystemInfoRow(label: "Binary Path", value: canonicalPath, icon: "folder")
+                    SystemInfoRow(label: "File ID", value: inode, icon: "number")
 
                     Divider()
                         .padding(.vertical, 4)
 
                     // LaunchDaemon Status
-                    SystemInfoRow(label: "LaunchDaemon State", value: launchDaemonState, icon: "gear")
-                    SystemInfoRow(label: "Last Exit Status", value: lastExitStatus, icon: "arrow.right.circle")
+                    SystemInfoRow(label: "Daemon State", value: launchDaemonState, icon: "gear")
+                    SystemInfoRow(label: "Last Exit", value: lastExitStatus, icon: "arrow.right.circle")
 
                     Divider()
                         .padding(.vertical, 4)

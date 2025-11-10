@@ -10,6 +10,9 @@ class WizardNavigationCoordinator: ObservableObject {
 
     @Published var currentPage: WizardPage = .summary
     @Published var userInteractionMode = false
+    /// Optional external sequence to drive back/next order (e.g., filtered issues-only list).
+    /// When nil or empty, the default ordered pages are used.
+    @Published var customSequence: [WizardPage]? = nil
 
     // MARK: - Properties
 
@@ -75,6 +78,13 @@ class WizardNavigationCoordinator: ObservableObject {
 // MARK: - Navigation State Helpers
 
 extension WizardNavigationCoordinator {
+    /// Active sequence used for previous/next navigation
+    private var activeSequence: [WizardPage] {
+        if let custom = customSequence, !custom.isEmpty {
+            return custom
+        }
+        return WizardPage.orderedPages
+    }
     /// Get navigation state for UI components (like page dots)
     var navigationState: WizardNavigationState {
         WizardNavigationState(
@@ -100,7 +110,7 @@ extension WizardNavigationCoordinator {
 
     /// Check if we can navigate to the previous page
     var canNavigateBack: Bool {
-        guard let currentIndex = WizardPage.orderedPages.firstIndex(of: currentPage) else {
+        guard let currentIndex = activeSequence.firstIndex(of: currentPage) else {
             return false
         }
         return currentIndex > 0
@@ -108,28 +118,28 @@ extension WizardNavigationCoordinator {
 
     /// Check if we can navigate to the next page
     var canNavigateForward: Bool {
-        guard let currentIndex = WizardPage.orderedPages.firstIndex(of: currentPage) else {
+        guard let currentIndex = activeSequence.firstIndex(of: currentPage) else {
             return false
         }
-        return currentIndex < WizardPage.orderedPages.count - 1
+        return currentIndex < activeSequence.count - 1
     }
 
     /// Get the previous page in the ordered sequence
     var previousPage: WizardPage? {
-        guard let currentIndex = WizardPage.orderedPages.firstIndex(of: currentPage),
+        guard let currentIndex = activeSequence.firstIndex(of: currentPage),
               currentIndex > 0 else {
             return nil
         }
-        return WizardPage.orderedPages[currentIndex - 1]
+        return activeSequence[currentIndex - 1]
     }
 
     /// Get the next page in the ordered sequence
     var nextPage: WizardPage? {
-        guard let currentIndex = WizardPage.orderedPages.firstIndex(of: currentPage),
-              currentIndex < WizardPage.orderedPages.count - 1 else {
+        guard let currentIndex = activeSequence.firstIndex(of: currentPage),
+              currentIndex < activeSequence.count - 1 else {
             return nil
         }
-        return WizardPage.orderedPages[currentIndex + 1]
+        return activeSequence[currentIndex + 1]
     }
 }
 

@@ -112,14 +112,14 @@ struct WizardHeroSection: View {
                     .background(WizardDesign.Colors.wizardBackground)
                     .clipShape(Circle())
                     .offset(
-                        x: overlaySize == .large ? 15 : 8,
-                        y: overlaySize == .large ? -5 : -3
+                        x: overlaySize == .large ? 10 : 8,
+                        y: overlaySize == .large ? -4 : -3
                     )
             }
             Spacer()
         }
         .frame(
-            width: overlaySize == .large ? 140 : 60,
+            width: overlaySize == .large ? 115 : 60,
             height: overlaySize == .large ? 115 : 60
         )
     }
@@ -165,7 +165,7 @@ extension WizardHeroSection {
             iconColor: WizardDesign.Colors.warning,
             overlayIcon: "exclamationmark.triangle.fill",
             overlayColor: WizardDesign.Colors.warning,
-            overlaySize: .small,
+            overlaySize: .large,
             title: title,
             subtitle: subtitle,
             actionButtonTitle: actionButtonTitle,
@@ -188,7 +188,7 @@ extension WizardHeroSection {
             iconColor: WizardDesign.Colors.error,
             overlayIcon: "xmark.circle.fill",
             overlayColor: WizardDesign.Colors.error,
-            overlaySize: .small,
+            overlaySize: .large,
             title: title,
             subtitle: subtitle,
             actionButtonTitle: actionButtonTitle,

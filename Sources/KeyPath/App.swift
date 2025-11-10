@@ -101,6 +101,12 @@ public struct KeyPathApp: App {
                 })
                 .keyboardShortcut("k", modifiers: .command)
 
+                Button(action: {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowRulesSummary"), object: nil)
+                }, label: {
+                    Label("Rules…", systemImage: "list.bullet")
+                })
+
                 Divider()
 
                 Button("Install wizard...") {
@@ -159,6 +165,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var kanataManager: KanataManager?
     var isHeadlessMode = false
     private var mainWindowController: MainWindowController?
+    private var rulesWindowController: NSWindowController?
     private var initialMainWindowShown = false
     private var pendingReopenShow = false
 
@@ -316,6 +323,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.kanataManager?.openAccessibilitySettings()
             }
         }
+
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("ShowRulesSummary"), object: nil, queue: .main) { [weak self] _ in
+            guard let self, let manager = self.kanataManager else { return }
+            self.showRulesWindow(manager: manager)
+        }
+
+        // Ensure File → Rules… exists even without a SwiftUI window scene
+        addRulesMenuItem()
     }
 
     func applicationWillResignActive(_: Notification) {
@@ -404,3 +419,57 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 #endif
+
+// MARK: - Rules Window Presentation
+extension AppDelegate {
+    @MainActor
+    func showRulesWindow(manager: KanataManager) {
+        if let wc = rulesWindowController, wc.window?.isVisible == true {
+            wc.window?.makeKeyAndOrderFront(nil)
+            return
+        }
+        let viewModel = KanataViewModel(manager: manager)
+        let content = RulesSummaryView()
+            .environmentObject(viewModel)
+        let hosting = NSHostingController(rootView: content)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered, defer: false
+        )
+        window.title = "Rules"
+        window.center()
+        window.contentViewController = hosting
+        let controller = NSWindowController(window: window)
+        self.rulesWindowController = controller
+        controller.showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    @MainActor
+    private func addRulesMenuItem() {
+        guard let mainMenu = NSApp.mainMenu,
+              let fileMenuItem = mainMenu.items.first(where: { $0.title == "File" }),
+              let submenu = fileMenuItem.submenu else { return }
+
+        // Avoid duplicates
+        if submenu.items.contains(where: { $0.identifier?.rawValue == "com.keypath.menu.rules" }) {
+            return
+        }
+
+        let item = NSMenuItem(title: "Rules…", action: #selector(showRulesMenuAction(_:)), keyEquivalent: "")
+        item.identifier = NSUserInterfaceItemIdentifier("com.keypath.menu.rules")
+        item.target = self
+        if #available(macOS 11.0, *) {
+            item.image = NSImage(systemSymbolName: "list.bullet", accessibilityDescription: "Rules")
+        }
+
+        // Insert near the top of File menu
+        submenu.insertItem(item, at: min(1, submenu.items.count))
+    }
+
+    @objc
+    private func showRulesMenuAction(_: Any?) {
+        NotificationCenter.default.post(name: NSNotification.Name("ShowRulesSummary"), object: nil)
+    }
+}

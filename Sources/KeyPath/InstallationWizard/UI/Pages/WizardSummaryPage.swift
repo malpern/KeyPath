@@ -31,6 +31,7 @@ struct WizardSummaryPage: View {
     @State private var headerMode: HeaderMode = .validating
     @State private var gearRotation: Double = 0 // For continuous spinning animation
     @State private var iconHovering: Bool = false
+    @State private var fadeMaskOpacity: Double = 0.0
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -43,17 +44,21 @@ struct WizardSummaryPage: View {
                 // System Status Overview
                 // Cap list region height so window grows until cap, then scrolls internally
                 if !isValidating {
-                    WizardSystemStatusOverview(
-                        systemState: systemState,
-                        issues: issues,
-                        stateInterpreter: stateInterpreter,
-                        onNavigateToPage: onNavigateToPage,
-                        kanataIsRunning: kanataManager.isRunning,
-                        showAllItems: showAllItems,
-                        navSequence: $navSequence
-                    )
+                    // Cross-fade entire list to avoid row-wise jitter on filter toggle
+                    Group {
+                        WizardSystemStatusOverview(
+                            systemState: systemState,
+                            issues: issues,
+                            stateInterpreter: stateInterpreter,
+                            onNavigateToPage: onNavigateToPage,
+                            kanataIsRunning: kanataManager.isRunning,
+                            showAllItems: showAllItems,
+                            navSequence: $navSequence
+                        )
+                    }
+                    .id(showAllItems ? "list_all" : "list_errors")
                     .frame(maxHeight: listMaxHeight)
-                    .transition(.opacity) // Simple fade in, no sliding
+                    .transition(.opacity)
                 } else {
                     // During validation, don't reserve list space; allow compact height
                 }
@@ -78,7 +83,18 @@ struct WizardSummaryPage: View {
             }
 
             // Icon - absolutely positioned, independent of text
-            Group {
+            ZStack {
+                // Hover ring exactly centered with the icon
+                if headerMode == .issues {
+                    Circle()
+                        .stroke(Color.primary.opacity(iconHovering ? 0.15 : 0.0), lineWidth: 2)
+                        .frame(
+                            width: WizardDesign.Layout.statusCircleSize + 8,
+                            height: WizardDesign.Layout.statusCircleSize + 8
+                        )
+                        .allowsHitTesting(false)
+                }
+
                 if headerMode == .validating {
                     // Spinning gear during validation - continuous rotation
                     Image(systemName: "gear")
@@ -107,17 +123,8 @@ struct WizardSummaryPage: View {
             .frame(maxWidth: .infinity) // Center horizontally
             .padding(.top, iconTopPadding) // Icon pinned from top (issues icon closer by 30%)
             .offset(y: iconVerticalTweak) // Optical alignment tweak shared with hover ring
-            .overlay(alignment: .center) {
-                // Subtle hover ring when clickable (issues mode only)
-                if headerMode == .issues {
-                    Circle()
-                        .stroke(Color.primary.opacity(iconHovering ? 0.15 : 0.0), lineWidth: 2)
-                        .frame(width: WizardDesign.Layout.statusCircleSize + 8, height: WizardDesign.Layout.statusCircleSize + 8)
-                        .animation(.easeInOut(duration: 0.15), value: iconHovering)
-                        .allowsHitTesting(false)
-                        .offset(y: iconVerticalTweak)
-                }
-            }
+            .zIndex(1)
+            .animation(nil, value: showAllItems) // Keep header stable during list toggles
             .contentShape(Circle())
             .onHover { hovering in
                 if headerMode == .issues {
@@ -129,8 +136,11 @@ struct WizardSummaryPage: View {
             .onTapGesture {
                 // Toggle showAll when in issues mode; animate list transition
                 if headerMode == .issues {
-                    withAnimation(WizardDesign.Animation.statusTransition) {
+                    // Brief white cross-fade to mask internal list relayout
+                    fadeMaskOpacity = 1.0
+                    withAnimation(.easeInOut(duration: 0.18)) {
                         showAllItems.toggle()
+                        fadeMaskOpacity = 0.0
                     }
                 }
             }
@@ -162,6 +172,11 @@ struct WizardSummaryPage: View {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         headerMode = isEverythingComplete ? .success : .issues
                     }
+                    // White cross-fade when revealing list for the first time
+                    fadeMaskOpacity = 1.0
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        fadeMaskOpacity = 0.0
+                    }
                 }
             }
             .onChange(of: isEverythingComplete) { _, newValue in
@@ -179,10 +194,20 @@ struct WizardSummaryPage: View {
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity) // Center horizontally
                 .padding(.top, 60 + WizardDesign.Layout.statusCircleSize + WizardDesign.Spacing.elementGap)
+                .fixedSize(horizontal: false, vertical: true)
+                .zIndex(1)
+                .animation(nil, value: showAllItems) // Prevent headline motion on toggle
             // Eye icon removed - error icon toggles list filtering
         }
         .modifier(WizardDesign.DisableFocusEffects())
         .background(WizardDesign.Colors.wizardBackground)
+        // Full-surface white fade to simplify transitions
+        .overlay {
+            Color.white
+                .opacity(fadeMaskOpacity)
+                .allowsHitTesting(false)
+                .animation(.easeInOut(duration: 0.2), value: fadeMaskOpacity)
+        }
     }
 
     // MARK: - Helper Properties
@@ -260,12 +285,14 @@ struct WizardSummaryPage: View {
     private var failedIssueCount: Int {
         var count = 0
 
-        // 1. Privileged Helper not installed (red)
-        let hasHelperNotInstalled = issues.contains { issue in
-            if case let .component(req) = issue.identifier { return req == .privilegedHelper }
+        // 1. Privileged Helper issues (installed? unhealthy?) => count as issue
+        let hasHelperProblems = issues.contains { issue in
+            if case let .component(req) = issue.identifier {
+                return req == .privilegedHelper || req == .privilegedHelperUnhealthy
+            }
             return false
         }
-        if hasHelperNotInstalled { count += 1 }
+        if hasHelperProblems { count += 1 }
 
         // 2. Conflicts (any => red)
         let hasConflicts = issues.contains { $0.category == .conflicts }

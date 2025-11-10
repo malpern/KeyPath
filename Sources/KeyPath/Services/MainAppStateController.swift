@@ -209,6 +209,13 @@ class MainAppStateController: ObservableObject {
         AppLogger.shared.log("🔄 [MainAppStateController] Validation cooldown invalidated")
     }
 
+    /// Force a fresh validation immediately (clears cooldown and runs)
+    func revalidate() async {
+        AppLogger.shared.log("🔄 [MainAppStateController] Revalidate requested - clearing cooldown")
+        lastValidationTime = nil
+        await performValidation()
+    }
+
     // MARK: - Private Implementation
 
     private func performValidation() async {

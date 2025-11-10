@@ -66,6 +66,7 @@ struct InstallationWizardView: View {
             )
             .frame(maxHeight: (navigationCoordinator.currentPage == .summary) ? 720 : .infinity) // Grow up to cap, then scroll
             .fixedSize(horizontal: true, vertical: false) // Allow vertical growth; keep width fixed
+            .animation(.easeInOut(duration: 0.25), value: isValidating)
             // Remove animation on frame changes to prevent window movement
             .background(WizardDesign.Colors.wizardBackground) // Simple solid background, no visual effect
         }
@@ -82,12 +83,16 @@ struct InstallationWizardView: View {
                         disableFocusRings(in: contentView)
                     }
                 }
+                } else {
+                    // Validation finished; set navigation sequence based on current filter
+                    navigationCoordinator.customSequence = showAllSummaryItems ? nil : navSequence
             }
         }
         // Global Close button overlay for all detail pages
         .overlay(alignment: .topTrailing) {
             if navigationCoordinator.currentPage != .summary {
                 CloseButton()
+                    .environmentObject(navigationCoordinator)
                     .padding(.top, 8 + 4) // Extra padding from edge
                     .padding(.trailing, 8 + 4) // Extra padding from edge
             }
@@ -100,6 +105,15 @@ struct InstallationWizardView: View {
             // When overlays disappear, reclaim focus for ESC key
             if !newValue {
                 hasKeyboardFocus = true
+            }
+        }
+        // Keep navigation sequence in sync with summary filter state
+        .onChange(of: showAllSummaryItems) { _, showAll in
+            navigationCoordinator.customSequence = showAll ? nil : navSequence
+        }
+        .onChange(of: navSequence) { _, newSeq in
+            if !showAllSummaryItems {
+                navigationCoordinator.customSequence = newSeq
             }
         }
         .onChange(of: showingStartConfirmation) { _, newValue in

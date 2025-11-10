@@ -19,6 +19,7 @@ struct WizardSystemStatusOverview: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var contentHeight: CGFloat = 0
     @State private var containerHeight: CGFloat = 0
+    @State private var duplicateCopies: [String] = []
 
     var body: some View {
         ScrollView {
@@ -62,8 +63,8 @@ struct WizardSystemStatusOverview: View {
                             }
                         }
                     }
-                    .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity),
-                                             removal: .opacity))
+                    // Keep inserts/removals simple to avoid list jitter
+                    .transition(.opacity)
                 }
             }
             // Track content geometry to compute scroll affordance
@@ -120,7 +121,10 @@ struct WizardSystemStatusOverview: View {
             scrollOffset = value.minY
             contentHeight = value.height
         }
-        .onAppear { updateNavSequence() }
+        .onAppear {
+            duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
+            updateNavSequence()
+        }
         .onChange(of: showAllItems) { _, _ in updateNavSequence() }
         .onChange(of: issues.count) { _, _ in updateNavSequence() }
         .onChange(of: systemState) { _, _ in updateNavSequence() }
@@ -156,7 +160,6 @@ struct WizardSystemStatusOverview: View {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Color.clear)
-        .animation(WizardDesign.Animation.statusTransition, value: showAllItems)
     }
 
     /// Recursively disable focus rings in all subviews
@@ -251,11 +254,13 @@ struct WizardSystemStatusOverview: View {
                 return .completed // Green - installed and working
             }
         }()
+        let helperSubtitle: String? = duplicateCopies.count > 1 ? "Multiple app copies detected" : nil
         items.append(
             StatusItemModel(
                 id: "privileged-helper",
                 icon: "shield.checkered",
                 title: "Privileged Helper",
+                subtitle: helperSubtitle,
                 status: helperStatus,
                 isNavigable: true,
                 targetPage: .helper,
@@ -446,20 +451,27 @@ struct WizardSystemStatusOverview: View {
         // Prerequisites for Kanata Engine Setup:
         // - Karabiner Driver Setup must be completed (Kanata requires VirtualHID driver)
         let karabinerDriverCompleted = getKarabinerComponentsStatus() == .completed
-
         // Prerequisites for Service item:
-        // - Kanata Engine Setup must be completed (not failed)
+        // - Kanata Engine Setup must be completed
+        // - Privileged Helper must be healthy (installed and not unhealthy)
+        // - Input Monitoring AND Accessibility permissions must be completed
         let kanataEngineCompleted = getKanataComponentsStatus() == .completed
-
-        // Prerequisites for Communication Server:
-        // - Kanata Engine Setup must be completed AND
-        // - Service must be available (either completed or at least not blocked)
-        let serviceAvailable = kanataEngineCompleted // Service can only work if Kanata Engine is ready
+        let helperNotInstalled = issues.contains {
+            if case let .component(req) = $0.identifier { return req == .privilegedHelper }
+            return false
+        }
+        let helperUnhealthy = issues.contains {
+            if case let .component(req) = $0.identifier { return req == .privilegedHelperUnhealthy }
+            return false
+        }
+        let helperCompleted = !helperNotInstalled && !helperUnhealthy && systemState != .initializing
+        let permissionsOk = (getInputMonitoringStatus() == .completed) && (getAccessibilityStatus() == .completed)
+        let serviceAvailable = kanataEngineCompleted && helperCompleted && permissionsOk
 
         return DependencyVisibility(
             showKanataEngineItem: karabinerDriverCompleted,
-            showServiceItem: kanataEngineCompleted,
-            showCommunicationItem: kanataEngineCompleted && serviceAvailable
+            showServiceItem: serviceAvailable,
+            showCommunicationItem: serviceAvailable
         )
     }
 
@@ -641,7 +653,6 @@ struct WizardSystemStatusOverview: View {
         }
     }
 }
-
 // MARK: - Hoverable Row Wrapper
 
 private struct HoverableRow<Content: View>: View {

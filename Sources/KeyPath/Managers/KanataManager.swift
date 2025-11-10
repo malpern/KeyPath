@@ -2064,9 +2064,7 @@ class KanataManager {
         karabinerConflictService.isKarabinerElementsRunning()
     }
 
-    func getKillKarabinerCommand() -> String {
-        karabinerConflictService.getKillKarabinerCommand()
-    }
+    // Removed legacy helper command string (avoid exposing unload/load guidance)
 
     /// Permanently disable all Karabiner Elements services with user permission
     func disableKarabinerElementsPermanently() async -> Bool {
@@ -2502,6 +2500,14 @@ class KanataManager {
         // IMPORTANT: Reset should ALWAYS work - it's a recovery mechanism for broken configs
         // Intentionally bypass validation here: force-write a known-good default config (enforced by tests)
         AppLogger.shared.log("🔄 [Reset] Forcing reset to default config (no validation - recovery mode)")
+
+        // Create a safety backup of the current config (if valid) before resetting
+        let backupCreated = configBackupManager.createPreEditBackup()
+        if backupCreated {
+            AppLogger.shared.log("💾 [Reset] Safety backup created before default reset")
+        } else {
+            AppLogger.shared.log("⚠️ [Reset] No safety backup created (missing/invalid existing config)")
+        }
 
         let defaultMapping = KeyMapping(input: "caps", output: "escape")
         let defaultConfig = KanataConfiguration.generateFromMappings([defaultMapping])

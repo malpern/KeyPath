@@ -18,6 +18,7 @@ struct WizardHelperPage: View {
     @State private var isWorking = false
     @State private var lastError: String?
     @State private var helperVersion: String?
+    @State private var duplicateCopies: [String] = []
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     // MARK: - Computed Properties
@@ -79,6 +80,9 @@ struct WizardHelperPage: View {
         .task {
             // Check helper version on appear
             helperVersion = await HelperManager.shared.getHelperVersion()
+        }
+        .onAppear {
+            duplicateCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
         }
     }
 
@@ -190,12 +194,14 @@ struct WizardHelperPage: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
-            // Description
-            Text("The privileged helper enables system operations without repeated admin password prompts.")
-                .font(.system(size: 15, weight: .regular))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+            // Description (show only when not installed; suppress for 'installed but not responding')
+            if !isInstalled {
+                Text("The privileged helper enables system operations without repeated admin password prompts.")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
 
             // Install/Reinstall button
             if !isInstalled {
@@ -210,6 +216,23 @@ struct WizardHelperPage: View {
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
                 .disabled(isWorking || isFixing)
+            }
+
+            // Cleanup & Repair CTA
+            Button("Cleanup & Repair…") {
+                Task { await cleanupAndRepair() }
+            }
+            .buttonStyle(WizardDesign.Component.SecondaryButton())
+            .disabled(isWorking || isFixing)
+
+            if duplicateCopies.count > 1 {
+                Button("Reveal App Copies in Finder") {
+                    for p in duplicateCopies {
+                        let url = URL(fileURLWithPath: p)
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                }
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
             }
 
             // Error message if present
@@ -257,6 +280,19 @@ struct WizardHelperPage: View {
                 helperVersion = await HelperManager.shared.getHelperVersion()
             } else {
                 lastError = "Failed to reinstall helper"
+            }
+            onRefresh()
+        }
+    }
+
+    private func cleanupAndRepair() async {
+        await withWorking {
+            let ok = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: true)
+            if ok {
+                lastError = "Cleanup complete - helper is responding"
+                helperVersion = await HelperManager.shared.getHelperVersion()
+            } else {
+                lastError = "Cleanup attempted, but helper is still not responding"
             }
             onRefresh()
         }
