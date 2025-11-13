@@ -4,7 +4,7 @@ import SwiftUI
 /// Provides consistent icon, title, subtitle, and optional action button layout
 struct WizardHeroSection: View {
     // MARK: - Configuration
-    
+
     let icon: String
     let iconColor: Color
     let overlayIcon: String?
@@ -15,6 +15,10 @@ struct WizardHeroSection: View {
     let actionButtonTitle: String?
     let actionButtonAction: (() -> Void)?
     let iconTapAction: (() -> Void)?
+
+    // MARK: - State
+
+    @State private var iconHovering: Bool = false
     
     enum OverlaySize {
         case large  // 40pt icon, offset(x: 15, y: -5), frame(140x115)
@@ -79,23 +83,37 @@ struct WizardHeroSection: View {
     }
     
     // MARK: - Icon View
-    
+
     @ViewBuilder
     private var iconView: some View {
         ZStack {
+            // Hover ring - only show if icon is tappable
+            if iconTapAction != nil {
+                Circle()
+                    .stroke(Color.primary.opacity(iconHovering ? 0.15 : 0.0), lineWidth: 2)
+                    .frame(width: 123, height: 123) // 115 + 8
+                    .allowsHitTesting(false)
+                    .animation(.easeInOut(duration: 0.2), value: iconHovering)
+            }
+
             // Main icon
             Image(systemName: icon)
                 .font(.system(size: 115, weight: .light))
                 .foregroundColor(iconColor)
                 .symbolRenderingMode(.hierarchical)
                 .modifier(AvailabilitySymbolBounce())
-            
+
             // Overlay icon (if provided)
             if let overlayIcon, let overlayColor {
                 overlayIconView(icon: overlayIcon, color: overlayColor)
             }
         }
-        .contentShape(Rectangle())
+        .contentShape(Circle())
+        .onHover { hovering in
+            if iconTapAction != nil {
+                iconHovering = hovering
+            }
+        }
         .onTapGesture {
             iconTapAction?()
         }

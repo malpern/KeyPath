@@ -15,6 +15,7 @@ struct WizardKarabinerComponentsPage: View {
     @State private var fixingIssues: Set<UUID> = []
     @State private var showingInstallationGuide = false
     @State private var lastDriverFixNote: String?
+    @State private var showAllItems = false
     @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
     var body: some View {
@@ -27,6 +28,7 @@ struct WizardKarabinerComponentsPage: View {
                         title: "Karabiner Driver",
                         subtitle: "Virtual keyboard driver is installed & configured for input capture",
                         iconTapAction: {
+                            showAllItems.toggle()
                             Task {
                                 onRefresh()
                             }
@@ -37,29 +39,35 @@ struct WizardKarabinerComponentsPage: View {
                     HStack {
                         Spacer()
                         VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                HStack(spacing: 0) {
-                                    Text("Karabiner Driver")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - Virtual keyboard driver for input capture")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
+                            // Show Karabiner Driver only if showAllItems OR if it has issues (defensive)
+                            if showAllItems {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    HStack(spacing: 0) {
+                                        Text("Karabiner Driver")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Virtual keyboard driver for input capture")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
                                 }
                             }
 
-                            HStack(spacing: 12) {
-                                Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
-                                HStack(spacing: 0) {
-                                    Text("Background Services")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(" - Karabiner services in Login Items for startup")
-                                        .font(.headline)
-                                        .fontWeight(.regular)
+                            // Show Background Services only if showAllItems OR if it has issues
+                            if showAllItems || componentStatus(for: .backgroundServices) != .completed {
+                                HStack(spacing: 12) {
+                                    Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
+                                    HStack(spacing: 0) {
+                                        Text("Background Services")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Text(" - Karabiner services in Login Items for startup")
+                                            .font(.headline)
+                                            .fontWeight(.regular)
+                                    }
                                 }
                             }
                         }
@@ -86,6 +94,7 @@ struct WizardKarabinerComponentsPage: View {
                         title: "Karabiner Driver Required",
                         subtitle: "Karabiner virtual keyboard driver needs to be installed & configured for input capture",
                         iconTapAction: {
+                            showAllItems.toggle()
                             Task {
                                 onRefresh()
                             }
@@ -94,56 +103,62 @@ struct WizardKarabinerComponentsPage: View {
 
                     // Component details for error state
                     VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                        HStack(spacing: 12) {
-                            Image(systemName: componentStatus(for: .driver) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundColor(componentStatus(for: .driver) == .completed ? .green : .red)
-                            HStack(spacing: 0) {
-                                Text("Karabiner Driver")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                Text(" - Virtual keyboard driver")
-                                    .font(.headline)
-                                    .fontWeight(.regular)
-                            }
-                            Spacer()
-                            if componentStatus(for: .driver) != .completed {
-                                Button("Fix") {
-                                    handleKarabinerDriverFix()
+                        // Show Karabiner Driver only if showAllItems OR if it has issues
+                        if showAllItems || componentStatus(for: .driver) != .completed {
+                            HStack(spacing: 12) {
+                                Image(systemName: componentStatus(for: .driver) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(componentStatus(for: .driver) == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("Karabiner Driver")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Virtual keyboard driver")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
                                 }
-                                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                .scaleEffect(0.8)
-                            }
-                        }
-                        .help(driverIssues.asTooltipText())
-
-                        if let note = lastDriverFixNote, componentStatus(for: .driver) != .completed {
-                            Text("Last fix: \(note)")
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                                .padding(.leading, 28)
-                        }
-
-                        HStack(spacing: 12) {
-                            Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
-                            HStack(spacing: 0) {
-                                Text("Background Services")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                Text(" - Login Items for automatic startup")
-                                    .font(.headline)
-                                    .fontWeight(.regular)
-                            }
-                            Spacer()
-                            if componentStatus(for: .backgroundServices) != .completed {
-                                Button("Fix") {
-                                    handleBackgroundServicesFix()
+                                Spacer()
+                                if componentStatus(for: .driver) != .completed {
+                                    Button("Fix") {
+                                        handleKarabinerDriverFix()
+                                    }
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
                                 }
-                                .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                .scaleEffect(0.8)
+                            }
+                            .help(driverIssues.asTooltipText())
+
+                            if let note = lastDriverFixNote, componentStatus(for: .driver) != .completed {
+                                Text("Last fix: \(note)")
+                                    .font(.footnote)
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 28)
                             }
                         }
-                        .help(backgroundServicesIssues.asTooltipText())
+
+                        // Show Background Services only if showAllItems OR if it has issues
+                        if showAllItems || componentStatus(for: .backgroundServices) != .completed {
+                            HStack(spacing: 12) {
+                                Image(systemName: componentStatus(for: .backgroundServices) == .completed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(componentStatus(for: .backgroundServices) == .completed ? .green : .red)
+                                HStack(spacing: 0) {
+                                    Text("Background Services")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Text(" - Login Items for automatic startup")
+                                        .font(.headline)
+                                        .fontWeight(.regular)
+                                }
+                                Spacer()
+                                if componentStatus(for: .backgroundServices) != .completed {
+                                    Button("Fix") {
+                                        handleBackgroundServicesFix()
+                                    }
+                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
+                                    .scaleEffect(0.8)
+                                }
+                            }
+                            .help(backgroundServicesIssues.asTooltipText())
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(WizardDesign.Spacing.cardPadding)
