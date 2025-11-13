@@ -80,6 +80,7 @@ final class HelperMaintenance: ObservableObject {
 
 	/// Find all KeyPath.app copies visible to Spotlight (fast, robust in practice).
 	/// Results are sorted with `/Applications/KeyPath.app` first if present.
+	/// Excludes build directories (dist/, .build/, build/) to avoid flagging build artifacts.
 	nonisolated func detectDuplicateAppCopies() -> [String] {
 		var paths: [String] = []
 		let process = Process()
@@ -95,6 +96,13 @@ final class HelperMaintenance: ObservableObject {
 		if paths.isEmpty {
 			paths = canonicalAppCandidates()
 		}
+
+		// Filter out build directories to avoid flagging build artifacts as duplicates
+		let buildDirPatterns = ["/dist/", "/.build/", "/build/", "/DerivedData/"]
+		paths = paths.filter { path in
+			!buildDirPatterns.contains { pattern in path.contains(pattern) }
+		}
+
 		paths = Array(Set(paths)) // unique
 		paths.sort { lhs, rhs in
 			if lhs == "/Applications/KeyPath.app" { return true }
@@ -233,5 +241,3 @@ final class HelperMaintenance: ObservableObject {
 		logLines.append(line)
 	}
 }
-
-

@@ -108,6 +108,9 @@ public struct SystemSnapshot: Sendable {
 
         // Health issues
         if !health.isHealthy {
+            if !health.kanataRunning {
+                issues.append(.serviceNotRunning(name: "Kanata Service", autoFix: true))
+            }
             if !health.karabinerDaemonRunning {
                 issues.append(.serviceNotRunning(name: "Karabiner Daemon", autoFix: true))
             }

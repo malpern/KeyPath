@@ -7,6 +7,7 @@ import SwiftUI
 struct WizardAccessibilityPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
+    let allIssues: [WizardIssue]
     let onRefresh: () async -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
     let onDismiss: (() -> Void)?
@@ -71,6 +72,12 @@ struct WizardAccessibilityPage: View {
                     .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                     .padding(.top, WizardDesign.Spacing.pageVertical)
+
+                    Button(nextStepButtonTitle) {
+                        navigateToNextStep()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity)
@@ -207,6 +214,10 @@ struct WizardAccessibilityPage: View {
         keyPathAccessibilityStatus != .completed || kanataAccessibilityStatus != .completed
     }
 
+    private var nextStepButtonTitle: String {
+        allIssues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
     private var isRunningFromApplicationsFolder: Bool {
         Bundle.main.bundlePath.hasPrefix("/Applications/")
     }
@@ -320,6 +331,20 @@ struct WizardAccessibilityPage: View {
         }
     }
 
+    private func navigateToNextStep() {
+        if allIssues.isEmpty {
+            navigationCoordinator.navigateToPage(.summary)
+            return
+        }
+
+        if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
+           nextPage != navigationCoordinator.currentPage {
+            navigationCoordinator.navigateToPage(nextPage)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
+        }
+    }
+
     private func revealKanataInFinder() {
         let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
         let dir = (path as NSString).deletingLastPathComponent
@@ -358,6 +383,7 @@ struct WizardAccessibilityPage_Previews: PreviewProvider {
                     userAction: "Grant permission in System Settings > Privacy & Security > Accessibility"
                 )
             ],
+            allIssues: [],
             onRefresh: {},
             onNavigateToPage: nil,
             onDismiss: nil,

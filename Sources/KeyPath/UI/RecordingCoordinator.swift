@@ -42,8 +42,9 @@ final class RecordingCoordinator: ObservableObject {
 
     @Published private(set) var input = ChannelState()
     @Published private(set) var output = ChannelState()
-    @Published var isSequenceMode: Bool = true {
+    @Published var isSequenceMode: Bool {
         didSet {
+            PreferencesService.shared.isSequenceMode = isSequenceMode
             inputPlaceholderRequested = true
             outputPlaceholderRequested = true
             refreshDisplayTexts()
@@ -63,6 +64,11 @@ final class RecordingCoordinator: ObservableObject {
     private var inputPlaceholderRequested = false
     private var outputPlaceholderRequested = false
     private var mappingsWereSuspended = false
+
+    init() {
+        // Initialize from saved preferences
+        isSequenceMode = PreferencesService.shared.isSequenceMode
+    }
 
     func configure(
         kanataManager: KanataManager,

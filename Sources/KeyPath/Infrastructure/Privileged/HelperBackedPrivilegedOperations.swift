@@ -13,8 +13,13 @@ public struct HelperBackedPrivilegedOperations: PrivilegedOperations {
             try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
             return true
         } catch {
-            AppLogger.shared.log("🚨 [PrivOps] FALLBACK: helper restartUnhealthyServices failed: \(error.localizedDescription). Using AppleScript path.")
-            return await LegacyPrivilegedOperations().startKanataService()
+            if error.isSMAppServiceApprovalRequired {
+                AppLogger.shared.log("⚠️ [PrivOps] Helper start requires Background Items approval. Prompting user instead of falling back to legacy path.")
+                NotificationCenter.default.post(name: .smAppServiceApprovalRequired, object: nil)
+                return false
+            }
+            AppLogger.shared.log("❌ [PrivOps] Helper restartUnhealthyServices failed: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -24,8 +29,13 @@ public struct HelperBackedPrivilegedOperations: PrivilegedOperations {
             try await PrivilegedOperationsCoordinator.shared.restartUnhealthyServices()
             return true
         } catch {
-            AppLogger.shared.log("🚨 [PrivOps] FALLBACK: helper restartUnhealthyServices failed: \(error.localizedDescription). Using AppleScript path.")
-            return await LegacyPrivilegedOperations().restartKanataService()
+            if error.isSMAppServiceApprovalRequired {
+                AppLogger.shared.log("⚠️ [PrivOps] Helper restart requires Background Items approval. Prompting user instead of falling back to legacy path.")
+                NotificationCenter.default.post(name: .smAppServiceApprovalRequired, object: nil)
+                return false
+            }
+            AppLogger.shared.log("❌ [PrivOps] Helper restartUnhealthyServices failed: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -35,8 +45,24 @@ public struct HelperBackedPrivilegedOperations: PrivilegedOperations {
             try await PrivilegedOperationsCoordinator.shared.killAllKanataProcesses()
             return true
         } catch {
-            AppLogger.shared.log("🚨 [PrivOps] FALLBACK: helper killAllKanataProcesses failed: \(error.localizedDescription). Using AppleScript path.")
-            return await LegacyPrivilegedOperations().stopKanataService()
+            AppLogger.shared.log("❌ [PrivOps] helper killAllKanataProcesses failed: \(error.localizedDescription)")
+            return false
         }
+    }
+}
+
+private extension Error {
+    var isSMAppServiceApprovalRequired: Bool {
+        if let privilegedError = self as? PrivilegedOperationError {
+            switch privilegedError {
+            case let .installationFailed(message), let .operationFailed(message):
+                return message.lowercased().contains("approval required in system settings")
+            case .commandFailed, .executionError:
+                return false
+            }
+        }
+
+        let description = localizedDescription.lowercased()
+        return description.contains("approval required in system settings")
     }
 }

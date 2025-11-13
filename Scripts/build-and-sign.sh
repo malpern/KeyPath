@@ -38,6 +38,12 @@ ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
 # Copy bundled kanata binary
 ditto "build/kanata-universal" "$CONTENTS/Library/KeyPath/kanata"
 
+# Copy kanata launcher script to enforce absolute config paths
+KANATA_LAUNCHER_SRC="Scripts/kanata-launcher.sh"
+KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
+ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
+chmod 755 "$KANATA_LAUNCHER_DST"
+
 # Embed privileged helper for SMJobBless
 echo "📦 Embedding privileged helper (SMAppService layout)..."
 HELPER_TOOLS="$CONTENTS/Library/HelperTools"
@@ -53,6 +59,28 @@ ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keyp
 # Copy Kanata daemon plist for SMAppService
 ditto "Sources/KeyPath/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
+verify_embedded_artifacts() {
+    local missing=0
+    for path in \
+        "$HELPER_TOOLS/KeyPathHelper" \
+        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
+        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
+        "$KANATA_LAUNCHER_DST"; do
+        if [ ! -e "$path" ]; then
+            echo "❌ ERROR: Missing packaged artifact: $path" >&2
+            missing=1
+        fi
+    done
+
+    if [ $missing -ne 0 ]; then
+        echo "💥 Packaging aborted because helper assets are incomplete." >&2
+        exit 1
+    fi
+}
+
+verify_embedded_artifacts
+./Scripts/verify-kanata-plist.sh "$APP_BUNDLE"
+
 echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
 echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
 echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
@@ -60,12 +88,15 @@ echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist
 # Copy main app Info.plist
 ditto "Sources/KeyPath/Info.plist" "$CONTENTS/Info.plist"
 
-# Copy app icon
-if [ -f "Sources/KeyPath/Resources/AppIcon.icns" ]; then
-    ditto "Sources/KeyPath/Resources/AppIcon.icns" "$RESOURCES/AppIcon.icns"
-    echo "✅ Copied app icon"
+# Copy bundled app resources (icons, helper scripts, etc.)
+if [ -d "Sources/KeyPath/Resources" ]; then
+    ditto "Sources/KeyPath/Resources/" "$RESOURCES"
+    if [ -f "$RESOURCES/uninstall.sh" ]; then
+        chmod 755 "$RESOURCES/uninstall.sh"
+    fi
+    echo "✅ Copied app resources"
 else
-    echo "⚠️ WARNING: AppIcon.icns not found"
+    echo "⚠️ WARNING: Sources/KeyPath/Resources directory not found"
 fi
 
 # Create PkgInfo file (required for app bundles)
@@ -146,15 +177,15 @@ spctl -a -vvv "$APP_BUNDLE"
 
 echo "✨ Ready for distribution!"
 
-echo "📂 Deploying to ~/Applications..."
-USER_APPS_DIR="$HOME/Applications"
-APP_DEST="$USER_APPS_DIR/${APP_NAME}.app"
-mkdir -p "$USER_APPS_DIR"
+echo "📂 Deploying to /Applications..."
+SYSTEM_APPS_DIR="/Applications"
+APP_DEST="$SYSTEM_APPS_DIR/${APP_NAME}.app"
 rm -rf "$APP_DEST"
 if ditto "$APP_BUNDLE" "$APP_DEST"; then
     echo "✅ Deployed latest $APP_NAME to $APP_DEST"
 else
     echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
+    echo "💡 TIP: You may need to manually copy dist/${APP_NAME}.app to /Applications/" >&2
 fi
 
 echo "🚪 Restarting app..."

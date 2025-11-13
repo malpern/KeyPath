@@ -261,7 +261,7 @@ class LaunchDaemonInstaller {
 
     /// Creates and installs all LaunchDaemon services with a single admin prompt
     /// GUARD: Skips Kanata plist creation if SMAppService is active
-    func createAllLaunchDaemonServices() -> Bool {
+    func createAllLaunchDaemonServices() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating all LaunchDaemon services")
 
         // GUARD: Check if SMAppService is active for Kanata - if so, skip Kanata plist creation
@@ -298,10 +298,7 @@ class LaunchDaemonInstaller {
             let success: Bool
             if isSMAppServiceActive {
                 // Only install VirtualHID services
-                success = executeConsolidatedInstallationForVHIDOnly(
-                vhidDaemonTemp: vhidDaemonTempPath,
-                vhidManagerTemp: vhidManagerTempPath
-            )
+                success = await executeConsolidatedInstallationForVHIDOnly()
             } else {
                 // Install all services including Kanata
                 success = executeAllWithAdminPrivileges(
@@ -431,10 +428,7 @@ class LaunchDaemonInstaller {
             try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
 
             // Install VirtualHID services via launchctl (requires admin)
-            let vhidSuccess = executeConsolidatedInstallationForVHIDOnly(
-                vhidDaemonTemp: vhidDaemonTempPath,
-                vhidManagerTemp: vhidManagerTempPath
-            )
+            let vhidSuccess = await executeConsolidatedInstallationForVHIDOnly()
 
             // Clean up temporary files
             try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
@@ -872,6 +866,74 @@ class LaunchDaemonInstaller {
                 "❌ [LaunchDaemon] Failed to create temporary plist \(serviceID): \(error)")
             return false
         }
+    }
+
+    /// Update existing Kanata plist files that still reference the config via '~'
+    /// - Returns: `true` when a rewrite was performed
+    @discardableResult
+    private func migrateKanataConfigPathIfNeeded() async -> Bool {
+        let plistPath = Self.kanataPlistPath
+
+        guard FileManager.default.fileExists(atPath: plistPath) else {
+            return false
+        }
+
+        guard let data = FileManager.default.contents(atPath: plistPath) else {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Unable to read plist at \(plistPath) for migration")
+            return false
+        }
+
+        var format = PropertyListSerialization.PropertyListFormat.xml
+        guard var plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: &format) as? [String: Any],
+              var args = plist["ProgramArguments"] as? [String],
+              let cfgFlagIndex = args.firstIndex(of: "--cfg"),
+              cfgFlagIndex + 1 < args.count else {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Kanata plist missing ProgramArguments/--cfg; skipping migration")
+            return false
+        }
+
+        let originalPath = args[cfgFlagIndex + 1]
+        let expandedPath = (originalPath as NSString).expandingTildeInPath
+
+        guard originalPath != expandedPath else {
+            return false // Already expanded
+        }
+
+        AppLogger.shared.log("🔧 [LaunchDaemon] Rewriting Kanata plist config path from '~' to \(expandedPath)")
+        args[cfgFlagIndex + 1] = expandedPath
+        plist["ProgramArguments"] = args
+
+        do {
+            let updatedData = try PropertyListSerialization.data(fromPropertyList: plist, format: format, options: 0)
+            let tempPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("com.keypath.kanata.migrated.plist")
+            try updatedData.write(to: URL(fileURLWithPath: tempPath))
+            defer { try? FileManager.default.removeItem(atPath: tempPath) }
+
+            if TestEnvironment.shouldSkipAdminOperations {
+                AppLogger.shared.log("🧪 [LaunchDaemon] Test mode - writing migrated plist locally")
+                try updatedData.write(to: URL(fileURLWithPath: plistPath), options: .atomic)
+                return true
+            }
+
+            let command = """
+            /bin/mkdir -p \"\(Self.systemLaunchDaemonsDir)\" && /bin/cp \"\(tempPath)\" \"\(plistPath)\" && /usr/sbin/chown root:wheel \"\(plistPath)\" && /bin/chmod 644 \"\(plistPath)\"
+            """
+
+            do {
+                try await PrivilegedOperationsCoordinator.shared.sudoExecuteCommand(
+                    command,
+                    description: "update Kanata LaunchDaemon config path"
+                )
+                AppLogger.shared.log("✅ [LaunchDaemon] Kanata plist config path migrated to \(expandedPath)")
+                return true
+            } catch {
+                AppLogger.shared.log("❌ [LaunchDaemon] Failed to migrate Kanata plist config path: \(error)")
+            }
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to serialize migrated plist: \(error)")
+        }
+
+        return false
     }
 
     /// Execute all LaunchDaemon installations with a single administrator privileges request
@@ -1395,101 +1457,14 @@ class LaunchDaemonInstaller {
 
     /// Execute consolidated installation for VirtualHID services only (no Kanata)
     /// Used when Kanata is installed via SMAppService
-    private func executeConsolidatedInstallationForVHIDOnly(
-        vhidDaemonTemp: String, vhidManagerTemp: String
-    ) -> Bool {
-        AppLogger.shared.log("🔧 [LaunchDaemon] Installing VirtualHID services only (Kanata via SMAppService)")
-
-        let vhidDaemonFinal = "\(Self.launchDaemonsPath)/\(Self.vhidDaemonServiceID).plist"
-        let vhidManagerFinal = "\(Self.launchDaemonsPath)/\(Self.vhidManagerServiceID).plist"
-        let currentUserName = NSUserName()
-
-        let command = """
-        set -ex
-        exec > /tmp/keypath-vhid-install-debug.log 2>&1
-        echo "Starting VirtualHID installation at $(date)..."
-        echo "Current user: $(whoami)"
-
-        # Create LaunchDaemons directory
-        mkdir -p '\(Self.launchDaemonsPath)'
-
-        # Install VirtualHID plist files with proper ownership
-        cp '\(vhidDaemonTemp)' '\(vhidDaemonFinal)' && chown root:wheel '\(vhidDaemonFinal)' && chmod 644 '\(vhidDaemonFinal)'
-        cp '\(vhidManagerTemp)' '\(vhidManagerFinal)' && chown root:wheel '\(vhidManagerFinal)' && chmod 644 '\(vhidManagerFinal)'
-
-        # Create user configuration directory and file (as current user)
-        install -d -o '\(currentUserName)' -g staff '/Users/\(currentUserName)/.config/keypath'
-        touch '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
-        chown '\(currentUserName):staff' '/Users/\(currentUserName)/.config/keypath/keypath.kbd'
-
-        # Unload existing VirtualHID services first (ignore errors if not loaded)
-        launchctl bootout system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
-        launchctl bootout system/\(Self.vhidManagerServiceID) 2>/dev/null || true
-
-        # Enable services in case previously disabled
-        echo "Enabling VirtualHID services..."
-        /bin/launchctl enable system/\(Self.vhidDaemonServiceID) 2>/dev/null || true
-        /bin/launchctl enable system/\(Self.vhidManagerServiceID) 2>/dev/null || true
-
-        # Load services using bootstrap (modern approach) - DEPENDENCIES FIRST!
-        launchctl bootstrap system '\(vhidDaemonFinal)'
-        launchctl bootstrap system '\(vhidManagerFinal)'
-
-        # Start services - DEPENDENCIES FIRST!
-        launchctl kickstart -k system/\(Self.vhidDaemonServiceID)
-        launchctl kickstart -k system/\(Self.vhidManagerServiceID)
-
-        echo "VirtualHID installation completed successfully"
-        """
-
-        // Create a temporary script file
-        let tempScriptPath = NSTemporaryDirectory() + "keypath-vhid-install-\(UUID().uuidString).sh"
-
+    private func executeConsolidatedInstallationForVHIDOnly() async -> Bool {
+        AppLogger.shared.log("🔧 [LaunchDaemon] Installing VirtualHID services via privileged helper")
         do {
-            try command.write(toFile: tempScriptPath, atomically: true, encoding: .utf8)
-
-            // Set executable permissions
-            let fileManager = FileManager.default
-            try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempScriptPath)
-
-            // Use osascript to execute the script with admin privileges
-            let osascriptCode = """
-            do shell script "bash '\(tempScriptPath)'" with administrator privileges with prompt "KeyPath needs administrator access to install VirtualHID services for keyboard management."
-            """
-
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-            task.arguments = ["-e", osascriptCode]
-            task.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory())
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            AppLogger.shared.log("🔐 [LaunchDaemon] Executing VirtualHID installation...")
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            AppLogger.shared.log("🔐 [LaunchDaemon] VirtualHID installation status: \(task.terminationStatus)")
-            AppLogger.shared.log("🔐 [LaunchDaemon] Output: \(output)")
-
-            // Clean up temp script
-            try? fileManager.removeItem(atPath: tempScriptPath)
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed VirtualHID services")
-                return true
-            } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] VirtualHID installation failed")
-                return false
-            }
-
+            try await PrivilegedOperationsCoordinator.shared.repairVHIDDaemonServices()
+            AppLogger.shared.log("✅ [LaunchDaemon] VirtualHID services installed via helper path")
+            return true
         } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Error installing VirtualHID services: \(error)")
-            try? FileManager.default.removeItem(atPath: tempScriptPath)
+            AppLogger.shared.log("❌ [LaunchDaemon] Helper VirtualHID installation failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -1829,6 +1804,9 @@ class LaunchDaemonInstaller {
     func restartUnhealthyServices() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Starting comprehensive service health fix")
 
+        // Auto-migrate legacy plists that referenced '~' before attempting restarts
+        _ = await migrateKanataConfigPathIfNeeded()
+
         let initialStatus = getServiceStatus()
         var toRestart: [String] = []
         var toInstall: [String] = []
@@ -1915,6 +1893,27 @@ class LaunchDaemonInstaller {
         // Step 2: Handle unhealthy services
         if toRestart.isEmpty {
             AppLogger.shared.log("🔍 [LaunchDaemon] No unhealthy services found to restart")
+            return true
+        }
+
+        // Handle Kanata via SMAppService without prompting for admin credentials
+        if toRestart.contains(Self.kanataServiceID) {
+            if state.isSMAppServiceManaged {
+                AppLogger.shared.log("🔧 [LaunchDaemon] Kanata managed by SMAppService – refreshing registration instead of using osascript")
+                do {
+                    try await KanataDaemonManager.shared.register()
+                    toRestart.removeAll { $0 == Self.kanataServiceID }
+                } catch {
+                    AppLogger.shared.log("❌ [LaunchDaemon] SMAppService refresh failed: \(error)")
+                    return false
+                }
+            } else {
+                AppLogger.shared.log("⚠️ [LaunchDaemon] Kanata marked for restart but state=\(state.description); legacy path will proceed")
+            }
+        }
+
+        if toRestart.isEmpty {
+            AppLogger.shared.log("✅ [LaunchDaemon] Remaining services healthy after SMAppService refresh")
             return true
         }
 

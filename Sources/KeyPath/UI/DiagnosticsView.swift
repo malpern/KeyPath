@@ -50,6 +50,9 @@ struct DiagnosticsView: View {
     @State private var showingDevResetConfirmation = false
     @State private var showingResetEverythingConfirmation = false
     @State private var isResetting = false
+    @State private var helperServiceStatus = DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .unknown, message: "Not checked")
+    @State private var smAppServiceStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .unknown, message: "Not checked")
+    @State private var vhidServiceStatus = DiagnosticsServiceHealthStatus(title: "VirtualHID", level: .unknown, message: "Not checked")
 
     enum Tab: String, CaseIterable {
         case summary = "Summary"
@@ -113,6 +116,13 @@ struct DiagnosticsView: View {
                             }
                             ProcessStatusSection(kanataManager: kanataManager)
                             PermissionStatusSection(kanataManager: kanataManager, onShowWizard: { showingWizard = true })
+                            ServiceHealthSection(
+                                helperStatus: helperServiceStatus,
+                                smAppStatus: smAppServiceStatus,
+                                vhidStatus: vhidServiceStatus,
+                                onFixHelper: { showingHelperDiagnostics = true; Task { await refreshHelperStatus() } },
+                                onOpenWizard: { showingWizard = true }
+                            )
                             // Keep a concise health snapshot
                             EnhancedStatusSection(kanataManager: kanataManager)
                             if !systemDiagnostics.isEmpty {
@@ -237,6 +247,9 @@ struct DiagnosticsView: View {
         } message: {
             Text(exportMessage ?? "")
         }
+        .task {
+            await refreshServiceHealth()
+        }
     }
 
     private func runDiagnostics() {
@@ -245,7 +258,7 @@ struct DiagnosticsView: View {
         Task {
             // Fetch system diagnostics including TCP status
             let diagnostics = await kanataManager.underlyingManager.getSystemDiagnostics()
-
+            await refreshServiceHealth()
             await MainActor.run {
                 systemDiagnostics = diagnostics
                 isRunningDiagnostics = false
@@ -254,7 +267,7 @@ struct DiagnosticsView: View {
     }
 
     // Minimal export: zip KeyPath logs and helper logs to Desktop
-    private func exportSupportReport() async -> String {
+private func exportSupportReport() async -> String {
         let desktop = NSHomeDirectory() + "/Desktop"
         let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
             .replacingOccurrences(of: "/", with: "-")
@@ -315,7 +328,51 @@ struct DiagnosticsView: View {
         }
     }
 
-    // MARK: - Helper management (moved from Settings)
+    private func refreshServiceHealth() async {
+        let helperInstalled = HelperManager.shared.isHelperInstalled()
+        let helperResponsive = await HelperManager.shared.testHelperFunctionality()
+        let helperStatus: DiagnosticsServiceHealthStatus
+        if helperInstalled && helperResponsive {
+            helperStatus = DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .good, message: "Helper is registered and responding")
+        } else if helperInstalled {
+            helperStatus = DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .warning, message: "Helper installed but not responding")
+        } else {
+            helperStatus = DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .error, message: "Helper not installed")
+        }
+
+        let smState = KanataDaemonManager.determineServiceManagementState()
+        let smStatus: DiagnosticsServiceHealthStatus
+        switch smState {
+        case .smappserviceActive:
+            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .good, message: "SMAppService registered and enabled")
+        case .smappservicePending:
+            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .warning, message: "Awaiting approval in System Settings → Login Items")
+        case .legacyActive, .conflicted:
+            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .error, message: "Legacy launchctl plist detected; run Setup Wizard to migrate")
+        case .uninstalled:
+            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .error, message: "Kanata service is not registered")
+        case .unknown:
+            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .warning, message: "State unknown; rerun wizard to repair")
+        }
+
+        let installer = LaunchDaemonInstaller()
+        let vhidDaemonHealthy = installer.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
+        let vhidManagerHealthy = installer.isServiceHealthy(serviceID: "com.keypath.karabiner-vhidmanager")
+        let vhidStatus: DiagnosticsServiceHealthStatus
+        if vhidDaemonHealthy && vhidManagerHealthy {
+            vhidStatus = DiagnosticsServiceHealthStatus(title: "VirtualHID Services", level: .good, message: "Driver services are loaded")
+        } else {
+            vhidStatus = DiagnosticsServiceHealthStatus(title: "VirtualHID Services", level: .error, message: "Driver services need repair")
+        }
+
+        await MainActor.run {
+            helperServiceStatus = helperStatus
+            smAppServiceStatus = smStatus
+            vhidServiceStatus = vhidStatus
+        }
+}
+
+// MARK: - Helper management (moved from Settings)
     private func refreshHelperStatus() async {
         await MainActor.run { helperInstalled = HelperManager.shared.isHelperInstalled() }
         let v = await HelperManager.shared.getHelperVersion()
@@ -490,6 +547,94 @@ struct DiagnosticsView: View {
                         NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
                     }
                 }
+            }
+        }
+    }
+}
+
+private struct DiagnosticsServiceHealthStatus: Equatable {
+    enum Level {
+        case good, warning, error, unknown
+    }
+
+    let title: String
+    let level: Level
+    let message: String
+
+    var icon: String {
+        switch level {
+        case .good: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .error: return "xmark.octagon.fill"
+        case .unknown: return "questionmark.circle.fill"
+        }
+    }
+
+    var color: Color {
+        switch level {
+        case .good: return .green
+        case .warning: return .orange
+        case .error: return .red
+        case .unknown: return .gray
+        }
+    }
+
+    var requiresAction: Bool {
+        level == .warning || level == .error
+    }
+}
+
+private struct ServiceHealthSection: View {
+    let helperStatus: DiagnosticsServiceHealthStatus
+    let smAppStatus: DiagnosticsServiceHealthStatus
+    let vhidStatus: DiagnosticsServiceHealthStatus
+    let onFixHelper: () -> Void
+    let onOpenWizard: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Background Service Health")
+                .font(.headline)
+
+            ServiceHealthRow(status: helperStatus, actionTitle: helperStatus.requiresAction ? "Inspect" : nil, action: onFixHelper)
+            ServiceHealthRow(status: smAppStatus, actionTitle: smAppStatus.requiresAction ? "Open Wizard" : nil, action: onOpenWizard)
+            ServiceHealthRow(status: vhidStatus, actionTitle: vhidStatus.requiresAction ? "Repair" : nil, action: onOpenWizard)
+        }
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 1)
+    }
+}
+
+private struct ServiceHealthRow: View {
+    let status: DiagnosticsServiceHealthStatus
+    let actionTitle: String?
+    let action: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: status.icon)
+                .foregroundColor(status.color)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(status.title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Text(status.message)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if let actionTitle, status.requiresAction {
+                Button(actionTitle) {
+                    action()
+                }
+                .buttonStyle(.bordered)
             }
         }
     }
@@ -787,26 +932,17 @@ struct PermissionStatusSection: View {
     @State private var snapshot: PermissionOracle.Snapshot?
 
     var body: some View {
-        let inputMonitoring = snapshot?.keyPath.inputMonitoring.isReady ?? false
-        let accessibility = snapshot?.keyPath.accessibility.isReady ?? false
-        let allPermissions = inputMonitoring && accessibility
+        let allPermissions = snapshot?.isSystemReady ?? false
 
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("Permissions")
-                .font(.headline)
-
+        return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Circle()
-                    .fill(allPermissions ? Color.green : Color.red)
-                    .frame(width: 8, height: 8)
-
-                Text(allPermissions ? "All permissions granted" : "Permissions required")
-                    .font(.body)
+                Text("Permissions")
+                    .font(.headline)
 
                 Spacer()
 
                 if !allPermissions {
-                    Button("Open Wizard") {
+                    Button("Open Setup Wizard") {
                         onShowWizard()
                     }
                     .buttonStyle(.borderedProminent)
@@ -814,31 +950,50 @@ struct PermissionStatusSection: View {
                 }
             }
 
-            // Show detailed permission status
-            if !allPermissions {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Circle()
-                            .fill(inputMonitoring ? Color.green : Color.red)
-                            .frame(width: 6, height: 6)
-                        Text("Input Monitoring")
-                            .font(.caption)
-                    }
+            // Show all permission details with icons
+            if let snapshot {
+                VStack(alignment: .leading, spacing: 8) {
+                    PermissionRow(
+                        title: "KeyPath Accessibility",
+                        icon: "lock.shield",
+                        granted: snapshot.keyPath.accessibility.isReady
+                    )
 
-                    HStack {
-                        Circle()
-                            .fill(accessibility ? Color.green : Color.red)
-                            .frame(width: 6, height: 6)
-                        Text("Accessibility")
-                            .font(.caption)
-                    }
+                    PermissionRow(
+                        title: "KeyPath Input Monitoring",
+                        icon: "keyboard",
+                        granted: snapshot.keyPath.inputMonitoring.isReady
+                    )
+
+                    PermissionRow(
+                        title: "Kanata Accessibility",
+                        icon: "lock.shield",
+                        granted: snapshot.kanata.accessibility.isReady
+                    )
+
+                    PermissionRow(
+                        title: "Kanata Input Monitoring",
+                        icon: "keyboard",
+                        granted: snapshot.kanata.inputMonitoring.isReady
+                    )
                 }
-                .padding(.leading, 16)
+            } else {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Checking permissions…")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
             }
         }
         .padding()
-        .background(allPermissions ? Color.green.opacity(0.05) : Color.red.opacity(0.05))
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
         .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+        )
         // Always source from PermissionOracle for consistency with the Wizard
         .task {
             snapshot = await PermissionOracle.shared.currentSnapshot()
@@ -848,6 +1003,37 @@ struct PermissionStatusSection: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
             Task { snapshot = await PermissionOracle.shared.currentSnapshot() }
+        }
+    }
+}
+
+// MARK: - Permission Row
+
+private struct PermissionRow: View {
+    let title: String
+    let icon: String
+    let granted: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundColor(granted ? .green : .red)
+                .frame(width: 20)
+
+            Text(title)
+                .font(.body)
+
+            Spacer()
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(granted ? Color.green : Color.red)
+                    .frame(width: 8, height: 8)
+
+                Text(granted ? "Granted" : "Required")
+                    .font(.caption)
+                    .foregroundColor(granted ? .green : .red)
+            }
         }
     }
 }
@@ -1017,40 +1203,40 @@ struct DiagnosticCard: View {
     let onAutoFix: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             // Main diagnostic info
-            HStack {
+            HStack(alignment: .top, spacing: 12) {
                 Text(diagnostic.severity.emoji)
-                    .font(.title3)
+                    .font(.title2)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(diagnostic.title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(.body)
+                        .fontWeight(.semibold)
 
                     Text(diagnostic.description)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.body)
+                        .foregroundColor(.primary)
                 }
 
                 Spacer()
 
-                // Category badge
+                // Category badge (no color)
                 Text(diagnostic.category.rawValue)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(categoryColor(diagnostic.category).opacity(0.2))
-                    .foregroundColor(categoryColor(diagnostic.category))
-                    .cornerRadius(4)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .foregroundColor(.secondary)
+                    .cornerRadius(6)
             }
 
             // Suggested action
             if !diagnostic.suggestedAction.isEmpty {
                 Text("💡 \(diagnostic.suggestedAction)")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .padding(.leading, 24)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                    .padding(.leading, 32)
             }
 
             // Action buttons
@@ -1060,7 +1246,7 @@ struct DiagnosticCard: View {
                         onAutoFix()
                     }
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .controlSize(.regular)
                 }
 
                 if !diagnostic.technicalDetails.isEmpty {
@@ -1068,32 +1254,32 @@ struct DiagnosticCard: View {
                         onToggleTechnicalDetails()
                     }
                     .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .controlSize(.regular)
                 }
 
                 Spacer()
 
                 Text(diagnostic.timestamp, style: .time)
-                    .font(.caption2)
+                    .font(.body)
                     .foregroundColor(.secondary)
             }
 
             // Technical details (expandable)
             if showTechnicalDetails, !diagnostic.technicalDetails.isEmpty {
                 Text(diagnostic.technicalDetails)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(Color.secondary)
-                    .padding(8)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(4)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundColor(.primary)
+                    .padding(12)
+                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                    .cornerRadius(6)
             }
         }
-        .padding()
-        .background(severityColor(diagnostic.severity).opacity(0.1))
+        .padding(16)
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
         .cornerRadius(8)
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(severityColor(diagnostic.severity).opacity(0.3), lineWidth: 1)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
         )
     }
 

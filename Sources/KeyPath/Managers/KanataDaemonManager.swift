@@ -250,9 +250,23 @@ class KanataDaemonManager {
         // First check the expected location (build scripts place it here)
         if FileManager.default.fileExists(atPath: expectedPlistPath) {
             AppLogger.shared.log("✅ [KanataDaemonManager] Found plist at expected location: \(expectedPlistPath)")
+            if let plist = NSDictionary(contentsOfFile: expectedPlistPath) as? [String: Any],
+               let args = plist["ProgramArguments"] as? [String],
+               let first = args.first,
+               !first.contains("kanata-launcher") {
+                AppLogger.shared.log("❌ [KanataDaemonManager] Plist ProgramArguments missing kanata-launcher wrapper (found: \(first))")
+                throw KanataDaemonError.registrationFailed("Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering.")
+            }
         } else if let resourcePath = Bundle.main.path(forResource: "com.keypath.kanata", ofType: "plist") {
             // Found in bundle resources (SPM build) - this is acceptable
             AppLogger.shared.log("ℹ️ [KanataDaemonManager] Found plist in bundle resources: \(resourcePath)")
+            if let plist = NSDictionary(contentsOfFile: resourcePath) as? [String: Any],
+               let args = plist["ProgramArguments"] as? [String],
+               let first = args.first,
+               !first.contains("kanata-launcher") {
+                AppLogger.shared.log("❌ [KanataDaemonManager] Resource plist missing kanata-launcher wrapper (found: \(first))")
+                throw KanataDaemonError.registrationFailed("Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering.")
+            }
         } else {
             AppLogger.shared.log("❌ [KanataDaemonManager] Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)")
             throw KanataDaemonError.registrationFailed("Plist not found in app bundle (checked: \(expectedPlistPath) and bundle resources)")
@@ -275,12 +289,27 @@ class KanataDaemonManager {
 
         switch initialStatus {
         case .enabled:
-            // Already enabled - treat as success
-            AppLogger.shared.info("✅ [KanataDaemonManager] Daemon already enabled - no registration needed")
-            return
+            AppLogger.shared.info("♻️ [KanataDaemonManager] Daemon already enabled - refreshing registration to pick up latest plist")
+            do {
+                try await svc.unregister()
+                AppLogger.shared.log("🔄 [KanataDaemonManager] Existing SMAppService job unregistered for refresh")
+            } catch {
+                AppLogger.shared.log("⚠️ [KanataDaemonManager] Failed to unregister existing job before refresh: \(error)")
+            }
+            do {
+                try svc.register()
+                let refreshedStatus = svc.status
+                AppLogger.shared.log("🔍 [KanataDaemonManager] After refresh register(), status=\(refreshedStatus.rawValue) (\(String(describing: refreshedStatus)))")
+                AppLogger.shared.info("✅ [KanataDaemonManager] Daemon registration refreshed successfully")
+                return
+            } catch {
+                AppLogger.shared.log("❌ [KanataDaemonManager] Refresh registration failed: \(error)")
+                throw KanataDaemonError.registrationFailed("SMAppService refresh failed: \(error.localizedDescription)")
+            }
 
         case .requiresApproval:
             AppLogger.shared.log("⚠️ [KanataDaemonManager] Status is .requiresApproval - user needs to approve in System Settings")
+            notifyBackgroundApprovalRequired()
             throw KanataDaemonError.registrationFailed("Approval required in System Settings → Login Items.")
 
         case .notRegistered:
@@ -304,6 +333,7 @@ class KanataDaemonManager {
                 }
                 if errorStatus == .requiresApproval {
                     AppLogger.shared.log("⚠️ [KanataDaemonManager] Status changed to .requiresApproval after error")
+                    notifyBackgroundApprovalRequired()
                     throw KanataDaemonError.registrationFailed("Approval required in System Settings → Login Items.")
                 }
                 AppLogger.shared.log("❌ [KanataDaemonManager] Registration failed with final status: \(errorStatus)")
@@ -324,6 +354,9 @@ class KanataDaemonManager {
                 let errorStatus = svc.status
                 AppLogger.shared.log("❌ [KanataDaemonManager] Registration failed with detailed error: \(error)")
                 AppLogger.shared.log("🔍 [KanataDaemonManager] Status after error: \(errorStatus.rawValue) (\(String(describing: errorStatus)))")
+                if errorStatus == .requiresApproval {
+                    notifyBackgroundApprovalRequired()
+                }
                 throw KanataDaemonError.registrationFailed("SMAppService register failed: \(error.localizedDescription)")
             }
 
@@ -471,5 +504,11 @@ enum KanataDaemonError: Error, LocalizedError {
         case let .rollbackFailed(reason):
             "Rollback failed: \(reason)"
         }
+    }
+}
+
+private extension KanataDaemonManager {
+    func notifyBackgroundApprovalRequired() {
+        NotificationCenter.default.post(name: .smAppServiceApprovalRequired, object: nil)
     }
 }

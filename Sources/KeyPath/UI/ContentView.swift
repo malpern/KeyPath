@@ -58,8 +58,8 @@ struct ContentView: View {
     // Enhanced error handling
     @State private var enhancedErrorInfo: ErrorInfo?
 
-    // Diagnostics view state
-    @State private var showingDiagnostics = false
+    // Diagnostics view state (now navigates to Settings → System Status)
+    // @State private var showingDiagnostics = false  // Removed: now uses Settings tab
     @State private var showingConfigCorruptionAlert = false
     @State private var configCorruptionDetails = ""
     @State private var configRepairSuccessful = false
@@ -70,6 +70,8 @@ struct ContentView: View {
     @State private var showingKanataNotRunningAlert = false
     @State private var showingSimpleMods = false
     @State private var showingEmergencyStopDialog = false
+    @State private var showingUninstallDialog = false
+    @State private var toastManager = WizardToastManager()
 
     @State private var saveDebounceTimer: Timer?
     private let saveDebounceDelay: TimeInterval = 0.1
@@ -161,7 +163,7 @@ struct ContentView: View {
                 let criticalIssues = kanataManager.diagnostics.filter { $0.severity == .critical || $0.severity == .error }
                 if !criticalIssues.isEmpty {
                     DiagnosticSummaryView(criticalIssues: criticalIssues) {
-                        showingDiagnostics = true
+                        openSystemStatusSettings()
                     }
                 }
             }
@@ -242,6 +244,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingEmergencyStopDialog) {
             EmergencyStopDialog(isActivated: kanataManager.emergencyStopActivated)
+        }
+        .sheet(isPresented: $showingUninstallDialog) {
+            UninstallKeyPathDialog()
         }
         .onAppear {
             AppLogger.shared.log("🔍 [ContentView] onAppear called")
@@ -363,6 +368,13 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
             showingEmergencyStopDialog = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) { _ in
+            showingUninstallDialog = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyPathUninstallCompleted)) { _ in
+            showingUninstallDialog = false
+            showStatusMessage(message: "✅ KeyPath uninstalled\nYour config file was saved. You can quit now.")
+        }
         .onChange(of: showingInstallationWizard) { _, showing in
             // When wizard closes, try to start emergency monitoring if we now have permissions
             if !showing {
@@ -383,7 +395,7 @@ struct ContentView: View {
             Button("OK") { showingConfigCorruptionAlert = false }
             Button("View Diagnostics") {
                 showingConfigCorruptionAlert = false
-                showingDiagnostics = true
+                openSystemStatusSettings()
             }
         } message: {
             Text(configCorruptionDetails)
@@ -396,7 +408,7 @@ struct ContentView: View {
             }
             Button("View Diagnostics") {
                 showingRepairFailedAlert = false
-                showingDiagnostics = true
+                openSystemStatusSettings()
             }
         } message: {
             Text(repairFailedDetails)
@@ -410,6 +422,7 @@ struct ContentView: View {
         } message: {
             Text("Cannot save configuration because the Kanata service is not running. Please start Kanata using the Installation Wizard.")
         }
+        .withToasts(toastManager)
     }
 
     private func showStatusMessage(message: String) {
@@ -437,6 +450,11 @@ struct ContentView: View {
             statusMessageTimer = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
         }
+    }
+
+    private func openSystemStatusSettings() {
+        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        NotificationCenter.default.post(name: .openSettingsSystemStatus, object: nil)
     }
 
     private func startEmergencyMonitoringIfPossible() {
@@ -849,91 +867,9 @@ struct RecordingSection: View {
 
     private var inputSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Input Key")
-                    .font(.headline)
-                    .accessibilityIdentifier("input-key-label")
-
-                Spacer()
-
-                Button(action: {
-                    let newValue = !PreferencesService.shared.applyMappingsDuringRecording
-                    PreferencesService.shared.applyMappingsDuringRecording = newValue
-                    coordinator.requestPlaceholders()
-
-                    // Show confirmation message
-                    let message = newValue
-                        ? "Mappings will be applied during recording\nService stays running"
-                        : "Mappings paused during recording\nService will stop/restart - requires admin"
-                    onShowMessage(message)
-                }, label: {
-                    Image(systemName: "app.background.dotted")
-                        .font(.title2)
-                        .foregroundColor(PreferencesService.shared.applyMappingsDuringRecording ? .white : .blue)
-                })
-                .buttonStyle(.plain)
-                .frame(width: 32, height: 32)
-                .appSolidGlassButton(
-                    tint: PreferencesService.shared.applyMappingsDuringRecording ? .blue : Color(NSColor.textBackgroundColor),
-                    radius: 6
-                )
-                .cornerRadius(6)
-                .help({
-                    if PreferencesService.shared.applyMappingsDuringRecording {
-                        return "Apply Mappings During Recording: ON\n\n" +
-                            "Recording shows mapped keys (what you configured).\n" +
-                            "Kanata service stays running.\n\n" +
-                            "Click to toggle OFF (shows raw physical keys, stops service)."
-                    } else {
-                        return "Apply Mappings During Recording: OFF\n\n" +
-                            "Recording shows raw physical keys.\n" +
-                            "⚠️ Kanata service will stop/restart (requires admin password).\n\n" +
-                            "Click to toggle ON (keeps service running)."
-                    }
-                }())
-                .accessibilityIdentifier("apply-mappings-toggle")
-                .accessibilityLabel(PreferencesService.shared.applyMappingsDuringRecording
-                    ? "Disable mappings during recording (requires admin)"
-                    : "Enable mappings during recording (recommended)")
-                .padding(.trailing, 5)
-
-                Button(action: {
-                    coordinator.toggleSequenceMode()
-                    coordinator.requestPlaceholders()
-
-                    // Show confirmation message
-                    let message = coordinator.isSequenceMode
-                        ? "Sequence mode\nCaptures keys pressed in order"
-                        : "Combo mode\nCaptures keys pressed together"
-                    onShowMessage(message)
-                }, label: {
-                    Image(systemName: "list.number")
-                        .font(.title2)
-                        .foregroundColor(coordinator.isSequenceMode ? .white : .blue)
-                })
-                .buttonStyle(.plain)
-                .frame(width: 32, height: 32)
-                .appSolidGlassButton(
-                    tint: coordinator.isSequenceMode ? .blue : Color(NSColor.textBackgroundColor),
-                    radius: 6
-                )
-                .cornerRadius(6)
-                .help({
-                    if coordinator.isSequenceMode {
-                        return "Sequence Mode: ON\n\n" +
-                            "Captures keys pressed in order.\n\n" +
-                            "Click to switch to Combo Mode (all keys at once)."
-                    } else {
-                        return "Sequence Mode: OFF\n\n" +
-                            "Captures key combinations (all pressed together).\n\n" +
-                            "Click to switch to Sequence Mode (one after another)."
-                    }
-                }())
-                .accessibilityIdentifier("sequence-mode-toggle")
-                .accessibilityLabel(coordinator.isSequenceMode ? "Switch to combo mode" : "Switch to sequence mode")
-                .accessibilityHint("Toggle between combo capture and sequence capture modes")
-                .padding(.trailing, 5)
-            }
+            Text("Input Key")
+                .font(.headline)
+                .accessibilityIdentifier("input-key-label")
 
             HStack {
                 Text(coordinator.inputDisplayText())
@@ -1104,7 +1040,7 @@ struct ErrorSection: View {
 struct DiagnosticSummarySection: View {
     let criticalIssues: [KanataDiagnostic]
     @ObservedObject var kanataManager: KanataViewModel // Phase 4: MVVM
-    @State private var showingDiagnostics = false
+    let onViewDetails: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1120,7 +1056,7 @@ struct DiagnosticSummarySection: View {
                 Spacer()
 
                 Button("View Details") {
-                    showingDiagnostics = true
+                    onViewDetails()
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -1161,9 +1097,6 @@ struct DiagnosticSummarySection: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.red.opacity(0.3), lineWidth: 1)
         )
-        .sheet(isPresented: $showingDiagnostics) {
-            DiagnosticsView(kanataManager: kanataManager)
-        }
     }
 }
 

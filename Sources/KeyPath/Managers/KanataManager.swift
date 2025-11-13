@@ -5,6 +5,12 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
+
+struct WizardSnapshotRecord {
+    let state: WizardSystemState
+    let issues: [WizardIssue]
+}
+
 import Network
 import SwiftUI
 
@@ -220,6 +226,8 @@ class KanataManager {
         }
     }
 
+    var lastWizardSnapshot: WizardSnapshotRecord?
+
     var errorReason: String?
     var showWizard: Bool = false
     var launchFailureStatus: LaunchFailureStatus? {
@@ -236,6 +244,7 @@ class KanataManager {
     var lastHealthCheck: Date?
     var retryCount: Int = 0
     var isRetryingAfterFix: Bool = false
+    var userManuallyStopped: Bool = false // Track if user intentionally stopped service
 
     // Lifecycle state properties (from KanataLifecycleManager)
     var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
@@ -766,7 +775,26 @@ class KanataManager {
                 durationSeconds: 30.0,
                 shouldStop: { [weak self] in
                     guard let self else { return false }
-                    return await MainActor.run(resultType: Bool.self, body: { self.isRunning })
+                    // Check if Kanata is running BUT not healthy (TCP not responding)
+                    // If it's healthy, return false to skip the timeout
+                    // If it's unhealthy or crashed, return true to trigger stop
+                    let stillRunning = await MainActor.run { self.isRunning }
+                    if !stillRunning {
+                        AppLogger.shared.log("🛡️ [Safety] Kanata already stopped - skipping timeout")
+                        return false // Already stopped, no need to timeout
+                    }
+
+                    // Check TCP health by trying a quick connection test
+                    let reloadResult = await self.engineClient.reloadConfig()
+                    let isHealthy = reloadResult.isSuccess
+
+                    if isHealthy {
+                        AppLogger.shared.log("🛡️ [Safety] Kanata healthy (TCP responding) - cancelling timeout")
+                        return false // Healthy, cancel timeout
+                    } else {
+                        AppLogger.shared.log("⚠️ [Safety] Kanata running but unhealthy (TCP not responding) - triggering timeout")
+                        return true // Unhealthy, trigger timeout
+                    }
                 },
                 onTimeout: { [weak self] in
                     guard let self else { return }
@@ -910,6 +938,14 @@ class KanataManager {
         AppLogger.shared.debug("🔍 [Start] Checking for conflicting Kanata processes...")
         await resolveProcessConflicts()
 
+        // Ensure a default configuration exists before attempting to start the service
+        let ensuredConfig = await createDefaultUserConfigIfMissing()
+        if ensuredConfig {
+            AppLogger.shared.log("✅ [Start] Verified user config before service start at \(configPath)")
+        } else {
+            AppLogger.shared.warn("⚠️ [Start] Unable to confirm user config exists at \(configPath) – continuing with best effort")
+        }
+
         // Check if config file exists and is readable
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: configPath) {
@@ -1046,6 +1082,13 @@ class KanataManager {
     func startAutoLaunch(presentWizardOnFailure: Bool = true) async {
         AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH START ==========")
 
+        // Respect user's manual stop intention
+        if userManuallyStopped {
+            AppLogger.shared.log("⏸️ [KanataManager] User manually stopped service - skipping auto-launch")
+            AppLogger.shared.info("🚀 [KanataManager] ========== AUTO-LAUNCH COMPLETE (user stopped) ==========")
+            return
+        }
+
         // Optimization: Fast check if service is already running - skip auto-launch if so
         if Self.isProcessRunningFast() {
             AppLogger.shared.log("⏭️ [KanataManager] Service already running (fast check) - skipping auto-launch")
@@ -1138,6 +1181,7 @@ class KanataManager {
     /// Manual start triggered by user action
     func manualStart() async {
         AppLogger.shared.log("👆 [KanataManager] Manual start requested")
+        userManuallyStopped = false // Clear manual stop flag
         await startKanata()
         await refreshStatus()
     }
@@ -1145,6 +1189,7 @@ class KanataManager {
     /// Manual stop triggered by user action
     func manualStop() async {
         AppLogger.shared.log("👆 [KanataManager] Manual stop requested")
+        userManuallyStopped = true // Set flag to prevent auto-restart
         await stopKanata()
         await MainActor.run {
             currentState = .stopped
@@ -1278,9 +1323,11 @@ class KanataManager {
             AppLogger.shared.warn("⚠️ [KanataManager] Wizard closed but Kanata is not running - will retry setup on next launch")
         }
 
-        if !isRunning {
+        if !isRunning && !userManuallyStopped {
             await startKanata()
             await refreshStatus()
+        } else if userManuallyStopped {
+            AppLogger.shared.log("⏸️ [KanataManager] Not auto-starting after wizard - user manually stopped service")
         }
 
         AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed handling completed")
@@ -1615,7 +1662,7 @@ class KanataManager {
             // Fast process check first (cheaper than full status update)
             if Self.isProcessRunningFast() {
                 // Process is running, update status to sync state
-                await updateStatus()
+            await updateStatus()
                 let state = await MainActor.run { currentState }
                 if state == .running {
                     let elapsed = Date().timeIntervalSince(startTime)
@@ -1625,17 +1672,17 @@ class KanataManager {
             } else {
                 // Process not running, do full status check
                 await updateStatus()
-                let state = await MainActor.run { currentState }
+            let state = await MainActor.run { currentState }
 
-                if state == .running {
-                    let elapsed = Date().timeIntervalSince(startTime)
+            if state == .running {
+                let elapsed = Date().timeIntervalSince(startTime)
                     AppLogger.shared.info("✅ [KanataManager] Service became ready after \(String(format: "%.2f", elapsed))s")
-                    return true
-                }
+                return true
+            }
 
-                if state == .needsHelp || state == .stopped {
-                    AppLogger.shared.error("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
-                    return false
+            if state == .needsHelp || state == .stopped {
+                AppLogger.shared.error("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
+                return false
                 }
             }
 
@@ -1704,10 +1751,15 @@ class KanataManager {
                 }
             } else {
                 // Service is not running
+                let failureMessage = captureRecentKanataErrorMessage() ?? lastError
+                if let failureMessage {
+                    AppLogger.shared.error("❌ [Status] Kanata service exited: \(failureMessage)")
+                }
+
                 updateInternalState(
                     isRunning: serviceRunning,
                     lastProcessExitCode: lastProcessExitCode,
-                    lastError: lastError
+                    lastError: failureMessage
                 )
                 AppLogger.shared.warn("⚠️ [Status] LaunchDaemon service is not running")
 
@@ -1719,6 +1771,30 @@ class KanataManager {
         // Check for any conflicting processes
         await verifyNoProcessConflicts()
     }
+
+    private func captureRecentKanataErrorMessage() -> String? {
+        let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
+        guard let contents = try? String(contentsOfFile: stderrPath, encoding: .utf8) else { return nil }
+
+        let lines = contents
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { stripANSICodes(from: String($0)) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        for line in lines.reversed() {
+            let lower = line.lowercased()
+            if lower.contains("error") || lower.contains("could not") {
+                return line
+            }
+        }
+        return lines.last
+    }
+
+    private func stripANSICodes(from text: String) -> String {
+        text.replacingOccurrences(of: #"\u001B\[[0-9;]*m"#, with: "", options: .regularExpression)
+    }
+
 
     /// Stop Kanata when the app is terminating (async version).
     func cleanup() async {
@@ -1904,9 +1980,10 @@ class KanataManager {
     // MARK: - Installation and Permissions
 
     func isInstalled() -> Bool {
-        // Fast, non-blocking check for UI gating during startup.
-        // Avoids kicking off binary signature detection on the main thread.
-        FileManager.default.fileExists(atPath: WizardSystemPaths.kanataSystemInstallPath)
+        // Use KanataBinaryDetector for consistent detection across wizard and UI
+        // This accepts both system installation AND bundled binary (for SMAppService)
+        // Note: This is a synchronous wrapper, but KanataBinaryDetector uses fast filesystem checks
+        KanataBinaryDetector.shared.isInstalled()
     }
 
     func isCompletelyInstalled() -> Bool {
@@ -2136,10 +2213,10 @@ class KanataManager {
         // With SMAppService, bundled Kanata is sufficient - no system installation needed
         if detector.isInstalled() {
             AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary ready (SMAppService uses bundled path)")
-            stepsCompleted += 1
+                stepsCompleted += 1
         } else {
             AppLogger.shared.log("⚠️ [Installation] Step 1 WARNING: Kanata binary not found in bundle (SMAppService mode)")
-            stepsFailed += 1
+                stepsFailed += 1
         }
 
         // 2. Check if Karabiner driver is installed

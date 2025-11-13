@@ -3,6 +3,8 @@ import KeyPathWizardCore
 import SwiftUI
 
 struct WizardCommunicationPage: View {
+    let systemState: WizardSystemState
+    let issues: [WizardIssue]
     @State private var commStatus: CommunicationStatus = .checking
     @State private var isFixing = false
     @State private var lastCheckTime = Date()
@@ -20,7 +22,9 @@ struct WizardCommunicationPage: View {
     // Auto-fix integration
     let onAutoFix: ((AutoFixAction) async -> Bool)?
 
-    init(onAutoFix: ((AutoFixAction) async -> Bool)? = nil) {
+    init(systemState: WizardSystemState, issues: [WizardIssue], onAutoFix: ((AutoFixAction) async -> Bool)? = nil) {
+        self.systemState = systemState
+        self.issues = issues
         self.onAutoFix = onAutoFix
     }
 
@@ -65,6 +69,12 @@ struct WizardCommunicationPage: View {
                         .font(.system(size: 17, weight: .regular))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
+
+                    Button(nextStepButtonTitle) {
+                        navigateToNextStep()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -176,6 +186,10 @@ struct WizardCommunicationPage: View {
                 await checkCommunicationStatus()
             }
         }
+    }
+
+    private var nextStepButtonTitle: String {
+        issues.isEmpty ? "Return to Summary" : "Next Issue"
     }
 
     // MARK: - Communication Status Check (Using Shared SystemStatusChecker)
@@ -433,6 +447,20 @@ struct WizardCommunicationPage: View {
             return await testConfigReload(client: client)
         } else {
             return false
+        }
+    }
+
+    private func navigateToNextStep() {
+        if issues.isEmpty {
+            navigationCoordinator.navigateToPage(.summary)
+            return
+        }
+
+        if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
+           nextPage != navigationCoordinator.currentPage {
+            navigationCoordinator.navigateToPage(nextPage)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
         }
     }
 }

@@ -83,6 +83,7 @@ Your remapping is active immediately—no restart, no manual service management,
 ### 🔧 Enterprise-Grade Architecture
 Built on proven patterns (inspired by Karabiner-Elements):
 - **LaunchDaemon architecture** - Reliable system-level service management
+- **SMAppService-managed daemon** - Kanata always runs via SMAppService; KeyPath auto-reinstalls the service if it disappears, so helper restarts never fall back to legacy plists
 - **File-based configuration** - Simple, debuggable, hot-reloadable
 - **Single source of truth** - PermissionOracle prevents inconsistent state
 - **State-driven wizard** - Handles 50+ edge cases automatically
@@ -111,6 +112,7 @@ The build script automatically:
 - Compiles the Swift package
 - Signs all components with Developer ID
 - Notarizes the app bundle
+- Verifies the bundled SMAppService plist points at `kanata-launcher` (no legacy launchctl fallback)
 - Installs to `~/Applications/`
 - Restarts the app
 
@@ -165,6 +167,7 @@ The wizard handles all technical setup automatically and provides one-click fixe
 | **Extensive Logging** | Debug issues with detailed logs and diagnostics |
 | **Full Kanata Power** | Access to all of Kanata's remapping capabilities |
 | **Configuration Access** | Edit Kanata configs directly if needed |
+| **Service Health Dashboard** | Visual helper/SMAppService/driver status with one-click fixes |
 
 ---
 
@@ -216,6 +219,7 @@ KeyPath isn't just a wrapper around Kanata—it's a **complete macOS integration
 - Automatic crash recovery and conflict resolution
 - Health monitoring with real-time status checks
 - Hot reload via UDP for instant configuration updates
+- SMAppService-managed Kanata daemon with a packaged launcher guarantees absolute config paths and Login Items approval flow
 
 #### 5. **Comprehensive Diagnostics**
 - Built-in system state detection
@@ -325,13 +329,15 @@ The setup wizard automatically checks for these and helps you install them if ne
 ### Recommended Method
 
 1. Open KeyPath
-2. Go to **File → Uninstall KeyPath**
-3. Follow the prompts
+2. Choose **File → Uninstall KeyPath…** (you can also open **Settings → Advanced → Uninstall KeyPath…**)
+3. Confirm the admin prompt and let the bundled uninstaller remove LaunchDaemons, helper tools, and the app bundle.
 
 ### Manual Uninstallation
 
 ```bash
 sudo ./Scripts/uninstall.sh
+# or for automation:
+sudo ./Scripts/uninstall.sh --assume-yes
 ```
 
 This removes:
@@ -339,6 +345,8 @@ This removes:
 - System binaries
 - Configuration files
 - Application bundle
+
+When running outside the repository, the same script is bundled at `KeyPath.app/Contents/Resources/uninstall.sh` and can be invoked directly.
 
 ---
 
@@ -380,6 +388,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, architecture ove
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🧪 Tests
+
+- **Unit & integration tests:** `./Scripts/run-tests-safe.sh` – configures an isolated module cache (`.build-ci/ModuleCache.noindex`) so SwiftPM never tries to write to `~/.cache` (which can be blocked on shared machines).
+- **Full developer suite:** `./run-tests.sh` – wraps the safe runner and then executes the higher-level integration scripts.
+- **SMAppService sanity check:** `./Scripts/verify-kanata-plist.sh` – use before distributing a build (CI runs it against `Sources/KeyPath/com.keypath.kanata.plist`).
+
+If `swift test` ever complains about `~/.cache/clang/ModuleCache`, just use the safe runner above or pass `-Xcc -fmodules-cache-path=$(pwd)/.build/ModuleCache.noindex` manually.
 
 ---
 

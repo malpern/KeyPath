@@ -22,7 +22,13 @@ echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
 # 0) Isolated build/test dirs and HOME to avoid parallel-agent collisions
 SCRATCH_PATH=${SCRATCH_PATH:-.build-ci}
 export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
+MODULE_CACHE="$SCRATCH_PATH/ModuleCache.noindex"
+mkdir -p "$SCRATCH_PATH" "$MODULE_CACHE"
+export CLANG_MODULECACHE_PATH="$MODULE_CACHE"
+export SWIFT_MODULECACHE_PATH="$MODULE_CACHE"
+MODULE_CACHE_FLAGS=(-Xcc "-fmodules-cache-path=$MODULE_CACHE")
 echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
+echo "🗂️  Module cache: $MODULE_CACHE"
 
 # 1) Architecture safety lints
 echo "🔎 Running safety lints..."
@@ -30,9 +36,9 @@ echo "🔎 Running safety lints..."
 
 # 2) Build tests
 echo "🔨 Building tests..."
-swift build --build-tests --scratch-path "$SCRATCH_PATH"
+swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}"
 
-BIN_DIR=$(swift build --build-tests --scratch-path "$SCRATCH_PATH" --show-bin-path)
+BIN_DIR=$(swift build --build-tests --scratch-path "$SCRATCH_PATH" --show-bin-path "${MODULE_CACHE_FLAGS[@]}")
 
 # 3) Locate test bundle
 BUNDLE=""

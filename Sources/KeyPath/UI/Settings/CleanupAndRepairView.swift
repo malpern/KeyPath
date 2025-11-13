@@ -85,5 +85,3 @@ struct CleanupAndRepairView: View {
 		}
 	}
 }
-
-

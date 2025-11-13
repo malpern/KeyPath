@@ -18,6 +18,8 @@ final class DetectionCounter: @unchecked Sendable {
 /// Wizard page for requesting Full Disk Access permission
 /// This is optional but helps with better diagnostics and automatic problem resolution
 struct WizardFullDiskAccessPage: View {
+    let systemState: WizardSystemState
+    let issues: [WizardIssue]
     @Environment(\.dismiss) private var dismiss
     @State private var showingDetails = false
     @State private var hasCheckedPermission = false
@@ -95,6 +97,19 @@ struct WizardFullDiskAccessPage: View {
 
             Spacer()
 
+            WizardButtonBar(
+                secondary: hasFullDiskAccess ? nil : WizardButtonBar.SecondaryButton(
+                    title: "Skip for Now",
+                    action: skipFullDiskAccessPrompt
+                ),
+                primary: WizardButtonBar.PrimaryButton(
+                    title: hasFullDiskAccess ? nextStepButtonTitle : "Open System Settings",
+                    action: handlePrimaryButton,
+                    isEnabled: hasFullDiskAccess || !isChecking,
+                    isLoading: !hasFullDiskAccess && isChecking
+                )
+            )
+
         }
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
@@ -145,9 +160,46 @@ struct WizardFullDiskAccessPage: View {
                 // User can use navigation buttons or close dialog
             }
         }
+        .onChange(of: showingSystemSettingsWait) { _, newValue in
+            if !newValue {
+                isChecking = false
+            }
+        }
     }
 
     // MARK: - Helper Methods
+
+    private func handlePrimaryButton() {
+        if hasFullDiskAccess {
+            navigateToNextStep()
+        } else {
+            openSystemSettingsCTA()
+        }
+    }
+
+    private func skipFullDiskAccessPrompt() {
+        navigateToNextStep()
+    }
+
+    private func navigateToNextStep() {
+        if issues.isEmpty {
+            navigationCoordinator.navigateToPage(.summary)
+            return
+        }
+
+        if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
+           nextPage != navigationCoordinator.currentPage {
+            navigationCoordinator.navigateToPage(nextPage)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
+        }
+    }
+
+    private func openSystemSettingsCTA() {
+        guard !isChecking else { return }
+        isChecking = true
+        openFullDiskAccessSettingsWithDetection()
+    }
 
     private func checkFullDiskAccess() {
         // Check cache first
@@ -184,6 +236,10 @@ struct WizardFullDiskAccessPage: View {
 
         // Update the static flag so other parts of the app know
         PermissionService.lastTCCAuthorizationDenied = !hasFullDiskAccess
+    }
+
+    private var nextStepButtonTitle: String {
+        issues.isEmpty ? "Return to Summary" : "Next Issue"
     }
 
     private func performFDACheck() -> Bool {

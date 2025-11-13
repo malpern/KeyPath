@@ -513,18 +513,6 @@ actor HelperManager {
         }
     }
 
-    func installAllLaunchDaemonServices(kanataBinaryPath: String, kanataConfigPath: String, tcpPort: Int) async throws {
-        try await executeXPCCall("installAllLaunchDaemonServices") { proxy, reply in
-            proxy.installAllLaunchDaemonServices(kanataBinaryPath: kanataBinaryPath, kanataConfigPath: kanataConfigPath, tcpPort: tcpPort, reply: reply)
-        }
-    }
-
-    func installAllLaunchDaemonServicesWithPreferences() async throws {
-        try await executeXPCCall("installAllLaunchDaemonServicesWithPreferences") { proxy, reply in
-            proxy.installAllLaunchDaemonServicesWithPreferences(reply: reply)
-        }
-    }
-
     func restartUnhealthyServices() async throws {
         try await executeXPCCall("restartUnhealthyServices") { proxy, reply in
             proxy.restartUnhealthyServices(reply: reply)

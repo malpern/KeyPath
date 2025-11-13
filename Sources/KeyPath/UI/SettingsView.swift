@@ -1,1411 +1,533 @@
+import AppKit
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
-import ServiceManagement
 import SwiftUI
-import AppKit
-
-// MARK: - File Navigation (1,352 lines)
-
-//
-// This file is organized into clear sections. Use CMD+F to jump to:
-//
-// Main Sections:
-//   - statusSection           Service and installation status
-//   - serviceControlSection   Start/stop/restart buttons, wizard trigger
-//   - configurationSection    Edit, reset, backup config
-//   - diagnosticsSection      Enhanced diagnostics
-//   - notificationsSection    Notification preferences
-//   - communicationSection    TCP settings and configuration
-//   - developerToolsSection   Dev reset and diagnostics
-//   - startupSection          Launch agent settings
-//
-// Helper Methods:
-//   - stopKanataService()     Stop daemon logic
-//   - openConfigInZed()       Open config in editor
-//   - performDevReset()       Developer reset flow
-//   - performFullReset()      Complete system reset
 
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var kanataManager: KanataViewModel // Phase 4: MVVM
-    @Environment(\.preferencesService) private var preferences: PreferencesService
-    @State private var showingResetConfirmation = false
-    @State private var showingDevResetConfirmation = false
-    @State private var showingResetEverythingConfirmation = false
-    @State private var showingDiagnostics = false
+    @EnvironmentObject var kanataManager: KanataViewModel
+
     @State private var showingInstallationWizard = false
-    @State private var showingTCPPortAlert = false
-    @State private var tempTCPPort = ""
-    @State private var showingTCPTokenAlert = false
-    @State private var tempTCPToken = ""
-    @State private var showingTCPTimeoutAlert = false
-    @State private var tempTCPTimeout = ""
-    // Timer removed - now handled by SimpleKanataManager centrally
-
-    // Minimal Helper tools (installation via Wizard). Provides: Test XPC, Diagnostics, Uninstall, Logs.
-    @State private var helperInstalled: Bool = HelperManager.shared.isHelperInstalled()
-    @State private var helperVersion: String?
-    @State private var helperInProgress = false
-    @State private var helperMessage: String?
-    @State private var showingHelperDiagnostics = false
-    @State private var helperDiagnosticsText: String = ""
-    @State private var showingHelperUninstallConfirm = false
-    @State private var showingHelperLogs = false
-    @State private var helperLogLines: [String] = []
-    @State private var disableGrabberInProgress = false
-    @State private var duplicateAppCopies: [String] = []
-    @State private var showingCleanupRepair = false
-    @State private var showingRemoveDuplicatesConfirm = false
-    @State private var removeDuplicatesInProgress = false
-
-    // Toasts
-    @State private var settingsToastManager = WizardToastManager()
     @State private var showSetupBanner = false
+    @State private var permissionSnapshot: PermissionOracle.Snapshot?
+    @State private var duplicateAppCopies: [String] = []
+    @State private var settingsToastManager = WizardToastManager()
+    @State private var showingPermissionAlert = false
+
+    // Service management state
+    @State private var activeMethod: ServiceMethod = .unknown
+    @State private var isMigrating = false
+
+    enum ServiceMethod {
+        case smappservice
+        case launchctl
+        case unknown
+    }
+
+    private var shouldShowStartup: Bool {
+        LaunchAgentManager.isInstalled() || LaunchAgentManager.isLoaded()
+    }
+
+    private var isServiceRunning: Bool {
+        kanataManager.currentState == .running
+    }
+
+    private var isSystemHealthy: Bool {
+        kanataManager.currentState == .running && (permissionSnapshot?.isSystemReady ?? false)
+    }
+
+    private var systemHealthMessage: String {
+        if kanataManager.currentState != .running {
+            return kanataServiceStatus
+        } else if !(permissionSnapshot?.isSystemReady ?? false) {
+            return "Permissions Required"
+        } else {
+            return "Everything's Working"
+        }
+    }
 
     private var kanataServiceStatus: String {
         switch kanataManager.currentState {
         case .running:
-            return "Running"
+            return "Service Running"
         case .starting:
-            return "Starting..."
+            return "Service Starting"
         case .needsHelp:
-            return "Needs Help"
+            return "Attention Needed"
         case .stopped:
-            return "Stopped"
+            return "Service Stopped"
         case .pausedLowPower:
-            if let level = formattedBatteryLevel(kanataManager.batteryLevel) {
-                return "Paused (Low Power, \(level))"
-            }
             return "Paused (Low Power)"
         }
     }
 
-    private func formattedBatteryLevel(_ level: Double?) -> String? {
-        guard let level else { return nil }
-        let percent = Int((level * 100).rounded())
-        return "\(max(0, min(100, percent)))%"
-    }
-
     var body: some View {
-        settingsContent
-    }
-
-    private var settingsContent: some View {
-        VStack(spacing: 0) {
-            // Header banner with concise guidance
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Settings")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.primary)
-                    Text("Manage KeyPath setup and health. Advanced tools are in Diagnostics.")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                Button("Done") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .accessibilityIdentifier("settings-done-button")
-                .accessibilityLabel("Close Settings")
-                .accessibilityHint("Close the settings window")
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .appGlassHeader()
-
-            if FeatureFlags.allowOptionalWizard && showSetupBanner {
-                SetupBanner {
-                    showingInstallationWizard = true
-                }
-                .padding(.horizontal, 24)
-            }
-            mainContentView
-        }
-        .frame(width: 480, height: 520)
-        .background(Color(NSColor.windowBackgroundColor))
-        .withToasts(settingsToastManager)
-        .onAppear {
-            AppLogger.shared.log("🔍 [SettingsView] onAppear called")
-            AppLogger.shared.log("🔍 [SettingsView] Using shared SimpleKanataManager - state: \(kanataManager.currentState.rawValue)")
-            AppLogger.shared.log("🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(kanataManager.showWizard)")
-
-            // CRITICAL FIX: Don't trigger wizard from Settings if it's already showing in ContentView
-            // The onChange handler will sync the state if needed, but we shouldn't force it here
-            // This prevents duplicate wizards when Settings opens while main wizard is already open
-            // Only sync the state if wizard should show but we're not already showing it
-            // BUT: Don't trigger if wizard is already showing elsewhere (ContentView)
-            if kanataManager.showWizard && !showingInstallationWizard {
-                // Check if wizard is already showing in ContentView by checking if there's a wizard window
-                // If kanataManager.showWizard is true, ContentView should already be showing it
-                // So we should NOT trigger another one from Settings
-                AppLogger.shared.log("🔍 [SettingsView] showWizard is true but Settings wizard not showing - likely already showing in ContentView, skipping")
-                // Don't set showingInstallationWizard = true here - let onChange handle it if needed
-            }
-
-            Task {
-                await kanataManager.forceRefreshStatus()
-                if FeatureFlags.allowOptionalWizard {
-                    let snapshot = await PermissionOracle.shared.currentSnapshot()
-                    showSetupBanner = !snapshot.isSystemReady
-                }
-                // Detect duplicate app copies once for inline hint
-                duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
-            }
-        }
-        .sheet(isPresented: $showingDiagnostics) {
-            DiagnosticsView(kanataManager: kanataManager)
-        }
-        .sheet(isPresented: $showingInstallationWizard) {
-            // If helper isn't installed, start wizard on Helper page
-            let startPage: WizardPage? = HelperManager.shared.isHelperInstalled() ? nil : .helper
-            InstallationWizardView(initialPage: startPage)
-                .customizeSheetWindow() // Remove border and fix dark mode
-                .onAppear {
-                    AppLogger.shared.log("🔍 [SettingsView] Installation wizard sheet is being presented")
-                }
-                .onDisappear {
-                    AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
-                    Task {
-                        await kanataManager.onWizardClosed()
-                    }
-                }
-                .environmentObject(kanataManager)
-        }
-        .onDisappear {
-            AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
-        }
-        .onChange(of: kanataManager.showWizard) { _, shouldShow in
-            AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
-            AppLogger.shared.log("🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)")
-            AppLogger.shared.log("🔍 [SettingsView] Current showingInstallationWizard: \(showingInstallationWizard)")
-
-            // CRITICAL FIX: Only sync state if it's different AND we're not preventing duplicates
-            // If wizard should show but we're already showing it, that's fine (ContentView is showing it)
-            // If wizard should NOT show but we're showing it, close it
-            // If wizard should show and we're NOT showing it, only show if ContentView isn't already showing it
-            // We can't directly check ContentView, but if showWizard just became true and we're not showing,
-            // ContentView's onChange should have already triggered, so we should skip to avoid duplicate
-
-            if shouldShow && !showingInstallationWizard {
-                // Wizard should show but Settings isn't showing it
-                // This could mean ContentView is showing it, or it needs to be shown
-                // To avoid duplicates, we'll only show if this is a NEW request (showWizard just became true)
-                // But we can't easily detect that, so we'll be conservative: don't show from Settings
-                // Let ContentView handle wizard presentation, Settings will only sync if user explicitly opens it
-                AppLogger.shared.log("🔍 [SettingsView] showWizard is true but Settings not showing - likely ContentView is showing it, skipping sync")
-            } else if !shouldShow && showingInstallationWizard {
-                // Wizard should NOT show but Settings is showing it - close it
-                AppLogger.shared.log("🔍 [SettingsView] Closing Settings wizard - showWizard is false")
-                showingInstallationWizard = false
-            } else if shouldShow == showingInstallationWizard {
-                // States are already in sync - no action needed
-                AppLogger.shared.log("🔍 [SettingsView] States already in sync, no change needed")
-            }
-        }
-        .onChange(of: preferences.communicationProtocol) { _, _ in
-            // Protocol changed, no specific action needed as it will be picked up on next operation
-        }
-        .onChange(of: kanataManager.currentState) { _, _ in
-            checkTCPServerStatus()
-        }
-        .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Open Backups Folder") {
-                let backupsPath = "\(NSHomeDirectory())/.config/keypath/.backups"
-                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: backupsPath)
-            }
-            Button("Reset", role: .destructive) {
-                resetToDefaultConfig()
-            }
-        } message: {
-            Text("""
-            This will reset your configuration to the default mapping (Caps Lock → Escape).
-
-            A safety backup of your current config will be created in:
-            ~/.config/keypath/.backups
-            """)
-        }
-        .alert("Developer Reset", isPresented: $showingDevResetConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Reset", role: .destructive) {
-                Task {
-                    await performDevReset()
-                }
-            }
-        } message: {
-            Text("""
-            This will perform a complete developer reset:
-
-            • Stop the Kanata daemon service
-            • Clear all system logs (/var/log/kanata.log)
-            • Wait 2 seconds for cleanup
-            • Restart the service via KanataManager
-            • Refresh system status
-
-            TCC permissions will NOT be affected.
-            """)
-        }
-        .alert("Reset Everything?", isPresented: $showingResetEverythingConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Reset", role: .destructive) {
-                Task {
-                    await performResetEverything()
-                }
-            }
-        } message: {
-            Text("""
-            This will perform a complete reset:
-
-            • Force kill all kanata processes
-            • Remove PID files
-            • Clear KanataManager state (errors, diagnostics)
-            • Wait 2 seconds for system to settle
-
-            The service will NOT be restarted automatically.
-            TCC permissions will NOT be affected.
-            """)
-        }
-    }
-
-    private var mainContentView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Elevated action: Open Setup Wizard
-                HStack {
-                    Button("Open Setup Wizard…") {
-                        AppLogger.shared.log("🎭 [SettingsView] Elevated wizard trigger")
+            VStack(alignment: .leading, spacing: 0) {
+                if FeatureFlags.allowOptionalWizard && showSetupBanner {
+                    SetupBanner {
                         showingInstallationWizard = true
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.regular)
-                    Spacer()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
                 }
-                // 1) Service Status (with actions)
-                statusSection
-                Divider()
-                // 2) Configuration (moved up)
-                configurationSection
-                Divider()
-                // 3) Troubleshooting (Diagnostics - single entry point)
-                diagnosticsSection
-                Divider()
-                // 4) Startup (show only if legacy LaunchAgent detected)
-                if LaunchAgentManager.isInstalled() || LaunchAgentManager.isLoaded() {
-                    startupSection
-                    Divider()
-                }
-                // Developer tools moved into Diagnostics → Advanced
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
-        }
-        .background(Color(NSColor.windowBackgroundColor))
-    }
 
-    private var statusSection: some View {
-        SettingsSection(title: "Status") {
-            StatusRow(
-                label: "Kanata Service",
-                status: kanataServiceStatus,
-                isActive: kanataManager.currentState == .running
-            )
+                // System Status Hero Section
+                HStack(alignment: .top, spacing: 40) {
+                    // Large status indicator with centered toggle
+                    VStack(spacing: 16) {
+                        VStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(isSystemHealthy ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
+                                    .frame(width: 80, height: 80)
 
-            StatusRow(
-                label: "Installation",
-                status: kanataManager.isCompletelyInstalled() ? "Installed" : "Not Installed",
-                isActive: kanataManager.isCompletelyInstalled()
-            )
+                                Image(systemName: isSystemHealthy ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(isSystemHealthy ? .green : .orange)
+                            }
 
-            if kanataManager.isLowPowerPaused {
-                Text("KeyPath paused automatically due to low battery. It will resume when power is above 5%.")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .accessibilityIdentifier("low-power-paused-note")
-            }
+                            VStack(spacing: 4) {
+                                Text(systemHealthMessage)
+                                    .font(.title3.weight(.semibold))
+                                    .multilineTextAlignment(.center)
 
-            Divider()
+                                if kanataManager.isLowPowerPaused {
+                                    Text("Low Battery Pause")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                }
 
-            // Attach service control actions to bottom of Status
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    SettingsButton(
-                        title: "Restart Service",
-                        systemImage: "arrow.clockwise.circle",
-                        accessibilityId: "restart-service-button",
-                        accessibilityHint: "Stop and restart the Kanata keyboard service",
-                        action: {
-                            Task {
-                                AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
-                                await kanataManager.manualStop()
-                                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                                await kanataManager.manualStart()
+                                Button(action: {
+                                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                                }) {
+                                    Text("\(kanataManager.keyMappings.count) active rule\(kanataManager.keyMappings.count == 1 ? "" : "s")")
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
-                    )
 
-                    SettingsButton(
-                        title: "Refresh Status",
-                        systemImage: "arrow.clockwise",
-                        accessibilityId: "refresh-status-button",
-                        accessibilityHint: "Check the current status of the Kanata service",
-                        action: {
-                            Task {
-                                AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
-                                await kanataManager.forceRefreshStatus()
+                        // Centered toggle
+                        HStack(spacing: 12) {
+                            Toggle("", isOn: Binding(
+                                get: { isServiceRunning },
+                                set: { newValue in
+                                    Task {
+                                        if newValue {
+                                            await kanataManager.manualStart()
+                                            await MainActor.run {
+                                                settingsToastManager.showSuccess("KeyPath activated")
+                                            }
+                                        } else {
+                                            await kanataManager.manualStop()
+                                            await MainActor.run {
+                                                settingsToastManager.showInfo("KeyPath deactivated")
+                                            }
+                                        }
+                                    }
+                                }
+                            ))
+                            .toggleStyle(.switch)
+                            .controlSize(.large)
+
+                            Text(isServiceRunning ? "ON" : "OFF")
+                                .font(.body.weight(.medium))
+                                .foregroundColor(isServiceRunning ? .green : .secondary)
+                        }
+                    }
+                    .frame(minWidth: 220)
+
+                    // Permissions grid
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Permissions")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            PermissionStatusRow(
+                                title: "KeyPath Accessibility",
+                                icon: "lock.shield",
+                                granted: permissionSnapshot?.keyPath.accessibility.isReady
+                            )
+
+                            PermissionStatusRow(
+                                title: "KeyPath Input Monitoring",
+                                icon: "keyboard",
+                                granted: permissionSnapshot?.keyPath.inputMonitoring.isReady
+                            )
+
+                            PermissionStatusRow(
+                                title: "Kanata Accessibility",
+                                icon: "lock.shield",
+                                granted: permissionSnapshot?.kanata.accessibility.isReady
+                            )
+
+                            PermissionStatusRow(
+                                title: "Kanata Input Monitoring",
+                                icon: "keyboard",
+                                granted: permissionSnapshot?.kanata.inputMonitoring.isReady
+                            )
+                        }
+
+                        // Wizard button
+                        if let snapshot = permissionSnapshot {
+                            if snapshot.isSystemReady {
+                                Button(action: { showingInstallationWizard = true }) {
+                                    Label("Install wizard…", systemImage: "wand.and.stars.inverse")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            } else {
+                                Button(action: { showingPermissionAlert = true }) {
+                                    Label("Fix it…", systemImage: "wand.and.stars")
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
                             }
                         }
-                    )
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+
+                // Service Management - only show if there's an issue
+                if activeMethod != .smappservice {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Service Management")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        serviceManagementSection
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
                 }
 
-                SettingsButton(
-                    title: "Stop Kanata Service",
-                    systemImage: "stop.circle",
-                    style: .destructive,
-                    disabled: kanataManager.currentState == .stopped,
-                    accessibilityId: "stop-kanata-service-button",
-                    accessibilityHint: "Completely stop the Kanata service and prevent auto-reloading",
-                    action: {
-                        Task {
-                            AppLogger.shared.log("🛑 [SettingsView] Stop Kanata Service clicked")
-                            await stopKanataService()
+                // Recording Settings and Logs
+                HStack(alignment: .top, spacing: 40) {
+                    // Left: Log Files (aligned under health indicator)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Logs")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        HStack(spacing: 30) {
+                            // KeyPath Log
+                            VStack(spacing: 8) {
+                                Image(systemName: "doc.text.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.blue)
+
+                                Text("KeyPath log")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                Button("Open") {
+                                    openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+
+                            // Kanata Log
+                            VStack(spacing: 8) {
+                                Image(systemName: "doc.text.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.green)
+
+                                Text("Kanata log")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                Button("Open") {
+                                    openLogFile("/var/log/kanata.log")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
                         }
                     }
-                )
-            }
-        }
-    }
-
-    private var configurationSection: some View {
-        SettingsSection(title: "Configuration") {
-            VStack(spacing: 10) {
-                // Brief summary of current configuration
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    let ruleCount = kanataManager.keyMappings.count
-                    Image(systemName: "list.bullet.rectangle")
-                        .foregroundColor(.secondary)
-                    Text("Rules:")
-                        .foregroundColor(.secondary)
-                    Text("\(ruleCount) mapping\(ruleCount == 1 ? "" : "s")")
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Button {
-                        NotificationCenter.default.post(name: NSNotification.Name("ShowRulesSummary"), object: nil)
-                    } label: {
-                        Label("View Rules…", systemImage: "list.bullet")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Open a window with a summary of all key mappings")
-                }
-
-                SettingsButton(
-                    title: "Edit Configuration",
-                    systemImage: "doc.text",
-                    accessibilityId: "edit-configuration-button",
-                    accessibilityHint: "Open the Kanata configuration file in an editor",
-                    action: {
-                        openConfigInZed()
-                    }
-                )
-
-                SettingsButton(
-                    title: "Reset to Default",
-                    systemImage: "arrow.counterclockwise",
-                    style: .destructive,
-                    accessibilityId: "reset-to-default-button",
-                    accessibilityHint: "Reset all keyboard mappings to default configuration",
-                    action: {
-                        showingResetConfirmation = true
-                    }
-                )
-            }
-        }
-    }
-
-    private var diagnosticsSection: some View {
-        SettingsSection(title: "Diagnostics") {
-            SettingsButton(
-                title: "Open Diagnostics…",
-                systemImage: "stethoscope",
-                accessibilityId: "show-diagnostics-button",
-                accessibilityHint: "Open the Diagnostics window for advanced tools and logs",
-                action: { showingDiagnostics = true }
-            )
-        }
-    }
-
-    private var tcpSettingsView: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("TCP Server: Always Enabled")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            .help("TCP server is always enabled for config operations (no authentication required)")
-
-            // TCP Port setting
-            HStack {
-                Text("TCP Port:")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-
-                Text("\(preferences.tcpServerPort)")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.primary)
-
-                Spacer()
-            }
-        }
-    }
-
-    // Developer tools section removed; actions moved to Diagnostics → Advanced
-
-    private var startupSection: some View {
-        SettingsSection(title: "Startup") {
-            LaunchAgentSettingsView()
-        }
-    }
-
-    // MARK: - Helper Actions
-
-    private func refreshHelperStatus() async {
-        await MainActor.run {
-            helperInstalled = HelperManager.shared.isHelperInstalled()
-        }
-        let v = await HelperManager.shared.getHelperVersion()
-        await MainActor.run { helperVersion = v }
-    }
-
-    func testHelperXPC() async {
-        await MainActor.run { helperInProgress = true; helperMessage = nil }
-        defer { Task { await MainActor.run { helperInProgress = false } } }
-        let v = await HelperManager.shared.getHelperVersion()
-        await MainActor.run {
-            if let v {
-                helperMessage = "XPC OK (v\(v))"
-                settingsToastManager.showSuccess("Helper XPC OK (v\(v))")
-            } else {
-                helperMessage = "XPC failed (helper unreachable)"
-                settingsToastManager.showError("Helper XPC failed")
-            }
-        }
-        await refreshHelperStatus()
-    }
-
-    private func runHelperDiagnostics() {
-        helperDiagnosticsText = HelperManager.shared.runBlessDiagnostics()
-        showingHelperDiagnostics = true
-        settingsToastManager.showInfo("Generated helper diagnostics")
-    }
-
-    private func uninstallHelper() async {
-        await MainActor.run { helperInProgress = true; helperMessage = nil }
-        defer { Task { await MainActor.run { helperInProgress = false; showingHelperUninstallConfirm = false } } }
-        do {
-            try await HelperManager.shared.uninstallHelper()
-            await MainActor.run {
-                helperMessage = "Helper uninstalled"
-                settingsToastManager.showSuccess("Helper uninstalled")
-            }
-            await refreshHelperStatus()
-        } catch {
-            await MainActor.run {
-                helperMessage = "Uninstall failed: \(error.localizedDescription)"
-                settingsToastManager.showError("Uninstall failed")
-            }
-        }
-    }
-
-    private func showHelperLogs() async {
-        await MainActor.run { helperInProgress = true }
-        defer { Task { await MainActor.run { helperInProgress = false } } }
-        // Fetch last 50 messages in a 10 minute window
-        let lines = HelperManager.shared.lastHelperLogs(count: 50, windowSeconds: 600)
-        await MainActor.run {
-            helperLogLines = lines
-            showingHelperLogs = true
-        }
-    }
-
-    private func removeDuplicateAppCopies() async {
-        await MainActor.run { removeDuplicatesInProgress = true; showingRemoveDuplicatesConfirm = false }
-        defer { Task { await MainActor.run { removeDuplicatesInProgress = false } } }
-        let fileManager = FileManager.default
-        // Prefer to keep the /Applications copy if present
-        let keepPath = "/Applications/KeyPath.app"
-        let copies = duplicateAppCopies
-        var removedCount = 0
-        for path in copies {
-            if path == keepPath { continue }
-            let url = URL(fileURLWithPath: path)
-            if fileManager.fileExists(atPath: path) {
-                do {
-                    try fileManager.trashItem(at: url, resultingItemURL: nil)
-                    removedCount += 1
-                } catch {
-                    // If trashing fails (e.g., permission), try reveal so the user can act
-                    NSWorkspace.shared.activateFileViewerSelecting([url])
-                }
-            }
-        }
-        // Refresh duplicate list
-        await MainActor.run {
-            duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
-            if removedCount > 0 {
-                settingsToastManager.showSuccess("Removed \(removedCount) extra copy\(removedCount == 1 ? "" : "ies")")
-            } else {
-                settingsToastManager.showInfo("No extra copies removed")
-            }
-        }
-    }
-
-    /*
-     private var oldFullSettingsContent: some View {
-         VStack(spacing: 0) {
-             // Header
-             HStack {
-                 Text("Settings")
-                     .font(.system(size: 20, weight: .semibold))
-                     .foregroundColor(.primary)
-
-                 Spacer()
-
-                 Button("Done") {
-                     dismiss()
-                 }
-                 .buttonStyle(.borderedProminent)
-                 .controlSize(.regular)
-                 .accessibilityIdentifier("settings-done-button")
-                 .accessibilityLabel("Close Settings")
-                 .accessibilityHint("Close the settings window")
-             }
-             .padding(.horizontal, 24)
-             .padding(.vertical, 20)
-             .background(Color(NSColor.controlBackgroundColor))
-
-             ScrollView {
-                 VStack(alignment: .leading, spacing: 24) {
-                     // Status Section
-                     SettingsSection(title: "Status") {
-                         StatusRow(
-                             label: "Kanata Service",
-                             status: kanataServiceStatus,
-                             isActive: kanataManager.currentState == .running
-                         )
-
-                         StatusRow(
-                             label: "Installation",
-                             status: kanataManager.isCompletelyInstalled() ? "Installed" : "Not Installed",
-                             isActive: kanataManager.isCompletelyInstalled()
-                         )
-
-                         if kanataManager.isLowPowerPaused {
-                             Text("KeyPath paused automatically due to low battery. It will resume when power is above 5%.")
-                                 .font(.footnote)
-                                 .foregroundColor(.secondary)
-                                 .accessibilityIdentifier("low-power-paused-note")
-                         }
-                     }
-
-                     Divider()
-
-                     // Service Control Section
-                     SettingsSection(title: "Service Control") {
-                         VStack(spacing: 10) {
-                             SettingsButton(
-                                 title: "Restart Service",
-                                 systemImage: "arrow.clockwise.circle",
-                                 accessibilityId: "restart-service-button",
-                                 accessibilityHint: "Stop and restart the Kanata keyboard service",
-                                 action: {
-                                     Task {
-                                         AppLogger.shared.log("🔄 [SettingsView] Restart Service clicked")
-                                         await kanataManager.manualStop()
-                                         try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
-                                         await kanataManager.manualStart()
-                                     }
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Refresh Status",
-                                 systemImage: "arrow.clockwise",
-                                 accessibilityId: "refresh-status-button",
-                                 accessibilityHint: "Check the current status of the Kanata service",
-                                 action: {
-                                     Task {
-                                         AppLogger.shared.log("🔄 [SettingsView] Refresh Status clicked")
-                                         await kanataManager.forceRefreshStatus()
-                                     }
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Stop Kanata Service",
-                                 systemImage: "stop.circle",
-                                 style: .destructive,
-                                 disabled: kanataManager.currentState == .stopped,
-                                 accessibilityId: "stop-kanata-service-button",
-                                 accessibilityHint: "Completely stop the Kanata service and prevent auto-reloading",
-                                 action: {
-                                     Task {
-                                         AppLogger.shared.log("🛑 [SettingsView] Stop Kanata Service clicked")
-                                         await stopKanataService()
-                                     }
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Run Installation Wizard",
-                                 systemImage: "wrench.and.screwdriver",
-                                 accessibilityId: "run-installation-wizard-button",
-                                 accessibilityHint: "Launch the installation wizard to configure KeyPath",
-                                 action: {
-                                     AppLogger.shared.log("🎭 [SettingsView] Manual wizard trigger")
-                                     showingInstallationWizard = true
-                                 }
-                             )
-                         }
-                     }
-
-                     Divider()
-
-                     // Configuration Section
-                     SettingsSection(title: "Configuration") {
-                         VStack(spacing: 10) {
-                             SettingsButton(
-                                 title: "Edit Configuration",
-                                 systemImage: "doc.text",
-                                 accessibilityId: "edit-configuration-button",
-                                 accessibilityHint: "Open the Kanata configuration file in an editor",
-                                 action: {
-                                     openConfigInZed()
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Reset to Default",
-                                 systemImage: "arrow.counterclockwise",
-                                 style: .destructive,
-                                 accessibilityId: "reset-to-default-button",
-                                 accessibilityHint: "Reset all keyboard mappings to default configuration",
-                                 action: {
-                                     showingResetConfirmation = true
-                                 }
-                             )
-                         }
-                     }
-
-                     Divider()
-
-                     // Diagnostics Section
-                     SettingsSection(title: "Diagnostics") {
-                         VStack(spacing: 10) {
-                             SettingsButton(
-                                 title: "Show Diagnostics",
-                                 systemImage: "stethoscope",
-                                 accessibilityId: "show-diagnostics-button",
-                                 accessibilityHint:
-                                 "View detailed system diagnostics and troubleshooting information",
-                                 action: {
-                                     showingDiagnostics = true
-                                 }
-                             )
-
-                             // Log access buttons
-                             HStack(spacing: 10) {
-                                 SettingsButton(
-                                     title: "KeyPath Logs",
-                                     systemImage: "doc.text",
-                                     accessibilityId: "keypath-logs-button",
-                                     accessibilityHint: "Open KeyPath application log files",
-                                     action: {
-                                         openKeyPathLogs()
-                                     }
-                                 )
-
-                                 SettingsButton(
-                                     title: "Kanata Logs",
-                                     systemImage: "terminal",
-                                     accessibilityId: "kanata-logs-button",
-                                     accessibilityHint: "Open Kanata service log files",
-                                     action: {
-                                         openKanataLogs()
-                                     }
-                                 )
-                             }
-
-                             // Quick diagnostic summary
-                             diagnosticSummaryView
-                         }
-                     }
-
-                     Divider()
-
-                     // TCP Server Configuration
-                     SettingsSection(title: "TCP Server") {
-                         VStack(spacing: 12) {
-                             HStack {
-                                 Toggle(
-                                     "Enable TCP Server",
-                                     isOn: Binding(
-                                         get: { preferences.tcpServerEnabled },
-                                         set: { preferences.tcpServerEnabled = $0 }
-                                     )
-                                 )
-                                 .help(
-                                     "Enable TCP server for config validation. Required for live config checking.")
-
-                                 Spacer()
-                             }
-
-                             if preferences.tcpServerEnabled {
-                                 HStack {
-                                     Text("Port:")
-                                         .font(.system(size: 13))
-                                         .foregroundColor(.secondary)
-
-                                     Button("\(preferences.tcpServerPort)") {
-                                         tempTCPPort = String(preferences.tcpServerPort)
-                                         showingTCPPortAlert = true
-                                     }
-                                     .buttonStyle(.bordered)
-                                     .controlSize(.small)
-                                     .help("Click to change TCP port (1024-65535)")
-
-                                     Spacer()
-
-                                     Text("Status: \(getTCPServerStatus())")
-                                         .font(.system(size: 12))
-                                         .foregroundColor(.secondary)
-                                 }
-                             }
-
-                             Text("TCP server enables real-time config validation without restarting Kanata.")
-                                 .font(.system(size: 11))
-                                 .foregroundColor(.secondary)
-                                 .multilineTextAlignment(.leading)
-                         }
-                     }
-
-                     Divider()
-
-                     // Developer Tools Section
-                     SettingsSection(title: "Developer Tools") {
-                         VStack(spacing: 10) {
-                             SettingsButton(
-                                 title: "Reset (Dev Only)",
-                                 systemImage: "arrow.clockwise.circle.fill",
-                                 style: .bordered,
-                                 accessibilityId: "reset-dev-button",
-                                 accessibilityHint: "Stop daemon, clear logs, restart - does not touch TCC permissions",
-                                 action: {
-                                     showingDevResetConfirmation = true
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Reset Everything",
-                                 systemImage: "exclamationmark.triangle.fill",
-                                 style: .destructive,
-                                 accessibilityId: "reset-everything-button",
-                                 accessibilityHint: "Force kill all processes, clear PID files, reset state - does not restart service",
-                                 action: {
-                                     showingResetEverythingConfirmation = true
-                                 }
-                             )
-
-                             SettingsButton(
-                                 title: "Show Enhanced Diagnostics",
-                                 systemImage: "info.circle",
-                                 accessibilityId: "enhanced-diagnostics-button",
-                                 accessibilityHint: "View enhanced diagnostics with system status, signatures, and TCC probes",
-                                 action: {
-                                     showingDiagnostics = true
-                                 }
-                             )
-                         }
-                     }
-
-                     Divider()
-
-                     // Startup Settings (LaunchAgent)
-                     SettingsSection(title: "Startup") {
-                         LaunchAgentSettingsView()
-                     }
-
-                     Divider()
-
-                     // Issues section removed - diagnostics system provides better error reporting
-                 }
-                 .padding(.horizontal, 24)
-                 .padding(.vertical, 20)
-             }
-             .background(Color(NSColor.windowBackgroundColor))
-         }
-         .frame(width: 480, height: 520)
-         .background(Color(NSColor.windowBackgroundColor))
-         .onAppear {
-             AppLogger.shared.log("🔍 [SettingsView] onAppear called")
-
-             AppLogger.shared.log(
-                 "🔍 [SettingsView] Using shared SimpleKanataManager - state: \(kanataManager.currentState.rawValue)"
-             )
-             AppLogger.shared.log(
-                 "🔍 [SettingsView] Using shared SimpleKanataManager - showWizard: \(kanataManager.showWizard)"
-             )
-
-            // Only trigger wizard if it's not already showing (prevent duplicate wizards)
-            // Check if wizard is already open by checking if showWizard is true AND we're not already showing it
-            if kanataManager.showWizard && !showingInstallationWizard {
-                 AppLogger.shared.log("🎭 [SettingsView] Triggering wizard from Settings - Kanata needs help")
-                 showingInstallationWizard = true
-            } else if kanataManager.showWizard && showingInstallationWizard {
-                AppLogger.shared.log("🔍 [SettingsView] Wizard already showing, skipping duplicate trigger")
-             }
-
-             // Status monitoring now handled centrally by SimpleKanataManager
-             // Just do an initial status refresh
-             Task {
-                 await kanataManager.forceRefreshStatus()
-             }
-
-             // Check TCP server status
-             checkTCPServerStatus()
-         }
-         .alert("Reset Configuration", isPresented: $showingResetConfirmation) {
-             Button("Cancel", role: .cancel) {}
-             Button("Reset", role: .destructive) {
-                 resetToDefaultConfig()
-             }
-         } message: {
-             Text(
-                 "This will reset your Kanata configuration to default with no custom mappings. All current key mappings will be lost. This action cannot be undone."
-             )
-         }
-         .alert("Change TCP Port", isPresented: $showingTCPPortAlert) {
-             TextField("Port (1024-65535)", text: $tempTCPPort)
-                 .textFieldStyle(.roundedBorder)
-
-             Button("Cancel", role: .cancel) {
-                 tempTCPPort = ""
-             }
-
-             Button("Apply") {
-                 if let port = Int(tempTCPPort), preferences.isValidTCPPort(port) {
-                     preferences.tcpServerPort = port
-                     AppLogger.shared.log("🔧 [SettingsView] TCP port changed to: \(port)")
-
-                     // Suggest service restart if Kanata is running
-                     if kanataManager.currentState == .running {
-                         AppLogger.shared.log("💡 [SettingsView] Suggesting service restart for TCP port change")
-                     }
-
-                     // Refresh TCP status
-                     checkTCPServerStatus()
-                 }
-                 tempTCPPort = ""
-             }
-         } message: {
-             Text(
-                 "Enter a port number between 1024 and 65535. If Kanata is running, you'll need to restart the service for the change to take effect."
-             )
-         }
-         .sheet(isPresented: $showingDiagnostics) {
-             DiagnosticsView(kanataManager: kanataManager)
-         }
-         .sheet(isPresented: $showingInstallationWizard) {
-             InstallationWizardView()
-                 .onAppear {
-                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard sheet is being presented")
-                 }
-                 .onDisappear {
-                     AppLogger.shared.log("🔍 [SettingsView] Installation wizard closed - triggering retry")
-                     Task {
-                         await kanataManager.onWizardClosed()
-                     }
-                 }
-                 .environmentObject(kanataManager)
-         }
-         .onDisappear {
-             AppLogger.shared.log("🔍 [SettingsView] onDisappear - status monitoring handled centrally")
-             // Status monitoring handled centrally - no cleanup needed
-         }
-         .onChange(of: kanataManager.showWizard) { shouldShow in
-             AppLogger.shared.log("🔍 [SettingsView] showWizard changed to: \(shouldShow)")
-             AppLogger.shared.log(
-                 "🔍 [SettingsView] Current kanataManager state: \(kanataManager.currentState.rawValue)"
-             )
-
-            // Only update showingInstallationWizard if it's different from current state
-            // This prevents duplicate wizards when Settings opens while wizard is already open
-            if shouldShow != showingInstallationWizard {
-             showingInstallationWizard = shouldShow
-            } else if shouldShow && showingInstallationWizard {
-                AppLogger.shared.log("🔍 [SettingsView] Wizard already showing, skipping onChange update")
-            }
-         }
-         .onChange(of: kanataManager.currentState) { _ in
-             // Refresh TCP status when Kanata state changes
-             checkTCPServerStatus()
-         }
-     }
-     */
-
-    // MARK: - Computed Properties
-
-    private var diagnosticSummaryView: some View {
-        Group {
-            if !kanataManager.diagnostics.isEmpty {
-                let errorCount = kanataManager.diagnostics.filter {
-                    $0.severity == .error || $0.severity == .critical
-                }.count
-                let warningCount = kanataManager.diagnostics.filter { $0.severity == .warning }
-                    .count
-
-                HStack(spacing: 12) {
-                    if errorCount > 0 {
-                        Label("\(errorCount)", systemImage: "exclamationmark.circle.fill")
-                            .foregroundColor(.red)
-                            .font(.caption)
-                            .accessibilityLabel("\(errorCount) error\(errorCount == 1 ? "" : "s")")
-                            .accessibilityHint("Number of critical errors or errors in diagnostics")
-                    }
-
-                    if warningCount > 0 {
-                        Label("\(warningCount)", systemImage: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                            .font(.caption)
-                            .accessibilityLabel("\(warningCount) warning\(warningCount == 1 ? "" : "s")")
-                            .accessibilityHint("Number of warnings in diagnostics")
-                    }
-
-                    if errorCount == 0, warningCount == 0 {
-                        Label("All good", systemImage: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.caption)
-                            .accessibilityLabel("All diagnostics passed")
-                            .accessibilityHint("No errors or warnings found in system diagnostics")
+                    .frame(minWidth: 220)
+
+                    // Right: Recording Settings (aligned under permissions)
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Capture Mode
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Capture Mode")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+
+                            Picker("", selection: Binding(
+                                get: { PreferencesService.shared.isSequenceMode },
+                                set: { PreferencesService.shared.isSequenceMode = $0 }
+                            )) {
+                                Text("Sequences - Keys one after another").tag(true)
+                                Text("Combos - Keys together").tag(false)
+                            }
+                            .pickerStyle(.radioGroup)
+                            .labelsHidden()
+                        }
+
+                        // Recording Behavior
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Recording Behavior")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+
+                            Picker("", selection: Binding(
+                                get: { PreferencesService.shared.applyMappingsDuringRecording },
+                                set: { PreferencesService.shared.applyMappingsDuringRecording = $0 }
+                            )) {
+                                Text("Record physical keys (pause KeyPath)").tag(false)
+                                Text("Record with KeyPath mappings running").tag(true)
+                            }
+                            .pickerStyle(.radioGroup)
+                            .labelsHidden()
+                        }
                     }
 
                     Spacer()
                 }
-                .padding(.horizontal, 12)
-            } else {
-                EmptyView()
+                .padding(.horizontal, 20)
+                .padding(.vertical, 20)
+
+                if shouldShowStartup {
+                    FormSection(header: "Legacy Startup Agent") {
+                        LaunchAgentSettingsView()
+                    }
+                }
+
+                Spacer()
+            }
+        }
+        .settingsBackground()
+        .withToasts(settingsToastManager)
+        .sheet(isPresented: $showingInstallationWizard) {
+            let startPage: WizardPage? = HelperManager.shared.isHelperInstalled() ? nil : .helper
+            InstallationWizardView(initialPage: startPage)
+                .customizeSheetWindow()
+                .environmentObject(kanataManager)
+        }
+        .alert("Permissions Required", isPresented: $showingPermissionAlert) {
+            Button("Open Wizard") {
+                showingInstallationWizard = true
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("KeyPath needs system permissions to remap your keyboard. The installation wizard will guide you through granting the necessary permissions.")
+        }
+        .task {
+            await refreshStatus()
+            await refreshServiceStatus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
+            Task {
+                await refreshStatus()
+                await refreshServiceStatus()
             }
         }
     }
 
-    private func openConfigInZed() {
-        // Create backup before opening for external editing
-        if kanataManager.createPreEditBackup() {
-            AppLogger.shared.log("✅ [SettingsView] Created backup before opening config for editing")
-        } else {
-            AppLogger.shared.log("⚠️ [SettingsView] Failed to create backup before editing")
+    // MARK: - Helpers
+
+    private func refreshStatus() async {
+        await kanataManager.forceRefreshStatus()
+        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
+
+        await MainActor.run {
+            permissionSnapshot = snapshot
+            showSetupBanner = !snapshot.isSystemReady
+            duplicateAppCopies = duplicates
         }
+    }
 
-        let configPath = kanataManager.configPath
-        let process = Process()
-        process.launchPath = "/usr/local/bin/zed"
-        process.arguments = [configPath]
+    private func openConfigInEditor() {
+        let url = URL(fileURLWithPath: kanataManager.configPath)
+        NSWorkspace.shared.open(url)
+        AppLogger.shared.log("📝 [Settings] Opened config for editing")
+    }
 
-        do {
-            try process.run()
-        } catch {
-            // If Zed isn't installed at the expected path, try the common Homebrew path
-            let fallbackProcess = Process()
-            fallbackProcess.launchPath = "/opt/homebrew/bin/zed"
-            fallbackProcess.arguments = [configPath]
-
-            do {
-                try fallbackProcess.run()
-            } catch {
-                // If neither works, try using 'open' command with Zed
-                let openProcess = Process()
-                openProcess.launchPath = "/usr/bin/open"
-                openProcess.arguments = ["-a", "Zed", configPath]
-
-                do {
-                    try openProcess.run()
-                } catch {
-                    AppLogger.shared.log("Failed to open config file in Zed: \(error)")
-                    // As a last resort, just open the file with default app
-                    NSWorkspace.shared.open(URL(fileURLWithPath: configPath))
-                }
-            }
-        }
+    private func openBackupsFolder() {
+        let backupsPath = "\(NSHomeDirectory())/.config/keypath/.backups"
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: backupsPath)
     }
 
     private func resetToDefaultConfig() {
         Task {
             do {
                 try await kanataManager.resetToDefaultConfig()
-                AppLogger.shared.log("✅ Successfully reset config to default")
-
-                // Show success toast
-                await MainActor.run {
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("ShowUserFeedback"),
-                        object: nil,
-                        userInfo: ["message": "Configuration reset to default (Caps Lock → Escape)"]
-                    )
-                }
+                settingsToastManager.showSuccess("Configuration reset to default")
             } catch {
-                AppLogger.shared.log("❌ Failed to reset config: \(error)")
-
-                // Show error toast
-                await MainActor.run {
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("ShowUserFeedback"),
-                        object: nil,
-                        userInfo: ["message": "❌ Failed to reset configuration: \(error.localizedDescription)"]
-                    )
-                }
+                settingsToastManager.showError("Reset failed: \(error.localizedDescription)")
             }
         }
     }
 
-    // Status monitoring functions removed - now handled centrally by SimpleKanataManager
-
-    private func openKeyPathLogs() {
-        let logPath = "\(NSHomeDirectory())/Library/Logs/KeyPath/keypath-debug.log"
-
-        // Try to open with Zed first
+    private func openLogFile(_ filePath: String) {
+        // Try to open with Zed editor first (if available)
         let zedProcess = Process()
-        zedProcess.launchPath = "/usr/local/bin/zed"
-        zedProcess.arguments = [logPath]
+        zedProcess.executableURL = URL(fileURLWithPath: "/usr/local/bin/zed")
+        zedProcess.arguments = [filePath]
 
         do {
             try zedProcess.run()
-            AppLogger.shared.log("📋 Opened KeyPath logs in Zed")
+            AppLogger.shared.log("📝 [Settings] Opened log in Zed: \(filePath)")
             return
         } catch {
-            // Try Homebrew path for Zed
-            let homebrewZedProcess = Process()
-            homebrewZedProcess.launchPath = "/opt/homebrew/bin/zed"
-            homebrewZedProcess.arguments = [logPath]
+            // Fallback: Try to open with default text editor
+            let fallbackProcess = Process()
+            fallbackProcess.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            fallbackProcess.arguments = ["-t", filePath]
 
             do {
-                try homebrewZedProcess.run()
-                AppLogger.shared.log("📋 Opened KeyPath logs in Zed (Homebrew)")
-                return
+                try fallbackProcess.run()
+                AppLogger.shared.log("📝 [Settings] Opened log in default text editor: \(filePath)")
             } catch {
-                // Try using 'open' command with Zed
-                let openZedProcess = Process()
-                openZedProcess.launchPath = "/usr/bin/open"
-                openZedProcess.arguments = ["-a", "Zed", logPath]
-
-                do {
-                    try openZedProcess.run()
-                    AppLogger.shared.log("📋 Opened KeyPath logs in Zed (via open)")
-                    return
-                } catch {
-                    // Fallback: Try to open with default text editor
-                    let fallbackProcess = Process()
-                    fallbackProcess.launchPath = "/usr/bin/open"
-                    fallbackProcess.arguments = ["-t", logPath]
-
-                    do {
-                        try fallbackProcess.run()
-                        AppLogger.shared.log("📋 Opened KeyPath logs in default text editor")
-                    } catch {
-                        // Last resort: Open containing folder
-                        let folderPath = "\(NSHomeDirectory())/Library/Logs/KeyPath"
-                        NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
-                        AppLogger.shared.log("📁 Opened KeyPath logs folder")
-                    }
-                }
+                AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
+                settingsToastManager.showError("Failed to open log file")
             }
         }
     }
 
-    private func openKanataLogs() {
-        let kanataLogPath = "\(NSHomeDirectory())/Library/Logs/KeyPath/kanata.log"
-
-        // Check if Kanata log file exists
-        if !FileManager.default.fileExists(atPath: kanataLogPath) {
-            // Create empty log file so user can see the expected location
-            try? "Kanata log file will appear here when Kanata runs.\n".write(
-                toFile: kanataLogPath,
-                atomically: true,
-                encoding: .utf8
-            )
-        }
-
-        // Try to open with Zed first
-        let zedProcess = Process()
-        zedProcess.launchPath = "/usr/local/bin/zed"
-        zedProcess.arguments = [kanataLogPath]
-
-        do {
-            try zedProcess.run()
-            AppLogger.shared.log("📋 Opened Kanata logs in Zed")
-            return
-        } catch {
-            // Try Homebrew path for Zed
-            let homebrewZedProcess = Process()
-            homebrewZedProcess.launchPath = "/opt/homebrew/bin/zed"
-            homebrewZedProcess.arguments = [kanataLogPath]
-
-            do {
-                try homebrewZedProcess.run()
-                AppLogger.shared.log("📋 Opened Kanata logs in Zed (Homebrew)")
-                return
-            } catch {
-                // Try using 'open' command with Zed
-                let openZedProcess = Process()
-                openZedProcess.launchPath = "/usr/bin/open"
-                openZedProcess.arguments = ["-a", "Zed", kanataLogPath]
-
-                do {
-                    try openZedProcess.run()
-                    AppLogger.shared.log("📋 Opened Kanata logs in Zed (via open)")
-                    return
-                } catch {
-                    // Fallback: Try to open with default text editor
-                    let fallbackProcess = Process()
-                    fallbackProcess.launchPath = "/usr/bin/open"
-                    fallbackProcess.arguments = ["-t", kanataLogPath]
-
-                    do {
-                        try fallbackProcess.run()
-                        AppLogger.shared.log("📋 Opened Kanata logs in default text editor")
-                    } catch {
-                        // Last resort: Open containing folder
-                        let folderPath = "\(NSHomeDirectory())/Library/Logs/KeyPath"
-                        NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
-                        AppLogger.shared.log("📁 Opened KeyPath logs folder")
-                    }
-                }
+    private func refreshServiceStatus() async {
+        await MainActor.run {
+            let state = KanataDaemonManager.determineServiceManagementState()
+            switch state {
+            case .legacyActive:
+                activeMethod = .launchctl
+            case .smappserviceActive, .smappservicePending:
+                activeMethod = .smappservice
+            case .conflicted:
+                activeMethod = .launchctl  // Show migration section when conflicted!
+            case .unknown, .uninstalled:
+                activeMethod = .unknown
             }
         }
     }
 
-    // (Helper management moved to the Wizard; no helper code remains here)
+    // MARK: - Service Management Section
 
-    // MARK: - TCP Server Status
-
-    @State private var tcpServerStatus = "Unknown"
-
-    private func getTCPServerStatus() -> String {
-        // TCP server is always enabled in TCP-only mode
-        tcpServerStatus
-    }
-
-    private func checkTCPServerStatus() {
-        Task {
-            if kanataManager.currentState == .running {
-                let port = 37001 // TCP port (kanata default)
-                let client = KanataTCPClient(port: port)
-                let isAvailable = await client.checkServerStatus()
-
-                await MainActor.run {
-                    tcpServerStatus = isAvailable ? "Connected" : "Not Connected"
-                }
-            } else {
-                await MainActor.run {
-                    tcpServerStatus = "Not Running"
-                }
-            }
-        }
-    }
-
-    /// Completely stop the Kanata service and prevent auto-reloading
-    private func stopKanataService() async {
-        AppLogger.shared.log("🛑 [SettingsView] ========== STOPPING KANATA SERVICE ==========")
-
-        // Use KanataManager/Privileged helper path exclusively (SMAppService-backed)
-        AppLogger.shared.log("🛑 [SettingsView] Stopping via KanataManager (SMAppService-backed)")
-        await kanataManager.manualStop()
-
-        AppLogger.shared.log("🛑 [SettingsView] ========== KANATA SERVICE STOPPED ==========")
-
-        // Refresh status to reflect changes
-        await kanataManager.forceRefreshStatus()
-    }
-
-    // MARK: - Developer Reset Function
-
-    private func performDevReset() async {
-        AppLogger.shared.log("🔧 [SettingsView] ========== DEV RESET STARTED ==========")
-
-        // Step 1: Stop the daemon
-        AppLogger.shared.log("🔧 [SettingsView] Step 1: Stopping daemon")
-        do {
-            let stopProcess = Process()
-            stopProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            stopProcess.arguments = ["launchctl", "bootout", "system/com.keypath.kanata"]
-
-            try stopProcess.run()
-            stopProcess.waitUntilExit()
-
-            AppLogger.shared.log("🔧 [SettingsView] Daemon stopped with status: \(stopProcess.terminationStatus)")
-        } catch {
-            AppLogger.shared.log("⚠️ [SettingsView] Error stopping daemon: \(error)")
-        }
-
-        // Step 2: Clear logs (does not touch TCC)
-        AppLogger.shared.log("🔧 [SettingsView] Step 2: Clearing logs")
-        do {
-            let clearProcess = Process()
-            clearProcess.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            clearProcess.arguments = ["sh", "-c", "echo '' > /var/log/kanata.log"]
-            try clearProcess.run()
-            clearProcess.waitUntilExit()
-            AppLogger.shared.log("🔧 [SettingsView] Logs cleared with status: \(clearProcess.terminationStatus)")
-        } catch {
-            AppLogger.shared.log("⚠️ [SettingsView] Error clearing logs: \(error)")
-        }
-
-        // Step 3: Wait 2 seconds
-        AppLogger.shared.log("🔧 [SettingsView] Step 3: Waiting 2 seconds...")
-        try? await Task.sleep(nanoseconds: 2_000_000_000)
-
-        // Step 4: Restart via SimpleKanataManager
-        AppLogger.shared.log("🔧 [SettingsView] Step 4: Restarting via SimpleKanataManager")
-        await kanataManager.manualStart()
-
-        // Step 5: Refresh status
-        AppLogger.shared.log("🔧 [SettingsView] Step 5: Refreshing status")
-        await kanataManager.forceRefreshStatus()
-
-        AppLogger.shared.log("🔧 [SettingsView] ========== DEV RESET COMPLETED ==========")
-    }
-    private func performResetEverything() async {
-        AppLogger.shared.log("💣 [SettingsView] ========== RESET EVERYTHING STARTED ==========")
-        let autoFixer = WizardAutoFixer(
-            kanataManager: kanataManager.underlyingManager
-        )
-        let success = await autoFixer.resetEverything()
-
-        if success {
-            AppLogger.shared.log("✅ [SettingsView] Reset Everything completed successfully")
-            settingsToastManager.showSuccess("Reset complete - all processes killed and state cleared")
-            // Refresh status to reflect changes
-            await kanataManager.forceRefreshStatus()
-        } else {
-            AppLogger.shared.log("❌ [SettingsView] Reset Everything failed")
-            settingsToastManager.showError("Reset failed - check logs for details")
-        }
-        AppLogger.shared.log("💣 [SettingsView] ========== RESET EVERYTHING COMPLETED ==========")
-    }
-}
-
-// MARK: - Components
-
-struct SettingsSection<Content: View>: View {
-    let title: String
-    let content: Content
-
-    init(title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-
-    var body: some View {
+    @ViewBuilder
+    private var serviceManagementSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.primary)
+            HStack(spacing: 12) {
+                Image(systemName: activeMethodIcon)
+                    .foregroundColor(activeMethodColor)
+                    .font(.title3)
 
-            content
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .appGlassCard()
-        .padding(.vertical, 4)
-    }
-}
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(activeMethodText)
+                        .font(.body)
+                        .fontWeight(.medium)
 
-struct StatusRow: View {
-    let label: String
-    let status: String
-    let isActive: Bool
-
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 13))
-                .foregroundColor(.primary)
-
-            Spacer()
-
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(isActive ? Color.green : Color.orange)
-                    .frame(width: 8, height: 8)
-                    .accessibilityHidden(true)
-
-                Text(status)
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(status)")
-        .accessibilityValue(isActive ? "Active" : "Inactive")
-    }
-}
-
-struct SettingsButton: View {
-    let title: String
-    let systemImage: String
-    var style: ButtonStyle = .standard
-    var disabled: Bool = false
-    var accessibilityId: String?
-    var accessibilityHint: String?
-    let action: () -> Void
-
-    enum ButtonStyle {
-        case standard, destructive
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: systemImage)
-                    .font(.system(size: 14))
-                    .frame(width: 20)
-
-                Text(title)
-                    .font(.system(size: 13))
+                    Text(activeMethodDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
 
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(NSColor.controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-            )
+
+            // Migration button - only show if legacy is detected
+            if activeMethod == .launchctl && KanataDaemonManager.shared.hasLegacyInstallation() {
+                HStack(spacing: 8) {
+                    Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
+                        guard !isMigrating else { return }
+                        isMigrating = true
+                        Task { @MainActor in
+                            do {
+                                try await KanataDaemonManager.shared.migrateFromLaunchctl()
+                                settingsToastManager.showSuccess("Migrated to SMAppService")
+                                await refreshServiceStatus()
+                            } catch {
+                                settingsToastManager.showError("Migration failed: \(error.localizedDescription)")
+                            }
+                            isMigrating = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(isMigrating)
+
+                    Spacer()
+                }
+            }
         }
-        .buttonStyle(.plain)
-        .disabled(disabled)
-        .opacity(disabled ? 0.5 : 1.0)
-        .foregroundColor(style == .destructive ? .red : .primary)
-        .accessibilityIdentifier(
-            accessibilityId ?? title.lowercased().replacingOccurrences(of: " ", with: "-")
-        )
-        .accessibilityLabel(title)
-        .accessibilityHint(accessibilityHint ?? "Tap to \(title.lowercased())")
+    }
+
+    private var activeMethodIcon: String {
+        switch activeMethod {
+        case .smappservice: "checkmark.circle.fill"
+        case .launchctl: "gear.circle.fill"
+        case .unknown: "questionmark.circle.fill"
+        }
+    }
+
+    private var activeMethodColor: Color {
+        switch activeMethod {
+        case .smappservice: .green
+        case .launchctl: .orange
+        case .unknown: .gray
+        }
+    }
+
+    private var activeMethodText: String {
+        switch activeMethod {
+        case .smappservice: "Using SMAppService"
+        case .launchctl: "Using launchctl (Legacy)"
+        case .unknown: "Checking service method..."
+        }
+    }
+
+    private var activeMethodDescription: String {
+        switch activeMethod {
+        case .smappservice: "Modern service management via System Settings"
+        case .launchctl: "Traditional service management via launchctl"
+        case .unknown: "Determining active service method"
+        }
     }
 }
 
-#Preview {
-    let manager = KanataManager()
-    let viewModel = KanataViewModel(manager: manager)
-    SettingsView()
-        .environmentObject(viewModel)
+// MARK: - Supporting Views
+
+private struct PermissionStatusRow: View {
+    let title: String
+    let icon: String
+    let granted: Bool?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundColor(statusColor)
+                .frame(width: 20)
+
+            Text(title)
+                .font(.body)
+
+            Spacer()
+
+            if let granted = granted {
+                Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundColor(granted ? .green : .red)
+                    .font(.body)
+            } else {
+                ProgressView()
+                    .scaleEffect(0.5)
+                    .frame(width: 16, height: 16)
+            }
+        }
+    }
+
+    private var statusColor: Color {
+        if let granted = granted {
+            return granted ? .green : .red
+        } else {
+            return .secondary
+        }
+    }
 }

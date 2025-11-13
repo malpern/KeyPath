@@ -427,16 +427,22 @@ struct WizardSystemStatusOverview: View {
     // MARK: - Navigation Sequence Sync
 
     private func updateNavSequence() {
+        AppLogger.shared.log("🔍 [NavSeq] updateNavSequence called")
+        AppLogger.shared.log("🔍 [NavSeq] displayItems count: \(displayItems.count)")
+        AppLogger.shared.log("🔍 [NavSeq] showAllItems: \(showAllItems)")
+
         var seen = Set<WizardPage>()
         var ordered: [WizardPage] = []
         for item in displayItems {
             let page = item.targetPage
+            AppLogger.shared.log("🔍 [NavSeq]   - displayItem: \(item.title) → \(page.displayName)")
             if page != .summary && !seen.contains(page) {
                 seen.insert(page)
                 ordered.append(page)
             }
         }
         navSequence = ordered
+        AppLogger.shared.log("🔍 [NavSeq] ✅ navSequence updated: \(ordered.count) pages: \(ordered.map { $0.displayName })")
     }
 
     // MARK: - Dependency Logic
@@ -471,7 +477,7 @@ struct WizardSystemStatusOverview: View {
         return DependencyVisibility(
             showKanataEngineItem: karabinerDriverCompleted,
             showServiceItem: serviceAvailable,
-            showCommunicationItem: serviceAvailable
+            showCommunicationItem: serviceAvailable && kanataIsRunning
         )
     }
 
@@ -617,13 +623,30 @@ struct WizardSystemStatusOverview: View {
     }
 
     private func getServiceStatus() -> InstallationStatus {
-        // Use the shared service status evaluator (same logic as detail page)
-        let processStatus = ServiceStatusEvaluator.evaluate(
-            kanataIsRunning: kanataIsRunning,
-            systemState: systemState,
-            issues: issues
-        )
-        return ServiceStatusEvaluator.toInstallationStatus(processStatus, systemState: systemState)
+        // If system is still initializing, show as in progress
+        if systemState == .initializing {
+            return .inProgress
+        }
+
+        // Check for service-related issues (daemon category)
+        // This includes both Kanata Service and Karabiner Daemon
+        let hasServiceIssues = issues.contains { issue in
+            issue.category == .daemon
+        }
+
+        // If there are service issues, show as failed (red X)
+        if hasServiceIssues {
+            return .failed
+        }
+
+        // If Kanata is running, show as completed
+        if kanataIsRunning {
+            return .completed
+        }
+
+        // Otherwise, show as not started (empty circle)
+        // This happens during initial setup before user clicks "Start Service"
+        return .notStarted
     }
 
     private func getServiceNavigationTarget() -> (page: WizardPage, reason: String) {

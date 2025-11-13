@@ -7,10 +7,9 @@
 ## Production-like build & deploy
 ```bash
 ./build.sh
-mkdir -p ~/Applications
-cp -R dist/KeyPath.app ~/Applications/
+cp -R dist/KeyPath.app /Applications/
 osascript -e 'tell application "KeyPath" to quit' || true
-open ~/Applications/KeyPath.app
+open /Applications/KeyPath.app
 ```
 
 ## Build & Release

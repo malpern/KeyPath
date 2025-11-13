@@ -63,6 +63,10 @@ struct WizardHelperPage: View {
         }
     }
 
+    private var nextStepButtonTitle: String {
+        issues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -151,6 +155,11 @@ struct WizardHelperPage: View {
             .padding(WizardDesign.Spacing.cardPadding)
             .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 60)
+            Button(nextStepButtonTitle) {
+                navigateToNextStep()
+            }
+            .buttonStyle(WizardDesign.Component.PrimaryButton())
+            .padding(.top, WizardDesign.Spacing.sectionGap)
         }
         .heroSectionContainer()
     }
@@ -308,5 +317,19 @@ struct WizardHelperPage: View {
         // Best-effort: open System Settings; deep-linking to Login Items is OS-version dependent
         let url = URL(fileURLWithPath: "/System/Applications/System Settings.app")
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+    }
+
+    private func navigateToNextStep() {
+        if issues.isEmpty {
+            navigationCoordinator.navigateToPage(.summary)
+            return
+        }
+
+        if let next = navigationCoordinator.getNextPage(for: systemState, issues: issues),
+           next != navigationCoordinator.currentPage {
+            navigationCoordinator.navigateToPage(next)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
+        }
     }
 }

@@ -233,6 +233,9 @@ struct WizardSummaryPage: View {
             return "Setting up KeyPath"
         case .issues:
             let n = failedIssueCount
+            if n == 0 {
+                return "Finish setup to start KeyPath"
+            }
             let suffix = n == 1 ? "issue" : "issues"
             return "\(n) setup \(suffix) to resolve"
         case .success:
@@ -339,6 +342,11 @@ struct WizardSummaryPage: View {
         }
         if hasKanataIssues { count += 1 }
 
-        return max(count, 1) // never show 0 in error mode
+        // NOTE: Kanata Service (daemon issues) is NOT counted here because it's a
+        // dependent item that's hidden when earlier prerequisites fail.
+        // The service item only shows after: Karabiner Driver + Helper + Permissions are complete.
+        // Counting hidden items would inflate the count and confuse users.
+
+        return count
     }
 }

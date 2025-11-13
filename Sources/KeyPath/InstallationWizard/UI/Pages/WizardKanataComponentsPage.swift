@@ -4,6 +4,7 @@ import SwiftUI
 
 /// Kanata binary and service setup page
 struct WizardKanataComponentsPage: View {
+    let systemState: WizardSystemState
     let issues: [WizardIssue]
     let isFixing: Bool
     let onAutoFix: (AutoFixAction) async -> Bool
@@ -66,6 +67,12 @@ struct WizardKanataComponentsPage: View {
                     .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                     .padding(.top, WizardDesign.Spacing.pageVertical)
+
+                    Button(nextStepButtonTitle) {
+                        navigateToNextStep()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity)
@@ -260,6 +267,24 @@ struct WizardKanataComponentsPage: View {
                     _ = fixingIssues.remove(kanataIssue.id)
                 }
             }
+        }
+    }
+
+    private var nextStepButtonTitle: String {
+        issues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
+    private func navigateToNextStep() {
+        if issues.isEmpty {
+            navigationCoordinator.navigateToPage(.summary)
+            return
+        }
+
+        if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
+           nextPage != navigationCoordinator.currentPage {
+            navigationCoordinator.navigateToPage(nextPage)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
         }
     }
 }

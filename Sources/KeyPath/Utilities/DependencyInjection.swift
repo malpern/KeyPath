@@ -48,7 +48,7 @@ extension EnvironmentValues {
 
 /// EnvironmentKey for PrivilegedOperations (DI)
 @preconcurrency private struct PrivilegedOperationsKey: EnvironmentKey {
-    static var defaultValue: PrivilegedOperations { LegacyPrivilegedOperations() }
+    static var defaultValue: PrivilegedOperations { HelperBackedPrivilegedOperations() }
 }
 
 extension EnvironmentValues {

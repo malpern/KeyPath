@@ -4,9 +4,9 @@
 echo "🏗️  Building stable signed version..."
 ./Scripts/build-and-sign.sh
 
-echo "📦 Installing to ~/Applications (preserves permissions)..."
-mkdir -p ~/Applications
-cp -r dist/KeyPath.app ~/Applications/
+echo "📦 Installing to /Applications..."
+rm -rf /Applications/KeyPath.app
+cp -r dist/KeyPath.app /Applications/
 
-echo "✅ Installed to ~/Applications/KeyPath.app"
-echo "This location preserves permissions across builds when using Developer ID signing"
+echo "✅ Installed to /Applications/KeyPath.app"
+echo "Developer ID signing preserves TCC permissions across builds"

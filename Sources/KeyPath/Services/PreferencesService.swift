@@ -67,6 +67,15 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// When true, capture keys in sequence (one after another).
+    /// When false, capture keys as combination (all pressed together).
+    var isSequenceMode: Bool {
+        didSet {
+            UserDefaults.standard.set(isSequenceMode, forKey: Keys.isSequenceMode)
+            AppLogger.shared.log("🎛️ [Preferences] isSequenceMode = \(isSequenceMode)")
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -74,6 +83,7 @@ final class PreferencesService: @unchecked Sendable {
         static let tcpServerPort = "KeyPath.TCP.ServerPort"
         static let notificationsEnabled = "KeyPath.Notifications.Enabled"
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
+        static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
     }
 
     // MARK: - Defaults
@@ -83,6 +93,7 @@ final class PreferencesService: @unchecked Sendable {
         static let tcpServerPort = 37001 // Default port for Kanata TCP server
         static let notificationsEnabled = true
         static let applyMappingsDuringRecording = true
+        static let isSequenceMode = true
     }
 
     // MARK: - Initialization
@@ -99,10 +110,14 @@ final class PreferencesService: @unchecked Sendable {
             UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool
                 ?? Defaults.notificationsEnabled
 
-        // Recording preference
+        // Recording preferences
         applyMappingsDuringRecording =
             UserDefaults.standard.object(forKey: Keys.applyMappingsDuringRecording) as? Bool
                 ?? Defaults.applyMappingsDuringRecording
+
+        isSequenceMode =
+            UserDefaults.standard.object(forKey: Keys.isSequenceMode) as? Bool
+                ?? Defaults.isSequenceMode
 
         AppLogger.shared.log(
             "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort)"

@@ -85,53 +85,13 @@ class HelperService: NSObject, HelperProtocol {
         )
     }
 
-    func installAllLaunchDaemonServices(kanataBinaryPath: String, kanataConfigPath: String, tcpPort: Int, reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installAllLaunchDaemonServices requested (binary: \(kanataBinaryPath), cfg: \(kanataConfigPath), port: \(tcpPort))")
-        executePrivilegedOperation(
-            name: "installAllLaunchDaemonServices",
-            operation: {
-                try Self.installAllServices(kanataBinaryPath: kanataBinaryPath, kanataConfigPath: kanataConfigPath, tcpPort: tcpPort)
-            },
-            reply: reply
-        )
-    }
-
-    func installAllLaunchDaemonServicesWithPreferences(reply: @escaping (Bool, String?) -> Void) {
-        NSLog("[KeyPathHelper] installAllLaunchDaemonServicesWithPreferences requested")
-        executePrivilegedOperation(
-            name: "installAllLaunchDaemonServicesWithPreferences",
-            operation: {
-                let appBundle = Self.appBundlePathFromHelper()
-                let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
-
-                // Copy bundled kanata to system location (/Library/KeyPath/bin/kanata)
-                // This path has TCC Input Monitoring permissions, bundled path does not
-                let systemKanataDir = "/Library/KeyPath/bin"
-                let systemKanataPath = "\(systemKanataDir)/kanata"
-
-                _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
-                _ = Self.run("/bin/chmod", ["755", systemKanataPath])
-
-                let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root" // fallback
-                let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
-                let tcpPort = 37001
-
-                // Use system path (not bundled path) so TCC permissions apply
-                try Self.installAllServices(kanataBinaryPath: systemKanataPath, kanataConfigPath: cfgPath, tcpPort: tcpPort)
-            },
-            reply: reply
-        )
-    }
-
     func restartUnhealthyServices(reply: @escaping (Bool, String?) -> Void) {
         NSLog("[KeyPathHelper] restartUnhealthyServices requested")
         executePrivilegedOperation(
             name: "restartUnhealthyServices",
             operation: {
-                // Assess service health and restart as needed; install if missing
-                let services = [Self.vhidDaemonServiceID, Self.vhidManagerServiceID, Self.kanataServiceID]
+                // Assess VirtualHID health and restart as needed; Kanata is SMAppService-managed
+                let services = [Self.vhidDaemonServiceID, Self.vhidManagerServiceID]
                 var needsInstall = false
                 var toRestart: [String] = []
 
@@ -146,24 +106,12 @@ class HelperService: NSObject, HelperProtocol {
                 }
 
                 if needsInstall {
-                    let appBundle = Self.appBundlePathFromHelper()
-                    let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
-
-                    // Copy to system location with TCC permissions
-                    let systemKanataDir = "/Library/KeyPath/bin"
-                    let systemKanataPath = "\(systemKanataDir)/kanata"
-                    _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                    _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
-                    _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
-                    _ = Self.run("/bin/chmod", ["755", systemKanataPath])
-
-                    let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
-                    let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
-                    let tcpPort = 37001
-                    try Self.installAllServices(kanataBinaryPath: systemKanataPath, kanataConfigPath: cfgPath, tcpPort: tcpPort)
+                    NSLog("[KeyPathHelper] VirtualHID services missing - reinstalling via helper")
+                    try Self.installOrRepairVHIDServices()
                     return
                 }
 
+                // Services are loaded but unhealthy - just restart them
                 for id in toRestart {
                     _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(id)"])
                 }
@@ -177,35 +125,7 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "regenerateServiceConfiguration",
             operation: {
-                // Re-generate Kanata plist and ensure system path (with TCC) is used
-                let appBundle = Self.appBundlePathFromHelper()
-                let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
-                let systemKanataDir = "/Library/KeyPath/bin"
-                let systemKanataPath = "\(systemKanataDir)/kanata"
-                _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
-                _ = Self.run("/bin/chmod", ["755", systemKanataPath])
-                let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
-                let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
-                let tcpPort = 37001
-
-                let plist = Self.generateKanataPlist(binaryPath: systemKanataPath, cfgPath: cfgPath, tcpPort: tcpPort)
-                let tmp = NSTemporaryDirectory()
-                let tKanata = (tmp as NSString).appendingPathComponent("\(Self.kanataServiceID).plist")
-                try plist.write(toFile: tKanata, atomically: true, encoding: .utf8)
-
-                let dst = "/Library/LaunchDaemons/\(Self.kanataServiceID).plist"
-                _ = Self.run("/bin/mkdir", ["-p", "/Library/LaunchDaemons"])
-                _ = Self.run("/bin/cp", [tKanata, dst])
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", dst])
-                _ = Self.run("/bin/chmod", ["644", dst])
-
-                _ = Self.run("/bin/launchctl", ["bootout", "system/\(Self.kanataServiceID)"])
-                let bs = Self.run("/bin/launchctl", ["bootstrap", "system", dst])
-                if bs.status != 0 { throw HelperError.operationFailed("bootstrap failed: \(bs.out)") }
-                _ = Self.run("/bin/launchctl", ["enable", "system/\(Self.kanataServiceID)"])
-                _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(Self.kanataServiceID)"])
+                throw HelperError.operationFailed("Kanata configuration is managed by SMAppService. Use the main app to refresh configuration.")
             },
             reply: reply
         )
@@ -253,41 +173,7 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "repairVHIDDaemonServices",
             operation: {
-                // Boot out existing jobs (ignore failures)
-                _ = Self.run("/bin/launchctl", ["bootout", "system/\(Self.vhidDaemonServiceID)"])
-                _ = Self.run("/bin/launchctl", ["bootout", "system/\(Self.vhidManagerServiceID)"])
-
-                // Generate repaired plists
-                let vhidDPlist = Self.generateVHIDDaemonPlist()
-                let vhidMPlist = Self.generateVHIDManagerPlist()
-
-                let tmp = NSTemporaryDirectory()
-                let tVhidD = (tmp as NSString).appendingPathComponent("\(Self.vhidDaemonServiceID).plist")
-                let tVhidM = (tmp as NSString).appendingPathComponent("\(Self.vhidManagerServiceID).plist")
-                try vhidDPlist.write(toFile: tVhidD, atomically: true, encoding: .utf8)
-                try vhidMPlist.write(toFile: tVhidM, atomically: true, encoding: .utf8)
-
-                // Install to LaunchDaemons
-                let dstDir = "/Library/LaunchDaemons"
-                _ = Self.run("/bin/mkdir", ["-p", dstDir])
-                let dVhidD = (dstDir as NSString).appendingPathComponent("\(Self.vhidDaemonServiceID).plist")
-                let dVhidM = (dstDir as NSString).appendingPathComponent("\(Self.vhidManagerServiceID).plist")
-                _ = Self.run("/bin/cp", [tVhidD, dVhidD])
-                _ = Self.run("/bin/cp", [tVhidM, dVhidM])
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", dVhidD])
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", dVhidM])
-                _ = Self.run("/bin/chmod", ["644", dVhidD])
-                _ = Self.run("/bin/chmod", ["644", dVhidM])
-
-                // Bootstrap and kickstart
-                let bs1 = Self.run("/bin/launchctl", ["bootstrap", "system", dVhidD])
-                if bs1.status != 0 { throw HelperError.operationFailed("bootstrap vhid-daemon failed: \(bs1.out)") }
-                let bs2 = Self.run("/bin/launchctl", ["bootstrap", "system", dVhidM])
-                if bs2.status != 0 { throw HelperError.operationFailed("bootstrap vhid-manager failed: \(bs2.out)") }
-                _ = Self.run("/bin/launchctl", ["enable", "system/\(Self.vhidDaemonServiceID)"])
-                _ = Self.run("/bin/launchctl", ["enable", "system/\(Self.vhidManagerServiceID)"])
-                _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(Self.vhidDaemonServiceID)"])
-                _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(Self.vhidManagerServiceID)"])
+                try Self.installOrRepairVHIDServices()
             },
             reply: reply
         )
@@ -298,41 +184,22 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installLaunchDaemonServicesWithoutLoading",
             operation: {
-                // Install plist files only, without loading/starting services
-                let appBundle = Self.appBundlePathFromHelper()
-                let bundledKanata = (appBundle as NSString).appendingPathComponent("Contents/Library/KeyPath/kanata")
-
-                // Copy to system location with TCC permissions
-                let systemKanataDir = "/Library/KeyPath/bin"
-                let systemKanataPath = "\(systemKanataDir)/kanata"
-                _ = Self.run("/bin/mkdir", ["-p", systemKanataDir])
-                _ = Self.copyIfDifferent(src: bundledKanata, dst: systemKanataPath)
-                _ = Self.run("/usr/sbin/chown", ["root:wheel", systemKanataPath])
-                _ = Self.run("/bin/chmod", ["755", systemKanataPath])
-
-                let consoleHome = Self.consoleUserHomeDirectory() ?? "/var/root"
-                let cfgPath = "\(consoleHome)/.config/keypath/keypath.kbd"
-                let tcpPort = 37001
-
-                let kanataPlist = Self.generateKanataPlist(binaryPath: systemKanataPath, cfgPath: cfgPath, tcpPort: tcpPort)
+                // Install VirtualHID plist files only, without loading/starting services
                 let vhidDPlist = Self.generateVHIDDaemonPlist()
                 let vhidMPlist = Self.generateVHIDManagerPlist()
 
                 let tmp = NSTemporaryDirectory()
-                let tKanata = (tmp as NSString).appendingPathComponent("\(Self.kanataServiceID).plist")
                 let tVhidD = (tmp as NSString).appendingPathComponent("\(Self.vhidDaemonServiceID).plist")
                 let tVhidM = (tmp as NSString).appendingPathComponent("\(Self.vhidManagerServiceID).plist")
-                try kanataPlist.write(toFile: tKanata, atomically: true, encoding: .utf8)
                 try vhidDPlist.write(toFile: tVhidD, atomically: true, encoding: .utf8)
                 try vhidMPlist.write(toFile: tVhidM, atomically: true, encoding: .utf8)
 
                 let dstDir = "/Library/LaunchDaemons"
                 _ = Self.run("/bin/mkdir", ["-p", dstDir])
-                let dKanata = (dstDir as NSString).appendingPathComponent("\(Self.kanataServiceID).plist")
                 let dVhidD = (dstDir as NSString).appendingPathComponent("\(Self.vhidDaemonServiceID).plist")
                 let dVhidM = (dstDir as NSString).appendingPathComponent("\(Self.vhidManagerServiceID).plist")
 
-                for (src, dst) in [(tKanata, dKanata), (tVhidD, dVhidD), (tVhidM, dVhidM)] {
+                for (src, dst) in [(tVhidD, dVhidD), (tVhidM, dVhidM)] {
                     _ = Self.run("/bin/rm", ["-f", dst])
                     _ = Self.run("/bin/cp", [src, dst])
                     _ = Self.run("/usr/sbin/chown", ["root:wheel", dst])
@@ -426,6 +293,47 @@ class HelperService: NSObject, HelperProtocol {
             },
             reply: reply
         )
+    }
+
+    // Shared implementation for installing/repairing VHID services
+    private static func installOrRepairVHIDServices() throws {
+        try ensureConsoleUserConfigArtifacts()
+
+        // Boot out existing jobs (ignore failures)
+        _ = run("/bin/launchctl", ["bootout", "system/\(vhidDaemonServiceID)"])
+        _ = run("/bin/launchctl", ["bootout", "system/\(vhidManagerServiceID)"])
+
+        // Generate plists
+        let vhidDPlist = generateVHIDDaemonPlist()
+        let vhidMPlist = generateVHIDManagerPlist()
+
+        let tmp = NSTemporaryDirectory()
+        let tVhidD = (tmp as NSString).appendingPathComponent("\(vhidDaemonServiceID).plist")
+        let tVhidM = (tmp as NSString).appendingPathComponent("\(vhidManagerServiceID).plist")
+        try vhidDPlist.write(toFile: tVhidD, atomically: true, encoding: .utf8)
+        try vhidMPlist.write(toFile: tVhidM, atomically: true, encoding: .utf8)
+
+        // Install to LaunchDaemons
+        let dstDir = "/Library/LaunchDaemons"
+        _ = run("/bin/mkdir", ["-p", dstDir])
+        let dVhidD = (dstDir as NSString).appendingPathComponent("\(vhidDaemonServiceID).plist")
+        let dVhidM = (dstDir as NSString).appendingPathComponent("\(vhidManagerServiceID).plist")
+        _ = run("/bin/cp", [tVhidD, dVhidD])
+        _ = run("/bin/cp", [tVhidM, dVhidM])
+        _ = run("/usr/sbin/chown", ["root:wheel", dVhidD])
+        _ = run("/usr/sbin/chown", ["root:wheel", dVhidM])
+        _ = run("/bin/chmod", ["644", dVhidD])
+        _ = run("/bin/chmod", ["644", dVhidM])
+
+        // Bootstrap and kickstart
+        let bs1 = run("/bin/launchctl", ["bootstrap", "system", dVhidD])
+        if bs1.status != 0 { throw HelperError.operationFailed("bootstrap vhid-daemon failed: \(bs1.out)") }
+        let bs2 = run("/bin/launchctl", ["bootstrap", "system", dVhidM])
+        if bs2.status != 0 { throw HelperError.operationFailed("bootstrap vhid-manager failed: \(bs2.out)") }
+        _ = run("/bin/launchctl", ["enable", "system/\(vhidDaemonServiceID)"])
+        _ = run("/bin/launchctl", ["enable", "system/\(vhidManagerServiceID)"])
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidDaemonServiceID)"])
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidManagerServiceID)"])
     }
 
     // MARK: - Process Management
@@ -747,13 +655,32 @@ extension HelperService {
         return "/Applications/KeyPath.app"
     }
 
-    private static func consoleUserHomeDirectory() -> String? {
+    private static func consoleUserInfo() -> (name: String, home: String)? {
         var uid: uid_t = 0
         var gid: gid_t = 0
-        if let name = SCDynamicStoreCopyConsoleUser(nil, &uid, &gid) as String? {
-            return "/Users/\(name)"
+        guard let name = SCDynamicStoreCopyConsoleUser(nil, &uid, &gid) as String?,
+              !name.isEmpty else {
+            return nil
         }
-        return nil
+        return (name, "/Users/\(name)")
+    }
+
+    private static func consoleUserHomeDirectory() -> String? {
+        consoleUserInfo()?.home
+    }
+
+    private static func ensureConsoleUserConfigArtifacts() throws {
+        guard let info = consoleUserInfo() else {
+            NSLog("[KeyPathHelper] Unable to determine console user; skipping config scaffolding")
+            return
+        }
+
+        let configDir = "\(info.home)/.config/keypath"
+        let configFile = "\(configDir)/keypath.kbd"
+
+        _ = run("/usr/bin/install", ["-d", "-o", info.name, "-g", "staff", configDir])
+        _ = run("/usr/bin/touch", [configFile])
+        _ = run("/usr/sbin/chown", ["\(info.name):staff", configFile])
     }
 
     private static func kanataArguments(binaryPath: String, cfgPath: String, tcpPort: Int) -> [String] {
@@ -858,53 +785,4 @@ extension HelperService {
         """
     }
 
-    static func installAllServices(kanataBinaryPath: String, kanataConfigPath: String, tcpPort: Int) throws {
-        // Write temp plists
-        let tmp = NSTemporaryDirectory()
-        let kanataPlist = generateKanataPlist(binaryPath: kanataBinaryPath, cfgPath: kanataConfigPath, tcpPort: tcpPort)
-        let vhidDPlist = generateVHIDDaemonPlist()
-        let vhidMPlist = generateVHIDManagerPlist()
-
-        let tKanata = (tmp as NSString).appendingPathComponent("\(kanataServiceID).plist")
-        let tVhidD = (tmp as NSString).appendingPathComponent("\(vhidDaemonServiceID).plist")
-        let tVhidM = (tmp as NSString).appendingPathComponent("\(vhidManagerServiceID).plist")
-        try kanataPlist.write(toFile: tKanata, atomically: true, encoding: .utf8)
-        try vhidDPlist.write(toFile: tVhidD, atomically: true, encoding: .utf8)
-        try vhidMPlist.write(toFile: tVhidM, atomically: true, encoding: .utf8)
-
-        let dstDir = "/Library/LaunchDaemons"
-        _ = run("/bin/mkdir", ["-p", dstDir])
-
-        let dKanata = (dstDir as NSString).appendingPathComponent("\(kanataServiceID).plist")
-        let dVhidD = (dstDir as NSString).appendingPathComponent("\(vhidDaemonServiceID).plist")
-        let dVhidM = (dstDir as NSString).appendingPathComponent("\(vhidManagerServiceID).plist")
-
-        for (src, dst) in [(tKanata, dKanata), (tVhidD, dVhidD), (tVhidM, dVhidM)] {
-            _ = run("/bin/rm", ["-f", dst])
-            let cp = run("/bin/cp", [src, dst])
-            if cp.status != 0 { throw HelperError.operationFailed("copy failed for \(dst): \(cp.out)") }
-            _ = run("/usr/sbin/chown", ["root:wheel", dst])
-            _ = run("/bin/chmod", ["644", dst])
-        }
-
-        // Register in dependency order
-        _ = run("/bin/launchctl", ["bootout", "system/\(vhidDaemonServiceID)"]) // ignore
-        _ = run("/bin/launchctl", ["bootout", "system/\(vhidManagerServiceID)"]) // ignore
-        _ = run("/bin/launchctl", ["bootout", "system/\(kanataServiceID)"]) // ignore
-
-        let bs1 = run("/bin/launchctl", ["bootstrap", "system", dVhidD])
-        if bs1.status != 0 { throw HelperError.operationFailed("bootstrap vhid-daemon failed: \(bs1.out)") }
-        let bs2 = run("/bin/launchctl", ["bootstrap", "system", dVhidM])
-        if bs2.status != 0 { throw HelperError.operationFailed("bootstrap vhid-manager failed: \(bs2.out)") }
-        let bs3 = run("/bin/launchctl", ["bootstrap", "system", dKanata])
-        if bs3.status != 0 { throw HelperError.operationFailed("bootstrap kanata failed: \(bs3.out)") }
-
-        _ = run("/bin/launchctl", ["enable", "system/\(vhidDaemonServiceID)"])
-        _ = run("/bin/launchctl", ["enable", "system/\(vhidManagerServiceID)"])
-        _ = run("/bin/launchctl", ["enable", "system/\(kanataServiceID)"])
-
-        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidDaemonServiceID)"])
-        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidManagerServiceID)"])
-        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(kanataServiceID)"])
-    }
 }

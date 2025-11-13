@@ -785,11 +785,11 @@ struct WizardStatusItem: View {
 
     var body: some View {
         HStack(spacing: WizardDesign.Spacing.iconGap) {
-            // Main icon only (no status icon on left)
-            Image(systemName: icon)
-                .foregroundColor(.secondary)
-                .font(.system(size: 16))
-                .frame(width: 20)
+            AnimatedStatusIcon(
+                status: status,
+                isFinalStatus: isFinalStatus,
+                showInitialClock: showInitialClock
+            )
 
             // Title and subtitle
             VStack(alignment: .leading, spacing: 2) {
@@ -806,21 +806,11 @@ struct WizardStatusItem: View {
 
             Spacer()
 
-            // All status indicators on the right
-            HStack(spacing: 8) {
-                // Enhanced animated status indicator
-                AnimatedStatusIcon(
-                    status: status,
-                    isFinalStatus: isFinalStatus,
-                    showInitialClock: showInitialClock
-                )
-
-                // Navigation indicator
-                if isNavigable {
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                }
+            // Navigation indicator
+            if isNavigable {
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondary)
+                    .font(.caption)
             }
         }
         .padding(.vertical, WizardDesign.Spacing.labelGap)

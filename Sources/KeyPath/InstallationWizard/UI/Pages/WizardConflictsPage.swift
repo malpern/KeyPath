@@ -4,7 +4,9 @@ import KeyPathWizardCore
 import SwiftUI
 
 struct WizardConflictsPage: View {
+    let systemState: WizardSystemState
     let issues: [WizardIssue]
+    let allIssues: [WizardIssue]
     let isFixing: Bool
     let onRefresh: () -> Void
     let kanataManager: KanataManager
@@ -43,6 +45,12 @@ struct WizardConflictsPage: View {
                             }
                         }
                     )
+
+                    Button(nextStepButtonTitle) {
+                        navigateToNextStep()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -97,6 +105,24 @@ struct WizardConflictsPage: View {
         .onAppear {
             // Force a refresh when the page appears to avoid stale conflict snapshots
             onRefresh()
+        }
+    }
+
+    private var nextStepButtonTitle: String {
+        allIssues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
+    private func navigateToNextStep() {
+        if allIssues.isEmpty {
+            navigationCoordinator.navigateToPage(.summary)
+            return
+        }
+
+        if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
+           nextPage != navigationCoordinator.currentPage {
+            navigationCoordinator.navigateToPage(nextPage)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
         }
     }
 }

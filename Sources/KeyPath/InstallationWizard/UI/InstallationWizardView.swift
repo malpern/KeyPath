@@ -1,3 +1,4 @@
+import AppKit
 import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
@@ -31,6 +32,7 @@ struct InstallationWizardView: View {
     @State private var currentIssues: [WizardIssue] = []
     @State private var showAllSummaryItems: Bool = false
     @State private var navSequence: [WizardPage] = []
+    @State private var showingBackgroundApprovalPrompt = false
 
     // Task management for race condition prevention
     @State private var refreshTask: Task<Void, Never>?
@@ -144,6 +146,9 @@ struct InstallationWizardView: View {
             // Monitor state changes
             await monitorSystemState()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .smAppServiceApprovalRequired)) { _ in
+            showingBackgroundApprovalPrompt = true
+        }
         .overlay {
             if showingStartConfirmation {
                 StartConfirmationDialog(
@@ -175,6 +180,19 @@ struct InstallationWizardView: View {
                     "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
             )
         }
+        .alert("Approve KeyPath Background Item", isPresented: $showingBackgroundApprovalPrompt) {
+            Button("Open Login Items") {
+                showingBackgroundApprovalPrompt = false
+                openLoginItemsSettings()
+            }
+            Button("Later", role: .cancel) {
+                showingBackgroundApprovalPrompt = false
+            }
+        } message: {
+            Text(
+                "macOS blocked the helper because KeyPath isn’t yet approved in System Settings → General → Login Items & Extensions. Open Login Items and enable KeyPath under Background Items to allow the helper to run."
+            )
+        }
     }
 
     // MARK: - UI Components
@@ -200,10 +218,15 @@ struct InstallationWizardView: View {
                     navSequence: $navSequence
                 )
             case .fullDiskAccess:
-                WizardFullDiskAccessPage()
+                WizardFullDiskAccessPage(
+                    systemState: systemState,
+                    issues: currentIssues
+                )
             case .conflicts:
                 WizardConflictsPage(
+                    systemState: systemState,
                     issues: currentIssues.filter { $0.category == .conflicts },
+                    allIssues: currentIssues,
                     isFixing: asyncOperationManager.hasRunningOperations,
                     onRefresh: { refreshState() },
                     kanataManager: kanataManager
@@ -212,6 +235,7 @@ struct InstallationWizardView: View {
                 WizardInputMonitoringPage(
                     systemState: systemState,
                     issues: currentIssues.filter { $0.category == .permissions },
+                    allIssues: currentIssues,
                     stateInterpreter: stateInterpreter,
                     onRefresh: { refreshState() },
                     onNavigateToPage: { page in
@@ -226,6 +250,7 @@ struct InstallationWizardView: View {
                 WizardAccessibilityPage(
                     systemState: systemState,
                     issues: currentIssues.filter { $0.category == .permissions },
+                    allIssues: currentIssues,
                     onRefresh: { refreshState() },
                     onNavigateToPage: { page in
                         navigationCoordinator.navigateToPage(page)
@@ -246,6 +271,7 @@ struct InstallationWizardView: View {
                 )
             case .kanataComponents:
                 WizardKanataComponentsPage(
+                    systemState: systemState,
                     issues: currentIssues,
                     isFixing: asyncOperationManager.hasRunningOperations,
                     onAutoFix: performAutoFix,
@@ -263,13 +289,16 @@ struct InstallationWizardView: View {
                 )
             case .communication:
                 WizardCommunicationPage(
+                    systemState: systemState,
+                    issues: currentIssues,
                     onAutoFix: performAutoFix
                 )
             case .service:
                 WizardKanataServicePage(
                     systemState: systemState,
                     issues: currentIssues,
-                    onRefresh: { refreshState() }
+                    onRefresh: { refreshState() },
+                    toastManager: toastManager
                 )
             }
         }
@@ -315,17 +344,23 @@ struct InstallationWizardView: View {
         // Always reset navigation state for fresh run
         navigationCoordinator.navigationEngine.resetNavigationState()
 
-        // If an initial page was specified, navigate to it
-        if let initialPage {
-            AppLogger.shared.log("🔍 [Wizard] Navigating to initial page: \(initialPage)")
-            navigationCoordinator.navigateToPage(initialPage)
-        }
-
         // Configure state manager
         stateManager.configure(kanataManager: kanataManager)
         autoFixer.configure(kanataManager: kanataManager, toastManager: toastManager)
 
         // Show summary page immediately with validation state
+        // Determine initial page based on cached system snapshot (if available)
+        let preferredPage = cachedPreferredPage()
+        if let preferredPage, initialPage == nil {
+            AppLogger.shared.log("🔍 [Wizard] Preferring cached page: \(preferredPage)")
+            navigationCoordinator.navigateToPage(preferredPage)
+        } else if let initialPage {
+            AppLogger.shared.log("🔍 [Wizard] Navigating to initial page override: \(initialPage)")
+            navigationCoordinator.navigateToPage(initialPage)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
+        }
+
         Task {
             await MainActor.run {
                 // Start validation state
@@ -375,8 +410,10 @@ struct InstallationWizardView: View {
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             let wizardDuration = Date().timeIntervalSince(preflightStart)
             AppLogger.shared.log("⏱️ [TIMING] Wizard validation COMPLETE: \(String(format: "%.3f", wizardDuration))s")
+            let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
             systemState = result.state
-            currentIssues = result.issues
+            currentIssues = filteredIssues
+            kanataManager.lastWizardSnapshot = WizardSnapshotRecord(state: result.state, issues: filteredIssues)
             // Start at summary page - no auto navigation
             // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
@@ -389,14 +426,26 @@ struct InstallationWizardView: View {
             }
 
             AppLogger.shared.log(
-                "🔍 [Wizard] Initial setup - State: \(result.state), Issues: \(result.issues.count), Target Page: \(navigationCoordinator.currentPage)"
+                "🔍 [Wizard] Initial setup - State: \(result.state), Issues: \(filteredIssues.count), Target Page: \(navigationCoordinator.currentPage)"
             )
             AppLogger.shared.log(
-                "🔍 [Wizard] Issue details: \(result.issues.map { "\($0.category)-\($0.title)" })")
+                "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })")
+
+            Task { @MainActor in
+                if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
+                   navigationCoordinator.currentPage != preferred {
+                    AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
+                    navigationCoordinator.navigateToPage(preferred)
+                } else if navigationCoordinator.currentPage == .summary {
+                    // Wait a tick for navSequence to be updated by WizardSystemStatusOverview's onChange handlers
+                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                    autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
+                }
+            }
 
             // Targeted auto-navigation: if helper isn’t installed, go to Helper page first
             let recommended = navigationCoordinator.navigationEngine
-                .determineCurrentPage(for: result.state, issues: result.issues)
+                .determineCurrentPage(for: result.state, issues: filteredIssues)
             if recommended == .helper, navigationCoordinator.currentPage == .summary {
                 AppLogger.shared.log("🔍 [Wizard] Auto-navigating to Helper page (helper missing)")
                 navigationCoordinator.navigateToPage(.helper)
@@ -454,11 +503,12 @@ struct InstallationWizardView: View {
                 let oldState = systemState
                 let oldPage = navigationCoordinator.currentPage
 
+                let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
                 systemState = result.state
-                currentIssues = result.issues
+                currentIssues = filteredIssues
 
                 AppLogger.shared.log(
-                    "🔍 [Navigation] Current: \(navigationCoordinator.currentPage), Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
+                    "🔍 [Navigation] Current: \(navigationCoordinator.currentPage), Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
                 )
 
                 // No auto-navigation - stay on current page
@@ -541,9 +591,15 @@ struct InstallationWizardView: View {
                             if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
                                 Task {
                                     try? await Task.sleep(nanoseconds: 1_000_000_000)
+                                    let latestResult = await stateManager.detectCurrentState()
+                                    let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
+                                    await MainActor.run {
+                                        systemState = latestResult.state
+                                        currentIssues = filteredIssues
+                                    }
                                     let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-                                        systemState: systemState,
-                                        issues: currentIssues
+                                        systemState: latestResult.state,
+                                        issues: filteredIssues
                                     )
                                     AppLogger.shared.log("🔍 [Wizard] Post-fix (bulk) health check: karabinerStatus=\(karabinerStatus)")
                                     if karabinerStatus != .completed {
@@ -639,9 +695,15 @@ struct InstallationWizardView: View {
                                 // Schedule a follow-up health check; if still red, show a diagnostic error toast
                                 Task {
                                     try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0 seconds to allow state to settle
+                                    let latestResult = await stateManager.detectCurrentState()
+                                    let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
+                                    await MainActor.run {
+                                        systemState = latestResult.state
+                                        currentIssues = filteredIssues
+                                    }
                                     let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-                                        systemState: systemState,
-                                        issues: currentIssues
+                                        systemState: latestResult.state,
+                                        issues: filteredIssues
                                     )
                                     AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
                                     if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon, karabinerStatus != .completed {
@@ -762,11 +824,104 @@ struct InstallationWizardView: View {
         )
 
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
+            let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
             systemState = result.state
-            currentIssues = result.issues
+            currentIssues = filteredIssues
+            kanataManager.lastWizardSnapshot = WizardSnapshotRecord(state: result.state, issues: filteredIssues)
+            Task { @MainActor in
+                if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
+                   navigationCoordinator.currentPage != preferred {
+                    AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
+                    navigationCoordinator.navigateToPage(preferred)
+                } else if navigationCoordinator.currentPage == .summary {
+                    // Wait a tick for navSequence to be updated by WizardSystemStatusOverview's onChange handlers
+                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                    autoNavigateIfSingleIssue(in: filteredIssues, state: result.state)
+                }
+            }
             AppLogger.shared.log(
-                "🔍 [Wizard] Refresh complete - Issues: \(result.issues.map { "\($0.category)-\($0.title)" })"
+                "🔍 [Wizard] Refresh complete - Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
             )
+        }
+    }
+
+    @MainActor
+    private func autoNavigateIfSingleIssue(in issues: [WizardIssue], state: WizardSystemState) {
+        AppLogger.shared.log("🔍 [AutoNav] ===== autoNavigateIfSingleIssue CALLED =====")
+        AppLogger.shared.log("🔍 [AutoNav] Current page: \(navigationCoordinator.currentPage)")
+        AppLogger.shared.log("🔍 [AutoNav] Issues count: \(issues.count)")
+        AppLogger.shared.log("🔍 [AutoNav] navSequence count: \(navSequence.count)")
+        AppLogger.shared.log("🔍 [AutoNav] navSequence pages: \(navSequence.map { $0.displayName })")
+
+        guard navigationCoordinator.currentPage == .summary else {
+            AppLogger.shared.log("🔍 [AutoNav] SKIP: Not on summary page")
+            return
+        }
+
+        // If there's exactly 1 item in the summary list, navigate to it directly
+        // navSequence represents what's actually displayed, so trust it
+        guard navSequence.count == 1, let targetPage = navSequence.first else {
+            AppLogger.shared.log("🔍 [AutoNav] ❌ NOT AUTO-NAVIGATING: navSequence has \(navSequence.count) items")
+            return
+        }
+
+        AppLogger.shared.log("🔍 [AutoNav] ✅ AUTO-NAVIGATING to \(targetPage) (single item in summary)")
+        navigationCoordinator.navigateToPage(targetPage)
+        AppLogger.shared.log("🔍 [AutoNav] Navigation command sent")
+    }
+
+    private func preferredDetailPage(for state: WizardSystemState, issues: [WizardIssue]) -> WizardPage? {
+        let page = navigationCoordinator.navigationEngine.determineCurrentPage(for: state, issues: issues)
+        guard page != .summary else { return nil }
+
+        let hasExactlyOneIssue = issues.count == 1
+        let serviceOnly = issues.isEmpty && page == .service
+        return (hasExactlyOneIssue || serviceOnly) ? page : nil
+    }
+
+    private func cachedPreferredPage() -> WizardPage? {
+        // Use last known system state from KanataManager if available
+        guard let cachedState = kanataManager.lastWizardSnapshot else { return nil }
+        let adaptedIssues = cachedState.issues
+        let adaptedState = cachedState.state
+        return preferredDetailPage(for: adaptedState, issues: adaptedIssues)
+    }
+
+    private func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState) -> [WizardIssue] {
+        guard shouldSuppressCommunicationIssues(for: state) else {
+            return issues
+        }
+
+        let filtered = issues.filter { !isCommunicationIssue($0) }
+        if filtered.count != issues.count {
+            AppLogger.shared.log(
+                "🔇 [Wizard] Suppressing \(issues.count - filtered.count) communication issue(s) because Kanata service is not running"
+            )
+        }
+        return filtered
+    }
+
+    private func shouldSuppressCommunicationIssues(for state: WizardSystemState) -> Bool {
+        if case .active = state {
+            return false
+        }
+        return true
+    }
+
+    private func isCommunicationIssue(_ issue: WizardIssue) -> Bool {
+        guard case let .component(component) = issue.identifier else {
+            return false
+        }
+
+        switch component {
+        case .kanataTCPServer,
+             .communicationServerConfiguration,
+             .communicationServerNotResponding,
+             .tcpServerConfiguration,
+             .tcpServerNotResponding:
+            return true
+        default:
+            return false
         }
     }
 
@@ -782,13 +937,17 @@ struct InstallationWizardView: View {
                     asyncOperationManager.execute(operation: operation) { (success: Bool) in
                         if success {
                             AppLogger.shared.log("✅ [Wizard] Kanata service started successfully")
+                            toastManager.showSuccess("Kanata service started")
                             dismissAndRefreshMainScreen()
                         } else {
                             AppLogger.shared.log("❌ [Wizard] Failed to start Kanata service")
+                            let failureMessage = kanataManager.lastError ?? "Kanata service failed to stay running. Review /var/log/com.keypath.kanata.stderr.log for details."
+                            toastManager.showError(failureMessage)
                         }
                     } onFailure: { error in
                         AppLogger.shared.log(
                             "❌ [Wizard] Error starting Kanata service: \(error.localizedDescription)")
+                        toastManager.showError("Start failed: \(error.localizedDescription)")
                     }
                 } else {
                     // Service already running, dismiss wizard
@@ -841,6 +1000,15 @@ struct InstallationWizardView: View {
         // Use structured concurrency; hop to MainActor for UI-safe cleanup without blocking
         Task { @MainActor [weak asyncOperationManager] in
             asyncOperationManager?.cancelAllOperationsAsync()
+        }
+    }
+
+    private func openLoginItemsSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        } else {
+            let fallbackURL = URL(fileURLWithPath: "/System/Applications/System Settings.app")
+            NSWorkspace.shared.openApplication(at: fallbackURL, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
         }
     }
 

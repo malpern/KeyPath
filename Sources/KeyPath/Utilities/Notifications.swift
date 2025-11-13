@@ -11,6 +11,13 @@ extension Notification.Name {
     // Wizard events
     static let wizardClosed = Notification.Name("KeyPath.Wizard.Closed")
 
+    // Settings navigation
+    static let openSettingsGeneral = Notification.Name("KeyPath.Settings.General")
+    static let openSettingsRules = Notification.Name("KeyPath.Settings.Rules")
+    static let openSettingsSystemStatus = Notification.Name("KeyPath.Settings.SystemStatus")
+    static let openSettingsLogs = Notification.Name("KeyPath.Settings.Logs")
+    static let openSettingsAdvanced = Notification.Name("KeyPath.Settings.Advanced")
+
     // User notification actions
     static let openInstallationWizard = Notification.Name("KeyPath.Action.OpenWizard")
     static let retryStartService = Notification.Name("KeyPath.Action.RetryStart")
@@ -18,4 +25,10 @@ extension Notification.Name {
     static let openAccessibilitySettings = Notification.Name("KeyPath.Action.OpenAccessibility")
     static let openApp = Notification.Name("KeyPath.Action.OpenApp")
     static let pauseForLowPower = Notification.Name("KeyPath.Action.PauseLowPower")
+
+    // SMAppService
+    static let smAppServiceApprovalRequired = Notification.Name("KeyPath.SMAppService.ApprovalRequired")
+
+    // Uninstall flow
+    static let keyPathUninstallCompleted = Notification.Name("KeyPath.Uninstall.Completed")
 }

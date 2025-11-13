@@ -15,6 +15,16 @@ import KeyPathCore
 /// ```
 @MainActor
 final class PrivilegedOperationsCoordinator {
+    private static let serviceGuardLogPrefix = "[ServiceInstallGuard]"
+    private static let serviceInstallThrottle: TimeInterval = 30
+    private static var lastServiceInstallAttempt: Date?
+    private static var lastSMAppApprovalNotice: Date?
+    private static let smAppApprovalNoticeThrottle: TimeInterval = 5
+
+    #if DEBUG
+        nonisolated(unsafe) static var serviceStateOverride: (() -> KanataDaemonManager.ServiceManagementState)?
+        nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
+    #endif
     // MARK: - Singleton
 
     static let shared = PrivilegedOperationsCoordinator()
@@ -95,21 +105,83 @@ final class PrivilegedOperationsCoordinator {
         try await sudoInstallAllServicesWithPreferences()
     }
 
+    private func currentServiceState() -> KanataDaemonManager.ServiceManagementState {
+        #if DEBUG
+            if let override = Self.serviceStateOverride {
+                return override()
+            }
+        #endif
+        return KanataDaemonManager.determineServiceManagementState()
+    }
+
+    private func runServiceInstall() async throws {
+        #if DEBUG
+            if let override = Self.installAllServicesOverride {
+                try await override()
+                return
+            }
+        #endif
+        try await installAllLaunchDaemonServices()
+    }
+
     /// Restart unhealthy LaunchDaemon services
     func restartUnhealthyServices() async throws {
         AppLogger.shared.log("🔐 [PrivCoordinator] Restarting unhealthy services")
 
-        switch Self.operationMode {
-        case .privilegedHelper:
-            do {
-                try await helperRestartServices()
-            } catch {
-                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper restartUnhealthyServices failed: \(error.localizedDescription). Using AppleScript/sudo path.")
-                try await sudoRestartServices()
-            }
-        case .directSudo:
-            try await sudoRestartServices()
+        // If the Kanata service is completely uninstalled, install everything first.
+        if try await installServicesIfUninstalled(context: "pre-restart") {
+            AppLogger.shared.log("✅ [PrivCoordinator] Installed services before restart request – skipping restart call")
+            return
         }
+
+        try await sudoRestartServices()
+
+        // Double-check after restart – helper path cannot install SMAppService jobs.
+        if try await installServicesIfUninstalled(context: "post-restart") {
+            AppLogger.shared.log("✅ [PrivCoordinator] Service installed after restart attempt")
+        }
+    }
+
+    /// Installs all LaunchDaemon services via SMAppService when the Kanata daemon is missing.
+    /// - Returns: `true` if installation was performed.
+    @discardableResult
+    func installServicesIfUninstalled(context: String) async throws -> Bool {
+        let state = currentServiceState()
+        AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): state=\(state.description)")
+
+        if state == .smappservicePending {
+            Self.notifySMAppServiceApprovalRequired(context: context)
+        }
+
+        let requiresInstall = state.needsInstallation || state.needsMigration()
+
+        guard requiresInstall else {
+            AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): no install needed")
+            return false
+        }
+
+        if state.needsMigration() {
+            await removeLegacyKanataPlist(reason: context)
+        }
+
+        let now = Date()
+        if let last = Self.lastServiceInstallAttempt,
+           now.timeIntervalSince(last) < Self.serviceInstallThrottle {
+            let remaining = Self.serviceInstallThrottle - now.timeIntervalSince(last)
+            AppLogger.shared.log(
+                "\(Self.serviceGuardLogPrefix) \(context): skipping auto-install (throttled, \(String(format: "%.1f", remaining))s remaining)"
+            )
+            return false
+        }
+
+        Self.lastServiceInstallAttempt = now
+        AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): running SMAppService install")
+        try await runServiceInstall()
+        let postInstallState = currentServiceState()
+        AppLogger.shared.log(
+            "\(Self.serviceGuardLogPrefix) \(context): install complete, new state=\(postInstallState.description)"
+        )
+        return true
     }
 
     /// Regenerate service configuration with current settings
@@ -289,36 +361,6 @@ final class PrivilegedOperationsCoordinator {
         try await HelperManager.shared.installLaunchDaemon(plistPath: plistPath, serviceID: serviceID)
     }
 
-    private func helperInstallAllServices(
-        kanataBinaryPath: String,
-        kanataConfigPath: String,
-        tcpPort: Int
-    ) async throws {
-        try await HelperManager.shared.installAllLaunchDaemonServices(
-            kanataBinaryPath: kanataBinaryPath,
-            kanataConfigPath: kanataConfigPath,
-            tcpPort: tcpPort
-        )
-    }
-
-    private func helperInstallAllServicesWithPreferences() async throws {
-        do {
-            try await HelperManager.shared.installAllLaunchDaemonServicesWithPreferences()
-        } catch {
-            let msg: String = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-            if msg.localizedCaseInsensitiveContains("not yet implemented") {
-                AppLogger.shared.log("🚨 [PrivCoordinator] FALLBACK: helper installAllLaunchDaemonServicesWithPreferences not implemented. Using AppleScript/sudo path.")
-                try await sudoInstallAllServicesWithPreferences()
-            } else {
-                throw error
-            }
-        }
-    }
-
-    private func helperRestartServices() async throws {
-        try await HelperManager.shared.restartUnhealthyServices()
-    }
-
     private func helperRegenerateConfig() async throws {
         AppLogger.shared.log("🔧 [PrivCoordinator] Bypassing helper - using SMAppService path directly")
         // Always use SMAppService path for Kanata (helper doesn't support SMAppService)
@@ -350,6 +392,21 @@ final class PrivilegedOperationsCoordinator {
             } else {
                 throw error
             }
+        }
+    }
+
+    private func removeLegacyKanataPlist(reason: String) async {
+        let path = KanataDaemonManager.legacyPlistPath
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        AppLogger.shared.log("🧹 [PrivCoordinator] Removing legacy Kanata plist (reason: \(reason))")
+        let cmd = """
+        /bin/launchctl bootout system/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true && \
+        /bin/rm -f '\(path)'
+        """
+        do {
+            try await sudoExecuteCommand(cmd, description: "Remove legacy Kanata plist")
+        } catch {
+            AppLogger.shared.log("⚠️ [PrivCoordinator] Failed to remove legacy Kanata plist: \(error)")
         }
     }
 
@@ -802,7 +859,33 @@ final class PrivilegedOperationsCoordinator {
             return []
         }
     }
+
+    private static func notifySMAppServiceApprovalRequired(context: String) {
+        let now = Date()
+        if let last = lastSMAppApprovalNotice,
+           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle {
+            return
+        }
+        lastSMAppApprovalNotice = now
+        AppLogger.shared.log("⚠️ \(serviceGuardLogPrefix) \(context): SMAppService pending approval - notifying UI")
+        NotificationCenter.default.post(name: .smAppServiceApprovalRequired, object: nil)
+    }
 }
+
+#if DEBUG
+    @_spi(ServiceInstallTesting)
+    extension PrivilegedOperationsCoordinator {
+        func _testEnsureServices(context: String) async throws -> Bool {
+            try await installServicesIfUninstalled(context: context)
+        }
+
+        static func _testResetServiceInstallGuard() {
+            serviceStateOverride = nil
+            installAllServicesOverride = nil
+            lastServiceInstallAttempt = nil
+        }
+    }
+#endif
 
 // MARK: - Error Types
 

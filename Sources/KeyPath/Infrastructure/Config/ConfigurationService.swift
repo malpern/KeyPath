@@ -129,7 +129,18 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func reload() async throws -> KanataConfiguration {
-        let exists = await fileExistsAsync(path: configurationPath)
+        var exists = await fileExistsAsync(path: configurationPath)
+
+        if !exists {
+            AppLogger.shared.log("⚠️ [ConfigService] Config missing at \(configurationPath) – creating default before reload")
+            do {
+                try await createInitialConfigIfNeeded()
+                exists = await fileExistsAsync(path: configurationPath)
+            } catch {
+                AppLogger.shared.log("❌ [ConfigService] Failed to create default config during reload: \(error)")
+            }
+        }
+
         guard exists else {
             throw KeyPathError.configuration(.fileNotFound(path: configurationPath))
         }

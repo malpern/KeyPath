@@ -26,18 +26,6 @@ import Foundation
     ///   - reply: Completion handler with (success, errorMessage)
     func installLaunchDaemon(plistPath: String, serviceID: String, reply: @escaping (Bool, String?) -> Void)
 
-    /// Install all LaunchDaemon services (Kanata, VHID Manager, etc.)
-    /// - Parameters:
-    ///   - kanataBinaryPath: Path to the Kanata binary
-    ///   - kanataConfigPath: Path to the Kanata configuration file
-    ///   - tcpPort: TCP port for Kanata server
-    ///   - reply: Completion handler with (success, errorMessage)
-    func installAllLaunchDaemonServices(kanataBinaryPath: String, kanataConfigPath: String, tcpPort: Int, reply: @escaping (Bool, String?) -> Void)
-
-    /// Install all LaunchDaemon services using preferences (reads paths from PreferencesService)
-    /// - Parameter reply: Completion handler with (success, errorMessage)
-    func installAllLaunchDaemonServicesWithPreferences(reply: @escaping (Bool, String?) -> Void)
-
     /// Restart services that are in an unhealthy state
     /// - Parameter reply: Completion handler with (success, errorMessage)
     func restartUnhealthyServices(reply: @escaping (Bool, String?) -> Void)

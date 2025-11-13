@@ -4,6 +4,13 @@ import KeyPathCore
 /// Manages the Karabiner VirtualHIDDevice Manager component
 /// This is critical for keyboard remapping functionality on macOS
 final class VHIDDeviceManager: @unchecked Sendable {
+    private enum DaemonHealthState {
+        case healthy
+        case notRunning
+        case duplicateProcesses
+        case timeout
+        case error
+    }
     // MARK: - Constants
 
     private static let vhidManagerPath =
@@ -54,10 +61,32 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Checks if VirtualHIDDevice processes are currently running
     func detectRunning() -> Bool {
+        let maxAttempts = FeatureFlags.shared.startupModeActive ? 1 : 2
+        let retryDelay: useconds_t = 500_000 // 0.5s between attempts to allow daemon to settle
+
+        for attempt in 1...maxAttempts {
+            switch evaluateDaemonProcess() {
+            case .healthy:
+                return true
+            case .notRunning:
+                if attempt < maxAttempts {
+                    AppLogger.shared.log("⏳ [VHIDManager] Daemon reported not running; retrying shortly to avoid false positives")
+                    usleep(retryDelay)
+                    continue
+                }
+                return false
+            case .duplicateProcesses, .timeout, .error:
+                return false
+            }
+        }
+        return false
+    }
+
+    private func evaluateDaemonProcess() -> DaemonHealthState {
         // Skip daemon check during startup to prevent blocking
         if FeatureFlags.shared.startupModeActive {
             AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze")
-            return false // Assume not running during startup
+            return .notRunning
         }
 
         // Test seam: allow mocked PID list in tests
@@ -67,17 +96,17 @@ final class VHIDDeviceManager: @unchecked Sendable {
             let processCount = pids.count
             if processCount == 0 {
                 AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: NOT RUNNING")
-                return false
+                return .notRunning
             }
             if processCount > 1 {
                 AppLogger.shared.log("❌ [VHIDManager] (test) UNHEALTHY: Multiple VHIDDevice daemon processes detected (\(processCount))")
                 AppLogger.shared.log("❌ [VHIDManager] (test) PIDs: \(pids.joined(separator: ", "))")
                 let duration = CFAbsoluteTimeGetCurrent() - startTime
                 AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)")
-                return false
+                return .duplicateProcesses
             }
             AppLogger.shared.log("🔍 [VHIDManager] (test) VHIDDevice daemon health: HEALTHY (single instance)")
-            return true
+            return .healthy
         }
 
         let task = Process()
@@ -105,7 +134,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
             if timeoutResult == .timedOut {
                 task.terminate()
                 AppLogger.shared.log("⚠️ [VHIDManager] VHIDDevice process check timed out after 2s - assuming not running")
-                return false
+                return .timeout
             }
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -123,16 +152,16 @@ final class VHIDDeviceManager: @unchecked Sendable {
                     AppLogger.shared.log("❌ [VHIDManager] PIDs: \(pids.joined(separator: ", "))")
                     let duration = CFAbsoluteTimeGetCurrent() - startTime
                     AppLogger.shared.log("🔍 [VHIDManager] VHIDDevice daemon health: UNHEALTHY (duplicates) (took \(String(format: "%.3f", duration))s)")
-                    return false // UNHEALTHY - duplicates must be fixed
+                    return .duplicateProcesses
                 }
             }
 
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             AppLogger.shared.log("🔍 [VHIDManager] VHIDDevice daemon health: \(isRunning ? "HEALTHY" : "NOT RUNNING") (took \(String(format: "%.3f", duration))s)")
-            return isRunning
+            return isRunning ? .healthy : .notRunning
         } catch {
             AppLogger.shared.log("❌ [VHIDManager] Error checking VHIDDevice processes: \(error)")
-            return false
+            return .error
         }
     }
 

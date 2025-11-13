@@ -466,4 +466,15 @@ class ConfigurationServiceTests: XCTestCase {
         let fired = await flag.get()
         XCTAssertTrue(fired, "Observer should fire on main actor for UI safety")
     }
+
+    func testReloadCreatesDefaultConfigWhenMissing() async throws {
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        try? FileManager.default.removeItem(at: configPath)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: configPath.path))
+
+        let config = try await configService.reload()
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: configPath.path), "Reload should create default config when missing")
+        XCTAssertFalse(config.content.isEmpty, "Default config content should not be empty")
+    }
 }

@@ -69,6 +69,12 @@ struct WizardKarabinerComponentsPage: View {
                         .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                         .padding(.top, WizardDesign.Spacing.sectionGap)
                     }
+
+                    Button(nextStepButtonTitle) {
+                        navigateToNextStep()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -168,6 +174,10 @@ struct WizardKarabinerComponentsPage: View {
         ) != .completed
     }
 
+    private var nextStepButtonTitle: String {
+        issues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
     private var karabinerRelatedIssues: [WizardIssue] {
         // Use centralized evaluator (single source of truth)
         KarabinerComponentsStatusEvaluator.getKarabinerRelatedIssues(from: issues)
@@ -197,6 +207,20 @@ struct WizardKarabinerComponentsPage: View {
 
     private var needsManualAction: Bool {
         componentStatus(for: .backgroundServices) == .failed
+    }
+
+    private func navigateToNextStep() {
+        if issues.isEmpty {
+            navigationCoordinator.navigateToPage(.summary)
+            return
+        }
+
+        if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
+           nextPage != navigationCoordinator.currentPage {
+            navigationCoordinator.navigateToPage(nextPage)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
+        }
     }
 
     private func getComponentTitle(for issue: WizardIssue) -> String {

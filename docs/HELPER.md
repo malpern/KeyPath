@@ -164,7 +164,6 @@ KeyPath/
 - [x] Extract current sudo code to coordinator methods (17 operations)
 - [x] Create contract interface `PrivilegedOperations` protocol
 - [x] Implement provider pattern `PrivilegedOperationsProvider`
-- [x] Create legacy implementation wrapper `LegacyPrivilegedOperations`
 - [x] Create mock for testing `MockPrivilegedOperations`
 - [x] Test: All operations verified working with direct sudo
 
@@ -172,14 +171,15 @@ KeyPath/
 
 The coordinator implements the complete API surface:
 
-**LaunchDaemon Operations (9 methods):**
+**LaunchDaemon Operations (8 methods):** *(Kanata service is always registered via SMAppService; the helper no longer writes /Library/LaunchDaemons/com.keypath.kanata.plist.)*
 - `installLaunchDaemon()` - Install single LaunchDaemon plist
-- `installAllLaunchDaemonServices()` - Install all services (Kanata, VHID, etc.)
 - `restartUnhealthyServices()` - Restart services in bad state
 - `regenerateServiceConfiguration()` - Update service config
 - `installLogRotation()` - Install log rotation service
 - `repairVHIDDaemonServices()` - Repair VHID daemon
 - `installLaunchDaemonServicesWithoutLoading()` - Install without loading
+
+**Service Install Guard (2025-11-11):** every entry point that restarts services now runs through an SMAppService guard. If `KanataDaemonManager` reports `.uninstalled`, the coordinator re-registers the daemon via SMAppService (with throttling) before asking the helper to kickstart anything. This prevents the helper from silently recreating legacy plists and keeps the app “SMAppService-only” after uninstalls or manual cleanup.
 
 **VirtualHID Operations (4 methods):**
 - `activateVirtualHIDManager()` - Activate VHID Manager
@@ -205,7 +205,6 @@ The coordinator implements the complete API surface:
 - `Sources/KeyPath/Core/PrivilegedOperationsCoordinator.swift` (569 lines)
 - `Sources/KeyPath/Core/Contracts/PrivilegedOperations.swift` (protocol)
 - `Sources/KeyPath/Infrastructure/Privileged/PrivilegedOperationsProvider.swift`
-- `Sources/KeyPath/Infrastructure/Privileged/LegacyPrivilegedOperations.swift`
 - `Sources/KeyPath/Infrastructure/Testing/MockPrivilegedOperations.swift`
 
 **NOT Modified:** Existing callers (wizard, settings, etc.) still use legacy implementations directly. Phase 2 will wire up the XPC helper, then Phase 3 will migrate all callers.
@@ -243,8 +242,7 @@ The coordinator implements the complete API surface:
 
 **Protocol Extensions:**
 - Added parameters to `installLaunchDaemon` (plistPath, serviceID)
-- Added parameters to `installAllLaunchDaemonServices` (binaryPath, configPath, tcpPort)
-- Added `installAllLaunchDaemonServicesWithPreferences` for convenience
+- Removed legacy `installAllLaunchDaemonServices*` APIs once Kanata moved to SMAppService-only management
 - Added parameters to `installVirtualHIDDriver` (version, downloadURL)
 - Added `getVersion` for version compatibility checking
 
@@ -307,12 +305,11 @@ The coordinator implements the complete API surface:
 - `downloadAndInstallCorrectVHIDDriver()`
 - `repairVHIDDaemonServices()`
 - `activateVirtualHIDManager()`
-- `installAllLaunchDaemonServices()`
 - `restartUnhealthyServices()`
 - `installLaunchDaemonServicesWithoutLoading()`
 - `installLogRotation()`
 - `regenerateServiceConfiguration()`
-- Total: 10 coordinator calls
+- Total: 7 coordinator calls
 
 **KanataManager** - ✅ Migrated:
 - Line 1945-1946: Changed from direct `LaunchDaemonInstaller()` to coordinator

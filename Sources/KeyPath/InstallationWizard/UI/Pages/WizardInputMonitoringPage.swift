@@ -8,6 +8,7 @@ import SwiftUI
 struct WizardInputMonitoringPage: View {
     let systemState: WizardSystemState
     let issues: [WizardIssue]
+    let allIssues: [WizardIssue]
     let stateInterpreter: WizardStateInterpreter
     let onRefresh: () async -> Void
     let onNavigateToPage: ((WizardPage) -> Void)?
@@ -73,6 +74,12 @@ struct WizardInputMonitoringPage: View {
                     .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                     .padding(.top, WizardDesign.Spacing.pageVertical)
+
+                    Button(nextStepButtonTitle) {
+                        navigateToNextStep()
+                    }
+                    .buttonStyle(WizardDesign.Component.PrimaryButton())
+                    .padding(.top, WizardDesign.Spacing.sectionGap)
                 }
                 .heroSectionContainer()
                 .frame(maxWidth: .infinity)
@@ -172,6 +179,10 @@ struct WizardInputMonitoringPage: View {
         keyPathInputMonitoringStatus != .completed || kanataInputMonitoringStatus != .completed
     }
 
+    private var nextStepButtonTitle: String {
+        allIssues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
     private var keyPathInputMonitoringStatus: InstallationStatus {
         stateInterpreter.getPermissionStatus(.keyPathInputMonitoring, in: issues)
     }
@@ -213,6 +224,20 @@ struct WizardInputMonitoringPage: View {
                     )
                 }
             }
+        }
+    }
+
+    private func navigateToNextStep() {
+        if allIssues.isEmpty {
+            navigationCoordinator.navigateToPage(.summary)
+            return
+        }
+
+        if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
+           nextPage != navigationCoordinator.currentPage {
+            navigationCoordinator.navigateToPage(nextPage)
+        } else {
+            navigationCoordinator.navigateToPage(.summary)
         }
     }
 
@@ -453,6 +478,7 @@ struct WizardInputMonitoringPage_Previews: PreviewProvider {
                     userAction: "Grant permission in System Settings > Privacy & Security > Input Monitoring"
                 )
             ],
+            allIssues: [],
             stateInterpreter: WizardStateInterpreter(),
             onRefresh: {},
             onNavigateToPage: nil,

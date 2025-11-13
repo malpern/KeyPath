@@ -22,6 +22,13 @@ extension KanataManager {
         isInitializing = true
         defer { isInitializing = false }
 
+        let ensuredConfig = await createDefaultUserConfigIfMissing()
+        if ensuredConfig {
+            AppLogger.shared.log("✅ [Init] Verified user config exists at \(configPath)")
+        } else {
+            AppLogger.shared.warn("⚠️ [Init] Unable to verify user config at \(configPath) - continuing with best effort")
+        }
+
         await updateStatus()
 
         // First, adopt any existing KeyPath-looking kanata processes before deciding to auto-start

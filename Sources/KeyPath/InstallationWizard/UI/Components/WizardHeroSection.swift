@@ -163,7 +163,7 @@ extension WizardHeroSection {
         WizardHeroSection(
             icon: icon,
             iconColor: WizardDesign.Colors.warning,
-            overlayIcon: "exclamationmark.triangle.fill",
+            overlayIcon: "exclamationmark.circle.fill",
             overlayColor: WizardDesign.Colors.warning,
             overlaySize: .large,
             title: title,
@@ -197,4 +197,3 @@ extension WizardHeroSection {
         )
     }
 }
-
