@@ -280,6 +280,17 @@ class KanataManager {
 
     // MARK: - UI State Snapshot (Phase 4: MVVM)
 
+    /// Refresh process running state from system (call after service operations)
+    /// This is more efficient than checking on every UI state sync
+    func refreshProcessState() {
+        let actuallyRunning = Self.isProcessRunningFast()
+        if actuallyRunning != isRunning {
+            AppLogger.shared.log(
+                "🔄 [KanataManager] Refreshing process state: was \(isRunning), now \(actuallyRunning)")
+            isRunning = actuallyRunning
+        }
+    }
+
     /// Returns a snapshot of current UI state for ViewModel synchronization
     /// This method allows KanataViewModel to read UI state without @Published properties
     func getCurrentUIState() -> KanataUIState {
@@ -681,7 +692,8 @@ class KanataManager {
 
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
-           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2") {
+           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2")
+        {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(
@@ -785,7 +797,7 @@ class KanataManager {
                     }
 
                     // Check TCP health by trying a quick connection test
-                    let reloadResult = await self.engineClient.reloadConfig()
+                    let reloadResult = await engineClient.reloadConfig()
                     let isHealthy = reloadResult.isSuccess
 
                     if isHealthy {
@@ -798,7 +810,7 @@ class KanataManager {
                 },
                 onTimeout: { [weak self] in
                     guard let self else { return }
-                    await self.stopKanata()
+                    await stopKanata()
 
                     // Show safety notification
                     await MainActor.run { SafetyAlertPresenter.presentSafetyTimeoutAlert() }
@@ -1323,7 +1335,7 @@ class KanataManager {
             AppLogger.shared.warn("⚠️ [KanataManager] Wizard closed but Kanata is not running - will retry setup on next launch")
         }
 
-        if !isRunning && !userManuallyStopped {
+        if !isRunning, !userManuallyStopped {
             await startKanata()
             await refreshStatus()
         } else if userManuallyStopped {
@@ -1599,7 +1611,7 @@ class KanataManager {
 
     /// Fast process check using pgrep (instant, no async overhead)
     /// Returns true if kanata process is running, false otherwise
-    nonisolated private static func isProcessRunningFast() -> Bool {
+    private nonisolated static func isProcessRunningFast() -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         process.arguments = ["-x", "kanata"]
@@ -1662,7 +1674,7 @@ class KanataManager {
             // Fast process check first (cheaper than full status update)
             if Self.isProcessRunningFast() {
                 // Process is running, update status to sync state
-            await updateStatus()
+                await updateStatus()
                 let state = await MainActor.run { currentState }
                 if state == .running {
                     let elapsed = Date().timeIntervalSince(startTime)
@@ -1672,17 +1684,17 @@ class KanataManager {
             } else {
                 // Process not running, do full status check
                 await updateStatus()
-            let state = await MainActor.run { currentState }
+                let state = await MainActor.run { currentState }
 
-            if state == .running {
-                let elapsed = Date().timeIntervalSince(startTime)
+                if state == .running {
+                    let elapsed = Date().timeIntervalSince(startTime)
                     AppLogger.shared.info("✅ [KanataManager] Service became ready after \(String(format: "%.2f", elapsed))s")
-                return true
-            }
+                    return true
+                }
 
-            if state == .needsHelp || state == .stopped {
-                AppLogger.shared.error("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
-                return false
+                if state == .needsHelp || state == .stopped {
+                    AppLogger.shared.error("❌ [KanataManager] Service failed to start (state: \(state.rawValue))")
+                    return false
                 }
             }
 
@@ -1795,7 +1807,6 @@ class KanataManager {
         text.replacingOccurrences(of: #"\u001B\[[0-9;]*m"#, with: "", options: .regularExpression)
     }
 
-
     /// Stop Kanata when the app is terminating (async version).
     func cleanup() async {
         await stopKanata()
@@ -1853,7 +1864,7 @@ class KanataManager {
             monitor.start { [weak self] reading in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    await self.processBatteryReading(reading)
+                    await processBatteryReading(reading)
                 }
             }
         }
@@ -2061,7 +2072,8 @@ class KanataManager {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -2069,12 +2081,14 @@ class KanataManager {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -2184,7 +2198,9 @@ class KanataManager {
         } else if status.pids.isEmpty {
             lines.append("Reason: VirtualHID daemon not running.")
         } else {
-            lines.append("Reason: Daemon unhealthy.")
+            // Single PID = daemon process running but may have connection issues
+            lines.append("Reason: Daemon running but connection issues detected.")
+            lines.append("PID: \(status.pids[0])")
             if !status.owners.isEmpty { lines.append("Owner:\n\(status.owners.joined(separator: "\n"))") }
         }
         lines.append("LaunchDaemon: \(status.serviceInstalled ? "installed" : "not installed")\(status.serviceInstalled ? ", \(status.serviceState)" : "")")
@@ -2213,10 +2229,10 @@ class KanataManager {
         // With SMAppService, bundled Kanata is sufficient - no system installation needed
         if detector.isInstalled() {
             AppLogger.shared.log("✅ [Installation] Step 1 SUCCESS: Kanata binary ready (SMAppService uses bundled path)")
-                stepsCompleted += 1
+            stepsCompleted += 1
         } else {
             AppLogger.shared.log("⚠️ [Installation] Step 1 WARNING: Kanata binary not found in bundle (SMAppService mode)")
-                stepsFailed += 1
+            stepsFailed += 1
         }
 
         // 2. Check if Karabiner driver is installed
@@ -2742,7 +2758,8 @@ class KanataManager {
 
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
+        async throws -> String
+    {
         // Try Claude API first, fallback to rule-based repair
         do {
             let prompt = """
@@ -2779,7 +2796,8 @@ class KanataManager {
 
     /// Fallback rule-based repair when Claude is not available
     private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
+        async throws -> String
+    {
         // Delegate to ConfigurationService for rule-based repair
         try await configurationService.repairConfiguration(config: config, errors: errors, mappings: mappings)
     }
@@ -2883,7 +2901,8 @@ class KanataManager {
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
+        -> String
+    {
         // Delegate to ConfigurationService for backup and safe config application
         let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,
@@ -2906,7 +2925,7 @@ class KanataManager {
     /// Builds Kanata command line arguments including TCP port when enabled
     func buildKanataArguments(configPath _: String, checkOnly: Bool = false) -> [String] {
         // Delegate to ConfigurationManager
-        return configurationManager.buildKanataArguments(checkOnly: checkOnly)
+        configurationManager.buildKanataArguments(checkOnly: checkOnly)
     }
 
     // MARK: - Claude API Integration

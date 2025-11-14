@@ -11,6 +11,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
         case timeout
         case error
     }
+
     // MARK: - Constants
 
     private static let vhidManagerPath =
@@ -64,7 +65,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
         let maxAttempts = FeatureFlags.shared.startupModeActive ? 1 : 2
         let retryDelay: useconds_t = 500_000 // 0.5s between attempts to allow daemon to settle
 
-        for attempt in 1...maxAttempts {
+        for attempt in 1 ... maxAttempts {
             switch evaluateDaemonProcess() {
             case .healthy:
                 return true
@@ -165,6 +166,48 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
     }
 
+    /// Get actual PIDs of running VirtualHID daemon processes
+    /// Returns array of PID strings, empty if no processes found
+    func getDaemonPIDs() -> [String] {
+        // Skip during startup to prevent blocking
+        if FeatureFlags.shared.startupModeActive {
+            return []
+        }
+
+        // Test seam for unit tests
+        if TestEnvironment.isRunningTests, let provider = Self.testPIDProvider {
+            return provider().filter { !$0.isEmpty }
+        }
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-f", Self.vhidDeviceRunningCheck]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = Pipe()
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            guard task.terminationStatus == 0 else {
+                return []
+            }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            let pids = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                .components(separatedBy: .newlines)
+                .filter { !$0.isEmpty }
+
+            return pids
+        } catch {
+            AppLogger.shared.log("❌ [VHIDManager] Error getting daemon PIDs: \(error)")
+            return []
+        }
+    }
+
     /// Checks if VirtualHID daemon is functioning correctly (not just running)
     /// This includes checking for connection errors in Kanata logs
     func detectConnectionHealth() -> Bool {
@@ -175,7 +218,7 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
 
         // Use fast tail approach instead of reading entire file
-        let logPath = "/var/log/kanata.log"
+        let logPath = "/var/log/com.keypath.kanata.stdout.log"
         guard FileManager.default.fileExists(atPath: logPath) else {
             AppLogger.shared.log("🔍 [VHIDManager] No Kanata log file - assuming connection healthy")
             return true
@@ -223,7 +266,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
             }
 
             let successfulConnections = recentLines.filter { line in
-                line.contains("driver_connected 1")
+                line.contains("driver connected: true") || // Current format
+                    line.contains("driver_connected 1") // Legacy format (if any)
             }
 
             // Fatal error: driver not activated means VirtualHID is not accessible at all
@@ -319,7 +363,8 @@ final class VHIDDeviceManager: @unchecked Sendable {
 
             KeyPath will automatically download and install v\(Self.requiredDriverVersionString) for you.
 
-            📝 Note: Kanata v\(Self.futureCompatibleVersion) (currently in pre-release) will support v6.0.0+. Once v\(Self.futureCompatibleVersion) is released and stable, we'll update KeyPath to use the newer driver version.
+            📝 Note: Kanata v\(Self.futureCompatibleVersion) (currently in pre-release) will support v6.0.0+. Once v\(Self
+                .futureCompatibleVersion) is released and stable, we'll update KeyPath to use the newer driver version.
             """
         }
 

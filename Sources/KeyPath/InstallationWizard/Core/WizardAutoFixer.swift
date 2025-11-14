@@ -519,6 +519,11 @@ class WizardAutoFixer: AutoFixCapable {
         let restartSuccess = await kanataManager.restartKarabinerDaemon()
 
         if restartSuccess {
+            // Refresh process state after successful restart to update isRunning
+            let manager = kanataManager
+            await MainActor.run {
+                manager.refreshProcessState()
+            }
             AppLogger.shared.info("✅ [AutoFixer] Successfully restarted VirtualHID daemon (verified healthy)")
             return true
         } else {
@@ -527,6 +532,11 @@ class WizardAutoFixer: AutoFixCapable {
             AppLogger.shared.warn("⚠️ [AutoFixer] Trying legacy restart as fallback")
             let legacySuccess = await legacyRestartVirtualHIDDaemon()
             if legacySuccess {
+                // Refresh state after legacy restart too
+                let manager = kanataManager
+                await MainActor.run {
+                    manager.refreshProcessState()
+                }
                 AppLogger.shared.info("✅ [AutoFixer] Legacy restart succeeded")
             } else {
                 AppLogger.shared.error("❌ [AutoFixer] Legacy restart also failed")
@@ -1080,12 +1090,12 @@ class WizardAutoFixer: AutoFixCapable {
         AppLogger.shared.log("🔍 [AutoFixer] SMAppService registered: \(isRegistered)")
 
         // If legacy exists, auto-resolve by removing it
-        if hasLegacy && !isRegistered {
+        if hasLegacy, !isRegistered {
             AppLogger.shared.log("🔄 [AutoFixer] Legacy plist detected - auto-resolving by removing legacy")
             // This will be handled by createConfigureAndLoadAllServices() which auto-resolves conflicts
         }
 
-        if needsInstallation && !shouldSkipInstallation {
+        if needsInstallation, !shouldSkipInstallation {
             AppLogger.shared.log("🔧 [AutoFixer] Step 2: Some services not loaded, installing missing LaunchDaemon services")
             do {
                 try await PrivilegedOperationsCoordinator.shared.installAllLaunchDaemonServices()

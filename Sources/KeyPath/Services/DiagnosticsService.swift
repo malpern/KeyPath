@@ -88,13 +88,14 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     nonisolated func virtualHIDDaemonStatus() -> VirtualHIDDaemonStatus {
-        // Minimal, non-blocking snapshot using VHIDDeviceManager
+        // Get actual VirtualHID daemon status with real PIDs
         let vhid = VHIDDeviceManager()
-        let running = vhid.detectRunning()
+        let pids = vhid.getDaemonPIDs() // Get real PIDs instead of placeholder
         let installed = vhid.detectActivation()
-        // We do not enumerate PIDs here; return empty for now
+        let running = !pids.isEmpty
+
         return VirtualHIDDaemonStatus(
-            pids: running ? ["1"] : [], // placeholder count-only signal
+            pids: pids, // Real PIDs from pgrep
             owners: [],
             serviceInstalled: installed,
             serviceState: running ? "running" : "stopped"
@@ -190,7 +191,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         case 6:
             // Exit code 6 has different causes - check for VirtualHID connection issues
             if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2") {
+                || output.contains("connect_failed asio.system:2")
+            {
                 diagnostics.append(
                     KanataDiagnostic(
                         timestamp: Date(),
