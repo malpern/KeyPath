@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>KeyPath Test Scenario Matrix</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 2rem; background: #f6f7fb; }
+    h1 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    th, td { border: 1px solid #dfe2e6; padding: 0.75rem; text-align: left; vertical-align: top; }
+    th { background: #f0f2f5; font-weight: 600; }
+    .status { font-weight: 600; }
+    .yes { color: #0f8a00; }
+    .partial { color: #b36b00; }
+    .no { color: #b00020; }
+    .na { color: #4d596a; }
+    caption { text-align: left; font-weight: 600; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>KeyPath Test Scenario Matrix</h1>
+  <p>Snapshot generated November 15, 2025 after the newest installer, watcher, and uninstall coverage push.</p>
+  <table>
+    <caption>Refactor Safety Coverage</caption>
+    <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Has test?</th>
+        <th>Happy-path</th>
+        <th>Failure-path</th>
+        <th>Idempotence</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Fresh install (all deps present)</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status partial">Partial</td>
+        <td class="status yes">Yes</td>
+        <td>InstallerEngineFunctionalTests cover provisioning/SMAppService flows, but the default CI runner (<code>run-core-tests.sh</code>) still filters to <code>UnitTestSuite</code>, so these checks only run when developers opt in locally.</td>
+      </tr>
+      <tr>
+        <td>Re-run install on already-installed</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status partial">Partial</td>
+        <td class="status yes">Yes</td>
+        <td>Plist diff + throttling tests enforce idempotence, yet they live outside the default CI invocation; regressions slip unless someone runs the installer suite manually.</td>
+      </tr>
+      <tr>
+        <td>Duplicate/plist leftovers</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status partial">Partial</td>
+        <td class="status yes">Yes</td>
+        <td>LaunchDaemonInstaller tests catch plist drift, but failures are surfaced only via log inspection and helper duplicate-app cleanup remains untested.</td>
+      </tr>
+      <tr>
+        <td>Duplicate app copies / helper cleanup</td>
+        <td class="status no">No</td>
+        <td class="status no">No</td>
+        <td class="status no">No</td>
+        <td class="status no">No</td>
+        <td>HelperMaintenance duplicate-app logic still lacks automated coverage.</td>
+      </tr>
+      <tr>
+        <td>Missing VirtualHID services</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td>Repair + restart flow fully validated.</td>
+      </tr>
+      <tr>
+        <td>Missing Kanata binary</td>
+        <td class="status yes">Yes</td>
+        <td class="status na">N/A</td>
+        <td class="status yes">Yes</td>
+        <td class="status na">N/A</td>
+        <td>Installer tests assert log guidance when system/bundled binaries are absent.</td>
+      </tr>
+      <tr>
+        <td>Permission denied on key folder</td>
+        <td class="status yes">Yes</td>
+        <td class="status na">N/A</td>
+        <td class="status partial">Partial</td>
+        <td class="status na">N/A</td>
+        <td>Log assertions exist for blocked launch-daemon/config dirs, but there are no checks for user-visible errors or non-zero installer exits.</td>
+      </tr>
+      <tr>
+        <td>SMAppService approval pending</td>
+        <td class="status yes">Yes</td>
+        <td class="status na">N/A</td>
+        <td class="status yes">Yes</td>
+        <td class="status na">N/A</td>
+        <td>Functional test awaits `.smAppServiceApprovalRequired` notification; privilege-denial UX is guarded.</td>
+      </tr>
+      <tr>
+        <td>VirtualHID repair</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td>Repair flow restores VHID plists + health.</td>
+      </tr>
+      <tr>
+        <td>Uninstall / cleanup</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status partial">Partial</td>
+        <td class="status na">N/A</td>
+        <td>Functional test now runs the real uninstall helper via a fake script, asserts cleanup logs, and verifies directories are removed, so happy-path behavior is locked in (failure flows still rely on logs/assertions).</td>
+      </tr>
+      <tr>
+        <td>Config watcher atomic write handling</td>
+        <td class="status yes">Yes</td>
+        <td class="status yes">Yes</td>
+        <td class="status na">N/A</td>
+        <td class="status na">N/A</td>
+        <td>New ConfigFileWatcher test exercises the async debounce/task path and ensures a single callback fires when multiple writes occur.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p><strong>Reality check:</strong> (1) The CI runner (<code>run-core-tests.sh</code>) executes <code>swift test --filter UnitTestSuite</code> twice, so installer/privilege suites still require <code>CI_INTEGRATION_TESTS=true</code> to execute. (2) HelperMaintenance duplicate-app handling still has zero tests, and the uninstall failure path relies on log parsing, so we still need explicit regression guards there. (3) Several failure-path rows lean on log assertions rather than visible exit codes, so these should be expanded before a large refactor.</p>
+</body>
+</html>

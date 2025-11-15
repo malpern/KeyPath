@@ -15,7 +15,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     private var fileMonitorSource: DispatchSourceFileSystemObject?
     private var directoryMonitorSource: DispatchSourceFileSystemObject?
     private var lastModificationDate: Date?
-    private var debounceTimer: Timer?
+    private var debounceTask: Task<Void, Never>?
     private var watchedFilePath: String?
     private var watchedDirectoryPath: String?
     private var isWatching = false
@@ -24,6 +24,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
     private let debounceDelay: TimeInterval = 0.5 // 500ms debounce
     private let maxRetries = 3
     private var retryCount = 0
+    private var pendingAtomicWriteEvent = false
 
     // Suppression to prevent self-initiated reload loops
     private var suppressUntil: Date?
@@ -198,8 +199,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         AppLogger.shared.log("📁 [FileWatcher] Stopping all monitoring...")
 
         // Stop debounce timer
-        debounceTimer?.invalidate()
-        debounceTimer = nil
+        debounceTask?.cancel()
+        debounceTask = nil
 
         // Stop file monitoring
         if isWatching {
@@ -258,6 +259,7 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         // Handle atomic writes by rebinding file descriptor on rename/delete
         if flags.contains(.rename) || flags.contains(.delete) {
             AppLogger.shared.log("📁 [FileWatcher] Detected atomic write (rename/delete) - rebinding file descriptor")
+            pendingAtomicWriteEvent = true
             rebindFileMonitor(to: path)
         }
 
@@ -341,12 +343,14 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             }
         }
 
-        // Cancel any existing debounce timer
-        debounceTimer?.invalidate()
+        // Cancel any existing debounce task
+        debounceTask?.cancel()
 
-        // Set up debounce timer to handle rapid file changes
-        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceDelay, repeats: false) { [weak self] _ in
-            Task { await self?.processFileChange() }
+        // Schedule debounce task to handle rapid file changes
+        debounceTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: UInt64(self.debounceDelay * 1_000_000_000))
+            await self.processFileChange()
         }
     }
 
@@ -472,10 +476,15 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
             return
         }
 
-        // Check if file actually changed (avoid false positives)
-        guard hasFileActuallyChanged() else {
-            AppLogger.shared.log("📁 [FileWatcher] No actual file changes detected - skipping callback")
-            return
+        if pendingAtomicWriteEvent {
+            pendingAtomicWriteEvent = false
+            AppLogger.shared.log("📁 [FileWatcher] Atomic write detected - forcing change callback")
+        } else {
+            // Check if file actually changed (avoid false positives)
+            guard hasFileActuallyChanged() else {
+                AppLogger.shared.log("📁 [FileWatcher] No actual file changes detected - skipping callback")
+                return
+            }
         }
 
         // Get file size for logging

@@ -8,6 +8,24 @@ final class UninstallCoordinator: ObservableObject {
     @Published private(set) var didSucceed = false
     @Published private(set) var lastError: String?
 
+    private let resolveUninstallerURLClosure: () -> URL?
+    private let runWithAdminPrivilegesClosure: (URL) async -> AppleScriptResult
+
+    init(
+        resolveUninstallerURL: @escaping () -> URL?,
+        runWithAdminPrivileges: @escaping (URL) async -> AppleScriptResult
+    ) {
+        self.resolveUninstallerURLClosure = resolveUninstallerURL
+        self.runWithAdminPrivilegesClosure = runWithAdminPrivileges
+    }
+
+    convenience init() {
+        self.init(
+            resolveUninstallerURL: Self.defaultResolveUninstallerURL,
+            runWithAdminPrivileges: Self.defaultRunWithAdminPrivileges
+        )
+    }
+
     @discardableResult
     func uninstall() async -> Bool {
         guard !isRunning else { return false }
@@ -19,7 +37,7 @@ final class UninstallCoordinator: ObservableObject {
 
         defer { isRunning = false }
 
-        guard let scriptURL = resolveUninstallerURL() else {
+        guard let scriptURL = resolveUninstallerURLClosure() else {
             let message = "Uninstaller script wasn't found in this build."
             logLines.append("❌ \(message)")
             lastError = message
@@ -28,7 +46,7 @@ final class UninstallCoordinator: ObservableObject {
 
         logLines.append("📄 Using uninstaller at: \(scriptURL.path)")
 
-        let result = await runWithAdminPrivileges(scriptURL: scriptURL)
+        let result = await runWithAdminPrivilegesClosure(scriptURL)
 
         if result.success {
             didSucceed = true
@@ -52,7 +70,7 @@ final class UninstallCoordinator: ObservableObject {
     }
 
     func copyTerminalCommand() {
-        guard let scriptURL = resolveUninstallerURL() else { return }
+        guard let scriptURL = resolveUninstallerURLClosure() else { return }
         let command = "sudo \"\(scriptURL.path)\""
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
@@ -61,13 +79,13 @@ final class UninstallCoordinator: ObservableObject {
     }
 
     func revealUninstallerInFinder() {
-        guard let scriptURL = resolveUninstallerURL() else { return }
+        guard let scriptURL = resolveUninstallerURLClosure() else { return }
         NSWorkspace.shared.activateFileViewerSelecting([scriptURL])
     }
 
     // MARK: - Helpers
 
-    private func resolveUninstallerURL() -> URL? {
+    private static func defaultResolveUninstallerURL() -> URL? {
         if let bundled = Bundle.main.url(forResource: "uninstall", withExtension: "sh") {
             return bundled
         }
@@ -81,7 +99,7 @@ final class UninstallCoordinator: ObservableObject {
         return nil
     }
 
-    private func runWithAdminPrivileges(scriptURL: URL) async -> AppleScriptResult {
+    private static func defaultRunWithAdminPrivileges(scriptURL: URL) async -> AppleScriptResult {
         let escapedPath = escapeForAppleScript(scriptURL.path)
         let script = """
         do shell script \"KEYPATH_UNINSTALL_ASSUME_YES=1 \" & quoted form of \"\(escapedPath)\" & \" --assume-yes\" with administrator privileges
@@ -89,7 +107,7 @@ final class UninstallCoordinator: ObservableObject {
         return await AppleScriptRunner.run(script: script)
     }
 
-    private func escapeForAppleScript(_ path: String) -> String {
+    private static func escapeForAppleScript(_ path: String) -> String {
         path
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
