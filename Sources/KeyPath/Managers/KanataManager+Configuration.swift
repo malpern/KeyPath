@@ -20,13 +20,13 @@ extension KanataManager {
     /// Public wrapper to ensure a default user config exists.
     /// Returns true if the config exists after this call.
     func createDefaultUserConfigIfMissing() async -> Bool {
-        return await configurationManager.createDefaultIfMissing()
+        await configurationManager.createDefaultIfMissing()
     }
 
     // MARK: - Configuration Validation
 
     func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
-        return await configurationManager.validateConfigFile()
+        await configurationManager.validateConfigFile()
     }
 
     // MARK: - Hot Reload via TCP

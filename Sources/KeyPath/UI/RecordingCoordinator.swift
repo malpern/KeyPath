@@ -164,7 +164,8 @@ final class RecordingCoordinator: ObservableObject {
         if inputSequence.keys.count == 1,
            outputSequence.keys.count == 1,
            inputSequence.keys[0].modifiers.isEmpty,
-           outputSequence.keys[0].modifiers.isEmpty {
+           outputSequence.keys[0].modifiers.isEmpty
+        {
             let inKey = inputSequence.keys[0].baseKey
             let outKey = outputSequence.keys[0].baseKey
             do {
@@ -232,7 +233,8 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager {
+                   let km = self.kanataManager
+                {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -357,7 +359,8 @@ final class RecordingCoordinator: ObservableObject {
 
                 // Check if we should suspend mappings for raw key capture
                 if !PreferencesService.shared.applyMappingsDuringRecording,
-                   let km = self.kanataManager {
+                   let km = self.kanataManager
+                {
                     Task {
                         let wasPaused = await km.pauseMappings()
                         await MainActor.run {
@@ -528,7 +531,8 @@ private extension RecordingCoordinator {
             if let last = result.last,
                last.baseKey == kp.baseKey,
                last.modifiers == kp.modifiers,
-               kp.timestamp.timeIntervalSince(last.timestamp) <= window {
+               kp.timestamp.timeIntervalSince(last.timestamp) <= window
+            {
                 continue
             }
             result.append(kp)
@@ -550,25 +554,25 @@ extension RecordingCoordinator {
     private func recordingFailureDisplayInfo(for reason: String) -> RecordingFailureDisplayInfo {
         switch reason {
         case "permissionFailure":
-            return RecordingFailureDisplayInfo(
+            RecordingFailureDisplayInfo(
                 displayMessage: "⚠️ Accessibility permission required for recording",
                 bannerMessage: "❌ Recording requires Accessibility permission. Open the Installation Wizard to grant access.",
                 shouldShowBanner: true
             )
         case "captureInitializationFailure":
-            return RecordingFailureDisplayInfo(
+            RecordingFailureDisplayInfo(
                 displayMessage: "⚠️ Failed to initialize keyboard capture",
                 bannerMessage: "❌ Failed to start keyboard capture. Check KeyPath diagnostics.",
                 shouldShowBanner: true
             )
         case "timeout":
-            return RecordingFailureDisplayInfo(
+            RecordingFailureDisplayInfo(
                 displayMessage: "⚠️ Recording timed out - try again",
                 bannerMessage: "⚠️ Recording timed out — try again.",
                 shouldShowBanner: true
             )
         default:
-            return RecordingFailureDisplayInfo(
+            RecordingFailureDisplayInfo(
                 displayMessage: "⚠️ Recording failed",
                 bannerMessage: "❌ Recording failed: \(reason)",
                 shouldShowBanner: true

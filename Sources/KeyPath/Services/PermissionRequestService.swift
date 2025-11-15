@@ -1,7 +1,7 @@
+import AppKit
 @preconcurrency import ApplicationServices
 import Foundation
 import IOKit.hid
-import AppKit
 import KeyPathCore
 
 /// Centralized utilities for requesting system permissions using Apple's standard APIs.

@@ -12,11 +12,10 @@ public final class SimpleModsWriter {
     /// Write or update the sentinel block with the given mappings
     public func writeBlock(mappings: [SimpleMapping]) throws {
         // Read current content
-        let content: String
-        if FileManager.default.fileExists(atPath: configPath) {
-            content = try String(contentsOfFile: configPath, encoding: .utf8)
+        let content: String = if FileManager.default.fileExists(atPath: configPath) {
+            try String(contentsOfFile: configPath, encoding: .utf8)
         } else {
-            content = ""
+            ""
         }
 
         let lines = content.components(separatedBy: .newlines)
@@ -118,7 +117,7 @@ public final class SimpleModsWriter {
         let parser = SimpleModsParser(configPath: configPath)
         let (block, _, _) = try parser.parse()
 
-        guard let block = block else {
+        guard let block else {
             // No block means no filtering needed
             return content
         }

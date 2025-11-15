@@ -1,7 +1,7 @@
 import Foundation
 import KeyPathCore
-import Security
 import os.lock
+import Security
 
 /// Manages package installation via Homebrew and other package managers
 /// Implements the package management integration identified in the installer improvement analysis
@@ -20,9 +20,9 @@ class PackageManager {
     /// Maximum number of entries in the code signing cache (LRU eviction)
     private static let maxCacheSize = 50
 
-    nonisolated(unsafe) private static var codeSigningCache: [String: CacheEntry] = [:]
+    private nonisolated(unsafe) static var codeSigningCache: [String: CacheEntry] = [:]
     /// Tracks access order for LRU eviction (most recently used at end)
-    nonisolated(unsafe) private static var cacheAccessOrder: [String] = []
+    private nonisolated(unsafe) static var cacheAccessOrder: [String] = []
     private static let cacheLock = OSAllocatedUnfairLock(initialState: ())
 
     // MARK: - Types
@@ -174,19 +174,20 @@ class PackageManager {
         // Read file attributes once (used for both cache validation and caching)
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
               let modDate = attributes[.modificationDate] as? Date,
-              let fileSize = attributes[.size] as? Int64 else {
+              let fileSize = attributes[.size] as? Int64
+        else {
             // Can't cache without metadata - perform check and return
             return detectCodeSigningStatus(at: path)
         }
 
         // Check cache first (thread-safe)
         let cached: CacheEntry? = Self.cacheLock.withLock {
-            return Self.codeSigningCache[path]
+            Self.codeSigningCache[path]
         }
 
-        if let cached = cached {
+        if let cached {
             // Cache is valid if modification date and size match
-            if modDate == cached.modificationDate && fileSize == cached.fileSize {
+            if modDate == cached.modificationDate, fileSize == cached.fileSize {
                 AppLogger.shared.log("✅ [PackageManager] Code signing cache hit for \(path)")
                 // Update access order (move to end = most recently used)
                 Self.cacheLock.withLock {
@@ -480,7 +481,8 @@ class PackageManager {
         let homebrewDirs = ["/opt/homebrew", "/usr/local/Homebrew"]
         for dir in homebrewDirs {
             if FileManager.default.fileExists(atPath: dir),
-               !FileManager.default.fileExists(atPath: "\(dir)/bin/brew") {
+               !FileManager.default.fileExists(atPath: "\(dir)/bin/brew")
+            {
                 AppLogger.shared.log(
                     "⚠️ [PackageManager] Found \(dir) but no brew executable - possible incomplete installation"
                 )
@@ -490,7 +492,8 @@ class PackageManager {
         // Check for Cargo installation without Kanata
         let cargoPath = "\(NSHomeDirectory())/.cargo/bin"
         if FileManager.default.fileExists(atPath: cargoPath),
-           !FileManager.default.fileExists(atPath: "\(cargoPath)/kanata") {
+           !FileManager.default.fileExists(atPath: "\(cargoPath)/kanata")
+        {
             AppLogger.shared.log(
                 "ℹ️ [PackageManager] Cargo detected but no Kanata binary - user may need to install via 'cargo install kanata'"
             )
@@ -524,7 +527,8 @@ class PackageManager {
         }
 
         if outputLower.contains("network") || outputLower.contains("connection")
-            || outputLower.contains("timeout") {
+            || outputLower.contains("timeout")
+        {
             AppLogger.shared.log("⚠️ [PackageManager] Network connectivity issue detected")
             AppLogger.shared.log("💡 [PackageManager] Check internet connection and try again")
         }
@@ -535,7 +539,8 @@ class PackageManager {
         }
 
         if outputLower.contains("disk") || outputLower.contains("space")
-            || outputLower.contains("no space left") {
+            || outputLower.contains("no space left")
+        {
             AppLogger.shared.log("⚠️ [PackageManager] Disk space issue detected")
             AppLogger.shared.log("💡 [PackageManager] Free up disk space and try again")
         }

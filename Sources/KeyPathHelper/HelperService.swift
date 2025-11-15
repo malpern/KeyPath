@@ -18,12 +18,12 @@ class HelperService: NSObject, HelperProtocol {
     func getVersion(reply: @escaping (String?, String?) -> Void) {
         NSLog("[KeyPathHelper] getVersion requested")
         logger.info("getVersion requested")
-        
+
         // Log thread/queue info
         let threadName = Thread.current.isMainThread ? "main" : "background"
         NSLog("[KeyPathHelper] getVersion executing on \(threadName) thread")
         logger.info("getVersion executing on \(threadName) thread")
-        
+
         // Call reply and log it
         NSLog("[KeyPathHelper] Calling reply with version: \(Self.version)")
         logger.info("Calling reply with version: \(Self.version)")
@@ -659,7 +659,8 @@ extension HelperService {
         var uid: uid_t = 0
         var gid: gid_t = 0
         guard let name = SCDynamicStoreCopyConsoleUser(nil, &uid, &gid) as String?,
-              !name.isEmpty else {
+              !name.isEmpty
+        else {
             return nil
         }
         return (name, "/Users/\(name)")
@@ -784,5 +785,4 @@ extension HelperService {
         </plist>
         """
     }
-
 }

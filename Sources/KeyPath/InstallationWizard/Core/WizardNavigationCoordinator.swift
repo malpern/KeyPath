@@ -85,6 +85,7 @@ extension WizardNavigationCoordinator {
         }
         return WizardPage.orderedPages
     }
+
     /// Get navigation state for UI components (like page dots)
     var navigationState: WizardNavigationState {
         WizardNavigationState(
@@ -127,7 +128,8 @@ extension WizardNavigationCoordinator {
     /// Get the previous page in the ordered sequence
     var previousPage: WizardPage? {
         guard let currentIndex = activeSequence.firstIndex(of: currentPage),
-              currentIndex > 0 else {
+              currentIndex > 0
+        else {
             return nil
         }
         return activeSequence[currentIndex - 1]
@@ -136,7 +138,8 @@ extension WizardNavigationCoordinator {
     /// Get the next page in the ordered sequence
     var nextPage: WizardPage? {
         guard let currentIndex = activeSequence.firstIndex(of: currentPage),
-              currentIndex < activeSequence.count - 1 else {
+              currentIndex < activeSequence.count - 1
+        else {
             return nil
         }
         return activeSequence[currentIndex + 1]

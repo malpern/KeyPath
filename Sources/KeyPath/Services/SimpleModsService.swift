@@ -309,6 +309,6 @@ public final class SimpleModsService: ObservableObject {
 
     /// Get presets by category
     public func getPresetsByCategory() -> [String: [SimpleModPreset]] {
-        return catalog.getPresetsByCategory()
+        catalog.getPresetsByCategory()
     }
 }

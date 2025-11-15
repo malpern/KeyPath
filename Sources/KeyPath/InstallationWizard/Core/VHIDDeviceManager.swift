@@ -208,88 +208,14 @@ final class VHIDDeviceManager: @unchecked Sendable {
         }
     }
 
-    /// Checks if VirtualHID daemon is functioning correctly (not just running)
-    /// This includes checking for connection errors in Kanata logs
+    /// Checks if VirtualHID daemon is functioning correctly (wizard prerequisite)
+    /// Wizard now treats this as a pure process health check; log parsing lives in DiagnosticsView
     func detectConnectionHealth() -> Bool {
-        // First check if daemon is running
-        guard detectRunning() else {
-            AppLogger.shared.log("🔍 [VHIDManager] Daemon not running - connection health: false")
-            return false
+        let isRunning = detectRunning()
+        if !isRunning {
+            AppLogger.shared.log("🔍 [VHIDManager] Process health check failed - daemon not running")
         }
-
-        // Use fast tail approach instead of reading entire file
-        let logPath = "/var/log/com.keypath.kanata.stdout.log"
-        guard FileManager.default.fileExists(atPath: logPath) else {
-            AppLogger.shared.log("🔍 [VHIDManager] No Kanata log file - assuming connection healthy")
-            return true
-        }
-
-        do {
-            // Use tail command for fast log reading (last 50 lines only)
-            let task = Process()
-            task.launchPath = "/usr/bin/tail"
-            task.arguments = ["-50", logPath]
-
-            let pipe = Pipe()
-            task.standardOutput = pipe
-
-            // Add timeout to prevent hanging
-            task.launch()
-
-            // Wait with timeout (1 second max)
-            let group = DispatchGroup()
-            group.enter()
-
-            DispatchQueue.global().async {
-                task.waitUntilExit()
-                group.leave()
-            }
-
-            let result = group.wait(timeout: .now() + 1.0)
-            if result == .timedOut {
-                task.terminate()
-                AppLogger.shared.log("⚠️ [VHIDManager] Log check timed out - assuming healthy")
-                return true
-            }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let logContent = String(data: data, encoding: .utf8) ?? ""
-            let recentLines = logContent.components(separatedBy: .newlines)
-
-            let connectionFailures = recentLines.filter { line in
-                line.contains("connect_failed asio.system:2")
-                    || line.contains("connect_failed asio.system:61")
-            }
-
-            let driverNotActivatedErrors = recentLines.filter { line in
-                line.contains("driver is not activated")
-            }
-
-            let successfulConnections = recentLines.filter { line in
-                line.contains("driver connected: true") || // Current format
-                    line.contains("driver_connected 1") // Legacy format (if any)
-            }
-
-            // Fatal error: driver not activated means VirtualHID is not accessible at all
-            if !driverNotActivatedErrors.isEmpty {
-                AppLogger.shared.log("❌ [VHIDManager] FATAL: VirtualHID driver not activated (\(driverNotActivatedErrors.count) errors)")
-                return false
-            }
-
-            // If we see recent connection failures without recent successes, consider unhealthy
-            let hasRecentFailures = connectionFailures.count > 5
-            let hasRecentSuccess = !successfulConnections.isEmpty
-
-            let isHealthy = !hasRecentFailures || hasRecentSuccess
-
-            AppLogger.shared.log("🔍 [VHIDManager] Connection health check:")
-            AppLogger.shared.log("  - Recent failures: \(connectionFailures.count)")
-            AppLogger.shared.log("  - Recent successes: \(successfulConnections.count)")
-            AppLogger.shared.log("  - Driver activation errors: \(driverNotActivatedErrors.count)")
-            AppLogger.shared.log("  - Health status: \(isHealthy)")
-
-            return isHealthy
-        }
+        return isRunning
     }
 
     // MARK: - Version Detection

@@ -44,13 +44,12 @@
 
                 let normalizedLevel = max(0.0, min(1.0, currentCapacity / maxCapacity))
 
-                let isCharging: Bool
-                if let chargingFlag = description[kIOPSIsChargingKey as String] as? Bool {
-                    isCharging = chargingFlag
+                let isCharging: Bool = if let chargingFlag = description[kIOPSIsChargingKey as String] as? Bool {
+                    chargingFlag
                 } else if let powerState = description[kIOPSPowerSourceStateKey as String] as? String {
-                    isCharging = powerState == kIOPSACPowerValue
+                    powerState == kIOPSACPowerValue
                 } else {
-                    isCharging = false
+                    false
                 }
 
                 return BatteryReading(level: normalizedLevel, isCharging: isCharging, timestamp: Date())

@@ -470,7 +470,7 @@ public protocol WizardNavigating {
 
 // MARK: - Helper Extensions
 
-public extension Array where Element == WizardIssue {
+public extension [WizardIssue] {
     /// Concise tooltip text: short and readable.
     /// - Single issue: "Title — short description"
     /// - Multiple issues: bullet list of up to 3 titles, then "… and N more"
@@ -481,7 +481,7 @@ public extension Array where Element == WizardIssue {
         func truncate(_ s: String, limit: Int = 90) -> String {
             if s.count <= limit { return s }
             let end = s.index(s.startIndex, offsetBy: limit)
-            return String(s[s.startIndex..<end]).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
+            return String(s[s.startIndex ..< end]).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
         }
 
         if count == 1 {

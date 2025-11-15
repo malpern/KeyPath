@@ -1,7 +1,7 @@
+import AppKit
 import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
-import AppKit
 
 /// Simplified system status overview component for the summary page
 struct WizardSystemStatusOverview: View {
@@ -94,7 +94,8 @@ struct WizardSystemStatusOverview: View {
             // Aggressively disable focus ring on underlying NSView
             DispatchQueue.main.async {
                 if let window = NSApp.keyWindow,
-                   let contentView = window.contentView {
+                   let contentView = window.contentView
+                {
                     disableFocusRings(in: contentView)
                 }
             }
@@ -436,13 +437,13 @@ struct WizardSystemStatusOverview: View {
         for item in displayItems {
             let page = item.targetPage
             AppLogger.shared.log("🔍 [NavSeq]   - displayItem: \(item.title) → \(page.displayName)")
-            if page != .summary && !seen.contains(page) {
+            if page != .summary, !seen.contains(page) {
                 seen.insert(page)
                 ordered.append(page)
             }
         }
         navSequence = ordered
-        AppLogger.shared.log("🔍 [NavSeq] ✅ navSequence updated: \(ordered.count) pages: \(ordered.map { $0.displayName })")
+        AppLogger.shared.log("🔍 [NavSeq] ✅ navSequence updated: \(ordered.count) pages: \(ordered.map(\.displayName))")
     }
 
     // MARK: - Dependency Logic
@@ -676,6 +677,7 @@ struct WizardSystemStatusOverview: View {
         }
     }
 }
+
 // MARK: - Hoverable Row Wrapper
 
 private struct HoverableRow<Content: View>: View {
@@ -750,7 +752,7 @@ private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
             received.append(buffer, count: n)
             if let s = String(data: received, encoding: .utf8) {
                 // Expect Ok + HelloOk JSON, and require "status" capability
-                if s.contains("\"HelloOk\"") && s.contains("\"status\"") { return true }
+                if s.contains("\"HelloOk\""), s.contains("\"status\"") { return true }
                 if s.contains("unknown variant") { return false } // old server
             }
         } else {
@@ -800,13 +802,13 @@ private struct StatusItemModel {
 
 /// NSViewRepresentable that suppresses focus ring drawing on macOS
 private struct NoFocusRingBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
+    func makeNSView(context _: Context) -> NSView {
         let view = NSView()
         view.focusRingType = .none
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
+    func updateNSView(_ nsView: NSView, context _: Context) {
         nsView.focusRingType = .none
     }
 }

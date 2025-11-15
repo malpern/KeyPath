@@ -19,14 +19,14 @@ struct WizardHeroSection: View {
     // MARK: - State
 
     @State private var iconHovering: Bool = false
-    
+
     enum OverlaySize {
-        case large  // 40pt icon, offset(x: 15, y: -5), frame(140x115)
-        case small  // 24pt icon, offset(x: 8, y: -3), frame(60x60)
+        case large // 40pt icon, offset(x: 15, y: -5), frame(140x115)
+        case small // 24pt icon, offset(x: 8, y: -3), frame(60x60)
     }
-    
+
     // MARK: - Initialization
-    
+
     init(
         icon: String,
         iconColor: Color,
@@ -50,27 +50,27 @@ struct WizardHeroSection: View {
         self.actionButtonAction = actionButtonAction
         self.iconTapAction = iconTapAction
     }
-    
+
     // MARK: - Body
-    
+
     var body: some View {
         VStack(spacing: WizardDesign.Spacing.sectionGap) {
             // Icon with optional overlay
             iconView
-            
+
             // Title
             Text(title)
                 .font(.system(size: 23, weight: .semibold, design: .default))
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
-            
+
             // Subtitle
             Text(subtitle)
                 .font(.system(size: 17, weight: .regular))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            
+
             // Optional action button
             if let actionButtonTitle, let actionButtonAction {
                 Button(action: actionButtonAction) {
@@ -81,7 +81,7 @@ struct WizardHeroSection: View {
         }
         // Padding removed - pages control padding via heroSectionContainer() modifier
     }
-    
+
     // MARK: - Icon View
 
     @ViewBuilder
@@ -118,7 +118,7 @@ struct WizardHeroSection: View {
             iconTapAction?()
         }
     }
-    
+
     @ViewBuilder
     private func overlayIconView(icon: String, color: Color) -> some View {
         VStack {
@@ -168,7 +168,7 @@ extension WizardHeroSection {
             iconTapAction: iconTapAction
         )
     }
-    
+
     /// Convenience initializer for warning state with small warning overlay
     static func warning(
         icon: String,
@@ -191,7 +191,7 @@ extension WizardHeroSection {
             iconTapAction: iconTapAction
         )
     }
-    
+
     /// Convenience initializer for error state with small error overlay
     static func error(
         icon: String,

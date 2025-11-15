@@ -139,7 +139,7 @@ struct SystemStatusIndicator: View {
                 rotationDegrees = fmod(rotationDegrees + rotationSpeedDegPerSec / 60.0, 360)
             case .decelerating:
                 guard let start = decelStart else { break }
-                let duration: Double = 0.6
+                let duration = 0.6
                 let t = min(1.0, Date().timeIntervalSince(start) / duration)
                 // Ease-out (quadratic) speed curve
                 let currentSpeed = (1.0 - t) * (1.0 - t) * decelInitialSpeed

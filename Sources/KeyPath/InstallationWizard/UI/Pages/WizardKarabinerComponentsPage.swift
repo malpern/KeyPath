@@ -231,7 +231,8 @@ struct WizardKarabinerComponentsPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)
@@ -363,7 +364,7 @@ struct WizardKarabinerComponentsPage: View {
             AppLogger.shared.log("🧭 [FIX-VHID \(session)] START Karabiner driver repair")
 
             // Determine issues involved
-            let vhidIssues = issues.filter { $0.identifier.isVHIDRelated }
+            let vhidIssues = issues.filter(\.identifier.isVHIDRelated)
             AppLogger.shared.log("🧭 [FIX-VHID \(session)] Issues: \(vhidIssues.map { String(describing: $0.identifier) }.joined(separator: ", "))")
 
             var success = false

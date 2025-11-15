@@ -1,5 +1,5 @@
-import SwiftUI
 import KeyPathCore
+import SwiftUI
 
 struct RulesTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
@@ -149,24 +149,24 @@ struct RulesTabView: View {
     private func count(for tab: RulesSubTab) -> Int {
         switch tab {
         case .active:
-            return kanataManager.keyMappings.count
+            kanataManager.keyMappings.count
         case .available:
-            return SimpleModsCatalog.shared.getAllPresets().count
+            SimpleModsCatalog.shared.getAllPresets().count
         }
     }
 
     private func iconName(for tab: RulesSubTab) -> String {
         switch tab {
-        case .active: return "switch.2"
-        case .available: return "square.grid.2x2"
+        case .active: "switch.2"
+        case .available: "square.grid.2x2"
         }
     }
 
     private func segmentBackground(for tab: RulesSubTab) -> Color {
         if tab == selectedTab {
-            return tab == .active ? Color.green.opacity(0.25) : Color.blue.opacity(0.25)
+            tab == .active ? Color.green.opacity(0.25) : Color.blue.opacity(0.25)
         } else {
-            return Color.secondary.opacity(0.08)
+            Color.secondary.opacity(0.08)
         }
     }
 
@@ -177,9 +177,9 @@ struct RulesTabView: View {
     private func subtitle(for tab: RulesSubTab) -> String {
         switch tab {
         case .active:
-            return "These mappings are currently running inside Kanata."
+            "These mappings are currently running inside Kanata."
         case .available:
-            return "Explore curated presets you can activate instantly."
+            "Explore curated presets you can activate instantly."
         }
     }
 
@@ -311,7 +311,8 @@ struct AvailableRulesView: View {
                 ForEach(groupedPresets.keys.sorted(), id: \.self) { category in
                     Section(header: Text(category)
                         .font(.headline)
-                        .foregroundColor(.secondary)) {
+                        .foregroundColor(.secondary))
+                    {
                         ForEach(groupedPresets[category]!, id: \.id) { preset in
                             AvailableRuleRow(preset: preset)
                                 .tag(preset.id)

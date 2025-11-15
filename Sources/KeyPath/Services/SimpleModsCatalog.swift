@@ -9,7 +9,7 @@ public final class SimpleModsCatalog {
 
     /// Get all available presets
     public func getAllPresets() -> [SimpleModPreset] {
-        return [
+        [
             // Navigation & Modifiers
             SimpleModPreset(
                 name: "Caps Lock → Escape",
@@ -109,6 +109,6 @@ public final class SimpleModsCatalog {
 
     /// Find a preset by keys
     public func findPreset(fromKey: String, toKey: String) -> SimpleModPreset? {
-        return getAllPresets().first { $0.fromKey == fromKey && $0.toKey == toKey }
+        getAllPresets().first { $0.fromKey == fromKey && $0.toKey == toKey }
     }
 }

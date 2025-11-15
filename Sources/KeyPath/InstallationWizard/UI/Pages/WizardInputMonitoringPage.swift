@@ -1,5 +1,5 @@
-import KeyPathCore
 import AppKit
+import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
@@ -234,7 +234,8 @@ struct WizardInputMonitoringPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)
@@ -272,14 +273,12 @@ struct WizardInputMonitoringPage: View {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 attempts += 1
                 let snapshot = await PermissionOracle.shared.currentSnapshot()
-                let hasPermission: Bool = {
-                    switch type {
-                    case .accessibility:
-                        return snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
-                    case .inputMonitoring:
-                        return snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
-                    }
-                }()
+                let hasPermission: Bool = switch type {
+                case .accessibility:
+                    snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
+                case .inputMonitoring:
+                    snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
+                }
                 if hasPermission {
                     await onRefresh()
                     return
@@ -315,47 +314,49 @@ struct WizardInputMonitoringPage: View {
             }
         } else {
             // Fallback: manual System Settings flow
-        let instructions = """
-        KeyPath will now close so you can grant permissions:
+            let instructions = """
+            KeyPath will now close so you can grant permissions:
 
-        1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
-        2. Make sure both checkboxes are enabled
-        3. Restart KeyPath when you're done
+            1. Add KeyPath and kanata to Input Monitoring (use the '+' button)
+            2. Make sure both checkboxes are enabled
+            3. Restart KeyPath when you're done
 
-        KeyPath will automatically restart the keyboard service to pick up your new permissions.
-        """
+            KeyPath will automatically restart the keyboard service to pick up your new permissions.
+            """
 
-        PermissionGrantCoordinator.shared.initiatePermissionGrant(
-            for: .inputMonitoring,
-            instructions: instructions,
+            PermissionGrantCoordinator.shared.initiatePermissionGrant(
+                for: .inputMonitoring,
+                instructions: instructions,
                 onComplete: { onDismiss?() }
             )
-            }
+        }
     }
 }
 
-    private func openInputMonitoringPreferencesPanel() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
-            NSWorkspace.shared.open(url)
-        }
+private func openInputMonitoringPreferencesPanel() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+        NSWorkspace.shared.open(url)
     }
+}
 
-    // MARK: - Helpers for Kanata add flow
-    private func revealKanataInFinder() {
-        let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
-        let dir = (path as NSString).deletingLastPathComponent
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-        _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
-        AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed kanata in Finder: \(path)")
-    }
+// MARK: - Helpers for Kanata add flow
 
-    private func copyKanataPathToClipboard() {
-        let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(path, forType: .string)
-        AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied kanata path to clipboard: \(path)")
-    }
+private func revealKanataInFinder() {
+    let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+    let dir = (path as NSString).deletingLastPathComponent
+    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+    _ = NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: dir)
+    AppLogger.shared.log("📂 [WizardInputMonitoringPage] Revealed kanata in Finder: \(path)")
+}
+
+private func copyKanataPathToClipboard() {
+    let path = "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+    let pb = NSPasteboard.general
+    pb.clearContents()
+    pb.setString(path, forType: .string)
+    AppLogger.shared.log("📋 [WizardInputMonitoringPage] Copied kanata path to clipboard: \(path)")
+}
+
 // MARK: - Stale Entry Cleanup Instructions View
 
 struct StaleEntryCleanupInstructions: View {

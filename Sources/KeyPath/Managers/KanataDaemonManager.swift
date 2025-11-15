@@ -48,21 +48,21 @@ class KanataDaemonManager {
     /// Represents the current state of service management for Kanata daemon
     /// This is the single source of truth for determining which management method is active
     enum ServiceManagementState: Equatable {
-        case legacyActive          // Legacy plist exists, launchctl managing
-        case smappserviceActive   // No legacy plist, SMAppService .enabled
-        case smappservicePending  // No legacy plist, SMAppService .requiresApproval
-        case uninstalled          // No legacy plist, SMAppService .notFound, process not running
-        case conflicted           // Both legacy plist AND SMAppService active (error state)
-        case unknown              // Ambiguous state requiring investigation
+        case legacyActive // Legacy plist exists, launchctl managing
+        case smappserviceActive // No legacy plist, SMAppService .enabled
+        case smappservicePending // No legacy plist, SMAppService .requiresApproval
+        case uninstalled // No legacy plist, SMAppService .notFound, process not running
+        case conflicted // Both legacy plist AND SMAppService active (error state)
+        case unknown // Ambiguous state requiring investigation
 
         var description: String {
             switch self {
-            case .legacyActive: return "Legacy launchctl"
-            case .smappserviceActive: return "SMAppService (active)"
-            case .smappservicePending: return "SMAppService (pending approval)"
-            case .uninstalled: return "Uninstalled"
-            case .conflicted: return "Conflicted (both methods active)"
-            case .unknown: return "Unknown"
+            case .legacyActive: "Legacy launchctl"
+            case .smappserviceActive: "SMAppService (active)"
+            case .smappservicePending: "SMAppService (pending approval)"
+            case .uninstalled: "Uninstalled"
+            case .conflicted: "Conflicted (both methods active)"
+            case .unknown: "Unknown"
             }
         }
 
@@ -105,7 +105,7 @@ class KanataDaemonManager {
         AppLogger.shared.log("  - SMAppService status: \(smStatus.rawValue) (\(String(describing: smStatus)))")
 
         // Check for conflicts first (both methods active - error state)
-        if hasLegacy && smStatus == .enabled {
+        if hasLegacy, smStatus == .enabled {
             AppLogger.shared.log("⚠️ [KanataDaemonManager] CONFLICTED STATE: Both legacy plist and SMAppService active")
             return .conflicted
         }
@@ -144,7 +144,7 @@ class KanataDaemonManager {
 
     /// Helper function to check if Kanata process is running
     /// This is used as a fallback when state is ambiguous
-    nonisolated private static func pgrepKanataProcess() -> Bool {
+    private nonisolated static func pgrepKanataProcess() -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         task.arguments = ["-f", "kanata.*--cfg"]
@@ -216,7 +216,7 @@ class KanataDaemonManager {
     /// Check if SMAppService is currently being used for Kanata daemon management
     /// - Returns: true if SMAppService is registered
     nonisolated static var isUsingSMAppService: Bool {
-        Self.isRegisteredViaSMAppService()
+        isRegisteredViaSMAppService()
     }
 
     /// Get the active plist path for Kanata service
@@ -253,7 +253,8 @@ class KanataDaemonManager {
             if let plist = NSDictionary(contentsOfFile: expectedPlistPath) as? [String: Any],
                let args = plist["ProgramArguments"] as? [String],
                let first = args.first,
-               !first.contains("kanata-launcher") {
+               !first.contains("kanata-launcher")
+            {
                 AppLogger.shared.log("❌ [KanataDaemonManager] Plist ProgramArguments missing kanata-launcher wrapper (found: \(first))")
                 throw KanataDaemonError.registrationFailed("Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering.")
             }
@@ -263,7 +264,8 @@ class KanataDaemonManager {
             if let plist = NSDictionary(contentsOfFile: resourcePath) as? [String: Any],
                let args = plist["ProgramArguments"] as? [String],
                let first = args.first,
-               !first.contains("kanata-launcher") {
+               !first.contains("kanata-launcher")
+            {
                 AppLogger.shared.log("❌ [KanataDaemonManager] Resource plist missing kanata-launcher wrapper (found: \(first))")
                 throw KanataDaemonError.registrationFailed("Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering.")
             }
@@ -424,8 +426,9 @@ class KanataDaemonManager {
         } catch {
             // Check if error is just "requires approval" - this is OK, user can approve later
             if let kanataError = error as? KanataDaemonError,
-               case .registrationFailed(let reason) = kanataError,
-               reason.contains("Approval required") {
+               case let .registrationFailed(reason) = kanataError,
+               reason.contains("Approval required")
+            {
                 AppLogger.shared.log("⚠️ [KanataDaemonManager] Registration requires user approval - this is OK")
                 AppLogger.shared.log("💡 [KanataDaemonManager] User needs to approve in System Settings → Login Items")
                 AppLogger.shared.log("💡 [KanataDaemonManager] Legacy plist removed - migration will complete once approved")

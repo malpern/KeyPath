@@ -8,11 +8,10 @@ final class ReloadEventService {
             if event.isReady {
                 await MainActor.run { AppLogger.shared.info("✅ [TCP Reload] Ready event received") }
             } else {
-                let whereStr: String
-                if let line = event.line, let col = event.column {
-                    whereStr = " (line \(line), col \(col))"
+                let whereStr = if let line = event.line, let col = event.column {
+                    " (line \(line), col \(col))"
                 } else {
-                    whereStr = ""
+                    ""
                 }
                 let msg = event.message ?? "unknown"
                 await MainActor.run {
@@ -25,5 +24,3 @@ final class ReloadEventService {
         }
     }
 }
-
-

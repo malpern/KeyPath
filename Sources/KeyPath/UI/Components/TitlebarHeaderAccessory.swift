@@ -22,8 +22,7 @@ final class TitlebarHeaderAccessory: NSTitlebarAccessoryViewController {
             .background(
                 VisualEffectRepresentable(material: .menu, blending: .withinWindow)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            )
-        )
+            ))
         self.view = view
         layoutAttribute = .right
     }

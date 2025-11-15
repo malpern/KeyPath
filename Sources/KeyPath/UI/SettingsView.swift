@@ -38,33 +38,33 @@ struct SettingsView: View {
 
     private var systemHealthMessage: String {
         if kanataManager.currentState != .running {
-            return kanataServiceStatus
+            kanataServiceStatus
         } else if !(permissionSnapshot?.isSystemReady ?? false) {
-            return "Permissions Required"
+            "Permissions Required"
         } else {
-            return "Everything's Working"
+            "Everything's Working"
         }
     }
 
     private var kanataServiceStatus: String {
         switch kanataManager.currentState {
         case .running:
-            return "Service Running"
+            "Service Running"
         case .starting:
-            return "Service Starting"
+            "Service Starting"
         case .needsHelp:
-            return "Attention Needed"
+            "Attention Needed"
         case .stopped:
-            return "Service Stopped"
+            "Service Stopped"
         case .pausedLowPower:
-            return "Paused (Low Power)"
+            "Paused (Low Power)"
         }
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                if FeatureFlags.allowOptionalWizard && showSetupBanner {
+                if FeatureFlags.allowOptionalWizard, showSetupBanner {
                     SetupBanner {
                         showingInstallationWizard = true
                     }
@@ -397,16 +397,22 @@ struct SettingsView: View {
     private func refreshServiceStatus() async {
         await MainActor.run {
             let state = KanataDaemonManager.determineServiceManagementState()
+            AppLogger.shared.log("🔄 [SettingsView] refreshServiceStatus: state=\(state)")
             switch state {
             case .legacyActive:
                 activeMethod = .launchctl
+                AppLogger.shared.log("  → Set activeMethod = .launchctl")
             case .smappserviceActive, .smappservicePending:
                 activeMethod = .smappservice
+                AppLogger.shared.log("  → Set activeMethod = .smappservice")
             case .conflicted:
-                activeMethod = .launchctl  // Show migration section when conflicted!
+                activeMethod = .launchctl // Show migration section when conflicted!
+                AppLogger.shared.log("  → Set activeMethod = .launchctl (conflicted)")
             case .unknown, .uninstalled:
                 activeMethod = .unknown
+                AppLogger.shared.log("  → Set activeMethod = .unknown")
             }
+            AppLogger.shared.log("  → Final activeMethod value: \(activeMethod)")
         }
     }
 
@@ -434,7 +440,7 @@ struct SettingsView: View {
             }
 
             // Migration button - only show if legacy is detected
-            if activeMethod == .launchctl && KanataDaemonManager.shared.hasLegacyInstallation() {
+            if activeMethod == .launchctl, KanataDaemonManager.shared.hasLegacyInstallation() {
                 HStack(spacing: 8) {
                     Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
                         guard !isMigrating else { return }
@@ -511,7 +517,7 @@ private struct PermissionStatusRow: View {
 
             Spacer()
 
-            if let granted = granted {
+            if let granted {
                 Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .foregroundColor(granted ? .green : .red)
                     .font(.body)
@@ -524,10 +530,10 @@ private struct PermissionStatusRow: View {
     }
 
     private var statusColor: Color {
-        if let granted = granted {
-            return granted ? .green : .red
+        if let granted {
+            granted ? .green : .red
         } else {
-            return .secondary
+            .secondary
         }
     }
 }

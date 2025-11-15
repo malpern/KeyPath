@@ -629,6 +629,7 @@ enum WizardDesign {
     }
 
     // MARK: - Utilities
+
     /// Disable focus visuals on macOS 14+ to avoid blue focus ring artifacts
     struct DisableFocusEffects: ViewModifier {
         func body(content: Content) -> some View {
@@ -1005,7 +1006,7 @@ private struct TapGestureModifier: ViewModifier {
     let action: (() -> Void)?
 
     func body(content: Content) -> some View {
-        if isNavigable, let action = action {
+        if isNavigable, let action {
             content.onTapGesture {
                 action()
             }

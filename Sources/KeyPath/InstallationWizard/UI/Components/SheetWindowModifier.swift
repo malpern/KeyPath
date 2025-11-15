@@ -1,6 +1,6 @@
-import SwiftUI
 import AppKit
 import ObjectiveC
+import SwiftUI
 
 /// Modifier to customize sheet window appearance (remove border, set background)
 /// Also ensures window resizes from bottom (top-left corner stays stable)
@@ -25,7 +25,7 @@ struct SheetWindowModifier: ViewModifier {
                             // Store the initial top-left position
                             let initialFrame = window.frame
                             let topLeft = NSPoint(x: initialFrame.minX, y: initialFrame.maxY)
-                            
+
                             // Set up a delegate to maintain top-left position during resize
                             if window.delegate == nil {
                                 let resizeDelegate = SheetWindowResizeDelegate(topLeft: topLeft)
@@ -66,12 +66,12 @@ struct SheetWindowModifier: ViewModifier {
 class SheetWindowResizeDelegate: NSObject, NSWindowDelegate {
     private var topLeft: NSPoint
     private var isResizing = false
-    
+
     init(topLeft: NSPoint) {
         self.topLeft = topLeft
         super.init()
     }
-    
+
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
         // Capture current top-left before resize
         let currentFrame = sender.frame
@@ -79,17 +79,17 @@ class SheetWindowResizeDelegate: NSObject, NSWindowDelegate {
         isResizing = true
         return frameSize
     }
-    
+
     func windowDidResize(_ notification: Notification) {
         guard let window = notification.object as? NSWindow, isResizing else { return }
-        
+
         // Restore top-left position after resize (grow from bottom)
         let newFrame = window.frame
         let newOrigin = NSPoint(
             x: topLeft.x,
             y: topLeft.y - newFrame.height
         )
-        
+
         window.setFrameOrigin(newOrigin)
         isResizing = false
     }

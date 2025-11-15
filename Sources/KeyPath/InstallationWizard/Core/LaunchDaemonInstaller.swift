@@ -69,7 +69,9 @@ class LaunchDaemonInstaller {
 
         let testCommand = "echo 'Admin dialog test successful'"
         let osascriptCode = """
-        do shell script "\(testCommand)" with administrator privileges with prompt "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
+        do shell script "\(
+            testCommand
+        )" with administrator privileges with prompt "KeyPath Admin Dialog Test - This is a test of the admin password dialog. Please enter your password to confirm it's working."
         """
 
         // Execute directly without semaphore to avoid deadlock
@@ -288,20 +290,19 @@ class LaunchDaemonInstaller {
 
         do {
             // Write plist contents to temporary files (skip Kanata if SMAppService is active)
-            if let kanataPlist = kanataPlist, let kanataTempPath = kanataTempPath {
-            try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
+            if let kanataPlist, let kanataTempPath {
+                try kanataPlist.write(toFile: kanataTempPath, atomically: true, encoding: .utf8)
             }
             try vhidDaemonPlist.write(toFile: vhidDaemonTempPath, atomically: true, encoding: .utf8)
             try vhidManagerPlist.write(toFile: vhidManagerTempPath, atomically: true, encoding: .utf8)
 
             // Install services with a single admin prompt (skip Kanata if SMAppService is active)
-            let success: Bool
-            if isSMAppServiceActive {
+            let success: Bool = if isSMAppServiceActive {
                 // Only install VirtualHID services
-                success = await executeConsolidatedInstallationForVHIDOnly()
+                await executeConsolidatedInstallationForVHIDOnly()
             } else {
                 // Install all services including Kanata
-                success = executeAllWithAdminPrivileges(
+                executeAllWithAdminPrivileges(
                     kanataTemp: kanataTempPath!,
                     vhidDaemonTemp: vhidDaemonTempPath,
                     vhidManagerTemp: vhidManagerTempPath
@@ -309,8 +310,8 @@ class LaunchDaemonInstaller {
             }
 
             // Clean up temporary files
-            if let kanataTempPath = kanataTempPath {
-            try? FileManager.default.removeItem(atPath: kanataTempPath)
+            if let kanataTempPath {
+                try? FileManager.default.removeItem(atPath: kanataTempPath)
             }
             try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
             try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
@@ -688,7 +689,8 @@ class LaunchDaemonInstaller {
             }
 
             AppLogger.shared.log("🔍 [LaunchDaemon] HEALTH ANALYSIS \(serviceID):")
-            AppLogger.shared.log("    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)")
+            AppLogger.shared
+                .log("    state=\(state ?? "nil"), pid=\(pid?.description ?? "nil"), lastExit=\(lastExit?.description ?? "nil"), oneShot=\(isOneShot), warmup=\(inWarmup), healthy=\(healthy)")
 
             return healthy
         } catch {
@@ -887,7 +889,8 @@ class LaunchDaemonInstaller {
         guard var plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: &format) as? [String: Any],
               var args = plist["ProgramArguments"] as? [String],
               let cfgFlagIndex = args.firstIndex(of: "--cfg"),
-              cfgFlagIndex + 1 < args.count else {
+              cfgFlagIndex + 1 < args.count
+        else {
             AppLogger.shared.log("⚠️ [LaunchDaemon] Kanata plist missing ProgramArguments/--cfg; skipping migration")
             return false
         }
@@ -1012,7 +1015,8 @@ class LaunchDaemonInstaller {
 
     /// Execute LaunchDaemon installation with administrator privileges using osascript
     private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-        -> Bool {
+        -> Bool
+    {
         AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
         // Create the command to copy the file and set proper permissions
@@ -1549,7 +1553,9 @@ class LaunchDaemonInstaller {
         let escapedCommand = escapeForAppleScript(command)
 
         let osascriptCommand = """
-        do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services. This will be a single prompt."
+        do shell script "\(
+            escapedCommand
+        )" with administrator privileges with prompt "KeyPath needs administrator access to install LaunchDaemon services, create configuration files, and start the keyboard services. This will be a single prompt."
         """
 
         AppLogger.shared.log("🔐 [LaunchDaemon] osascript command length: \(osascriptCommand.count) characters")
@@ -1649,7 +1655,7 @@ class LaunchDaemonInstaller {
         let kanataState = KanataDaemonManager.determineServiceManagementState()
         let kanataLoaded: Bool
         let kanataHealthy: Bool
-        
+
         if kanataState.isSMAppServiceManaged {
             // SMAppService is managing Kanata - use fast checks
             kanataLoaded = true // SMAppService managed = loaded
@@ -1661,7 +1667,7 @@ class LaunchDaemonInstaller {
             kanataLoaded = isServiceLoaded(serviceID: Self.kanataServiceID)
             kanataHealthy = isServiceHealthy(serviceID: Self.kanataServiceID)
         }
-        
+
         // VHID services always use launchctl (no SMAppService option)
         let vhidDaemonLoaded = isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
         let vhidManagerLoaded = isServiceLoaded(serviceID: Self.vhidManagerServiceID)
@@ -1862,7 +1868,7 @@ class LaunchDaemonInstaller {
             if state.isSMAppServiceManaged {
                 AppLogger.shared.log("⚠️ [LaunchDaemon] Kanata is managed by SMAppService (state: \(state.description)) - skipping installation")
                 toInstall.removeAll { $0 == Self.kanataServiceID }
-            } else if state == .unknown && pgrepKanataProcess() {
+            } else if state == .unknown, pgrepKanataProcess() {
                 // Unknown state but process running - likely SMAppService managed, skip installation
                 AppLogger.shared.log("⚠️ [LaunchDaemon] Unknown state but process running - skipping installation")
                 toInstall.removeAll { $0 == Self.kanataServiceID }
@@ -2220,7 +2226,7 @@ class LaunchDaemonInstaller {
     /// Returns SMAppService plist path if active, otherwise legacy plist path
     /// Uses KanataDaemonManager.getActivePlistPath() as the single source of truth
     nonisolated func getKanataPlistPath() -> String {
-        return KanataDaemonManager.getActivePlistPath()
+        KanataDaemonManager.getActivePlistPath()
     }
 
     /// Gets the current program arguments from the Kanata LaunchDaemon plist

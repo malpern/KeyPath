@@ -18,8 +18,8 @@ public final class FeatureFlags {
         if timeoutSeconds > 0 {
             DispatchQueue.main.asyncAfter(deadline: .now() + timeoutSeconds) { [weak self] in
                 guard let self else { return }
-                if self.startupModeActive {
-                    self.deactivateStartupMode()
+                if startupModeActive {
+                    deactivateStartupMode()
                 }
             }
         }

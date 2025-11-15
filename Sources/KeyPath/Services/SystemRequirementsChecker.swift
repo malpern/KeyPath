@@ -224,7 +224,8 @@ class SystemRequirementsChecker {
 
         for path in possiblePaths {
             if FileManager.default.fileExists(atPath: path),
-               FileManager.default.isExecutableFile(atPath: path) {
+               FileManager.default.isExecutableFile(atPath: path)
+            {
                 // Verify it's actually the Kanata executable
                 let verification = await verifyKanataExecutable(at: path)
                 if verification.isValid {

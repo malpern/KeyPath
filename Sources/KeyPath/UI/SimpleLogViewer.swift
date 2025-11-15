@@ -92,7 +92,7 @@ struct SimpleLogViewer: View {
 
     private func loadLogContent() async -> String {
         // Run file reading off main thread
-        return await Task.detached {
+        await Task.detached {
             guard let content = try? String(contentsOfFile: logPath, encoding: .utf8) else {
                 return "Log file not found at: \(logPath)"
             }

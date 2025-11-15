@@ -102,7 +102,7 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
     }
 
     func validateConfiguration(_ content: String) async -> (isValid: Bool, errors: [String]) {
-        return await configurationService.validateConfiguration(content)
+        await configurationService.validateConfiguration(content)
     }
 
     func writeGeneratedConfig(_ content: String) async throws -> [KeyMapping] {

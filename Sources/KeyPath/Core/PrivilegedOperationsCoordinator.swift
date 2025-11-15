@@ -25,6 +25,7 @@ final class PrivilegedOperationsCoordinator {
         nonisolated(unsafe) static var serviceStateOverride: (() -> KanataDaemonManager.ServiceManagementState)?
         nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
     #endif
+
     // MARK: - Singleton
 
     static let shared = PrivilegedOperationsCoordinator()
@@ -166,7 +167,8 @@ final class PrivilegedOperationsCoordinator {
 
         let now = Date()
         if let last = Self.lastServiceInstallAttempt,
-           now.timeIntervalSince(last) < Self.serviceInstallThrottle {
+           now.timeIntervalSince(last) < Self.serviceInstallThrottle
+        {
             let remaining = Self.serviceInstallThrottle - now.timeIntervalSince(last)
             AppLogger.shared.log(
                 "\(Self.serviceGuardLogPrefix) \(context): skipping auto-install (throttled, \(String(format: "%.1f", remaining))s remaining)"
@@ -863,7 +865,8 @@ final class PrivilegedOperationsCoordinator {
     private static func notifySMAppServiceApprovalRequired(context: String) {
         let now = Date()
         if let last = lastSMAppApprovalNotice,
-           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle {
+           now.timeIntervalSince(last) < smAppApprovalNoticeThrottle
+        {
             return
         }
         lastSMAppApprovalNotice = now

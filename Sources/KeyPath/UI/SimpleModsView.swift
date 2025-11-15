@@ -207,9 +207,9 @@ struct SimpleModsView: View {
                 previousMappingCount = oldCount
 
                 // Only show success toast if NOT a rollback (no error state)
-                if service.lastError == nil && service.lastRollbackReason == nil {
+                if service.lastError == nil, service.lastRollbackReason == nil {
                     // Switch to installed tab when a mapping is added
-                    if newCount > oldCount && selectedTab == .available {
+                    if newCount > oldCount, selectedTab == .available {
                         selectedTab = .installed
                         // Fetch last reload duration from TCP status for richer success message
                         Task {
@@ -287,7 +287,7 @@ struct SimpleModsView: View {
     @EnvironmentObject private var kanataViewModel: KanataViewModel
 
     private func findViewModel() -> KanataViewModel {
-        return kanataViewModel
+        kanataViewModel
     }
 
     private func showToast(_ message: String, isError: Bool) {
@@ -432,7 +432,8 @@ private struct InstalledMappingRow: View {
             let trivial1 = "\(mapping.fromKey) → \(mapping.toKey)"
             let trivial2 = "\(mapping.fromKey) to \(mapping.toKey)"
             if name.caseInsensitiveCompare(trivial1) == .orderedSame ||
-                name.caseInsensitiveCompare(trivial2) == .orderedSame {
+                name.caseInsensitiveCompare(trivial2) == .orderedSame
+            {
                 return nil
             }
             return name
@@ -520,7 +521,8 @@ private struct AvailablePresetRow: View {
         let trivial1 = "\(preset.fromKey) → \(preset.toKey)"
         let trivial2 = "\(preset.fromKey) to \(preset.toKey)"
         if preset.name.caseInsensitiveCompare(trivial1) == .orderedSame ||
-            preset.name.caseInsensitiveCompare(trivial2) == .orderedSame {
+            preset.name.caseInsensitiveCompare(trivial2) == .orderedSame
+        {
             return nil
         }
         return preset.name

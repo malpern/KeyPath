@@ -355,7 +355,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.kanataManager?.openAccessibilitySettings()
             }
         }
-
     }
 
     func applicationWillResignActive(_: Notification) {

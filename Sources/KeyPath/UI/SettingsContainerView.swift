@@ -25,6 +25,7 @@ enum SettingsTab: Hashable, CaseIterable {
         }
     }
 }
+
 struct SettingsContainerView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
     @State private var selection: SettingsTab = .general
@@ -306,7 +307,7 @@ struct AdvancedSettingsTabView: View {
             }
 
             // Migration button - only show if legacy is detected
-            if activeMethod == .launchctl && KanataDaemonManager.shared.hasLegacyInstallation() {
+            if activeMethod == .launchctl, KanataDaemonManager.shared.hasLegacyInstallation() {
                 HStack(spacing: 8) {
                     Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
                         guard !isMigrating else { return }
@@ -537,7 +538,7 @@ struct AdvancedSettingsTabView: View {
             case .smappserviceActive, .smappservicePending:
                 activeMethod = .smappservice
             case .conflicted:
-                activeMethod = .launchctl  // Show migration section when conflicted!
+                activeMethod = .launchctl // Show migration section when conflicted!
             case .unknown, .uninstalled:
                 activeMethod = .unknown
             }

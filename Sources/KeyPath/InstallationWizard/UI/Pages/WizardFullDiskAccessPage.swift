@@ -109,7 +109,6 @@ struct WizardFullDiskAccessPage: View {
                     isLoading: !hasFullDiskAccess && isChecking
                 )
             )
-
         }
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
@@ -188,7 +187,8 @@ struct WizardFullDiskAccessPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)
@@ -205,7 +205,8 @@ struct WizardFullDiskAccessPage: View {
         // Check cache first
         if let lastCheckTime = lastFDACheckTime,
            Date().timeIntervalSince(lastCheckTime) < cacheValidityDuration,
-           cachedFDAStatus {
+           cachedFDAStatus
+        {
             // Use cached positive result (don't cache negative to allow quick detection)
             hasFullDiskAccess = cachedFDAStatus
             hasCheckedPermission = true

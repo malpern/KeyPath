@@ -267,7 +267,7 @@ struct DiagnosticsView: View {
     }
 
     // Minimal export: zip KeyPath logs and helper logs to Desktop
-private func exportSupportReport() async -> String {
+    private func exportSupportReport() async -> String {
         let desktop = NSHomeDirectory() + "/Desktop"
         let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
             .replacingOccurrences(of: "/", with: "-")
@@ -331,38 +331,35 @@ private func exportSupportReport() async -> String {
     private func refreshServiceHealth() async {
         let helperInstalled = HelperManager.shared.isHelperInstalled()
         let helperResponsive = await HelperManager.shared.testHelperFunctionality()
-        let helperStatus: DiagnosticsServiceHealthStatus
-        if helperInstalled && helperResponsive {
-            helperStatus = DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .good, message: "Helper is registered and responding")
+        let helperStatus = if helperInstalled, helperResponsive {
+            DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .good, message: "Helper is registered and responding")
         } else if helperInstalled {
-            helperStatus = DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .warning, message: "Helper installed but not responding")
+            DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .warning, message: "Helper installed but not responding")
         } else {
-            helperStatus = DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .error, message: "Helper not installed")
+            DiagnosticsServiceHealthStatus(title: "Privileged Helper", level: .error, message: "Helper not installed")
         }
 
         let smState = KanataDaemonManager.determineServiceManagementState()
-        let smStatus: DiagnosticsServiceHealthStatus
-        switch smState {
+        let smStatus = switch smState {
         case .smappserviceActive:
-            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .good, message: "SMAppService registered and enabled")
+            DiagnosticsServiceHealthStatus(title: "Background Item", level: .good, message: "SMAppService registered and enabled")
         case .smappservicePending:
-            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .warning, message: "Awaiting approval in System Settings → Login Items")
+            DiagnosticsServiceHealthStatus(title: "Background Item", level: .warning, message: "Awaiting approval in System Settings → Login Items")
         case .legacyActive, .conflicted:
-            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .error, message: "Legacy launchctl plist detected; run Setup Wizard to migrate")
+            DiagnosticsServiceHealthStatus(title: "Background Item", level: .error, message: "Legacy launchctl plist detected; run Setup Wizard to migrate")
         case .uninstalled:
-            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .error, message: "Kanata service is not registered")
+            DiagnosticsServiceHealthStatus(title: "Background Item", level: .error, message: "Kanata service is not registered")
         case .unknown:
-            smStatus = DiagnosticsServiceHealthStatus(title: "Background Item", level: .warning, message: "State unknown; rerun wizard to repair")
+            DiagnosticsServiceHealthStatus(title: "Background Item", level: .warning, message: "State unknown; rerun wizard to repair")
         }
 
         let installer = LaunchDaemonInstaller()
         let vhidDaemonHealthy = installer.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
         let vhidManagerHealthy = installer.isServiceHealthy(serviceID: "com.keypath.karabiner-vhidmanager")
-        let vhidStatus: DiagnosticsServiceHealthStatus
-        if vhidDaemonHealthy && vhidManagerHealthy {
-            vhidStatus = DiagnosticsServiceHealthStatus(title: "VirtualHID Services", level: .good, message: "Driver services are loaded")
+        let vhidStatus = if vhidDaemonHealthy, vhidManagerHealthy {
+            DiagnosticsServiceHealthStatus(title: "VirtualHID Services", level: .good, message: "Driver services are loaded")
         } else {
-            vhidStatus = DiagnosticsServiceHealthStatus(title: "VirtualHID Services", level: .error, message: "Driver services need repair")
+            DiagnosticsServiceHealthStatus(title: "VirtualHID Services", level: .error, message: "Driver services need repair")
         }
 
         await MainActor.run {
@@ -370,9 +367,10 @@ private func exportSupportReport() async -> String {
             smAppServiceStatus = smStatus
             vhidServiceStatus = vhidStatus
         }
-}
+    }
 
-// MARK: - Helper management (moved from Settings)
+    // MARK: - Helper management (moved from Settings)
+
     private func refreshHelperStatus() async {
         await MainActor.run { helperInstalled = HelperManager.shared.isHelperInstalled() }
         let v = await HelperManager.shared.getHelperVersion()
@@ -380,6 +378,7 @@ private func exportSupportReport() async -> String {
     }
 
     // MARK: - Recovery tools
+
     private func performDevReset() async {
         await MainActor.run { isResetting = true }
         defer { Task { await MainActor.run { isResetting = false } } }
@@ -563,19 +562,19 @@ private struct DiagnosticsServiceHealthStatus: Equatable {
 
     var icon: String {
         switch level {
-        case .good: return "checkmark.circle.fill"
-        case .warning: return "exclamationmark.triangle.fill"
-        case .error: return "xmark.octagon.fill"
-        case .unknown: return "questionmark.circle.fill"
+        case .good: "checkmark.circle.fill"
+        case .warning: "exclamationmark.triangle.fill"
+        case .error: "xmark.octagon.fill"
+        case .unknown: "questionmark.circle.fill"
         }
     }
 
     var color: Color {
         switch level {
-        case .good: return .green
-        case .warning: return .orange
-        case .error: return .red
-        case .unknown: return .gray
+        case .good: .green
+        case .warning: .orange
+        case .error: .red
+        case .unknown: .gray
         }
     }
 
@@ -803,7 +802,7 @@ struct ServiceManagementSection: View {
             // Action buttons
             HStack(spacing: 8) {
                 // Migration button - only show if legacy is detected (auto-resolve should handle it, but keep as utility)
-                if activeMethod == .launchctl && KanataDaemonManager.shared.hasLegacyInstallation() {
+                if activeMethod == .launchctl, KanataDaemonManager.shared.hasLegacyInstallation() {
                     Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
                         guard !isMigrating else { return }
                         isMigrating = true

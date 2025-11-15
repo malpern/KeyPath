@@ -85,7 +85,7 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            if FeatureFlags.allowOptionalWizard && showSetupBanner {
+            if FeatureFlags.allowOptionalWizard, showSetupBanner {
                 SetupBanner {
                     showingInstallationWizard = true
                 }
@@ -464,19 +464,19 @@ struct ContentView: View {
                 await PermissionGate.shared.checkAndRequestPermissions(
                     for: .emergencyStop,
                     onGranted: {
-                        await self.startEmergencyMonitoringInternal()
+                        await startEmergencyMonitoringInternal()
                     },
                     onDenied: {
                         // No-op; user can try again later
                     }
                 )
             }
-                        return
-                    }
+            return
+        }
         Task { @MainActor in
             await startEmergencyMonitoringInternal()
-                }
-            }
+        }
+    }
 
     @MainActor
     private func startEmergencyMonitoringInternal() async {
@@ -1160,7 +1160,8 @@ struct StatusMessageView: View {
         } else if message.contains("paused") {
             "pause.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") {
+            || message.contains("backed up")
+        {
             "exclamationmark.triangle.fill"
         } else {
             "checkmark.circle.fill"
@@ -1171,7 +1172,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused") {
+            || message.contains("backed up") || message.contains("paused")
+        {
             .orange
         } else {
             .green
@@ -1182,7 +1184,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.85)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused") {
+            || message.contains("backed up") || message.contains("paused")
+        {
             Color.orange.opacity(0.85)
         } else {
             Color.green.opacity(0.85)
@@ -1193,7 +1196,8 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.5)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused") {
+            || message.contains("backed up") || message.contains("paused")
+        {
             Color.orange.opacity(0.5)
         } else {
             Color.green.opacity(0.5)

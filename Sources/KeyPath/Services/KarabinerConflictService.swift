@@ -19,7 +19,6 @@ protocol KarabinerConflictManaging: AnyObject {
     func disableKarabinerElementsPermanently() async -> Bool
     func startKarabinerDaemon() async -> Bool
     func restartKarabinerDaemon() async -> Bool
-
 }
 
 // MARK: - Implementation
@@ -64,7 +63,8 @@ final class KarabinerConflictService: KarabinerConflictManaging {
             let lines = output.components(separatedBy: .newlines)
             for line in lines {
                 if line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"),
-                   line.contains("[activated enabled]") {
+                   line.contains("[activated enabled]")
+                {
                     AppLogger.shared.log("✅ [Driver] Karabiner driver extension is enabled")
                     return true
                 }

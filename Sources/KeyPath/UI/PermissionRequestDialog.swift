@@ -1,11 +1,11 @@
 import AppKit
 import SwiftUI
 
-struct PermissionRequestDialog {
+enum PermissionRequestDialog {
     @MainActor
     static func show(
         explanation: String,
-        permissions: Set<PGPermissionType>
+        permissions _: Set<PGPermissionType>
     ) async -> Bool {
         await withCheckedContinuation { continuation in
             Task { @MainActor in

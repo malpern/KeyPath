@@ -284,7 +284,7 @@ struct WizardAccessibilityPage: View {
                         await onRefresh()
                     }
 
-                    if kpGranted && kaGranted {
+                    if kpGranted, kaGranted {
                         // Both ready – stop polling
                         return
                     }
@@ -302,22 +302,22 @@ struct WizardAccessibilityPage: View {
                 }
             }
         } else {
-        let instructions = """
-        KeyPath will now close so you can grant permissions:
+            let instructions = """
+            KeyPath will now close so you can grant permissions:
 
-        1. Add KeyPath and kanata to Accessibility (use the '+' button)
-        2. Make sure both checkboxes are enabled
-        3. Restart KeyPath when you're done
+            1. Add KeyPath and kanata to Accessibility (use the '+' button)
+            2. Make sure both checkboxes are enabled
+            3. Restart KeyPath when you're done
 
-        KeyPath will automatically restart the keyboard service to pick up your new permissions.
-        """
+            KeyPath will automatically restart the keyboard service to pick up your new permissions.
+            """
 
-        PermissionGrantCoordinator.shared.initiatePermissionGrant(
-            for: .accessibility,
-            instructions: instructions,
+            PermissionGrantCoordinator.shared.initiatePermissionGrant(
+                for: .accessibility,
+                instructions: instructions,
                 onComplete: { onDismiss?() }
             )
-            }
+        }
     }
 
     private func openAccessibilitySettings() {
@@ -326,7 +326,8 @@ struct WizardAccessibilityPage: View {
 
         // Fallback: Open System Settings > Privacy & Security > Accessibility
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -338,7 +339,8 @@ struct WizardAccessibilityPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)

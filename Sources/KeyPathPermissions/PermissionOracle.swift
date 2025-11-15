@@ -154,7 +154,8 @@ public actor PermissionOracle {
             // Honor cache semantics in tests to keep behavior deterministic
             if let cachedTime = lastSnapshotTime,
                let cached = lastSnapshot,
-               Date().timeIntervalSince(cachedTime) < cacheTTL {
+               Date().timeIntervalSince(cachedTime) < cacheTTL
+            {
                 AppLogger.shared.log("🔮 [Oracle] (Test) Returning cached snapshot")
                 return cached
             }
@@ -177,7 +178,8 @@ public actor PermissionOracle {
         // Return cached result if fresh
         if let cachedTime = lastSnapshotTime,
            let cached = lastSnapshot,
-           Date().timeIntervalSince(cachedTime) < cacheTTL {
+           Date().timeIntervalSince(cachedTime) < cacheTTL
+        {
             AppLogger.shared.log("🔮 [Oracle] Returning cached snapshot (age: \(String(format: "%.3f", Date().timeIntervalSince(cachedTime)))s)")
             return cached
         }

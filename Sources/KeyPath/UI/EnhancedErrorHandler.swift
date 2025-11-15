@@ -65,7 +65,7 @@ struct ErrorInfo: Identifiable {
             case let .configuration(.loadFailed(reason)):
                 // Check if this is a TCP connectivity issue masquerading as config error
                 let reasonLower = reason.lowercased()
-                if reasonLower.contains("tcp") && (reasonLower.contains("required") || reasonLower.contains("unresponsive") || reasonLower.contains("failed") || reasonLower.contains("reload")) {
+                if reasonLower.contains("tcp"), reasonLower.contains("required") || reasonLower.contains("unresponsive") || reasonLower.contains("failed") || reasonLower.contains("reload") {
                     return ErrorInfo(
                         originalError: error,
                         errorType: .tcpTimeout,
@@ -111,7 +111,8 @@ struct ErrorInfo: Identifiable {
                 errorString.contains("tcp communication failed") ||
                 errorString.contains("tcp server required") ||
                 errorString.contains("tcp server unresponsive") ||
-                errorString.contains("tcp reload failed") {
+                errorString.contains("tcp reload failed")
+            {
                 return ErrorInfo(
                     originalError: error,
                     errorType: .tcpTimeout,
@@ -168,7 +169,7 @@ struct ErrorInfo: Identifiable {
 
         // Config validation errors (only if NOT a TCP error)
         // Make sure we don't match TCP errors that mention "validation"
-        if errorString.contains("config") && !errorString.contains("tcp") {
+        if errorString.contains("config"), !errorString.contains("tcp") {
             if errorString.contains("invalid") || errorString.contains("validation") {
                 return ErrorInfo(
                     originalError: error,

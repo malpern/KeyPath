@@ -111,7 +111,7 @@ public class KeyboardCapture: ObservableObject {
                     for: .keyCapture,
                     onGranted: { [weak self] in
                         guard let self else { return }
-                        self.startCaptureAfterPermissions(callback: callback)
+                        startCaptureAfterPermissions(callback: callback)
                     },
                     onDenied: {
                         callback("⚠️ Accessibility permission required")
@@ -271,7 +271,10 @@ public class KeyboardCapture: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 if self.isCapturing, !self.anyEventSeen {
-                    AppLogger.shared.log("⏱️ [KeyboardCapture] No key events received after 1.0s (mode=\(self.captureMode), tap=\(self.suppressEvents ? "defaultTap" : "listenOnly"), location=\(self.currentTapLocation))")
+                    AppLogger.shared
+                        .log(
+                            "⏱️ [KeyboardCapture] No key events received after 1.0s (mode=\(self.captureMode), tap=\(self.suppressEvents ? "defaultTap" : "listenOnly"), location=\(self.currentTapLocation))"
+                        )
                 }
             }
         }
@@ -426,7 +429,8 @@ public class KeyboardCapture: ObservableObject {
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
             if last.baseKey == keyPress.baseKey,
                last.modifiers == keyPress.modifiers,
-               now.timeIntervalSince(lastAt) <= dedupWindow {
+               now.timeIntervalSince(lastAt) <= dedupWindow
+            {
                 AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
                 return
             }
@@ -654,7 +658,8 @@ public class KeyboardCapture: ObservableObject {
             // Check if all three keys are pressed simultaneously
             if pressedKeys.contains(leftControlKey),
                pressedKeys.contains(spaceKey),
-               pressedKeys.contains(escapeKey) {
+               pressedKeys.contains(escapeKey)
+            {
                 AppLogger.shared.log("🚨 [Emergency] Kanata emergency stop sequence detected!")
 
                 DispatchQueue.main.async {

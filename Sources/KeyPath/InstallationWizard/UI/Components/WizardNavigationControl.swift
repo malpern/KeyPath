@@ -1,6 +1,6 @@
-import SwiftUI
-import KeyPathWizardCore
 import KeyPathCore
+import KeyPathWizardCore
+import SwiftUI
 
 /// System Preferences-style navigation control for wizard detail pages
 /// Automatically reads navigation state from environment

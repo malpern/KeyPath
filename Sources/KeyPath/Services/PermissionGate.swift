@@ -7,7 +7,6 @@ enum PGPermissionType: Hashable {
     case accessibility
 }
 
-
 enum PermissionGatedFeature {
     case keyboardRemapping
     case emergencyStop
@@ -17,29 +16,30 @@ enum PermissionGatedFeature {
     var requiredPermissions: Set<PGPermissionType> {
         switch self {
         case .keyboardRemapping:
-            return [.inputMonitoring, .accessibility]
+            [.inputMonitoring, .accessibility]
         case .emergencyStop:
-            return [.accessibility]
+            [.accessibility]
         case .keyCapture:
-            return [.accessibility]
+            [.accessibility]
         case .configurationReload:
-            return [.inputMonitoring]
+            [.inputMonitoring]
         }
     }
 
     var contextualExplanation: String {
         switch self {
         case .keyboardRemapping:
-            return "KeyPath needs permission to remap your keyboard keys."
+            "KeyPath needs permission to remap your keyboard keys."
         case .emergencyStop:
-            return "KeyPath needs Accessibility permission to detect the emergency stop and keep you safe."
+            "KeyPath needs Accessibility permission to detect the emergency stop and keep you safe."
         case .keyCapture:
-            return "KeyPath needs Accessibility permission to capture keyboard input for configuration."
+            "KeyPath needs Accessibility permission to capture keyboard input for configuration."
         case .configurationReload:
-            return "KeyPath needs Input Monitoring permission to apply remapping changes."
+            "KeyPath needs Input Monitoring permission to apply remapping changes."
         }
     }
 }
+
 @MainActor
 final class PermissionGate {
     static let shared = PermissionGate()
@@ -57,9 +57,9 @@ final class PermissionGate {
         let missing = feature.requiredPermissions.filter { p in
             switch p {
             case .inputMonitoring:
-                return !snapshot.keyPath.inputMonitoring.isReady || !snapshot.kanata.inputMonitoring.isReady
+                !snapshot.keyPath.inputMonitoring.isReady || !snapshot.kanata.inputMonitoring.isReady
             case .accessibility:
-                return !snapshot.keyPath.accessibility.isReady || !snapshot.kanata.accessibility.isReady
+                !snapshot.keyPath.accessibility.isReady || !snapshot.kanata.accessibility.isReady
             }
         }
 
@@ -90,15 +90,15 @@ final class PermissionGate {
         }
 
         // Poll until granted or timeout
-        for _ in 0..<30 {
+        for _ in 0 ..< 30 {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             let snap = await oracle.currentSnapshot()
             let allGranted = feature.requiredPermissions.allSatisfy { p in
                 switch p {
                 case .inputMonitoring:
-                    return snap.keyPath.inputMonitoring.isReady && snap.kanata.inputMonitoring.isReady
+                    snap.keyPath.inputMonitoring.isReady && snap.kanata.inputMonitoring.isReady
                 case .accessibility:
-                    return snap.keyPath.accessibility.isReady && snap.kanata.accessibility.isReady
+                    snap.keyPath.accessibility.isReady && snap.kanata.accessibility.isReady
                 }
             }
             if allGranted {

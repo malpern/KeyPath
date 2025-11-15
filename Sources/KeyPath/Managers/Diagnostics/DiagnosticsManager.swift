@@ -88,7 +88,7 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
         logMonitorTask = Task { @MainActor [weak self] in
             guard let self else { return }
 
-            let logPath = "/var/log/kanata.log"
+            let logPath = WizardSystemPaths.kanataLogFile
             guard FileManager.default.fileExists(atPath: logPath) else {
                 AppLogger.shared.log("⚠️ [DiagnosticsManager] Kanata log file not found at \(logPath)")
                 return

@@ -1,9 +1,9 @@
 import Foundation
-import os.lock
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
+import os.lock
 
 /// Stateless system validation service
 ///
@@ -140,7 +140,7 @@ class SystemValidator {
         let totalSteps = 5.0
         // Capture progressCallback in a nonisolated closure
         let callback = progressCallback
-        let updateProgress = { @Sendable (stepNumber: Int) in
+        let updateProgress = { @Sendable (_: Int) in
             let completed = progressLock.withLock { (count: inout Int) -> Int in
                 count += 1
                 return count
@@ -222,11 +222,11 @@ class SystemValidator {
             // Collect results as they complete
             for await result in group {
                 switch result {
-                case .helper(let value): helperResult = value
-                case .permissions(let value): permissionsResult = value
-                case .components(let value): componentsResult = value
-                case .conflicts(let value): conflictsResult = value
-                case .health(let value): healthResult = value
+                case let .helper(value): helperResult = value
+                case let .permissions(value): permissionsResult = value
+                case let .components(value): componentsResult = value
+                case let .conflicts(value): conflictsResult = value
+                case let .health(value): healthResult = value
                 }
             }
 
@@ -297,9 +297,9 @@ class SystemValidator {
         AppLogger.shared.log("🔍 [SystemValidator] Helper: installed=\(isInstalled), version=\(version ?? "nil"), working=\(isWorking)")
 
         // Log warnings for inconsistent states
-        if isInstalled && !isWorking {
+        if isInstalled, !isWorking {
             AppLogger.shared.log("⚠️ [SystemValidator] Helper installed but not working - may be phantom registration or XPC issue")
-        } else if !isInstalled && isWorking {
+        } else if !isInstalled, isWorking {
             AppLogger.shared.log("🚨 [SystemValidator] Impossible state: Not installed but working - logic error!")
         }
 
@@ -352,7 +352,10 @@ class SystemValidator {
         let daemonStatus = launchDaemonInstaller.getServiceStatus()
         let launchDaemonServicesHealthy = daemonStatus.allServicesHealthy
 
-        AppLogger.shared.log("🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidVersionMismatch=\(vhidVersionMismatch)")
+        AppLogger.shared
+            .log(
+                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
+            )
 
         return ComponentStatus(
             kanataBinaryInstalled: kanataBinaryInstalled,
@@ -390,7 +393,10 @@ class SystemValidator {
             }
         }
 
-        AppLogger.shared.log("🔍 [SystemValidator] Total conflicts: \(allConflicts.count) (\(conflictResolution.externalProcesses.count) kanata, \(allConflicts.count - conflictResolution.externalProcesses.count) karabiner)")
+        AppLogger.shared
+            .log(
+                "🔍 [SystemValidator] Total conflicts: \(allConflicts.count) (\(conflictResolution.externalProcesses.count) kanata, \(allConflicts.count - conflictResolution.externalProcesses.count) karabiner)"
+            )
 
         return ConflictStatus(
             conflicts: allConflicts,

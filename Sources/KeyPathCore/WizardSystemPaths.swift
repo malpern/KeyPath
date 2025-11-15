@@ -65,8 +65,20 @@ public enum WizardSystemPaths {
 
     // MARK: - Log Files
 
-    /// Main kanata log file
-    public static let kanataLogFile = "/var/log/kanata.log"
+    /// Candidate Kanata log files (SMAppService stdout first, legacy launchctl second)
+    public static let kanataLogFileCandidates = [
+        "/var/log/com.keypath.kanata.stdout.log",
+        "/var/log/kanata.log"
+    ]
+
+    /// Main kanata log file (prefers existing candidate paths)
+    public static var kanataLogFile: String {
+        let fileManager = FileManager.default
+        if let existing = kanataLogFileCandidates.first(where: { fileManager.fileExists(atPath: $0) }) {
+            return existing
+        }
+        return kanataLogFileCandidates.first ?? "/var/log/com.keypath.kanata.stdout.log"
+    }
 
     /// System log directory
     public static let systemLogDirectory = "/var/log"
@@ -146,5 +158,3 @@ public enum WizardSystemPaths {
         return fullPath
     }
 }
-
-

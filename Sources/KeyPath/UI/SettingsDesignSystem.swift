@@ -106,7 +106,7 @@ struct ActionButtonRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ForEach(Array(buttons.enumerated()), id: \.offset) { index, button in
+            ForEach(Array(buttons.enumerated()), id: \.offset) { _, button in
                 buttonView(for: button)
             }
             Spacer()
@@ -218,8 +218,7 @@ struct SimpleListItem: View {
 extension View {
     /// Apply consistent settings container background
     func settingsBackground() -> some View {
-        self
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Color(NSColor.windowBackgroundColor))
     }
 }
