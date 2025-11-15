@@ -60,4 +60,48 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("cleanup.txt").path))
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("Uninstall completed") })
     }
+
+    func testUninstallFailsWhenScriptMissing() async throws {
+        let coordinator = UninstallCoordinator(
+            resolveUninstallerURL: { nil },
+            runWithAdminPrivileges: { _ in AppleScriptResult(success: false, output: "", error: "", exitStatus: -1) }
+        )
+
+        let success = await coordinator.uninstall()
+
+        XCTAssertFalse(success)
+        XCTAssertFalse(coordinator.didSucceed)
+        XCTAssertEqual(coordinator.lastError, "Uninstaller script wasn't found in this build.")
+        XCTAssertTrue(coordinator.logLines.contains { $0.contains("Uninstaller script wasn't found") })
+    }
+
+    func testUninstallLogsAdminError() async throws {
+        let errorURL = FileManager.default.temporaryDirectory.appendingPathComponent("uninstall-fail.sh")
+        let coordinator = UninstallCoordinator(
+            resolveUninstallerURL: { errorURL },
+            runWithAdminPrivileges: { _ in AppleScriptResult(success: false, output: "", error: "Permission denied", exitStatus: 1) }
+        )
+
+        let success = await coordinator.uninstall()
+
+        XCTAssertFalse(success)
+        XCTAssertFalse(coordinator.didSucceed)
+        XCTAssertEqual(coordinator.lastError, "Permission denied")
+        XCTAssertTrue(coordinator.logLines.contains { $0.contains("Permission denied") })
+    }
+
+    func testUninstallLogsExitCodeWhenAdminErrorMissingMessage() async throws {
+        let errorURL = FileManager.default.temporaryDirectory.appendingPathComponent("uninstall-fail.sh")
+        let coordinator = UninstallCoordinator(
+            resolveUninstallerURL: { errorURL },
+            runWithAdminPrivileges: { _ in AppleScriptResult(success: false, output: "", error: "", exitStatus: 42) }
+        )
+
+        let success = await coordinator.uninstall()
+
+        XCTAssertFalse(success)
+        XCTAssertFalse(coordinator.didSucceed)
+        XCTAssertEqual(coordinator.lastError, "Uninstall failed with exit code 42")
+        XCTAssertTrue(coordinator.logLines.contains { $0.contains("Uninstall failed (error code 42)") })
+    }
 }

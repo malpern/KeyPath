@@ -109,9 +109,9 @@
         <td>Uninstall / cleanup</td>
         <td class="status yes">Yes</td>
         <td class="status yes">Yes</td>
-        <td class="status partial">Partial</td>
+        <td class="status yes">Yes</td>
         <td class="status na">N/A</td>
-        <td>Functional test now runs the real uninstall helper via a fake script, asserts cleanup logs, and verifies directories are removed, so happy-path behavior is locked in (failure flows still rely on logs/assertions).</td>
+        <td>Functional tests exercise both the successful cleanup and failure modes (missing script + admin-denied errors) so the happy and failure paths are locked in; only partial failure-state reporting still relies on log assertions.</td>
       </tr>
       <tr>
         <td>Config watcher atomic write handling</td>
