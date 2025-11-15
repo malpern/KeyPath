@@ -37,9 +37,9 @@
         <td>Fresh install (all deps present)</td>
         <td class="status yes">Yes</td>
         <td class="status yes">Yes</td>
-        <td class="status partial">Partial</td>
         <td class="status yes">Yes</td>
-        <td>InstallerEngineFunctionalTests cover provisioning/SMAppService flows, but the default CI runner (<code>run-core-tests.sh</code>) still filters to <code>UnitTestSuite</code>, so these checks only run when developers opt in locally.</td>
+        <td class="status yes">Yes</td>
+        <td>InstallerEngineFunctionalTests cover provisioning/SMAppService flows, and IntegrationTestSuite now asserts that installer failures surface errors; default CI still filters to <code>UnitTestSuite</code> so developers must opt in locally.</td>
       </tr>
       <tr>
         <td>Re-run install on already-installed</td>
