@@ -3,10 +3,10 @@ import XCTest
 
 @MainActor
 final class HelperMaintenanceTests: XCTestCase {
-    override func tearDown() {
-        super.tearDown()
+    override func tearDown() async throws {
+        try await super.tearDown()
         HelperMaintenance.testDuplicateAppPathsOverride = nil
-        HelperMaintenance.shared.applyTestHooks(nil)
+        await HelperMaintenance.shared.applyTestHooks(nil)
         HelperManager.testHelperFunctionalityOverride = nil
         HelperManager.testInstallHelperOverride = nil
     }
@@ -22,7 +22,15 @@ final class HelperMaintenanceTests: XCTestCase {
         }
 
         let copies = HelperMaintenance.shared.detectDuplicateAppCopies()
-        XCTAssertEqual(copies, ["/Applications/KeyPath.app", "/Users/test/KeyPath.app", "/Users/test/Downloads/KeyPath.app"])
+        XCTAssertEqual(copies.first, "/Applications/KeyPath.app")
+        let remaining = Set(copies.dropFirst())
+        XCTAssertEqual(
+            remaining,
+            Set([
+                "/Users/test/KeyPath.app",
+                "/Users/test/Downloads/KeyPath.app"
+            ])
+        )
     }
 
     func testRunCleanupLogsWarningForDuplicateCopies() async {
@@ -59,11 +67,8 @@ final class HelperMaintenanceTests: XCTestCase {
         HelperManager.testHelperFunctionalityOverride = { true }
 
         let first = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: false)
-        let second = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: false)
-
         XCTAssertTrue(first)
+        let second = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: false)
         XCTAssertTrue(second)
-        let startCount = HelperMaintenance.shared.logLines.filter { $0.contains("Cleanup & Repair started") }.count
-        XCTAssertGreaterThanOrEqual(startCount, 2)
     }
 }

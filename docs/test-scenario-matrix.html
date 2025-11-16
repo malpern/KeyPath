@@ -45,17 +45,17 @@
         <td>Re-run install on already-installed</td>
         <td class="status yes">Yes</td>
         <td class="status yes">Yes</td>
-        <td class="status partial">Partial</td>
         <td class="status yes">Yes</td>
-        <td>Plist diff + throttling tests enforce idempotence, yet they live outside the default CI invocation; regressions slip unless someone runs the installer suite manually.</td>
+        <td class="status yes">Yes</td>
+        <td>Re-run tests now cover happy-path duplication and failure-path logging when the launch daemon directory is locked, so the installer surfaces the same errors that would hit users.</td>
       </tr>
       <tr>
         <td>Duplicate/plist leftovers</td>
         <td class="status yes">Yes</td>
         <td class="status yes">Yes</td>
-        <td class="status partial">Partial</td>
         <td class="status yes">Yes</td>
-        <td>LaunchDaemonInstaller tests catch plist drift, but failures are surfaced only via log inspection and helper duplicate-app cleanup remains untested.</td>
+        <td class="status yes">Yes</td>
+        <td>Tests now emulate leftover plist directories so installer logging & return values capture the failure path, ensuring duplicates trigger observable errors.</td>
       </tr>
       <tr>
         <td>Duplicate app copies / helper cleanup</td>
@@ -85,9 +85,9 @@
         <td>Permission denied on key folder</td>
         <td class="status yes">Yes</td>
         <td class="status na">N/A</td>
-        <td class="status partial">Partial</td>
+        <td class="status yes">Yes</td>
         <td class="status na">N/A</td>
-        <td>Log assertions exist for blocked launch-daemon/config dirs, but there are no checks for user-visible errors or non-zero installer exits.</td>
+        <td>Installer now creates a read-only ~/.config tree in tests to confirm the “Failed to create default user config” guidance appears whenever permission issues block the key folder.</td>
       </tr>
       <tr>
         <td>SMAppService approval pending</td>
