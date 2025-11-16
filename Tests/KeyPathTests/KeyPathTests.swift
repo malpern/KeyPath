@@ -87,12 +87,16 @@ final class KeyPathTests: XCTestCase {
 
         // Check config structure
         XCTAssertTrue(config.contains("(defcfg"))
-        XCTAssertTrue(config.contains("process-unmapped-keys no")) // SAFETY: Updated expectation
+        XCTAssertTrue(config.contains("process-unmapped-keys yes")) // Pass through unmapped keys
         XCTAssertTrue(config.contains("(defsrc"))
         XCTAssertTrue(config.contains("caps"))
+        XCTAssertTrue(config.contains("f1"), "Should include F-key mappings")
+        XCTAssertTrue(config.contains("f12"), "Should include F-key mappings")
         XCTAssertTrue(config.contains("(deflayer base"))
         XCTAssertTrue(config.contains("esc"))
-        XCTAssertTrue(config.contains("SAFETY FEATURES")) // SAFETY: Documentation
+        XCTAssertTrue(config.contains("brdn"), "Should map F1 to brightness down")
+        XCTAssertTrue(config.contains("volu"), "Should map F12 to volume up")
+        XCTAssertTrue(config.contains("macOS Function Key"), "Should document F-key workaround")
 
         // Ensure no invalid options
         XCTAssertFalse(config.contains("log-level"))
@@ -366,9 +370,11 @@ final class KeyPathTests: XCTestCase {
         let mapping = KeyMapping(input: "caps", output: "escape")
         let config = KanataConfiguration.generateFromMappings([mapping])
 
-        // Config should contain safety features
-        XCTAssertTrue(config.contains("process-unmapped-keys no"), "Should have safety setting")
-        XCTAssertTrue(config.contains("SAFETY FEATURES"), "Should have safety documentation")
+        // Config should pass through unmapped keys and include F-key mappings
+        XCTAssertTrue(config.contains("process-unmapped-keys yes"), "Should pass through unmapped keys")
+        XCTAssertTrue(config.contains("macOS Function Key"), "Should document F-key workaround")
+        XCTAssertTrue(config.contains("f1"), "Should include F-key mappings")
+        XCTAssertTrue(config.contains("brdn"), "Should map F1 to brightness down")
 
         // Test that saveConfiguration handles the complete workflow
         do {

@@ -318,9 +318,12 @@ class LaunchDaemonInstaller {
 
         // Create temporary files for all plists (skip Kanata if SMAppService is active)
         let tempDir = NSTemporaryDirectory()
-        let kanataTempPath = isSMAppServiceActive ? nil : "\(tempDir)\(Self.kanataServiceID).plist"
-        let vhidDaemonTempPath = "\(tempDir)\(Self.vhidDaemonServiceID).plist"
-        let vhidManagerTempPath = "\(tempDir)\(Self.vhidManagerServiceID).plist"
+        let tempPath: (String) -> String = { serviceID in
+            "\(tempDir)\(serviceID).\(UUID().uuidString).plist"
+        }
+        let kanataTempPath = isSMAppServiceActive ? nil : tempPath(Self.kanataServiceID)
+        let vhidDaemonTempPath = tempPath(Self.vhidDaemonServiceID)
+        let vhidManagerTempPath = tempPath(Self.vhidManagerServiceID)
 
         do {
             // Write plist contents to temporary files (skip Kanata if SMAppService is active)
@@ -332,26 +335,37 @@ class LaunchDaemonInstaller {
 
             // Install services with a single admin prompt (skip Kanata if SMAppService is active)
             let success: Bool
+            let shouldBypassAuthServicesInTests = Self.isTestMode && Self.authorizationScriptRunnerOverride == nil
+
             if isSMAppServiceActive {
                 success = await executeConsolidatedInstallationForVHIDOnly()
             } else if let kanataTempPath {
-                let authSuccess = executeConsolidatedInstallationWithAuthServices(
-                    kanataTemp: kanataTempPath,
-                    vhidDaemonTemp: vhidDaemonTempPath,
-                    vhidManagerTemp: vhidManagerTempPath
-                )
-
-                if authSuccess {
-                    success = true
-                } else {
-                    AppLogger.shared.log(
-                        "⚠️ [LaunchDaemon] Authorization Services install failed - falling back to osascript flow"
-                    )
+                if shouldBypassAuthServicesInTests {
+                    AppLogger.shared.log("🧪 [LaunchDaemon] Test mode without auth-script override – using local installer path")
                     success = executeAllWithAdminPrivileges(
                         kanataTemp: kanataTempPath,
                         vhidDaemonTemp: vhidDaemonTempPath,
                         vhidManagerTemp: vhidManagerTempPath
                     )
+                } else {
+                    let authSuccess = executeConsolidatedInstallationWithAuthServices(
+                        kanataTemp: kanataTempPath,
+                        vhidDaemonTemp: vhidDaemonTempPath,
+                        vhidManagerTemp: vhidManagerTempPath
+                    )
+
+                    if authSuccess {
+                        success = true
+                    } else {
+                        AppLogger.shared.log(
+                            "⚠️ [LaunchDaemon] Authorization Services install failed - falling back to osascript flow"
+                        )
+                        success = executeAllWithAdminPrivileges(
+                            kanataTemp: kanataTempPath,
+                            vhidDaemonTemp: vhidDaemonTempPath,
+                            vhidManagerTemp: vhidManagerTempPath
+                        )
+                    }
                 }
             } else {
                 AppLogger.shared.log("❌ [LaunchDaemon] Missing Kanata plist while installing services")
@@ -1038,7 +1052,9 @@ class LaunchDaemonInstaller {
                     "✅ [LaunchDaemon] (test) Installed all plists to \(Self.launchDaemonsPath)")
                 return true
             } catch {
+                let reason = "Failed to install services: \(error.localizedDescription)"
                 AppLogger.shared.log("❌ [LaunchDaemon] (test) Failed to install plists: \(error)")
+                updateInstallerFailure(reason)
                 return false
             }
         }

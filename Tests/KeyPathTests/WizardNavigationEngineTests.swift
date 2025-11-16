@@ -126,13 +126,15 @@ class WizardNavigationEngineTests: XCTestCase {
         // Given: Navigation engine
         let expectedOrder: [WizardPage] = [
             .summary, // Overview
+            .helper, // Privileged helper installation comes early to avoid repeated prompts
             .fullDiskAccess, // Optional FDA for better diagnostics
             .conflicts, // Must resolve conflicts first
-            .inputMonitoring, // Input Monitoring permission
             .accessibility, // Accessibility permission
+            .inputMonitoring, // Input Monitoring permission
             .karabinerComponents, // Karabiner driver and VirtualHID setup
             .kanataComponents, // Kanata binary and service setup
-            .service // Start keyboard service
+            .service, // Start keyboard service
+            .communication // Optional TCP/communication verification
         ]
 
         // When: Getting page order
@@ -152,8 +154,8 @@ class WizardNavigationEngineTests: XCTestCase {
 
         // Then: Should return correct indices
         XCTAssertEqual(summaryIndex, 0, "Summary should be first (index 0)")
-        XCTAssertEqual(conflictsIndex, 2, "Conflicts should be at index 2")
-        XCTAssertEqual(serviceIndex, 7, "Service should be last (index 7)")
+        XCTAssertEqual(conflictsIndex, 3, "Conflicts should be at index 3")
+        XCTAssertEqual(serviceIndex, 8, "Service should be index 8 in the expanded flow")
     }
 
     // MARK: - Blocking Page Tests
@@ -326,8 +328,8 @@ class WizardNavigationEngineTests: XCTestCase {
         // When: Getting next page
         let nextPage = engine.nextPage(from: currentPage, given: systemState, issues: issues)
 
-        // Then: Should advance to next page (Accessibility)
-        XCTAssertEqual(nextPage, .accessibility, "Should advance to accessibility page")
+        // Then: Should advance to next page (Karabiner components now follow input monitoring)
+        XCTAssertEqual(nextPage, .karabinerComponents, "Should advance to karabiner components page")
     }
 
     // MARK: - Helper Methods
