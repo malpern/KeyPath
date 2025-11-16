@@ -18,9 +18,17 @@ final class AuthorizationServicesSmokeTests: XCTestCase {
     private var stubBinURL: URL!
     private var launchctlLogURL: URL!
     private var originalAllowAdminOps: Bool = false
+    private var originalAdminExecutor: AdminCommandExecutor!
 
     override func setUp() async throws {
         try await super.setUp()
+
+        // Opt out of global test bootstrap: restore real Authorization Services behavior
+        // The global bootstrap (AdminPromptBypass) installs fakes to suppress password
+        // dialogs, but this smoke suite explicitly tests the real auth flow.
+        originalAdminExecutor = AdminCommandExecutorHolder.shared
+        AdminCommandExecutorHolder.shared = DefaultAdminCommandExecutor()
+
         originalAllowAdminOps = TestEnvironment.allowAdminOperationsInTests
         TestEnvironment.allowAdminOperationsInTests = true
 
@@ -86,6 +94,9 @@ final class AuthorizationServicesSmokeTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        // Restore global test bootstrap state
+        AdminCommandExecutorHolder.shared = originalAdminExecutor
+
         LaunchDaemonInstaller.authorizationScriptRunnerOverride = originalRunner
         KanataDaemonManager.smServiceFactory = originalSMFactory
         WizardSystemPaths.setBundledKanataPathOverride(nil)
