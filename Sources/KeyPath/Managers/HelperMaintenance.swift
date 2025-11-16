@@ -65,8 +65,16 @@ final class HelperMaintenance: ObservableObject {
         await bootoutHelperJob()
 
         // Step 3: Remove residual files (legacy paths)
-        let removed = await removeLegacyHelperArtifacts(useAppleScriptFallback: useAppleScriptFallback)
-        if !removed { log("ℹ️ No legacy helper artifacts removed or operation skipped") }
+        let cleanupResult = await removeLegacyHelperArtifacts(useAppleScriptFallback: useAppleScriptFallback)
+        switch cleanupResult {
+        case .removed:
+            break
+        case .skipped:
+            log("ℹ️ No legacy helper artifacts removed or operation skipped")
+        case .failed:
+            log("❌ Legacy helper cleanup failed; aborting repair")
+            return false
+        }
 
         // Step 4: Register helper again from canonical bundle
         let registered = await registerHelper()
@@ -171,7 +179,13 @@ final class HelperMaintenance: ObservableObject {
         }
     }
 
-    private func removeLegacyHelperArtifacts(useAppleScriptFallback: Bool) async -> Bool {
+    enum LegacyCleanupResult {
+        case removed
+        case skipped
+        case failed
+    }
+
+    private func removeLegacyHelperArtifacts(useAppleScriptFallback: Bool) async -> LegacyCleanupResult {
         if let override = testHooks?.removeLegacyHelperArtifacts {
             return await override(useAppleScriptFallback)
         }
@@ -193,23 +207,33 @@ final class HelperMaintenance: ObservableObject {
 
         if removedDirectly {
             log("✅ Removed legacy helper artifacts directly")
-            return true
+            return .removed
         }
 
-        guard useAppleScriptFallback else { return false }
+        guard useAppleScriptFallback else { return .skipped }
         let legacyBin = "/Library/PrivilegedHelperTools/com.keypath.helper"
         let legacyPlist = "/Library/LaunchDaemons/com.keypath.helper.plist"
-        let script = """
-        do shell script "launchctl bootout system/com.keypath.helper || true; rm -f \(legacyBin); rm -f \(legacyPlist)" with administrator privileges
+        let command = """
+        /bin/launchctl bootout system/com.keypath.helper || true && \
+        /bin/rm -f '\(legacyBin)' && \
+        /bin/rm -f '\(legacyPlist)'
         """
-        let (applescriptOk, applescriptErr) = testHooks?.runAppleScript?(script) ?? runAppleScript(script)
-        if applescriptOk {
-            log("✅ AppleScript cleanup removed legacy artifacts")
-            return true
-        } else {
-            if !applescriptErr.isEmpty { log("⚠️ AppleScript error: \(applescriptErr)") }
-            log("⚠️ AppleScript cleanup failed or was cancelled")
-            return false
+        do {
+            let result = try await AdminCommandExecutorHolder.shared.execute(
+                command: command,
+                description: "Remove legacy helper artifacts"
+            )
+            if result.exitCode == 0 {
+                log("✅ Admin cleanup removed legacy helper artifacts")
+                return .removed
+            } else {
+                let output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                log("⚠️ Admin cleanup failed (exit \(result.exitCode)): \(output)")
+                return .failed
+            }
+        } catch {
+            log("⚠️ Admin cleanup error: \(error.localizedDescription)")
+            return .failed
         }
     }
 
@@ -232,19 +256,6 @@ final class HelperMaintenance: ObservableObject {
     }
 
     // MARK: - Utilities
-
-    private func runAppleScript(_ source: String) -> (Bool, String) {
-        let process = Process()
-        process.launchPath = "/usr/bin/osascript"
-        process.arguments = ["-e", source]
-        process.standardOutput = Pipe()
-        let err = Pipe(); process.standardError = err
-        do { try process.run() } catch { return (false, "osascript launch failed: \(error.localizedDescription)") }
-        process.waitUntilExit()
-        if process.terminationStatus == 0 { return (true, "") }
-        let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        return (false, e.trimmingCharacters(in: .whitespacesAndNewlines))
-    }
 
     private nonisolated func canonicalAppCandidates() -> [String] {
         var candidates: [String] = []
@@ -269,22 +280,19 @@ extension HelperMaintenance {
     struct TestHooks {
         let unregisterHelper: (() async -> Void)?
         let bootoutHelperJob: (() async -> Void)?
-        let removeLegacyHelperArtifacts: ((Bool) async -> Bool)?
+        let removeLegacyHelperArtifacts: ((Bool) async -> LegacyCleanupResult)?
         let registerHelper: (() async -> Bool)?
-        let runAppleScript: ((String) -> (Bool, String))?
 
         init(
             unregisterHelper: (() async -> Void)? = nil,
             bootoutHelperJob: (() async -> Void)? = nil,
-            removeLegacyHelperArtifacts: ((Bool) async -> Bool)? = nil,
-            registerHelper: (() async -> Bool)? = nil,
-            runAppleScript: ((String) -> (Bool, String))? = nil
+            removeLegacyHelperArtifacts: ((Bool) async -> LegacyCleanupResult)? = nil,
+            registerHelper: (() async -> Bool)? = nil
         ) {
             self.unregisterHelper = unregisterHelper
             self.bootoutHelperJob = bootoutHelperJob
             self.removeLegacyHelperArtifacts = removeLegacyHelperArtifacts
             self.registerHelper = registerHelper
-            self.runAppleScript = runAppleScript
         }
     }
 

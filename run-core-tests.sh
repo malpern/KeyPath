@@ -12,118 +12,102 @@ cd "$SCRIPT_DIR"
 echo "🧪 Running KeyPath Core Tests"
 echo "=============================="
 
-# Set environment variables for CI-friendly testing
+# Set environment variables for testing
 export CI_ENVIRONMENT="${CI_ENVIRONMENT:-false}"
 export KEYPATH_TESTING="true"
-export CI_INTEGRATION_TESTS="${CI_INTEGRATION_TESTS:-false}"
 
 # Create test results directory
 mkdir -p test-results
 
 echo "📊 Test Configuration:"
+echo "  Mode: Full test suite (no filters)"
 echo "  CI Environment: $CI_ENVIRONMENT"
-echo "  Integration Tests: $CI_INTEGRATION_TESTS"
-echo "  Manual Tests: DISABLED"
 echo ""
-
-# Function to run test suite with error handling
-run_test_suite() {
-    local test_name="$1"
-    local test_filter="$2"
-    local timeout="${3:-120}"
-    
-    echo "🔍 Running $test_name..."
-    
-    # Use gtimeout on macOS, timeout on Linux; fallback to no-timeout if unavailable
-    TIMEOUT_CMD=""
-    if command -v gtimeout >/dev/null 2>&1; then
-        TIMEOUT_CMD="gtimeout"
-    elif command -v timeout >/dev/null 2>&1; then
-        TIMEOUT_CMD="timeout"
-    fi
-
-    if { [ -n "$TIMEOUT_CMD" ] && $TIMEOUT_CMD "$timeout" swift test --filter "$test_filter" --parallel; } \
-       || { [ -z "$TIMEOUT_CMD" ] && swift test --filter "$test_filter" --parallel; } \
-       2>&1 | tee "test-results/$test_name.log"; then
-        echo "✅ $test_name completed successfully"
-        return 0
-    else
-        local exit_code=$?
-        echo "⚠️ $test_name failed (exit code: $exit_code)"
-        return $exit_code
-    fi
-}
 
 # Track overall success
 OVERALL_SUCCESS=0
 
-echo "🚀 Starting Core Test Execution"
-echo "================================"
-
-# 1. Unit Tests (fast, no dependencies)
-if run_test_suite "Unit Tests" "UnitTestSuite" 60; then
-    echo "  Unit tests passed ✅"
-else
-    echo "  Unit tests failed ❌"
-    OVERALL_SUCCESS=1
-fi
-
+echo "🚀 Running Full Test Suite (No Filters)"
+echo "========================================"
+echo "Running all 422 tests for maximum refactor safety"
 echo ""
 
-# 2. Core Tests (essential functionality)
-if run_test_suite "Core Tests" "UnitTestSuite" 90; then
-    echo "  Core tests passed ✅"
-else
-    echo "  Core tests failed ❌"
-    OVERALL_SUCCESS=1
+# Run ALL tests without filters
+TEST_LOG="test-results/all-tests.log"
+
+# Use gtimeout on macOS, timeout on Linux; fallback to no-timeout if unavailable
+TIMEOUT_CMD=""
+if command -v gtimeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="gtimeout 300"  # 5 minute timeout
+elif command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="timeout 300"
 fi
 
+echo "🔍 Executing: swift test --parallel"
 echo ""
 
-# 3. Basic Integration Tests (only if enabled)
-if [ "$CI_INTEGRATION_TESTS" = "true" ]; then
-    echo "🔗 Integration tests enabled"
-    if run_test_suite "Integration Tests" "IntegrationTestSuite" 120; then
-        echo "  Integration tests passed ✅"
+if [ -n "$TIMEOUT_CMD" ]; then
+    if $TIMEOUT_CMD swift test --parallel 2>&1 | tee "$TEST_LOG"; then
+        OVERALL_SUCCESS=0
     else
-        echo "  Integration tests failed ❌"
-        OVERALL_SUCCESS=1
+        OVERALL_SUCCESS=$?
     fi
 else
-    echo "⏭️  Integration tests skipped (set CI_INTEGRATION_TESTS=true to enable)"
+    if swift test --parallel 2>&1 | tee "$TEST_LOG"; then
+        OVERALL_SUCCESS=0
+    else
+        OVERALL_SUCCESS=$?
+    fi
 fi
 
 echo ""
 echo "📋 Test Summary"
 echo "==============="
 
-# Count test results
-if [ -f "test-results/Unit Tests.log" ]; then
-    UNIT_PASSED=$(grep -c "Test Suite.*passed" "test-results/Unit Tests.log" 2>/dev/null || echo "0")
-    echo "  Unit Tests: $UNIT_PASSED suites passed"
-fi
+# Count test results from log
+if [ -f "$TEST_LOG" ]; then
+    # Extract from the final summary line: "Test run with X tests in Y suites..."
+    SUMMARY_LINE=$(grep "Test run with.*tests.*suites" "$TEST_LOG" | tail -1)
+    TOTAL_TESTS=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ tests' | grep -oE '[0-9]+' || echo "0")
+    TOTAL_SUITES=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ suites' | grep -oE '[0-9]+' || echo "0")
 
-if [ -f "test-results/Core Tests.log" ]; then
-    CORE_PASSED=$(grep -c "Test Suite.*passed" "test-results/Core Tests.log" 2>/dev/null || echo "0")
-    echo "  Core Tests: $CORE_PASSED suites passed"
-fi
+    # Count individual test and suite results
+    PASSED_TESTS=$(grep -c "Test.*passed after" "$TEST_LOG" 2>/dev/null || echo "0")
+    FAILED_TESTS=$(grep -c "Test Case.*failed" "$TEST_LOG" 2>/dev/null || echo "0")
+    PASSED_SUITES=$(grep -c "Suite.*passed after" "$TEST_LOG" 2>/dev/null || echo "0")
+    FAILED_SUITES=$(grep -c "Suite.*failed after" "$TEST_LOG" 2>/dev/null || echo "0")
 
-if [ -f "test-results/Integration Tests.log" ]; then
-    INTEGRATION_PASSED=$(grep -c "Test Suite.*passed" "test-results/Integration Tests.log" 2>/dev/null || echo "0")
-    echo "  Integration Tests: $INTEGRATION_PASSED suites passed"
+    echo "  Total Tests: $TOTAL_TESTS"
+    echo "  Total Suites: $TOTAL_SUITES"
+    echo "  Passed: $PASSED_TESTS tests in $PASSED_SUITES suites"
+
+    if [ "$FAILED_TESTS" != "0" ] || [ "$FAILED_SUITES" != "0" ]; then
+        echo "  ❌ Failed: $FAILED_TESTS tests in $FAILED_SUITES suites"
+        echo ""
+        echo "💡 Failed test details:"
+        grep "Test Case.*failed\|error:" "$TEST_LOG" | head -20
+        echo ""
+        echo "📝 Full log: $TEST_LOG"
+    fi
 fi
 
 echo ""
 
 # Final result
 if [ $OVERALL_SUCCESS -eq 0 ]; then
-    echo "🎉 All enabled tests passed!"
+    echo "🎉 All tests passed!"
     echo ""
-    echo "💡 To run more comprehensive tests:"
-    echo "  CI_INTEGRATION_TESTS=true ./run-core-tests.sh"
+    echo "✅ Full test suite provides maximum safety for refactor"
+    echo "📊 Baseline established - record this count for comparison"
     echo ""
 else
-    echo "❌ Some tests failed. Check test-results/ for details."
+    echo "❌ Some tests failed"
+    echo ""
+    echo "📝 Review failures in: $TEST_LOG"
+    echo "🔍 Common issues:"
+    echo "   - Environment setup (KEYPATH_TEST_MODE, sandbox paths)"
+    echo "   - Missing test fixtures"
+    echo "   - Flaky integration tests"
     echo ""
 fi
 
