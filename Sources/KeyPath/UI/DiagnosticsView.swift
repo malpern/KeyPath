@@ -397,7 +397,7 @@ struct DiagnosticsView: View {
         await kanataManager.forceRefreshStatus()
     }
 
-    private func testHelperXPC() async {
+    func testHelperXPC() async {
         await MainActor.run { helperInProgress = true; helperMessage = nil }
         defer { Task { await MainActor.run { helperInProgress = false } } }
         let v = await HelperManager.shared.getHelperVersion()

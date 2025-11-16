@@ -191,8 +191,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         case 6:
             // Exit code 6 has different causes - check for VirtualHID connection issues
             if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2")
-            {
+                || output.contains("connect_failed asio.system:2") {
                 diagnostics.append(
                     KanataDiagnostic(
                         timestamp: Date(),

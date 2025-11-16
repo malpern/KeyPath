@@ -11,7 +11,7 @@ print("\n1. Service Status Detection:")
 let services = [
     ("com.keypath.kanata", "Kanata", false),
     ("com.keypath.vhiddaemon", "VHID Daemon", false),
-    ("com.keypath.vhidmanager", "VHID Manager", true), // true = one-shot
+    ("com.keypath.vhidmanager", "VHID Manager", true) // true = one-shot
 ]
 
 var loadedCount = 0

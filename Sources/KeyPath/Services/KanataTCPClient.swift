@@ -218,8 +218,7 @@ actor KanataTCPClient {
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let authResponseDict = json["Authenticated"] as? [String: Any],
                let success = authResponseDict["success"] as? Bool,
-               let sessionId = authResponseDict["session_id"] as? String
-            {
+               let sessionId = authResponseDict["session_id"] as? String {
                 if success {
                     authToken = token
                     self.sessionId = sessionId
@@ -292,8 +291,7 @@ actor KanataTCPClient {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             if let version = try container.decodeIfPresent(String.self, forKey: .version),
                let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion),
-               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
-            {
+               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities) {
                 self.version = version
                 self.protocolVersion = protocolVersion
                 self.capabilities = capabilities
@@ -477,8 +475,7 @@ actor KanataTCPClient {
                 if let firstLine = lines.first,
                    let lineData = String(firstLine).data(using: .utf8),
                    let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
-                   serverResponse.isOk
-                {
+                   serverResponse.isOk {
                     return true
                 }
             }
@@ -515,8 +512,7 @@ actor KanataTCPClient {
                                     // Parse first line
                                     let first = s.split(separator: "\n").map(String.init).first ?? ""
                                     if let data = first.data(using: .utf8),
-                                       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                                    {
+                                       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                                         if (obj["Ready"] as? [String: Any]) != nil {
                                             conn.cancel(); continuation.resume(returning: (true, nil, nil, nil)); return
                                         } else if let err = obj["ConfigError"] as? [String: Any] {
@@ -585,8 +581,7 @@ actor KanataTCPClient {
             // Try to parse first line as ServerResponse
             if let firstLine = lines.first,
                let lineData = String(firstLine).data(using: .utf8),
-               let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData)
-            {
+               let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData) {
                 if serverResponse.isOk {
                     AppLogger.shared.log("✅ [TCP] Config reload successful (fallback)")
                     return .success(response: responseString)
@@ -643,8 +638,7 @@ actor KanataTCPClient {
                 if let firstLine = lines.first,
                    let lineData = String(firstLine).data(using: .utf8),
                    let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
-                   serverResponse.isOk
-                {
+                   serverResponse.isOk {
                     AppLogger.shared.log("✅ [TCP] Kanata restart request sent")
                     return true
                 }
@@ -807,11 +801,9 @@ actor KanataTCPClient {
             // Check if it's a single-line response
             let lines = response.split(separator: "\n")
             if let firstLine = lines.first,
-               let lineData = String(firstLine).data(using: .utf8)
-            {
+               let lineData = String(firstLine).data(using: .utf8) {
                 if let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
-                   serverResponse.isError
-                {
+                   serverResponse.isError {
                     return serverResponse.msg ?? "Unknown error"
                 }
             }
@@ -837,8 +829,7 @@ actor KanataTCPClient {
             guard let lineData = line.data(using: .utf8) else { continue }
             // Try loose parse via JSONSerialization to locate the named object
             if let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-               let payload = obj[name]
-            {
+               let payload = obj[name] {
                 // Re-encode payload and decode strongly
                 if let payloadData = try? JSONSerialization.data(withJSONObject: payload) {
                     if let decoded = try? JSONDecoder().decode(T.self, from: payloadData) {

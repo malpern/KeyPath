@@ -125,8 +125,7 @@ extension WizardButtonBar {
 
     /// Primary + Cancel (common case)
     static func primaryAndCancel(primaryTitle: String, primaryAction: @escaping () -> Void, cancelTitle: String = "Cancel", cancelAction: @escaping () -> Void,
-                                 isLoading: Bool = false) -> WizardButtonBar
-    {
+                                 isLoading: Bool = false) -> WizardButtonBar {
         WizardButtonBar(
             cancel: CancelButton(title: cancelTitle, action: cancelAction),
             primary: PrimaryButton(title: primaryTitle, action: primaryAction, isLoading: isLoading)

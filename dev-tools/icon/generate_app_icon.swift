@@ -68,4 +68,3 @@ for s in sizes {
 }
 
 print("✅ Generated icon PNGs at \(outDir.path)")
-

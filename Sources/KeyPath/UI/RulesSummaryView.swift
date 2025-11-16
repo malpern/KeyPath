@@ -311,8 +311,7 @@ struct AvailableRulesView: View {
                 ForEach(groupedPresets.keys.sorted(), id: \.self) { category in
                     Section(header: Text(category)
                         .font(.headline)
-                        .foregroundColor(.secondary))
-                    {
+                        .foregroundColor(.secondary)) {
                         ForEach(groupedPresets[category]!, id: \.id) { preset in
                             AvailableRuleRow(preset: preset)
                                 .tag(preset.id)

@@ -94,8 +94,7 @@ struct WizardSystemStatusOverview: View {
             // Aggressively disable focus ring on underlying NSView
             DispatchQueue.main.async {
                 if let window = NSApp.keyWindow,
-                   let contentView = window.contentView
-                {
+                   let contentView = window.contentView {
                     disableFocusRings(in: contentView)
                 }
             }

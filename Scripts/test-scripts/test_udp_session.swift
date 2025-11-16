@@ -88,8 +88,7 @@ func sendMessage(connection: NWConnection, data: Data) async -> String {
                 if let error = error {
                     continuation.resume(returning: "Receive error: \(error)")
                 } else if let responseData = responseData,
-                          let responseString = String(data: responseData, encoding: .utf8)
-                {
+                          let responseString = String(data: responseData, encoding: .utf8) {
                     continuation.resume(returning: responseString)
                 } else {
                     continuation.resume(returning: "No response")
@@ -117,6 +116,3 @@ Task {
 }
 
 RunLoop.main.run()
-
-
-

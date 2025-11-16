@@ -692,8 +692,7 @@ class KanataManager {
 
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
-           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2")
-        {
+           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2") {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(
@@ -2072,8 +2071,7 @@ class KanataManager {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-        {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -2081,14 +2079,12 @@ class KanataManager {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-            {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -2767,8 +2763,7 @@ class KanataManager {
 
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String
-    {
+        async throws -> String {
         // Try Claude API first, fallback to rule-based repair
         do {
             let prompt = """
@@ -2805,8 +2800,7 @@ class KanataManager {
 
     /// Fallback rule-based repair when Claude is not available
     private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String
-    {
+        async throws -> String {
         // Delegate to ConfigurationService for rule-based repair
         try await configurationService.repairConfiguration(config: config, errors: errors, mappings: mappings)
     }
@@ -2910,8 +2904,7 @@ class KanataManager {
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         // Delegate to ConfigurationService for backup and safe config application
         let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,

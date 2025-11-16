@@ -184,7 +184,7 @@ final class KeyPathUIAutomationTests: XCTestCase {
         let edgeCases = [
             ("", "6"), // Empty input
             ("5", ""), // Empty output
-            ("5", "5"), // Same key (might be valid for testing)
+            ("5", "5") // Same key (might be valid for testing)
         ]
 
         for (input, output) in edgeCases {

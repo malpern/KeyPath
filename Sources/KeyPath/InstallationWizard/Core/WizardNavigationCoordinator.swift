@@ -12,7 +12,7 @@ class WizardNavigationCoordinator: ObservableObject {
     @Published var userInteractionMode = false
     /// Optional external sequence to drive back/next order (e.g., filtered issues-only list).
     /// When nil or empty, the default ordered pages are used.
-    @Published var customSequence: [WizardPage]? = nil
+    @Published var customSequence: [WizardPage]?
 
     // MARK: - Properties
 
