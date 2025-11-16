@@ -27,6 +27,8 @@ final class HelperMaintenance: ObservableObject {
     /// Whether a cleanup run is currently in progress
     @Published private(set) var isRunning: Bool = false
 
+    private var testHooks: TestHooks?
+
     private init() {}
 
     // MARK: - Public API
@@ -83,6 +85,7 @@ final class HelperMaintenance: ObservableObject {
     /// Find all KeyPath.app copies visible to Spotlight (fast, robust in practice).
     /// Results are sorted with `/Applications/KeyPath.app` first if present.
     /// Excludes build directories (dist/, .build/, build/) to avoid flagging build artifacts.
+    nonisolated(unsafe) static var testDuplicateAppPathsOverride: (() -> [String]?)?
     nonisolated func detectDuplicateAppCopies() -> [String] {
         var paths: [String] = []
         let process = Process()
@@ -92,11 +95,15 @@ final class HelperMaintenance: ObservableObject {
         do { try process.run() } catch {
             return canonicalAppCandidates()
         }
-        process.waitUntilExit()
-        let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        paths = s.split(separator: "\n").map(String.init)
-        if paths.isEmpty {
-            paths = canonicalAppCandidates()
+        if let override = Self.testDuplicateAppPathsOverride?() {
+            paths = override
+        } else {
+            process.waitUntilExit()
+            let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            paths = s.split(separator: "\n").map(String.init)
+            if paths.isEmpty {
+                paths = canonicalAppCandidates()
+            }
         }
 
         // Filter out build directories to avoid flagging build artifacts as duplicates
@@ -117,6 +124,10 @@ final class HelperMaintenance: ObservableObject {
     // MARK: - Private steps
 
     private func unregisterHelperIfPresent() async {
+        if let override = testHooks?.unregisterHelper {
+            await override()
+            return
+        }
         let svc = ServiceManagement.SMAppService.daemon(plistName: HelperManager.helperPlistName)
         log("🔎 SMAppService status: \(svc.status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)")
         if svc.status == .enabled || svc.status == .notRegistered || svc.status == .requiresApproval {
@@ -132,6 +143,10 @@ final class HelperMaintenance: ObservableObject {
     }
 
     private func bootoutHelperJob() async {
+        if let override = testHooks?.bootoutHelperJob {
+            await override()
+            return
+        }
         let result = await Task.detached { () -> (Int32, String) in
             let p = Process()
             p.launchPath = "/bin/launchctl"
@@ -157,6 +172,9 @@ final class HelperMaintenance: ObservableObject {
     }
 
     private func removeLegacyHelperArtifacts(useAppleScriptFallback: Bool) async -> Bool {
+        if let override = testHooks?.removeLegacyHelperArtifacts {
+            return await override(useAppleScriptFallback)
+        }
         let (removedDirectly, _) = await Task.detached { () -> (Bool, Bool) in
             let fm = FileManager.default
             let legacyBin = "/Library/PrivilegedHelperTools/com.keypath.helper"
@@ -196,6 +214,9 @@ final class HelperMaintenance: ObservableObject {
     }
 
     private func registerHelper() async -> Bool {
+        if let override = testHooks?.registerHelper {
+            return await override()
+        }
         do {
             try await HelperManager.shared.installHelper()
             log("✅ Helper registered via SMAppService")
@@ -241,5 +262,18 @@ final class HelperMaintenance: ObservableObject {
     private func log(_ line: String) {
         AppLogger.shared.log(line)
         logLines.append(line)
+    }
+}
+
+extension HelperMaintenance {
+    struct TestHooks {
+        let unregisterHelper: (() async -> Void)?
+        let bootoutHelperJob: (() async -> Void)?
+        let removeLegacyHelperArtifacts: ((Bool) async -> Bool)?
+        let registerHelper: (() async -> Bool)?
+    }
+
+    func applyTestHooks(_ hooks: TestHooks?) {
+        testHooks = hooks
     }
 }

@@ -19,6 +19,8 @@ actor HelperManager {
     nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
         NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
     }
+    nonisolated(unsafe) static var testHelperFunctionalityOverride: (() async -> Bool)?
+    nonisolated(unsafe) static var testInstallHelperOverride: (() async throws -> Void)?
 
     // MARK: - Singleton
 
@@ -263,6 +265,9 @@ actor HelperManager {
     /// - Returns false for phantom registrations, connection failures, timeouts
     /// - Should be used by wizard to verify helper is truly working
     func testHelperFunctionality() async -> Bool {
+        if let override = Self.testHelperFunctionalityOverride {
+            return await override()
+        }
         AppLogger.shared.log("🧪 [HelperManager] Testing helper functionality via XPC ping")
 
         // Pre-flight check: Must be installed first
@@ -378,6 +383,10 @@ actor HelperManager {
     /// Install the privileged helper using SMJobBless
     /// - Throws: HelperManagerError if installation fails
     func installHelper() async throws {
+        if let override = Self.testInstallHelperOverride {
+            try await override()
+            return
+        }
         AppLogger.shared.log("🔧 [HelperManager] Registering privileged helper via SMAppService")
         guard #available(macOS 13, *) else {
             throw HelperManagerError.installationFailed("Requires macOS 13+ for SMAppService")
