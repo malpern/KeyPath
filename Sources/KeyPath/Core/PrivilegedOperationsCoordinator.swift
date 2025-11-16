@@ -595,7 +595,7 @@ final class PrivilegedOperationsCoordinator {
     /// Install log rotation using LaunchDaemonInstaller
     private func sudoInstallLogRotation() async throws {
         let installer = LaunchDaemonInstaller()
-        let success = installer.installLogRotationService()
+        let success = await installer.installLogRotationService()
 
         if !success {
             throw PrivilegedOperationError.operationFailed("Log rotation installation failed")
@@ -793,44 +793,19 @@ final class PrivilegedOperationsCoordinator {
     /// Execute a shell command with administrator privileges using osascript
     /// Public method for use by KanataDaemonManager migration
     func sudoExecuteCommand(_ command: String, description: String) async throws {
-        let escaped = escapeForAppleScript(command)
-        let prompt = "KeyPath needs administrator access to \(description.lowercased())."
+        AppLogger.shared.log("🔧 [PrivCoordinator] Executing admin command: \(description)")
+        let result = try await AdminCommandExecutorHolder.shared.execute(command: command, description: description)
 
-        let osascriptCommand = """
-        do shell script "\(escaped)" with administrator privileges with prompt "\(prompt)"
-        """
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [PrivCoordinator] Successfully executed: \(description)")
-            } else {
-                AppLogger.shared.log("❌ [PrivCoordinator] Failed to execute: \(description)")
-                AppLogger.shared.log("❌ [PrivCoordinator] Output: \(output)")
-                throw PrivilegedOperationError.commandFailed(
-                    description: description,
-                    exitCode: task.terminationStatus,
-                    output: output
-                )
-            }
-        } catch let error as PrivilegedOperationError {
-            throw error
-        } catch {
-            AppLogger.shared.log("❌ [PrivCoordinator] Error executing: \(description) - \(error)")
-            throw PrivilegedOperationError.executionError(description: description, error: error)
+        if result.exitCode == 0 {
+            AppLogger.shared.log("✅ [PrivCoordinator] Successfully executed: \(description)")
+        } else {
+            AppLogger.shared.log("❌ [PrivCoordinator] Failed to execute: \(description)")
+            AppLogger.shared.log("❌ [PrivCoordinator] Output: \(result.output)")
+            throw PrivilegedOperationError.commandFailed(
+                description: description,
+                exitCode: result.exitCode,
+                output: result.output
+            )
         }
     }
 

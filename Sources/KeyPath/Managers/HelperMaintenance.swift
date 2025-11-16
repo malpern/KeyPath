@@ -202,7 +202,7 @@ final class HelperMaintenance: ObservableObject {
         let script = """
         do shell script "launchctl bootout system/com.keypath.helper || true; rm -f \(legacyBin); rm -f \(legacyPlist)" with administrator privileges
         """
-        let (applescriptOk, applescriptErr) = runAppleScript(script)
+        let (applescriptOk, applescriptErr) = testHooks?.runAppleScript?(script) ?? runAppleScript(script)
         if applescriptOk {
             log("✅ AppleScript cleanup removed legacy artifacts")
             return true
@@ -271,6 +271,21 @@ extension HelperMaintenance {
         let bootoutHelperJob: (() async -> Void)?
         let removeLegacyHelperArtifacts: ((Bool) async -> Bool)?
         let registerHelper: (() async -> Bool)?
+        let runAppleScript: ((String) -> (Bool, String))?
+
+        init(
+            unregisterHelper: (() async -> Void)? = nil,
+            bootoutHelperJob: (() async -> Void)? = nil,
+            removeLegacyHelperArtifacts: ((Bool) async -> Bool)? = nil,
+            registerHelper: (() async -> Bool)? = nil,
+            runAppleScript: ((String) -> (Bool, String))? = nil
+        ) {
+            self.unregisterHelper = unregisterHelper
+            self.bootoutHelperJob = bootoutHelperJob
+            self.removeLegacyHelperArtifacts = removeLegacyHelperArtifacts
+            self.registerHelper = registerHelper
+            self.runAppleScript = runAppleScript
+        }
     }
 
     func applyTestHooks(_ hooks: TestHooks?) {

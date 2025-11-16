@@ -6,7 +6,7 @@ final class HelperMaintenanceTests: XCTestCase {
     override func tearDown() async throws {
         try await super.tearDown()
         HelperMaintenance.testDuplicateAppPathsOverride = nil
-        await HelperMaintenance.shared.applyTestHooks(nil)
+        HelperMaintenance.shared.applyTestHooks(nil)
         HelperManager.testHelperFunctionalityOverride = nil
         HelperManager.testInstallHelperOverride = nil
     }
@@ -45,7 +45,8 @@ final class HelperMaintenanceTests: XCTestCase {
             unregisterHelper: { },
             bootoutHelperJob: { },
             removeLegacyHelperArtifacts: { _ in true },
-            registerHelper: { true }
+            registerHelper: { true },
+            runAppleScript: { _ in (false, "User cancelled") }
         )
         HelperMaintenance.shared.applyTestHooks(hooks)
         HelperManager.testHelperFunctionalityOverride = { true }
@@ -53,6 +54,24 @@ final class HelperMaintenanceTests: XCTestCase {
         let success = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: false)
         XCTAssertTrue(success)
         XCTAssertTrue(HelperMaintenance.shared.logLines.contains { $0.contains("Multiple KeyPath.app copies detected:") })
+    }
+
+    func testRunCleanupLogsFallbackFailureWhenAppleScriptDenied() async {
+        HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
+
+        let hooks = HelperMaintenance.TestHooks(
+            unregisterHelper: { },
+            bootoutHelperJob: { },
+            removeLegacyHelperArtifacts: { _ in false },
+            registerHelper: { true },
+            runAppleScript: { _ in (false, "User canceled") }
+        )
+        HelperMaintenance.shared.applyTestHooks(hooks)
+        HelperManager.testHelperFunctionalityOverride = { true }
+
+        let success = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: true)
+        XCTAssertFalse(success)
+        XCTAssertTrue(HelperMaintenance.shared.logLines.contains { $0.contains("AppleScript cleanup failed") })
     }
 
     func testRunCleanupIsIdempotentWithoutDuplicates() async {

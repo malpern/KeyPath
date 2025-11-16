@@ -18,16 +18,35 @@ import ServiceManagement
 class LaunchDaemonInstaller {
     // MARK: - Constants
 
-    private static let launchDaemonsPath: String = LaunchDaemonInstaller.resolveLaunchDaemonsPath()
-    static let systemLaunchDaemonsDir = "/Library/LaunchDaemons"
-    static let systemLaunchAgentsDir = "/Library/LaunchAgents"
+    private static var launchDaemonsPath: String {
+        LaunchDaemonInstaller.resolveLaunchDaemonsPath()
+    }
+
+    static var systemLaunchDaemonsDir: String {
+        launchDaemonsPath
+    }
+
+    static var systemLaunchAgentsDir: String {
+        WizardSystemPaths.remapSystemPath("/Library/LaunchAgents")
+    }
     static let kanataServiceID = "com.keypath.kanata"
     private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
     private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
     private static let logRotationServiceID = "com.keypath.logrotate"
 
     /// Path to the log rotation script
-    private static let logRotationScriptPath = "/usr/local/bin/keypath-logrotate.sh"
+    private static var logRotationScriptPath: String {
+        WizardSystemPaths.remapSystemPath("/usr/local/bin/keypath-logrotate.sh")
+    }
+
+    struct InstallerReport: Sendable {
+        let timestamp: Date
+        let success: Bool
+        let failureReason: String?
+    }
+
+    private(set) var lastInstallerReport: InstallerReport?
+    private var installerFailureReason: String?
 
     /// Path to the Kanata service plist file (system daemon)
     static var kanataPlistPath: String {
@@ -156,17 +175,16 @@ class LaunchDaemonInstaller {
 
     // MARK: - Env/Test helpers
 
-    private static let isTestMode: Bool = {
-        let env = ProcessInfo.processInfo.environment
-        return env["KEYPATH_TEST_MODE"] == "1"
-    }()
+    private static var isTestMode: Bool {
+        ProcessInfo.processInfo.environment["KEYPATH_TEST_MODE"] == "1"
+    }
 
     private static func resolveLaunchDaemonsPath() -> String {
         let env = ProcessInfo.processInfo.environment
         if let override = env["KEYPATH_LAUNCH_DAEMONS_DIR"], !override.isEmpty {
             return override
         }
-        return "/Library/LaunchDaemons"
+        return WizardSystemPaths.remapSystemPath("/Library/LaunchDaemons")
     }
 
     /// Escapes a shell command string for safe embedding in AppleScript
@@ -190,7 +208,12 @@ class LaunchDaemonInstaller {
             return systemPath
         } else {
             let bundledPath = WizardSystemPaths.bundledKanataPath
-            AppLogger.shared.log("⚠️ [LaunchDaemon] System kanata not found, using bundled path: \(bundledPath)")
+            if FileManager.default.fileExists(atPath: bundledPath) {
+                AppLogger.shared.log("⚠️ [LaunchDaemon] System kanata not found, using bundled path: \(bundledPath)")
+            } else {
+                AppLogger.shared.log("❌ [LaunchDaemon] Bundled Kanata binary not found at: \(bundledPath)")
+                AppLogger.shared.log("💡 [LaunchDaemon] User may need to reinstall Kanata components before proceeding")
+            }
             return bundledPath
         }
     }
@@ -266,6 +289,10 @@ class LaunchDaemonInstaller {
     func createAllLaunchDaemonServices() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Creating all LaunchDaemon services")
 
+        await ensureDefaultUserConfigExists()
+
+        installerFailureReason = nil
+
         // GUARD: Check if SMAppService is active for Kanata - if so, skip Kanata plist creation
         // Use synchronous check since this method is not async
         let isSMAppServiceActive = KanataDaemonManager.isUsingSMAppService
@@ -316,9 +343,12 @@ class LaunchDaemonInstaller {
             try? FileManager.default.removeItem(atPath: vhidDaemonTempPath)
             try? FileManager.default.removeItem(atPath: vhidManagerTempPath)
 
+            recordInstallerReport(success: success)
             return success
         } catch {
             AppLogger.shared.log("❌ [LaunchDaemon] Failed to create temporary plists: \(error)")
+            installerFailureReason = "Failed to create temporary plists: \(error.localizedDescription)"
+            recordInstallerReport(success: false)
             return false
         }
     }
@@ -346,9 +376,10 @@ class LaunchDaemonInstaller {
         // If conflicted, auto-resolve by removing legacy plist
         if state == .conflicted {
             AppLogger.shared.log("⚠️ [LaunchDaemon] Conflicted state detected - auto-resolving by removing legacy plist")
+            let legacyPlistPath = KanataDaemonManager.legacyPlistPath
             let command = """
             /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
-            /bin/rm -f '/Library/LaunchDaemons/\(Self.kanataServiceID).plist' || true
+            /bin/rm -f '\(legacyPlistPath)' || true
             """
             do {
                 try await PrivilegedOperationsCoordinator.shared.sudoExecuteCommand(
@@ -555,6 +586,13 @@ class LaunchDaemonInstaller {
     func isServiceLoaded(serviceID: String) -> Bool {
         // Special handling for Kanata service: Use state determination for consistent detection
         if serviceID == Self.kanataServiceID {
+            if Self.isTestMode {
+                let exists = FileManager.default.fileExists(
+                    atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
+                AppLogger.shared.log(
+                    "🔍 [LaunchDaemon] (test) Kanata service loaded via file existence: \(exists)")
+                return exists
+            }
             let state = KanataDaemonManager.determineServiceManagementState()
             AppLogger.shared.log("🔍 [LaunchDaemon] Kanata service state: \(state.description)")
 
@@ -814,6 +852,21 @@ class LaunchDaemonInstaller {
         """
     }
 
+    private func ensureDefaultUserConfigExists() async {
+        let configPath = WizardSystemPaths.userConfigPath
+        guard !FileManager.default.fileExists(atPath: configPath) else {
+            return
+        }
+
+        let configService = ConfigurationService(configDirectory: WizardSystemPaths.userConfigDirectory)
+        do {
+            try await configService.createInitialConfigIfNeeded()
+            AppLogger.shared.log("✅ [LaunchDaemon] Created default user config at \(configPath)")
+        } catch {
+            AppLogger.shared.log("❌ [LaunchDaemon] Failed to create default user config: \(error)")
+        }
+    }
+
     // MARK: - File System Operations
 
     private func installPlist(content: String, path: String, serviceID: String) -> Bool {
@@ -1004,11 +1057,15 @@ class LaunchDaemonInstaller {
                 AppLogger.shared.log("✅ [LaunchDaemon] Successfully installed all LaunchDaemon services")
                 return true
             } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to install services: \(output)")
+                let reason = "Failed to install services: \(output)"
+                updateInstallerFailure(reason)
+                AppLogger.shared.log("❌ [LaunchDaemon] \(reason)")
                 return false
             }
         } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Failed to execute admin command: \(error)")
+            let reason = "Failed to execute admin command: \(error.localizedDescription)"
+            updateInstallerFailure(reason)
+            AppLogger.shared.log("❌ [LaunchDaemon] \(reason)")
             return false
         }
     }
@@ -1695,6 +1752,8 @@ class LaunchDaemonInstaller {
     func createAllLaunchDaemonServicesInstallOnly() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing service files only (no load/start)...")
 
+        await ensureDefaultUserConfigExists()
+
         // GUARD: Use state determination to check if SMAppService is managing Kanata
         let state = KanataDaemonManager.determineServiceManagementState()
         AppLogger.shared.log("🔍 [LaunchDaemon] Current state: \(state.description)")
@@ -1848,9 +1907,10 @@ class LaunchDaemonInstaller {
         // If legacy exists, auto-resolve by removing it (we always use SMAppService now)
         if state == .legacyActive || state == .conflicted {
             AppLogger.shared.log("🔄 [LaunchDaemon] Legacy plist detected - auto-resolving by removing legacy")
+            let legacyPlistPath = KanataDaemonManager.legacyPlistPath
             let command = """
             /bin/launchctl bootout system/\(Self.kanataServiceID) 2>/dev/null || true && \
-            /bin/rm -f '/Library/LaunchDaemons/\(Self.kanataServiceID).plist' || true
+            /bin/rm -f '\(legacyPlistPath)' || true
             """
             do {
                 try await PrivilegedOperationsCoordinator.shared.sudoExecuteCommand(
@@ -2512,7 +2572,7 @@ class LaunchDaemonInstaller {
     }
 
     /// Install log rotation service to keep logs under 10MB
-    func installLogRotationService() -> Bool {
+    func installLogRotationService() async -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Installing log rotation service (keeps logs < 10MB)")
 
         let script = generateLogRotationScript()
@@ -2542,40 +2602,33 @@ class LaunchDaemonInstaller {
             launchctl bootstrap system '\(plistFinal)'
             """
 
-            // Use osascript approach like other admin operations
-            let escapedCommand = escapeForAppleScript(command)
-            let osascriptCommand = """
-            do shell script "\(escapedCommand)" with administrator privileges with prompt "KeyPath needs to install log rotation service to keep logs under 10MB."
-            """
-
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-            task.arguments = ["-e", osascriptCommand]
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = pipe
-
-            try task.run()
-            task.waitUntilExit()
-
-            let success = task.terminationStatus == 0
+            let result = try await AdminCommandExecutorHolder.shared.execute(
+                command: command,
+                description: "Install log rotation service"
+            )
 
             // Clean up temp files
             try? FileManager.default.removeItem(atPath: scriptTempPath)
             try? FileManager.default.removeItem(atPath: plistTempPath)
 
+            let success = result.exitCode == 0
             if success {
                 AppLogger.shared.log("✅ [LaunchDaemon] Log rotation service installed successfully")
-                // Also rotate the current huge log file immediately
                 rotateCurrentLogs()
             } else {
-                AppLogger.shared.log("❌ [LaunchDaemon] Failed to install log rotation service")
+                let reason = "Failed to install log rotation service via command: \(result.output.trimmingCharacters(in: .whitespacesAndNewlines))"
+                updateInstallerFailure(reason)
+                AppLogger.shared.log("❌ [LaunchDaemon] \(reason)")
             }
 
+            recordInstallerReport(success: success)
             return success
 
         } catch {
-            AppLogger.shared.log("❌ [LaunchDaemon] Error preparing log rotation files: \(error)")
+            let reason = "Error preparing log rotation files: \(error.localizedDescription)"
+            updateInstallerFailure(reason)
+            AppLogger.shared.log("❌ [LaunchDaemon] \(reason)")
+            recordInstallerReport(success: false)
             return false
         }
     }
@@ -2769,6 +2822,20 @@ struct LaunchDaemonStatus {
         - All Services Loaded: \(allServicesLoaded)
         - All Services Healthy: \(allServicesHealthy)
         """
+    }
+}
+
+extension LaunchDaemonInstaller {
+    private func updateInstallerFailure(_ reason: String) {
+        installerFailureReason = reason
+    }
+
+    private func recordInstallerReport(success: Bool) {
+        let reason = success ? nil : (installerFailureReason ?? "Unknown failure")
+        lastInstallerReport = InstallerReport(timestamp: Date(), success: success, failureReason: reason)
+        if success {
+            installerFailureReason = nil
+        }
     }
 }
 
