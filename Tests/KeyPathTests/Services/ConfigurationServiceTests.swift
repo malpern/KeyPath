@@ -80,6 +80,26 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(config.contains("f1"), "F keys should still be present")
     }
 
+    func testGenerateFromMappings_UsesSingleDefsrcAndDeflayer() {
+        let mappings = [
+            KeyMapping(input: "caps", output: "esc"),
+            KeyMapping(input: "a", output: "b")
+        ]
+
+        let config = KanataConfiguration.generateFromMappings(mappings)
+        let defsrcCount = config
+            .components(separatedBy: .newlines)
+            .filter { $0.contains("(defsrc") && !$0.trimmingCharacters(in: .whitespaces).hasPrefix(";;") }
+            .count
+        let deflayerCount = config
+            .components(separatedBy: .newlines)
+            .filter { $0.contains("(deflayer base") && !$0.trimmingCharacters(in: .whitespaces).hasPrefix(";;") }
+            .count
+
+        XCTAssertEqual(defsrcCount, 1, "Kanata accepts exactly one defsrc block")
+        XCTAssertEqual(deflayerCount, 1, "Kanata accepts exactly one deflayer block")
+    }
+
     // MARK: - Configuration Parsing Tests
 
     func testParseConfigurationFromString_ValidConfig() throws {
