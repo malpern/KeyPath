@@ -211,6 +211,7 @@ class KanataManager {
     var isRunning = false
     var lastError: String?
     var keyMappings: [KeyMapping] = []
+    var ruleCollections: [RuleCollection] = []
     var diagnostics: [KanataDiagnostic] = []
     var lastProcessExitCode: Int32?
     var lastConfigUpdate: Date = .init()
@@ -309,6 +310,7 @@ class KanataManager {
             isRunning: isRunning,
             lastError: lastError,
             keyMappings: keyMappings,
+            ruleCollections: ruleCollections,
             diagnostics: diagnostics,
             lastProcessExitCode: lastProcessExitCode,
             lastConfigUpdate: lastConfigUpdate,
@@ -360,6 +362,7 @@ class KanataManager {
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     private let karabinerConflictService: KarabinerConflictManaging
     private let configBackupManager: ConfigBackupManager
+    private let ruleCollectionStore: RuleCollectionStore
 
     private var isStartingKanata = false
     var isInitializing = false
@@ -408,6 +411,7 @@ class KanataManager {
             configurationService = ConfigurationService(configDirectory: "\(NSHomeDirectory())/.config/keypath")
         }
         processLifecycleManager = ProcessLifecycleManager()
+        ruleCollectionStore = RuleCollectionStore.shared
 
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
@@ -482,6 +486,73 @@ class KanataManager {
         if isHeadlessMode {
             AppLogger.shared.log("🤖 [KanataManager] Initialized in headless mode")
         }
+
+        Task { await bootstrapRuleCollections() }
+    }
+
+    // MARK: - Rule Collections
+
+    private func bootstrapRuleCollections() async {
+        let stored = await ruleCollectionStore.loadCollections()
+        await MainActor.run {
+            self.ruleCollections = stored
+            ensureDefaultCollectionsIfNeeded()
+        }
+    }
+
+    func replaceRuleCollections(_ collections: [RuleCollection]) async {
+        await MainActor.run {
+            ruleCollections = collections
+        }
+        await regenerateConfigFromCollections()
+    }
+
+    func enabledMappingsFromCollections() -> [KeyMapping] {
+        ruleCollections.enabledMappings()
+    }
+
+    @MainActor
+    private func ensureDefaultCollectionsIfNeeded() {
+        if ruleCollections.isEmpty {
+            ruleCollections = RuleCollectionCatalog().defaultCollections()
+        }
+    }
+
+    @MainActor
+    private func updateCustomCollection(with mappings: [KeyMapping], persist: Bool = true) {
+        ensureDefaultCollectionsIfNeeded()
+        let custom = RuleCollection(
+            id: RuleCollectionIdentifier.customMappings,
+            name: "Custom Mappings",
+            summary: "Your configured rules",
+            category: .custom,
+            mappings: mappings,
+            isEnabled: true,
+            isSystemDefault: false,
+            icon: "square.and.pencil"
+        )
+
+        if let index = ruleCollections.firstIndex(where: { $0.id == custom.id }) {
+            ruleCollections[index] = custom
+        } else {
+            ruleCollections.append(custom)
+        }
+
+        guard persist else { return }
+        Task {
+            do {
+                try await ruleCollectionStore.saveCollections(ruleCollections)
+            } catch {
+                AppLogger.shared.log("⚠️ [RuleCollections] Failed to persist custom collection: \(error)")
+            }
+        }
+    }
+
+    @MainActor
+    private func applyKeyMappings(_ mappings: [KeyMapping], persistCollections: Bool = true) {
+        keyMappings = mappings
+        lastConfigUpdate = Date()
+        updateCustomCollection(with: mappings, persist: persistCollections)
     }
 
     // MARK: - Diagnostics
@@ -615,8 +686,7 @@ class KanataManager {
         do {
             let parsedConfig = try configurationService.parseConfigurationFromString(configContent)
             await MainActor.run {
-                keyMappings = parsedConfig.keyMappings
-                lastConfigUpdate = Date()
+                applyKeyMappings(parsedConfig.keyMappings)
             }
         } catch {
             AppLogger.shared.warn("⚠️ [FileWatcher] Failed to parse config for in-memory update: \(error)")
@@ -1474,7 +1544,7 @@ class KanataManager {
             // Parse the saved config to update key mappings (for UI display)
             let parsedMappings = parseKanataConfig(configContent)
             await MainActor.run {
-                keyMappings = parsedMappings
+                applyKeyMappings(parsedMappings)
             }
 
             // Play tink sound asynchronously to avoid blocking save pipeline
@@ -1520,6 +1590,36 @@ class KanataManager {
         }
     }
 
+    func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else { return }
+        ruleCollections[index].isEnabled = isEnabled
+        await regenerateConfigFromCollections()
+    }
+
+    func addRuleCollection(_ collection: RuleCollection) async {
+        if let index = ruleCollections.firstIndex(where: { $0.id == collection.id }) {
+            ruleCollections[index].isEnabled = true
+            ruleCollections[index].summary = collection.summary
+            ruleCollections[index].mappings = collection.mappings
+            ruleCollections[index].category = collection.category
+            ruleCollections[index].icon = collection.icon
+        } else {
+            ruleCollections.append(collection)
+        }
+        await regenerateConfigFromCollections()
+    }
+
+    private func regenerateConfigFromCollections() async {
+        do {
+            try await ruleCollectionStore.saveCollections(ruleCollections)
+            try await configurationService.saveConfiguration(ruleCollections: ruleCollections)
+            applyKeyMappings(ruleCollections.enabledMappings(), persistCollections: false)
+            _ = await triggerConfigReload()
+        } catch {
+            AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
+        }
+    }
+
     func saveConfiguration(input: String, output: String) async throws {
         // Suppress file watcher to prevent double reload from our own write
         configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
@@ -1536,17 +1636,16 @@ class KanataManager {
             // Create new mapping
             let newMapping = KeyMapping(input: input, output: output)
 
-            // Remove any existing mapping with the same inpu
-            keyMappings.removeAll { $0.input == input }
-
-            // Add the new mapping
-            keyMappings.append(newMapping)
+            var updatedMappings = keyMappings
+            updatedMappings.removeAll { $0.input == input }
+            updatedMappings.append(newMapping)
+            applyKeyMappings(updatedMappings)
 
             // Backup current config before making changes
             await backupCurrentConfig()
 
             // Delegate to ConfigurationService for saving
-            try await configurationService.saveConfiguration(keyMappings: keyMappings)
+            try await configurationService.saveConfiguration(ruleCollections: ruleCollections)
             AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationService")
 
             // Play tink sound asynchronously to avoid blocking save pipeline
@@ -2347,7 +2446,9 @@ class KanataManager {
     /// Load and strictly validate existing configuration with fallback to defaul
     private func loadExistingMappings() async {
         AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION BEGIN ==========")
-        keyMappings.removeAll()
+        await MainActor.run {
+            applyKeyMappings([], persistCollections: false)
+        }
 
         guard FileManager.default.fileExists(atPath: configPath) else {
             AppLogger.shared.log("ℹ️ [Validation] No existing config file found at: \(configPath)")
@@ -2367,8 +2468,10 @@ class KanataManager {
             if cli.isValid {
                 AppLogger.shared.log("✅ [Validation] CLI validation PASSED")
                 let config = try await configurationService.reload()
-                keyMappings = config.keyMappings
-                AppLogger.shared.log("✅ [Validation] Successfully loaded \(keyMappings.count) existing mappings")
+                await MainActor.run {
+                    applyKeyMappings(config.keyMappings)
+                }
+                AppLogger.shared.log("✅ [Validation] Successfully loaded \(config.keyMappings.count) existing mappings")
             } else {
                 AppLogger.shared.log("❌ [Validation] CLI validation FAILED with \(cli.errors.count) errors")
                 await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
@@ -2376,7 +2479,9 @@ class KanataManager {
         } catch {
             AppLogger.shared.error("❌ [Validation] Failed to load existing config: \(error)")
             AppLogger.shared.error("❌ [Validation] Error type: \(type(of: error))")
-            keyMappings = []
+            await MainActor.run {
+                applyKeyMappings([], persistCollections: false)
+            }
         }
 
         AppLogger.shared.log("📂 [Validation] ========== STARTUP CONFIG VALIDATION END ==========")
@@ -2409,9 +2514,11 @@ class KanataManager {
         do {
             AppLogger.shared.log("📝 [Validation] Writing default config to: \(configPath)")
             try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-            keyMappings = [defaultMapping]
+            await MainActor.run {
+                applyKeyMappings([defaultMapping])
+            }
             AppLogger.shared.info("✅ [Validation] Successfully replaced invalid config with default")
-            AppLogger.shared.info("✅ [Validation] New config has \(keyMappings.count) mapping(s)")
+            AppLogger.shared.info("✅ [Validation] New config has 1 mapping")
 
             // Schedule user notification about the fallback
             AppLogger.shared.log("📢 [Validation] Scheduling user notification about config fallback...")
@@ -2419,7 +2526,9 @@ class KanataManager {
         } catch {
             AppLogger.shared.error("❌ [Validation] Failed to write default config: \(error)")
             AppLogger.shared.error("❌ [Validation] Config path: \(configPath)")
-            keyMappings = []
+            await MainActor.run {
+                applyKeyMappings([], persistCollections: false)
+            }
         }
 
         AppLogger.shared.log("🛡️ [Validation] Invalid startup config handling complete")
@@ -2509,8 +2618,7 @@ class KanataManager {
         do {
             try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
             await MainActor.run {
-                keyMappings = [defaultMapping]
-                lastConfigUpdate = Date()
+                applyKeyMappings([defaultMapping])
             }
             AppLogger.shared.info("✅ [Config] Successfully reverted to default configuration")
         } catch {
@@ -2912,7 +3020,9 @@ class KanataManager {
         )
 
         // Update in-memory mappings to reflect the safe state
-        keyMappings = [KeyMapping(input: "caps", output: "escape")]
+        await MainActor.run {
+            applyKeyMappings([KeyMapping(input: "caps", output: "escape")])
+        }
 
         return backupPath
     }

@@ -110,6 +110,25 @@ let package = Package(
             name: "SMAppServicePOC",
             dependencies: [],
             path: "dev-tools/debug",
+            exclude: [
+                "debug-admin-dialog.swift",
+                "debug-admin-prompt.swift",
+                "debug-current-wizard.swift",
+                "debug-fix-button-execution.swift",
+                "debug-fix-button-immediate.swift",
+                "debug-launchdaemon-command.sh",
+                "debug-plist-validation.sh",
+                "debug-service-conflicts.sh",
+                "debug-service-detection.swift",
+                "debug-service-install.swift",
+                "debug-unhealthy-services-fix.swift",
+                "debug-wizard-detection.swift",
+                "debug-wizard-fix-button.swift",
+                "test-migration-scenarios.swift",
+                "test-smappservice-simple.swift",
+                "test-smappservice-standalone.swift",
+                "test-tcc-stability.swift"
+            ],
             sources: ["smappservice-poc.swift"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)

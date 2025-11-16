@@ -295,4 +295,12 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
 
         return KanataConfiguration.generateFromMappings(mappings)
     }
+
+    func generateConfig(ruleCollections: [RuleCollection]) -> String {
+        let mappings = ruleCollections.enabledMappings()
+        if mappings.isEmpty {
+            return generateConfig(mappings: [])
+        }
+        return KanataConfiguration.generateFromCollections(ruleCollections)
+    }
 }

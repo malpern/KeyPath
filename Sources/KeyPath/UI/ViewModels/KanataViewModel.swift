@@ -23,6 +23,7 @@ class KanataViewModel: ObservableObject {
     @Published var isRunning = false
     @Published var lastError: String?
     @Published var keyMappings: [KeyMapping] = []
+    @Published var ruleCollections: [RuleCollection] = []
     @Published var diagnostics: [KanataDiagnostic] = []
     @Published var lastProcessExitCode: Int32?
     @Published var lastConfigUpdate: Date = .init()
@@ -114,6 +115,7 @@ class KanataViewModel: ObservableObject {
         isRunning = state.isRunning
         lastError = state.lastError
         keyMappings = state.keyMappings
+        ruleCollections = state.ruleCollections
         diagnostics = state.diagnostics
         lastProcessExitCode = state.lastProcessExitCode
         lastConfigUpdate = state.lastConfigUpdate
@@ -188,6 +190,16 @@ class KanataViewModel: ObservableObject {
     func requestWizardPresentation() {
         manager.requestWizardPresentation()
         Task { await syncFromManager() }
+    }
+
+    func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
+        await manager.toggleRuleCollection(id: id, isEnabled: enabled)
+        await syncFromManager()
+    }
+
+    func addRuleCollection(_ collection: RuleCollection) async {
+        await manager.addRuleCollection(collection)
+        await syncFromManager()
     }
 
     func isCompletelyInstalled() -> Bool {

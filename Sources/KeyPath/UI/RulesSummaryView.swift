@@ -1,5 +1,8 @@
 import KeyPathCore
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct RulesTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
@@ -7,6 +10,7 @@ struct RulesTabView: View {
     @State private var showingResetConfirmation = false
     @State private var settingsToastManager = WizardToastManager()
     @AppStorage("rulesTabTipDismissed") private var rulesTabTipDismissed = false
+    private let catalog = RuleCollectionCatalog()
 
     enum RulesSubTab: String, CaseIterable {
         case active = "Active Rules"
@@ -149,9 +153,10 @@ struct RulesTabView: View {
     private func count(for tab: RulesSubTab) -> Int {
         switch tab {
         case .active:
-            kanataManager.keyMappings.count
+            return kanataManager.ruleCollections.enabledMappings().count
         case .available:
-            SimpleModsCatalog.shared.getAllPresets().count
+            let existing = Set(kanataManager.ruleCollections.map { $0.id })
+            return catalog.defaultCollections().filter { !existing.contains($0.id) }.count
         }
     }
 
@@ -195,7 +200,7 @@ struct ActiveRulesView: View {
     @State private var isHoveringEmptyState = false
 
     var body: some View {
-        if kanataManager.keyMappings.isEmpty {
+        if kanataManager.ruleCollections.isEmpty {
             VStack(spacing: 12) {
                 Image(systemName: "list.bullet")
                     .font(.system(size: 48))
@@ -218,33 +223,18 @@ struct ActiveRulesView: View {
             .settingsBackground()
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(kanataManager.keyMappings.enumerated()), id: \.element.input) { index, mapping in
-                        HStack(spacing: 12) {
-                            Text(mapping.input)
-                                .font(.body.monospaced())
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-
-                            Image(systemName: "arrow.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            Text(mapping.output)
-                                .font(.body.monospaced())
-                                .foregroundColor(.secondary)
-
-                            Spacer()
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-
-                        if index < kanataManager.keyMappings.count - 1 {
-                            Divider()
-                                .padding(.leading, 20)
-                        }
+                LazyVStack(spacing: 12) {
+                    ForEach(kanataManager.ruleCollections) { collection in
+                        RuleCollectionRow(
+                            collection: collection,
+                            onToggle: { isOn in
+                                Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
+                            }
+                        )
+                        .padding(.horizontal, 12)
                     }
                 }
+                .padding(.vertical, 8)
             }
             .settingsBackground()
         }
@@ -257,153 +247,172 @@ struct ActiveRulesView: View {
     }
 }
 
+private struct RuleCollectionRow: View {
+    let collection: RuleCollection
+    let onToggle: (Bool) -> Void
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                if let icon = collection.icon {
+                    Image(systemName: icon)
+                        .font(.title3)
+                        .foregroundColor(collection.isEnabled ? .green : .secondary)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(collection.name)
+                        .font(.headline)
+                    Text(collection.summary)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { collection.isEnabled },
+                    set: { onToggle($0) }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .disabled(collection.isSystemDefault && collection.isEnabled)
+
+                Button(action: { isExpanded.toggle() }) {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(collection.mappings.prefix(8)) { mapping in
+                        HStack(spacing: 8) {
+                            Text(mapping.input)
+                                .font(.caption.monospaced())
+                                .foregroundColor(.primary)
+                            Image(systemName: "arrow.right")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(mapping.output)
+                                .font(.caption.monospaced())
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+
+                    if collection.mappings.count > 8 {
+                        Text("+\(collection.mappings.count - 8) more…")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.leading, collection.icon == nil ? 0 : 4)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(nsColor: NSColor.windowBackgroundColor))
+        )
+    }
+}
+
 // MARK: - Available Rules View
 
 struct AvailableRulesView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
-    @StateObject private var simpleModsService: SimpleModsService
-    @State private var selectedPresets: Set<UUID> = []
-    @State private var isActivating = false
-    @State private var settingsToastManager = WizardToastManager()
+    private let catalog = RuleCollectionCatalog()
 
-    private let presets = SimpleModsCatalog.shared.getAllPresets()
-    private var groupedPresets: [String: [SimpleModPreset]] {
-        Dictionary(grouping: presets, by: { $0.category })
-    }
-
-    init() {
-        let configPath = "\(NSHomeDirectory())/Library/Application Support/KeyPath/keypath.kbd"
-        _simpleModsService = StateObject(wrappedValue: SimpleModsService(configPath: configPath))
+    private var availableCollections: [RuleCollection] {
+        let existing = Set(kanataManager.ruleCollections.map { $0.id })
+        return catalog.defaultCollections().filter { !existing.contains($0.id) }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Action bar when items are selected
-            if !selectedPresets.isEmpty {
-                HStack(spacing: 12) {
-                    Text("\(selectedPresets.count) rule\(selectedPresets.count == 1 ? "" : "s") selected")
-                        .font(.body)
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                ForEach(availableCollections) { collection in
+                    AvailableRuleCollectionCard(collection: collection) {
+                        Task { await kanataManager.addRuleCollection(collection) }
+                    }
+                }
+
+                if availableCollections.isEmpty {
+                    Text("All built-in collections are active.")
+                        .font(.callout)
                         .foregroundColor(.secondary)
-
-                    Spacer()
-
-                    Button(action: clearSelection) {
-                        Text("Clear Selection")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
-                    Button(action: activateSelected) {
-                        Label(isActivating ? "Activating..." : "Activate", systemImage: "checkmark.circle")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(isActivating)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color(NSColor.controlBackgroundColor))
-
-                Divider()
-            }
-
-            List(selection: $selectedPresets) {
-                ForEach(groupedPresets.keys.sorted(), id: \.self) { category in
-                    Section(header: Text(category)
-                        .font(.headline)
-                        .foregroundColor(.secondary)) {
-                        ForEach(groupedPresets[category]!, id: \.id) { preset in
-                            AvailableRuleRow(preset: preset)
-                                .tag(preset.id)
-                        }
-                    }
+                        .padding()
                 }
             }
-            .listStyle(.inset)
-        }
-        .withToasts(settingsToastManager)
-    }
-
-    private func clearSelection() {
-        selectedPresets.removeAll()
-    }
-
-    private func activateSelected() {
-        guard !selectedPresets.isEmpty else { return }
-
-        isActivating = true
-        Task {
-            let presetsToActivate = presets.filter { selectedPresets.contains($0.id) }
-
-            for preset in presetsToActivate {
-                // Add mapping via the simple mods service
-                simpleModsService.addMapping(
-                    fromKey: preset.fromKey,
-                    toKey: preset.toKey,
-                    enabled: true
-                )
-            }
-
-            // Refresh the kanata manager to reflect new mappings
-            await kanataManager.forceRefreshStatus()
-
-            await MainActor.run {
-                settingsToastManager.showSuccess("Activated \(presetsToActivate.count) rule\(presetsToActivate.count == 1 ? "" : "s")")
-                selectedPresets.removeAll()
-                isActivating = false
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 20)
         }
     }
 }
 
-// MARK: - Available Rule Row
-
-private struct AvailableRuleRow: View {
-    let preset: SimpleModPreset
+private struct AvailableRuleCollectionCard: View {
+    let collection: RuleCollection
+    let onActivate: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Left side: Name and keymap details
-            VStack(alignment: .leading, spacing: 6) {
-                Text(preset.name)
-                    .font(.body.weight(.medium))
-                    .foregroundColor(.primary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                if let icon = collection.icon {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
 
-                // Key codes below title
-                HStack(spacing: 6) {
-                    Text(preset.fromKey)
-                        .font(.caption.monospaced())
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(collection.name)
+                        .font(.headline)
+                    Text(collection.summary)
+                        .font(.caption)
                         .foregroundColor(.secondary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(3)
+                }
 
-                    Image(systemName: "arrow.right")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                Spacer()
 
-                    Text(preset.toKey)
-                        .font(.caption.monospaced())
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(3)
+                Button(action: onActivate) {
+                    Label("Activate", systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+
+            if !collection.mappings.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(collection.mappings.prefix(6)) { mapping in
+                            HStack(spacing: 4) {
+                                Text(mapping.input)
+                                    .font(.caption.monospaced())
+                                Image(systemName: "arrow.right")
+                                    .font(.caption2)
+                                Text(mapping.output)
+                                    .font(.caption.monospaced())
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .cornerRadius(6)
+                        }
+                        if collection.mappings.count > 6 {
+                            Text("+\(collection.mappings.count - 6) more")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
             }
-
-            Spacer()
-
-            // Right side: Description
-            if !preset.description.isEmpty {
-                Text(preset.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 250, alignment: .trailing)
-            }
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(NSColor.windowBackgroundColor))
+        )
     }
 }

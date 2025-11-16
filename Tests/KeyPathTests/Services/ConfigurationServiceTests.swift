@@ -25,6 +25,18 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(config.contains("process-unmapped-keys yes"), "Config should pass through unmapped keys")
         XCTAssertTrue(config.contains("(defsrc"), "Config should contain defsrc section")
         XCTAssertTrue(config.contains("(deflayer base"), "Config should contain deflayer section")
+        XCTAssertTrue(
+            config.contains(";; === Collection: Custom Mappings (enabled) ==="),
+            "Config should label the custom collection as enabled"
+        )
+        XCTAssertTrue(
+            config.contains(";; === Collection: macOS Function Keys (enabled) ==="),
+            "Config should always inject the macOS Function Keys collection"
+        )
+        XCTAssertTrue(
+            config.contains(";; Rule Collections: 2 enabled, 2 total"),
+            "Summary should reflect the number of enabled collections"
+        )
         XCTAssertTrue(config.contains("caps"), "Config should contain caps key")
         XCTAssertTrue(config.contains("esc"), "Config should contain esc key")
         XCTAssertTrue(config.contains("f1"), "Config should include F-key mappings")
@@ -39,6 +51,14 @@ class ConfigurationServiceTests: XCTestCase {
         ]
         let config = KanataConfiguration.generateFromMappings(mappings)
 
+        XCTAssertTrue(
+            config.contains(";; === Collection: Custom Mappings (enabled) ==="),
+            "Multi-mapping config should still emit the custom collection header"
+        )
+        XCTAssertTrue(
+            config.contains(";; Rule Collections: 2 enabled, 2 total"),
+            "Should summarize custom + default collections"
+        )
         XCTAssertTrue(config.contains("caps"), "Config should contain all source keys")
         XCTAssertTrue(config.contains("esc"), "Config should contain all layer keys")
         XCTAssertTrue(config.contains("a"), "Config should contain 'a' key")
@@ -49,8 +69,15 @@ class ConfigurationServiceTests: XCTestCase {
         let config = KanataConfiguration.generateFromMappings([])
 
         XCTAssertTrue(config.contains("(defcfg"), "Config should still contain defcfg")
-        XCTAssertTrue(config.contains("(defsrc)"), "Config should contain empty defsrc")
-        XCTAssertTrue(config.contains("(deflayer base)"), "Config should contain empty deflayer")
+        XCTAssertTrue(
+            config.contains(";; === Collection: macOS Function Keys (enabled) ==="),
+            "Default macOS Function Keys collection should be emitted"
+        )
+        XCTAssertFalse(
+            config.contains("Custom Mappings"),
+            "Empty mappings should not emit a synthetic custom collection"
+        )
+        XCTAssertTrue(config.contains("f1"), "F keys should still be present")
     }
 
     // MARK: - Configuration Parsing Tests
@@ -155,6 +182,53 @@ class ConfigurationServiceTests: XCTestCase {
         let savedContent = try String(contentsOfFile: configPath.path, encoding: .utf8)
         XCTAssertTrue(savedContent.contains("a"), "Saved config should contain input")
         XCTAssertTrue(savedContent.contains("b"), "Saved config should contain output")
+    }
+
+    func testSaveConfiguration_WithRuleCollections() async throws {
+        let enabled = RuleCollection(
+            name: "Test",
+            summary: "Enabled collection",
+            category: .custom,
+            mappings: [KeyMapping(input: "caps", output: "esc")],
+            isEnabled: true,
+            isSystemDefault: false
+        )
+        let disabled = RuleCollection(
+            name: "Disabled",
+            summary: "Should not appear",
+            category: .experimental,
+            mappings: [KeyMapping(input: "x", output: "y")],
+            isEnabled: false,
+            isSystemDefault: false
+        )
+
+        try await configService.saveConfiguration(ruleCollections: [enabled, disabled])
+
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        let savedContent = try String(contentsOfFile: configPath.path, encoding: .utf8)
+        XCTAssertTrue(savedContent.contains("caps"))
+        XCTAssertTrue(savedContent.contains("esc"))
+        XCTAssertTrue(
+            savedContent.contains(";; === Collection: macOS Function Keys (enabled) ==="),
+            "Generated config should always include the macOS Function Keys section"
+        )
+        XCTAssertTrue(
+            savedContent.contains(";; === Collection: Disabled (disabled) ==="),
+            "Disabled collections should be annotated in the output"
+        )
+        if let disabledRange = savedContent.range(of: ";; === Collection: Disabled (disabled) ===") {
+            let disabledBlock = savedContent[disabledRange.upperBound...]
+            XCTAssertTrue(disabledBlock.contains(";; (defsrc"), "Disabled collection should comment out defsrc section")
+            XCTAssertTrue(disabledBlock.contains(";; (deflayer base"), "Disabled collection should comment out deflayer section")
+        } else {
+            XCTFail("Disabled collection header missing from config output")
+        }
+
+        let parsed = try configService.parseConfigurationFromString(savedContent)
+        let capsMappings = parsed.keyMappings.filter { $0.input == "caps" }
+        XCTAssertEqual(capsMappings.count, 1)
+        XCTAssertEqual(capsMappings.first?.output, "esc")
+        XCTAssertTrue(parsed.keyMappings.allSatisfy { $0.input != "x" }, "Disabled collection should not produce mappings")
     }
 
     // MARK: - Error Parsing Tests
@@ -414,7 +488,7 @@ class ConfigurationServiceTests: XCTestCase {
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
         let safeContent = try String(contentsOfFile: configPath.path, encoding: .utf8)
         XCTAssertTrue(safeContent.contains("caps"), "Safe config should be applied")
-        XCTAssertTrue(safeContent.contains("escape"), "Safe config should use escape key")
+        XCTAssertTrue(safeContent.contains("esc"), "Safe config should use escape key")
     }
 
     func testRepairConfiguration_MissingDefcfg() async throws {

@@ -101,7 +101,8 @@ struct SettingsView: View {
                                 Button(action: {
                                     NotificationCenter.default.post(name: .openSettingsRules, object: nil)
                                 }) {
-                                    Text("\(kanataManager.keyMappings.count) active rule\(kanataManager.keyMappings.count == 1 ? "" : "s")")
+                                    let activeCount = kanataManager.ruleCollections.enabledMappings().count
+                                    Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
                                         .font(.body)
                                         .foregroundColor(.secondary)
                                 }

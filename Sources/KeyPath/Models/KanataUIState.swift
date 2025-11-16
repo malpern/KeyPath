@@ -7,6 +7,7 @@ struct KanataUIState {
     let isRunning: Bool
     let lastError: String?
     let keyMappings: [KeyMapping]
+    let ruleCollections: [RuleCollection]
     let diagnostics: [KanataDiagnostic]
     let lastProcessExitCode: Int32?
     let lastConfigUpdate: Date
