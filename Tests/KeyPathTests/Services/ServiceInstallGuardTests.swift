@@ -56,4 +56,33 @@ final class ServiceInstallGuardTests: XCTestCase {
         XCTAssertTrue(didInstall)
         XCTAssertEqual(installCount, 1)
     }
+
+    func testPendingApprovalSkipsAutoInstall() async throws {
+        PrivilegedOperationsCoordinator.serviceStateOverride = { .smappservicePending }
+        var installCount = 0
+        PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            installCount += 1
+        }
+
+        let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(context: "pending-test")
+
+        XCTAssertFalse(didInstall)
+        XCTAssertEqual(installCount, 0)
+    }
+
+    func testConflictedStateTriggersAutoInstall() async throws {
+        var serviceState: KanataDaemonManager.ServiceManagementState = .conflicted
+        PrivilegedOperationsCoordinator.serviceStateOverride = { serviceState }
+
+        var installCount = 0
+        PrivilegedOperationsCoordinator.installAllServicesOverride = {
+            installCount += 1
+            serviceState = .smappserviceActive
+        }
+
+        let didInstall = try await PrivilegedOperationsCoordinator.shared._testEnsureServices(context: "conflict-test")
+
+        XCTAssertTrue(didInstall)
+        XCTAssertEqual(installCount, 1)
+    }
 }

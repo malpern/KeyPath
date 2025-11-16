@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 
 @testable import KeyPath
+@testable import KeyPathCore
 
 @MainActor
 class ConfigurationServiceTests: XCTestCase {
@@ -21,7 +22,7 @@ class ConfigurationServiceTests: XCTestCase {
         let config = KanataConfiguration.generateFromMappings(mappings)
 
         XCTAssertTrue(config.contains("(defcfg"), "Config should contain defcfg section")
-        XCTAssertTrue(config.contains("process-unmapped-keys yes"), "Config should have safe defaults")
+        XCTAssertTrue(config.contains("process-unmapped-keys no"), "Config should have safe defaults")
         XCTAssertTrue(config.contains("(defsrc"), "Config should contain defsrc section")
         XCTAssertTrue(config.contains("(deflayer base"), "Config should contain deflayer section")
         XCTAssertTrue(config.contains("caps"), "Config should contain caps key")
@@ -55,7 +56,7 @@ class ConfigurationServiceTests: XCTestCase {
     func testParseConfigurationFromString_ValidConfig() throws {
         let configContent = """
         (defcfg
-          process-unmapped-keys yes
+          process-unmapped-keys no
         )
 
         (defsrc
@@ -80,7 +81,7 @@ class ConfigurationServiceTests: XCTestCase {
         let configContent = """
         ;; This is a comment
         (defcfg
-          process-unmapped-keys yes
+          process-unmapped-keys no
         )
 
         (defsrc
@@ -104,7 +105,7 @@ class ConfigurationServiceTests: XCTestCase {
     func testParseConfigurationFromString_Deduplication() throws {
         let configContent = """
         (defcfg
-          process-unmapped-keys yes
+          process-unmapped-keys no
         )
 
         (defsrc
@@ -184,6 +185,76 @@ class ConfigurationServiceTests: XCTestCase {
         let errors = configService.parseKanataErrors("")
 
         XCTAssertEqual(errors.count, 0, "Should return empty array for empty output")
+    }
+
+    // MARK: - Test-Mode Validation
+
+    func testValidateConfigurationInTestModePasses() async {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let configContent = """
+        (defcfg
+          process-unmapped-keys no
+        )
+
+        (defsrc
+          caps
+        )
+
+        (deflayer base
+          esc
+        )
+        """
+
+        let result = await configService.validateConfiguration(configContent)
+        XCTAssertTrue(result.isValid)
+        XCTAssertTrue(result.errors.isEmpty)
+    }
+
+    func testValidateConfigurationInTestModeRejectsEmptyContent() async {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let result = await configService.validateConfiguration("   ")
+        XCTAssertFalse(result.isValid)
+        XCTAssertEqual(result.errors.first, "Configuration content is empty")
+    }
+
+    func testValidateConfigViaFileSkipsBinaryInTestMode() {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (isValid, errors) = configService.validateConfigViaFile()
+        XCTAssertTrue(isValid)
+        XCTAssertTrue(errors.isEmpty)
+    }
+
+    func testCreateInitialConfigWritesDefaultFile() async throws {
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        try? FileManager.default.removeItem(at: configPath)
+
+        try await configService.createInitialConfigIfNeeded()
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: configPath.path))
+        let contents = try String(contentsOf: configPath)
+        XCTAssertTrue(contents.contains("process-unmapped-keys no"))
+    }
+
+    func testBackupFailedConfigAppliesSafeDefaults() async throws {
+        let original = """
+        (defcfg)
+        (defsrc caps)
+        (deflayer base esc)
+        """
+        let mappings = [KeyMapping(input: "caps", output: "esc")]
+
+        let backupPath = try await configService.backupFailedConfigAndApplySafe(failedConfig: original, mappings: mappings)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backupPath))
+
+        let safeContents = try String(contentsOf: tempDirectory.appendingPathComponent("keypath.kbd"))
+        XCTAssertTrue(safeContents.contains("process-unmapped-keys no"))
+        XCTAssertTrue(safeContents.contains("escape"))
     }
 
     // MARK: - Key Conversion Tests
@@ -360,7 +431,7 @@ class ConfigurationServiceTests: XCTestCase {
 
         XCTAssertTrue(repairedConfig.contains("(defcfg"), "Repaired config should have defcfg")
         XCTAssertTrue(
-            repairedConfig.contains("process-unmapped-keys yes"),
+            repairedConfig.contains("process-unmapped-keys no"),
             "Repaired config should have safe defaults"
         )
     }
@@ -368,7 +439,7 @@ class ConfigurationServiceTests: XCTestCase {
     func testRepairConfiguration_MismatchedLengths() async throws {
         let brokenConfig = """
         (defcfg
-          process-unmapped-keys yes
+          process-unmapped-keys no
         )
         (defsrc caps a b)
         (deflayer base esc)
@@ -441,7 +512,7 @@ class ConfigurationServiceTests: XCTestCase {
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
         let content = """
         (defcfg
-          process-unmapped-keys yes
+          process-unmapped-keys no
         )
 
         (defsrc caps)

@@ -19,6 +19,7 @@ actor HelperManager {
     nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
         NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
     }
+
     nonisolated(unsafe) static var testHelperFunctionalityOverride: (() async -> Bool)?
     nonisolated(unsafe) static var testInstallHelperOverride: (() async throws -> Void)?
 

@@ -15,8 +15,8 @@ final class UninstallCoordinator: ObservableObject {
         resolveUninstallerURL: @escaping () -> URL?,
         runWithAdminPrivileges: @escaping (URL) async -> AppleScriptResult
     ) {
-        self.resolveUninstallerURLClosure = resolveUninstallerURL
-        self.runWithAdminPrivilegesClosure = runWithAdminPrivileges
+        resolveUninstallerURLClosure = resolveUninstallerURL
+        runWithAdminPrivilegesClosure = runWithAdminPrivileges
     }
 
     convenience init() {

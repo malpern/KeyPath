@@ -417,8 +417,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                         description: "Detected protocol v\(proto). KeyPath requires v2 for blocking reload and richer status.",
                         technicalDetails: "HelloOk reported protocol=\(proto)",
                         suggestedAction: "Use Regenerate Services to install the bundled Kanata and reload services.",
-                    canAutoFix: true
-                ))
+                        canAutoFix: true
+                    ))
             }
         }
 

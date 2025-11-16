@@ -267,7 +267,7 @@ struct DiagnosticsView: View {
     }
 
     // Minimal export: zip KeyPath logs and helper logs to Desktop
-    private func exportSupportReport() async -> String {
+    func exportSupportReport() async -> String {
         let desktop = NSHomeDirectory() + "/Desktop"
         let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .medium)
             .replacingOccurrences(of: "/", with: "-")

@@ -1,6 +1,6 @@
+import AppKit
 import KeyPathCore
 import KeyPathWizardCore
-import AppKit
 import SwiftUI
 
 /// Simplified summary page using extracted components
@@ -22,6 +22,7 @@ struct WizardSummaryPage: View {
     }
 
     // MARK: - Header State
+
     private enum HeaderMode {
         case validating // Spinning gear
         case issues // Error icon
@@ -246,22 +247,22 @@ struct WizardSummaryPage: View {
     private var headerIconName: String {
         switch headerMode {
         case .validating:
-            return "gear" // Not used, but required for exhaustive switch
+            "gear" // Not used, but required for exhaustive switch
         case .issues:
-            return "xmark.circle.fill"
+            "xmark.circle.fill"
         case .success:
-            return "checkmark.circle.fill"
+            "checkmark.circle.fill"
         }
     }
 
     private var headerIconColor: Color {
         switch headerMode {
         case .validating:
-            return .secondary // Not used, but required for exhaustive switch
+            .secondary // Not used, but required for exhaustive switch
         case .issues:
-            return WizardDesign.Colors.error
+            WizardDesign.Colors.error
         case .success:
-            return WizardDesign.Colors.success
+            WizardDesign.Colors.success
         }
     }
 
@@ -269,9 +270,9 @@ struct WizardSummaryPage: View {
     private var iconTopPadding: CGFloat {
         switch headerMode {
         case .issues:
-            return CGFloat(60) * 0.7 // 30% closer to top
+            CGFloat(60) * 0.7 // 30% closer to top
         default:
-            return 60
+            60
         }
     }
 

@@ -3,25 +3,80 @@ import Foundation
 /// System paths and configuration constants for the Installation Wizard
 /// Centralizes hardcoded paths to improve maintainability and testing
 public enum WizardSystemPaths {
+    // MARK: - Test Overrides
+
+    private static func currentTestRoot() -> String? {
+        guard let raw = ProcessInfo.processInfo.environment["KEYPATH_TEST_ROOT"],
+              !raw.isEmpty
+        else {
+            return nil
+        }
+        if raw.hasSuffix("/") {
+            return String(raw.dropLast())
+        }
+        return raw
+    }
+
+    public static func remapSystemPath(_ path: String) -> String {
+        guard let root = currentTestRoot(), path.hasPrefix("/") else {
+            return path
+        }
+        if path.hasPrefix(root) {
+            return path
+        }
+        return root + path
+    }
+
+    private static func resolvedHomeDirectory() -> String {
+        if let override = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"], !override.isEmpty {
+            return override
+        }
+        return NSHomeDirectory()
+    }
+
+    public static var userHomeDirectory: String {
+        resolvedHomeDirectory()
+    }
+
     // MARK: - Binary Paths
 
     /// System-installed kanata binary location (avoids Gatekeeper issues)
     /// This is where the LaunchDaemon installer copies the bundled binary
-    public static let kanataSystemInstallPath = "/Library/KeyPath/bin/kanata"
+    public static var kanataSystemInstallPath: String {
+        remapSystemPath("/Library/KeyPath/bin/kanata")
+    }
 
     /// Standard kanata binary location - used for both homebrew and experimental versions
     /// Using a single standard location simplifies permission management
-    public static let kanataStandardLocation = "/usr/local/bin/kanata"
+    public static var kanataStandardLocation: String {
+        remapSystemPath("/usr/local/bin/kanata")
+    }
 
     /// Primary kanata binary location (ARM Macs with Homebrew)
-    public static let kanataBinaryARM = "/opt/homebrew/bin/kanata"
+    public static var kanataBinaryARM: String {
+        remapSystemPath("/opt/homebrew/bin/kanata")
+    }
 
     /// Default kanata binary path for most operations (same as standard)
-    public static let kanataBinaryDefault = "/usr/local/bin/kanata"
+    public static var kanataBinaryDefault: String {
+        remapSystemPath("/usr/local/bin/kanata")
+    }
+
+    private nonisolated(unsafe) static var bundledKanataPathOverride: String?
+
+    public static func setBundledKanataPathOverride(_ path: String?) {
+        bundledKanataPathOverride = path
+    }
 
     /// Bundled kanata binary path (preferred - properly signed)
     public static var bundledKanataPath: String {
-        "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
+        if let override = bundledKanataPathOverride, !override.isEmpty {
+            return override
+        }
+        if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_OVERRIDE"], !override.isEmpty {
+            return override
+        }
+        return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata"
     }
 
     /// Active kanata binary path - uses simple filesystem checks for performance
@@ -43,33 +98,41 @@ public enum WizardSystemPaths {
     }
 
     /// Homebrew binary path
-    public static let brewBinary = "/opt/homebrew/bin/brew"
+    public static var brewBinary: String {
+        remapSystemPath("/opt/homebrew/bin/brew")
+    }
 
     // MARK: - Configuration Paths
 
     /// User configuration file path following industry standard ~/.config/ pattern
     public static var userConfigPath: String {
-        "\(NSHomeDirectory())/.config/keypath/keypath.kbd"
+        "\(userHomeDirectory)/.config/keypath/keypath.kbd"
     }
 
     /// User configuration directory
     public static var userConfigDirectory: String {
-        "\(NSHomeDirectory())/.config/keypath"
+        "\(userHomeDirectory)/.config/keypath"
     }
 
     /// Legacy system configuration directory (no longer used)
-    public static let systemConfigDirectory = "/usr/local/etc/kanata"
+    public static var systemConfigDirectory: String {
+        remapSystemPath("/usr/local/etc/kanata")
+    }
 
     /// Legacy system configuration file path (no longer used)
-    public static let systemConfigPath = "/usr/local/etc/kanata/keypath.kbd"
+    public static var systemConfigPath: String {
+        remapSystemPath("/usr/local/etc/kanata/keypath.kbd")
+    }
 
     // MARK: - Log Files
 
     /// Candidate Kanata log files (SMAppService stdout first, legacy launchctl second)
-    public static let kanataLogFileCandidates = [
-        "/var/log/com.keypath.kanata.stdout.log",
-        "/var/log/kanata.log"
-    ]
+    public static var kanataLogFileCandidates: [String] {
+        [
+            remapSystemPath("/var/log/com.keypath.kanata.stdout.log"),
+            remapSystemPath("/var/log/kanata.log")
+        ]
+    }
 
     /// Main kanata log file (prefers existing candidate paths)
     public static var kanataLogFile: String {
@@ -81,12 +144,16 @@ public enum WizardSystemPaths {
     }
 
     /// System log directory
-    public static let systemLogDirectory = "/var/log"
+    public static var systemLogDirectory: String {
+        remapSystemPath("/var/log")
+    }
 
     // MARK: - Service Paths
 
     /// LaunchDaemon plist file
-    public static let launchDaemonPlist = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+    public static var launchDaemonPlist: String {
+        remapSystemPath("/Library/LaunchDaemons/com.keypath.kanata.plist")
+    }
 
     /// LaunchDaemon service identifier
     public static let launchDaemonIdentifier = "com.keypath.kanata"
@@ -151,7 +218,7 @@ public enum WizardSystemPaths {
 
     /// Creates a display path for user interfaces (uses ~ for home directory)
     public static func displayPath(for fullPath: String) -> String {
-        let homeDirectory = NSHomeDirectory()
+        let homeDirectory = userHomeDirectory
         if fullPath.hasPrefix(homeDirectory) {
             return fullPath.replacingOccurrences(of: homeDirectory, with: "~")
         }

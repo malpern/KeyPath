@@ -116,6 +116,16 @@ final class InstallerEngineFunctionalTests: XCTestCase {
             logs.contains("Failed to install plists"),
             "Expected failure log when second installation cannot overwrite launch daemon directory"
         )
+        if let report = installer.lastInstallerReport {
+            XCTAssertFalse(report.success)
+            XCTAssertNotNil(report.failureReason)
+            XCTAssertTrue(
+                report.failureReason!.contains("install services"),
+                "Report should include admin failure reason"
+            )
+        } else {
+            XCTFail("Expected installer report after failure")
+        }
     }
 
     func testReRunningInstallerFailsWhenDuplicatePlistDirectoryExists() async throws {
@@ -136,6 +146,12 @@ final class InstallerEngineFunctionalTests: XCTestCase {
             logs.contains("Failed to install plists"),
             "A leftover file blocking the LaunchDaemons directory should surface a failure message"
         )
+        if let report = installer.lastInstallerReport {
+            XCTAssertFalse(report.success)
+            XCTAssertNotNil(report.failureReason)
+        } else {
+            XCTFail("Expected installer report after failure")
+        }
     }
 
     func testInstallerLogsPermissionDeniedWhenConfigDirectoryCannotBeCreated() async throws {
@@ -536,7 +552,6 @@ final class InstallerEngineFunctionalTests: XCTestCase {
         XCTAssertNotNil(logContents, "Expected migration log entry")
         XCTAssertTrue(logContents?.contains(expectedPath) == true)
     }
-
 
     // MARK: - Helpers
 

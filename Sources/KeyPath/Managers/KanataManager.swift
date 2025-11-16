@@ -1998,7 +1998,7 @@ class KanataManager {
     }
 
     func isCompletelyInstalled() -> Bool {
-        isInstalled()
+        isInstalled() && isServiceInstalled()
     }
 
     // Compatibility wrappers for legacy tests - using Oracle
@@ -2547,7 +2547,16 @@ class KanataManager {
     // MARK: - Methods Expected by Tests
 
     func isServiceInstalled() -> Bool {
-        true // No service needed - kanata runs directly
+        let state = KanataDaemonManager.determineServiceManagementState()
+        switch state {
+        case .uninstalled:
+            return false
+        case .unknown:
+            // Treat unknown as not installed to avoid false positives in tests/UI
+            return false
+        default:
+            return true
+        }
     }
 
     func getInstallationStatus() -> String {
@@ -2562,7 +2571,7 @@ class KanataManager {
         case .bundledUnsigned:
             return "⚠️ Bundled Kanata unsigned (needs Developer ID signature)"
         case .missing:
-            return "❌ Kanata not found"
+            return "❌ Not installed"
         }
     }
 

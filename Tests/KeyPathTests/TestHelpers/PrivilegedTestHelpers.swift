@@ -28,8 +28,8 @@ final class FakeAdminCommandExecutor: AdminCommandExecutor {
 
 @MainActor
 extension XCTestCase {
-    func XCTAssertThrowsErrorAsync<T>(
-        _ expression: @autoclosure @escaping () async throws -> T,
+    func XCTAssertThrowsErrorAsync(
+        _ expression: @autoclosure @escaping () async throws -> some Any,
         _ message: @autoclosure () -> String = "",
         file: StaticString = #file,
         line: UInt = #line,

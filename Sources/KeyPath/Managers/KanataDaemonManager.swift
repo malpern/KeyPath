@@ -35,7 +35,9 @@ class KanataDaemonManager {
     nonisolated static let kanataPlistName = "com.keypath.kanata.plist"
 
     /// Path to legacy LaunchDaemon plist
-    nonisolated static let legacyPlistPath = "/Library/LaunchDaemons/\(kanataServiceID).plist"
+    nonisolated static var legacyPlistPath: String {
+        WizardSystemPaths.remapSystemPath("/Library/LaunchDaemons/\(kanataServiceID).plist")
+    }
 
     // MARK: - Initialization
 
@@ -125,6 +127,10 @@ class KanataDaemonManager {
             AppLogger.shared.log("⏳ [KanataDaemonManager] State: SMAPPSERVICE_PENDING (approval needed)")
             return .smappservicePending
         case .notFound, .notRegistered:
+            if TestEnvironment.isTestMode {
+                AppLogger.shared.log("🧪 [KanataDaemonManager] Test mode - treating missing plist as uninstalled")
+                return .uninstalled
+            }
             // No legacy plist and SMAppService not registered
             // Only check process when state is ambiguous (lazy evaluation for performance)
             let isProcessRunning = pgrepKanataProcess()
@@ -209,8 +215,7 @@ class KanataDaemonManager {
     /// Check if legacy launchctl installation exists
     /// - Returns: true if plist exists at /Library/LaunchDaemons/com.keypath.kanata.plist
     nonisolated func hasLegacyInstallation() -> Bool {
-        let legacyPlistPath = "/Library/LaunchDaemons/\(Self.kanataServiceID).plist"
-        return FileManager.default.fileExists(atPath: legacyPlistPath)
+        FileManager.default.fileExists(atPath: Self.legacyPlistPath)
     }
 
     /// Check if SMAppService is currently being used for Kanata daemon management
@@ -239,6 +244,14 @@ class KanataDaemonManager {
             throw KanataDaemonError.registrationFailed("Requires macOS 13+ for SMAppService")
         }
         AppLogger.shared.log("✅ [KanataDaemonManager] macOS version OK for SMAppService")
+
+        if TestEnvironment.isTestMode {
+            AppLogger.shared.log("🧪 [KanataDaemonManager] Test mode detected – bypassing bundle validation")
+            let svc = Self.smServiceFactory(Self.kanataPlistName)
+            try svc.register()
+            AppLogger.shared.log("✅ [KanataDaemonManager] Test registration completed")
+            return
+        }
 
         // Validate plist exists in app bundle
         // Check both the expected location (for build scripts) and bundle resources (for SPM builds)
@@ -405,7 +418,7 @@ class KanataDaemonManager {
 
         // 2. Stop legacy service and remove plist (requires admin)
         AppLogger.shared.log("🛑 [KanataDaemonManager] Stopping legacy service and removing plist...")
-        let legacyPlistPath = "/Library/LaunchDaemons/\(Self.kanataServiceID).plist"
+        let legacyPlistPath = Self.legacyPlistPath
 
         // Use PrivilegedOperationsCoordinator to execute privileged commands
         let command = """

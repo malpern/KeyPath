@@ -140,7 +140,7 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging {
                         lastPosition = fileSize
 
                         if let logContent = String(data: newData, encoding: .utf8) {
-                            await self.analyzeLogContent(logContent)
+                            await analyzeLogContent(logContent)
                         }
                     }
 

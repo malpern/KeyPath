@@ -38,7 +38,7 @@ final class AuthorizationServicesSmokeTests: XCTestCase {
 
         setEnv("KEYPATH_TEST_ROOT", sandboxURL.path)
         setEnv("KEYPATH_LAUNCH_DAEMONS_DIR", launchDaemonsURL.path)
-        setEnv("KEYPATH_TEST_MODE", "1")  // Fixed: was "0" which disabled test mode
+        setEnv("KEYPATH_TEST_MODE", "1") // Fixed: was "0" which disabled test mode
         setEnv("HOME", homeURL.path)
         setEnv("KEYPATH_HOME_DIR_OVERRIDE", homeURL.path)
         setEnv("KEYPATH_LOG_DIR_OVERRIDE", logsURL.path)
@@ -77,7 +77,7 @@ final class AuthorizationServicesSmokeTests: XCTestCase {
         originalRunner = LaunchDaemonInstaller.authorizationScriptRunnerOverride
         LaunchDaemonInstaller.authorizationScriptRunnerOverride = { [weak self] scriptPath in
             guard let self else { return false }
-            return self.runAuthorizationScript(at: scriptPath)
+            return runAuthorizationScript(at: scriptPath)
         }
 
         originalSMFactory = KanataDaemonManager.smServiceFactory

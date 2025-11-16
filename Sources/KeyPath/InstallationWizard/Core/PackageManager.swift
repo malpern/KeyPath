@@ -625,6 +625,11 @@ enum CodeSigningStatus {
         if case .developerIDSigned = self { return true }
         return false
     }
+
+    var isAdHoc: Bool {
+        if case .adhocSigned = self { return true }
+        return false
+    }
 }
 
 struct KanataInstallationInfo {

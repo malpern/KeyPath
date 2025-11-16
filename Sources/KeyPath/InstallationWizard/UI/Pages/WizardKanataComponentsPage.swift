@@ -91,74 +91,73 @@ struct WizardKanataComponentsPage: View {
 
                 // Component details for error/setup states
                 if !(kanataRelatedIssues.isEmpty && componentStatus(for: "Kanata Binary") == .completed) {
-                ScrollView {
-                    VStack(spacing: WizardDesign.Spacing.elementGap) {
-                        // Static components that should be present
-                        InstallationItemView(
-                            title: "Kanata Binary",
-                            description: "Core keyboard remapping engine executable",
-                            status: componentStatus(for: "Kanata Binary")
-                        )
-
-                        // Dynamic issues from installation category that are Kanata-specific
-                        ForEach(kanataRelatedIssues, id: \.id) { issue in
+                    ScrollView {
+                        VStack(spacing: WizardDesign.Spacing.elementGap) {
+                            // Static components that should be present
                             InstallationItemView(
-                                title: getComponentTitle(for: issue),
-                                description: getComponentDescription(for: issue),
-                                status: .failed,
-                                autoFixButton: issue.autoFixAction != nil
-                                    ? {
-                                        let isThisIssueFixing = fixingIssues.contains(issue.id)
-                                        return AnyView(
-                                            WizardButton(
-                                                isThisIssueFixing ? "Fixing..." : "Fix",
-                                                style: .secondary,
-                                                isLoading: isThisIssueFixing
-                                            ) {
-                                                if let autoFixAction = issue.autoFixAction {
-                                                    // Mark this specific issue as fixing
-                                                    fixingIssues.insert(issue.id)
+                                title: "Kanata Binary",
+                                description: "Core keyboard remapping engine executable",
+                                status: componentStatus(for: "Kanata Binary")
+                            )
 
-                                                    Task {
-                                                        // IMMEDIATE crash-proof logging for REAL Fix button click in Kanata page
-                                                        Swift.print(
-                                                            "*** IMMEDIATE DEBUG *** REAL Fix button clicked in WizardKanataComponentsPage for action: \(autoFixAction) at \(Date())"
-                                                        )
-                                                        try?
-                                                            "*** IMMEDIATE DEBUG *** REAL Fix button clicked in WizardKanataComponentsPage for action: \(autoFixAction) at \(Date())\n"
-                                                            .write(
-                                                                to: URL(
-                                                                    fileURLWithPath: NSHomeDirectory() + "/kanata-fix-button-debug.txt"),
-                                                                atomically: true, encoding: .utf8
+                            // Dynamic issues from installation category that are Kanata-specific
+                            ForEach(kanataRelatedIssues, id: \.id) { issue in
+                                InstallationItemView(
+                                    title: getComponentTitle(for: issue),
+                                    description: getComponentDescription(for: issue),
+                                    status: .failed,
+                                    autoFixButton: issue.autoFixAction != nil
+                                        ? {
+                                            let isThisIssueFixing = fixingIssues.contains(issue.id)
+                                            return AnyView(
+                                                WizardButton(
+                                                    isThisIssueFixing ? "Fixing..." : "Fix",
+                                                    style: .secondary,
+                                                    isLoading: isThisIssueFixing
+                                                ) {
+                                                    if let autoFixAction = issue.autoFixAction {
+                                                        // Mark this specific issue as fixing
+                                                        fixingIssues.insert(issue.id)
+
+                                                        Task {
+                                                            // IMMEDIATE crash-proof logging for REAL Fix button click in Kanata page
+                                                            Swift.print(
+                                                                "*** IMMEDIATE DEBUG *** REAL Fix button clicked in WizardKanataComponentsPage for action: \(autoFixAction) at \(Date())"
                                                             )
+                                                            try?
+                                                                "*** IMMEDIATE DEBUG *** REAL Fix button clicked in WizardKanataComponentsPage for action: \(autoFixAction) at \(Date())\n"
+                                                                .write(
+                                                                    to: URL(
+                                                                        fileURLWithPath: NSHomeDirectory() + "/kanata-fix-button-debug.txt"),
+                                                                    atomically: true, encoding: .utf8
+                                                                )
 
-                                                        // Set service bounce flag before performing auto-fix
-                                                        await MainActor.run {
-                                                            PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Kanata engine fix - \(autoFixAction)")
-                                                        }
+                                                            // Set service bounce flag before performing auto-fix
+                                                            await MainActor.run {
+                                                                PermissionGrantCoordinator.shared.setServiceBounceNeeded(reason: "Kanata engine fix - \(autoFixAction)")
+                                                            }
 
-                                                        _ = await onAutoFix(autoFixAction)
+                                                            _ = await onAutoFix(autoFixAction)
 
-                                                        // Remove this issue from fixing state
-                                                        _ = await MainActor.run {
-                                                            fixingIssues.remove(issue.id)
+                                                            // Remove this issue from fixing state
+                                                            _ = await MainActor.run {
+                                                                fixingIssues.remove(issue.id)
+                                                            }
                                                         }
                                                     }
                                                 }
-                                            }
-                                        )
-                                    } : nil
-                            )
+                                            )
+                                        } : nil
+                                )
+                            }
                         }
+                        .padding(.horizontal, 40)
+                        .padding(.bottom, WizardDesign.Spacing.pageVertical)
                     }
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, WizardDesign.Spacing.pageVertical)
-                }
                 }
             }
 
             Spacer()
-
         }
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
@@ -281,7 +280,8 @@ struct WizardKanataComponentsPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)

@@ -3,7 +3,12 @@ import XCTest
 
 @MainActor
 final class SimpleModsSmokeTests: XCTestCase {
+    private static let tcpTestsEnabled = ProcessInfo.processInfo.environment["KEYPATH_ENABLE_TCP_TESTS"] == "1"
+
     func testSaveShowsDurationViaStatus() async throws {
+        guard Self.tcpTestsEnabled else {
+            throw XCTSkip("TCP integration tests disabled (set KEYPATH_ENABLE_TCP_TESTS=1 to enable).")
+        }
         // Precondition: Kanata TCP server is running on default port
         let client = KanataTCPClient(port: 37001)
         let ready = await client.checkServerStatus()

@@ -54,7 +54,7 @@ struct InstallationWizardView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .overlay {
                         // Don't show overlay during validation - summary page has its own gear
-                        if asyncOperationManager.hasRunningOperations && !isValidating {
+                        if asyncOperationManager.hasRunningOperations, !isValidating {
                             operationProgressOverlay()
                                 .allowsHitTesting(false) // Don't block X button interaction
                         }
@@ -85,9 +85,9 @@ struct InstallationWizardView: View {
                         disableFocusRings(in: contentView)
                     }
                 }
-                } else {
-                    // Validation finished; set navigation sequence based on current filter
-                    navigationCoordinator.customSequence = showAllSummaryItems ? nil : navSequence
+            } else {
+                // Validation finished; set navigation sequence based on current filter
+                navigationCoordinator.customSequence = showAllSummaryItems ? nil : navSequence
             }
         }
         // Global Close button overlay for all detail pages
@@ -433,7 +433,8 @@ struct InstallationWizardView: View {
 
             Task { @MainActor in
                 if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                   navigationCoordinator.currentPage != preferred {
+                   navigationCoordinator.currentPage != preferred
+                {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -830,7 +831,8 @@ struct InstallationWizardView: View {
             kanataManager.lastWizardSnapshot = WizardSnapshotRecord(state: result.state, issues: filteredIssues)
             Task { @MainActor in
                 if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                   navigationCoordinator.currentPage != preferred {
+                   navigationCoordinator.currentPage != preferred
+                {
                     AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -846,12 +848,12 @@ struct InstallationWizardView: View {
     }
 
     @MainActor
-    private func autoNavigateIfSingleIssue(in issues: [WizardIssue], state: WizardSystemState) {
+    private func autoNavigateIfSingleIssue(in issues: [WizardIssue], state _: WizardSystemState) {
         AppLogger.shared.log("🔍 [AutoNav] ===== autoNavigateIfSingleIssue CALLED =====")
         AppLogger.shared.log("🔍 [AutoNav] Current page: \(navigationCoordinator.currentPage)")
         AppLogger.shared.log("🔍 [AutoNav] Issues count: \(issues.count)")
         AppLogger.shared.log("🔍 [AutoNav] navSequence count: \(navSequence.count)")
-        AppLogger.shared.log("🔍 [AutoNav] navSequence pages: \(navSequence.map { $0.displayName })")
+        AppLogger.shared.log("🔍 [AutoNav] navSequence pages: \(navSequence.map(\.displayName))")
 
         guard navigationCoordinator.currentPage == .summary else {
             AppLogger.shared.log("🔍 [AutoNav] SKIP: Not on summary page")
@@ -1119,7 +1121,8 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        -> String {
+        -> String
+    {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 

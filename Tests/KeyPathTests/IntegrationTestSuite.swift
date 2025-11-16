@@ -208,6 +208,21 @@ final class IntegrationTestSuite: XCTestCase {
         XCTAssertTrue(success, "New user journey should complete successfully")
     }
 
+    func testNewUserJourneyReportsInstallFailure() async throws {
+        let scenario = testScenarios.first { $0.name == "New User Complete Journey" }!
+
+        mockEnvironment.reset()
+        scenario.setup(mockEnvironment)
+        mockEnvironment.forceInstallationFailure(exitCode: 42, output: "Mock installer failure")
+
+        let manager = MockEnvironmentKanataManager(mockEnvironment: mockEnvironment)
+        let success = try await scenario.validation(manager)
+
+        XCTAssertFalse(success, "New user journey should fail when installer exits non-zero")
+        XCTAssertEqual(manager.lastError, "Installation failed: Mock installer failure")
+        XCTAssertFalse(manager.isInstalled(), "System should remain uninstalled after installer failure")
+    }
+
     func testPartialInstallationRecovery() async throws {
         let scenario = testScenarios.first { $0.name == "Partial Installation Recovery" }!
 

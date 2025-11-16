@@ -156,7 +156,16 @@ class SystemRequirementsChecker {
                 "\(statusEmoji) [SystemCheck] \(requirement.displayName): \(result.details)")
         }
 
-        // Analyze overall status
+        let report = makeReport(results: results, startedAt: startTime)
+        let duration = Date().timeIntervalSince(startTime)
+        AppLogger.shared.log(
+            "🔍 [SystemCheck] Check completed in \(String(format: "%.2f", duration))s - Status: \(report.overallStatus)"
+        )
+
+        return report
+    }
+
+    func makeReport(results: [RequirementCheckResult], startedAt _: Date) -> SystemRequirementsReport {
         let blockingIssues = results.filter(\.status.isBlocking)
         let warnings = results.filter { $0.status == .warning }
 
@@ -174,7 +183,7 @@ class SystemRequirementsChecker {
             warningCount: warnings.count
         )
 
-        let report = SystemRequirementsReport(
+        return SystemRequirementsReport(
             timestamp: Date(),
             overallStatus: overallStatus,
             results: results,
@@ -182,13 +191,6 @@ class SystemRequirementsChecker {
             warnings: warnings,
             summary: summary
         )
-
-        let duration = Date().timeIntervalSince(startTime)
-        AppLogger.shared.log(
-            "🔍 [SystemCheck] Check completed in \(String(format: "%.2f", duration))s - Status: \(overallStatus)"
-        )
-
-        return report
     }
 
     /// Check a specific requirement

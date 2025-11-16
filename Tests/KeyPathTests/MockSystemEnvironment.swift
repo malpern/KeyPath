@@ -29,11 +29,18 @@ class MockSystemEnvironment {
     var mockKanataInstalled = false
     var mockKanataRunning = false
 
+    // MARK: - Installation Script Simulation
+
+    private var installationScriptExitCode: Int = 0
+    private var installationScriptOutput: String = "Installation completed successfully"
+
     // MARK: - Setup Methods
 
     func reset() {
         mockFileSystem.removeAll()
         mockProcesses.removeAll()
+        installationScriptExitCode = 0
+        installationScriptOutput = "Installation completed successfully"
     }
 
     func setupCleanInstallation() {
@@ -136,7 +143,8 @@ class MockSystemEnvironment {
         switch action {
         case "kickstart":
             if fileExists(atPath: "/Library/LaunchDaemons/com.keypath.kanata.plist"),
-               fileExists(atPath: "/usr/local/bin/kanata-cmd") {
+               fileExists(atPath: "/usr/local/bin/kanata-cmd")
+            {
                 addMockProcess(pid: 1234, user: "root", command: "kanata-cmd", isRunning: true)
                 return (0, "Service started successfully")
             } else {
@@ -158,9 +166,23 @@ class MockSystemEnvironment {
     }
 
     func mockInstallationScript() -> (exitCode: Int, output: String) {
-        // Simulate successful installation
-        setupCompleteInstallation()
-        return (0, "Installation completed successfully")
+        if installationScriptExitCode == 0 {
+            // Simulate successful installation
+            setupCompleteInstallation()
+            return (0, installationScriptOutput)
+        }
+
+        return (installationScriptExitCode, installationScriptOutput)
+    }
+
+    func forceInstallationFailure(exitCode: Int, output: String) {
+        installationScriptExitCode = exitCode
+        installationScriptOutput = output
+    }
+
+    func clearForcedInstallationFailure() {
+        installationScriptExitCode = 0
+        installationScriptOutput = "Installation completed successfully"
     }
 
     // MARK: - Helper Methods
@@ -289,7 +311,13 @@ class MockEnvironmentKanataManager: ObservableObject {
 
     func performTransparentInstallation() async -> Bool {
         let result = mockEnvironment.mockInstallationScript()
-        return result.exitCode == 0
+        if result.exitCode == 0 {
+            lastError = nil
+            return true
+        }
+
+        lastError = "Installation failed: \(result.output)"
+        return false
     }
 
     func saveConfiguration(input: String, output: String) async throws {

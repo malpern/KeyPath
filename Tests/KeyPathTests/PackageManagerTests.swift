@@ -283,7 +283,7 @@ final class PackageManagerTests: XCTestCase {
         var testFiles: [URL] = []
 
         // Create more files than maxCacheSize (50)
-        for i in 0..<60 {
+        for i in 0 ..< 60 {
             let testFile = tempDir.appendingPathComponent("test-binary-\(i)-\(UUID().uuidString)")
             FileManager.default.createFile(atPath: testFile.path, contents: Data("test\(i)".utf8))
             testFiles.append(testFile)

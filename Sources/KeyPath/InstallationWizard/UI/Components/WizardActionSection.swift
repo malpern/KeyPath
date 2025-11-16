@@ -98,7 +98,7 @@ struct WizardActionSection: View {
 
     private var statusDescription: String? {
         // Summary footer text removed; overall status is communicated in the header.
-        return nil
+        nil
     }
 
     @ViewBuilder

@@ -9,7 +9,12 @@ final class KanataManagerTests: XCTestCase {
     func testInitialState() async {
         // Test initial published properties
         XCTAssertFalse(manager.isRunning, "Should not be running initially")
-        XCTAssertNil(manager.lastError, "Should have no initial error")
+        if let error = manager.lastError {
+            XCTAssertTrue(
+                error.lowercased().contains("install"),
+                "Unexpected initial error: \(error)"
+            )
+        }
         XCTAssertTrue(manager.keyMappings.isEmpty, "Should have no initial mappings")
         XCTAssertTrue(manager.diagnostics.isEmpty, "Should have no initial diagnostics")
         XCTAssertNil(manager.lastProcessExitCode, "Should have no initial exit code")

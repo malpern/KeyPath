@@ -269,7 +269,7 @@ final class RecordingCoordinator: ObservableObject {
 
                         // Schedule finalize timer based on mode
                         self.inputFinalizeTimer?.invalidate()
-                        let finalizeDelay: TimeInterval = (mode == .sequence) ? 2.1 : 0.08
+                        let finalizeDelay: TimeInterval = self.finalizeDelayDuration(for: mode)
                         self.inputFinalizeTimer = Timer.scheduledTimer(withTimeInterval: finalizeDelay, repeats: false) { [weak self] _ in
                             Task { @MainActor in
                                 guard let self else { return }
@@ -282,6 +282,15 @@ final class RecordingCoordinator: ObservableObject {
                     }
                 }
             }
+        }
+    }
+
+    private func finalizeDelayDuration(for mode: CaptureMode) -> TimeInterval {
+        switch mode {
+        case .sequence:
+            TestEnvironment.isTestMode ? 0.2 : 2.1
+        case .chord, .single:
+            0.08
         }
     }
 

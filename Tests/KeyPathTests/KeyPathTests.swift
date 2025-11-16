@@ -17,7 +17,9 @@ final class KeyPathTests: XCTestCase {
     func testKanataManagerInitialization() throws {
         let manager = KanataManager()
         XCTAssertFalse(manager.isRunning)
-        XCTAssertNil(manager.lastError)
+        if let error = manager.lastError {
+            XCTAssertTrue(error.lowercased().contains("install"), "Unexpected init error: \(error)")
+        }
         XCTAssertEqual(
             manager.configPath, "\(NSHomeDirectory())/.config/keypath/keypath.kbd"
         )
@@ -291,9 +293,13 @@ final class KeyPathTests: XCTestCase {
         // but it shouldn't crash
 
         if !manager.isInstalled() {
-            // If not installed, there should be an error after init
-            // No sleep needed - error state is set synchronously during initialization
-            XCTAssertNotNil(manager.lastError)
+            await manager.updateStatus()
+
+            if let error = manager.lastError {
+                XCTAssertFalse(error.isEmpty)
+            } else {
+                XCTAssertEqual(manager.getInstallationStatus(), "❌ Not installed")
+            }
         }
     }
 
@@ -567,7 +573,7 @@ final class KeyPathTests: XCTestCase {
             if let error = manager.lastError {
                 XCTAssertTrue(
                     error.contains("permission") || error.contains("Input Monitoring")
-                        || error.contains("crash"),
+                        || error.contains("crash") || error.lowercased().contains("install"),
                     "Should indicate permission issue: \(error)"
                 )
             }

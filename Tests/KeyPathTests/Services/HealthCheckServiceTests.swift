@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class HealthCheckServiceTests: XCTestCase {
     // Minimal test double for DiagnosticsManaging focusing on checkHealth
-    final class FakeDiagnosticsManager: DiagnosticsManaging {
+    final class FakeDiagnosticsManager: DiagnosticsManaging, @unchecked Sendable {
         var nextStatus: ServiceHealthStatus = .healthy()
 
         func addDiagnostic(_: KanataDiagnostic) {}

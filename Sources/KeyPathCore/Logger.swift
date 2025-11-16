@@ -86,8 +86,14 @@ public final class AppLogger {
             self.enableConsoleLogging = enableConsoleLogging ?? false
         #endif
 
-        // Use standard macOS app logs directory
-        logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
+        // Use overrides for tests first, then fall back to standard macOS log directory
+        if let explicitOverride = ProcessInfo.processInfo.environment["KEYPATH_LOG_DIR_OVERRIDE"], !explicitOverride.isEmpty {
+            logDirectory = explicitOverride
+        } else if let homeOverride = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"], !homeOverride.isEmpty {
+            logDirectory = homeOverride + "/Library/Logs/KeyPath"
+        } else {
+            logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
+        }
 
         dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -120,6 +126,28 @@ public final class AppLogger {
         bufferQueue.async {
             self.setMinimumLevelInternal(level)
         }
+    }
+
+    /// Override the log directory (primarily for integration tests that sandbox HOME)
+    public func overrideLogDirectory(_ directory: String) {
+        guard !directory.isEmpty else { return }
+        bufferQueue.sync {
+            self.logDirectory = directory
+            do {
+                try FileManager.default.createDirectory(
+                    atPath: directory,
+                    withIntermediateDirectories: true,
+                    attributes: nil
+                )
+            } catch {
+                print("Error creating override log directory at \(directory): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Returns the current log directory path (useful for tests that override logging destinations)
+    public func currentLogDirectory() -> String {
+        bufferQueue.sync { logDirectory }
     }
 
     deinit {

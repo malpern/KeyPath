@@ -29,6 +29,7 @@ class LaunchDaemonInstaller {
     static var systemLaunchAgentsDir: String {
         WizardSystemPaths.remapSystemPath("/Library/LaunchAgents")
     }
+
     static var launchctlPathOverride: String?
     static var isTestModeOverride: Bool?
     static var authorizationScriptRunnerOverride: ((String) -> Bool)?

@@ -27,7 +27,7 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
     func testInstallLogRotationUsesAdminCommandExecutor() async {
         var commandsExecuted: [String] = []
 
-        let fakeExecutor = FakeAdminCommandExecutor(resultProvider: { command, description in
+        let fakeExecutor = FakeAdminCommandExecutor(resultProvider: { _, description in
             commandsExecuted.append(description)
             if description.contains("log rotation") {
                 return CommandExecutionResult(exitCode: 1, output: "Permission denied")
@@ -60,11 +60,11 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
 
     func testOperationModeIsDirectSudoInDebug() {
         #if DEBUG
-        XCTAssertEqual(
-            PrivilegedOperationsCoordinator.operationMode,
-            .directSudo,
-            "Debug builds should use directSudo mode"
-        )
+            XCTAssertEqual(
+                PrivilegedOperationsCoordinator.operationMode,
+                .directSudo,
+                "Debug builds should use directSudo mode"
+            )
         #endif
     }
 }

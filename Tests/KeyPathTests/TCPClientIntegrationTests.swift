@@ -3,9 +3,11 @@ import Network
 import XCTest
 
 final class TCPClientIntegrationTests: XCTestCase {
+    private static let tcpTestsEnabled = ProcessInfo.processInfo.environment["KEYPATH_ENABLE_TCP_TESTS"] == "1"
     private let port: Int = 37001
 
     private func serverReachable(timeout: TimeInterval = 1.0) async -> Bool {
+        guard Self.tcpTestsEnabled else { return false }
         let client = KanataTCPClient(port: port, timeout: timeout)
         return await client.checkServerStatus()
     }

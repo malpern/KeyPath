@@ -349,8 +349,8 @@ class ConfigFileWatcher: ObservableObject, @unchecked Sendable {
         // Schedule debounce task to handle rapid file changes
         debounceTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: UInt64(self.debounceDelay * 1_000_000_000))
-            await self.processFileChange()
+            try? await Task.sleep(nanoseconds: UInt64(debounceDelay * 1_000_000_000))
+            await processFileChange()
         }
     }
 

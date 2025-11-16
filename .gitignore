@@ -64,3 +64,4 @@ temp_*
 Scripts/setup-test-sudoers.sh
 Scripts/cleanup-test-sudoers.sh
 run-tests-automated.sh
+.build-ci/

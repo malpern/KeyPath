@@ -183,17 +183,17 @@ struct WizardKanataServicePage: View {
     private var statusMessage: String {
         switch serviceStatus {
         case .running:
-            return "Kanata is running and ready to process keyboard events."
+            "Kanata is running and ready to process keyboard events."
         case .stopped:
-            return "Kanata service is stopped. Start it to enable keyboard remapping."
+            "Kanata service is stopped. Start it to enable keyboard remapping."
         case let .crashed(error):
-            return "Kanata service crashed: \(error)"
+            "Kanata service crashed: \(error)"
         case .starting:
-            return "Starting Kanata service…"
+            "Starting Kanata service…"
         case .stopping:
-            return "Stopping Kanata service…"
+            "Stopping Kanata service…"
         case .unknown:
-            return "Checking Kanata service status…"
+            "Checking Kanata service status…"
         }
     }
 
@@ -334,7 +334,8 @@ struct WizardKanataServicePage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: issues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)
@@ -344,20 +345,20 @@ struct WizardKanataServicePage: View {
     private var primaryCTAConfiguration: (label: String, action: () -> Void, tint: Color?, disabled: Bool)? {
         switch serviceStatus {
         case .running:
-            return nil
+            nil
         case .starting, .stopping:
-            return nil
+            nil
         case .unknown:
-            return nil
+            nil
         case .stopped:
-            return (
+            (
                 label: "Start Service",
                 action: startService,
                 tint: nil,
                 disabled: isPerformingAction
             )
         case .crashed:
-            return (
+            (
                 label: "Restart Service",
                 action: restartService,
                 tint: .orange,

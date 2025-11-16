@@ -29,9 +29,32 @@ public enum TestEnvironment {
         return false
     }
 
+    /// Allow tests to override admin operation skipping
+    private static let _adminOverrideLock = NSLock()
+    private nonisolated(unsafe) static var _allowAdminOpsInTests: Bool = false
+
+    public static var allowAdminOperationsInTests: Bool {
+        get {
+            _adminOverrideLock.lock()
+            defer { _adminOverrideLock.unlock() }
+            return _allowAdminOpsInTests
+        }
+        set {
+            _adminOverrideLock.lock()
+            _allowAdminOpsInTests = newValue
+            _adminOverrideLock.unlock()
+        }
+    }
+
     /// Check if we should skip operations requiring administrator privileges
     public static var shouldSkipAdminOperations: Bool {
-        isRunningTests
+        _adminOverrideLock.lock()
+        let allowOverride = _allowAdminOpsInTests
+        _adminOverrideLock.unlock()
+        if allowOverride {
+            return false
+        }
+        return isRunningTests
     }
 
     /// Check if we should use mock data instead of real system calls

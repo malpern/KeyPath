@@ -6,14 +6,14 @@ import XCTest
 final class KanataDaemonManagerTests: XCTestCase {
     var manager: KanataDaemonManager!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         manager = KanataDaemonManager.shared
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         manager = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Status Checking Tests
@@ -28,7 +28,7 @@ final class KanataDaemonManagerTests: XCTestCase {
     }
 
     func testIsRegisteredViaSMAppService() {
-        let isRegistered = manager.isRegisteredViaSMAppService()
+        let isRegistered = KanataDaemonManager.isRegisteredViaSMAppService()
         // Should return boolean without crashing
         XCTAssertNotNil(isRegistered)
     }
