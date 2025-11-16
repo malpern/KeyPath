@@ -1,7 +1,6 @@
 import XCTest
 
 @testable import KeyPath
-@testable import KeyPathCore
 
 @MainActor
 final class PrivilegedOperationsCoordinatorTests: XCTestCase {
@@ -50,13 +49,12 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
     }
 
     func testInstallLogRotationFailsOnCommandError() async {
-        let fakeExecutor = FakeAdminCommandExecutor()
-        fakeExecutor.resultProvider = { command, description in
+        let fakeExecutor = FakeAdminCommandExecutor(resultProvider: { command, description in
             if description.contains("log rotation") {
                 return CommandExecutionResult(exitCode: 1, output: "Permission denied")
             }
             return CommandExecutionResult(exitCode: 0, output: "")
-        }
+        })
         AdminCommandExecutorHolder.shared = fakeExecutor
         let coordinator = PrivilegedOperationsCoordinator()
 
@@ -65,36 +63,6 @@ final class PrivilegedOperationsCoordinatorTests: XCTestCase {
                 XCTFail("Expected commandFailed error, got \(error)")
                 return
             }
-        }
-    }
-}
-
-private final class FakeAdminCommandExecutor: AdminCommandExecutor {
-    var commands: [(command: String, description: String)] = []
-    var resultProvider: ((String, String) -> CommandExecutionResult)?
-
-    func execute(command: String, description: String) async throws -> CommandExecutionResult {
-        commands.append((command, description))
-        if let provider = resultProvider {
-            return provider(command, description)
-        }
-        return CommandExecutionResult(exitCode: 0, output: "")
-    }
-}
-
-private extension XCTestCase {
-    func XCTAssertThrowsErrorAsync<T>(
-        _ expression: @autoclosure @escaping () async throws -> T,
-        _ message: @autoclosure () -> String = "",
-        file: StaticString = #file,
-        line: UInt = #line,
-        _ handler: (_ error: Error) -> Void
-    ) async {
-        do {
-            _ = try await expression()
-            XCTFail(message(), file: file, line: line)
-        } catch {
-            handler(error)
         }
     }
 }

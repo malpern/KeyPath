@@ -29,6 +29,7 @@ class LaunchDaemonInstaller {
     static var systemLaunchAgentsDir: String {
         WizardSystemPaths.remapSystemPath("/Library/LaunchAgents")
     }
+    static var launchctlPathOverride: String?
     static let kanataServiceID = "com.keypath.kanata"
     private static let vhidDaemonServiceID = "com.keypath.karabiner-vhiddaemon"
     private static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
@@ -517,8 +518,9 @@ class LaunchDaemonInstaller {
             return FileManager.default.fileExists(atPath: "\(Self.launchDaemonsPath)/\(serviceID).plist")
         }
 
+        let launchctlPath = Self.launchctlPathOverride ?? "/bin/launchctl"
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.executableURL = URL(fileURLWithPath: launchctlPath)
         task.arguments = ["load", "-w", "\(Self.launchDaemonsPath)/\(serviceID).plist"]
 
         let pipe = Pipe()
