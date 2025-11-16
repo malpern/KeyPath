@@ -395,6 +395,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - **Unit & integration tests:** `./Scripts/run-tests-safe.sh` – configures an isolated module cache (`.build-ci/ModuleCache.noindex`) so SwiftPM never tries to write to `~/.cache` (which can be blocked on shared machines).
 - **Full developer suite:** `./run-tests.sh` – wraps the safe runner and then executes the higher-level integration scripts.
+- **CI-full replicator:** `CI_INTEGRATION_TESTS=true ./run-core-tests.sh` – runs the Unit, Core, and IntegrationTestSuite buckets defined in `run-core-tests.sh`; by default the CI runs with `CI_INTEGRATION_TESTS=false`, so set this flag manually (or adjust CI) when you need the deeper installer/privileged coverage to execute alongside unit/core tests.
 - **SMAppService sanity check:** `./Scripts/verify-kanata-plist.sh` – use before distributing a build (CI runs it against `Sources/KeyPath/com.keypath.kanata.plist`).
 
 If `swift test` ever complains about `~/.cache/clang/ModuleCache`, just use the safe runner above or pass `-Xcc -fmodules-cache-path=$(pwd)/.build/ModuleCache.noindex` manually.

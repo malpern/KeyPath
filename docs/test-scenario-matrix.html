@@ -123,6 +123,14 @@
       </tr>
     </tbody>
   </table>
-  <p><strong>Reality check:</strong> (1) The CI runner (<code>run-core-tests.sh</code>) executes <code>swift test --filter UnitTestSuite</code> twice, so installer/privilege suites still require <code>CI_INTEGRATION_TESTS=true</code> to execute. (2) HelperMaintenance duplicate-app handling still has zero tests, and the uninstall failure path relies on log parsing, so we still need explicit regression guards there. (3) Several failure-path rows lean on log assertions rather than visible exit codes, so these should be expanded before a large refactor.</p>
+  <p><strong>Reality check:</strong> (1) The CI runner (<code>run-core-tests.sh</code>) executes <code>swift test --filter UnitTestSuite</code> twice, so installer/privilege suites still require <code>CI_INTEGRATION_TESTS=true</code> to execute. (2) HelperMaintenance now has duplicate detection coverage, and uninstall report logging is exercised, yet production Admin/AppleScript fallbacks still rely on logs instead of structured errors. (3) Several failure-path rows lean on log assertions rather than visible exit codes, so these should be expanded before a large refactor.</p>
+  <section>
+    <h2>Outstanding To-Do Items</h2>
+    <ul>
+      <li><strong>CI integration gating:</strong> document and/or automate `CI_INTEGRATION_TESTS=true ./run-core-tests.sh` so the installer/privileged suites run whenever we branch for refactors; today the default CI flow skips them, so a human must opt in.</li>
+      <li><strong>Installer report artifacts:</strong> we currently assert on log output for failure cases; consider emitting a structured `InstallerReport` (or at least a well-defined exit status) so future refactors can assert on machine-readable outcomes instead of strings.</li>
+      <li><strong>Helper cleanup fallback coverage:</strong> the AppleScript/legacy artifact removal paths are still untested; add a harness that simulates fallback failures so we verify the UI/log guidance and any `removeLegacyHelperArtifacts` fallbacks before the refactor.</li>
+    </ul>
+  </section>
 </body>
 </html>
