@@ -123,6 +123,6 @@
       </tr>
     </tbody>
   </table>
-  <p><strong>Reality check:</strong> (1) The CI runner (<code>run-core-tests.sh</code>) still filters to <code>UnitTestSuite</code> unless <code>CI_INTEGRATION_TESTS=true</code>, so developers should enable that flag before tackling installer/privileged changes. (2) Installer reports now expose structured <code>InstallerReport</code> success/failure data and helper cleanup tests cover the AppleScript fallback, so the matrix rows marked “Yes” indeed have machine-readable coverage. (3) Keep an eye on log-dependent failure-path assertions in non-admin flows, but the safety net is now in place for the major behaviors we care about.</p>
+  <p><strong>Reality check:</strong> (1) The CI runner (<code>run-core-tests.sh</code>) still filters to <code>UnitTestSuite</code> unless <code>CI_INTEGRATION_TESTS=true</code>, so developers should enable that flag before touching installer/privileged flows. (2) Installer reports now provide structured success/failure info, the new <code>AdminCommandExecutor</code> harness validates the exact admin scripts, log rotation and helper AppleScript fallbacks are covered, and the launchctl smoke test uses a fake shim to exercise <code>loadService</code> outside test mode. (3) The rest of the matrix remains to guard the documented behaviors before a large refactor.</p>
 </body>
 </html>
