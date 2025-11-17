@@ -150,8 +150,8 @@ public struct KanataConfiguration: Sendable {
         [
             KeyMapping(input: "f1", output: "brdn"),
             KeyMapping(input: "f2", output: "brup"),
-            KeyMapping(input: "f3", output: "mission_control"),
-            KeyMapping(input: "f4", output: "launchpad"),
+            KeyMapping(input: "f3", output: "f3"),
+            KeyMapping(input: "f4", output: "f4"),
             KeyMapping(input: "f7", output: "prev"),
             KeyMapping(input: "f8", output: "pp"),
             KeyMapping(input: "f9", output: "next"),
