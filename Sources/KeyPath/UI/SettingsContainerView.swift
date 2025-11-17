@@ -5,21 +5,24 @@ import KeyPathWizardCore
 import SwiftUI
 
 enum SettingsTab: Hashable, CaseIterable {
-    case general
+    case status
     case rules
+    case general
     case advanced
 
     var title: String {
         switch self {
         case .general: "General"
+        case .status: "Status"
         case .rules: "Rules"
-        case .advanced: "Advanced"
+        case .advanced: "Repair/Remove"
         }
     }
 
     var icon: String {
         switch self {
-        case .general: "slider.horizontal.3"
+        case .general: "gearshape"
+        case .status: "gauge.with.dots.needle.bottom.50percent"
         case .rules: "list.bullet"
         case .advanced: "wrench.and.screwdriver"
         }
@@ -28,7 +31,7 @@ enum SettingsTab: Hashable, CaseIterable {
 
 struct SettingsContainerView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
-    @State private var selection: SettingsTab = .general
+    @State private var selection: SettingsTab = .status
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,7 +41,9 @@ struct SettingsContainerView: View {
             Group {
                 switch selection {
                 case .general:
-                    SettingsView()
+                    GeneralSettingsTabView()
+                case .status:
+                    StatusSettingsTabView()
                 case .rules:
                     RulesTabView()
                 case .advanced:
@@ -50,6 +55,9 @@ struct SettingsContainerView: View {
         .frame(minWidth: 680, maxWidth: 680, minHeight: 550, idealHeight: 700)
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsGeneral)) { _ in
             selection = .general
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsStatus)) { _ in
+            selection = .status
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { _ in
             selection = .rules
@@ -147,56 +155,141 @@ struct AdvancedSettingsTabView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Duplicate apps warning - show prominently at top if detected
-                if duplicateAppCopies.count > 1 {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("⚠️ Multiple Installations Detected")
+        VStack(alignment: .leading, spacing: 0) {
+            // Hero Section with Uninstall
+            HStack(alignment: .top, spacing: 40) {
+                // Left: Uninstall section
+                VStack(spacing: 16) {
+                    VStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.red.opacity(0.15))
+                                .frame(width: 80, height: 80)
+
+                            Image(systemName: "trash.circle.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(.red)
+                        }
+
+                        VStack(spacing: 4) {
+                            Text("Uninstall KeyPath")
+                                .font(.title3.weight(.semibold))
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+
+                    // Uninstall button
+                    Button(role: .destructive) {
+                        NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
+                    } label: {
+                        Text("Uninstall")
+                            .frame(minWidth: 100)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                }
+                .frame(minWidth: 220)
+
+                // Right: Helper and Recovery Tools
+                VStack(alignment: .leading, spacing: 20) {
+                    // Privileged Helper
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Privileged Helper")
                             .font(.headline)
                             .foregroundColor(.secondary)
 
-                        duplicateAppsSection
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                }
+                        HStack(spacing: 10) {
+                            HelperStatusDot(color: helperInstalled ? .green : .orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                if helperInstalled {
+                                    Text("Installed\(helperVersion.map { " (v\($0))" } ?? "")")
+                                        .font(.body)
+                                        .fontWeight(.medium)
+                                } else {
+                                    Text("Not Installed")
+                                        .font(.body)
+                                        .fontWeight(.medium)
+                                }
+                            }
+                            Spacer()
+                        }
 
-                // Service Management - only show if there's an issue
-                if activeMethod != .smappservice {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Service Management")
+                        HStack(spacing: 10) {
+                            Button {
+                                showingCleanupRepair = true
+                            } label: {
+                                Label("Cleanup & Repair", systemImage: "wrench.adjustable.circle")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .disabled(helperInProgress)
+
+                            Button(role: .destructive) {
+                                showingHelperUninstallConfirm = true
+                            } label: {
+                                Label("Uninstall Helper", systemImage: "trash")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .disabled(helperInProgress || !helperInstalled)
+                        }
+                    }
+
+                    // Reset Everything
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Emergency Recovery")
                             .font(.headline)
                             .foregroundColor(.secondary)
 
-                        serviceManagementSection
+                        Text("Use when service is wedged and won't respond")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Button {
+                            showingResetEverythingConfirmation = true
+                        } label: {
+                            Label("Reset Everything", systemImage: "exclamationmark.triangle")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                        .controlSize(.small)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, duplicateAppCopies.count > 1 ? 0 : 20)
                 }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Privileged Helper")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    helperSection
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, (duplicateAppCopies.count > 1 || activeMethod != .smappservice) ? 0 : 20)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Recovery Tools")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    recoverySection
-                }
-                .padding(.horizontal, 20)
 
                 Spacer()
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+
+            // Service Management - only show if there's an issue
+            if activeMethod != .smappservice {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Service Management")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    serviceManagementSection
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+            }
+
+            // Duplicate apps warning
+            if duplicateAppCopies.count > 1 {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("⚠️ Multiple Installations")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    duplicateAppsSection
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+            }
+
+            Spacer()
         }
+        .frame(maxHeight: 350)
         .settingsBackground()
         .withToasts(settingsToastManager)
         .task {
@@ -365,85 +458,6 @@ struct AdvancedSettingsTabView: View {
         }
     }
 
-    @ViewBuilder
-    private var helperSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                HelperStatusDot(color: helperInstalled ? .green : .orange)
-                VStack(alignment: .leading, spacing: 2) {
-                    if helperInstalled {
-                        Text("Installed\(helperVersion.map { " (v\($0))" } ?? "")")
-                            .font(.body)
-                            .fontWeight(.medium)
-                    } else {
-                        Text("Not Installed")
-                            .font(.body)
-                            .fontWeight(.medium)
-                    }
-                    Text("The helper performs privileged actions like service registration and cleanup.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-            }
-
-            HStack(spacing: 10) {
-                Button {
-                    showingCleanupRepair = true
-                } label: {
-                    Label("Cleanup & Repair…", systemImage: "wrench.adjustable.circle")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(helperInProgress)
-
-                Button(role: .destructive) {
-                    showingHelperUninstallConfirm = true
-                } label: {
-                    Label("Uninstall", systemImage: "trash")
-                }
-                .buttonStyle(.bordered)
-                .disabled(helperInProgress || !helperInstalled)
-            }
-
-            if helperInProgress {
-                HStack(spacing: 6) {
-                    ProgressView()
-                    Text("Working…")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-            } else if let helperMessage, !helperMessage.isEmpty {
-                Text(helperMessage)
-                    .font(.footnote)
-                    .foregroundColor(helperMessage.contains("successfully") ? .green : .orange)
-                    .textSelection(.enabled)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var recoverySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Use this when the service is completely wedged and won't respond to normal controls.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-
-            Button {
-                showingResetEverythingConfirmation = true
-            } label: {
-                Label("Reset Everything", systemImage: "exclamationmark.triangle")
-            }
-            .buttonStyle(.bordered)
-            .tint(.red)
-
-            Button(role: .destructive) {
-                NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
-            } label: {
-                Label("Uninstall KeyPath…", systemImage: "trash")
-            }
-            .buttonStyle(.borderedProminent)
-        }
-    }
 
     // MARK: - Actions
 

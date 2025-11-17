@@ -4,7 +4,138 @@ import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
 
-struct SettingsView: View {
+// MARK: - General Settings Tab
+
+struct GeneralSettingsTabView: View {
+    @EnvironmentObject var kanataManager: KanataViewModel
+    @State private var settingsToastManager = WizardToastManager()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 40) {
+                // Left: Logs
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Logs")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 30) {
+                        // KeyPath Log
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.text.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(.blue)
+
+                            Text("KeyPath log")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Button("Open") {
+                                openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+
+                        // Kanata Log
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.text.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(.green)
+
+                            Text("Kanata log")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Button("Open") {
+                                openLogFile("/var/log/kanata.log")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                }
+                .frame(minWidth: 220)
+
+                // Right: Recording Settings
+                VStack(alignment: .leading, spacing: 20) {
+                    // Capture Mode
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Capture Mode")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        Picker("", selection: Binding(
+                            get: { PreferencesService.shared.isSequenceMode },
+                            set: { PreferencesService.shared.isSequenceMode = $0 }
+                        )) {
+                            Text("Sequences - Keys one after another").tag(true)
+                            Text("Combos - Keys together").tag(false)
+                        }
+                        .pickerStyle(.radioGroup)
+                        .labelsHidden()
+                    }
+
+                    // Recording Behavior
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Recording Behavior")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+
+                        Picker("", selection: Binding(
+                            get: { PreferencesService.shared.applyMappingsDuringRecording },
+                            set: { PreferencesService.shared.applyMappingsDuringRecording = $0 }
+                        )) {
+                            Text("Record physical keys (pause KeyPath)").tag(false)
+                            Text("Record with KeyPath mappings running").tag(true)
+                        }
+                        .pickerStyle(.radioGroup)
+                        .labelsHidden()
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+
+            Spacer()
+        }
+        .frame(maxHeight: 300)
+        .settingsBackground()
+        .withToasts(settingsToastManager)
+    }
+
+    private func openLogFile(_ filePath: String) {
+        // Try to open with Zed editor first (if available)
+        let zedProcess = Process()
+        zedProcess.executableURL = URL(fileURLWithPath: "/usr/local/bin/zed")
+        zedProcess.arguments = [filePath]
+
+        do {
+            try zedProcess.run()
+            AppLogger.shared.log("📝 [Settings] Opened log in Zed: \(filePath)")
+            return
+        } catch {
+            // Fallback: Try to open with default text editor
+            let fallbackProcess = Process()
+            fallbackProcess.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            fallbackProcess.arguments = ["-t", filePath]
+
+            do {
+                try fallbackProcess.run()
+                AppLogger.shared.log("📝 [Settings] Opened log in default text editor: \(filePath)")
+            } catch {
+                AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
+                settingsToastManager.showError("Failed to open log file")
+            }
+        }
+    }
+}
+
+// MARK: - Status Settings Tab
+
+struct StatusSettingsTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
 
     @State private var showingInstallationWizard = false
@@ -13,16 +144,6 @@ struct SettingsView: View {
     @State private var duplicateAppCopies: [String] = []
     @State private var settingsToastManager = WizardToastManager()
     @State private var showingPermissionAlert = false
-
-    // Service management state
-    @State private var activeMethod: ServiceMethod = .unknown
-    @State private var isMigrating = false
-
-    enum ServiceMethod {
-        case smappservice
-        case launchctl
-        case unknown
-    }
 
     private var shouldShowStartup: Bool {
         LaunchAgentManager.isInstalled() || LaunchAgentManager.isLoaded()
@@ -62,17 +183,16 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                if FeatureFlags.allowOptionalWizard, showSetupBanner {
-                    SetupBanner {
-                        showingInstallationWizard = true
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+        VStack(alignment: .leading, spacing: 0) {
+            if FeatureFlags.allowOptionalWizard, showSetupBanner {
+                SetupBanner {
+                    showingInstallationWizard = true
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+            }
 
-                // System Status Hero Section
+            // System Status Hero Section
                 HStack(alignment: .top, spacing: 40) {
                     // Large status indicator with centered toggle
                     VStack(spacing: 16) {
@@ -101,7 +221,7 @@ struct SettingsView: View {
                                 Button(action: {
                                     NotificationCenter.default.post(name: .openSettingsRules, object: nil)
                                 }) {
-                                    let activeCount = kanataManager.ruleCollections.enabledMappings().count
+                                    let activeCount = kanataManager.ruleCollections.filter { $0.isEnabled }.count
                                     Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
                                         .font(.body)
                                         .foregroundColor(.secondary)
@@ -195,116 +315,16 @@ struct SettingsView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
 
-                // Service Management - only show if there's an issue
-                if activeMethod != .smappservice {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Service Management")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
 
-                        serviceManagementSection
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+            if shouldShowStartup {
+                FormSection(header: "Legacy Startup Agent") {
+                    LaunchAgentSettingsView()
                 }
-
-                // Recording Settings and Logs
-                HStack(alignment: .top, spacing: 40) {
-                    // Left: Log Files (aligned under health indicator)
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Logs")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        HStack(spacing: 30) {
-                            // KeyPath Log
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.blue)
-
-                                Text("KeyPath log")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Button("Open") {
-                                    openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-
-                            // Kanata Log
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.green)
-
-                                Text("Kanata log")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Button("Open") {
-                                    openLogFile("/var/log/kanata.log")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-                        }
-                    }
-                    .frame(minWidth: 220)
-
-                    // Right: Recording Settings (aligned under permissions)
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Capture Mode
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Capture Mode")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Picker("", selection: Binding(
-                                get: { PreferencesService.shared.isSequenceMode },
-                                set: { PreferencesService.shared.isSequenceMode = $0 }
-                            )) {
-                                Text("Sequences - Keys one after another").tag(true)
-                                Text("Combos - Keys together").tag(false)
-                            }
-                            .pickerStyle(.radioGroup)
-                            .labelsHidden()
-                        }
-
-                        // Recording Behavior
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Recording Behavior")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Picker("", selection: Binding(
-                                get: { PreferencesService.shared.applyMappingsDuringRecording },
-                                set: { PreferencesService.shared.applyMappingsDuringRecording = $0 }
-                            )) {
-                                Text("Record physical keys (pause KeyPath)").tag(false)
-                                Text("Record with KeyPath mappings running").tag(true)
-                            }
-                            .pickerStyle(.radioGroup)
-                            .labelsHidden()
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 20)
-
-                if shouldShowStartup {
-                    FormSection(header: "Legacy Startup Agent") {
-                        LaunchAgentSettingsView()
-                    }
-                }
-
-                Spacer()
             }
+
+            Spacer()
         }
+        .frame(maxHeight: 350)
         .settingsBackground()
         .withToasts(settingsToastManager)
         .sheet(isPresented: $showingInstallationWizard) {
@@ -323,12 +343,10 @@ struct SettingsView: View {
         }
         .task {
             await refreshStatus()
-            await refreshServiceStatus()
         }
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
             Task {
                 await refreshStatus()
-                await refreshServiceStatus()
             }
         }
     }
@@ -369,135 +387,6 @@ struct SettingsView: View {
         }
     }
 
-    private func openLogFile(_ filePath: String) {
-        // Try to open with Zed editor first (if available)
-        let zedProcess = Process()
-        zedProcess.executableURL = URL(fileURLWithPath: "/usr/local/bin/zed")
-        zedProcess.arguments = [filePath]
-
-        do {
-            try zedProcess.run()
-            AppLogger.shared.log("📝 [Settings] Opened log in Zed: \(filePath)")
-            return
-        } catch {
-            // Fallback: Try to open with default text editor
-            let fallbackProcess = Process()
-            fallbackProcess.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            fallbackProcess.arguments = ["-t", filePath]
-
-            do {
-                try fallbackProcess.run()
-                AppLogger.shared.log("📝 [Settings] Opened log in default text editor: \(filePath)")
-            } catch {
-                AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
-                settingsToastManager.showError("Failed to open log file")
-            }
-        }
-    }
-
-    private func refreshServiceStatus() async {
-        await MainActor.run {
-            let state = KanataDaemonManager.determineServiceManagementState()
-            AppLogger.shared.log("🔄 [SettingsView] refreshServiceStatus: state=\(state)")
-            switch state {
-            case .legacyActive:
-                activeMethod = .launchctl
-                AppLogger.shared.log("  → Set activeMethod = .launchctl")
-            case .smappserviceActive, .smappservicePending:
-                activeMethod = .smappservice
-                AppLogger.shared.log("  → Set activeMethod = .smappservice")
-            case .conflicted:
-                activeMethod = .launchctl // Show migration section when conflicted!
-                AppLogger.shared.log("  → Set activeMethod = .launchctl (conflicted)")
-            case .unknown, .uninstalled:
-                activeMethod = .unknown
-                AppLogger.shared.log("  → Set activeMethod = .unknown")
-            }
-            AppLogger.shared.log("  → Final activeMethod value: \(activeMethod)")
-        }
-    }
-
-    // MARK: - Service Management Section
-
-    @ViewBuilder
-    private var serviceManagementSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Image(systemName: activeMethodIcon)
-                    .foregroundColor(activeMethodColor)
-                    .font(.title3)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(activeMethodText)
-                        .font(.body)
-                        .fontWeight(.medium)
-
-                    Text(activeMethodDescription)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-            }
-
-            // Migration button - only show if legacy is detected
-            if activeMethod == .launchctl, KanataDaemonManager.shared.hasLegacyInstallation() {
-                HStack(spacing: 8) {
-                    Button(isMigrating ? "Migrating…" : "Migrate to SMAppService") {
-                        guard !isMigrating else { return }
-                        isMigrating = true
-                        Task { @MainActor in
-                            do {
-                                try await KanataDaemonManager.shared.migrateFromLaunchctl()
-                                settingsToastManager.showSuccess("Migrated to SMAppService")
-                                await refreshServiceStatus()
-                            } catch {
-                                settingsToastManager.showError("Migration failed: \(error.localizedDescription)")
-                            }
-                            isMigrating = false
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(isMigrating)
-
-                    Spacer()
-                }
-            }
-        }
-    }
-
-    private var activeMethodIcon: String {
-        switch activeMethod {
-        case .smappservice: "checkmark.circle.fill"
-        case .launchctl: "gear.circle.fill"
-        case .unknown: "questionmark.circle.fill"
-        }
-    }
-
-    private var activeMethodColor: Color {
-        switch activeMethod {
-        case .smappservice: .green
-        case .launchctl: .orange
-        case .unknown: .gray
-        }
-    }
-
-    private var activeMethodText: String {
-        switch activeMethod {
-        case .smappservice: "Using SMAppService"
-        case .launchctl: "Using launchctl (Legacy)"
-        case .unknown: "Checking service method..."
-        }
-    }
-
-    private var activeMethodDescription: String {
-        switch activeMethod {
-        case .smappservice: "Modern service management via System Settings"
-        case .launchctl: "Traditional service management via launchctl"
-        case .unknown: "Determining active service method"
-        }
-    }
 }
 
 // MARK: - Supporting Views

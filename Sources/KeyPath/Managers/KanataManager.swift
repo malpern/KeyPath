@@ -688,6 +688,9 @@ class KanataManager {
         }
 
         currentLayerName = display
+
+        // Show visual layer indicator
+        LayerIndicatorManager.shared.showLayer(display)
     }
 
     @MainActor

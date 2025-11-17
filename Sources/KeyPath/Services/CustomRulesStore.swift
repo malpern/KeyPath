@@ -18,7 +18,6 @@ actor CustomRulesStore {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        encoder.dateDecodingStrategy = .iso8601
         self.encoder = encoder
 
         let decoder = JSONDecoder()

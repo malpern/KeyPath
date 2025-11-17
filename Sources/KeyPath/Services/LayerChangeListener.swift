@@ -94,13 +94,16 @@ actor LayerChangeListener {
 
     private func waitForReady(_ connection: NWConnection) async throws {
         try await withCheckedThrowingContinuation { continuation in
-            connection.stateUpdateHandler = { state in
+            connection.stateUpdateHandler = { [weak connection] state in
                 switch state {
                 case .ready:
+                    connection?.stateUpdateHandler = nil
                     continuation.resume()
                 case let .failed(error):
+                    connection?.stateUpdateHandler = nil
                     continuation.resume(throwing: error)
                 case .cancelled:
+                    connection?.stateUpdateHandler = nil
                     continuation.resume(throwing: ListenerError.connectionClosed)
                 default:
                     break

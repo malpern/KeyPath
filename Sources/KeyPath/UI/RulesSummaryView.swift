@@ -6,158 +6,143 @@ import AppKit
 
 struct RulesTabView: View {
     @EnvironmentObject var kanataManager: KanataViewModel
-    @State private var selectedTab: RulesSubTab = .collections
-    @State private var selectedCollectionsFilter: CollectionsFilter = .active
     @State private var showingResetConfirmation = false
+    @State private var showingNewRuleSheet = false
     @State private var settingsToastManager = WizardToastManager()
-    @AppStorage("rulesTabTipDismissed") private var rulesTabTipDismissed = false
+    @State private var isPresentingNewRule = false
+    @State private var editingRule: CustomRule?
+    @State private var createButtonHovered = false
     private let catalog = RuleCollectionCatalog()
 
-    enum RulesSubTab: String, CaseIterable {
-        case collections = "Collections"
-        case custom = "Custom Rules"
-    }
-
-    enum CollectionsFilter: String, CaseIterable {
-        case active = "Active"
-        case available = "Available"
-    }
-
     var body: some View {
-        VStack(spacing: 0) {
-            // Tab Picker with action buttons
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        ForEach(RulesSubTab.allCases, id: \.self) { tab in
-                            Button {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    selectedTab = tab
-                                    rulesTabTipDismissed = true
-                                }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: iconName(for: tab))
-                                        .imageScale(.small)
-                                    Text(tab.rawValue)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                    Text("\(count(for: tab))")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Capsule().fill(Color.white.opacity(0.2)))
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .frame(minWidth: 140)
-                                .background(segmentBackground(for: tab))
-                                .foregroundColor(segmentForeground(for: tab))
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                .shadow(color: tab == selectedTab ? segmentBackground(for: tab).opacity(0.3) : .clear, radius: 6, x: 0, y: 3)
-                            }
-                            .buttonStyle(.plain)
+        HStack(alignment: .top, spacing: 0) {
+            // Left Column: Create Rule + Advanced
+            VStack(alignment: .leading, spacing: 24) {
+                // Create Rule Section
+                VStack(spacing: 16) {
+                    VStack(spacing: 12) {
+                        CreateRuleButton(
+                            isPressed: $isPresentingNewRule,
+                            externalHover: $createButtonHovered
+                        )
+
+                        Button {
+                            isPresentingNewRule = true
+                        } label: {
+                            Text("Create Rule")
+                                .font(.title3.weight(.semibold))
+                                .multilineTextAlignment(.center)
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hovering in
+                            createButtonHovered = hovering
                         }
                     }
 
-                    Text(subtitle(for: selectedTab))
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-
-                    if !rulesTabTipDismissed {
-                        HStack(spacing: 8) {
-                            Image(systemName: "hand.tap")
-                                .foregroundColor(.accentColor)
-                            Text("Tip: use tabs to switch between curated preset collections and your custom rules.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Button("Got it") {
-                                withAnimation { rulesTabTipDismissed = true }
-                            }
-                            .buttonStyle(.borderless)
-                            .font(.caption)
-                        }
-                        .padding(10)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.08)))
+                    Button {
+                        isPresentingNewRule = true
+                    } label: {
+                        Text("Create")
+                            .frame(minWidth: 100)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                 }
+                .frame(minWidth: 220)
 
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 8) {
+                // Action buttons centered
+                HStack(spacing: 8) {
                     Button(action: { openConfigInEditor() }) {
-                        Label("Edit Config", systemImage: "doc.text.magnifyingglass")
+                        Label("Edit Config File", systemImage: "doc.text.magnifyingglass")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
 
                     Button(action: { showingResetConfirmation = true }) {
-                        Label("Reset", systemImage: "arrow.counterclockwise")
+                        Label("Reset to Default", systemImage: "arrow.counterclockwise")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .tint(.red)
                 }
+                .frame(maxWidth: .infinity)
+
+                Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(20)
+            .frame(width: 280)
+            .background(Color(NSColor.windowBackgroundColor))
 
-            Divider()
-
-            if selectedTab == .collections {
-                HStack(spacing: 10) {
-                    ForEach(CollectionsFilter.allCases, id: \.self) { filter in
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                                selectedCollectionsFilter = filter
+            // Right Column: Rules List
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Custom Rules Section (toggleable, expanded when has rules)
+                    ExpandableCollectionRow(
+                        name: "Custom Rules",
+                        icon: "square.and.pencil",
+                        count: kanataManager.customRules.count,
+                        isEnabled: kanataManager.customRules.isEmpty || kanataManager.customRules.allSatisfy { $0.isEnabled },
+                        mappings: kanataManager.customRules.map { ($0.input, $0.output, $0.isEnabled, $0.id) },
+                        onToggle: { isOn in
+                            Task {
+                                for rule in kanataManager.customRules {
+                                    await kanataManager.toggleCustomRule(rule.id, enabled: isOn)
+                                }
                             }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: filter == .active ? "switch.2" : "sparkles")
-                                    .imageScale(.small)
-                                Text(filter.rawValue)
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                Text("\(count(for: filter))")
-                                    .font(.caption2)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(Capsule().fill(Color.white.opacity(0.2)))
+                        },
+                        onEditMapping: { id in
+                            if let rule = kanataManager.customRules.first(where: { $0.id == id }) {
+                                editingRule = rule
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(segmentBackground(for: filter))
-                            .foregroundColor(segmentForeground(for: filter))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Color(NSColor.controlBackgroundColor))
+                        },
+                        onDeleteMapping: { id in
+                            Task { await kanataManager.removeCustomRule(id) }
+                        },
+                        showZeroState: kanataManager.customRules.isEmpty,
+                        onCreateFirstRule: { isPresentingNewRule = true },
+                        description: "Remap any key combination or sequence",
+                        defaultExpanded: !kanataManager.customRules.isEmpty
+                    )
+                    .padding(.vertical, 4)
 
-                Divider()
-            }
-
-            Group {
-                switch selectedTab {
-                case .collections:
-                    if selectedCollectionsFilter == .active {
-                        ActiveRulesView()
-                    } else {
-                        AvailableRulesView()
+                    // Collection Rows
+                    ForEach(kanataManager.ruleCollections) { collection in
+                        ExpandableCollectionRow(
+                            name: collection.name,
+                            icon: collection.icon ?? "circle",
+                            count: collection.mappings.count,
+                            isEnabled: collection.isEnabled,
+                            mappings: collection.mappings.map { ($0.input, $0.output, collection.isEnabled, $0.id) },
+                            onToggle: { isOn in
+                                Task { await kanataManager.toggleRuleCollection(collection.id, enabled: isOn) }
+                            },
+                            onEditMapping: nil,
+                            onDeleteMapping: nil,
+                            description: collection.summary,
+                            layerActivator: collection.momentaryActivator
+                        )
+                        .padding(.vertical, 4)
                     }
-                case .custom:
-                    CustomRulesView()
                 }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 12)
             }
-            .background(contentBackground(for: selectedTab))
-            .animation(.easeInOut(duration: 0.25), value: selectedTab)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(NSColor.windowBackgroundColor))
         }
+        .frame(maxHeight: 450)
+        .settingsBackground()
         .withToasts(settingsToastManager)
+        .sheet(isPresented: $isPresentingNewRule) {
+            CustomRuleEditorView(rule: nil) { newRule in
+                _ = Task { await kanataManager.saveCustomRule(newRule) }
+            }
+        }
+        .sheet(item: $editingRule) { rule in
+            CustomRuleEditorView(rule: rule) { updatedRule in
+                _ = Task { await kanataManager.saveCustomRule(updatedRule) }
+            }
+        }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Open Backups Folder") {
@@ -196,67 +181,467 @@ struct RulesTabView: View {
         }
     }
 
-    private func count(for tab: RulesSubTab) -> Int {
-        switch tab {
-        case .collections:
-            return kanataManager.ruleCollections.count
-        case .custom:
-            return kanataManager.customRules.count
+}
+
+// MARK: - Expandable Collection Row
+
+private struct ExpandableCollectionRow: View {
+    let name: String
+    let icon: String
+    let count: Int
+    let isEnabled: Bool
+    let mappings: [(input: String, output: String, enabled: Bool, id: UUID)]
+    let onToggle: (Bool) -> Void
+    let onEditMapping: ((UUID) -> Void)?
+    let onDeleteMapping: ((UUID) -> Void)?
+    var showZeroState: Bool = false
+    var onCreateFirstRule: (() -> Void)? = nil
+    var description: String? = nil
+    var layerActivator: MomentaryActivator? = nil
+    var defaultExpanded: Bool = false
+
+    @State private var isExpanded = false
+    @State private var isHovered = false
+    @State private var hasInitialized = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header Row (clickable for expand/collapse)
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(alignment: .top, spacing: 12) {
+                    iconView(for: icon)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(name)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+
+                        if let desc = description {
+                            Text(desc)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+
+                        if let activator = layerActivator {
+                            Label("Hold \(prettyKeyName(activator.input))", systemImage: "hand.point.up.left")
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: Binding(
+                        get: { isEnabled },
+                        set: { onToggle($0) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .tint(.blue)
+                    .onTapGesture {} // Prevents toggle from triggering row expansion
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                }
+                .padding(12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .background(Color(NSColor.windowBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.white.opacity(isHovered ? 0.15 : 0), lineWidth: 1)
+            )
+            .onHover { hovering in
+                isHovered = hovering
+            }
+
+            // Expanded Mappings or Zero State
+            if isExpanded {
+                if showZeroState, let onCreate = onCreateFirstRule {
+                    // Zero State
+                    VStack(spacing: 12) {
+                        Text("No rules yet")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Button {
+                            onCreate()
+                        } label: {
+                            Label("Create Your First Rule", systemImage: "plus.circle.fill")
+                                .font(.body.weight(.medium))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(mappings, id: \.id) { mapping in
+                            HStack(spacing: 8) {
+                                // Show layer activator if present
+                                if let activator = layerActivator {
+                                    HStack(spacing: 4) {
+                                        Text("Hold")
+                                            .font(.body.monospaced().weight(.semibold))
+                                            .foregroundColor(.accentColor)
+                                        Text(prettyKeyName(activator.input))
+                                            .font(.body.monospaced().weight(.semibold))
+                                            .foregroundColor(.primary)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color(NSColor.controlBackgroundColor))
+                                    )
+
+                                    Text("+")
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                Text(prettyKeyName(mapping.input))
+                                    .font(.body.monospaced().weight(.semibold))
+                                    .foregroundColor(.primary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color(NSColor.controlBackgroundColor))
+                                    )
+
+                                Image(systemName: "arrow.right")
+                                    .font(.body.weight(.medium))
+                                    .foregroundColor(.secondary)
+
+                                Text(prettyKeyName(mapping.output))
+                                    .font(.body.monospaced().weight(.semibold))
+                                    .foregroundColor(.primary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color(NSColor.controlBackgroundColor))
+                                    )
+
+                                Spacer()
+
+                                if let onEdit = onEditMapping {
+                                    Button {
+                                        onEdit(mapping.id)
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                            .font(.callout)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundColor(.blue)
+                                }
+
+                                if let onDelete = onDeleteMapping {
+                                    Button {
+                                        onDelete(mapping.id)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.callout)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundColor(.red)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                }
+            }
+        }
+        .onAppear {
+            if !hasInitialized {
+                isExpanded = defaultExpanded
+                hasInitialized = true
+            }
         }
     }
 
-    private func count(for filter: CollectionsFilter) -> Int {
-        switch filter {
-        case .active:
-            return kanataManager.ruleCollections.filter { $0.isEnabled }.count
-        case .available:
-            let existing = Set(kanataManager.ruleCollections.map { $0.id })
-            return catalog.defaultCollections().filter { !existing.contains($0.id) }.count
-        }
-    }
-
-    private func iconName(for tab: RulesSubTab) -> String {
-        switch tab {
-        case .collections: "square.grid.2x2"
-        case .custom: "square.and.pencil"
-        }
-    }
-
-    private func segmentBackground(for tab: RulesSubTab) -> Color {
-        if tab == selectedTab {
-            tab == .collections ? Color.blue.opacity(0.25) : Color.orange.opacity(0.25)
+    @ViewBuilder
+    func iconView(for icon: String) -> some View {
+        if icon.hasPrefix("text:") {
+            let text = String(icon.dropFirst(5))
+            Text(text)
+                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                .foregroundColor(.secondary)
+                .frame(width: 24, height: 24)
         } else {
-            Color.secondary.opacity(0.08)
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(.secondary)
         }
     }
 
-    private func segmentForeground(for tab: RulesSubTab) -> Color {
-        tab == selectedTab ? .primary : .secondary
+    func prettyKeyName(_ raw: String) -> String {
+        raw.replacingOccurrences(of: "_", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+            .capitalized
+    }
+}
+
+// MARK: - Create Rule Button
+
+private struct CreateRuleButton: View {
+    @Binding var isPressed: Bool
+    @Binding var externalHover: Bool
+    @State private var isHovered = false
+    @State private var isMouseDown = false
+
+    private var isAnyHovered: Bool {
+        isHovered || externalHover
     }
 
-    private func segmentBackground(for filter: CollectionsFilter) -> Color {
-        if filter == selectedCollectionsFilter {
-            filter == .active ? Color.green.opacity(0.25) : Color.blue.opacity(0.25)
+    var body: some View {
+        Button {
+            isPressed = true
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(fillColor)
+                    .frame(width: 80, height: 80)
+                    .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
+
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(iconColor)
+            }
+            .scaleEffect(isMouseDown ? 0.95 : (isAnyHovered ? 1.05 : 1.0))
+            .animation(.easeInOut(duration: 0.15), value: isAnyHovered)
+            .animation(.easeInOut(duration: 0.1), value: isMouseDown)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    isMouseDown = true
+                }
+                .onEnded { _ in
+                    isMouseDown = false
+                }
+        )
+    }
+
+    private var fillColor: Color {
+        if isMouseDown {
+            return Color.blue.opacity(0.3)
+        } else if isAnyHovered {
+            return Color.blue.opacity(0.25)
         } else {
-            Color.secondary.opacity(0.08)
+            return Color.blue.opacity(0.15)
         }
     }
 
-    private func segmentForeground(for filter: CollectionsFilter) -> Color {
-        filter == selectedCollectionsFilter ? .primary : .secondary
-    }
-
-    private func subtitle(for tab: RulesSubTab) -> String {
-        switch tab {
-        case .collections:
-            "Toggle between active presets and the curated catalog."
-        case .custom:
-            "Manage your personal rules independently from presets."
+    private var iconColor: Color {
+        if isMouseDown {
+            return .blue.opacity(0.8)
+        } else if isAnyHovered {
+            return .blue
+        } else {
+            return .blue.opacity(0.9)
         }
     }
 
-    private func contentBackground(for tab: RulesSubTab) -> Color {
-        tab == .collections ? Color.blue.opacity(0.04) : Color.orange.opacity(0.04)
+    private var shadowColor: Color {
+        if isMouseDown {
+            return .clear
+        } else if isAnyHovered {
+            return Color.blue.opacity(0.3)
+        } else {
+            return .clear
+        }
+    }
+
+    private var shadowRadius: CGFloat {
+        isAnyHovered ? 8 : 0
+    }
+
+    private var shadowY: CGFloat {
+        isAnyHovered ? 2 : 0
+    }
+}
+
+// MARK: - Custom Rules Collection Row
+
+private struct CustomRulesCollectionRow: View {
+    @EnvironmentObject var kanataManager: KanataViewModel
+    @Binding var isPresentingNewRule: Bool
+    @State private var isExpanded = false
+    @State private var editingRule: CustomRule?
+    @State private var pendingDeleteRule: CustomRule?
+
+    private var sortedRules: [CustomRule] {
+        kanataManager.customRules.sorted { lhs, rhs in
+            if lhs.isEnabled == rhs.isEnabled {
+                return lhs.displayTitle.localizedCaseInsensitiveCompare(rhs.displayTitle) == .orderedAscending
+            }
+            return lhs.isEnabled && !rhs.isEnabled
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            headerRow
+
+            if isExpanded {
+                expandedContent
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(NSColor.windowBackgroundColor))
+        )
+        .sheet(isPresented: $isPresentingNewRule) {
+            CustomRuleEditorView(rule: nil) { newRule in
+                _ = Task { await kanataManager.saveCustomRule(newRule) }
+            }
+        }
+        .sheet(item: $editingRule) { rule in
+            CustomRuleEditorView(rule: rule) { updatedRule in
+                _ = Task { await kanataManager.saveCustomRule(updatedRule) }
+            }
+        }
+        .alert(
+            "Delete \"\(pendingDeleteRule?.displayTitle ?? "")\"?",
+            isPresented: Binding(
+                get: { pendingDeleteRule != nil },
+                set: { if !$0 { pendingDeleteRule = nil } }
+            )
+        ) {
+            Button("Cancel", role: .cancel) {
+                pendingDeleteRule = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let rule = pendingDeleteRule {
+                    Task { await kanataManager.removeCustomRule(rule.id) }
+                }
+                pendingDeleteRule = nil
+            }
+        }
+    }
+
+    private var headerRow: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: 24))
+                .foregroundColor(.secondary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Custom Rules")
+                    .font(.headline)
+                Text("\(kanataManager.customRules.count) custom \(kanataManager.customRules.count == 1 ? "rule" : "rules")")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { areCustomRulesEnabled },
+                set: { newValue in
+                    Task {
+                        // Toggle all custom rules
+                        for rule in kanataManager.customRules {
+                            await kanataManager.toggleCustomRule(rule.id, enabled: newValue)
+                        }
+                    }
+                }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .tint(.blue)
+            .disabled(kanataManager.customRules.isEmpty)
+
+            Button(action: { isExpanded.toggle() }) {
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var areCustomRulesEnabled: Bool {
+        !kanataManager.customRules.isEmpty && kanataManager.customRules.allSatisfy { $0.isEnabled }
+    }
+
+    private var expandedContent: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(sortedRules.prefix(8))) { rule in
+                customRuleRow(rule)
+            }
+
+            if sortedRules.count > 8 {
+                Text("+ \(sortedRules.count - 8) more")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 4)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private func customRuleRow(_ rule: CustomRule) -> some View {
+        HStack(spacing: 8) {
+            Text(rule.input)
+                .font(.callout.monospaced().weight(.medium))
+                .foregroundColor(.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(6)
+
+            Image(systemName: "arrow.right")
+                .font(.callout)
+                .foregroundColor(.secondary)
+
+            Text(rule.output)
+                .font(.callout.monospaced().weight(.medium))
+                .foregroundColor(.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(6)
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button(action: { editingRule = rule }) {
+                    Image(systemName: "pencil")
+                        .font(.callout)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.blue)
+
+                Button(action: { pendingDeleteRule = rule }) {
+                    Image(systemName: "trash")
+                        .font(.callout)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.red)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
     }
 }
 
@@ -321,22 +706,20 @@ private struct RuleCollectionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 if let icon = collection.icon {
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundColor(collection.isEnabled ? .green : .secondary)
+                    iconView(for: icon)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(collection.name)
                         .font(.headline)
                     Text(collection.summary)
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundColor(.secondary)
                     if let activationDescription = activationDescription {
                         Label(activationDescription, systemImage: "hand.point.up.left")
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundColor(.accentColor)
                     }
                 }
@@ -349,6 +732,7 @@ private struct RuleCollectionRow: View {
                 ))
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .tint(.blue)
 
                 Button(action: { isExpanded.toggle() }) {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -358,29 +742,41 @@ private struct RuleCollectionRow: View {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     ForEach(collection.mappings.prefix(8)) { mapping in
                         HStack(spacing: 8) {
                             Text(mappingDescription(for: mapping))
-                                .font(.caption.monospaced())
+                                .font(.callout.monospaced().weight(.medium))
                                 .foregroundColor(.primary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .cornerRadius(6)
+
                             Image(systemName: "arrow.right")
-                                .font(.caption2)
+                                .font(.callout)
                                 .foregroundColor(.secondary)
+
                             Text(mapping.output)
-                                .font(.caption.monospaced())
-                                .foregroundColor(.secondary)
+                                .font(.callout.monospaced().weight(.medium))
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .cornerRadius(6)
                         }
                         .padding(.vertical, 2)
                     }
 
                     if collection.mappings.count > 8 {
                         Text("+\(collection.mappings.count - 8) more…")
-                            .font(.caption)
+                            .font(.callout)
                             .foregroundColor(.secondary)
+                            .padding(.top, 4)
                     }
                 }
                 .padding(.leading, collection.icon == nil ? 0 : 4)
+                .padding(.top, 4)
             }
         }
         .padding(12)
@@ -392,6 +788,21 @@ private struct RuleCollectionRow: View {
 }
 
 private extension RuleCollectionRow {
+    @ViewBuilder
+    func iconView(for icon: String) -> some View {
+        if icon.hasPrefix("text:") {
+            let text = String(icon.dropFirst(5))
+            Text(text)
+                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                .foregroundColor(.secondary)
+                .frame(width: 24, height: 24)
+        } else {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(.secondary)
+        }
+    }
+
     var activationDescription: String? {
         if let hint = collection.activationHint { return hint }
         if let activator = collection.momentaryActivator {
@@ -554,25 +965,35 @@ struct CustomRulesView: View {
             Divider()
 
             if sortedRules.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary.opacity(0.5))
-                    Text("No custom rules yet")
-                        .font(.title3)
-                    Text("Add a rule to map individual keys without affecting preset collections.")
-                        .font(.callout)
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(.secondary)
+                VStack(spacing: 20) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 48, weight: .ultraLight))
+                            .foregroundColor(.secondary.opacity(0.3))
+
+                        VStack(spacing: 4) {
+                            Text("No Custom Rules Yet")
+                                .font(.title3)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+
+                            Text("Create personalized key mappings")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
                     Button {
                         isPresentingNewRule = true
                     } label: {
-                        Label("Create Your First Rule", systemImage: "plus")
+                        Label("Create Your First Rule", systemImage: "plus.circle.fill")
+                            .font(.body.weight(.medium))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding()
+                .padding(40)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 12) {

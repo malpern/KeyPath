@@ -133,9 +133,9 @@ struct LaunchAgentSettingsView: View {
     }
 }
 
-// MARK: - Integration with existing SettingsView
+// MARK: - Integration with existing StatusSettingsTabView
 
-extension SettingsView {
+extension StatusSettingsTabView {
     /// Add LaunchAgent settings section to existing settings
     @ViewBuilder
     func launchAgentSection() -> some View {
