@@ -57,21 +57,31 @@ public struct KanataConfiguration: Sendable {
     private static let defaultEmptyConfig = generateFromCollections(defaultSystemCollections)
 
     private static func renderDefsrcBlock(_ collections: [RuleCollection]) -> String {
-        guard !collections.isEmpty else { return "" }
-        let sections = collections.map { renderEnabledSourceSection($0) }.joined(separator: "\n\n")
+        let sections: [String]
+        if collections.isEmpty {
+            sections = ["  ;; No enabled collections"]
+        } else {
+            sections = collections.map { renderEnabledSourceSection($0) }
+        }
+
         return """
         (defsrc
-        \(sections)
+        \(sections.joined(separator: "\n\n"))
         )
         """
     }
 
     private static func renderDeflayerBlock(_ collections: [RuleCollection]) -> String {
-        guard !collections.isEmpty else { return "" }
-        let sections = collections.map { renderEnabledLayerSection($0) }.joined(separator: "\n\n")
+        let sections: [String]
+        if collections.isEmpty {
+            sections = ["  ;; No enabled collections"]
+        } else {
+            sections = collections.map { renderEnabledLayerSection($0) }
+        }
+
         return """
         (deflayer base
-        \(sections)
+        \(sections.joined(separator: "\n\n"))
         )
         """
     }

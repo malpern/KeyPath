@@ -277,7 +277,6 @@ private struct RuleCollectionRow: View {
                 ))
                 .labelsHidden()
                 .toggleStyle(.switch)
-                .disabled(collection.isSystemDefault && collection.isEnabled)
 
                 Button(action: { isExpanded.toggle() }) {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")

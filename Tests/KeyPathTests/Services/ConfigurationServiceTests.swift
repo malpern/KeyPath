@@ -100,6 +100,39 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertEqual(deflayerCount, 1, "Kanata accepts exactly one deflayer block")
     }
 
+    func testDisablingMacFunctionKeysRemovesSpecialMappings() {
+        let custom = RuleCollection(
+            name: "Custom",
+            summary: "User mappings",
+            category: .custom,
+            mappings: [KeyMapping(input: "caps", output: "esc")],
+            isEnabled: true,
+            isSystemDefault: false
+        )
+        let macDisabled = RuleCollection(
+            id: RuleCollectionIdentifier.macFunctionKeys,
+            name: "macOS Function Keys",
+            summary: "Preserves brightness, volume, and media control keys (F1-F12).",
+            category: .system,
+            mappings: [
+                KeyMapping(input: "f1", output: "brdn"),
+                KeyMapping(input: "f2", output: "brup")
+            ],
+            isEnabled: false,
+            isSystemDefault: true
+        )
+
+        let config = KanataConfiguration.generateFromCollections([custom, macDisabled])
+
+        XCTAssertFalse(config.contains("brdn"), "Disabled macOS keys should not emit macros")
+        XCTAssertTrue(
+            config.contains(";; === Collection: macOS Function Keys (disabled) ==="),
+            "Disabled macOS Function Keys section should be commented"
+        )
+        XCTAssertTrue(config.contains("(defsrc"))
+        XCTAssertTrue(config.contains("(deflayer base"))
+    }
+
     // MARK: - Configuration Parsing Tests
 
     func testParseConfigurationFromString_ValidConfig() throws {
