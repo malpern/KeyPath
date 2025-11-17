@@ -124,13 +124,46 @@ class ConfigurationServiceTests: XCTestCase {
 
         let config = KanataConfiguration.generateFromCollections([custom, macDisabled])
 
-        XCTAssertFalse(config.contains("brdn"), "Disabled macOS keys should not emit macros")
+        let baseLayer = extractLayer(named: "base", from: config)
+        XCTAssertFalse(baseLayer.contains("brdn"), "Disabled macOS keys should not emit macros in active layers")
         XCTAssertTrue(
             config.contains(";; === Collection: macOS Function Keys (disabled) ==="),
             "Disabled macOS Function Keys section should be commented"
         )
         XCTAssertTrue(config.contains("(defsrc"))
         XCTAssertTrue(config.contains("(deflayer base"))
+        XCTAssertFalse(config.contains("(deflayer navigation)"), "Navigation layer should not render when mac collection disabled")
+    }
+
+    func testNavigationCollectionProducesSeparateLayerAndAlias() {
+        let nav = RuleCollection(
+            id: RuleCollectionIdentifier.vimNavigation,
+            name: "Vim Navigation",
+            summary: "Arrow keys on home row",
+            category: .navigation,
+            mappings: [
+                KeyMapping(input: "h", output: "left"),
+                KeyMapping(input: "j", output: "down")
+            ],
+            isEnabled: true,
+            isSystemDefault: false,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let config = KanataConfiguration.generateFromCollections([nav])
+
+        XCTAssertTrue(config.contains("(defalias"), "Momentary activators require aliases")
+        XCTAssertTrue(config.contains("layer_navigation_spc"), "Alias name should reference navigation layer + key")
+        XCTAssertTrue(config.contains("(tap-hold 200 200 spc (layer-while-held navigation))"))
+
+        let baseLayer = extractLayer(named: "base", from: config)
+        XCTAssertTrue(baseLayer.contains("h"), "Base layer should keep normal h key")
+        XCTAssertFalse(baseLayer.contains("left"), "Base layer should not remap nav outputs directly")
+
+        let navLayer = extractLayer(named: "navigation", from: config)
+        XCTAssertTrue(navLayer.contains("left"), "Navigation layer should emit arrow outputs")
+        XCTAssertTrue(navLayer.contains("_"), "Navigation layer should provide placeholders for non-nav keys")
     }
 
     // MARK: - Configuration Parsing Tests
@@ -676,5 +709,20 @@ class ConfigurationServiceTests: XCTestCase {
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: configPath.path), "Reload should create default config when missing")
         XCTAssertFalse(config.content.isEmpty, "Default config content should not be empty")
+    }
+}
+
+private extension ConfigurationServiceTests {
+    func extractLayer(named name: String, from config: String) -> String {
+        let marker = "(deflayer \(name)"
+        guard let start = config.range(of: marker) else { return "" }
+        let suffix = config[start.lowerBound...]
+        if let end = suffix.range(of: "\n)\n") {
+            return String(suffix[..<end.upperBound])
+        } else if let finalEnd = suffix.range(of: "\n)\r") {
+            return String(suffix[..<finalEnd.upperBound])
+        } else {
+            return String(suffix)
+        }
     }
 }

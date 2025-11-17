@@ -3,10 +3,23 @@ import Foundation
 /// Provides predefined rule collections that ship with the app.
 struct RuleCollectionCatalog {
     func defaultCollections() -> [RuleCollection] {
-        [macOSFunctionKeys, navigationArrows]
+        builtInList
+    }
+
+    func upgradedCollection(from existing: RuleCollection) -> RuleCollection {
+        guard let updated = builtInCollections[existing.id] else { return existing }
+        var merged = updated
+        merged.isEnabled = existing.isEnabled
+        return merged
     }
 
     // MARK: - Predefined collections
+
+    private var builtInList: [RuleCollection] { [macOSFunctionKeys, navigationArrows] }
+
+    private var builtInCollections: [UUID: RuleCollection] {
+        Dictionary(uniqueKeysWithValues: builtInList.map { ($0.id, $0) })
+    }
 
     private var macOSFunctionKeys: RuleCollection {
         RuleCollection(
@@ -26,7 +39,8 @@ struct RuleCollectionCatalog {
             ],
             isEnabled: true,
             isSystemDefault: true,
-            icon: "keyboard"
+            icon: "keyboard",
+            targetLayer: .base
         )
     }
 
@@ -45,7 +59,10 @@ struct RuleCollectionCatalog {
             isEnabled: false,
             isSystemDefault: false,
             icon: "arrow.up.and.down.and.arrow.left.and.right",
-            tags: ["vim", "navigation"]
+            tags: ["vim", "navigation"],
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
+            activationHint: "Hold space to enter Navigation layer"
         )
     }
 }

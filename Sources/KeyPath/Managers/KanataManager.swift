@@ -212,6 +212,7 @@ class KanataManager {
     var lastError: String?
     var keyMappings: [KeyMapping] = []
     var ruleCollections: [RuleCollection] = []
+    var currentLayerName: String = RuleCollectionLayer.base.displayName
     var diagnostics: [KanataDiagnostic] = []
     var lastProcessExitCode: Int32?
     var lastConfigUpdate: Date = .init()
@@ -311,6 +312,7 @@ class KanataManager {
             lastError: lastError,
             keyMappings: keyMappings,
             ruleCollections: ruleCollections,
+            currentLayerName: currentLayerName,
             diagnostics: diagnostics,
             lastProcessExitCode: lastProcessExitCode,
             lastConfigUpdate: lastConfigUpdate,
@@ -363,6 +365,7 @@ class KanataManager {
     private let karabinerConflictService: KarabinerConflictManaging
     private let configBackupManager: ConfigBackupManager
     private let ruleCollectionStore: RuleCollectionStore
+    private let layerChangeListener = LayerChangeListener()
 
     private var isStartingKanata = false
     var isInitializing = false
@@ -392,6 +395,16 @@ class KanataManager {
 
     var configPath: String {
         configurationManager.configPath
+    }
+
+    deinit {
+        let listener = layerChangeListener
+        Task.detached(priority: .background) {
+            await listener.stop()
+        }
+        #if os(macOS)
+            batteryMonitor?.stop()
+        #endif
     }
 
     init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil) {
@@ -488,6 +501,7 @@ class KanataManager {
         }
 
         Task { await bootstrapRuleCollections() }
+        startLayerMonitoring()
     }
 
     // MARK: - Rule Collections
@@ -497,12 +511,15 @@ class KanataManager {
         await MainActor.run {
             self.ruleCollections = stored
             ensureDefaultCollectionsIfNeeded()
+            refreshLayerIndicatorState()
         }
+        await regenerateConfigFromCollections()
     }
 
     func replaceRuleCollections(_ collections: [RuleCollection]) async {
         await MainActor.run {
             ruleCollections = collections
+            refreshLayerIndicatorState()
         }
         await regenerateConfigFromCollections()
     }
@@ -516,6 +533,73 @@ class KanataManager {
         if ruleCollections.isEmpty {
             ruleCollections = RuleCollectionCatalog().defaultCollections()
         }
+        refreshLayerIndicatorState()
+    }
+
+    @MainActor
+    private func refreshLayerIndicatorState() {
+        let hasLayered = ruleCollections.contains { $0.isEnabled && $0.targetLayer != .base }
+        if !hasLayered {
+            updateActiveLayerName(RuleCollectionLayer.base.kanataName)
+        }
+    }
+
+    private func normalizedKeys(for collection: RuleCollection) -> Set<String> {
+        Set(collection.mappings.map { KanataKeyConverter.convertToKanataKey($0.input) })
+    }
+
+    private func normalizedActivator(for collection: RuleCollection) -> String? {
+        collection.momentaryActivator?.input.lowercased()
+    }
+
+    @MainActor
+    private func conflictInfo(for candidate: RuleCollection) -> (collection: RuleCollection, keys: [String])? {
+        let candidateKeys = normalizedKeys(for: candidate)
+        let candidateActivator = normalizedActivator(for: candidate)
+
+        for other in ruleCollections where other.isEnabled && other.id != candidate.id {
+            if candidate.targetLayer == other.targetLayer {
+                let overlap = candidateKeys.intersection(normalizedKeys(for: other))
+                if !overlap.isEmpty {
+                    return (other, Array(overlap))
+                }
+            }
+
+            if let act1 = candidateActivator,
+               let act2 = normalizedActivator(for: other),
+               act1 == act2 {
+                return (other, [act1])
+            }
+        }
+
+        return nil
+    }
+
+    private func startLayerMonitoring() {
+        guard !TestEnvironment.isRunningTests else { return }
+        let port = PreferencesService.shared.tcpServerPort
+        Task.detached(priority: .background) { [weak self] in
+            guard let self else { return }
+            await self.layerChangeListener.start(port: port) { [weak self] layer in
+                guard let self else { return }
+                await MainActor.run {
+                    self.updateActiveLayerName(layer)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func updateActiveLayerName(_ rawName: String) {
+        let normalized = rawName.isEmpty ? RuleCollectionLayer.base.kanataName : rawName
+        let display = normalized.capitalized
+        if currentLayerName == display { return }
+
+        if display.caseInsensitiveCompare(RuleCollectionLayer.base.displayName) != .orderedSame {
+            SoundManager.shared.playTinkSound()
+        }
+
+        currentLayerName = display
     }
 
     @MainActor
@@ -1591,20 +1675,47 @@ class KanataManager {
     }
 
     func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
-        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else { return }
-        ruleCollections[index].isEnabled = isEnabled
+        if isEnabled,
+           let candidate = ruleCollections.first(where: { $0.id == id }),
+           candidate.id != RuleCollectionIdentifier.customMappings,
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) }) {
+            await MainActor.run {
+                lastError = "Cannot enable \(candidate.name). Conflicts with \(conflict.collection.name) on \(conflict.keys.joined(separator: ", "))."
+            }
+            AppLogger.shared.log("⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.collection.name) on \(conflict.keys)")
+            return
+        }
+
+        await MainActor.run {
+            if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
+                ruleCollections[index].isEnabled = isEnabled
+            }
+            refreshLayerIndicatorState()
+        }
         await regenerateConfigFromCollections()
     }
 
     func addRuleCollection(_ collection: RuleCollection) async {
-        if let index = ruleCollections.firstIndex(where: { $0.id == collection.id }) {
-            ruleCollections[index].isEnabled = true
-            ruleCollections[index].summary = collection.summary
-            ruleCollections[index].mappings = collection.mappings
-            ruleCollections[index].category = collection.category
-            ruleCollections[index].icon = collection.icon
-        } else {
-            ruleCollections.append(collection)
+        if collection.id != RuleCollectionIdentifier.customMappings,
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: collection) }) {
+            await MainActor.run {
+                lastError = "Cannot enable \(collection.name). Conflicts with \(conflict.collection.name) on \(conflict.keys.joined(separator: ", "))."
+            }
+            AppLogger.shared.log("⚠️ [RuleCollections] Conflict adding \(collection.name) vs \(conflict.collection.name) on \(conflict.keys)")
+            return
+        }
+
+        await MainActor.run {
+            if let index = ruleCollections.firstIndex(where: { $0.id == collection.id }) {
+                ruleCollections[index].isEnabled = true
+                ruleCollections[index].summary = collection.summary
+                ruleCollections[index].mappings = collection.mappings
+                ruleCollections[index].category = collection.category
+                ruleCollections[index].icon = collection.icon
+            } else {
+                ruleCollections.append(collection)
+            }
+            refreshLayerIndicatorState()
         }
         await regenerateConfigFromCollections()
     }
@@ -1937,15 +2048,6 @@ class KanataManager {
         // Delegate to ProcessLifecycleManager for conflict detection
         let conflicts = await processLifecycleManager.detectConflicts()
         return !conflicts.externalProcesses.isEmpty
-    }
-
-    deinit {
-        #if os(macOS)
-            // Cleanup battery monitor
-            batteryMonitor?.stop()
-            // Note: NotificationCenter observer cleanup skipped in deinit due to Sendable constraints
-            // The observer will be cleaned up naturally when the app terminates
-        #endif
     }
 
     #if os(macOS)

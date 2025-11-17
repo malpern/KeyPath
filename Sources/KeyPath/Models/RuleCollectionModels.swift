@@ -11,6 +11,9 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     public var isSystemDefault: Bool
     public var icon: String?
     public var tags: [String]
+    public var targetLayer: RuleCollectionLayer
+    public var momentaryActivator: MomentaryActivator?
+    public var activationHint: String?
 
     public init(
         id: UUID = UUID(),
@@ -21,7 +24,10 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         isEnabled: Bool = true,
         isSystemDefault: Bool = false,
         icon: String? = nil,
-        tags: [String] = []
+        tags: [String] = [],
+        targetLayer: RuleCollectionLayer = .base,
+        momentaryActivator: MomentaryActivator? = nil,
+        activationHint: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -32,6 +38,45 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.isSystemDefault = isSystemDefault
         self.icon = icon
         self.tags = tags
+        self.targetLayer = targetLayer
+        self.momentaryActivator = momentaryActivator
+        self.activationHint = activationHint
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, summary, category, mappings, isEnabled, isSystemDefault, icon, tags, targetLayer, momentaryActivator, activationHint
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        summary = try container.decode(String.self, forKey: .summary)
+        category = try container.decode(RuleCollectionCategory.self, forKey: .category)
+        mappings = try container.decode([KeyMapping].self, forKey: .mappings)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        isSystemDefault = try container.decode(Bool.self, forKey: .isSystemDefault)
+        icon = try container.decodeIfPresent(String.self, forKey: .icon)
+        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        targetLayer = try container.decodeIfPresent(RuleCollectionLayer.self, forKey: .targetLayer) ?? .base
+        momentaryActivator = try container.decodeIfPresent(MomentaryActivator.self, forKey: .momentaryActivator)
+        activationHint = try container.decodeIfPresent(String.self, forKey: .activationHint)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(summary, forKey: .summary)
+        try container.encode(category, forKey: .category)
+        try container.encode(mappings, forKey: .mappings)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(isSystemDefault, forKey: .isSystemDefault)
+        try container.encode(icon, forKey: .icon)
+        try container.encode(tags, forKey: .tags)
+        try container.encode(targetLayer, forKey: .targetLayer)
+        try container.encode(momentaryActivator, forKey: .momentaryActivator)
+        try container.encode(activationHint, forKey: .activationHint)
     }
 }
 
@@ -94,5 +139,34 @@ extension Array where Element == RuleCollection {
             icon: "square.stack"
         )
         return [collection]
+    }
+}
+
+public enum RuleCollectionLayer: String, Codable, Equatable, Sendable {
+    case base
+    case navigation
+
+    public var kanataName: String {
+        switch self {
+        case .base: "base"
+        case .navigation: "navigation"
+        }
+    }
+
+    public var displayName: String {
+        switch self {
+        case .base: "Base"
+        case .navigation: "Navigation"
+        }
+    }
+}
+
+public struct MomentaryActivator: Codable, Equatable, Sendable {
+    public let input: String
+    public let targetLayer: RuleCollectionLayer
+
+    public init(input: String, targetLayer: RuleCollectionLayer) {
+        self.input = input
+        self.targetLayer = targetLayer
     }
 }

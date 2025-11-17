@@ -153,7 +153,7 @@ struct RulesTabView: View {
     private func count(for tab: RulesSubTab) -> Int {
         switch tab {
         case .active:
-            return kanataManager.ruleCollections.enabledMappings().count
+            return kanataManager.ruleCollections.filter { $0.isEnabled }.count
         case .available:
             let existing = Set(kanataManager.ruleCollections.map { $0.id })
             return catalog.defaultCollections().filter { !existing.contains($0.id) }.count
@@ -267,6 +267,11 @@ private struct RuleCollectionRow: View {
                     Text(collection.summary)
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    if let activationDescription = activationDescription {
+                        Label(activationDescription, systemImage: "hand.point.up.left")
+                            .font(.caption2)
+                            .foregroundColor(.accentColor)
+                    }
                 }
 
                 Spacer()
@@ -289,7 +294,7 @@ private struct RuleCollectionRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(collection.mappings.prefix(8)) { mapping in
                         HStack(spacing: 8) {
-                            Text(mapping.input)
+                            Text(mappingDescription(for: mapping))
                                 .font(.caption.monospaced())
                                 .foregroundColor(.primary)
                             Image(systemName: "arrow.right")
@@ -316,6 +321,29 @@ private struct RuleCollectionRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(nsColor: NSColor.windowBackgroundColor))
         )
+    }
+}
+
+private extension RuleCollectionRow {
+    var activationDescription: String? {
+        if let hint = collection.activationHint { return hint }
+        if let activator = collection.momentaryActivator {
+            return "Hold \(prettyKeyName(activator.input)) for \(activator.targetLayer.displayName)"
+        }
+        return nil
+    }
+
+    func mappingDescription(for mapping: KeyMapping) -> String {
+        guard let activator = collection.momentaryActivator else {
+            return prettyKeyName(mapping.input)
+        }
+        return "Hold \(prettyKeyName(activator.input)) + \(prettyKeyName(mapping.input))"
+    }
+
+    func prettyKeyName(_ raw: String) -> String {
+        raw.replacingOccurrences(of: "_", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+            .capitalized
     }
 }
 

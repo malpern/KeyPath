@@ -36,7 +36,7 @@ actor RuleCollectionStore {
         do {
             let data = try Data(contentsOf: fileURL)
             let collections = try decoder.decode([RuleCollection].self, from: data)
-            return collections
+            return collections.map { catalog.upgradedCollection(from: $0) }
         } catch {
             AppLogger.shared.log("⚠️ [RuleCollectionStore] Failed to load collections: \(error). Falling back to defaults.")
             return catalog.defaultCollections()

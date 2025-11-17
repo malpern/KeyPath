@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathWizardCore
 import SwiftUI
@@ -24,6 +25,7 @@ class KanataViewModel: ObservableObject {
     @Published var lastError: String?
     @Published var keyMappings: [KeyMapping] = []
     @Published var ruleCollections: [RuleCollection] = []
+    @Published var currentLayerName: String = RuleCollectionLayer.base.displayName
     @Published var diagnostics: [KanataDiagnostic] = []
     @Published var lastProcessExitCode: Int32?
     @Published var lastConfigUpdate: Date = .init()
@@ -127,6 +129,7 @@ class KanataViewModel: ObservableObject {
         lastHealthCheck = state.lastHealthCheck
         retryCount = state.retryCount
         isRetryingAfterFix = state.isRetryingAfterFix
+        currentLayerName = state.currentLayerName
         lifecycleState = state.lifecycleState
         lifecycleErrorMessage = state.lifecycleErrorMessage
         isBusy = state.isBusy
