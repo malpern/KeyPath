@@ -212,6 +212,7 @@ class KanataManager {
     var lastError: String?
     var keyMappings: [KeyMapping] = []
     var ruleCollections: [RuleCollection] = []
+    var customRules: [CustomRule] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
     var diagnostics: [KanataDiagnostic] = []
     var lastProcessExitCode: Int32?
@@ -312,6 +313,7 @@ class KanataManager {
             lastError: lastError,
             keyMappings: keyMappings,
             ruleCollections: ruleCollections,
+            customRules: customRules,
             currentLayerName: currentLayerName,
             diagnostics: diagnostics,
             lastProcessExitCode: lastProcessExitCode,
@@ -365,6 +367,7 @@ class KanataManager {
     private let karabinerConflictService: KarabinerConflictManaging
     private let configBackupManager: ConfigBackupManager
     private let ruleCollectionStore: RuleCollectionStore
+    private let customRulesStore: CustomRulesStore
     private let layerChangeListener = LayerChangeListener()
 
     private var isStartingKanata = false
@@ -425,6 +428,7 @@ class KanataManager {
         }
         processLifecycleManager = ProcessLifecycleManager()
         ruleCollectionStore = RuleCollectionStore.shared
+        customRulesStore = CustomRulesStore.shared
 
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
@@ -507,9 +511,40 @@ class KanataManager {
     // MARK: - Rule Collections
 
     private func bootstrapRuleCollections() async {
-        let stored = await ruleCollectionStore.loadCollections()
+        async let storedCollectionsTask = ruleCollectionStore.loadCollections()
+        async let storedCustomRulesTask = customRulesStore.loadRules()
+
+        var storedCollections = await storedCollectionsTask
+        var storedCustomRules = await storedCustomRulesTask
+
+        if storedCustomRules.isEmpty,
+           let customIndex = storedCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.customMappings }) {
+            let legacy = storedCollections.remove(at: customIndex)
+            storedCustomRules = legacy.mappings.map { mapping in
+                CustomRule(
+                    id: mapping.id,
+                    title: "",
+                    input: mapping.input,
+                    output: mapping.output,
+                    isEnabled: legacy.isEnabled
+                )
+            }
+            AppLogger.shared.log("♻️ [RuleCollections] Migrated \(storedCustomRules.count) legacy custom mapping(s) into CustomRulesStore")
+            do {
+                try await customRulesStore.saveRules(storedCustomRules)
+            } catch {
+                AppLogger.shared.log("⚠️ [RuleCollections] Failed to persist migrated custom rules: \(error)")
+            }
+            do {
+                try await ruleCollectionStore.saveCollections(storedCollections)
+            } catch {
+                AppLogger.shared.log("⚠️ [RuleCollections] Failed to persist collections after migration: \(error)")
+            }
+        }
+
         await MainActor.run {
-            self.ruleCollections = stored
+            self.ruleCollections = storedCollections
+            self.customRules = storedCustomRules
             ensureDefaultCollectionsIfNeeded()
             refreshLayerIndicatorState()
         }
@@ -525,7 +560,7 @@ class KanataManager {
     }
 
     func enabledMappingsFromCollections() -> [KeyMapping] {
-        ruleCollections.enabledMappings()
+        ruleCollections.enabledMappings() + customRules.enabledMappings()
     }
 
     @MainActor
@@ -553,7 +588,26 @@ class KanataManager {
     }
 
     @MainActor
-    private func conflictInfo(for candidate: RuleCollection) -> (collection: RuleCollection, keys: [String])? {
+    private struct RuleConflictInfo {
+        enum Source {
+            case collection(RuleCollection)
+            case customRule(CustomRule)
+
+            var name: String {
+                switch self {
+                case let .collection(collection): collection.name
+                case let .customRule(rule): rule.displayTitle
+                }
+            }
+        }
+
+        let source: Source
+        let keys: [String]
+
+        var displayName: String { source.name }
+    }
+
+    private func conflictInfo(for candidate: RuleCollection) -> RuleConflictInfo? {
         let candidateKeys = normalizedKeys(for: candidate)
         let candidateActivator = normalizedActivator(for: candidate)
 
@@ -561,17 +615,51 @@ class KanataManager {
             if candidate.targetLayer == other.targetLayer {
                 let overlap = candidateKeys.intersection(normalizedKeys(for: other))
                 if !overlap.isEmpty {
-                    return (other, Array(overlap))
+                    return RuleConflictInfo(source: .collection(other), keys: Array(overlap))
                 }
             }
 
             if let act1 = candidateActivator,
                let act2 = normalizedActivator(for: other),
                act1 == act2 {
-                return (other, [act1])
+                return RuleConflictInfo(source: .collection(other), keys: [act1])
             }
         }
 
+        if candidate.targetLayer == .base {
+            if let conflict = conflictWithCustomRules(candidateKeys) {
+                return conflict
+            }
+        }
+
+        return nil
+    }
+
+    private func conflictInfo(for rule: CustomRule) -> RuleConflictInfo? {
+        let normalizedKey = KanataKeyConverter.convertToKanataKey(rule.input)
+
+        for collection in ruleCollections where collection.isEnabled && collection.targetLayer == .base {
+            if normalizedKeys(for: collection).contains(normalizedKey) {
+                return RuleConflictInfo(source: .collection(collection), keys: [normalizedKey])
+            }
+        }
+
+        for other in customRules where other.isEnabled && other.id != rule.id {
+            if KanataKeyConverter.convertToKanataKey(other.input) == normalizedKey {
+                return RuleConflictInfo(source: .customRule(other), keys: [normalizedKey])
+            }
+        }
+
+        return nil
+    }
+
+    private func conflictWithCustomRules(_ keys: Set<String>) -> RuleConflictInfo? {
+        for rule in customRules where rule.isEnabled {
+            let normalized = KanataKeyConverter.convertToKanataKey(rule.input)
+            if keys.contains(normalized) {
+                return RuleConflictInfo(source: .customRule(rule), keys: [normalized])
+            }
+        }
         return nil
     }
 
@@ -603,40 +691,9 @@ class KanataManager {
     }
 
     @MainActor
-    private func updateCustomCollection(with mappings: [KeyMapping], persist: Bool = true) {
-        ensureDefaultCollectionsIfNeeded()
-        let custom = RuleCollection(
-            id: RuleCollectionIdentifier.customMappings,
-            name: "Custom Mappings",
-            summary: "Your configured rules",
-            category: .custom,
-            mappings: mappings,
-            isEnabled: true,
-            isSystemDefault: false,
-            icon: "square.and.pencil"
-        )
-
-        if let index = ruleCollections.firstIndex(where: { $0.id == custom.id }) {
-            ruleCollections[index] = custom
-        } else {
-            ruleCollections.append(custom)
-        }
-
-        guard persist else { return }
-        Task {
-            do {
-                try await ruleCollectionStore.saveCollections(ruleCollections)
-            } catch {
-                AppLogger.shared.log("⚠️ [RuleCollections] Failed to persist custom collection: \(error)")
-            }
-        }
-    }
-
-    @MainActor
-    private func applyKeyMappings(_ mappings: [KeyMapping], persistCollections: Bool = true) {
+    private func applyKeyMappings(_ mappings: [KeyMapping], persistCollections _: Bool = true) {
         keyMappings = mappings
         lastConfigUpdate = Date()
-        updateCustomCollection(with: mappings, persist: persistCollections)
     }
 
     // MARK: - Diagnostics
@@ -1677,12 +1734,11 @@ class KanataManager {
     func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
         if isEnabled,
            let candidate = ruleCollections.first(where: { $0.id == id }),
-           candidate.id != RuleCollectionIdentifier.customMappings,
            let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) }) {
             await MainActor.run {
-                lastError = "Cannot enable \(candidate.name). Conflicts with \(conflict.collection.name) on \(conflict.keys.joined(separator: ", "))."
+                lastError = "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
             }
-            AppLogger.shared.log("⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.collection.name) on \(conflict.keys)")
+            AppLogger.shared.log("⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)")
             return
         }
 
@@ -1696,12 +1752,11 @@ class KanataManager {
     }
 
     func addRuleCollection(_ collection: RuleCollection) async {
-        if collection.id != RuleCollectionIdentifier.customMappings,
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: collection) }) {
+        if let conflict = await MainActor.run(body: { self.conflictInfo(for: collection) }) {
             await MainActor.run {
-                lastError = "Cannot enable \(collection.name). Conflicts with \(conflict.collection.name) on \(conflict.keys.joined(separator: ", "))."
+                lastError = "Cannot enable \(collection.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
             }
-            AppLogger.shared.log("⚠️ [RuleCollections] Conflict adding \(collection.name) vs \(conflict.collection.name) on \(conflict.keys)")
+            AppLogger.shared.log("⚠️ [RuleCollections] Conflict adding \(collection.name) vs \(conflict.displayName) on \(conflict.keys)")
             return
         }
 
@@ -1720,14 +1775,89 @@ class KanataManager {
         await regenerateConfigFromCollections()
     }
 
-    private func regenerateConfigFromCollections() async {
+    @discardableResult
+    func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
+        if rule.isEnabled,
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: rule) }) {
+            await MainActor.run {
+                lastError = "Cannot enable \(rule.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+            }
+            AppLogger.shared.log("⚠️ [CustomRules] Conflict saving \(rule.displayTitle) vs \(conflict.displayName) on \(conflict.keys)")
+            return false
+        }
+
+        await MainActor.run {
+            if let index = customRules.firstIndex(where: { $0.id == rule.id }) {
+                customRules[index] = rule
+            } else {
+                customRules.append(rule)
+            }
+        }
+        await regenerateConfigFromCollections(skipReload: skipReload)
+        return true
+    }
+
+    func toggleCustomRule(id: UUID, isEnabled: Bool) async {
+        guard let existing = await MainActor.run(body: {
+            self.customRules.first(where: { $0.id == id })
+        }) else { return }
+
+        if isEnabled,
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: existing) }) {
+            await MainActor.run {
+                lastError = "Cannot enable \(existing.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
+            }
+            AppLogger.shared.log("⚠️ [CustomRules] Conflict enabling \(existing.displayTitle) vs \(conflict.displayName) on \(conflict.keys)")
+            return
+        }
+
+        await MainActor.run {
+            if let index = customRules.firstIndex(where: { $0.id == id }) {
+                customRules[index].isEnabled = isEnabled
+            }
+        }
+        await regenerateConfigFromCollections()
+    }
+
+    func removeCustomRule(withID id: UUID) async {
+        await MainActor.run {
+            customRules.removeAll { $0.id == id }
+        }
+        await regenerateConfigFromCollections()
+    }
+
+    private func regenerateConfigFromCollections(skipReload: Bool = false) async {
         do {
             try await ruleCollectionStore.saveCollections(ruleCollections)
-            try await configurationService.saveConfiguration(ruleCollections: ruleCollections)
-            applyKeyMappings(ruleCollections.enabledMappings(), persistCollections: false)
-            _ = await triggerConfigReload()
+            try await customRulesStore.saveRules(customRules)
+            try await configurationService.saveConfiguration(
+                ruleCollections: ruleCollections,
+                customRules: customRules
+            )
+            applyKeyMappings(ruleCollections.enabledMappings() + customRules.enabledMappings(), persistCollections: false)
+            if !skipReload {
+                _ = await triggerConfigReload()
+            }
         } catch {
             AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
+        }
+    }
+
+    private func makeCustomRuleForSave(input: String, output: String) async -> CustomRule {
+        await MainActor.run {
+            if let existing = customRules.first(where: { $0.input.caseInsensitiveCompare(input) == .orderedSame }) {
+                return CustomRule(
+                    id: existing.id,
+                    title: existing.title,
+                    input: input,
+                    output: output,
+                    isEnabled: true,
+                    notes: existing.notes,
+                    createdAt: existing.createdAt
+                )
+            } else {
+                return CustomRule(input: input, output: output)
+            }
         }
     }
 
@@ -1741,23 +1871,26 @@ class KanataManager {
         }
 
         do {
-            // Parse existing mappings from config file
-            await loadExistingMappings()
+            let sanitizedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            let sanitizedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !sanitizedInput.isEmpty, !sanitizedOutput.isEmpty else {
+                throw KeyPathError.configuration(.validationFailed(errors: ["Input and output are required."]))
+            }
 
-            // Create new mapping
-            let newMapping = KeyMapping(input: input, output: output)
-
-            var updatedMappings = keyMappings
-            updatedMappings.removeAll { $0.input == input }
-            updatedMappings.append(newMapping)
-            applyKeyMappings(updatedMappings)
+            let rule = await makeCustomRuleForSave(input: sanitizedInput, output: sanitizedOutput)
 
             // Backup current config before making changes
             await backupCurrentConfig()
 
-            // Delegate to ConfigurationService for saving
-            try await configurationService.saveConfiguration(ruleCollections: ruleCollections)
-            AppLogger.shared.log("💾 [Config] Config saved with \(keyMappings.count) mappings via ConfigurationService")
+            // Persist without triggering reload (handled below)
+            let didSave = await saveCustomRule(rule, skipReload: true)
+            guard didSave else {
+                let message = await MainActor.run { lastError ?? "Unknown conflict" }
+                await MainActor.run {
+                    saveStatus = .failed(message)
+                }
+                throw KeyPathError.configuration(.validationFailed(errors: [message]))
+            }
 
             // Play tink sound asynchronously to avoid blocking save pipeline
             Task { @MainActor in SoundManager.shared.playTinkSound() }

@@ -8,6 +8,7 @@ struct KanataUIState {
     let lastError: String?
     let keyMappings: [KeyMapping]
     let ruleCollections: [RuleCollection]
+    let customRules: [CustomRule]
     let currentLayerName: String
     let diagnostics: [KanataDiagnostic]
     let lastProcessExitCode: Int32?

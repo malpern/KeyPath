@@ -317,6 +317,33 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(parsed.keyMappings.allSatisfy { $0.input != "x" }, "Disabled collection should not produce mappings")
     }
 
+    func testSaveConfiguration_WithCustomRules() async throws {
+        let preset = RuleCollection(
+            name: "Preset",
+            summary: "Preset summary",
+            category: .system,
+            mappings: [KeyMapping(input: "f1", output: "brdn")],
+            isEnabled: true,
+            isSystemDefault: true
+        )
+        let customRules = [
+            CustomRule(title: "Caps Escape", input: "caps", output: "esc"),
+            CustomRule(title: "Space Layer", input: "space", output: "nav", isEnabled: false, notes: "Disabled nav layer")
+        ]
+
+        try await configService.saveConfiguration(ruleCollections: [preset], customRules: customRules)
+
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        let savedContent = try String(contentsOf: configPath.path, encoding: .utf8)
+        XCTAssertTrue(savedContent.contains("Caps Escape"), "Custom rule title should be rendered in metadata")
+        XCTAssertTrue(savedContent.contains("caps"), "Enabled custom rule input should be present")
+        XCTAssertTrue(savedContent.contains("esc"), "Enabled custom rule output should be present")
+        XCTAssertTrue(
+            savedContent.contains(";; === Collection: Space Layer (disabled) ==="),
+            "Disabled custom rule should be represented in the disabled section"
+        )
+    }
+
     // MARK: - Error Parsing Tests
 
     func testParseKanataErrors_WithErrorTags() {

@@ -25,6 +25,7 @@ class KanataViewModel: ObservableObject {
     @Published var lastError: String?
     @Published var keyMappings: [KeyMapping] = []
     @Published var ruleCollections: [RuleCollection] = []
+    @Published var customRules: [CustomRule] = []
     @Published var currentLayerName: String = RuleCollectionLayer.base.displayName
     @Published var diagnostics: [KanataDiagnostic] = []
     @Published var lastProcessExitCode: Int32?
@@ -118,6 +119,7 @@ class KanataViewModel: ObservableObject {
         lastError = state.lastError
         keyMappings = state.keyMappings
         ruleCollections = state.ruleCollections
+        customRules = state.customRules
         diagnostics = state.diagnostics
         lastProcessExitCode = state.lastProcessExitCode
         lastConfigUpdate = state.lastConfigUpdate
@@ -197,6 +199,21 @@ class KanataViewModel: ObservableObject {
 
     func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
         await manager.toggleRuleCollection(id: id, isEnabled: enabled)
+        await syncFromManager()
+    }
+
+    func removeCustomRule(_ id: UUID) async {
+        await manager.removeCustomRule(withID: id)
+        await syncFromManager()
+    }
+
+    func saveCustomRule(_ rule: CustomRule) async {
+        _ = await manager.saveCustomRule(rule)
+        await syncFromManager()
+    }
+
+    func toggleCustomRule(_ id: UUID, enabled: Bool) async {
+        await manager.toggleCustomRule(id: id, isEnabled: enabled)
         await syncFromManager()
     }
 

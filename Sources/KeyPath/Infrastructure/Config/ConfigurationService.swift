@@ -478,9 +478,13 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Save configuration using rule collections.
     /// IMPORTANT: Validates config before saving - will throw on invalid config
-    public func saveConfiguration(ruleCollections: [RuleCollection]) async throws {
-        let mappings = ruleCollections.enabledMappings()
-        let configContent = KanataConfiguration.generateFromCollections(ruleCollections)
+    public func saveConfiguration(
+        ruleCollections: [RuleCollection],
+        customRules: [CustomRule] = []
+    ) async throws {
+        let combinedCollections = ruleCollections + customRules.asRuleCollections()
+        let mappings = combinedCollections.enabledMappings()
+        let configContent = KanataConfiguration.generateFromCollections(combinedCollections)
 
         // VALIDATE BEFORE SAVING - prevent writing broken configs
         AppLogger.shared.log("🔍 [ConfigService] Validating config before save...")
