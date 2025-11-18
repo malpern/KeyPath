@@ -14,6 +14,24 @@ struct RulesTabView: View {
     @State private var createButtonHovered = false
     private let catalog = RuleCollectionCatalog()
 
+    // Show all catalog collections, merging with existing state
+    private var allCollections: [RuleCollection] {
+        let catalog = RuleCollectionCatalog()
+        return catalog.defaultCollections().map { catalogCollection in
+            // Find matching collection from kanataManager to preserve enabled state
+            if let existing = kanataManager.ruleCollections.first(where: { $0.id == catalogCollection.id }) {
+                return existing
+            }
+            // Return catalog item with its default enabled state
+            return catalogCollection
+        }
+    }
+
+    private var customRulesTitle: String {
+        let count = kanataManager.customRules.count
+        return count > 0 ? "Custom Rules (\(count))" : "Custom Rules"
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             // Left Column: Create Rule + Advanced
@@ -50,8 +68,8 @@ struct RulesTabView: View {
                 }
                 .frame(minWidth: 220)
 
-                // Action buttons centered
-                HStack(spacing: 8) {
+                // Action buttons centered under image
+                VStack(spacing: 8) {
                     Button(action: { openConfigInEditor() }) {
                         Label("Edit Config File", systemImage: "doc.text.magnifyingglass")
                     }
@@ -78,7 +96,7 @@ struct RulesTabView: View {
                 VStack(spacing: 0) {
                     // Custom Rules Section (toggleable, expanded when has rules)
                     ExpandableCollectionRow(
-                        name: "Custom Rules",
+                        name: customRulesTitle,
                         icon: "square.and.pencil",
                         count: kanataManager.customRules.count,
                         isEnabled: kanataManager.customRules.isEmpty || kanataManager.customRules.allSatisfy { $0.isEnabled },
@@ -106,7 +124,7 @@ struct RulesTabView: View {
                     .padding(.vertical, 4)
 
                     // Collection Rows
-                    ForEach(kanataManager.ruleCollections) { collection in
+                    ForEach(allCollections) { collection in
                         ExpandableCollectionRow(
                             name: collection.name,
                             icon: collection.icon ?? "circle",

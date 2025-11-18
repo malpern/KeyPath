@@ -16,7 +16,7 @@ struct RuleCollectionCatalog {
     // MARK: - Predefined collections
 
     private var builtInList: [RuleCollection] {
-        [macOSFunctionKeys, navigationArrows, windowManagement, textEditing, capsLockEscape]
+        [macOSFunctionKeys, navigationArrows, windowManagement, capsLockEscape]
     }
 
     private var builtInCollections: [UUID: RuleCollection] {
@@ -49,22 +49,42 @@ struct RuleCollectionCatalog {
     private var navigationArrows: RuleCollection {
         RuleCollection(
             id: RuleCollectionIdentifier.vimNavigation,
-            name: "Vim Navigation",
-            summary: "Use H/J/K/L for arrow navigation (example preset).",
+            name: "Vim",
+            summary: "Vim-style navigation and text editing on Space layer.",
             category: .navigation,
             mappings: [
+                // Basic navigation (hjkl)
                 KeyMapping(input: "h", output: "left"),
                 KeyMapping(input: "j", output: "down"),
                 KeyMapping(input: "k", output: "up"),
-                KeyMapping(input: "l", output: "right")
+                KeyMapping(input: "l", output: "right"),
+
+                // Word navigation
+                KeyMapping(input: "w", output: "M-right"),      // Word forward
+                KeyMapping(input: "b", output: "M-left"),       // Word backward
+                KeyMapping(input: "e", output: "M-right"),      // Word end (same as w on macOS)
+
+                // Line navigation
+                KeyMapping(input: "0", output: "C-M-left"),     // Line start (Cmd-Left)
+                KeyMapping(input: "4", output: "C-M-right"),    // Line end (Cmd-Right) - $ key
+
+                // Document navigation
+                KeyMapping(input: "g", output: "C-M-up"),       // Document start (Cmd-Up) - use gg
+                KeyMapping(input: "S-g", output: "C-M-down"),   // Document end (Cmd-Down) - G
+
+                // Editing
+                KeyMapping(input: "x", output: "del"),          // Delete character
+                KeyMapping(input: "d", output: "M-bspc"),       // Delete word backward
+                KeyMapping(input: "u", output: "C-M-z"),        // Undo (Cmd-Z)
+                KeyMapping(input: "C-r", output: "C-M-S-z")     // Redo (Cmd-Shift-Z)
             ],
             isEnabled: false,
             isSystemDefault: false,
             icon: "text:VIM",
-            tags: ["vim", "navigation"],
+            tags: ["vim", "navigation", "editing"],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
-            activationHint: "Hold space to enter Navigation layer"
+            activationHint: "Hold Space for Vim-style navigation and editing"
         )
     }
 
@@ -89,38 +109,9 @@ struct RuleCollectionCatalog {
         )
     }
 
-    private var textEditing: RuleCollection {
-        RuleCollection(
-            id: UUID(uuidString: "D4B6F3A2-9E5C-4D1B-B2F8-6A4E1C3D7B9F")!,
-            name: "Text Editing Layer",
-            summary: "Enhanced text navigation and editing (hold Caps Lock).",
-            category: .navigation,
-            mappings: [
-                KeyMapping(input: "h", output: "left"),
-                KeyMapping(input: "j", output: "down"),
-                KeyMapping(input: "k", output: "up"),
-                KeyMapping(input: "l", output: "right"),
-                KeyMapping(input: "w", output: "M-right"),      // Word forward
-                KeyMapping(input: "b", output: "M-left"),       // Word backward
-                KeyMapping(input: "0", output: "C-a"),          // Line start
-                KeyMapping(input: "4", output: "C-e"),          // Line end
-                KeyMapping(input: "d", output: "M-bspc"),       // Delete word
-                KeyMapping(input: "u", output: "C-z"),          // Undo
-                KeyMapping(input: "r", output: "C-S-z")         // Redo
-            ],
-            isEnabled: false,
-            isSystemDefault: false,
-            icon: "text.cursor",
-            tags: ["editing", "vim", "text"],
-            targetLayer: .custom("editing"),
-            momentaryActivator: MomentaryActivator(input: "caps", targetLayer: .custom("editing")),
-            activationHint: "Hold Caps Lock to enter Editing layer"
-        )
-    }
-
     private var capsLockEscape: RuleCollection {
         RuleCollection(
-            id: UUID(uuidString: "E5C7D4B3-AF6D-4E2C-C3G9-7B5F2D4E8A1C")!,
+            id: UUID(uuidString: "E5C7D4B3-AF6D-4E2C-C3C9-7B5F2D4E8A1C")!,
             name: "Caps Lock → Escape",
             summary: "Remap Caps Lock to Escape (popular for Vim users).",
             category: .system,
@@ -133,4 +124,24 @@ struct RuleCollectionCatalog {
             tags: ["vim", "productivity", "escape"]
         )
     }
+
+    // Note: Home row mods require tap-hold configuration which is not yet supported
+    // by the simple KeyMapping model. This would need to be implemented as a
+    // custom Kanata configuration block with defalias and tap-hold syntax.
+    // Keeping this commented out until tap-hold support is added.
+    //
+    // private var homeRowMods: RuleCollection {
+    //     RuleCollection(
+    //         id: UUID(uuidString: "A7B9C5D1-6E8F-4A2B-9C3D-5E7F1A2B3C4D")!,
+    //         name: "Home Row Mods",
+    //         summary: "Hold home row keys (A, S, D, F, J, K, L, ;) for modifiers (Ctrl, Opt, Cmd, Shift).",
+    //         category: .advanced,
+    //         mappings: [], // Would require tap-hold implementation
+    //         isEnabled: false,
+    //         isSystemDefault: false,
+    //         icon: "hand.point.up.left",
+    //         tags: ["home row", "modifiers", "advanced", "ergonomic"],
+    //         targetLayer: .base
+    //     )
+    // }
 }
