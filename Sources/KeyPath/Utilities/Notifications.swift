@@ -32,4 +32,7 @@ extension Notification.Name {
 
     // Uninstall flow
     static let keyPathUninstallCompleted = Notification.Name("KeyPath.Uninstall.Completed")
+
+    // Diagnostics
+    static let verboseLoggingChanged = Notification.Name("KeyPath.Diagnostics.VerboseLoggingChanged")
 }

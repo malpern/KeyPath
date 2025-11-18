@@ -3,12 +3,14 @@ import SwiftUI
 struct UninstallKeyPathDialog: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var coordinator = UninstallCoordinator()
+    @State private var deleteConfig = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
             guidance
             removalList
+            configCheckbox
             statusFooter
             actions
         }
@@ -55,6 +57,22 @@ struct UninstallKeyPathDialog: View {
         .font(.subheadline)
     }
 
+    private var configCheckbox: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: $deleteConfig) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Also delete your configuration")
+                        .font(.body)
+                    Text("If unchecked, your config will be preserved at ~/.config/keypath")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .toggleStyle(.checkbox)
+        }
+        .padding(.vertical, 8)
+    }
+
     private var statusFooter: some View {
         VStack(alignment: .leading, spacing: 8) {
             if coordinator.isRunning {
@@ -92,7 +110,7 @@ struct UninstallKeyPathDialog: View {
                 Spacer()
                 Button(role: .destructive) {
                     Task {
-                        let success = await coordinator.uninstall()
+                        let success = await coordinator.uninstall(deleteConfig: deleteConfig)
                         if success {
                             NotificationCenter.default.post(name: .keyPathUninstallCompleted, object: nil)
                             await MainActor.run { dismiss() }

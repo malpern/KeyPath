@@ -54,6 +54,12 @@ struct GeneralSettingsTabView: View {
                             .controlSize(.small)
                         }
                     }
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    // Verbose Logging Toggle
+                    VerboseLoggingToggle()
                 }
                 .frame(minWidth: 220)
 
@@ -221,7 +227,9 @@ struct StatusSettingsTabView: View {
                                 Button(action: {
                                     NotificationCenter.default.post(name: .openSettingsRules, object: nil)
                                 }) {
-                                    let activeCount = kanataManager.ruleCollections.filter { $0.isEnabled }.count
+                                    let enabledCollections = kanataManager.ruleCollections.filter { $0.isEnabled }.count
+                                    let enabledCustomRules = kanataManager.customRules.filter { $0.isEnabled }.count
+                                    let activeCount = enabledCollections + enabledCustomRules
                                     Text("\(activeCount) active rule\(activeCount == 1 ? "" : "s")")
                                         .font(.body)
                                         .foregroundColor(.secondary)

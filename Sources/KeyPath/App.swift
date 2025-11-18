@@ -92,14 +92,14 @@ public struct KeyPathApp: App {
                 }
             }
 
-            // Add File menu with Open Config
+            // Add File menu with Settings tabs shortcuts
             CommandGroup(replacing: .newItem) {
                 Button(action: {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowSimpleMods"), object: nil)
+                    openPreferencesTab(.openSettingsGeneral)
                 }, label: {
-                    Label("Simple key mappings...", systemImage: "keyboard")
+                    Label("General Settings…", systemImage: "gearshape")
                 })
-                .keyboardShortcut("k", modifiers: .command)
+                .keyboardShortcut(",", modifiers: .command)
 
                 Button(action: {
                     openPreferencesTab(.openSettingsRules)
@@ -113,18 +113,14 @@ public struct KeyPathApp: App {
                 }, label: {
                     Label("System Status…", systemImage: "gauge.with.dots.needle.67percent")
                 })
+                .keyboardShortcut("s", modifiers: .command)
 
                 Button(action: {
                     openPreferencesTab(.openSettingsLogs)
                 }, label: {
                     Label("Logs…", systemImage: "doc.text.magnifyingglass")
                 })
-
-                Button(action: {
-                    openPreferencesTab(.openSettingsAdvanced)
-                }, label: {
-                    Label("Advanced…", systemImage: "wrench.and.screwdriver")
-                })
+                .keyboardShortcut("l", modifiers: .command)
 
                 Divider()
 

@@ -2523,7 +2523,16 @@ class LaunchDaemonInstaller {
         arguments.append(contentsOf: ["--port", "\(tcpPort)"])
         AppLogger.shared.log("📡 [LaunchDaemon] TCP server enabled on port \(tcpPort)")
 
-        arguments.append("--debug")
+        // Add logging flags based on user preference
+        let verboseLogging = UserDefaults.standard.object(forKey: "KeyPath.Diagnostics.VerboseKanataLogging") as? Bool ?? false
+        if verboseLogging {
+            // Trace mode: comprehensive logging with event timing
+            arguments.append("--trace")
+            AppLogger.shared.log("📊 [LaunchDaemon] Verbose logging enabled (--trace)")
+        } else {
+            // Standard debug mode
+            arguments.append("--debug")
+        }
         arguments.append("--log-layer-changes")
 
         AppLogger.shared.log(

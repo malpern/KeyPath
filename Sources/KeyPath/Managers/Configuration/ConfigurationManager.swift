@@ -82,8 +82,16 @@ final class ConfigurationManager: @preconcurrency ConfigurationManaging {
         if checkOnly {
             arguments.append("--check")
         } else {
-            // Note: --watch removed - we use TCP reload commands for config changes
-            arguments.append("--debug")
+            // Add logging flags based on user preference
+            let verboseLogging = PreferencesService.shared.verboseKanataLogging
+            if verboseLogging {
+                // Trace mode: comprehensive logging with event timing
+                arguments.append("--trace")
+                AppLogger.shared.log("📊 [ConfigManager] Verbose logging enabled (--trace)")
+            } else {
+                // Standard debug mode with layer changes
+                arguments.append("--debug")
+            }
             arguments.append("--log-layer-changes")
         }
 

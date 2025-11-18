@@ -508,24 +508,25 @@
         <!-- Public API -->
         <section id="api">
             <h2>Public API</h2>
-            <p>The façade exposes four primary methods that follow a natural workflow:</p>
+            <p>The façade exposes four methods: three core operations plus one convenience wrapper that chains them together:</p>
 
             <div class="flow-diagram">
                 <div class="flow-row">
-                    <div class="flow-box">snapshotSystem()</div>
-                    <span class="flow-arrow">→</span>
-                    <div class="flow-box check">checkRequirements()</div>
+                    <div class="flow-box context">inspectSystem()</div>
                     <span class="flow-arrow">→</span>
                     <div class="flow-box plan">makePlan()</div>
                     <span class="flow-arrow">→</span>
-                    <div class="flow-box report">run()</div>
+                    <div class="flow-box report">execute()</div>
                 </div>
             </div>
+            <p style="text-align: center; margin-top: 16px; color: var(--sf-secondary);">
+                Or use <code>run(intent:using:)</code> to chain all steps automatically
+            </p>
 
             <div class="method">
                 <span class="method-label">Method 1</span>
-                <h4>snapshotSystem()</h4>
-                <div class="method-signature">func snapshotSystem() -> SystemContext</div>
+                <h4>inspectSystem()</h4>
+                <div class="method-signature">func inspectSystem() -> SystemContext</div>
                 <p><strong>Purpose:</strong> Capture current system state</p>
                 <p><strong>Returns:</strong> Read-only snapshot of service states, file/permission status, and helper availability</p>
                 <p><strong>Use this to:</strong></p>
@@ -534,56 +535,36 @@
                     <li>Decide what actions are needed</li>
                     <li>Provide context for planning</li>
                 </ul>
+                <p><strong>Wraps:</strong> Consolidates logic from <code>SystemSnapshotAdapter</code>, <code>SystemRequirements</code>, <code>ServiceStatusEvaluator</code>, and conflict detection scripts (<code>dev-tools/test-updated-conflict.swift</code>) that currently run separately.</p>
             </div>
 
             <div class="method">
                 <span class="method-label">Method 2</span>
-                <h4>checkRequirements()</h4>
-                <div class="method-signature">func checkRequirements(_ requirements: [Requirement], in context: SystemContext) -> RequirementCheck</div>
-                <p><strong>Purpose:</strong> Validate prerequisites before installation</p>
-                <p><strong>Returns:</strong> Pass/fail status for each requirement with explanatory hints</p>
-                <p><strong>Evaluates conditions such as:</strong></p>
-                <ul>
-                    <li>Admin rights availability</li>
-                    <li>Writable <code>/Library/LaunchDaemons</code> directory</li>
-                    <li>SMAppService approval status</li>
-                    <li>Helper registration state</li>
-                </ul>
-            </div>
-
-            <div class="method">
-                <span class="method-label">Convenience</span>
-                <h4>checkAllRequirements()</h4>
-                <div class="method-signature">func checkAllRequirements(in context: SystemContext) -> RequirementCheck</div>
-                <p><strong>Purpose:</strong> Check standard requirements without manually building the array</p>
-                <p>Uses a default list for typical install/repair flows. Expert callers can still use <code>checkRequirements(_:in:)</code> for custom requirement sets.</p>
-            </div>
-
-            <div class="method">
-                <span class="method-label">Method 3</span>
                 <h4>makePlan()</h4>
                 <div class="method-signature">func makePlan(for intent: InstallIntent, context: SystemContext) -> InstallPlan</div>
                 <p><strong>Purpose:</strong> Create an execution plan without running it</p>
-                <p><strong>Returns:</strong> Ordered list of operations tailored to the observed context</p>
+                <p><strong>Returns:</strong> Ordered list of operations tailored to the observed context. If prerequisites are unmet, the plan will be marked as <code>.blocked</code> with details about missing requirements.</p>
                 <p><strong>Converts intents into:</strong></p>
                 <ul>
                     <li>Required <code>ServiceRecipe</code>s</li>
                     <li>Privileged operations</li>
                     <li>Configuration updates</li>
                     <li>Health check steps</li>
+                    <li>Requirement validation (admin rights, writable directories, SMAppService approval, helper registration)</li>
                 </ul>
                 <div class="callout">
                     <div class="callout-title"><span class="callout-icon">💡</span> Supported Intents</div>
                     <div class="card-description"><code>.install</code>, <code>.repair</code>, <code>.uninstall</code>, <code>.inspectOnly</code></div>
                 </div>
+                <p><strong>Wraps:</strong> Captures orchestration from <code>WizardAutoFixer</code>, <code>LaunchDaemonInstaller</code> (all the <code>create...Service</code> helpers), <code>PackageManager</code>, and health/driver routines in <code>VHIDDeviceManager</code>.</p>
             </div>
 
             <div class="method">
-                <span class="method-label">Method 4</span>
-                <h4>run()</h4>
-                <div class="method-signature">func run(plan: InstallPlan, broker: PrivilegeBroker) -> InstallerReport</div>
+                <span class="method-label">Method 3</span>
+                <h4>execute()</h4>
+                <div class="method-signature">func execute(plan: InstallPlan, using broker: PrivilegeBroker) -> InstallerReport</div>
                 <p><strong>Purpose:</strong> Execute the planned operations</p>
-                <p><strong>Returns:</strong> Structured report with success/failure details and final state</p>
+                <p><strong>Returns:</strong> Structured report with success/failure details and final state. If the plan was blocked by unmet requirements, execution stops immediately and the report indicates which requirement failed.</p>
                 <p><strong>Performs actions such as:</strong></p>
                 <ul>
                     <li>Copy plists to system directories</li>
@@ -592,15 +573,16 @@
                     <li>Install log rotation</li>
                     <li>Register SMAppService items</li>
                 </ul>
+                <p><strong>Wraps:</strong> Becomes a façade over <code>PrivilegedOperationsCoordinator</code>, <code>HelperManager</code>, Authorization Services fallbacks, and admin-dialog scripts (e.g., <code>dev-tools/test-admin-dialog-direct.swift</code>), while reusing the existing <code>InstallerReport</code> struct.</p>
             </div>
 
             <div class="method">
-                <span class="method-label">Convenience</span>
-                <h4>install() / repair()</h4>
-                <div class="method-signature">func install(using broker: PrivilegeBroker) -> InstallerReport</div>
-                <div class="method-signature">func repair(using broker: PrivilegeBroker) -> InstallerReport</div>
-                <p><strong>Purpose:</strong> One-shot helpers that run the full pipeline</p>
-                <p>Orchestrates snapshot → check → plan → run internally. Reduces boilerplate for CLI and simple GUI code while keeping the full pipeline available for complex flows.</p>
+                <span class="method-label">Method 4</span>
+                <h4>run()</h4>
+                <div class="method-signature">func run(intent: InstallIntent, using broker: PrivilegeBroker) -> InstallerReport</div>
+                <p><strong>Purpose:</strong> Convenience wrapper that chains <code>inspectSystem()</code> → <code>makePlan()</code> → <code>execute()</code> internally</p>
+                <p>Useful for CLI "one-button repair" automation or simple GUI flows. The intermediate <code>SystemContext</code> and <code>InstallPlan</code> are still available through logging/callbacks for debugging and inspection.</p>
+                <p><strong>Wraps:</strong> Mirrors today's wizard auto-fix button (<code>WizardAutoFixer.performAutoFix</code>) and CLI scripts that manually chain detection + install—now it just calls the façade methods in order.</p>
             </div>
         </section>
 
@@ -659,16 +641,6 @@
             <h3>Output Types</h3>
             <div class="type-list">
                 <div class="type-item">
-                    <div class="type-name">RequirementCheck<span class="type-badge">output</span></div>
-                    <p>Maps each <code>Requirement</code> to:</p>
-                    <ul>
-                        <li>Pass/fail status</li>
-                        <li>Missing information indicators</li>
-                        <li>User-facing hints and remediation steps</li>
-                    </ul>
-                </div>
-
-                <div class="type-item">
                     <div class="type-name">InstallerReport<span class="type-badge">output</span></div>
                     <p>Comprehensive execution summary:</p>
                     <ul>
@@ -677,7 +649,9 @@
                         <li>Timestamps and duration</li>
                         <li>Final <code>SystemContext</code></li>
                         <li>Error details with recovery suggestions</li>
+                        <li>Unmet requirements (if execution was blocked)</li>
                     </ul>
+                    <p><em>Extends the existing lightweight struct from <code>LaunchDaemonInstaller</code> to maintain logging/test continuity while adding structured failure details.</em></p>
                 </div>
             </div>
 
@@ -690,7 +664,9 @@
                         <li>Service recipes to apply</li>
                         <li>Supplemental steps (log rotation, config writes)</li>
                         <li>Dependencies and ordering constraints</li>
+                        <li>Requirement validation results (if prerequisites are unmet, plan status is <code>.blocked</code> with details)</li>
                     </ul>
+                    <p><em>Effectively a serialized version of what <code>LaunchDaemonInstaller</code> + <code>WizardAutoFixer</code> already orchestrate, now with explicit requirement tracking.</em></p>
                 </div>
 
                 <div class="type-item">
@@ -715,8 +691,8 @@
                     <div class="workflow-step">
                         <div class="step-number">1</div>
                         <div class="step-content">
-                            <div class="step-title">Create Engine & Snapshot</div>
-                            <div class="step-description">Caller creates InstallerEngine and calls snapshotSystem() → SystemContext</div>
+                            <div class="step-title">Create Engine & Inspect</div>
+                            <div class="step-description">Caller creates InstallerEngine and calls inspectSystem() → SystemContext</div>
                         </div>
                     </div>
                     <div class="step-arrow">↓</div>
@@ -724,8 +700,8 @@
                     <div class="workflow-step">
                         <div class="step-number">2</div>
                         <div class="step-content">
-                            <div class="step-title">Check Requirements</div>
-                            <div class="step-description">Call checkRequirements([...], context) → RequirementCheck</div>
+                            <div class="step-title">Decide Intent & Plan</div>
+                            <div class="step-description">Choose InstallIntent (e.g., .repair) and call makePlan(intent, context) → InstallPlan. The plan includes requirement validation—if prerequisites are unmet, plan status is .blocked.</div>
                         </div>
                     </div>
                     <div class="step-arrow">↓</div>
@@ -733,32 +709,14 @@
                     <div class="workflow-step">
                         <div class="step-number">3</div>
                         <div class="step-content">
-                            <div class="step-title">Validate Prerequisites</div>
-                            <div class="step-description">If requirements fail → surface errors and exit. Otherwise continue.</div>
+                            <div class="step-title">Optional: Inspect Plan</div>
+                            <div class="step-description">Inspect/validate plan (useful for tests and dry-run mode). Check plan.status to see if blocked by unmet requirements.</div>
                         </div>
                     </div>
                     <div class="step-arrow">↓</div>
 
                     <div class="workflow-step">
                         <div class="step-number">4</div>
-                        <div class="step-content">
-                            <div class="step-title">Choose Intent & Plan</div>
-                            <div class="step-description">Choose InstallIntent (e.g., .repair) and call makePlan(intent, context) → InstallPlan</div>
-                        </div>
-                    </div>
-                    <div class="step-arrow">↓</div>
-
-                    <div class="workflow-step">
-                        <div class="step-number">5</div>
-                        <div class="step-content">
-                            <div class="step-title">Optional: Inspect Plan</div>
-                            <div class="step-description">Inspect/validate plan (useful for tests and dry-run mode)</div>
-                        </div>
-                    </div>
-                    <div class="step-arrow">↓</div>
-
-                    <div class="workflow-step">
-                        <div class="step-number">6</div>
                         <div class="step-content">
                             <div class="step-title">Prepare Privilege Broker</div>
                             <div class="step-description">Create PrivilegeBroker (helper IPC, Authorization Services, or test stub)</div>
@@ -767,28 +725,28 @@
                     <div class="step-arrow">↓</div>
 
                     <div class="workflow-step">
-                        <div class="step-number">7</div>
+                        <div class="step-number">5</div>
                         <div class="step-content">
                             <div class="step-title">Execute Plan</div>
-                            <div class="step-description">Call run(plan, broker) → InstallerReport</div>
+                            <div class="step-description">Call execute(plan, using: broker) → InstallerReport. If plan was blocked, execution stops immediately and report indicates which requirement failed.</div>
                         </div>
                     </div>
                     <div class="step-arrow">↓</div>
 
                     <div class="workflow-step">
-                        <div class="step-number">8</div>
+                        <div class="step-number">6</div>
                         <div class="step-content">
                             <div class="step-title">Check Results</div>
-                            <div class="step-description">Report includes success/failure status and final SystemContext</div>
+                            <div class="step-description">Report includes success/failure status, final SystemContext, and any unmet requirements if execution was blocked.</div>
                         </div>
                     </div>
                     <div class="step-arrow">↓</div>
 
                     <div class="workflow-step">
-                        <div class="step-number">9</div>
+                        <div class="step-number">7</div>
                         <div class="step-content">
                             <div class="step-title">Optional: Verify State</div>
-                            <div class="step-description">Call snapshotSystem() again to verify final state and ensure idempotence</div>
+                            <div class="step-description">Call inspectSystem() again to verify final state and ensure idempotence</div>
                         </div>
                     </div>
                 </div>
@@ -798,37 +756,38 @@
 
             <div class="card">
                 <h4>🔍 Dry Run Mode</h4>
-                <p>CLI can generate a plan and print it without calling <code>run()</code>, useful for:</p>
+                <p>CLI can generate a plan and print it without calling <code>execute()</code>, useful for:</p>
                 <ul>
                     <li>Previewing changes</li>
                     <li>Debugging issues</li>
                     <li>Documentation</li>
                 </ul>
+                <p>Check <code>plan.status</code> to see if blocked by unmet requirements before attempting execution.</p>
             </div>
 
             <div class="card">
                 <h4>🔄 Fix Button Flow</h4>
-                <p>GUI can implement a "Fix" button that loops through the entire workflow:</p>
+                <p>GUI can implement a "Fix" button using the convenience method:</p>
                 <ol>
-                    <li>Detect current state</li>
-                    <li>Check requirements</li>
-                    <li>Plan repair actions</li>
-                    <li>Execute repair</li>
-                    <li>Re-detect to show success</li>
+                    <li>Call <code>run(intent: .repair, using: broker)</code> which chains inspect → plan → execute internally</li>
+                    <li>Check <code>InstallerReport</code> for success/failure</li>
+                    <li>If blocked by requirements, surface blocking items to user</li>
+                    <li>Re-detect with <code>inspectSystem()</code> to show success</li>
                 </ol>
+                <p>Or use the full pipeline for more control: <code>inspectSystem()</code> → <code>makePlan()</code> → <code>execute()</code></p>
             </div>
 
             <div class="card">
                 <h4>⚠️ Failed Preconditions</h4>
-                <p><strong>If <code>checkRequirements()</code> returns failures:</strong></p>
+                <p><strong>If <code>makePlan()</code> returns a blocked plan:</strong></p>
                 <ul>
-                    <li>Stop before planning/execution</li>
-                    <li>Surface blocking items to user</li>
-                    <li>Wait for manual resolution</li>
+                    <li>Plan status is <code>.blocked</code> with details about unmet requirements</li>
+                    <li>Caller should surface blocking items to user before attempting execution</li>
+                    <li><code>execute()</code> will stop immediately if given a blocked plan</li>
                 </ul>
-                <p><strong>If something fails mid-run:</strong></p>
+                <p><strong>If something fails mid-execution:</strong></p>
                 <ul>
-                    <li><code>run()</code> reports failing step in <code>InstallerReport</code></li>
+                    <li><code>execute()</code> reports failing step in <code>InstallerReport</code></li>
                     <li>UI/test decides: retry, prompt for intervention, or abort</li>
                 </ul>
             </div>
@@ -841,47 +800,46 @@
 
             <div class="card">
                 <h4>Detection & Context</h4>
-                <p><code>snapshotSystem()</code> wraps:</p>
+                <p><code>inspectSystem()</code> consolidates logic from:</p>
                 <ul>
+                    <li><code>SystemSnapshotAdapter</code> (converts system state to wizard format)</li>
+                    <li><code>SystemRequirements</code> (macOS version and driver compatibility)</li>
+                    <li><code>ServiceStatusEvaluator</code> (service health checks)</li>
+                    <li>Conflict detection scripts (<code>dev-tools/test-updated-conflict.swift</code>)</li>
                     <li><code>LaunchDaemonInstaller.getServiceStatus()</code></li>
                     <li><code>KanataDaemonManager.determineServiceManagementState()</code></li>
-                    <li><code>ServiceStatusEvaluator</code> checks</li>
-                    <li>Filesystem probes from <code>InstallerEngineFunctionalTests</code></li>
-                </ul>
-            </div>
-
-            <div class="card">
-                <h4>Validation</h4>
-                <p><code>checkRequirements()</code> formalizes guards currently in:</p>
-                <ul>
-                    <li><code>createAllLaunchDaemonServices</code> (permission checks)</li>
-                    <li><code>LogRotationTests</code> (privilege validation)</li>
-                    <li><code>PrivilegedOperationsCoordinator.installServicesIfUninstalled</code></li>
                 </ul>
             </div>
 
             <div class="card">
                 <h4>Planning</h4>
-                <p><code>InstallPlan</code> & <code>ServiceRecipe</code> capture logic from:</p>
+                <p><code>makePlan()</code> captures orchestration from:</p>
                 <ul>
+                    <li><code>WizardAutoFixer</code> (auto-fix action logic)</li>
+                    <li><code>LaunchDaemonInstaller</code> (all the <code>create...Service</code> helpers)</li>
+                    <li><code>PackageManager</code> (component installation)</li>
+                    <li>Health/driver routines in <code>VHIDDeviceManager</code></li>
                     <li><code>createAllLaunchDaemonServices</code></li>
-                    <li><code>createConfigureAndLoadAllServices</code></li>
                     <li><code>restartUnhealthyServices</code></li>
                     <li>Config writing routines</li>
                     <li>Version checks (<code>shouldUpgradeKanata</code>)</li>
                     <li><code>installLogRotationService</code></li>
                 </ul>
+                <p>Requirement validation (admin rights, writable directories, SMAppService approval, helper registration) is handled during planning—unmet requirements result in a <code>.blocked</code> plan status.</p>
             </div>
 
             <div class="card">
                 <h4>Execution</h4>
-                <p><code>run(plan:broker:)</code> becomes façade over:</p>
+                <p><code>execute(plan:using:)</code> becomes façade over:</p>
                 <ul>
                     <li><code>PrivilegedOperationsCoordinator</code></li>
-                    <li>Helper vs AuthorizationServices execution paths</li>
+                    <li><code>HelperManager</code> (helper IPC path)</li>
+                    <li>Authorization Services fallbacks</li>
+                    <li>Admin-dialog scripts (<code>dev-tools/test-admin-dialog-direct.swift</code>)</li>
                     <li><code>AdminCommandExecutorHolder</code></li>
                     <li>AppleScript fallbacks</li>
                 </ul>
+                <p>Reuses the existing <code>InstallerReport</code> struct from <code>LaunchDaemonInstaller</code> to maintain logging/test continuity.</p>
             </div>
 
             <div class="card">
@@ -901,7 +859,18 @@
                     <li>Existing lightweight struct from <code>LaunchDaemonInstaller</code></li>
                     <li>Maintains logging/test continuity</li>
                     <li>Adds structured failure details</li>
+                    <li>Includes unmet requirements if execution was blocked</li>
                 </ul>
+            </div>
+
+            <div class="card">
+                <h4>Convenience Method</h4>
+                <p><code>run(intent:using:)</code> mirrors:</p>
+                <ul>
+                    <li>Today's wizard auto-fix button (<code>WizardAutoFixer.performAutoFix</code>)</li>
+                    <li>CLI scripts that manually chain detection + install</li>
+                </ul>
+                <p>Internally calls <code>inspectSystem()</code> → <code>makePlan()</code> → <code>execute()</code> in order, while still exposing intermediate artifacts through logging/callbacks for debugging.</p>
             </div>
         </section>
 
@@ -915,8 +884,8 @@
                 <div class="callout-title"><span class="callout-icon">✨</span> Easy to Explain</div>
                 <p>A junior Swift developer can understand the façade in minutes:</p>
                 <ul>
-                    <li><strong>Four methods:</strong> inspect → check → plan → run</li>
-                    <li><strong>Eight nouns:</strong> clear data flow through context/plan/report</li>
+                    <li><strong>Four methods:</strong> inspect → plan → execute (or use <code>run()</code> to chain all steps)</li>
+                    <li><strong>Seven core types:</strong> clear data flow through context/plan/report</li>
                 </ul>
             </div>
 

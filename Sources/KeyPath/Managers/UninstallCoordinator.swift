@@ -9,11 +9,11 @@ final class UninstallCoordinator: ObservableObject {
     @Published private(set) var lastError: String?
 
     private let resolveUninstallerURLClosure: () -> URL?
-    private let runWithAdminPrivilegesClosure: (URL) async -> AppleScriptResult
+    private let runWithAdminPrivilegesClosure: (URL, Bool) async -> AppleScriptResult
 
     init(
         resolveUninstallerURL: @escaping () -> URL?,
-        runWithAdminPrivileges: @escaping (URL) async -> AppleScriptResult
+        runWithAdminPrivileges: @escaping (URL, Bool) async -> AppleScriptResult
     ) {
         resolveUninstallerURLClosure = resolveUninstallerURL
         runWithAdminPrivilegesClosure = runWithAdminPrivileges
@@ -27,7 +27,7 @@ final class UninstallCoordinator: ObservableObject {
     }
 
     @discardableResult
-    func uninstall() async -> Bool {
+    func uninstall(deleteConfig: Bool = false) async -> Bool {
         guard !isRunning else { return false }
 
         isRunning = true
@@ -45,8 +45,13 @@ final class UninstallCoordinator: ObservableObject {
         }
 
         logLines.append("📄 Using uninstaller at: \(scriptURL.path)")
+        if deleteConfig {
+            logLines.append("🗑️ User configuration will be deleted")
+        } else {
+            logLines.append("💾 User configuration will be preserved")
+        }
 
-        let result = await runWithAdminPrivilegesClosure(scriptURL)
+        let result = await runWithAdminPrivilegesClosure(scriptURL, deleteConfig)
 
         if result.success {
             didSucceed = true
@@ -99,10 +104,11 @@ final class UninstallCoordinator: ObservableObject {
         return nil
     }
 
-    private static func defaultRunWithAdminPrivileges(scriptURL: URL) async -> AppleScriptResult {
+    private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async -> AppleScriptResult {
         let escapedPath = escapeForAppleScript(scriptURL.path)
+        let configFlag = deleteConfig ? " --delete-config" : ""
         let script = """
-        do shell script \"KEYPATH_UNINSTALL_ASSUME_YES=1 \" & quoted form of \"\(escapedPath)\" & \" --assume-yes\" with administrator privileges
+        do shell script \"KEYPATH_UNINSTALL_ASSUME_YES=1 \" & quoted form of \"\(escapedPath)\" & \" --assume-yes\(configFlag)\" with administrator privileges
         """
         return await AppleScriptRunner.run(script: script)
     }

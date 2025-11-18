@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import KeyPathCore
 
 /// Floating window that displays the current layer name
 class LayerIndicatorWindow: NSWindow {
@@ -104,15 +105,20 @@ class LayerIndicatorManager: ObservableObject {
     private init() {}
 
     func showLayer(_ layerName: String) {
+        AppLogger.shared.log("🪟 [LayerIndicator] showLayer called with: '\(layerName)'")
+
         // Ignore "base" layer changes to reduce noise
         guard layerName.lowercased() != "base" else {
+            AppLogger.shared.log("🪟 [LayerIndicator] Ignoring base layer")
             return
         }
 
         if window == nil {
+            AppLogger.shared.log("🪟 [LayerIndicator] Creating new window")
             window = LayerIndicatorWindow()
         }
 
+        AppLogger.shared.log("🪟 [LayerIndicator] Showing window with layer: '\(layerName)'")
         window?.show(layerName: layerName)
     }
 }

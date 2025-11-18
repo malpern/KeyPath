@@ -411,6 +411,8 @@ class KanataManager {
     }
 
     init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil) {
+        AppLogger.shared.log("🏗️ [KanataManager] init() called")
+
         // Check if running in headless mode
         isHeadlessMode =
             ProcessInfo.processInfo.arguments.contains("--headless")
@@ -504,8 +506,10 @@ class KanataManager {
             AppLogger.shared.log("🤖 [KanataManager] Initialized in headless mode")
         }
 
+        AppLogger.shared.log("🏗️ [KanataManager] About to call bootstrapRuleCollections and startLayerMonitoring")
         Task { await bootstrapRuleCollections() }
         startLayerMonitoring()
+        AppLogger.shared.log("🏗️ [KanataManager] init() completed")
     }
 
     // MARK: - Rule Collections
@@ -664,10 +668,19 @@ class KanataManager {
     }
 
     private func startLayerMonitoring() {
-        guard !TestEnvironment.isRunningTests else { return }
+        AppLogger.shared.log("🌐 [KanataManager] startLayerMonitoring() called")
+        guard !TestEnvironment.isRunningTests else {
+            AppLogger.shared.log("🌐 [KanataManager] Skipping layer monitoring (test environment)")
+            return
+        }
         let port = PreferencesService.shared.tcpServerPort
+        AppLogger.shared.log("🌐 [KanataManager] Starting layer monitoring on port \(port)")
         Task.detached(priority: .background) { [weak self] in
-            guard let self else { return }
+            guard let self else {
+                AppLogger.shared.log("🌐 [KanataManager] Layer monitoring task: self is nil")
+                return
+            }
+            AppLogger.shared.log("🌐 [KanataManager] Calling layerChangeListener.start()")
             await self.layerChangeListener.start(port: port) { [weak self] layer in
                 guard let self else { return }
                 await MainActor.run {
@@ -681,6 +694,8 @@ class KanataManager {
     private func updateActiveLayerName(_ rawName: String) {
         let normalized = rawName.isEmpty ? RuleCollectionLayer.base.kanataName : rawName
         let display = normalized.capitalized
+        AppLogger.shared.log("🎯 [KanataManager] updateActiveLayerName: raw='\(rawName)' normalized='\(normalized)' display='\(display)' current='\(currentLayerName)'")
+
         if currentLayerName == display { return }
 
         if display.caseInsensitiveCompare(RuleCollectionLayer.base.displayName) != .orderedSame {
@@ -690,6 +705,7 @@ class KanataManager {
         currentLayerName = display
 
         // Show visual layer indicator
+        AppLogger.shared.log("🎯 [KanataManager] Calling LayerIndicatorManager.showLayer('\(display)')")
         LayerIndicatorManager.shared.showLayer(display)
     }
 

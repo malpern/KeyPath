@@ -12,10 +12,10 @@ actor LayerChangeListener {
     private let listenerQueue = DispatchQueue(label: "com.keypath.layer-listener")
 
     func start(port: Int, onLayerChange: @escaping @Sendable (String) async -> Void) async {
-        handler = onLayerChange
         if self.port == port, listenTask != nil { return }
         await stop()
         self.port = port
+        handler = onLayerChange  // Set handler AFTER stop() to avoid it being cleared
         AppLogger.shared.log("🌐 [LayerListener] Starting layer listener on port \(port)")
         listenTask = Task(priority: .background) { [weak self] in
             guard let self else { return }
@@ -53,7 +53,10 @@ actor LayerChangeListener {
         try await waitForReady(connection)
         AppLogger.shared.log("🌐 [LayerListener] Connected to kanata TCP server")
 
+        AppLogger.shared.log("🌐 [LayerListener] Sending Hello message")
         try await send(jsonObject: ["Hello": [:] as [String: String]], over: connection)
+
+        AppLogger.shared.log("🌐 [LayerListener] Sending RequestCurrentLayerName message")
         try await send(jsonObject: ["RequestCurrentLayerName": [:] as [String: String]], over: connection)
 
         pollTask?.cancel()
@@ -149,22 +152,38 @@ actor LayerChangeListener {
     }
 
     private func handleLine(_ line: String) async {
-        guard let handler,
-              let data = line.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return }
+        AppLogger.shared.log("🌐 [LayerListener] Received line: '\(line)'")
+
+        guard let handler else {
+            AppLogger.shared.log("🌐 [LayerListener] No handler set, ignoring message")
+            return
+        }
+
+        guard let data = line.data(using: .utf8) else {
+            AppLogger.shared.log("🌐 [LayerListener] Failed to convert line to UTF8 data")
+            return
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            AppLogger.shared.log("🌐 [LayerListener] Failed to parse JSON from: '\(line)'")
+            return
+        }
+
+        AppLogger.shared.log("🌐 [LayerListener] Parsed JSON keys: \(json.keys.joined(separator: ", "))")
 
         if let layer = json["LayerChange"] as? [String: Any], let new = layer["new"] as? String {
-            AppLogger.shared.debug("🌐 [LayerListener] Layer change -> \(new)")
+            AppLogger.shared.log("🌐 [LayerListener] Layer change -> \(new)")
             await handler(new)
             return
         }
 
         if let current = json["CurrentLayerName"] as? [String: Any], let name = current["name"] as? String {
-            AppLogger.shared.debug("🌐 [LayerListener] Current layer -> \(name)")
+            AppLogger.shared.log("🌐 [LayerListener] Current layer -> \(name)")
             await handler(name)
             return
         }
+
+        AppLogger.shared.log("🌐 [LayerListener] Message not recognized as LayerChange or CurrentLayerName")
     }
 
     enum ListenerError: Error {

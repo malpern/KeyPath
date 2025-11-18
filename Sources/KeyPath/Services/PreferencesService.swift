@@ -76,6 +76,17 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// When true, enable comprehensive trace logging in Kanata (--trace flag)
+    /// Logs every key event with timing information for debugging performance issues
+    var verboseKanataLogging: Bool {
+        didSet {
+            UserDefaults.standard.set(verboseKanataLogging, forKey: Keys.verboseKanataLogging)
+            AppLogger.shared.log("📊 [Preferences] verboseKanataLogging = \(verboseKanataLogging)")
+            // Post notification so KanataManager can restart with new flags
+            NotificationCenter.default.post(name: .verboseLoggingChanged, object: nil)
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -84,6 +95,7 @@ final class PreferencesService: @unchecked Sendable {
         static let notificationsEnabled = "KeyPath.Notifications.Enabled"
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
         static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
+        static let verboseKanataLogging = "KeyPath.Diagnostics.VerboseKanataLogging"
     }
 
     // MARK: - Defaults
@@ -94,6 +106,7 @@ final class PreferencesService: @unchecked Sendable {
         static let notificationsEnabled = true
         static let applyMappingsDuringRecording = true
         static let isSequenceMode = true
+        static let verboseKanataLogging = false // Off by default to avoid log spam
     }
 
     // MARK: - Initialization
@@ -119,8 +132,12 @@ final class PreferencesService: @unchecked Sendable {
             UserDefaults.standard.object(forKey: Keys.isSequenceMode) as? Bool
                 ?? Defaults.isSequenceMode
 
+        verboseKanataLogging =
+            UserDefaults.standard.object(forKey: Keys.verboseKanataLogging) as? Bool
+                ?? Defaults.verboseKanataLogging
+
         AppLogger.shared.log(
-            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort)"
+            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging)"
         )
     }
 

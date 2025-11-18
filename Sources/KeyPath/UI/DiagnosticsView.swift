@@ -139,6 +139,7 @@ struct DiagnosticsView: View {
                 case .logs:
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
+                            VerboseLoggingSection()
                             LogAccessSection(
                                 onOpenKeyPathLogs: openKeyPathLogs,
                                 onOpenKanataLogs: openKanataLogs
@@ -1849,6 +1850,75 @@ struct ProbeStatusRow: View {
 
             Spacer()
         }
+    }
+}
+
+// MARK: - Verbose Logging Section
+
+struct VerboseLoggingSection: View {
+    @State private var verboseLogging = PreferencesService.shared.verboseKanataLogging
+    @State private var showingRestartAlert = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Diagnostic Logging")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(isOn: $verboseLogging) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Verbose Kanata Logging")
+                            .font(.body)
+                            .fontWeight(.medium)
+
+                        Text("Enable comprehensive trace logging with event timing (requires service restart)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .onChange(of: verboseLogging) { _, newValue in
+                    Task { @MainActor in
+                        PreferencesService.shared.verboseKanataLogging = newValue
+                        showingRestartAlert = true
+                    }
+                }
+
+                if verboseLogging {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+
+                        Text("Trace logging generates large log files. Use for debugging key repeat or performance issues only.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(12)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(8)
+                }
+            }
+            .padding(12)
+            .appGlassCard()
+        }
+        .alert("Service Restart Required", isPresented: $showingRestartAlert) {
+            Button("Later", role: .cancel) {}
+            Button("Restart Now") {
+                Task {
+                    await restartKanataService()
+                }
+            }
+        } message: {
+            Text("Kanata needs to restart for the new logging setting to take effect. Would you like to restart now?")
+        }
+    }
+
+    private func restartKanataService() async {
+        AppLogger.shared.log("🔄 [VerboseLogging] Restarting Kanata service with new logging flags")
+        // Post notification to trigger service restart
+        NotificationCenter.default.post(name: .retryStartService, object: nil)
     }
 }
 

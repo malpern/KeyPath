@@ -6,13 +6,15 @@
 set -e
 
 ASSUME_YES=0
+DELETE_CONFIG=0
 
 print_usage() {
     cat <<'EOF'
-Usage: uninstall.sh [--assume-yes]
+Usage: uninstall.sh [--assume-yes] [--delete-config]
 
 Options:
   --assume-yes, --yes, -y   Skip the interactive confirmation prompt.
+  --delete-config           Delete user configuration at ~/.config/keypath
   -h, --help                Show this help message.
 
 You must run this script with sudo/root privileges.
@@ -23,6 +25,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --assume-yes|--yes|-y)
             ASSUME_YES=1
+            shift
+            ;;
+        --delete-config)
+            DELETE_CONFIG=1
             shift
             ;;
         -h|--help)
@@ -193,14 +199,22 @@ remove_user_data() {
     log_info "Removing user-specific data for $TARGET_USER ($TARGET_HOME)..."
 
     local protected_config="$TARGET_HOME/.config/keypath"
-    if [[ -e "$protected_config" ]]; then
-        log_info "Preserving user configuration at $protected_config"
+    if [[ "$DELETE_CONFIG" -eq 1 ]]; then
+        if [[ -e "$protected_config" ]]; then
+            rm -rf "$protected_config"
+            log_success "Removed user configuration at $protected_config"
+        else
+            log_info "No user configuration found at $protected_config"
+        fi
     else
-        log_info "No user configuration found to preserve (expected path: $protected_config)"
+        if [[ -e "$protected_config" ]]; then
+            log_info "Preserving user configuration at $protected_config"
+        else
+            log_info "No user configuration found to preserve (expected path: $protected_config)"
+        fi
     fi
 
     local user_paths=(
-        # Intentionally exclude ~/.config/keypath to protect user data
         "$TARGET_HOME/Library/Application Support/KeyPath"
         "$TARGET_HOME/Library/Logs/KeyPath"
     )
