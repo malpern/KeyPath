@@ -423,6 +423,9 @@ actor KanataTCPClient {
     }
 
     /// Validate configuration via TCP (Phase 2)
+    /// Note: Kanata's Validate command returns TWO lines:
+    ///   Line 1: {"status":"Ok"} - acknowledges command received
+    ///   Line 2: {"ValidationResult": {...}} - validation details
     func validateConfig(_ configContent: String) async -> TCPValidationResult {
         AppLogger.shared.debug("📝 [TCP] Config validation requested (\(configContent.count) bytes)")
         do {
@@ -435,9 +438,29 @@ actor KanataTCPClient {
                 ]
             ]
             let requestData = try JSONSerialization.data(withJSONObject: payload)
-            let responseData = try await send(requestData)
-            if let vr = try extractMessage(named: "ValidationResult", into: TcpValidationResult.self, from: responseData) {
+
+            // Read first line (status response)
+            let firstLine = try await send(requestData)
+            let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
+            AppLogger.shared.debug("📝 [TCP] Validation status: \(firstLineStr)")
+
+            // Check if first line indicates error
+            if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
+               let status = json["status"] as? String,
+               status.lowercased() == "error" {
+                let errorMsg = json["msg"] as? String ?? "Validation request failed"
+                return .failure(errors: [errorMsg])
+            }
+
+            // Read second line (ValidationResult)
+            let connection = try await ensureConnectionCore()
+            let secondLine = try await readUntilNewline(on: connection)
+            AppLogger.shared.debug("📝 [TCP] Validation result received (\(secondLine.count) bytes)")
+
+            // Parse ValidationResult from second line
+            if let vr = try extractMessage(named: "ValidationResult", into: TcpValidationResult.self, from: secondLine) {
                 if vr.errors.isEmpty {
+                    AppLogger.shared.info("✅ [TCP] Validation succeeded")
                     return .success
                 } else {
                     let msgs = vr.errors.map { item in
@@ -445,11 +468,14 @@ actor KanataTCPClient {
                         if let line = item.line { ctx += " (line \(line))" }
                         return ctx
                     }
+                    AppLogger.shared.warn("⚠️ [TCP] Validation failed with \(msgs.count) error(s)")
                     return .failure(errors: msgs)
                 }
             }
-            let raw = String(data: responseData, encoding: .utf8) ?? ""
-            return .failure(errors: ["Unexpected response: \(raw)"])
+
+            let raw = String(data: secondLine, encoding: .utf8) ?? ""
+            AppLogger.shared.error("❌ [TCP] Unexpected validation result format: \(raw)")
+            return .failure(errors: ["Unexpected validation result format: \(raw)"])
         } catch {
             AppLogger.shared.error("❌ [TCP] Validate error: \(error)")
             return .networkError(error.localizedDescription)

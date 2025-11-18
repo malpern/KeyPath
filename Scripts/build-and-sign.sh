@@ -154,28 +154,34 @@ fi
 echo "✅ Verifying signatures..."
 codesign -dvvv "$APP_BUNDLE"
 
-echo "📦 Creating distribution archive..."
-cd "$DIST_DIR"
-ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip"
-cd ..
+if [ "${SKIP_NOTARIZE:-}" = "1" ]; then
+    echo "⏭️  Skipping notarization (SKIP_NOTARIZE=1)"
+    echo "🎉 Build complete!"
+    echo "📍 Signed app: $APP_BUNDLE"
+else
+    echo "📦 Creating distribution archive..."
+    cd "$DIST_DIR"
+    ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip"
+    cd ..
 
-echo "📋 Submitting for notarization..."
-NOTARY_PROFILE="${NOTARY_PROFILE:-KeyPath-Profile}"
-xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" \
-    --keychain-profile "$NOTARY_PROFILE" \
-    --wait
+    echo "📋 Submitting for notarization..."
+    NOTARY_PROFILE="${NOTARY_PROFILE:-KeyPath-Profile}"
+    xcrun notarytool submit "${DIST_DIR}/${APP_NAME}.zip" \
+        --keychain-profile "$NOTARY_PROFILE" \
+        --wait
 
-echo "🔖 Stapling notarization..."
-xcrun stapler staple "$APP_BUNDLE"
+    echo "🔖 Stapling notarization..."
+    xcrun stapler staple "$APP_BUNDLE"
 
-echo "🎉 Build complete!"
-echo "📍 Signed app: $APP_BUNDLE"
-echo "📦 Distribution zip: ${DIST_DIR}/${APP_NAME}.zip"
+    echo "🎉 Build complete!"
+    echo "📍 Signed app: $APP_BUNDLE"
+    echo "📦 Distribution zip: ${DIST_DIR}/${APP_NAME}.zip"
 
-echo "🔍 Final verification..."
-spctl -a -vvv "$APP_BUNDLE"
+    echo "🔍 Final verification..."
+    spctl -a -vvv "$APP_BUNDLE"
 
-echo "✨ Ready for distribution!"
+    echo "✨ Ready for distribution!"
+fi
 
 echo "📂 Deploying to /Applications..."
 SYSTEM_APPS_DIR="/Applications"
