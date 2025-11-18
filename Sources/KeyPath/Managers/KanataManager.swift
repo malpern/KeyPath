@@ -364,6 +364,7 @@ class KanataManager {
     // Additional dependencies needed by extensions
     private let healthMonitor: ServiceHealthMonitorProtocol
     private nonisolated let diagnosticsService: DiagnosticsServiceProtocol
+    let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
     private let karabinerConflictService: KarabinerConflictManaging
     private let configBackupManager: ConfigBackupManager
     private let ruleCollectionStore: RuleCollectionStore
@@ -1113,6 +1114,9 @@ class KanataManager {
                     AppLogger.shared.log("📝 [Start] Service restarted with PID: \(pid)")
                     let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
                     await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+
+                    // Track service restart for crash loop detection
+                    await reloadSafetyMonitor.recordServiceRestart(pid: pid)
                 }
             } else {
                 AppLogger.shared.error("❌ [Start] Kickstart restart failed - will fall through to full startup")
@@ -1232,6 +1236,9 @@ class KanataManager {
                 // Register with lifecycle manager
                 let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
                 await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+
+                // Track service restart for crash loop detection
+                await reloadSafetyMonitor.recordServiceRestart(pid: pid)
 
                 // Start real-time log monitoring for VirtualHID connection issues
                 diagnosticsManager.startLogMonitoring()
@@ -2121,6 +2128,9 @@ class KanataManager {
                     // Update lifecycle manager with current service PID
                     let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
                     await processLifecycleManager.registerStartedProcess(pid: Int32(pid), command: "launchd: \(command)")
+
+                    // Track service restart for crash loop detection (in case PID changed)
+                    await reloadSafetyMonitor.recordServiceRestart(pid: pid)
                 }
             } else {
                 // Service is not running

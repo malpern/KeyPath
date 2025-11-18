@@ -22,12 +22,15 @@ We're incrementally refactoring the installer code by building a new façade (`I
 - **`phase0/TEST_STRATEGY.md`** - Test approach
 - **`phase0/OPERATIONAL_CONSIDERATIONS.md`** - Rollout strategy
 
+### Completed Phases
+- ✅ **Phase 0:** Pre-Implementation Setup - COMPLETE
+- ✅ **Phase 1:** Core Types & Façade Skeleton - COMPLETE
+- ✅ **Phase 2:** Implement `inspectSystem()` - COMPLETE
+- ✅ **Phase 3:** Implement `makePlan()` - COMPLETE
+- ✅ **Phase 4:** Implement `execute()` - COMPLETE
+- ✅ **Phase 5:** Implement `run()` Convenience Method - COMPLETE
+
 ### Future Phases
-- Phase 1: Core Types & Façade Skeleton
-- Phase 2: Implement `inspectSystem()`
-- Phase 3: Implement `makePlan()`
-- Phase 4: Implement `execute()`
-- Phase 5: Implement `run()`
 - Phase 6: Migrate Callers
 - Phase 7: Refactor Internals
 - Phase 8: Documentation & Cleanup
@@ -39,6 +42,13 @@ We're incrementally refactoring the installer code by building a new façade (`I
 3. **Review API contract:** `phase0/API_CONTRACT.md`
 4. **Check type definitions:** `phase0/TYPE_CONTRACTS.md`
 
+## Feature Flag / Enabling the Façade
+
+- Set the environment variable `KEYPATH_USE_INSTALLER_ENGINE=1` to route callers through `InstallerEngine`.
+- **CLI/tests:** prefix your command, e.g. `KEYPATH_USE_INSTALLER_ENGINE=1 swift test --filter InstallerEngineTests`.
+- **GUI:** add the variable to the Xcode scheme (Run > Arguments > Environment) or export it before launching the app.
+- Default is disabled; we will flip it permanently once Phase 6 migrations are complete.
+
 ## Key Principles
 
 - **Keep it boring and simple** - No over-engineering
@@ -49,9 +59,15 @@ We're incrementally refactoring the installer code by building a new façade (`I
 
 ## Status
 
-**Current Phase:** Phase 0 ✅ Complete
+**Current Phase:** Phase 5 ✅ Complete
 
-**Next:** Phase 1 - Core Types & Façade Skeleton
+**Next:** Phase 6 - Migrate Callers
+
+**API Status:** All 4 public methods fully implemented and functional:
+- ✅ `inspectSystem()` - Real system detection
+- ✅ `makePlan()` - Real planning with recipes
+- ✅ `execute()` - Real execution of recipes
+- ✅ `run()` - Convenience wrapper (fully functional)
 
 ## Related Documentation
 

@@ -50,7 +50,7 @@ struct RuleCollectionCatalog {
         RuleCollection(
             id: RuleCollectionIdentifier.vimNavigation,
             name: "Vim",
-            summary: "Vim-style navigation and text editing on Space layer.",
+            summary: "Vim-style navigation, selection, and text editing on Space layer.",
             category: .navigation,
             mappings: [
                 // Basic navigation (hjkl)
@@ -72,6 +72,26 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "g", output: "C-M-up"),       // Document start (Cmd-Up) - use gg
                 KeyMapping(input: "S-g", output: "C-M-down"),   // Document end (Cmd-Down) - G
 
+                // Page navigation
+                KeyMapping(input: "C-u", output: "pgup"),       // Page up (Ctrl+u in Vim)
+                KeyMapping(input: "C-d", output: "pgdn"),       // Page down (Ctrl+d in Vim)
+
+                // Text selection (visual mode - hold Shift for selection)
+                KeyMapping(input: "S-h", output: "S-left"),           // Select character left
+                KeyMapping(input: "S-j", output: "S-down"),           // Select line down
+                KeyMapping(input: "S-k", output: "S-up"),             // Select line up
+                KeyMapping(input: "S-l", output: "S-right"),          // Select character right
+                KeyMapping(input: "S-w", output: "S-M-right"),        // Select word forward
+                KeyMapping(input: "S-b", output: "S-M-left"),         // Select word backward
+                KeyMapping(input: "S-0", output: "S-C-M-left"),       // Select to line start
+                KeyMapping(input: "S-4", output: "S-C-M-right"),      // Select to line end (Shift+$)
+                KeyMapping(input: "S-g", output: "S-C-M-up"),         // Select to document start
+                KeyMapping(input: "S-S-g", output: "S-C-M-down"),     // Select to document end (Shift+G)
+
+                // Copy/paste (yank/put)
+                KeyMapping(input: "y", output: "C-M-c"),        // Yank (copy) - Cmd+C
+                KeyMapping(input: "p", output: "C-M-v"),        // Put (paste) - Cmd+V
+
                 // Editing
                 KeyMapping(input: "x", output: "del"),          // Delete character
                 KeyMapping(input: "d", output: "M-bspc"),       // Delete word backward
@@ -81,7 +101,7 @@ struct RuleCollectionCatalog {
             isEnabled: false,
             isSystemDefault: false,
             icon: "text:VIM",
-            tags: ["vim", "navigation", "editing"],
+            tags: ["vim", "navigation", "editing", "selection"],
             targetLayer: .navigation,
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation),
             activationHint: "Hold Space for Vim-style navigation and editing"

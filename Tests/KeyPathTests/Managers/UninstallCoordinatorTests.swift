@@ -29,7 +29,7 @@ final class UninstallCoordinatorTests: XCTestCase {
 
         let coordinator = UninstallCoordinator(
             resolveUninstallerURL: { scriptURL },
-            runWithAdminPrivileges: { url in
+            runWithAdminPrivileges: { url, _ in
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/bash")
                 process.arguments = [url.path]
@@ -64,7 +64,7 @@ final class UninstallCoordinatorTests: XCTestCase {
     func testUninstallFailsWhenScriptMissing() async throws {
         let coordinator = UninstallCoordinator(
             resolveUninstallerURL: { nil },
-            runWithAdminPrivileges: { _ in AppleScriptResult(success: false, output: "", error: "", exitStatus: -1) }
+            runWithAdminPrivileges: { _, _ in AppleScriptResult(success: false, output: "", error: "", exitStatus: -1) }
         )
 
         let success = await coordinator.uninstall()
@@ -79,7 +79,7 @@ final class UninstallCoordinatorTests: XCTestCase {
         let errorURL = FileManager.default.temporaryDirectory.appendingPathComponent("uninstall-fail.sh")
         let coordinator = UninstallCoordinator(
             resolveUninstallerURL: { errorURL },
-            runWithAdminPrivileges: { _ in AppleScriptResult(success: false, output: "", error: "Permission denied", exitStatus: 1) }
+            runWithAdminPrivileges: { _, _ in AppleScriptResult(success: false, output: "", error: "Permission denied", exitStatus: 1) }
         )
 
         let success = await coordinator.uninstall()
@@ -94,7 +94,7 @@ final class UninstallCoordinatorTests: XCTestCase {
         let errorURL = FileManager.default.temporaryDirectory.appendingPathComponent("uninstall-fail.sh")
         let coordinator = UninstallCoordinator(
             resolveUninstallerURL: { errorURL },
-            runWithAdminPrivileges: { _ in AppleScriptResult(success: false, output: "", error: "", exitStatus: 42) }
+            runWithAdminPrivileges: { _, _ in AppleScriptResult(success: false, output: "", error: "", exitStatus: 42) }
         )
 
         let success = await coordinator.uninstall()

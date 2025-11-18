@@ -195,6 +195,43 @@ else
 fi
 
 echo "🚪 Restarting app..."
-osascript -e 'tell application "KeyPath" to quit' || true
-sleep 1
+
+# Force quit old app process and wait for it to actually die
+if pgrep -x "KeyPath" > /dev/null; then
+    echo "   Stopping existing KeyPath process..."
+    killall KeyPath 2>/dev/null || true
+
+    # Wait up to 5 seconds for process to die
+    for i in {1..10}; do
+        if ! pgrep -x "KeyPath" > /dev/null; then
+            break
+        fi
+        sleep 0.5
+    done
+
+    # Force kill if still running
+    if pgrep -x "KeyPath" > /dev/null; then
+        echo "   ⚠️  Process still running, force killing..."
+        killall -9 KeyPath 2>/dev/null || true
+        sleep 1
+    fi
+fi
+
+# Verify no KeyPath process remains
+if pgrep -x "KeyPath" > /dev/null; then
+    echo "   ❌ ERROR: Failed to stop KeyPath process" >&2
+    echo "   Please manually quit KeyPath and run: open $APP_DEST" >&2
+    exit 1
+fi
+
+echo "   Starting new KeyPath..."
 open "$APP_DEST"
+
+# Wait for new process to start and verify
+sleep 2
+if pgrep -x "KeyPath" > /dev/null; then
+    NEW_PID=$(pgrep -x "KeyPath")
+    echo "   ✅ KeyPath restarted successfully (PID: $NEW_PID)"
+else
+    echo "   ⚠️  WARNING: KeyPath may not have started. Run manually: open $APP_DEST" >&2
+fi

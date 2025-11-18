@@ -4,9 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ CURRENT SESSION STATUS
 
-**LATEST WORK:** SMAppService daemon registration and TCP validation fixes (November 17, 2025)
+**LATEST WORK:** XPC signature mismatch detection and robust app restart (November 17, 2025)
 
 **Recent Commits:**
+- fix: robust app restart and XPC signature mismatch detection (current session)
+  - Fixed build script's app restart: waits for old process death, verifies new process starts
+  - Added SignatureHealthCheck: detects when app updated but not restarted (shows alert + logs)
+  - Enhanced helper logging: shows actual identifier/team when signature validation fails
+  - Root cause: Build script's restart was silently failing, leaving old app with mismatched signature
 - feat: improve rules UI layout and document home row mods (commit 34a0bfa)
   - Stacked action buttons vertically under create rule image
   - Documented home row mods implementation requirements (tap-hold support needed)
@@ -273,6 +278,47 @@ Mock time > real sleeps. 625x speedup, tests now <5s. Pattern: `Date().addingTim
 
 **Files:** KanataTCPClient.swift, WizardCommunicationPage.swift, WizardSystemStatusOverview.swift
 
+### ADR-014: XPC Signature Mismatch Prevention ✅
+**Problem:** Build script's app restart was silently failing, leaving old app processes running with signatures that don't match the newly deployed helper. This caused XPC connections to fail with error -67050 (errSecCSReqFailed), making the app freeze.
+
+**Root Cause Chain:**
+1. Build script claims "🚪 Restarting app..." but restart silently fails
+2. Old app process (e.g., PID 24690, 8:41 PM signature) keeps running
+3. New helper (e.g., PID 25581, 8:45 PM signature) starts
+4. Old app tries to connect to new helper → **Signature mismatch** → XPC rejected
+5. App freezes waiting for XPC responses that never come
+
+**Solutions Implemented:**
+1. **Robust App Restart** (Scripts/build-and-sign.sh):
+   - Wait up to 5 seconds for old process to die (poll every 0.5s)
+   - Force kill (-9) if still running after graceful attempt
+   - Error out if process can't be stopped
+   - Verify new process actually starts (poll for new PID)
+   - Report PID and status explicitly
+
+2. **Proactive Signature Check** (SignatureHealthCheck.swift):
+   - Compares running process CDHash vs. installed bundle CDHash on app launch
+   - Shows user alert with "Restart Now" button if mismatch detected
+   - Logs clear diagnostic information for debugging
+
+3. **Enhanced Helper Logging** (KeyPathHelper/main.swift):
+   - Extracts and logs actual identifier/team from rejected connections
+   - Explicitly states expected values (identifier="com.keypath.KeyPath", team="X2RKZ5TG99")
+   - Includes helpful hint: "This likely means app was updated but not restarted"
+
+**Detection Patterns:**
+- Helper logs: `Code signature validation failed for PID XXXXX: -67050`
+- If PID is same across multiple builds → app not restarting
+- If continuous rejections → signature mismatch likely
+- New diagnostic logs will show exact identifier/team mismatch
+
+**Prevention:**
+- Build script now fails loudly if restart doesn't complete
+- App shows immediate alert on launch if signatures don't match
+- Helper provides actionable diagnostics in logs
+
+**Files:** Scripts/build-and-sign.sh, SignatureHealthCheck.swift, KeyPathHelper/main.swift
+
 ## ⚠️ Critical Reminders
 
 **This architecture represents months of debugging complex macOS integration issues. Every design decision solves specific edge cases discovered through real-world usage.**
@@ -350,7 +396,8 @@ sudo ./Scripts/uninstall.sh
 ```bash
 sudo launchctl kickstart -k system/com.keypath.kanata  # Restart
 sudo launchctl print system/com.keypath.kanata         # Status
-tail -f /var/log/kanata.log                             # Logs
+tail -f /var/log/com.keypath.kanata.stdout.log         # Logs (stdout)
+tail -f /var/log/com.keypath.kanata.stderr.log         # Logs (stderr)
 netstat -an | grep 37001                                # TCP server
 ```
 
@@ -367,10 +414,16 @@ netstat -an | grep 37001                                # TCP server
 
 ### Debugging
 ```bash
-tail -f /var/log/kanata.log                           # View logs
+tail -f /var/log/com.keypath.kanata.stdout.log        # View Kanata stdout
+tail -f /var/log/com.keypath.kanata.stderr.log        # View Kanata errors
 sudo launchctl print system/com.keypath.kanata        # Service status
 ```
 **In-app:** DiagnosticsView for system diagnostics
+
+**Log Locations:**
+- Kanata stdout: `/var/log/com.keypath.kanata.stdout.log`
+- Kanata stderr: `/var/log/com.keypath.kanata.stderr.log`
+- KeyPath app debug: `~/Library/Logs/KeyPath/keypath-debug.log`
 
 ### Wizard Files
 - `SystemStateDetector.swift` - State detection

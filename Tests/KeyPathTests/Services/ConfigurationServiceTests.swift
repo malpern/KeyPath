@@ -334,7 +334,7 @@ class ConfigurationServiceTests: XCTestCase {
         try await configService.saveConfiguration(ruleCollections: [preset], customRules: customRules)
 
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
-        let savedContent = try String(contentsOf: configPath.path, encoding: .utf8)
+        let savedContent = try String(contentsOf: configPath, encoding: .utf8)
         XCTAssertTrue(savedContent.contains("Caps Escape"), "Custom rule title should be rendered in metadata")
         XCTAssertTrue(savedContent.contains("caps"), "Enabled custom rule input should be present")
         XCTAssertTrue(savedContent.contains("esc"), "Enabled custom rule output should be present")
@@ -426,7 +426,7 @@ class ConfigurationServiceTests: XCTestCase {
         try await configService.createInitialConfigIfNeeded()
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: configPath.path))
-        let contents = try String(contentsOf: configPath)
+        let contents = try String(contentsOf: configPath, encoding: .utf8)
         XCTAssertTrue(contents.contains("process-unmapped-keys yes"))
     }
 
@@ -441,7 +441,7 @@ class ConfigurationServiceTests: XCTestCase {
         let backupPath = try await configService.backupFailedConfigAndApplySafe(failedConfig: original, mappings: mappings)
         XCTAssertTrue(FileManager.default.fileExists(atPath: backupPath))
 
-        let safeContents = try String(contentsOf: tempDirectory.appendingPathComponent("keypath.kbd"))
+        let safeContents = try String(contentsOf: tempDirectory.appendingPathComponent("keypath.kbd"), encoding: .utf8)
         XCTAssertTrue(safeContents.contains("process-unmapped-keys yes"))
         XCTAssertTrue(safeContents.contains("esc"))
     }

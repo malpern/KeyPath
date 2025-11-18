@@ -82,9 +82,25 @@ extension KanataManager {
             return .networkError("Test environment - TCP disabled")
         }
 
+        // Check reload safety first
+        let currentPID = await processLifecycleManager.ownedPID
+        let safetyCheck = await reloadSafetyMonitor.checkReloadSafety(currentPID: currentPID.map { Int($0) })
+
+        if !safetyCheck.isSafe {
+            let reason = safetyCheck.reason ?? "Safety check failed"
+            AppLogger.shared.warn("⛔️ [TCP Reload] Reload blocked by safety monitor: \(reason)")
+            return .networkError("Reload blocked: \(reason)")
+        }
+
         AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
         let res = await engineClient.reloadConfig()
         let mapped = mapEngineToTCP(res)
+
+        // Record the reload attempt for safety monitoring
+        await reloadSafetyMonitor.recordReloadAttempt(
+            succeeded: mapped.isSuccess,
+            daemonPID: currentPID.map { Int($0) }
+        )
 
         // Best-effort: subscribe on a fresh connection and await one Ready/ConfigError event
         let port = await MainActor.run { PreferencesService.shared.tcpServerPort }

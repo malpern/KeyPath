@@ -47,6 +47,9 @@ actor HelperManager {
     /// Cached helper version (lazy loaded)
     private var cachedHelperVersion: String?
 
+    /// Active XPC call tracking for detecting concurrency issues
+    private var activeXPCCalls: Set<String> = []
+
     // MARK: - Initialization
 
     private init() {
@@ -358,7 +361,8 @@ actor HelperManager {
         ]
         for path in fileCandidates {
             if FileManager.default.fileExists(atPath: path),
-               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) {
+               let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+            {
                 let data = try? handle.readToEnd()
                 let s = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
                 let lines = s.split(separator: "\n").map(String.init)
@@ -481,6 +485,29 @@ actor HelperManager {
         let connection = try getConnection()
         guard let proxy = connection.remoteObjectProxyWithErrorHandler({ err in
             AppLogger.shared.log("❌ [HelperManager] XPC proxy error: \(err.localizedDescription)")
+
+            // Detect signature validation failures (common when app updated but not restarted)
+            let nsError = err as NSError
+            if nsError.domain == NSCocoaErrorDomain, nsError.code == 4097 {
+                // NSXPCConnectionInterrupted - often caused by signature mismatch
+                AppLogger.shared.log("⚠️ [HelperManager] XPC connection interrupted - this may indicate:")
+                AppLogger.shared.log("   1. Helper signature validation failed (app updated but not restarted)")
+                AppLogger.shared.log("   2. Helper process crashed")
+                AppLogger.shared.log("   3. Helper was killed by the system")
+                AppLogger.shared.log("💡 If you just updated KeyPath, try restarting the app")
+            } else if nsError.code == -67050 {
+                // errSecCSReqFailed - explicit signature validation failure
+                AppLogger.shared.log("❌ [HelperManager] SIGNATURE VALIDATION FAILED (errSecCSReqFailed)")
+                AppLogger.shared.log("   → Running app signature doesn't match helper's requirements")
+                AppLogger.shared.log("   → This happens when app is updated but not restarted")
+                AppLogger.shared.log("💡 SOLUTION: Restart KeyPath to load the new signature")
+
+                // Try to trigger signature health check alert
+                Task { @MainActor in
+                    SignatureHealthCheck.showRestartAlertIfNeeded()
+                }
+            }
+
             errorHandler(err)
         }) as? HelperProtocol else {
             throw HelperManagerError.connectionFailed("Failed to create remote proxy")
@@ -495,8 +522,19 @@ actor HelperManager {
     /// - Throws: HelperError if the operation fails
     private func executeXPCCall(
         _ name: String,
-        _ call: @escaping (HelperProtocol, @escaping (Bool, String?) -> Void) -> Void
+        _ call: @escaping @Sendable (HelperProtocol, @escaping (Bool, String?) -> Void) -> Void
     ) async throws {
+        // Detect concurrent XPC calls (indicates a bug in caller logic)
+        if activeXPCCalls.contains(name) {
+            AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
+            AppLogger.shared.log("   → This may cause race conditions or hangs")
+            AppLogger.shared.log("   → Active calls: \(activeXPCCalls.joined(separator: ", "))")
+            assertionFailure("Concurrent XPC call to \(name) - check caller logic")
+        }
+
+        activeXPCCalls.insert(name)
+        defer { activeXPCCalls.remove(name) }
+
         AppLogger.shared.log("📤 [HelperManager] Calling \(name)")
 
         let proxy = try getRemoteProxy { _ in }
@@ -636,10 +674,13 @@ extension HelperManager {
     /// Logs warnings on mismatch; does not block connection (to avoid false positives during dev).
     private nonisolated func verifyEmbeddedHelperSignature() {
         let fm = FileManager.default
-        let bundlePath = Bundle.main.bundlePath
+        // Use the production app path (like SignatureHealthCheck does)
+        // Bundle.main.bundlePath can be wrong when launched via Xcode tools
+        let bundlePath = "/Applications/KeyPath.app"
         let helperPath = bundlePath + "/Contents/Library/HelperTools/KeyPathHelper"
         guard fm.fileExists(atPath: helperPath) else {
             AppLogger.shared.log("⚠️ [HelperManager] Embedded helper not found at \(helperPath)")
+            AppLogger.shared.log("   Bundle.main.bundlePath = \(Bundle.main.bundlePath)")
             return
         }
 
@@ -676,7 +717,8 @@ extension HelperManager {
         // Compare with SMPrivilegedExecutables requirement (if present)
         var plistRequirement: String?
         if let info = NSDictionary(contentsOfFile: bundlePath + "/Contents/Info.plist"),
-           let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier] as? String {
+           let sm = (info["SMPrivilegedExecutables"] as? NSDictionary)?[Self.helperBundleIdentifier] as? String
+        {
             plistRequirement = sm
             if !req.contains("com.keypath.helper") {
                 warnings.append("helper req does not show expected identifier, while Info.plist declares it")
@@ -719,6 +761,7 @@ enum HelperManagerError: Error, LocalizedError {
     case connectionFailed(String)
     case operationFailed(String)
     case installationFailed(String)
+    case signatureMismatch
 
     var errorDescription: String? {
         switch self {
@@ -730,6 +773,21 @@ enum HelperManagerError: Error, LocalizedError {
             "Helper operation failed: \(reason)"
         case let .installationFailed(reason):
             "Failed to install helper: \(reason)"
+        case .signatureMismatch:
+            "App signature mismatch - restart required"
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .signatureMismatch:
+            "KeyPath was recently updated. Please restart the app to load the new version."
+        case .connectionFailed:
+            "Try restarting KeyPath. If the problem persists, reinstall the app."
+        case .notInstalled:
+            "Run the installation wizard to set up KeyPath."
+        case .operationFailed, .installationFailed:
+            "Check the logs for more details. You may need to restart KeyPath."
         }
     }
 }

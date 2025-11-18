@@ -58,8 +58,28 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
         logger.info("Code signature validation passed for PID \(pid, privacy: .public)")
         return true
     } else {
-        NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")
-        logger.error("Code signature validation failed for PID \(pid, privacy: .public): status \(status, privacy: .public)")
+        // Get the actual identifier of the connecting process for debugging
+        var staticCode: SecStaticCode?
+        var codeInfo: CFDictionary?
+        if SecCodeCopyStaticCode(validCode, [], &staticCode) == errSecSuccess,
+           let sc = staticCode,
+           SecCodeCopySigningInformation(sc, [], &codeInfo) == errSecSuccess,
+           let info = codeInfo as? [String: Any]
+        {
+            let identifier = info[kSecCodeInfoIdentifier as String] as? String ?? "unknown"
+            let teamID = info[kSecCodeInfoTeamIdentifier as String] as? String ?? "unknown"
+            NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")
+            NSLog("[KeyPathHelper]   → Connecting process: identifier=\(identifier), team=\(teamID)")
+            NSLog("[KeyPathHelper]   → Expected: identifier=\"com.keypath.KeyPath\", team=\"X2RKZ5TG99\"")
+            NSLog("[KeyPathHelper]   → This likely means app was updated but not restarted")
+            logger
+                .error(
+                    "Code signature validation failed for PID \(pid, privacy: .public): status \(status, privacy: .public), identifier=\(identifier, privacy: .public), team=\(teamID, privacy: .public)"
+                )
+        } else {
+            NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")
+            logger.error("Code signature validation failed for PID \(pid, privacy: .public): status \(status, privacy: .public)")
+        }
         return false
     }
 }

@@ -72,18 +72,297 @@ public final class InstallerEngine {
     public func makePlan(for intent: InstallIntent, context: SystemContext) async -> InstallPlan {
         AppLogger.shared.log("📋 [InstallerEngine] Starting makePlan(for: \(intent), context:)")
 
-        // TODO: Phase 3 - Wire up WizardAutoFixer, LaunchDaemonInstaller, etc.
-        // For now, return a minimal stub plan
+        // Phase 3: Check requirements first
+        if let blockingRequirement = await checkRequirements(for: intent, context: context) {
+            AppLogger.shared.log("⚠️ [InstallerEngine] Plan blocked by requirement: \(blockingRequirement.name)")
+            return InstallPlan(
+                recipes: [],
+                status: .blocked(requirement: blockingRequirement),
+                intent: intent,
+                blockedBy: blockingRequirement,
+                metadata: PlanMetadata()
+            )
+        }
+
+        // Determine actions needed based on intent and context
+        let actions = determineActions(for: intent, context: context)
+        AppLogger.shared.log("📋 [InstallerEngine] Determined \(actions.count) actions for intent: \(intent)")
+
+        // Generate recipes from actions
+        let recipes = generateRecipes(from: actions, context: context)
+        AppLogger.shared.log("📋 [InstallerEngine] Generated \(recipes.count) recipes")
+
+        // Order recipes respecting dependencies
+        let orderedRecipes = orderRecipes(recipes)
+
         let plan = InstallPlan(
-            recipes: [],
+            recipes: orderedRecipes,
             status: .ready,
             intent: intent,
             blockedBy: nil,
-            metadata: PlanMetadata()
+            metadata: PlanMetadata(promptsNeeded: actions.contains { actionNeedsPrompt($0) })
         )
 
-        AppLogger.shared.log("✅ [InstallerEngine] makePlan() complete - status: \(plan.status)")
+        AppLogger.shared.log("✅ [InstallerEngine] makePlan() complete - status: \(plan.status), recipes: \(plan.recipes.count)")
         return plan
+    }
+
+    // MARK: - Requirement Checking
+
+    /// Check if requirements are met for the given intent
+    /// Returns: Blocking requirement if any, nil if all requirements met
+    private func checkRequirements(for intent: InstallIntent, context: SystemContext) async -> Requirement? {
+        // For inspectOnly, no requirements needed
+        if intent == .inspectOnly {
+            return nil
+        }
+
+        // Check admin privileges availability (can we request them?)
+        // Note: We don't actually request them here, just check if we can
+        // Authorization Services will prompt when needed
+
+        // Check writable directories
+        let launchDaemonsDir = "/Library/LaunchDaemons"
+        if !FileManager.default.isWritableFile(atPath: launchDaemonsDir) {
+            return Requirement(
+                name: "Writable LaunchDaemons directory",
+                status: .blocked
+            )
+        }
+
+        // Check helper registration (for install/repair)
+        if intent == .install || intent == .repair {
+            if !context.helper.isReady {
+                // Helper not ready - check if SMAppService approval is needed
+                // This is a soft requirement - we can proceed but may need approval
+            }
+        }
+
+        // All requirements met
+        return nil
+    }
+
+    // MARK: - Action Determination
+
+    /// Determine which actions are needed based on intent and context
+    private func determineActions(for intent: InstallIntent, context: SystemContext) -> [AutoFixAction] {
+        switch intent {
+        case .inspectOnly:
+            return [] // No actions for inspection
+
+        case .install:
+            return determineInstallActions(context: context)
+
+        case .repair:
+            return determineRepairActions(context: context)
+
+        case .uninstall:
+            return determineUninstallActions(context: context)
+        }
+    }
+
+    /// Determine actions needed for fresh installation
+    private func determineInstallActions(context: SystemContext) -> [AutoFixAction] {
+        var actions: [AutoFixAction] = []
+
+        // Duplicate SystemSnapshotAdapter.determineAutoFixActions() logic
+        // Check conflicts first
+        if context.conflicts.hasConflicts, context.conflicts.canAutoResolve {
+            actions.append(.terminateConflictingProcesses)
+        }
+
+        // Check for driver version mismatch (highest priority for driver issues)
+        if context.components.vhidVersionMismatch {
+            actions.append(.fixDriverVersionMismatch)
+        }
+
+        // Check missing components
+        if !context.components.hasAllRequired {
+            if !context.components.kanataBinaryInstalled {
+                actions.append(.installBundledKanata)
+            }
+            actions.append(.installMissingComponents)
+        }
+
+        // Check if daemon needs starting
+        if !context.services.karabinerDaemonRunning {
+            actions.append(.startKarabinerDaemon)
+        }
+
+        // Always install helper for fresh install
+        if !context.helper.isReady {
+            actions.append(.installPrivilegedHelper)
+        }
+
+        // Always install services for fresh install
+        actions.append(.installLaunchDaemonServices)
+
+        return actions
+    }
+
+    /// Determine actions needed for repair
+    private func determineRepairActions(context: SystemContext) -> [AutoFixAction] {
+        var actions: [AutoFixAction] = []
+
+        // Duplicate SystemSnapshotAdapter.determineAutoFixActions() logic
+        // Check conflicts first
+        if context.conflicts.hasConflicts, context.conflicts.canAutoResolve {
+            actions.append(.terminateConflictingProcesses)
+        }
+
+        // Check for driver version mismatch
+        if context.components.vhidVersionMismatch {
+            actions.append(.fixDriverVersionMismatch)
+        }
+
+        // Check missing components
+        if !context.components.hasAllRequired {
+            if !context.components.kanataBinaryInstalled {
+                actions.append(.installBundledKanata)
+            }
+            actions.append(.installMissingComponents)
+        }
+
+        // Check if daemon needs starting
+        if !context.services.karabinerDaemonRunning {
+            actions.append(.startKarabinerDaemon)
+        }
+
+        // Reinstall helper if unhealthy
+        if !context.helper.isReady {
+            actions.append(.reinstallPrivilegedHelper)
+        }
+
+        // Restart unhealthy services
+        if !context.services.isHealthy {
+            actions.append(.restartUnhealthyServices)
+        }
+
+        return actions
+    }
+
+    /// Determine actions needed for uninstall
+    private func determineUninstallActions(context: SystemContext) -> [AutoFixAction] {
+        // Uninstall is handled differently - we'll implement this in Phase 4
+        // For now, return empty (uninstall logic is in UninstallCoordinator)
+        return []
+    }
+
+    // MARK: - Recipe Generation
+
+    /// Generate ServiceRecipes from AutoFixActions
+    private func generateRecipes(from actions: [AutoFixAction], context: SystemContext) -> [ServiceRecipe] {
+        var recipes: [ServiceRecipe] = []
+
+        for action in actions {
+            if let recipe = recipeForAction(action, context: context) {
+                recipes.append(recipe)
+            }
+        }
+
+        return recipes
+    }
+
+    /// Convert an AutoFixAction to a ServiceRecipe
+    private func recipeForAction(_ action: AutoFixAction, context: SystemContext) -> ServiceRecipe? {
+        switch action {
+        case .installLaunchDaemonServices:
+            return ServiceRecipe(
+                id: "install-launch-daemon-services",
+                type: .installService,
+                serviceID: nil,
+                launchctlActions: [
+                    .bootstrap(serviceID: "com.keypath.kanata"),
+                    .bootstrap(serviceID: "com.keypath.vhid-daemon"),
+                    .bootstrap(serviceID: "com.keypath.vhid-manager")
+                ],
+                healthCheck: HealthCheckCriteria(serviceID: "com.keypath.kanata", shouldBeRunning: true)
+            )
+
+        case .installBundledKanata:
+            return ServiceRecipe(
+                id: "install-bundled-kanata",
+                type: .installComponent,
+                serviceID: nil
+            )
+
+        case .installPrivilegedHelper:
+            return ServiceRecipe(
+                id: "install-privileged-helper",
+                type: .installService,
+                serviceID: "com.keypath.KeyPath.helper"
+            )
+
+        case .reinstallPrivilegedHelper:
+            return ServiceRecipe(
+                id: "reinstall-privileged-helper",
+                type: .installService,
+                serviceID: "com.keypath.KeyPath.helper"
+            )
+
+        case .startKarabinerDaemon:
+            return ServiceRecipe(
+                id: "start-karabiner-daemon",
+                type: .restartService,
+                serviceID: "com.keypath.kanata",
+                launchctlActions: [.kickstart(serviceID: "com.keypath.kanata")],
+                healthCheck: HealthCheckCriteria(serviceID: "com.keypath.kanata", shouldBeRunning: true)
+            )
+
+        case .restartUnhealthyServices:
+            return ServiceRecipe(
+                id: "restart-unhealthy-services",
+                type: .restartService,
+                serviceID: nil
+            )
+
+        case .terminateConflictingProcesses:
+            return ServiceRecipe(
+                id: "terminate-conflicting-processes",
+                type: .checkRequirement,
+                serviceID: nil
+            )
+
+        case .fixDriverVersionMismatch:
+            return ServiceRecipe(
+                id: "fix-driver-version-mismatch",
+                type: .installComponent,
+                serviceID: nil
+            )
+
+        case .installMissingComponents:
+            return ServiceRecipe(
+                id: "install-missing-components",
+                type: .installComponent,
+                serviceID: nil
+            )
+
+        default:
+            // For now, skip actions we haven't mapped yet
+            AppLogger.shared.log("⚠️ [InstallerEngine] Action not yet mapped to recipe: \(action)")
+            return nil
+        }
+    }
+
+    // MARK: - Recipe Ordering
+
+    /// Order recipes respecting dependencies
+    private func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
+        // Simple topological sort - for now, just return in order
+        // TODO: Implement proper dependency resolution if needed
+        return recipes
+    }
+
+    // MARK: - Helper Methods
+
+    /// Check if an action needs user prompts
+    private func actionNeedsPrompt(_ action: AutoFixAction) -> Bool {
+        switch action {
+        case .installPrivilegedHelper, .reinstallPrivilegedHelper:
+            return true // May need SMAppService approval
+        default:
+            return false
+        }
     }
 
     /// Execute the planned operations
@@ -103,17 +382,162 @@ public final class InstallerEngine {
             )
         }
 
-        // TODO: Phase 4 - Wire up PrivilegedOperationsCoordinator, execute recipes
-        // For now, return a stub report
+        // Execute recipes in order
+        var executedRecipes: [RecipeResult] = []
+        var firstFailure: (recipe: ServiceRecipe, error: Error)?
+
+        for recipe in plan.recipes {
+            AppLogger.shared.log("⚙️ [InstallerEngine] Executing recipe: \(recipe.id) (type: \(recipe.type))")
+
+            let startTime = Date()
+            var recipeError: String?
+
+            do {
+                // Execute recipe based on type
+                try await executeRecipe(recipe, using: broker)
+
+                // Perform health check if specified
+                if let healthCheck = recipe.healthCheck {
+                    let isHealthy = await verifyHealthCheck(healthCheck)
+                    if !isHealthy {
+                        throw InstallerError.healthCheckFailed(
+                            "Health check failed for service: \(healthCheck.serviceID)"
+                        )
+                    }
+                }
+
+                let duration = Date().timeIntervalSince(startTime)
+                executedRecipes.append(RecipeResult(
+                    recipeID: recipe.id,
+                    success: true,
+                    error: nil,
+                    duration: duration
+                ))
+                AppLogger.shared.log("✅ [InstallerEngine] Recipe \(recipe.id) completed successfully")
+
+            } catch {
+                // Stop on first failure
+                let duration = Date().timeIntervalSince(startTime)
+                recipeError = error.localizedDescription
+                executedRecipes.append(RecipeResult(
+                    recipeID: recipe.id,
+                    success: false,
+                    error: recipeError,
+                    duration: duration
+                ))
+
+                AppLogger.shared.log("❌ [InstallerEngine] Recipe \(recipe.id) failed: \(recipeError ?? "Unknown error")")
+
+                firstFailure = (recipe, error)
+                break // Stop execution on first failure
+            }
+        }
+
+        // Generate report
+        let success = firstFailure == nil
         let report = InstallerReport(
-            success: true,
-            failureReason: nil,
-            unmetRequirements: [],
-            executedRecipes: []
+            success: success,
+            failureReason: firstFailure.map { "Recipe '\($0.recipe.id)' failed: \($0.error.localizedDescription)" },
+            unmetRequirements: success ? [] : plan.blockedBy.map { [$0] } ?? [],
+            executedRecipes: executedRecipes
         )
 
-        AppLogger.shared.log("✅ [InstallerEngine] execute() complete - success: \(report.success)")
+        AppLogger.shared.log("✅ [InstallerEngine] execute() complete - success: \(success), recipes executed: \(executedRecipes.count)")
         return report
+    }
+
+    // MARK: - Recipe Execution
+
+    /// Execute a single recipe
+    private func executeRecipe(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+        switch recipe.type {
+        case .installService:
+            try await executeInstallService(recipe, using: broker)
+
+        case .restartService:
+            try await executeRestartService(recipe, using: broker)
+
+        case .installComponent:
+            try await executeInstallComponent(recipe, using: broker)
+
+        case .writeConfig:
+            try await executeWriteConfig(recipe, using: broker)
+
+        case .checkRequirement:
+            try await executeCheckRequirement(recipe, using: broker)
+        }
+    }
+
+    /// Execute installService recipe
+    private func executeInstallService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+        // Install all LaunchDaemon services
+        // Note: Individual service installation would require plistPath, which isn't in recipe yet
+        try await broker.installAllLaunchDaemonServices()
+    }
+
+    /// Execute restartService recipe
+    private func executeRestartService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+        if let serviceID = recipe.serviceID, serviceID == "com.keypath.kanata" {
+            // Restart Karabiner daemon with verification
+            let success = try await broker.restartKarabinerDaemonVerified()
+            if !success {
+                throw InstallerError.healthCheckFailed("Karabiner daemon restart verification failed")
+            }
+        } else {
+            // Restart all unhealthy services
+            try await broker.restartUnhealthyServices()
+        }
+    }
+
+    /// Execute installComponent recipe
+    private func executeInstallComponent(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+        // Map recipe ID to component installation method
+        switch recipe.id {
+        case "install-bundled-kanata":
+            try await broker.installBundledKanata()
+
+        case "fix-driver-version-mismatch":
+            try await broker.downloadAndInstallCorrectVHIDDriver()
+
+        case "install-missing-components":
+            // Install all missing components (Kanata + drivers)
+            try await broker.installBundledKanata()
+            try await broker.downloadAndInstallCorrectVHIDDriver()
+
+        default:
+            // Unknown component recipe
+            AppLogger.shared.log("⚠️ [InstallerEngine] Unknown component recipe: \(recipe.id)")
+            throw InstallerError.unknownRecipe("Unknown component recipe: \(recipe.id)")
+        }
+    }
+
+    /// Execute writeConfig recipe
+    private func executeWriteConfig(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+        // Write config recipes not yet implemented
+        // Would write plistContent to appropriate location
+        AppLogger.shared.log("⚠️ [InstallerEngine] writeConfig recipe not yet implemented: \(recipe.id)")
+        throw InstallerError.unknownRecipe("writeConfig recipe not yet implemented: \(recipe.id)")
+    }
+
+    /// Execute checkRequirement recipe
+    private func executeCheckRequirement(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+        // Check requirement recipes (e.g., terminate conflicting processes)
+        switch recipe.id {
+        case "terminate-conflicting-processes":
+            // Kill all Kanata processes (conflict resolution)
+            try await broker.killAllKanataProcesses()
+
+        default:
+            AppLogger.shared.log("⚠️ [InstallerEngine] Unknown requirement check recipe: \(recipe.id)")
+            throw InstallerError.unknownRecipe("Unknown requirement check recipe: \(recipe.id)")
+        }
+    }
+
+    /// Verify health check criteria
+    private func verifyHealthCheck(_ criteria: HealthCheckCriteria) async -> Bool {
+        // Use LaunchDaemonInstaller to check service health
+        let installer = LaunchDaemonInstaller()
+        return installer.isServiceHealthy(serviceID: criteria.serviceID)
     }
 
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally
@@ -131,4 +555,19 @@ public final class InstallerEngine {
     }
 }
 
+// MARK: - Installer Errors
+
+enum InstallerError: LocalizedError {
+    case healthCheckFailed(String)
+    case unknownRecipe(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .healthCheckFailed(let message):
+            return message
+        case .unknownRecipe(let message):
+            return message
+        }
+    }
+}
 

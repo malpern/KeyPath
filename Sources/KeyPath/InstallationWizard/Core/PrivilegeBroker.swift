@@ -49,5 +49,30 @@ public struct PrivilegeBroker: Sendable {
     public func repairVHIDDaemonServices() async throws {
         try await coordinator.repairVHIDDaemonServices()
     }
+
+    /// Install bundled Kanata binary
+    public func installBundledKanata() async throws {
+        try await coordinator.installBundledKanata()
+    }
+
+    /// Activate VirtualHID Manager
+    public func activateVirtualHIDManager() async throws {
+        try await coordinator.activateVirtualHIDManager()
+    }
+
+    /// Terminate a process by PID
+    public func terminateProcess(pid: Int32) async throws {
+        try await coordinator.terminateProcess(pid: pid)
+    }
+
+    /// Kill all Kanata processes
+    public func killAllKanataProcesses() async throws {
+        try await coordinator.killAllKanataProcesses()
+    }
+
+    /// Restart Karabiner daemon with verification
+    public func restartKarabinerDaemonVerified() async throws -> Bool {
+        try await coordinator.restartKarabinerDaemonVerified()
+    }
 }
 

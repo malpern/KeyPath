@@ -24,6 +24,9 @@ public struct KeyPathApp: App {
         AppLogger.shared.info("🏷️ [Build] Version: \(info.version) | Build: \(info.build) | Git: \(info.git) | Date: \(info.date)")
         AppLogger.shared.debug("📦 [Bundle] Path: \(Bundle.main.bundlePath)")
 
+        // Verify running process signature matches installed bundle (catches failed restarts)
+        SignatureHealthCheck.verifySignatureConsistency()
+
         // Enable auto-trigger recording when launched with --autotrigger (in-memory flag)
         if args.contains("--autotrigger") {
             FeatureFlags.shared.setAutoTriggerEnabled(true)
