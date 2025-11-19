@@ -330,7 +330,7 @@
 - [x] Full `swift test` run + docs updated; ready to start caller migration work
 
 ### CLI Migration
-- **Entry Point Inventory (2025-11-19)**
+- **Entry Point Inventory (2025-11-19)** ✅ (kept here for reference)
   | Script / Binary | Current Behavior | Notes |
   | --- | --- | --- |
   | `install-system.sh` | Builds `KeyPath` SwiftPM product, runs `KeyPath install` | Calls CLI mode inside GUI binary (no UI due to early exit). Needs switch to standalone CLI product once available. |
@@ -339,18 +339,18 @@
   | `Scripts/test-hot-reload.sh` | Emits “Install the system first: sudo ./install-system.sh install” | Documentation string only; no automation. |
   | `Scripts/validate-project.sh` | Step 4 instructs `sudo ./install-system.sh install` | Pure documentation. |
   | `KeyPath` binary (`Main.swift`) | Detects CLI commands and exits before SwiftUI | Temporary bridge until standalone CLI target compiles. |
-- [ ] **Identify CLI entry points**:
-  - [ ] Find all CLI scripts that call installer code
-  - [ ] Document current behavior
+- [x] **Identify CLI entry points**:
+  - [x] Find all CLI scripts that call installer code (table above)
+  - [x] Document current behavior / dependencies
 - [ ] **Migrate CLI to façade**:
-  - [ ] Replace direct calls with façade methods
-  - [ ] Update error handling
-  - [ ] Update output formatting
-  - [ ] Test CLI commands still work
+  - [x] Route `status`/`inspect` commands through `InstallerEngine.inspectSystem()` (was using old `SystemValidator`)
+  - [ ] Update error handling / output formatting for remaining commands
+  - [ ] Call standalone CLI binary from shell scripts (replace GUI executable fallback)
+  - [ ] Expand uninstall flow to façade once ready
 - [ ] **Add CLI tests**:
-  - [ ] Test CLI commands with façade
-  - [ ] Verify output format
-  - [ ] Verify error messages
+  - [x] Add façade-backed CLI unit tests (`Tests/KeyPathTests/CLI/KeyPathCLITests.swift`)
+  - [ ] Verify output format / human-readable guidance
+  - [ ] Verify error messages for failure scenarios
 
 ### GUI Migration
 - [ ] **Identify GUI entry points**:
@@ -460,8 +460,8 @@
 
 ---
 
-**Last Updated:** 2025-11-18
-**Status:** Phase 5 Complete ✅
+**Last Updated:** 2025-11-19
+**Status:** Phase 5 Complete ✅ (Phase 6 in progress)
 
 ---
 
