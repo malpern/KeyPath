@@ -84,10 +84,15 @@ final class VHIDDeviceManager: @unchecked Sendable {
     }
 
     private func evaluateDaemonProcess() -> DaemonHealthState {
-        // Skip daemon check during startup to prevent blocking
+        // During startup mode, use fast non-blocking check to avoid false negatives
+        // while still preventing UI freezes from Process() execution
         if FeatureFlags.shared.startupModeActive {
-            AppLogger.shared.log("🔍 [VHIDManager] Startup mode - skipping VHIDDevice process check to prevent UI freeze")
-            return .notRunning
+            AppLogger.shared.log("🔍 [VHIDManager] Startup mode - using fast launchctl check to prevent UI freeze")
+            // Use launchctl list which is much faster than pgrep and doesn't block UI
+            let result = shell("/bin/launchctl list com.keypath.karabiner-vhiddaemon")
+            let isRunning = result.contains("\"PID\"")
+            AppLogger.shared.log("🔍 [VHIDManager] Startup mode fast check: daemon \(isRunning ? "running" : "not running")")
+            return isRunning ? .healthy : .notRunning
         }
 
         // Test seam: allow mocked PID list in tests
@@ -518,6 +523,30 @@ final class VHIDDeviceManager: @unchecked Sendable {
             daemonRunning: running,
             connectionHealthy: connectionHealthy
         )
+    }
+
+    // MARK: - Helper Functions
+
+    /// Fast shell command execution for startup mode health checks
+    /// Uses Process instead of capturing stdout for better performance
+    private func shell(_ command: String) -> String {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", command]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8) ?? ""
+        } catch {
+            return ""
+        }
     }
 }
 
