@@ -65,7 +65,8 @@ class PermissionService {
 
     /// Legacy method stub - use Oracle instead
     func verifyKanataFunctionalPermissions(at _: String)
-        -> (hasInputMonitoring: Bool, hasAccessibility: Bool, confidence: String, verificationMethod: String, hasAllRequiredPermissions: Bool, errorDetails: [String]) {
+        -> (hasInputMonitoring: Bool, hasAccessibility: Bool, confidence: String, verificationMethod: String, hasAllRequiredPermissions: Bool, errorDetails: [String])
+    {
         (hasInputMonitoring: false, hasAccessibility: false, confidence: "low", verificationMethod: "oracle-migration-stub", hasAllRequiredPermissions: false, errorDetails: [])
     }
 

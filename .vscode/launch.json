@@ -59,6 +59,26 @@
             "preLaunchTask": "swift: Build Release smappservice-poc",
             "target": "smappservice-poc",
             "configuration": "release"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:KeyPath}",
+            "name": "Debug keypath-cli",
+            "target": "keypath-cli",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug keypath-cli"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:KeyPath}",
+            "name": "Release keypath-cli",
+            "target": "keypath-cli",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release keypath-cli"
         }
     ]
 }

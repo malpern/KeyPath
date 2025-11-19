@@ -108,16 +108,16 @@ public enum RuleCollectionIdentifier {
     public static let customMappings = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 }
 
-public extension Sequence where Element == RuleCollection {
+public extension Sequence<RuleCollection> {
     /// Returns only the mappings belonging to enabled collections.
     func enabledMappings() -> [KeyMapping] {
-        self.flatMap { collection in
+        flatMap { collection in
             collection.isEnabled ? collection.mappings : []
         }
     }
 }
 
-extension Array where Element == RuleCollection {
+extension [RuleCollection] {
     /// Convenience helper to find and update a collection in-place.
     mutating func updateCollection(_ collection: RuleCollection) {
         if let index = firstIndex(where: { $0.id == collection.id }) {
@@ -151,7 +151,7 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
         switch self {
         case .base: "base"
         case .navigation: "navigation"
-        case .custom(let name): name.lowercased()
+        case let .custom(name): name.lowercased()
         }
     }
 
@@ -159,7 +159,7 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
         switch self {
         case .base: "Base"
         case .navigation: "Navigation"
-        case .custom(let name): name.capitalized
+        case let .custom(name): name.capitalized
         }
     }
 

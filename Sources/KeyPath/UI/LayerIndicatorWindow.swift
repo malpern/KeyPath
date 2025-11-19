@@ -1,6 +1,6 @@
-import SwiftUI
 import AppKit
 import KeyPathCore
+import SwiftUI
 
 /// Floating window that displays the current layer name
 class LayerIndicatorWindow: NSWindow {
@@ -17,7 +17,7 @@ class LayerIndicatorWindow: NSWindow {
         // Window configuration
         isOpaque = false
         backgroundColor = .clear
-        level = .floating  // Appears above all other windows
+        level = .floating // Appears above all other windows
         collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         isMovable = false
         hasShadow = true
@@ -25,8 +25,8 @@ class LayerIndicatorWindow: NSWindow {
         // Position at top-right of screen
         if let screen = NSScreen.main {
             let screenFrame = screen.visibleFrame
-            let x = screenFrame.maxX - 220  // 20px from right edge
-            let y = screenFrame.maxY - 80   // 20px from top edge
+            let x = screenFrame.maxX - 220 // 20px from right edge
+            let y = screenFrame.maxY - 80 // 20px from top edge
             setFrameOrigin(NSPoint(x: x, y: y))
         }
 
@@ -56,14 +56,14 @@ class LayerIndicatorWindow: NSWindow {
 
     @MainActor
     private func hideWithFadeOut() {
-        NSAnimationContext.runAnimationGroup({ context in
+        NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.5
             animator().alphaValue = 0.0
-        }, completionHandler: {
+        } completionHandler: {
             Task { @MainActor in
                 self.orderOut(nil)
             }
-        })
+        }
     }
 }
 

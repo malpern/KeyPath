@@ -60,43 +60,43 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "l", output: "right"),
 
                 // Word navigation
-                KeyMapping(input: "w", output: "M-right"),      // Word forward
-                KeyMapping(input: "b", output: "M-left"),       // Word backward
-                KeyMapping(input: "e", output: "M-right"),      // Word end (same as w on macOS)
+                KeyMapping(input: "w", output: "M-right"), // Word forward
+                KeyMapping(input: "b", output: "M-left"), // Word backward
+                KeyMapping(input: "e", output: "M-right"), // Word end (same as w on macOS)
 
                 // Line navigation
-                KeyMapping(input: "0", output: "C-M-left"),     // Line start (Cmd-Left)
-                KeyMapping(input: "4", output: "C-M-right"),    // Line end (Cmd-Right) - $ key
+                KeyMapping(input: "0", output: "C-M-left"), // Line start (Cmd-Left)
+                KeyMapping(input: "4", output: "C-M-right"), // Line end (Cmd-Right) - $ key
 
                 // Document navigation
-                KeyMapping(input: "g", output: "C-M-up"),       // Document start (Cmd-Up) - use gg
-                KeyMapping(input: "S-g", output: "C-M-down"),   // Document end (Cmd-Down) - G
+                KeyMapping(input: "g", output: "C-M-up"), // Document start (Cmd-Up) - use gg
+                KeyMapping(input: "S-g", output: "C-M-down"), // Document end (Cmd-Down) - G
 
                 // Page navigation
-                KeyMapping(input: "C-u", output: "pgup"),       // Page up (Ctrl+u in Vim)
-                KeyMapping(input: "C-d", output: "pgdn"),       // Page down (Ctrl+d in Vim)
+                KeyMapping(input: "C-u", output: "pgup"), // Page up (Ctrl+u in Vim)
+                KeyMapping(input: "C-d", output: "pgdn"), // Page down (Ctrl+d in Vim)
 
                 // Text selection (visual mode - hold Shift for selection)
-                KeyMapping(input: "S-h", output: "S-left"),           // Select character left
-                KeyMapping(input: "S-j", output: "S-down"),           // Select line down
-                KeyMapping(input: "S-k", output: "S-up"),             // Select line up
-                KeyMapping(input: "S-l", output: "S-right"),          // Select character right
-                KeyMapping(input: "S-w", output: "S-M-right"),        // Select word forward
-                KeyMapping(input: "S-b", output: "S-M-left"),         // Select word backward
-                KeyMapping(input: "S-0", output: "S-C-M-left"),       // Select to line start
-                KeyMapping(input: "S-4", output: "S-C-M-right"),      // Select to line end (Shift+$)
-                KeyMapping(input: "S-g", output: "S-C-M-up"),         // Select to document start
-                KeyMapping(input: "S-S-g", output: "S-C-M-down"),     // Select to document end (Shift+G)
+                KeyMapping(input: "S-h", output: "S-left"), // Select character left
+                KeyMapping(input: "S-j", output: "S-down"), // Select line down
+                KeyMapping(input: "S-k", output: "S-up"), // Select line up
+                KeyMapping(input: "S-l", output: "S-right"), // Select character right
+                KeyMapping(input: "S-w", output: "S-M-right"), // Select word forward
+                KeyMapping(input: "S-b", output: "S-M-left"), // Select word backward
+                KeyMapping(input: "S-0", output: "S-C-M-left"), // Select to line start
+                KeyMapping(input: "S-4", output: "S-C-M-right"), // Select to line end (Shift+$)
+                KeyMapping(input: "S-g", output: "S-C-M-up"), // Select to document start
+                KeyMapping(input: "S-S-g", output: "S-C-M-down"), // Select to document end (Shift+G)
 
                 // Copy/paste (yank/put)
-                KeyMapping(input: "y", output: "C-M-c"),        // Yank (copy) - Cmd+C
-                KeyMapping(input: "p", output: "C-M-v"),        // Put (paste) - Cmd+V
+                KeyMapping(input: "y", output: "C-M-c"), // Yank (copy) - Cmd+C
+                KeyMapping(input: "p", output: "C-M-v"), // Put (paste) - Cmd+V
 
                 // Editing
-                KeyMapping(input: "x", output: "del"),          // Delete character
-                KeyMapping(input: "d", output: "M-bspc"),       // Delete word backward
-                KeyMapping(input: "u", output: "C-M-z"),        // Undo (Cmd-Z)
-                KeyMapping(input: "C-r", output: "C-M-S-z")     // Redo (Cmd-Shift-Z)
+                KeyMapping(input: "x", output: "del"), // Delete character
+                KeyMapping(input: "d", output: "M-bspc"), // Delete word backward
+                KeyMapping(input: "u", output: "C-M-z"), // Undo (Cmd-Z)
+                KeyMapping(input: "C-r", output: "C-M-S-z") // Redo (Cmd-Shift-Z)
             ],
             isEnabled: false,
             isSystemDefault: false,
@@ -115,12 +115,12 @@ struct RuleCollectionCatalog {
             summary: "Quick access to Mission Control, App Exposé, and Desktop switching.",
             category: .navigation,
             mappings: [
-                KeyMapping(input: "C-M-A-up", output: "C-up"),        // Mission Control
-                KeyMapping(input: "C-M-A-down", output: "C-down"),    // App Exposé
-                KeyMapping(input: "C-M-A-left", output: "C-left"),    // Previous Desktop
-                KeyMapping(input: "C-M-A-right", output: "C-right"),  // Next Desktop
-                KeyMapping(input: "C-M-A-d", output: "f11"),          // Show Desktop
-                KeyMapping(input: "C-M-A-n", output: "C-S-n")         // Notification Center
+                KeyMapping(input: "C-M-A-up", output: "C-up"), // Mission Control
+                KeyMapping(input: "C-M-A-down", output: "C-down"), // App Exposé
+                KeyMapping(input: "C-M-A-left", output: "C-left"), // Previous Desktop
+                KeyMapping(input: "C-M-A-right", output: "C-right"), // Next Desktop
+                KeyMapping(input: "C-M-A-d", output: "f11"), // Show Desktop
+                KeyMapping(input: "C-M-A-n", output: "C-S-n") // Notification Center
             ],
             isEnabled: false,
             isSystemDefault: false,

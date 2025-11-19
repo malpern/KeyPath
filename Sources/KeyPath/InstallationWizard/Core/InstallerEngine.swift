@@ -1,8 +1,8 @@
 import Foundation
 import KeyPathCore
-import KeyPathWizardCore
-import KeyPathPermissions
 import KeyPathDaemonLifecycle
+import KeyPathPermissions
+import KeyPathWizardCore
 
 /// Façade for installer operations
 /// Provides a simple, unified API for installation, repair, and uninstallation
@@ -24,10 +24,10 @@ public final class InstallerEngine {
         let processManager = ProcessLifecycleManager()
 
         // Create SystemValidator (stateless, can be reused)
-        self.systemValidator = SystemValidator(processLifecycleManager: processManager)
+        systemValidator = SystemValidator(processLifecycleManager: processManager)
 
         // Create SystemRequirements instance
-        self.systemRequirements = SystemRequirements()
+        systemRequirements = SystemRequirements()
 
         AppLogger.shared.log("🔧 [InstallerEngine] Initialized")
     }
@@ -148,16 +148,16 @@ public final class InstallerEngine {
     private func determineActions(for intent: InstallIntent, context: SystemContext) -> [AutoFixAction] {
         switch intent {
         case .inspectOnly:
-            return [] // No actions for inspection
+            [] // No actions for inspection
 
         case .install:
-            return determineInstallActions(context: context)
+            determineInstallActions(context: context)
 
         case .repair:
-            return determineRepairActions(context: context)
+            determineRepairActions(context: context)
 
         case .uninstall:
-            return determineUninstallActions(context: context)
+            determineUninstallActions(context: context)
         }
     }
 
@@ -242,10 +242,10 @@ public final class InstallerEngine {
     }
 
     /// Determine actions needed for uninstall
-    private func determineUninstallActions(context: SystemContext) -> [AutoFixAction] {
+    private func determineUninstallActions(context _: SystemContext) -> [AutoFixAction] {
         // Uninstall is handled differently - we'll implement this in Phase 4
         // For now, return empty (uninstall logic is in UninstallCoordinator)
-        return []
+        []
     }
 
     // MARK: - Recipe Generation
@@ -264,7 +264,7 @@ public final class InstallerEngine {
     }
 
     /// Convert an AutoFixAction to a ServiceRecipe
-    private func recipeForAction(_ action: AutoFixAction, context: SystemContext) -> ServiceRecipe? {
+    private func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe? {
         switch action {
         case .installLaunchDaemonServices:
             return ServiceRecipe(
@@ -350,7 +350,7 @@ public final class InstallerEngine {
     private func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
         // Simple topological sort - for now, just return in order
         // TODO: Implement proper dependency resolution if needed
-        return recipes
+        recipes
     }
 
     // MARK: - Helper Methods
@@ -359,9 +359,9 @@ public final class InstallerEngine {
     private func actionNeedsPrompt(_ action: AutoFixAction) -> Bool {
         switch action {
         case .installPrivilegedHelper, .reinstallPrivilegedHelper:
-            return true // May need SMAppService approval
+            true // May need SMAppService approval
         default:
-            return false
+            false
         }
     }
 
@@ -372,7 +372,7 @@ public final class InstallerEngine {
         AppLogger.shared.log("⚙️ [InstallerEngine] Starting execute(plan:, using:)")
 
         // Check if plan is blocked
-        if case .blocked(let requirement) = plan.status {
+        if case let .blocked(requirement) = plan.status {
             AppLogger.shared.log("⚠️ [InstallerEngine] Plan is blocked by requirement: \(requirement.name)")
             return InstallerReport(
                 success: false,
@@ -469,7 +469,7 @@ public final class InstallerEngine {
     }
 
     /// Execute installService recipe
-    private func executeInstallService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+    private func executeInstallService(_: ServiceRecipe, using broker: PrivilegeBroker) async throws {
         // Install all LaunchDaemon services
         // Note: Individual service installation would require plistPath, which isn't in recipe yet
         try await broker.installAllLaunchDaemonServices()
@@ -512,7 +512,7 @@ public final class InstallerEngine {
     }
 
     /// Execute writeConfig recipe
-    private func executeWriteConfig(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
+    private func executeWriteConfig(_ recipe: ServiceRecipe, using _: PrivilegeBroker) async throws {
         // Write config recipes not yet implemented
         // Would write plistContent to appropriate location
         AppLogger.shared.log("⚠️ [InstallerEngine] writeConfig recipe not yet implemented: \(recipe.id)")
@@ -563,11 +563,10 @@ enum InstallerError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .healthCheckFailed(let message):
-            return message
-        case .unknownRecipe(let message):
-            return message
+        case let .healthCheckFailed(message):
+            message
+        case let .unknownRecipe(message):
+            message
         }
     }
 }
-

@@ -188,13 +188,34 @@ func openConfigInEditor(viewModel: KanataViewModel) {
 
 @MainActor
 private func openPreferencesTab(_ notification: Notification.Name) {
-    // macOS 13+: Use showSettingsWindow, older: showPreferencesWindow
+    AppLogger.shared.log("🎯 [App] Opening preferences tab: \(notification.rawValue)")
+
+    // Post notification first to ensure tab switches when window opens
+    NotificationCenter.default.post(name: notification, object: nil)
+
+    // macOS 14+: The Settings menu item is automatically created by SwiftUI
+    // Find it in the app menu and trigger it programmatically
+    if let appMenu = NSApp.mainMenu?.items.first?.submenu {
+        for item in appMenu.items {
+            // Look for the "Settings..." menu item (standard name on macOS)
+            if item.title.contains("Settings") || item.title.contains("Preferences") {
+                AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.sendAction(item.action!, to: item.target, from: item)
+                return
+            }
+        }
+    }
+
+    AppLogger.shared.log("⚠️ [App] Could not find Settings menu item, trying fallback")
+
+    // Fallback: Use the selector method (works on macOS 13 and earlier)
+    NSApp.activate(ignoringOtherApps: true)
     if #available(macOS 13, *) {
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     } else {
         NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
     }
-    NotificationCenter.default.post(name: notification, object: nil)
 }
 
 @MainActor

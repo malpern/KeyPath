@@ -754,9 +754,19 @@ class LaunchDaemonInstaller {
 
             var healthy = false
             if isOneShot {
-                // One-shot: OK if clean exit or (still running) or within warm-up window
-                if let lastExit, lastExit == 0 { healthy = true } else if isRunningLike || hasPID { healthy = true } else if inWarmup { healthy = true } // starting up
-                else { healthy = false }
+                // One-shot services run once and exit - this is normal behavior
+                if let lastExit {
+                    // If we have exit status, it must be clean (0)
+                    healthy = (lastExit == 0)
+                } else if isRunningLike || hasPID || inWarmup {
+                    // Service currently running or starting up
+                    healthy = true
+                } else {
+                    // No exit status and not running - assume it ran successfully
+                    // This is normal for one-shot services that run at boot
+                    AppLogger.shared.log("🔍 [LaunchDaemon] One-shot service \(serviceID) not running (normal) - assuming healthy")
+                    healthy = true
+                }
             } else {
                 // KeepAlive jobs should be running. Allow starting states or warm-up.
                 if isRunningLike || hasPID { healthy = true } else if inWarmup { healthy = true } // starting up
@@ -1111,7 +1121,8 @@ class LaunchDaemonInstaller {
 
     /// Execute LaunchDaemon installation with administrator privileges using osascript
     private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-        -> Bool {
+        -> Bool
+    {
         AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
         // Create the command to copy the file and set proper permissions

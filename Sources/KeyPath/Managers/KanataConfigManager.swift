@@ -159,7 +159,8 @@ class KanataConfigManager {
 
     /// Create configuration from mappings
     func createConfiguration(mappings: [KeyMapping], source: ConfigMetadata.ConfigSource = .user)
-        -> ConfigurationSet {
+        -> ConfigurationSet
+    {
         AppLogger.shared.log("⚙️ [ConfigManager] Creating configuration with \(mappings.count) mappings")
 
         let generatedConfig = generateKanataConfig(mappings: mappings)
@@ -514,12 +515,3 @@ class KanataConfigManager {
 }
 
 // MARK: - Error Types
-
-/// Configuration manager errors
-///
-/// - Deprecated: Use `KeyPathError.configuration(...)` instead for consistent error handling
-@available(*, deprecated, message: "Use KeyPathError.configuration(...) instead")
-enum KanataConfigManagerError: Error {
-    // This enum is deprecated - use KeyPathError instead
-    case deprecated
-}

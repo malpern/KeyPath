@@ -54,7 +54,7 @@ actor ReloadSafetyMonitor {
     /// - Parameters:
     ///   - currentPID: The current daemon PID (if known)
     /// - Returns: SafetyCheck result with reasoning
-    func checkReloadSafety(currentPID: Int?) -> SafetyCheck {
+    func checkReloadSafety(currentPID _: Int?) -> SafetyCheck {
         let now = Date()
 
         // Check 1: Crash loop backoff

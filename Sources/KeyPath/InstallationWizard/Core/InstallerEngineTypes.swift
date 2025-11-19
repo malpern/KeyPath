@@ -1,7 +1,7 @@
 import Foundation
 import KeyPathCore
-import KeyPathWizardCore
 import KeyPathPermissions
+import KeyPathWizardCore
 
 // MARK: - Install Intent
 
@@ -35,7 +35,7 @@ public struct Requirement: Sendable, Equatable {
     public let name: String
     /// Current state
     public let status: RequirementStatus
-    
+
     public init(name: String, status: RequirementStatus) {
         self.name = name
         self.status = status
@@ -61,7 +61,7 @@ public struct SystemContext: Sendable {
     public let system: EngineSystemInfo
     /// When this snapshot was taken
     public let timestamp: Date
-    
+
     public init(
         permissions: PermissionOracle.Snapshot,
         services: HealthStatus,
@@ -87,7 +87,7 @@ public struct EngineSystemInfo: Sendable, Equatable {
     public let macOSVersion: String
     /// Driver compatibility status
     public let driverCompatible: Bool
-    
+
     public init(macOSVersion: String, driverCompatible: Bool) {
         self.macOSVersion = macOSVersion
         self.driverCompatible = driverCompatible
@@ -126,7 +126,7 @@ public struct HealthCheckCriteria: Sendable, Equatable {
     public let serviceID: String
     /// Whether service should be running
     public let shouldBeRunning: Bool
-    
+
     public init(serviceID: String, shouldBeRunning: Bool) {
         self.serviceID = serviceID
         self.shouldBeRunning = shouldBeRunning
@@ -149,7 +149,7 @@ public struct ServiceRecipe: Sendable, Equatable {
     public let healthCheck: HealthCheckCriteria?
     /// IDs of recipes that must complete first
     public let dependencies: [String]
-    
+
     public init(
         id: String,
         type: RecipeType,
@@ -185,7 +185,7 @@ public struct PlanMetadata: Sendable, Equatable {
     public let needsReboot: Bool
     /// Whether user prompts are needed
     public let promptsNeeded: Bool
-    
+
     public init(needsReboot: Bool = false, promptsNeeded: Bool = false) {
         self.needsReboot = needsReboot
         self.promptsNeeded = promptsNeeded
@@ -204,7 +204,7 @@ public struct InstallPlan: Sendable, Equatable {
     public let blockedBy: Requirement?
     /// Additional info
     public let metadata: PlanMetadata
-    
+
     public init(
         recipes: [ServiceRecipe],
         status: PlanStatus,
@@ -232,7 +232,7 @@ public struct RecipeResult: Sendable, Equatable {
     public let error: String?
     /// How long it took (seconds)
     public let duration: TimeInterval
-    
+
     public init(recipeID: String, success: Bool, error: String? = nil, duration: TimeInterval = 0) {
         self.recipeID = recipeID
         self.success = success
@@ -256,7 +256,7 @@ public struct InstallerReport: Sendable {
     public let executedRecipes: [RecipeResult]
     /// System state after execution (if available)
     public let finalContext: SystemContext?
-    
+
     public init(
         timestamp: Date = Date(),
         success: Bool,
@@ -273,4 +273,3 @@ public struct InstallerReport: Sendable {
         self.finalContext = finalContext
     }
 }
-

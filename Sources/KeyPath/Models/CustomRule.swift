@@ -61,9 +61,9 @@ public extension CustomRule {
     }
 }
 
-public extension Sequence where Element == CustomRule {
+public extension Sequence<CustomRule> {
     func enabledMappings() -> [KeyMapping] {
-        self.filter { $0.isEnabled }.map { $0.asKeyMapping() }
+        filter(\.isEnabled).map { $0.asKeyMapping() }
     }
 
     func asRuleCollections() -> [RuleCollection] {

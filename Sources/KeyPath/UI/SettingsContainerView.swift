@@ -458,7 +458,6 @@ struct AdvancedSettingsTabView: View {
         }
     }
 
-
     // MARK: - Actions
 
     private func refreshHelperStatus() async {

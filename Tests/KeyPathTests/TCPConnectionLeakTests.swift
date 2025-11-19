@@ -78,10 +78,11 @@ final class TCPConnectionLeakTests: XCTestCase {
         guard await serverReachable() else { throw XCTSkip("TCP server not running") }
 
         // Create multiple concurrent connections
-        await withTaskGroup(of: Bool.self) { group in
+        let testPort = self.port  // Capture port locally for Swift 6 concurrency
+        let succeeded = await withTaskGroup(of: Bool.self) { group in
             for _ in 0..<20 {
                 group.addTask {
-                    let client = KanataTCPClient(port: self.port)
+                    let client = KanataTCPClient(port: testPort)
                     do {
                         _ = try await client.hello()
                         return true
@@ -91,16 +92,17 @@ final class TCPConnectionLeakTests: XCTestCase {
                 }
             }
 
-            var succeeded = 0
+            var count = 0
             for await result in group {
                 if result {
-                    succeeded += 1
+                    count += 1
                 }
             }
-
-            XCTAssertGreaterThanOrEqual(succeeded, 15,
-                                       "Most concurrent connections should succeed: \(succeeded)/20")
+            return count
         }
+
+        XCTAssertGreaterThanOrEqual(succeeded, 15,
+                                   "Most concurrent connections should succeed: \(succeeded)/20")
 
         // Verify server is still responsive
         let finalClient = KanataTCPClient(port: port)
@@ -145,11 +147,10 @@ final class TCPConnectionLeakTests: XCTestCase {
             } catch {
                 failures += 1
                 // If we start getting "Too many open files" errors, the cleanup isn't working
-                if let errorDesc = error as? CustomStringConvertible {
-                    if errorDesc.description.contains("Too many") {
-                        XCTFail("File descriptor leak detected at connection \(i): \(error)")
-                        return
-                    }
+                let errorDesc = String(describing: error)
+                if errorDesc.contains("Too many") {
+                    XCTFail("File descriptor leak detected at connection \(i): \(error)")
+                    return
                 }
             }
 

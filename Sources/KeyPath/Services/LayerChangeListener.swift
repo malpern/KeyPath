@@ -15,11 +15,11 @@ actor LayerChangeListener {
         if self.port == port, listenTask != nil { return }
         await stop()
         self.port = port
-        handler = onLayerChange  // Set handler AFTER stop() to avoid it being cleared
+        handler = onLayerChange // Set handler AFTER stop() to avoid it being cleared
         AppLogger.shared.log("🌐 [LayerListener] Starting layer listener on port \(port)")
         listenTask = Task(priority: .background) { [weak self] in
             guard let self else { return }
-            await self.listenLoop()
+            await listenLoop()
         }
     }
 
@@ -64,7 +64,7 @@ actor LayerChangeListener {
             guard let self, let connection else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 500_000_000)
-                try? await self.send(jsonObject: ["RequestCurrentLayerName": [:] as [String: String]], over: connection)
+                try? await send(jsonObject: ["RequestCurrentLayerName": [:] as [String: String]], over: connection)
             }
         }
 
@@ -78,11 +78,11 @@ actor LayerChangeListener {
             buffer.append(chunk)
 
             while let newlineIndex = buffer.firstIndex(of: 0x0A) {
-                var lineData = buffer.subdata(in: 0..<newlineIndex)
+                var lineData = buffer.subdata(in: 0 ..< newlineIndex)
                 if let last = lineData.last, last == 0x0D {
                     lineData.removeLast()
                 }
-                buffer.removeSubrange(0...newlineIndex)
+                buffer.removeSubrange(0 ... newlineIndex)
                 guard !lineData.isEmpty else { continue }
                 if let line = String(data: lineData, encoding: .utf8) {
                     await handleLine(line)

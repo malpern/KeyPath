@@ -94,7 +94,8 @@ struct WizardSystemStatusOverview: View {
             // Aggressively disable focus ring on underlying NSView
             DispatchQueue.main.async {
                 if let window = NSApp.keyWindow,
-                   let contentView = window.contentView {
+                   let contentView = window.contentView
+                {
                     disableFocusRings(in: contentView)
                 }
             }
@@ -219,7 +220,26 @@ struct WizardSystemStatusOverview: View {
     private var statusItems: [StatusItemModel] {
         var items: [StatusItemModel] = []
 
-        // 1. Privileged Helper (FIRST - required for system operations)
+        // 1. Kanata Service (FIRST - primary system status)
+        let serviceStatus = getServiceStatus()
+        let serviceNavigation = getServiceNavigationTarget()
+        let serviceIssues = issues.filter { issue in
+            // Daemon and service issues
+            issue.category == .daemon
+        }
+        items.append(
+            StatusItemModel(
+                id: "kanata-service",
+                icon: "app.badge.checkmark",
+                title: "Kanata Service",
+                subtitle: serviceStatus == .failed ? "Fix permissions to enable service" : (kanataIsRunning ? "Running" : nil),
+                status: serviceStatus,
+                isNavigable: true,
+                targetPage: serviceNavigation.page,
+                relatedIssues: serviceIssues
+            ))
+
+        // 2. Privileged Helper (required for system operations)
         let helperIssues = issues.filter { issue in
             if case let .component(req) = issue.identifier {
                 return req == .privilegedHelper || req == .privilegedHelperUnhealthy
@@ -267,7 +287,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: helperIssues
             ))
 
-        // 2. Full Disk Access (Optional but recommended)
+        // 3. Full Disk Access (Optional but recommended)
         let hasFullDiskAccess = checkFullDiskAccess()
         let fullDiskAccessStatus: InstallationStatus = {
             if systemState == .initializing {
@@ -285,7 +305,7 @@ struct WizardSystemStatusOverview: View {
                 targetPage: .fullDiskAccess
             ))
 
-        // 3. System Conflicts
+        // 4. System Conflicts
         let conflictIssues = issues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = {
             if systemState == .initializing {
@@ -304,7 +324,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: conflictIssues
             ))
 
-        // 4. Input Monitoring Permission
+        // 5. Input Monitoring Permission
         let inputMonitoringStatus = getInputMonitoringStatus()
         let inputMonitoringIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
@@ -323,7 +343,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: inputMonitoringIssues
             ))
 
-        // 5. Accessibility Permission
+        // 6. Accessibility Permission
         let accessibilityStatus = getAccessibilityStatus()
         let accessibilityIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
@@ -342,7 +362,7 @@ struct WizardSystemStatusOverview: View {
                 relatedIssues: accessibilityIssues
             ))
 
-        // 6. Karabiner Driver Setup
+        // 7. Karabiner Driver Setup
         let karabinerStatus = getKarabinerComponentsStatus()
         let karabinerIssues = issues.filter { issue in
             // Filter for installation issues related to Karabiner driver
@@ -362,7 +382,7 @@ struct WizardSystemStatusOverview: View {
         // Check dependency requirements for remaining items
         let prerequisitesMet = shouldShowDependentItems()
 
-        // 7. Kanata Engine Setup (hidden if Karabiner Driver not completed)
+        // 8. Kanata Engine Setup (hidden if Karabiner Driver not completed)
         if prerequisitesMet.showKanataEngineItem {
             let kanataComponentsStatus = getKanataComponentsStatus()
             let kanataComponentsIssues = issues.filter { issue in
@@ -381,27 +401,6 @@ struct WizardSystemStatusOverview: View {
                     isNavigable: true,
                     targetPage: .kanataComponents,
                     relatedIssues: kanataComponentsIssues
-                ))
-        }
-
-        // 8. Start Keyboard Service (hidden if Kanata Engine Setup not completed)
-        if prerequisitesMet.showServiceItem {
-            let serviceStatus = getServiceStatus()
-            let serviceNavigation = getServiceNavigationTarget()
-            let serviceIssues = issues.filter { issue in
-                // Daemon and service issues
-                issue.category == .daemon
-            }
-            items.append(
-                StatusItemModel(
-                    id: "service",
-                    icon: "gearshape.2",
-                    title: "Kanata Service",
-                    subtitle: serviceStatus == .failed ? "Fix permissions to enable service" : nil,
-                    status: serviceStatus,
-                    isNavigable: true,
-                    targetPage: serviceNavigation.page,
-                    relatedIssues: serviceIssues
                 ))
         }
 
@@ -449,7 +448,6 @@ struct WizardSystemStatusOverview: View {
 
     private struct DependencyVisibility {
         let showKanataEngineItem: Bool
-        let showServiceItem: Bool
         let showCommunicationItem: Bool
     }
 
@@ -457,27 +455,11 @@ struct WizardSystemStatusOverview: View {
         // Prerequisites for Kanata Engine Setup:
         // - Karabiner Driver Setup must be completed (Kanata requires VirtualHID driver)
         let karabinerDriverCompleted = getKarabinerComponentsStatus() == .completed
-        // Prerequisites for Service item:
-        // - Kanata Engine Setup must be completed
-        // - Privileged Helper must be healthy (installed and not unhealthy)
-        // - Input Monitoring AND Accessibility permissions must be completed
-        let kanataEngineCompleted = getKanataComponentsStatus() == .completed
-        let helperNotInstalled = issues.contains {
-            if case let .component(req) = $0.identifier { return req == .privilegedHelper }
-            return false
-        }
-        let helperUnhealthy = issues.contains {
-            if case let .component(req) = $0.identifier { return req == .privilegedHelperUnhealthy }
-            return false
-        }
-        let helperCompleted = !helperNotInstalled && !helperUnhealthy && systemState != .initializing
-        let permissionsOk = (getInputMonitoringStatus() == .completed) && (getAccessibilityStatus() == .completed)
-        let serviceAvailable = kanataEngineCompleted && helperCompleted && permissionsOk
 
+        // Communication item shown when Kanata is running
         return DependencyVisibility(
             showKanataEngineItem: karabinerDriverCompleted,
-            showServiceItem: serviceAvailable,
-            showCommunicationItem: serviceAvailable && kanataIsRunning
+            showCommunicationItem: kanataIsRunning
         )
     }
 
@@ -745,14 +727,39 @@ private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
     let start = Date()
     var buffer = [UInt8](repeating: 0, count: 2048)
     var received = Data()
+    var linesChecked = Set<String>() // Track which lines we've already processed
+
     while Date().timeIntervalSince(start) * 1000.0 < Double(timeoutMs) {
         let n = input.read(&buffer, maxLength: buffer.count)
         if n > 0 {
             received.append(buffer, count: n)
             if let s = String(data: received, encoding: .utf8) {
-                // Expect Ok + HelloOk JSON, and require "status" capability
-                if s.contains("\"HelloOk\""), s.contains("\"status\"") { return true }
-                if s.contains("unknown variant") { return false } // old server
+                // Process all lines, skipping unsolicited broadcasts
+                let lines = s.split(separator: "\n").map { String($0) }
+                for line in lines where !linesChecked.contains(line) {
+                    linesChecked.insert(line)
+
+                    // Skip unsolicited broadcasts (LayerChange, ConfigFileReload, etc.)
+                    if line.contains("\"LayerChange\"") || line.contains("\"ConfigFileReload\"") ||
+                        line.contains("\"MessagePush\"") || line.contains("\"Ready\"") ||
+                        line.contains("\"ConfigError\"")
+                    {
+                        continue // Skip this line, read next
+                    }
+
+                    // Check for HelloOk with capabilities
+                    if line.contains("\"HelloOk\""),
+                       let lineData = line.data(using: .utf8),
+                       let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
+                       let helloObj = json["HelloOk"] as? [String: Any],
+                       let caps = helloObj["capabilities"] as? [String],
+                       caps.contains("status")
+                    {
+                        return true
+                    }
+
+                    if line.contains("unknown variant") { return false } // old server
+                }
             }
         } else {
             Thread.sleep(forTimeInterval: 0.02)

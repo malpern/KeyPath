@@ -164,8 +164,16 @@ struct SystemSnapshotAdapter {
         }
 
         if !snapshot.components.launchDaemonServicesHealthy {
-            AppLogger.shared.log("📊 [SystemSnapshotAdapter]   LaunchDaemon services: UNHEALTHY")
-            missing.append(.launchDaemonServices)
+            // 🔍 DEBUG: Log the value of vhidDeviceHealthy to understand workaround behavior
+            AppLogger.shared.log("📊 [SystemSnapshotAdapter] 🔍 DEBUG: launchDaemonServicesHealthy=false, vhidDeviceHealthy=\(snapshot.components.vhidDeviceHealthy)")
+
+            if snapshot.components.vhidDeviceHealthy {
+                AppLogger.shared.log("📊 [SystemSnapshotAdapter]   LaunchDaemon services: UNHEALTHY (but daemon running) - Downgrading to non-blocking")
+                // Do NOT add to missing components list if the daemon is actually running
+            } else {
+                AppLogger.shared.log("📊 [SystemSnapshotAdapter]   LaunchDaemon services: UNHEALTHY")
+                missing.append(.launchDaemonServices)
+            }
         } else {
             AppLogger.shared.log("📊 [SystemSnapshotAdapter]   LaunchDaemon services: OK")
         }

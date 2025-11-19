@@ -432,7 +432,8 @@ private struct InstalledMappingRow: View {
             let trivial1 = "\(mapping.fromKey) → \(mapping.toKey)"
             let trivial2 = "\(mapping.fromKey) to \(mapping.toKey)"
             if name.caseInsensitiveCompare(trivial1) == .orderedSame ||
-                name.caseInsensitiveCompare(trivial2) == .orderedSame {
+                name.caseInsensitiveCompare(trivial2) == .orderedSame
+            {
                 return nil
             }
             return name
@@ -520,7 +521,8 @@ private struct AvailablePresetRow: View {
         let trivial1 = "\(preset.fromKey) → \(preset.toKey)"
         let trivial2 = "\(preset.fromKey) to \(preset.toKey)"
         if preset.name.caseInsensitiveCompare(trivial1) == .orderedSame ||
-            preset.name.caseInsensitiveCompare(trivial2) == .orderedSame {
+            preset.name.caseInsensitiveCompare(trivial2) == .orderedSame
+        {
             return nil
         }
         return preset.name

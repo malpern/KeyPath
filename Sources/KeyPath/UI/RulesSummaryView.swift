@@ -1,7 +1,7 @@
 import KeyPathCore
 import SwiftUI
 #if os(macOS)
-import AppKit
+    import AppKit
 #endif
 
 struct RulesTabView: View {
@@ -99,7 +99,7 @@ struct RulesTabView: View {
                         name: customRulesTitle,
                         icon: "square.and.pencil",
                         count: kanataManager.customRules.count,
-                        isEnabled: kanataManager.customRules.isEmpty || kanataManager.customRules.allSatisfy { $0.isEnabled },
+                        isEnabled: kanataManager.customRules.isEmpty || kanataManager.customRules.allSatisfy(\.isEnabled),
                         mappings: kanataManager.customRules.map { ($0.input, $0.output, $0.isEnabled, $0.id) },
                         onToggle: { isOn in
                             Task {
@@ -171,7 +171,7 @@ struct RulesTabView: View {
             }
         } message: {
             Text("""
-            This will reset your configuration to Caps Lock → Escape.
+            This will reset your configuration to macOS Function Keys only (all custom rules removed).
             A safety backup will be stored in ~/.config/keypath/.backups.
             """)
         }
@@ -198,7 +198,6 @@ struct RulesTabView: View {
             }
         }
     }
-
 }
 
 // MARK: - Expandable Collection Row
@@ -213,9 +212,9 @@ private struct ExpandableCollectionRow: View {
     let onEditMapping: ((UUID) -> Void)?
     let onDeleteMapping: ((UUID) -> Void)?
     var showZeroState: Bool = false
-    var onCreateFirstRule: (() -> Void)? = nil
-    var description: String? = nil
-    var layerActivator: MomentaryActivator? = nil
+    var onCreateFirstRule: (() -> Void)?
+    var description: String?
+    var layerActivator: MomentaryActivator?
     var defaultExpanded: Bool = false
 
     @State private var isExpanded = false
@@ -460,31 +459,31 @@ private struct CreateRuleButton: View {
 
     private var fillColor: Color {
         if isMouseDown {
-            return Color.blue.opacity(0.3)
+            Color.blue.opacity(0.3)
         } else if isAnyHovered {
-            return Color.blue.opacity(0.25)
+            Color.blue.opacity(0.25)
         } else {
-            return Color.blue.opacity(0.15)
+            Color.blue.opacity(0.15)
         }
     }
 
     private var iconColor: Color {
         if isMouseDown {
-            return .blue.opacity(0.8)
+            .blue.opacity(0.8)
         } else if isAnyHovered {
-            return .blue
+            .blue
         } else {
-            return .blue.opacity(0.9)
+            .blue.opacity(0.9)
         }
     }
 
     private var shadowColor: Color {
         if isMouseDown {
-            return .clear
+            .clear
         } else if isAnyHovered {
-            return Color.blue.opacity(0.3)
+            Color.blue.opacity(0.3)
         } else {
-            return .clear
+            .clear
         }
     }
 
@@ -598,7 +597,7 @@ private struct CustomRulesCollectionRow: View {
     }
 
     private var areCustomRulesEnabled: Bool {
-        !kanataManager.customRules.isEmpty && kanataManager.customRules.allSatisfy { $0.isEnabled }
+        !kanataManager.customRules.isEmpty && kanataManager.customRules.allSatisfy(\.isEnabled)
     }
 
     private var expandedContent: some View {
@@ -735,7 +734,7 @@ private struct RuleCollectionRow: View {
                     Text(collection.summary)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    if let activationDescription = activationDescription {
+                    if let activationDescription {
                         Label(activationDescription, systemImage: "hand.point.up.left")
                             .font(.caption)
                             .foregroundColor(.accentColor)
@@ -850,7 +849,7 @@ struct AvailableRulesView: View {
     private let catalog = RuleCollectionCatalog()
 
     private var availableCollections: [RuleCollection] {
-        let existing = Set(kanataManager.ruleCollections.map { $0.id })
+        let existing = Set(kanataManager.ruleCollections.map(\.id))
         return catalog.defaultCollections().filter { !existing.contains($0.id) }
     }
 
@@ -1133,7 +1132,7 @@ private struct CustomRuleEditorView: View {
     let onSave: (CustomRule) -> Void
 
     init(rule: CustomRule?, onSave: @escaping (CustomRule) -> Void) {
-        self.existingRule = rule
+        existingRule = rule
         self.onSave = onSave
         if let rule {
             _title = State(initialValue: rule.title)

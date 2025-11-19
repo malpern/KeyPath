@@ -523,7 +523,8 @@ class KanataManager {
         var storedCustomRules = await storedCustomRulesTask
 
         if storedCustomRules.isEmpty,
-           let customIndex = storedCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.customMappings }) {
+           let customIndex = storedCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.customMappings })
+        {
             let legacy = storedCollections.remove(at: customIndex)
             storedCustomRules = legacy.mappings.map { mapping in
                 CustomRule(
@@ -626,7 +627,8 @@ class KanataManager {
 
             if let act1 = candidateActivator,
                let act2 = normalizedActivator(for: other),
-               act1 == act2 {
+               act1 == act2
+            {
                 return RuleConflictInfo(source: .collection(other), keys: [act1])
             }
         }
@@ -682,7 +684,7 @@ class KanataManager {
                 return
             }
             AppLogger.shared.log("🌐 [KanataManager] Calling layerChangeListener.start()")
-            await self.layerChangeListener.start(port: port) { [weak self] layer in
+            await layerChangeListener.start(port: port) { [weak self] layer in
                 guard let self else { return }
                 await MainActor.run {
                     self.updateActiveLayerName(layer)
@@ -923,7 +925,8 @@ class KanataManager {
 
         // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
         if exitCode == 6,
-           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2") {
+           output.contains("connect_failed asio.system:61") || output.contains("connect_failed asio.system:2")
+        {
             // This is the "zombie keyboard capture" bug - automatically attempt recovery
             Task {
                 AppLogger.shared.log(
@@ -1760,7 +1763,8 @@ class KanataManager {
     func toggleRuleCollection(id: UUID, isEnabled: Bool) async {
         if isEnabled,
            let candidate = ruleCollections.first(where: { $0.id == id }),
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) }) {
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: candidate) })
+        {
             await MainActor.run {
                 lastError = "Cannot enable \(candidate.name). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
             }
@@ -1804,7 +1808,8 @@ class KanataManager {
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false) async -> Bool {
         if rule.isEnabled,
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: rule) }) {
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: rule) })
+        {
             await MainActor.run {
                 lastError = "Cannot enable \(rule.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
             }
@@ -1829,7 +1834,8 @@ class KanataManager {
         }) else { return }
 
         if isEnabled,
-           let conflict = await MainActor.run(body: { self.conflictInfo(for: existing) }) {
+           let conflict = await MainActor.run(body: { self.conflictInfo(for: existing) })
+        {
             await MainActor.run {
                 lastError = "Cannot enable \(existing.displayTitle). Conflicts with \(conflict.displayName) on \(conflict.keys.joined(separator: ", "))."
             }
@@ -1872,7 +1878,7 @@ class KanataManager {
     private func makeCustomRuleForSave(input: String, output: String) async -> CustomRule {
         await MainActor.run {
             if let existing = customRules.first(where: { $0.input.caseInsensitiveCompare(input) == .orderedSame }) {
-                return CustomRule(
+                CustomRule(
                     id: existing.id,
                     title: existing.title,
                     input: input,
@@ -1882,7 +1888,7 @@ class KanataManager {
                     createdAt: existing.createdAt
                 )
             } else {
-                return CustomRule(input: input, output: output)
+                CustomRule(input: input, output: output)
             }
         }
     }
@@ -2434,7 +2440,8 @@ class KanataManager {
 
     func openInputMonitoringSettings() {
         if let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        {
             NSWorkspace.shared.open(url)
         }
     }
@@ -2442,12 +2449,14 @@ class KanataManager {
     func openAccessibilitySettings() {
         if #available(macOS 13.0, *) {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             }
         } else {
             if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            {
                 NSWorkspace.shared.open(url)
             } else {
                 NSWorkspace.shared.open(
@@ -2557,8 +2566,9 @@ class KanataManager {
         } else if status.pids.isEmpty {
             lines.append("Reason: VirtualHID daemon not running.")
         } else {
-            // Single PID = daemon process running but may have connection issues
-            lines.append("Reason: Daemon running but connection issues detected.")
+            // Single PID = daemon process running but service configuration issues detected
+            lines.append("Reason: Daemon running (PID \(status.pids[0])) but service status check failed.")
+            lines.append("This often indicates a stale service registration, but the driver may still work.")
             lines.append("PID: \(status.pids[0])")
             if !status.owners.isEmpty { lines.append("Owner:\n\(status.owners.joined(separator: "\n"))") }
         }
@@ -2979,8 +2989,9 @@ class KanataManager {
             AppLogger.shared.log("⚠️ [Reset] No safety backup created (missing/invalid existing config)")
         }
 
-        let defaultMapping = KeyMapping(input: "caps", output: "escape")
-        let defaultConfig = KanataConfiguration.generateFromMappings([defaultMapping])
+        // Reset to macOS Function Keys collection only (enabled by default)
+        let defaultCollections = KanataConfiguration.systemDefaultCollections
+        let defaultConfig = KanataConfiguration.generateFromCollections(defaultCollections)
         let configURL = URL(fileURLWithPath: configPath)
 
         // Ensure config directory exists
@@ -2990,7 +3001,21 @@ class KanataManager {
         // Write the default config (unconditionally)
         try defaultConfig.write(to: configURL, atomically: true, encoding: .utf8)
 
-        AppLogger.shared.log("💾 [Config] Reset to default configuration (caps → esc)")
+        AppLogger.shared.log("💾 [Config] Reset to default configuration (macOS Function Keys only)")
+
+        // Update the stores to reflect the reset state
+        try await ruleCollectionStore.saveCollections(defaultCollections)
+        try await customRulesStore.saveRules([]) // Clear custom rules
+
+        // Update manager properties so UI reflects the reset state
+        await MainActor.run {
+            self.ruleCollections = defaultCollections
+            self.customRules = []
+            ensureDefaultCollectionsIfNeeded()
+            refreshLayerIndicatorState()
+        }
+
+        AppLogger.shared.log("🔄 [Reset] Updated stores and manager properties to match default state")
 
         // Apply changes immediately via TCP reload if service is running
         if isRunning {
@@ -3135,7 +3160,8 @@ class KanataManager {
 
     /// Uses Claude to repair a corrupted Kanata config
     private func repairConfigWithClaude(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
+        async throws -> String
+    {
         // Try Claude API first, fallback to rule-based repair
         do {
             let prompt = """
@@ -3172,7 +3198,8 @@ class KanataManager {
 
     /// Fallback rule-based repair when Claude is not available
     private func performRuleBasedRepair(config: String, errors: [String], mappings: [KeyMapping])
-        async throws -> String {
+        async throws -> String
+    {
         // Delegate to ConfigurationService for rule-based repair
         try await configurationService.repairConfiguration(config: config, errors: errors, mappings: mappings)
     }
@@ -3276,7 +3303,8 @@ class KanataManager {
 
     /// Backs up a failed config and applies safe default, returning backup path
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String {
+        -> String
+    {
         // Delegate to ConfigurationService for backup and safe config application
         let backupPath = try await configurationService.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,

@@ -212,8 +212,12 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// Wizard now treats this as a pure process health check; log parsing lives in DiagnosticsView
     func detectConnectionHealth() -> Bool {
         let isRunning = detectRunning()
+        // 🔍 DEBUG: Log the result to understand health check behavior
+        AppLogger.shared.log("🔍 [VHIDManager] detectConnectionHealth() -> isRunning=\(isRunning)")
         if !isRunning {
             AppLogger.shared.log("🔍 [VHIDManager] Process health check failed - daemon not running")
+        } else {
+            AppLogger.shared.log("✅ [VHIDManager] Process health check passed - daemon is running")
         }
         return isRunning
     }

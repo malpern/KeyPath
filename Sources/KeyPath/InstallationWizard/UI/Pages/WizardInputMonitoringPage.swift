@@ -234,7 +234,8 @@ struct WizardInputMonitoringPage: View {
         }
 
         if let nextPage = navigationCoordinator.getNextPage(for: systemState, issues: allIssues),
-           nextPage != navigationCoordinator.currentPage {
+           nextPage != navigationCoordinator.currentPage
+        {
             navigationCoordinator.navigateToPage(nextPage)
         } else {
             navigationCoordinator.navigateToPage(.summary)

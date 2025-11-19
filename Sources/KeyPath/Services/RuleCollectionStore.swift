@@ -25,7 +25,7 @@ actor RuleCollectionStore {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         self.encoder = encoder
-        self.decoder = JSONDecoder()
+        decoder = JSONDecoder()
     }
 
     func loadCollections() -> [RuleCollection] {
