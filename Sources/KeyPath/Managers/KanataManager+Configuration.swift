@@ -102,10 +102,6 @@ extension KanataManager {
             daemonPID: currentPID.map { Int($0) }
         )
 
-        // Best-effort: subscribe on a fresh connection and await one Ready/ConfigError event
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        Task { await ReloadEventService().awaitReloadEventAndReport(port: port, timeout: 2.0) }
-
         return mapped
     }
 
