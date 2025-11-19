@@ -55,9 +55,6 @@ struct ContentView: View {
     @State private var statusMessage = ""
     @State private var showingEmergencyAlert = false
 
-    // Enhanced error handling
-    @State private var enhancedErrorInfo: ErrorInfo?
-
     // Diagnostics view state (now navigates to Settings → System Status)
     // @State private var showingDiagnostics = false  // Removed: now uses Settings tab
     @State private var showingConfigCorruptionAlert = false
@@ -138,9 +135,6 @@ struct ContentView: View {
 
             // Debug row removed in production UI
 
-            // Enhanced Error Display - persistent and actionable
-            EnhancedErrorHandler(errorInfo: $enhancedErrorInfo)
-
             // Emergency Stop Pause Card (similar to low battery pause)
             if kanataManager.emergencyStopActivated {
                 EmergencyStopPauseCard(
@@ -154,8 +148,8 @@ struct ContentView: View {
                 )
             }
 
-            // Legacy Error Section (only show if there's an error and no enhanced error)
-            if let error = kanataManager.lastError, !kanataManager.isRunning, enhancedErrorInfo == nil {
+            // Legacy Error Section (only show if there's an error)
+            if let error = kanataManager.lastError, !kanataManager.isRunning {
                 ErrorSection(
                     kanataManager: kanataManager, showingInstallationWizard: $showingInstallationWizard,
                     error: error
@@ -430,30 +424,19 @@ struct ContentView: View {
     }
 
     private func showStatusMessage(message: String) {
-        // Check if this is an error message
-        if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
-            // Use enhanced error handler for errors
-            let errorText = message.replacingOccurrences(of: "❌ ", with: "")
-            let error = NSError(domain: "KeyPath", code: -1, userInfo: [NSLocalizedDescriptionKey: errorText])
+        // Cancel any existing timer to ensure consistent 5-second display
+        statusMessageTimer?.cancel()
 
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                enhancedErrorInfo = ErrorInfo.from(error)
-            }
-        } else {
-            // Cancel any existing timer to ensure consistent 5-second display
-            statusMessageTimer?.cancel()
+        // Show message as toast
+        statusMessage = message
+        showStatusMessage = true
 
-            // Use traditional status message for success/info messages
-            statusMessage = message
-            showStatusMessage = true
-
-            // Hide after 5 seconds with simple animation
-            let workItem = DispatchWorkItem {
-                showStatusMessage = false
-            }
-            statusMessageTimer = workItem
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
+        // Hide after 5 seconds with simple animation
+        let workItem = DispatchWorkItem {
+            showStatusMessage = false
         }
+        statusMessageTimer = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
     }
 
     private func openSystemStatusSettings() {
@@ -655,9 +638,10 @@ struct ContentView: View {
         if case let KeyPathError.configuration(.loadFailed(reason)) = error {
             let reasonLower = reason.lowercased()
             if reasonLower.contains("tcp"), reasonLower.contains("required") || reasonLower.contains("unresponsive") || reasonLower.contains("failed") || reasonLower.contains("reload") {
-                // Use enhanced error handler for TCP connectivity issues
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                    enhancedErrorInfo = ErrorInfo.from(error)
+                // TCP connectivity issues - open wizard directly to Communication page
+                showStatusMessage(message: "⚠️ Service connection failed - opening setup wizard...")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
                 }
                 return
             }
@@ -706,9 +690,11 @@ struct ContentView: View {
         }
 
         // Generic error handling for all other cases
-        // Use enhanced error handler for proper error classification
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            enhancedErrorInfo = ErrorInfo.from(error)
+        // Open wizard to help diagnose and fix the issue
+        let errorDesc = error.localizedDescription
+        showStatusMessage(message: "⚠️ \(errorDesc)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
         }
     }
 
