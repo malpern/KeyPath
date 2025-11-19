@@ -4,7 +4,7 @@ import Foundation
 /// Wraps PrivilegedOperationsCoordinator to provide a simple interface for the façade
 /// Start with concrete type - add protocol if we need test doubles later
 @MainActor
-public struct PrivilegeBroker: Sendable {
+public struct PrivilegeBroker {
     /// Coordinator instance (singleton)
     private let coordinator: PrivilegedOperationsCoordinator
 

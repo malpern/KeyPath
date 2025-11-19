@@ -77,7 +77,7 @@ struct ErrorInfo: Identifiable {
                         """,
                         recoveryActions: [
                             .restartKanataService,
-                            .openDiagnostics
+                            .runInstallationWizard
                         ]
                     )
                 }
@@ -95,7 +95,7 @@ struct ErrorInfo: Identifiable {
                     """,
                     recoveryActions: [
                         .resetToSafeConfig,
-                        .openDiagnostics
+                        .runInstallationWizard
                     ]
                 )
             default:
@@ -111,8 +111,7 @@ struct ErrorInfo: Identifiable {
                 errorString.contains("tcp communication failed") ||
                 errorString.contains("tcp server required") ||
                 errorString.contains("tcp server unresponsive") ||
-                errorString.contains("tcp reload failed")
-            {
+                errorString.contains("tcp reload failed") {
                 return ErrorInfo(
                     originalError: error,
                     errorType: .tcpTimeout,
@@ -124,7 +123,7 @@ struct ErrorInfo: Identifiable {
                     """,
                     recoveryActions: [
                         .restartKanataService,
-                        .openDiagnostics
+                        .runInstallationWizard
                     ]
                 )
             }
@@ -161,8 +160,7 @@ struct ErrorInfo: Identifiable {
                 """,
                 recoveryActions: [
                     .startKanataService,
-                    .runInstallationWizard,
-                    .openDiagnostics
+                    .runInstallationWizard
                 ]
             )
         }
@@ -182,7 +180,7 @@ struct ErrorInfo: Identifiable {
                     """,
                     recoveryActions: [
                         .resetToSafeConfig,
-                        .openDiagnostics
+                        .runInstallationWizard
                     ]
                 )
             }
@@ -199,8 +197,7 @@ struct ErrorInfo: Identifiable {
             Error: \(error.localizedDescription)
             """,
             recoveryActions: [
-                .runInstallationWizard,
-                .openDiagnostics
+                .runInstallationWizard
             ]
         )
     }
@@ -241,7 +238,6 @@ enum RecoveryAction: Identifiable, CaseIterable {
     case openPermissionSettings
     case runInstallationWizard
     case resetToSafeConfig
-    case openDiagnostics
 
     var id: String { title }
 
@@ -252,7 +248,6 @@ enum RecoveryAction: Identifiable, CaseIterable {
         case .openPermissionSettings: "Open Permission Settings"
         case .runInstallationWizard: "Run Setup Wizard"
         case .resetToSafeConfig: "Reset to Safe Configuration"
-        case .openDiagnostics: "Open Diagnostics"
         }
     }
 
@@ -263,7 +258,6 @@ enum RecoveryAction: Identifiable, CaseIterable {
         case .openPermissionSettings: "Open System Settings to grant required permissions"
         case .runInstallationWizard: "Run the setup wizard to fix configuration issues"
         case .resetToSafeConfig: "Reset to a basic working configuration"
-        case .openDiagnostics: "Open diagnostics to see detailed system information"
         }
     }
 
@@ -274,7 +268,6 @@ enum RecoveryAction: Identifiable, CaseIterable {
         case .openPermissionSettings: "gear"
         case .runInstallationWizard: "wrench.and.screwdriver"
         case .resetToSafeConfig: "arrow.counterclockwise"
-        case .openDiagnostics: "info.circle"
         }
     }
 
@@ -300,8 +293,6 @@ enum RecoveryAction: Identifiable, CaseIterable {
             return await runInstallationWizard()
         case .resetToSafeConfig:
             return try await resetToSafeConfig()
-        case .openDiagnostics:
-            return await openDiagnostics()
         }
     }
 
@@ -335,13 +326,6 @@ enum RecoveryAction: Identifiable, CaseIterable {
         // This would need to be connected to KanataManager
         await MainActor.run {
             NotificationCenter.default.post(name: .resetToSafeConfig, object: nil)
-        }
-        return true
-    }
-
-    private func openDiagnostics() async -> Bool {
-        await MainActor.run {
-            NotificationCenter.default.post(name: .openDiagnostics, object: nil)
         }
         return true
     }
@@ -565,6 +549,5 @@ extension Notification.Name {
     // Legacy notification names (for backwards compatibility)
     // Most notifications moved to Notifications.swift with KeyPath.Action prefix
     static let resetToSafeConfig = Notification.Name("resetToSafeConfig")
-    static let openDiagnostics = Notification.Name("openDiagnostics")
     // Note: wizardClosed moved to Notifications.swift as .wizardClosed (canonical)
 }

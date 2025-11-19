@@ -250,3 +250,4 @@ InstallerEngine
 
 **Total dependencies:** ~8-10 classes, mostly existing singletons or simple instances
 
+

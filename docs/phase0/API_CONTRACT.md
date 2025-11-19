@@ -114,3 +114,4 @@ func run(intent: InstallIntent, using broker: PrivilegeBroker) -> InstallerRepor
 
 **Rationale:** Changing signatures breaks all callers and tests. Freeze early to avoid churn.
 
+

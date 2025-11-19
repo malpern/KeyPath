@@ -1121,8 +1121,7 @@ class LaunchDaemonInstaller {
 
     /// Execute LaunchDaemon installation with administrator privileges using osascript
     private func executeWithAdminPrivileges(tempPath: String, finalPath: String, serviceID: String)
-        -> Bool
-    {
+        -> Bool {
         AppLogger.shared.log("🔧 [LaunchDaemon] Requesting admin privileges to install \(serviceID)")
 
         // Create the command to copy the file and set proper permissions

@@ -111,3 +111,4 @@ Tests/KeyPathTests/InstallationEngine/
 - Conversion preserves all data from `SystemSnapshot` to `SystemContext`
 - Logging includes snapshot readiness and blocking issues count
 
+

@@ -186,3 +186,4 @@ AppLogger.shared.log("✅ [InstallerEngine] inspectSystem() complete")
 - Easy rollback if issues arise
 - Focus on correctness first, optimization later
 
+

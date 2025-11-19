@@ -228,8 +228,7 @@ actor KanataTCPClient {
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let authResponseDict = json["Authenticated"] as? [String: Any],
                let success = authResponseDict["success"] as? Bool,
-               let sessionId = authResponseDict["session_id"] as? String
-            {
+               let sessionId = authResponseDict["session_id"] as? String {
                 if success {
                     authToken = token
                     self.sessionId = sessionId
@@ -307,8 +306,7 @@ actor KanataTCPClient {
 
             if let version = try container.decodeIfPresent(String.self, forKey: .version),
                let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion),
-               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities)
-            {
+               let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities) {
                 self.version = version
                 self.protocolVersion = protocolVersion
                 self.capabilities = capabilities
@@ -385,8 +383,7 @@ actor KanataTCPClient {
         // Check if first line indicates error
         if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
            let status = json["status"] as? String,
-           status.lowercased() == "error"
-        {
+           status.lowercased() == "error" {
             let errorMsg = json["msg"] as? String ?? "Hello request failed"
             throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
         }
@@ -490,8 +487,7 @@ actor KanataTCPClient {
             // Check if first line indicates error
             if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
                let status = json["status"] as? String,
-               status.lowercased() == "error"
-            {
+               status.lowercased() == "error" {
                 let errorMsg = json["msg"] as? String ?? "Validation request failed"
                 return .failure(errors: [errorMsg])
             }
@@ -572,8 +568,7 @@ actor KanataTCPClient {
             // Check if first line indicates error
             if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
                let status = json["status"] as? String,
-               status.lowercased() == "error"
-            {
+               status.lowercased() == "error" {
                 let errorMsg = json["msg"] as? String ?? "Reload failed"
                 AppLogger.shared.log("❌ [TCP] Reload failed: \(errorMsg)")
                 return .failure(error: errorMsg, response: firstLineStr)
@@ -648,8 +643,7 @@ actor KanataTCPClient {
                 if let firstLine = lines.first,
                    let lineData = String(firstLine).data(using: .utf8),
                    let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
-                   serverResponse.isOk
-                {
+                   serverResponse.isOk {
                     AppLogger.shared.log("✅ [TCP] Kanata restart request sent")
                     return true
                 }
@@ -793,8 +787,7 @@ actor KanataTCPClient {
         // Try to find request_id in the first level of any message type
         for (_, value) in json {
             if let dict = value as? [String: Any],
-               let requestId = dict["request_id"] as? UInt64
-            {
+               let requestId = dict["request_id"] as? UInt64 {
                 return requestId
             }
         }
@@ -893,11 +886,9 @@ actor KanataTCPClient {
             // Check if it's a single-line response
             let lines = response.split(separator: "\n")
             if let firstLine = lines.first,
-               let lineData = String(firstLine).data(using: .utf8)
-            {
+               let lineData = String(firstLine).data(using: .utf8) {
                 if let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData),
-                   serverResponse.isError
-                {
+                   serverResponse.isError {
                     return serverResponse.msg ?? "Unknown error"
                 }
             }

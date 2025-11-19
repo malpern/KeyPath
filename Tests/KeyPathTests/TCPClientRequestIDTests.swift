@@ -27,7 +27,7 @@ final class TCPClientRequestIDTests: XCTestCase {
         // Make multiple requests and capture their IDs from responses
         var requestIds: [UInt64] = []
 
-        for _ in 0..<5 {
+        for _ in 0 ..< 5 {
             let hello = try await client.hello()
             if let requestId = hello.request_id {
                 requestIds.append(requestId)
@@ -38,9 +38,9 @@ final class TCPClientRequestIDTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(requestIds.count, 1, "Server should echo request_id")
 
         // Verify monotonicity: each ID should be greater than the previous
-        for i in 1..<requestIds.count {
-            XCTAssertGreaterThan(requestIds[i], requestIds[i-1],
-                                "Request IDs should be monotonically increasing: got \(requestIds)")
+        for i in 1 ..< requestIds.count {
+            XCTAssertGreaterThan(requestIds[i], requestIds[i - 1],
+                                 "Request IDs should be monotonically increasing: got \(requestIds)")
         }
     }
 
@@ -90,14 +90,14 @@ final class TCPClientRequestIDTests: XCTestCase {
 
         // Parse the response to check for request_id
         switch result {
-        case .success(let response):
+        case let .success(response):
             // Response should contain request_id field
             XCTAssertTrue(response.contains("request_id"),
-                         "Reload response should include request_id: \(response)")
-        case .failure(_, let response):
+                          "Reload response should include request_id: \(response)")
+        case let .failure(_, response):
             // Even failures should echo request_id
             XCTAssertTrue(response.contains("request_id"),
-                         "Reload error should include request_id: \(response)")
+                          "Reload error should include request_id: \(response)")
         default:
             XCTFail("Unexpected result type: \(result)")
         }
@@ -176,7 +176,7 @@ final class TCPClientRequestIDTests: XCTestCase {
 
         // Make 10 rapid requests - without request_id, these would hit the drain loop
         var successes = 0
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             do {
                 _ = try await client.hello()
                 successes += 1
@@ -188,7 +188,7 @@ final class TCPClientRequestIDTests: XCTestCase {
         // With request_id, we should get high success rate (>= 80%)
         // Without request_id, we'd hit the 10-attempt limit frequently
         XCTAssertGreaterThanOrEqual(successes, 8,
-                                   "Request ID matching should enable rapid requests: \(successes)/10 succeeded")
+                                    "Request ID matching should enable rapid requests: \(successes)/10 succeeded")
     }
 
     /// Test interleaved requests of different types

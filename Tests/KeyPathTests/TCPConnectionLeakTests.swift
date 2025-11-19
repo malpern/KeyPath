@@ -24,7 +24,7 @@ final class TCPConnectionLeakTests: XCTestCase {
         // Create and close many connections to test cleanup
         let connectionCount = 100
 
-        for i in 0..<connectionCount {
+        for i in 0 ..< connectionCount {
             let client = KanataTCPClient(port: port)
 
             // Make a request
@@ -55,7 +55,7 @@ final class TCPConnectionLeakTests: XCTestCase {
         let connectionCount = 50
         var succeeded = 0
 
-        for _ in 0..<connectionCount {
+        for _ in 0 ..< connectionCount {
             let client = KanataTCPClient(port: port, timeout: 1.0)
             if let _ = try? await client.hello() {
                 succeeded += 1
@@ -65,7 +65,7 @@ final class TCPConnectionLeakTests: XCTestCase {
 
         // Most connections should succeed (allow some failures due to timing)
         XCTAssertGreaterThanOrEqual(succeeded, connectionCount - 5,
-                                   "Most rapid connections should succeed: \(succeeded)/\(connectionCount)")
+                                    "Most rapid connections should succeed: \(succeeded)/\(connectionCount)")
 
         // Verify server is still responsive
         let finalClient = KanataTCPClient(port: port)
@@ -78,9 +78,9 @@ final class TCPConnectionLeakTests: XCTestCase {
         guard await serverReachable() else { throw XCTSkip("TCP server not running") }
 
         // Create multiple concurrent connections
-        let testPort = self.port  // Capture port locally for Swift 6 concurrency
+        let testPort = port // Capture port locally for Swift 6 concurrency
         let succeeded = await withTaskGroup(of: Bool.self) { group in
-            for _ in 0..<20 {
+            for _ in 0 ..< 20 {
                 group.addTask {
                     let client = KanataTCPClient(port: testPort)
                     do {
@@ -102,7 +102,7 @@ final class TCPConnectionLeakTests: XCTestCase {
         }
 
         XCTAssertGreaterThanOrEqual(succeeded, 15,
-                                   "Most concurrent connections should succeed: \(succeeded)/20")
+                                    "Most concurrent connections should succeed: \(succeeded)/20")
 
         // Verify server is still responsive
         let finalClient = KanataTCPClient(port: port)
@@ -140,7 +140,7 @@ final class TCPConnectionLeakTests: XCTestCase {
         let iterationCount = 200
         var failures = 0
 
-        for i in 0..<iterationCount {
+        for i in 0 ..< iterationCount {
             let client = KanataTCPClient(port: port, timeout: 2.0)
             do {
                 _ = try await client.hello()

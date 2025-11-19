@@ -1,6 +1,6 @@
-import XCTest
 @testable import KeyPath
 import KeyPathCore
+import XCTest
 
 /// Global test bootstrap to suppress password dialogs in routine tests.
 ///
@@ -38,23 +38,22 @@ import KeyPathCore
 /// smoke tests should exercise the real authorization code path.
 @MainActor
 class AdminPromptBypass: XCTestCase {
-
     /// Runs once for the entire test bundle before any tests execute.
     /// Installs global overrides to suppress password dialogs.
     override class func setUp() {
         super.setUp()
 
         // Install fake admin executor that succeeds without prompts
-        let fakeExecutor = FakeAdminCommandExecutor { command, description in
+        let fakeExecutor = FakeAdminCommandExecutor { _, _ in
             // All admin commands succeed silently in tests
-            return CommandExecutionResult(exitCode: 0, output: "")
+            CommandExecutionResult(exitCode: 0, output: "")
         }
         AdminCommandExecutorHolder.shared = fakeExecutor
 
         // Configure LaunchDaemonInstaller to skip authorization script execution
         LaunchDaemonInstaller.authorizationScriptRunnerOverride = { _ in
             // Always succeed without running real osascript
-            return true
+            true
         }
 
         // Disable actual admin operations (file writes to /Library, etc.)
@@ -89,6 +88,6 @@ private class FakeAdminCommandExecutor: AdminCommandExecutor {
         description: String
     ) async -> CommandExecutionResult {
         // Return fake success without showing password dialog
-        return resultProvider(command, description)
+        resultProvider(command, description)
     }
 }

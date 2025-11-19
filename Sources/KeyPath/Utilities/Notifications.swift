@@ -25,7 +25,6 @@ extension Notification.Name {
     static let openInputMonitoringSettings = Notification.Name("KeyPath.Action.OpenInputMonitoring")
     static let openAccessibilitySettings = Notification.Name("KeyPath.Action.OpenAccessibility")
     static let openApp = Notification.Name("KeyPath.Action.OpenApp")
-    static let pauseForLowPower = Notification.Name("KeyPath.Action.PauseLowPower")
 
     // SMAppService
     static let smAppServiceApprovalRequired = Notification.Name("KeyPath.SMAppService.ApprovalRequired")

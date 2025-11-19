@@ -266,8 +266,7 @@ class KanataDaemonManager {
             if let plist = NSDictionary(contentsOfFile: expectedPlistPath) as? [String: Any],
                let args = plist["ProgramArguments"] as? [String],
                let first = args.first,
-               !first.contains("kanata-launcher")
-            {
+               !first.contains("kanata-launcher") {
                 AppLogger.shared.log("❌ [KanataDaemonManager] Plist ProgramArguments missing kanata-launcher wrapper (found: \(first))")
                 throw KanataDaemonError.registrationFailed("Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering.")
             }
@@ -277,8 +276,7 @@ class KanataDaemonManager {
             if let plist = NSDictionary(contentsOfFile: resourcePath) as? [String: Any],
                let args = plist["ProgramArguments"] as? [String],
                let first = args.first,
-               !first.contains("kanata-launcher")
-            {
+               !first.contains("kanata-launcher") {
                 AppLogger.shared.log("❌ [KanataDaemonManager] Resource plist missing kanata-launcher wrapper (found: \(first))")
                 throw KanataDaemonError.registrationFailed("Bundled Kanata plist not updated to use kanata-launcher. Rebuild KeyPath before registering.")
             }
@@ -440,8 +438,7 @@ class KanataDaemonManager {
             // Check if error is just "requires approval" - this is OK, user can approve later
             if let kanataError = error as? KanataDaemonError,
                case let .registrationFailed(reason) = kanataError,
-               reason.contains("Approval required")
-            {
+               reason.contains("Approval required") {
                 AppLogger.shared.log("⚠️ [KanataDaemonManager] Registration requires user approval - this is OK")
                 AppLogger.shared.log("💡 [KanataDaemonManager] User needs to approve in System Settings → Login Items")
                 AppLogger.shared.log("💡 [KanataDaemonManager] Legacy plist removed - migration will complete once approved")

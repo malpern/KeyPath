@@ -96,3 +96,4 @@ else
     echo "   tail -100 /var/log/com.keypath.kanata.stdout.log"
 fi
 
+

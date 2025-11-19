@@ -68,6 +68,9 @@ class MainAppStateController: ObservableObject {
         )
 
         AppLogger.shared.log("🎯 [MainAppStateController] Configured with SystemValidator (Phase 3)")
+
+        // Check for orphaned installation (leftover files from manual deletion)
+        OrphanDetector.shared.checkForOrphans()
     }
 
     // MARK: - TCP Configuration Check
@@ -95,8 +98,7 @@ class MainAppStateController: ObservableObject {
         // Verify plist has TCP port argument
         if let plistData = try? Data(contentsOf: URL(fileURLWithPath: plistPath)),
            let plist = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
-           let args = plist["ProgramArguments"] as? [String]
-        {
+           let args = plist["ProgramArguments"] as? [String] {
             let hasTCPPort = args.contains("--port")
             guard hasTCPPort else {
                 AppLogger.shared.warn("⚠️ [MainAppStateController] TCP check failed: Service missing --port argument")
@@ -125,8 +127,7 @@ class MainAppStateController: ObservableObject {
 
         // Optimization: Skip validation if recently completed (prevents redundant work on rapid restarts)
         if let lastTime = lastValidationTime,
-           Date().timeIntervalSince(lastTime) < validationCooldown
-        {
+           Date().timeIntervalSince(lastTime) < validationCooldown {
             let timeSince = Int(Date().timeIntervalSince(lastTime))
             AppLogger.shared.log("⏭️ [MainAppStateController] Skipping validation - completed \(timeSince)s ago (cooldown: \(Int(validationCooldown))s)")
             return

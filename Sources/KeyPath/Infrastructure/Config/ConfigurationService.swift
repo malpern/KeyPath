@@ -23,7 +23,7 @@ public struct KanataConfiguration: Sendable {
 
     /// Generate configuration content from key mappings
     public static func generateFromMappings(_ mappings: [KeyMapping]) -> String {
-        let collections = Array<RuleCollection>.collection(named: "Custom Mappings", mappings: mappings)
+        let collections = [RuleCollection].collection(named: "Custom Mappings", mappings: mappings)
         return generateFromCollections(collections)
     }
 
@@ -526,7 +526,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Save configuration with key mappings (legacy helper)
     public func saveConfiguration(keyMappings: [KeyMapping]) async throws {
-        let collections = Array<RuleCollection>.collection(
+        let collections = [RuleCollection].collection(
             named: "Custom Mappings",
             mappings: keyMappings,
             category: .custom
@@ -726,8 +726,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Backs up a failed config and applies safe default, returning backup path
     public func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
         // Create backup directory if it doesn't exist
@@ -776,8 +775,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Repair configuration using rule-based strategies
     public func repairConfiguration(config: String, errors: [String], mappings: [KeyMapping]) async throws
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🔧 [Config] Performing rule-based repair for \(errors.count) errors")
 
         // Common repair strategies

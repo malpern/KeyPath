@@ -163,3 +163,4 @@ struct InstallerReport: Sendable {
 - Enums should be exhaustive (no default cases that hide errors)
 - Optional fields should be truly optional (not "sometimes nil")
 
+

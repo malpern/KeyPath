@@ -102,3 +102,4 @@ Tests/KeyPathTests/InstallationEngine/
 - Error handling implemented for blocked plans
 - Tests cover all public API methods
 
+

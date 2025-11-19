@@ -433,8 +433,7 @@ struct InstallationWizardView: View {
 
             Task { @MainActor in
                 if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                   navigationCoordinator.currentPage != preferred
-                {
+                   navigationCoordinator.currentPage != preferred {
                     AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -831,8 +830,7 @@ struct InstallationWizardView: View {
             kanataManager.lastWizardSnapshot = WizardSnapshotRecord(state: result.state, issues: filteredIssues)
             Task { @MainActor in
                 if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
-                   navigationCoordinator.currentPage != preferred
-                {
+                   navigationCoordinator.currentPage != preferred {
                     AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")
                     navigationCoordinator.navigateToPage(preferred)
                 } else if navigationCoordinator.currentPage == .summary {
@@ -1121,8 +1119,7 @@ struct InstallationWizardView: View {
 
     /// Get detailed error message for specific auto-fix failures
     private func getDetailedErrorMessage(for action: AutoFixAction, actionDescription: String)
-        -> String
-    {
+        -> String {
         AppLogger.shared.log("🔍 [ErrorMessage] getDetailedErrorMessage called for action: \(action)")
         AppLogger.shared.log("🔍 [ErrorMessage] Action description: \(actionDescription)")
 

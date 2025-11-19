@@ -1,5 +1,6 @@
 @testable import KeyPath
 import XCTest
+
 @MainActor
 final class InstallerEngineTests: XCTestCase {
     var engine: InstallerEngine!
@@ -51,7 +52,7 @@ final class InstallerEngineTests: XCTestCase {
         XCTAssertNotNil(context2.permissions, "Context2 should have permissions")
         XCTAssertNotNil(context2.services, "Context2 should have services")
         XCTAssertNotNil(context2.components, "Context2 should have components")
-        
+
         // Verify timestamps exist and are reasonable (within 10 seconds of each other)
         let timeDiff1 = abs(context1.permissions.timestamp.timeIntervalSince(context1.timestamp))
         let timeDiff2 = abs(context2.permissions.timestamp.timeIntervalSince(context2.timestamp))
@@ -120,13 +121,13 @@ final class InstallerEngineTests: XCTestCase {
     func testMakePlanCanBeBlocked() async {
         // Create a context that would block (e.g., non-writable directory)
         // Note: This test may not actually block in test environment
-        let plan = await engine.makePlan(for: .install, context: await engine.inspectSystem())
+        let plan = await engine.makePlan(for: .install, context: engine.inspectSystem())
 
         // Plan should either be ready or blocked
         switch plan.status {
         case .ready:
             XCTAssertTrue(true, "Plan is ready")
-        case .blocked(let requirement):
+        case let .blocked(requirement):
             XCTAssertNotNil(requirement, "Blocked plan should have requirement")
             XCTAssertNotNil(plan.blockedBy, "Blocked plan should have blockedBy")
         }
@@ -221,7 +222,7 @@ final class InstallerEngineTests: XCTestCase {
         // Verify report structure - execution may succeed or fail depending on system state
         XCTAssertNotNil(report, "Report should exist")
         XCTAssertNotNil(report.executedRecipes, "Report should have executedRecipes array")
-        
+
         // If execution failed, verify we stopped at first failure
         if !report.success {
             XCTAssertNotNil(report.failureReason, "Failed execution should have failure reason")
@@ -336,4 +337,3 @@ final class InstallerEngineTests: XCTestCase {
         XCTAssertTrue(report.success, "InspectOnly should succeed")
     }
 }
-

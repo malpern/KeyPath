@@ -131,3 +131,4 @@ Tests/KeyPathTests/InstallationEngine/
 - Remaining actions logged as warnings for future implementation
 - Basic recipe ordering implemented (can enhance later if needed)
 
+

@@ -58,3 +58,4 @@ swift build --target KeyPath
 
 Instead of standalone CLI, we could fix the SwiftUI initialization timing issue so the integrated CLI works reliably from the build directory. This would be simpler and achieve the same goal.
 
+

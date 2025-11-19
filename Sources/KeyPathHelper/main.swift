@@ -64,8 +64,7 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
         if SecCodeCopyStaticCode(validCode, [], &staticCode) == errSecSuccess,
            let sc = staticCode,
            SecCodeCopySigningInformation(sc, [], &codeInfo) == errSecSuccess,
-           let info = codeInfo as? [String: Any]
-        {
+           let info = codeInfo as? [String: Any] {
             let identifier = info[kSecCodeInfoIdentifier as String] as? String ?? "unknown"
             let teamID = info[kSecCodeInfoTeamIdentifier as String] as? String ?? "unknown"
             NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")

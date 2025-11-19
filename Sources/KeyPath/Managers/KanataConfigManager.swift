@@ -159,8 +159,7 @@ class KanataConfigManager {
 
     /// Create configuration from mappings
     func createConfiguration(mappings: [KeyMapping], source: ConfigMetadata.ConfigSource = .user)
-        -> ConfigurationSet
-    {
+        -> ConfigurationSet {
         AppLogger.shared.log("⚙️ [ConfigManager] Creating configuration with \(mappings.count) mappings")
 
         let generatedConfig = generateKanataConfig(mappings: mappings)

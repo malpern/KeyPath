@@ -1,5 +1,5 @@
-import XCTest
 @testable import KeyPath
+import XCTest
 
 final class CustomRulesStoreTests: XCTestCase {
     private var tempDirectory: URL!

@@ -594,12 +594,6 @@ struct ContentView: View {
             }
         }
 
-        // Handle opening diagnostics
-        NotificationCenter.default.addObserver(forName: .openDiagnostics, object: nil, queue: .main) { _ in
-            // This would open a diagnostics window - implementation depends on app structure
-            Task { @MainActor in showStatusMessage(message: "ℹ️ Opening diagnostics view...") }
-        }
-
         // Handle user feedback from PermissionGrantCoordinator
         NotificationCenter.default.addObserver(forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: .main) { notification in
             if let message = notification.userInfo?["message"] as? String {
@@ -1197,8 +1191,7 @@ struct StatusMessageView: View {
         } else if message.contains("paused") {
             "pause.circle.fill"
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up")
-        {
+            || message.contains("backed up") {
             "exclamationmark.triangle.fill"
         } else {
             "checkmark.circle.fill"
@@ -1209,8 +1202,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             .red
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             .orange
         } else {
             .green
@@ -1221,8 +1213,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.85)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             Color.orange.opacity(0.85)
         } else {
             Color.green.opacity(0.85)
@@ -1233,8 +1224,7 @@ struct StatusMessageView: View {
         if message.contains("❌") || message.contains("Error") || message.contains("Failed") {
             Color.red.opacity(0.5)
         } else if message.contains("⚠️") || message.contains("Config repaired")
-            || message.contains("backed up") || message.contains("paused")
-        {
+            || message.contains("backed up") || message.contains("paused") {
             Color.orange.opacity(0.5)
         } else {
             Color.green.opacity(0.5)

@@ -94,8 +94,7 @@ struct WizardSystemStatusOverview: View {
             // Aggressively disable focus ring on underlying NSView
             DispatchQueue.main.async {
                 if let window = NSApp.keyWindow,
-                   let contentView = window.contentView
-                {
+                   let contentView = window.contentView {
                     disableFocusRings(in: contentView)
                 }
             }
@@ -742,8 +741,7 @@ private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
                     // Skip unsolicited broadcasts (LayerChange, ConfigFileReload, etc.)
                     if line.contains("\"LayerChange\"") || line.contains("\"ConfigFileReload\"") ||
                         line.contains("\"MessagePush\"") || line.contains("\"Ready\"") ||
-                        line.contains("\"ConfigError\"")
-                    {
+                        line.contains("\"ConfigError\"") {
                         continue // Skip this line, read next
                     }
 
@@ -753,8 +751,7 @@ private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
                        let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
                        let helloObj = json["HelloOk"] as? [String: Any],
                        let caps = helloObj["capabilities"] as? [String],
-                       caps.contains("status")
-                    {
+                       caps.contains("status") {
                         return true
                     }
 

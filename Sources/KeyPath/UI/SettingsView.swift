@@ -183,8 +183,6 @@ struct StatusSettingsTabView: View {
             "Attention Needed"
         case .stopped:
             "Service Stopped"
-        case .pausedLowPower:
-            "Paused (Low Power)"
         }
     }
 
@@ -241,18 +239,6 @@ struct StatusSettingsTabView: View {
                 icon: "pause.circle",
                 level: .warning
             )
-        case .pausedLowPower:
-            let percentText = if let percent = formattedBatteryPercentageText {
-                "\(percent) battery"
-            } else {
-                "low battery"
-            }
-            return StatusDetail(
-                title: "Kanata Service",
-                message: "Paused automatically due to \(percentText).",
-                icon: "battery.25",
-                level: .warning
-            )
         }
     }
 
@@ -306,12 +292,6 @@ struct StatusSettingsTabView: View {
                 NotificationCenter.default.post(name: .openSettingsAdvanced, object: nil)
             }
         )
-    }
-
-    private var formattedBatteryPercentageText: String? {
-        guard let level = kanataManager.batteryLevel else { return nil }
-        let percent = max(0, min(100, Int((level * 100).rounded())))
-        return "\(percent)%"
     }
 
     private func permissionGaps(in snapshot: PermissionOracle.Snapshot) -> (labels: [String], hasErrors: Bool) {
@@ -370,12 +350,6 @@ struct StatusSettingsTabView: View {
                                     .foregroundColor(issue.level.tintColor)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
-                            }
-
-                            if kanataManager.isLowPowerPaused {
-                                Text("Low Battery Pause")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
                             }
 
                             Button(action: {
