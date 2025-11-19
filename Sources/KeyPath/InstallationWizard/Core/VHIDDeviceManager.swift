@@ -26,6 +26,9 @@ final class VHIDDeviceManager: @unchecked Sendable {
     // Test seam: allow injecting PID provider during unit tests
     nonisolated(unsafe) static var testPIDProvider: (() -> [String])?
 
+    // Test seam: allow mocking shell command results during unit tests
+    nonisolated(unsafe) static var testShellProvider: ((String) -> String)?
+
     // Version compatibility for kanata
     // NOTE: Kanata v1.9.0 requires Karabiner-DriverKit-VirtualHIDDevice v5.0.0
     // Kanata v1.10 will support v6.0.0+ but is currently in pre-release (as of Oct 2025)
@@ -530,6 +533,11 @@ final class VHIDDeviceManager: @unchecked Sendable {
     /// Fast shell command execution for startup mode health checks
     /// Uses Process instead of capturing stdout for better performance
     private func shell(_ command: String) -> String {
+        // Test seam: use mock shell results in tests
+        if TestEnvironment.isRunningTests, let provider = Self.testShellProvider {
+            return provider(command)
+        }
+
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
         task.arguments = ["-c", command]

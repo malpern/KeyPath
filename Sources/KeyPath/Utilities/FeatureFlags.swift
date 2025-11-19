@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Centralized runtime flags for the current process.
 ///
@@ -13,8 +14,17 @@ final class FeatureFlags {
 
     private var _startupModeActive: Bool = false
 
+    /// Test seam: allow injecting startup mode during unit tests
+    nonisolated(unsafe) static var testStartupMode: Bool?
+
     /// True while we want to avoid potentially-blocking permission checks during early startup.
-    var startupModeActive: Bool { stateQueue.sync { _startupModeActive } }
+    var startupModeActive: Bool {
+        // Test seam: use injected value in tests
+        if TestEnvironment.isRunningTests, let override = Self.testStartupMode {
+            return override
+        }
+        return stateQueue.sync { _startupModeActive }
+    }
 
     /// Activate startup mode, optionally auto-deactivating after a timeout.
     func activateStartupMode(timeoutSeconds: Double = 5.0) {

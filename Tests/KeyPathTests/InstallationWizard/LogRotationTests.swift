@@ -4,18 +4,6 @@ import XCTest
 
 @MainActor
 final class LogRotationTests: XCTestCase {
-    private var originalExecutor: AdminCommandExecutor!
-
-    override func setUp() {
-        super.setUp()
-        originalExecutor = AdminCommandExecutorHolder.shared
-    }
-
-    override func tearDown() {
-        AdminCommandExecutorHolder.shared = originalExecutor
-        super.tearDown()
-    }
-
     func testInstallLogRotationFailsWhenCommandFails() async {
         let fake = FakeAdminCommandExecutor(resultProvider: { _, _ in
             CommandExecutionResult(exitCode: 1, output: "Permission denied")
