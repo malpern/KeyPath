@@ -397,7 +397,7 @@ final class KeyPathTests: XCTestCase {
                 // No sleep needed - error state is set synchronously
                 if let error = manager.lastError {
                     XCTAssertTrue(
-                        error.contains("sudo ./install-system.sh") || error.contains("install"),
+                        error.contains("sudo ./install-system.sh install") || error.contains("install"),
                         "Should guide user to installer: \(error)"
                     )
                 }

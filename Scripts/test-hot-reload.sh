@@ -143,5 +143,5 @@ echo
 if [[ -f "$KANATA_CONFIG_FILE" ]]; then
     echo "Ready to test hot reload with actual service!"
 else
-    echo "Install the system first: sudo ./install-system.sh"
+    echo "Install the system first: sudo ./install-system.sh install"
 fi

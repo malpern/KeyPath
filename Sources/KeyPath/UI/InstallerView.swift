@@ -17,7 +17,7 @@ struct InstallerView: View {
                     .font(.headline)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("sudo ./install-system.sh")
+                    Text("sudo ./install-system.sh install")
                         .font(.system(.body, design: .monospaced))
                         .padding()
                         .background(Color.gray.opacity(0.1))

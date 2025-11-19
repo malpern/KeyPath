@@ -325,7 +325,7 @@ class MockEnvironmentKanataManager: ObservableObject {
             throw NSError(
                 domain: "MockError", code: 1,
                 userInfo: [
-                    NSLocalizedDescriptionKey: "LaunchDaemon missing. Please run: sudo ./install-system.sh"
+                    NSLocalizedDescriptionKey: "LaunchDaemon missing. Please run: sudo ./install-system.sh install"
                 ]
             )
         }

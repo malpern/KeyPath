@@ -5,6 +5,10 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -16,7 +20,37 @@ NC='\033[0m' # No Color
 LAUNCH_DAEMON_LABEL="com.keypath.kanata"
 KANATA_CONFIG_DIR="/usr/local/etc/kanata"
 KANATA_CONFIG_FILE="${KANATA_CONFIG_DIR}/keypath.kbd"
-KANATA_BINARY="/opt/homebrew/bin/kanata"
+KANATA_BINARY="${KANATA_BINARY_OVERRIDE:-}"
+
+detect_kanata_binary() {
+    if [[ -n "$KANATA_BINARY" && -x "$KANATA_BINARY" ]]; then
+        echo "$KANATA_BINARY"
+        return
+    fi
+
+    if command -v kanata >/dev/null 2>&1; then
+        echo "$(command -v kanata)"
+        return
+    fi
+
+    local candidates=(
+        "/opt/homebrew/bin/kanata"
+        "/usr/local/bin/kanata"
+        "/usr/bin/kanata"
+        "$PROJECT_ROOT/External/kanata/target/release/kanata"
+    )
+
+    for candidate in "${candidates[@]}"; do
+        if [[ -x "$candidate" ]]; then
+            echo "$candidate"
+            return
+        fi
+    done
+
+    echo ""
+}
+
+KANATA_BINARY="$(detect_kanata_binary)"
 
 # Functions
 log_info() {
@@ -41,11 +75,11 @@ echo
 
 # Check if Kanata is installed
 log_info "Checking Kanata installation..."
-if [[ -f "$KANATA_BINARY" ]]; then
+if [[ -n "$KANATA_BINARY" && -x "$KANATA_BINARY" ]]; then
     log_success "Kanata found at $KANATA_BINARY"
 else
-    log_error "Kanata not found at $KANATA_BINARY"
-    echo "Please install Kanata first: brew install kanata"
+    log_error "Kanata binary not found."
+    echo "Set KANATA_BINARY_OVERRIDE or install Kanata (e.g. brew install kanata)."
     exit 1
 fi
 
@@ -121,7 +155,7 @@ echo
 log_success "Installation test completed successfully!"
 echo
 echo "Ready to install KeyPath:"
-echo "  sudo ./install-system.sh"
+echo "  sudo ./install-system.sh install"
 echo
 echo "To uninstall later:"
 echo "  sudo ./uninstall.sh"

@@ -191,7 +191,7 @@ KeyPath/
 ### **Installation**
 ```bash
 # Install system service
-sudo ./install-system.sh
+sudo ./install-system.sh install
 
 # Uninstall completely
 sudo ./uninstall.sh

@@ -323,6 +323,12 @@
 
 ## Phase 6: Migrate Callers
 
+#### Pre-Kickoff Status — 2025-11-19
+- [x] `install-system.sh` restored as the canonical CLI wrapper (`install-system.sh install`)
+- [x] `Scripts/install-via-cli.sh` delegated to the new wrapper; CLI entry is now wired through the Swift target
+- [x] `Scripts/test-installer.sh` auto-detects the Kanata binary (override via `KANATA_BINARY_OVERRIDE`)
+- [x] Full `swift test` run + docs updated; ready to start caller migration work
+
 ### CLI Migration
 - [ ] **Identify CLI entry points**:
   - [ ] Find all CLI scripts that call installer code

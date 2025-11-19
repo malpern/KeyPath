@@ -27,8 +27,8 @@ brew install kanata
 
 ### System Installation
 ```bash
-# Install system-wide
-sudo ./install-system.sh
+# Install system-wide via CLI
+sudo ./install-system.sh install
 ```
 
 ### Test Installation

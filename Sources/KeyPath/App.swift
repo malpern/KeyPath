@@ -4,7 +4,6 @@ import KeyPathPermissions
 import ServiceManagement
 import SwiftUI
 
-@main
 public struct KeyPathApp: App {
     // Phase 4: MVVM - Use ViewModel instead of Manager directly
     @StateObject private var viewModel: KanataViewModel
