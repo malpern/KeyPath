@@ -4,16 +4,31 @@ import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 
+@MainActor
+protocol InstallerEngineProtocol: AnyObject {
+    func inspectSystem() async -> SystemContext
+    func makePlan(for intent: InstallIntent, context: SystemContext) async -> InstallPlan
+    func run(intent: InstallIntent, using broker: PrivilegeBroker) async -> InstallerReport
+}
+
+extension InstallerEngine: InstallerEngineProtocol {}
+
 /// CLI handler for KeyPath command-line operations
 @MainActor
 public struct KeyPathCLI {
-    private let installerEngine: InstallerEngine
-    private let systemValidator: SystemValidator
+    private let installerEngine: InstallerEngineProtocol
+    private let privilegeBrokerFactory: () -> PrivilegeBroker
 
-    public init() {
-        installerEngine = InstallerEngine()
-        let processManager = ProcessLifecycleManager()
-        systemValidator = SystemValidator(processLifecycleManager: processManager)
+    init(
+        installerEngine: InstallerEngineProtocol = InstallerEngine(),
+        privilegeBrokerFactory: (() -> PrivilegeBroker)? = nil
+    ) {
+        self.installerEngine = installerEngine
+        if let privilegeBrokerFactory {
+            self.privilegeBrokerFactory = privilegeBrokerFactory
+        } else {
+            self.privilegeBrokerFactory = { PrivilegeBroker() }
+        }
     }
 
     /// Run CLI command based on arguments
@@ -79,70 +94,61 @@ public struct KeyPathCLI {
     private func runStatus() async -> Int32 {
         print("Checking system status...")
 
-        let snapshot = await systemValidator.checkSystem()
+        let context = await installerEngine.inspectSystem()
 
         print("\n=== System Status ===")
-        print("Timestamp: \(formatDate(snapshot.timestamp))")
-        print("System Ready: \(snapshot.isReady ? "✅ Yes" : "❌ No")")
+        print("Timestamp: \(formatDate(context.timestamp))")
+        print("System Ready: \(context.isOperational ? "✅ Yes" : "❌ No")")
 
         // Helper status
         print("\n--- Helper ---")
-        print("Installed: \(snapshot.helper.isInstalled ? "✅" : "❌")")
-        print("Working: \(snapshot.helper.isWorking ? "✅" : "❌")")
-        if let version = snapshot.helper.version {
+        print("Installed: \(context.helper.isInstalled ? "✅" : "❌")")
+        print("Working: \(context.helper.isWorking ? "✅" : "❌")")
+        if let version = context.helper.version {
             print("Version: \(version)")
         }
 
         // Permissions
         print("\n--- Permissions ---")
         print("KeyPath:")
-        print("  Accessibility: \(snapshot.permissions.keyPath.accessibility.isReady ? "✅" : "❌")")
-        print("  Input Monitoring: \(snapshot.permissions.keyPath.inputMonitoring.isReady ? "✅" : "❌")")
+        print("  Accessibility: \(context.permissions.keyPath.accessibility.isReady ? "✅" : "❌")")
+        print("  Input Monitoring: \(context.permissions.keyPath.inputMonitoring.isReady ? "✅" : "❌")")
         print("Kanata:")
-        print("  Accessibility: \(snapshot.permissions.kanata.accessibility.isReady ? "✅" : "❌")")
-        print("  Input Monitoring: \(snapshot.permissions.kanata.inputMonitoring.isReady ? "✅" : "❌")")
+        print("  Accessibility: \(context.permissions.kanata.accessibility.isReady ? "✅" : "❌")")
+        print("  Input Monitoring: \(context.permissions.kanata.inputMonitoring.isReady ? "✅" : "❌")")
 
         // Components
         print("\n--- Components ---")
-        print("Kanata Binary: \(snapshot.components.kanataBinaryInstalled ? "✅ Installed" : "❌ Missing")")
-        print("Karabiner Driver: \(snapshot.components.karabinerDriverInstalled ? "✅ Installed" : "❌ Missing")")
-        print("VHID Device: \(snapshot.components.vhidDeviceHealthy ? "✅ Healthy" : "❌ Unhealthy")")
-        if snapshot.components.vhidVersionMismatch {
+        print("Kanata Binary: \(context.components.kanataBinaryInstalled ? "✅ Installed" : "❌ Missing")")
+        print("Karabiner Driver: \(context.components.karabinerDriverInstalled ? "✅ Installed" : "❌ Missing")")
+        print("VHID Device: \(context.components.vhidDeviceHealthy ? "✅ Healthy" : "❌ Unhealthy")")
+        if context.components.vhidVersionMismatch {
             print("⚠️  VHID Version Mismatch detected")
         }
 
         // Services
         print("\n--- Services ---")
-        print("Kanata Running: \(snapshot.health.kanataRunning ? "✅" : "❌")")
-        print("Karabiner Daemon: \(snapshot.health.karabinerDaemonRunning ? "✅" : "❌")")
-        print("VHID Healthy: \(snapshot.health.vhidHealthy ? "✅" : "❌")")
+        print("Kanata Running: \(context.services.kanataRunning ? "✅" : "❌")")
+        print("Karabiner Daemon: \(context.services.karabinerDaemonRunning ? "✅" : "❌")")
+        print("VHID Healthy: \(context.services.vhidHealthy ? "✅" : "❌")")
 
         // Conflicts
-        if snapshot.conflicts.hasConflicts {
+        if context.conflicts.hasConflicts {
             print("\n--- Conflicts ---")
-            for conflict in snapshot.conflicts.conflicts {
+            for conflict in context.conflicts.conflicts {
                 print("⚠️  \(formatConflict(conflict))")
             }
         }
 
         // Issues
-        let issues = snapshot.blockingIssues
-        if !issues.isEmpty {
-            print("\n--- Issues ---")
-            for issue in issues {
-                print("\(issue.canAutoFix ? "🔧" : "⚠️")  \(issue.title)")
-                if !issue.action.isEmpty {
-                    print("   Action: \(issue.action)")
-                }
-            }
-        }
+        printIssuesIfNeeded(for: context)
 
         print("\n=== Summary ===")
-        if snapshot.isReady {
+        if context.isOperational {
             print("✅ System is ready and operational")
             return 0
         } else {
-            print("❌ System has \(issues.count) blocking issue(s)")
+            print("❌ System has blocking issue(s)")
             print("   Run 'keypath-cli repair' to attempt automatic fixes")
             return 1
         }
@@ -152,7 +158,7 @@ public struct KeyPathCLI {
     private func runInstall() async -> Int32 {
         print("Starting installation...")
 
-        let broker = PrivilegeBroker()
+        let broker = privilegeBrokerFactory()
         let report = await installerEngine.run(intent: .install, using: broker)
 
         print("\n=== Installation Report ===")
@@ -195,7 +201,7 @@ public struct KeyPathCLI {
     private func runRepair() async -> Int32 {
         print("Starting repair...")
 
-        let broker = PrivilegeBroker()
+        let broker = privilegeBrokerFactory()
         let report = await installerEngine.run(intent: .repair, using: broker)
 
         print("\n=== Repair Report ===")
@@ -324,5 +330,81 @@ public struct KeyPathCLI {
         case let .exclusiveDeviceAccess(device):
             "Exclusive device access: \(device)"
         }
+    }
+
+    private func printIssuesIfNeeded(for context: SystemContext) {
+        let issues = deriveIssues(from: context)
+        guard !issues.isEmpty else { return }
+
+        print("\n--- Issues ---")
+        for issue in issues {
+            print("\(issue.canAutoFix ? "🔧" : "⚠️")  \(issue.title)")
+            if let action = issue.action {
+                print("   Action: \(action)")
+            }
+        }
+    }
+
+    private func deriveIssues(from context: SystemContext) -> [ContextIssue] {
+        var issues: [ContextIssue] = []
+
+        if !context.permissions.keyPath.hasAllPermissions {
+            issues.append(ContextIssue(
+                title: "KeyPath permissions missing",
+                canAutoFix: false,
+                action: "Grant Accessibility & Input Monitoring permissions."
+            ))
+        }
+        if !context.permissions.kanata.hasAllPermissions {
+            issues.append(ContextIssue(
+                title: "Kanata permissions missing",
+                canAutoFix: false,
+                action: "Grant permissions via Installation Wizard."
+            ))
+        }
+        if !context.components.hasAllRequired {
+            issues.append(ContextIssue(
+                title: "Required components missing",
+                canAutoFix: true,
+                action: "Run `keypath-cli install` to reinstall components."
+            ))
+        }
+        if !context.services.isHealthy {
+            issues.append(ContextIssue(
+                title: "Services unhealthy",
+                canAutoFix: true,
+                action: "Run `keypath-cli repair` to restart services."
+            ))
+        }
+        if !context.helper.isReady {
+            issues.append(ContextIssue(
+                title: "Helper not installed",
+                canAutoFix: true,
+                action: "Run `keypath-cli install` to reinstall helper."
+            ))
+        }
+        if context.conflicts.hasConflicts {
+            issues.append(contentsOf: context.conflicts.conflicts.map { conflict in
+                ContextIssue(title: formatConflict(conflict), canAutoFix: true, action: "Terminate or stop the conflicting process.")
+            })
+        }
+
+        return issues
+    }
+}
+
+private struct ContextIssue {
+    let title: String
+    let canAutoFix: Bool
+    let action: String?
+}
+
+private extension SystemContext {
+    var isOperational: Bool {
+        permissions.isSystemReady &&
+            helper.isReady &&
+            components.hasAllRequired &&
+            services.isHealthy &&
+            !conflicts.hasConflicts
     }
 }

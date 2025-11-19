@@ -330,6 +330,15 @@
 - [x] Full `swift test` run + docs updated; ready to start caller migration work
 
 ### CLI Migration
+- **Entry Point Inventory (2025-11-19)**
+  | Script / Binary | Current Behavior | Notes |
+  | --- | --- | --- |
+  | `install-system.sh` | Builds `KeyPath` SwiftPM product, runs `KeyPath install` | Calls CLI mode inside GUI binary (no UI due to early exit). Needs switch to standalone CLI product once available. |
+  | `Scripts/install-via-cli.sh` | Delegates to `install-system.sh` | No direct installer logic anymore. |
+  | `Scripts/test-installer.sh` | Validates Kanata binary, checks app bundle, prints `sudo ./install-system.sh install` | Still relies on `install-system.sh`; passes when CLI command is available. |
+  | `Scripts/test-hot-reload.sh` | Emits “Install the system first: sudo ./install-system.sh install” | Documentation string only; no automation. |
+  | `Scripts/validate-project.sh` | Step 4 instructs `sudo ./install-system.sh install` | Pure documentation. |
+  | `KeyPath` binary (`Main.swift`) | Detects CLI commands and exits before SwiftUI | Temporary bridge until standalone CLI target compiles. |
 - [ ] **Identify CLI entry points**:
   - [ ] Find all CLI scripts that call installer code
   - [ ] Document current behavior
