@@ -92,6 +92,16 @@ actor KanataTCPClient {
     // Handshake cache
     private var cachedHello: TcpHelloOk?
 
+    // Request ID management for reliable response correlation
+    private var nextRequestId: UInt64 = 1
+
+    /// Generate next request ID (monotonically increasing)
+    private func generateRequestId() -> UInt64 {
+        let id = nextRequestId
+        nextRequestId += 1
+        return id
+    }
+
     // MARK: - Initialization
 
     init(host: String = "127.0.0.1", port: Int, timeout: TimeInterval = 5.0, reuseConnection _: Bool = true) {
@@ -272,23 +282,28 @@ actor KanataTCPClient {
         let version: String
         let protocolVersion: Int
         let capabilities: [String]
+        let request_id: UInt64?
 
         enum CodingKeys: String, CodingKey {
             case version
             case protocolVersion = "protocol"
             case capabilities
+            case request_id
             // Minimal server compatibility
             case server
         }
 
-        init(version: String, protocolVersion: Int, capabilities: [String]) {
+        init(version: String, protocolVersion: Int, capabilities: [String], request_id: UInt64? = nil) {
             self.version = version
             self.protocolVersion = protocolVersion
             self.capabilities = capabilities
+            self.request_id = request_id
         }
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
+            request_id = try container.decodeIfPresent(UInt64.self, forKey: .request_id)
+
             if let version = try container.decodeIfPresent(String.self, forKey: .version),
                let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion),
                let capabilities = try container.decodeIfPresent([String].self, forKey: .capabilities) {
@@ -331,6 +346,7 @@ actor KanataTCPClient {
         let uptime_s: UInt64?
         let ready: Bool
         let last_reload: TcpLastReload?
+        let request_id: UInt64?
     }
 
     struct TcpValidationItem: Codable, Sendable {
@@ -343,28 +359,49 @@ actor KanataTCPClient {
     struct TcpValidationResult: Codable, Sendable {
         let warnings: [TcpValidationItem]
         let errors: [TcpValidationItem]
+        let request_id: UInt64?
     }
 
     // MARK: - Handshake / Status
 
     /// Perform Hello handshake and cache capabilities
+    /// Note: Kanata v1.10+ returns TWO lines:
+    ///   Line 1: {"status":"Ok"}
+    ///   Line 2: {"HelloOk": {...}}
     func hello() async throws -> TcpHelloOk {
         if let cachedHello { return cachedHello }
 
-        let requestData = try JSONEncoder().encode(["Hello": [:] as [String: String]])
+        let requestId = generateRequestId()
+        let requestData = try JSONEncoder().encode(["Hello": ["request_id": requestId]])
         let start = CFAbsoluteTimeGetCurrent()
-        let responseData = try await send(requestData)
-        let dt = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
-        if let raw = String(data: responseData, encoding: .utf8) {
-            AppLogger.shared.debug("🌐 [TCP] hello response bytes=\(responseData.count) duration_ms=\(dt) sample=\(raw.prefix(120))")
-        } else {
-            AppLogger.shared.debug("🌐 [TCP] hello response bytes=\(responseData.count) duration_ms=\(dt)")
+
+        // Read first line (status response)
+        let firstLine = try await send(requestData)
+        let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
+        AppLogger.shared.log("🌐 [TCP] Hello status: \(firstLineStr)")
+
+        // Check if first line indicates error
+        if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
+           let status = json["status"] as? String,
+           status.lowercased() == "error" {
+            let errorMsg = json["msg"] as? String ?? "Hello request failed"
+            throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
         }
-        guard let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: responseData) else {
-            AppLogger.shared.error("🌐 [TCP] hello parse failed")
+
+        // Read second line (HelloOk details) with timeout
+        let connection = try await ensureConnectionCore()
+        let secondLine = try await withTimeout(seconds: 5.0) {
+            try await self.readUntilNewline(on: connection)
+        }
+        let dt = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+
+        guard let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: secondLine) else {
+            let raw = String(data: secondLine, encoding: .utf8) ?? ""
+            AppLogger.shared.error("🌐 [TCP] hello parse failed: \(raw)")
             throw KeyPathError.communication(.invalidResponse)
         }
-        AppLogger.shared.debug("🌐 [TCP] hello ok protocol=\(hello.protocolVersion) caps=\(hello.capabilities.joined(separator: ","))")
+
+        AppLogger.shared.log("✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))")
         cachedHello = hello
         return hello
     }
@@ -381,7 +418,8 @@ actor KanataTCPClient {
 
     /// Fetch StatusInfo
     func getStatus() async throws -> TcpStatusInfo {
-        let requestData = try JSONEncoder().encode(["Status": [:] as [String: String]])
+        let requestId = generateRequestId()
+        let requestData = try JSONEncoder().encode(["Status": ["request_id": requestId]])
         let responseData = try await send(requestData)
         if let status = try extractMessage(named: "StatusInfo", into: TcpStatusInfo.self, from: responseData) {
             return status
@@ -429,12 +467,14 @@ actor KanataTCPClient {
     func validateConfig(_ configContent: String) async -> TCPValidationResult {
         AppLogger.shared.debug("📝 [TCP] Config validation requested (\(configContent.count) bytes)")
         do {
-            // Ensure capability or proceed best-effort
-            _ = try? await enforceMinimumCapabilities(required: ["validate"]) // soft-check
+            // Note: Kanata v1.10 doesn't advertise "validate" capability but does support it
+            // Skip capability check and just attempt the command
 
+            let requestId = generateRequestId()
             let payload: [String: Any] = [
                 "Validate": [
-                    "config": configContent
+                    "config": configContent,
+                    "request_id": requestId
                 ]
             ]
             let requestData = try JSONSerialization.data(withJSONObject: payload)
@@ -452,10 +492,18 @@ actor KanataTCPClient {
                 return .failure(errors: [errorMsg])
             }
 
-            // Read second line (ValidationResult)
+            // Read second line (ValidationResult) with timeout
             let connection = try await ensureConnectionCore()
-            let secondLine = try await readUntilNewline(on: connection)
-            AppLogger.shared.debug("📝 [TCP] Validation result received (\(secondLine.count) bytes)")
+            let secondLine: Data
+            do {
+                secondLine = try await withTimeout(seconds: 5.0) {
+                    try await self.readUntilNewline(on: connection)
+                }
+                AppLogger.shared.debug("📝 [TCP] Validation result received (\(secondLine.count) bytes)")
+            } catch {
+                AppLogger.shared.warn("⚠️ [TCP] Timeout waiting for validation result, falling back to CLI")
+                return .networkError("Validation timeout - server did not respond")
+            }
 
             // Parse ValidationResult from second line
             if let vr = try extractMessage(named: "ValidationResult", into: TcpValidationResult.self, from: secondLine) {
@@ -579,57 +627,77 @@ actor KanataTCPClient {
 
         do {
             // Preferred: wait contract (v2)
+            let requestId = generateRequestId()
             let req: [String: Any] = [
                 "Reload": [
                     "wait": true,
-                    "timeout_ms": Int(timeoutMs)
+                    "timeout_ms": Int(timeoutMs),
+                    "request_id": requestId
                 ]
             ]
             let requestData = try JSONSerialization.data(withJSONObject: req)
-            let responseData = try await send(requestData)
 
-            if let reload = try extractMessage(named: "ReloadResult", into: ReloadResult.self, from: responseData) {
+            // Read first line (status response) with timeout
+            let firstLine = try await withThrowingTaskGroup(of: Data.self) { group in
+                group.addTask {
+                    try await self.send(requestData)
+                }
+
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(timeoutMs + 1000) * 1_000_000)
+                    throw KeyPathError.communication(.timeout)
+                }
+
+                let result = try await group.next()!
+                group.cancelAll()
+                return result
+            }
+            let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
+            AppLogger.shared.log("🔄 [TCP] Reload status: \(firstLineStr)")
+
+            // Check if first line indicates error
+            if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
+               let status = json["status"] as? String,
+               status.lowercased() == "error" {
+                let errorMsg = json["msg"] as? String ?? "Reload failed"
+                AppLogger.shared.log("❌ [TCP] Reload failed: \(errorMsg)")
+                return .failure(error: errorMsg, response: firstLineStr)
+            }
+
+            // Read second line (ReloadResult) with timeout
+            let connection = try await ensureConnectionCore()
+            let secondLine = try await withThrowingTaskGroup(of: Data.self) { group in
+                group.addTask {
+                    try await self.readUntilNewline(on: connection)
+                }
+
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(timeoutMs + 1000) * 1_000_000)
+                    throw KeyPathError.communication(.timeout)
+                }
+
+                let result = try await group.next()!
+                group.cancelAll()
+                return result
+            }
+
+            if let reload = try extractMessage(named: "ReloadResult", into: ReloadResult.self, from: secondLine) {
                 if reload.ready {
                     let dur = reload.duration_ms ?? 0
                     let ep = reload.epoch ?? 0
                     AppLogger.shared.log("✅ [TCP] Reload(wait) ok duration=\(dur)ms epoch=\(ep)")
-                    return .success(response: String(data: responseData, encoding: .utf8) ?? "")
+                    let secondLineStr = String(data: secondLine, encoding: .utf8) ?? ""
+                    return .success(response: secondLineStr)
                 } else {
                     AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout before \(reload.timeout_ms) ms")
-                    return .failure(error: "timeout", response: String(data: responseData, encoding: .utf8) ?? "")
+                    let secondLineStr = String(data: secondLine, encoding: .utf8) ?? ""
+                    return .failure(error: "timeout", response: secondLineStr)
                 }
             }
 
-            // Fallback: Ok/Error contract - parse using structured ServerResponse
-            let responseString = String(data: responseData, encoding: .utf8) ?? ""
-            let lines = responseString.split(separator: "\n")
-
-            // Try to parse first line as ServerResponse
-            if let firstLine = lines.first,
-               let lineData = String(firstLine).data(using: .utf8),
-               let serverResponse = try? JSONDecoder().decode(TcpServerResponse.self, from: lineData) {
-                if serverResponse.isOk {
-                    AppLogger.shared.log("✅ [TCP] Config reload successful (fallback)")
-                    return .success(response: responseString)
-                } else if serverResponse.isError {
-                    let errorMsg = serverResponse.msg ?? "Unknown error"
-                    AppLogger.shared.log("❌ [TCP] Config reload failed: \(errorMsg)")
-                    return .failure(error: errorMsg, response: responseString)
-                }
-            }
-
-            // Check for AuthRequired message
-            if responseString.contains("AuthRequired") {
-                return .authenticationRequired
-            }
-
-            // Legacy fallback: check for "Live reload successful" string (for very old servers)
-            if responseString.contains("Live reload successful") {
-                AppLogger.shared.log("✅ [TCP] Config reload successful (legacy fallback)")
-                return .success(response: responseString)
-            }
-
-            return .failure(error: "Unexpected response format", response: responseString)
+            // If we couldn't parse ReloadResult, treat status OK as success (backward compat)
+            AppLogger.shared.log("✅ [TCP] Config reload acknowledged (status OK, no ReloadResult)")
+            return .success(response: firstLineStr)
         } catch {
             AppLogger.shared.log("❌ [TCP] Reload error: \(error)")
             return .networkError(error.localizedDescription)
@@ -642,6 +710,7 @@ actor KanataTCPClient {
         let ok: Bool?
         let duration_ms: UInt64?
         let epoch: UInt64?
+        let request_id: UInt64?
     }
 
     /// Restart Kanata process
@@ -788,10 +857,41 @@ actor KanataTCPClient {
         return accumulator.data
     }
 
-    /// Core TCP send/receive implementation
-    /// Properly handles newline-delimited JSON responses without arbitrary delays
+    /// Check if a JSON message is an unsolicited broadcast event (not a command response)
+    private nonisolated func isUnsolicitedBroadcast(_ data: Data) -> Bool {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return false
+        }
+
+        // These are broadcast events that Kanata sends to all clients
+        let broadcastKeys = ["LayerChange", "ConfigFileReload", "MessagePush", "Ready", "ConfigError"]
+        return broadcastKeys.contains(where: { json[$0] != nil })
+    }
+
+    /// Helper to extract request_id from a JSON response
+    private nonisolated func extractRequestId(from data: Data) -> UInt64? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+
+        // Try to find request_id in the first level of any message type
+        for (_, value) in json {
+            if let dict = value as? [String: Any],
+               let requestId = dict["request_id"] as? UInt64 {
+                return requestId
+            }
+        }
+
+        return nil
+    }
+
+    /// Core TCP send/receive implementation with request_id matching
+    /// Falls back to broadcast draining if server doesn't support request_id
     private func sendAndReceive(on connection: NWConnection, data: Data) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
+        // Extract request_id from the outgoing message (if present)
+        let sentRequestId = extractRequestId(from: data)
+
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
             let completionFlag = CompletionFlag()
 
             // Send data
@@ -803,10 +903,59 @@ actor KanataTCPClient {
                     return
                 }
 
-                // Read response using proper newline-delimited framing
+                // Read response, using request_id matching if available
                 Task {
                     do {
-                        let responseData = try await self.readUntilNewline(on: connection)
+                        var responseData: Data
+                        var attempts = 0
+                        let maxDrainAttempts = 10  // Prevent infinite loop
+
+                        // If we sent a request_id, match responses by request_id
+                        // Otherwise fall back to old broadcast draining behavior
+                        repeat {
+                            responseData = try await withTimeout(seconds: 5.0) {
+                                try await self.readUntilNewline(on: connection)
+                            }
+                            attempts += 1
+
+                            // First check: is this an unsolicited broadcast?
+                            if self.isUnsolicitedBroadcast(responseData) {
+                                if let msgStr = String(data: responseData, encoding: .utf8) {
+                                    AppLogger.shared.log("🔄 [TCP] Skipping broadcast: \(msgStr.prefix(100))")
+                                }
+                                continue  // Read next line
+                            }
+
+                            // Second check: if we sent request_id, verify it matches
+                            if let sentId = sentRequestId {
+                                if let responseId = self.extractRequestId(from: responseData) {
+                                    if responseId == sentId {
+                                        // Perfect match - this is our response
+                                        AppLogger.shared.debug("✅ [TCP] Matched response by request_id=\(sentId)")
+                                        break
+                                    } else {
+                                        // Response has request_id but it doesn't match - skip it
+                                        if let msgStr = String(data: responseData, encoding: .utf8) {
+                                            AppLogger.shared.log("🔄 [TCP] Skipping mismatched response (expected=\(sentId), got=\(responseId)): \(msgStr.prefix(100))")
+                                        }
+                                        continue
+                                    }
+                                } else {
+                                    // We sent request_id but response doesn't have one
+                                    // This might be an old server - accept it as the response
+                                    AppLogger.shared.debug("⚠️ [TCP] Response missing request_id (old server?), accepting anyway")
+                                    break
+                                }
+                            }
+
+                            // No request_id matching - got a response that's not a broadcast
+                            break
+                        } while attempts < maxDrainAttempts
+
+                        if attempts >= maxDrainAttempts {
+                            throw KeyPathError.communication(.invalidResponse)
+                        }
+
                         if completionFlag.markCompleted() {
                             continuation.resume(returning: responseData)
                         }
@@ -849,21 +998,48 @@ actor KanataTCPClient {
 
     /// Extract a named server message (second line) from a newline-delimited response
     private func extractMessage<T: Decodable>(named name: String, into _: T.Type, from data: Data) throws -> T? {
-        guard let s = String(data: data, encoding: .utf8) else { return nil }
+        guard let s = String(data: data, encoding: .utf8) else {
+            AppLogger.shared.log("🔍 [TCP extractMessage] Failed to decode data as UTF-8")
+            return nil
+        }
+
+        AppLogger.shared.log("🔍 [TCP extractMessage] Looking for '\(name)' in response: \(s.prefix(200))")
+
         // Split by newlines; look for an object where the top-level key is the provided name
-        for line in s.split(separator: "\n").map(String.init) {
+        for (index, line) in s.split(separator: "\n").map(String.init).enumerated() {
+            AppLogger.shared.log("🔍 [TCP extractMessage] Line \(index): \(line.prefix(150))")
+
             guard let lineData = line.data(using: .utf8) else { continue }
             // Try loose parse via JSONSerialization to locate the named object
-            if let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-               let payload = obj[name] {
-                // Re-encode payload and decode strongly
-                if let payloadData = try? JSONSerialization.data(withJSONObject: payload) {
-                    if let decoded = try? JSONDecoder().decode(T.self, from: payloadData) {
-                        return decoded
-                    }
-                }
+            guard let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else {
+                AppLogger.shared.log("🔍 [TCP extractMessage] Line \(index): Not valid JSON object")
+                continue
+            }
+
+            AppLogger.shared.log("🔍 [TCP extractMessage] Line \(index) keys: \(obj.keys.joined(separator: ", "))")
+
+            guard let payload = obj[name] else {
+                AppLogger.shared.log("🔍 [TCP extractMessage] Line \(index): Missing key '\(name)'")
+                continue
+            }
+
+            // Re-encode payload and decode strongly
+            guard let payloadData = try? JSONSerialization.data(withJSONObject: payload) else {
+                AppLogger.shared.log("🔍 [TCP extractMessage] Line \(index): Failed to re-encode payload")
+                continue
+            }
+
+            do {
+                let decoded = try JSONDecoder().decode(T.self, from: payloadData)
+                AppLogger.shared.log("✅ [TCP extractMessage] Successfully decoded '\(name)' from line \(index)")
+                return decoded
+            } catch {
+                AppLogger.shared.log("❌ [TCP extractMessage] Line \(index): Decoding failed: \(error)")
+                continue
             }
         }
+
+        AppLogger.shared.log("❌ [TCP extractMessage] Could not find '\(name)' in any line")
         return nil
     }
 }
@@ -929,5 +1105,40 @@ enum TCPReloadResult {
         default:
             nil
         }
+    }
+}
+
+// MARK: - Timeout Helper
+
+/// Execute an async operation with a timeout
+private func withTimeout<T: Sendable>(seconds: TimeInterval, operation: @escaping @Sendable () async throws -> T) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+        // Add the actual operation
+        group.addTask {
+            try await operation()
+        }
+
+        // Add a timeout task
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            throw TimeoutError()
+        }
+
+        // Wait for the first one to complete
+        guard let result = try await group.next() else {
+            throw TimeoutError()
+        }
+
+        // Cancel the other task
+        group.cancelAll()
+
+        return result
+    }
+}
+
+/// Error thrown when an operation times out
+private struct TimeoutError: Error, LocalizedError {
+    var errorDescription: String? {
+        "Operation timed out"
     }
 }
