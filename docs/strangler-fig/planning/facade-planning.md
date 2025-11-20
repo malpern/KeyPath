@@ -379,9 +379,10 @@
   - [x] Replaced `performAutoFix(_ action: AutoFixAction)` with façade
   - [x] Preserved post-fix health checks and state refresh
   - [x] Build and test pass
-- [ ] **Migrate UI state detection** (Phase 6.6):
+- [ ] **Migrate UI state detection** (Phase 6.7):
   - [ ] Update UI state management to use `InstallerEngine.inspectSystem()`
   - [ ] Replace `SystemSnapshotAdapter` calls with façade
+  - [ ] Update `WizardStateManager` to use façade
 - [ ] **Migrate uninstall dialog** (Phase 6.7):
   - [ ] Replace `UninstallCoordinator` calls with `InstallerEngine.uninstall(deleteConfig:using:)`
   - [ ] Update error display to consume `InstallerReport`
