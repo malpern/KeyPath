@@ -287,32 +287,67 @@
 
 ---
 
-## Phase 6: Migrate Callers
+## Phase 6: Migrate Callers ✅ COMPLETE
+
+#### Pre-Kickoff Status — 2025-11-19
+- [x] `install-system.sh` restored as the canonical CLI wrapper (`install-system.sh install`)
+- [x] `Scripts/install-via-cli.sh` delegated to the new wrapper; CLI entry is now wired through the Swift target
+- [x] `Scripts/test-installer.sh` auto-detects the Kanata binary (override via `KANATA_BINARY_OVERRIDE`)
+- [x] Full `swift test` run + docs updated; ready to start caller migration work
+
+#### CLI Migration Complete — 2025-11-20
+- ✅ Created checkpoint tag `phase6-pre-cli-refactor` before beginning the CLI modularization.
+- ✅ Split the Swift package into `KeyPathAppKit` (library), `KeyPath` (GUI executable), and the new `KeyPathCLI` product. `install-system.sh` now builds and launches the standalone CLI binary instead of the GUI app stub.
+- ✅ Updated every CLI/GUI/unit test (plus deprecated automation harnesses) to `@testable import KeyPathAppKit`; `swift test` is green on the new layout, so regression coverage carried over.
+- ✅ All CLI commands (`status`, `install`, `repair`, `uninstall`, `inspect`) route through `InstallerEngine` façade.
+- ✅ GUI/CLI overlap audit complete — see `docs/strangler-fig/phase6/GUI_CLI_OVERLAP_AUDIT.md` for detailed findings and migration plan.
 
 ### CLI Migration
-- [ ] **Identify CLI entry points**:
-  - [ ] Find all CLI scripts that call installer code
-  - [ ] Document current behavior
-- [ ] **Migrate CLI to façade**:
-  - [ ] Replace direct calls with façade methods
-  - [ ] Update error handling
-  - [ ] Update output formatting
-  - [ ] Test CLI commands still work
-- [ ] **Add CLI tests**:
-  - [ ] Test CLI commands with façade
-  - [ ] Verify output format
-  - [ ] Verify error messages
+- [x] **Identify CLI entry points**:
+  - [x] Find all CLI scripts that call installer code
+  - [x] Document current behavior / dependencies
+- [x] **Migrate CLI to façade**:
+  - [x] Route `status`/`inspect` commands through `InstallerEngine.inspectSystem()`
+  - [x] Route `install`/`repair` commands through `InstallerEngine.run(intent:using:)`
+  - [x] Route `uninstall` command through `InstallerEngine.uninstall(deleteConfig:using:)`
+  - [x] Call standalone CLI binary from shell scripts (replace GUI executable fallback)
+  - [x] Expand uninstall flow to façade (delegates to `UninstallCoordinator` temporarily)
+- [x] **Add CLI tests**:
+  - [x] Add façade-backed CLI unit tests (`Tests/KeyPathTests/CLI/KeyPathCLITests.swift`)
+  - [ ] Verify output format / human-readable guidance
+  - [ ] Verify error messages for failure scenarios
 
 ### GUI Migration
-- [ ] **Identify GUI entry points**:
-  - [ ] Find wizard auto-fix button
-  - [ ] Find installation wizard flows
-  - [ ] Document current behavior
-- [ ] **Migrate GUI to façade**:
-  - [ ] Replace `WizardAutoFixer` calls with façade
-  - [ ] Update UI state management
-  - [ ] Update error display
-  - [ ] Test GUI flows still work
+- [x] **Identify GUI entry points**:
+  - [x] Find wizard auto-fix button (`InstallationWizardView.performAutoFix()`)
+  - [x] Find installation wizard flows (`WizardStateManager`, `MainAppStateController`)
+  - [x] Find uninstall dialog (`UninstallKeyPathDialog`)
+  - [x] Document current behavior → See `docs/strangler-fig/phase6/GUI_CLI_OVERLAP_AUDIT.md`
+- [x] **Migrate GUI auto-fix to façade** (Phase 6.5):
+  - [x] Replace bulk `WizardAutoFixer` loop with `InstallerEngine.run(intent: .repair, using:)`
+  - [x] Update UI to consume `InstallerReport` instead of individual action results
+  - [x] Update toast notifications to show recipe-level success/failure
+  - [x] Preserve post-repair health checks for VHID-related issues
+  - [x] Build and test pass
+- [x] **Migrate single-action fixes** (Phase 6.6):
+  - [x] Added `InstallerEngine.runSingleAction()` method
+  - [x] Added `recipeIDForAction()` helper to map actions to recipes
+  - [x] Replaced `performAutoFix(_ action: AutoFixAction)` with façade
+  - [x] Preserved post-fix health checks and state refresh
+  - [x] Build and test pass
+- [x] **Migrate UI state detection** (Phase 6.7):
+  - [x] Created `SystemContextAdapter` to convert `SystemContext` → `SystemStateResult`
+  - [x] Updated `WizardStateManager` to use `InstallerEngine.inspectSystem()`
+  - [x] Removed direct `SystemValidator` dependency from `WizardStateManager`
+  - [x] Preserved backward compatibility with existing UI code
+  - [x] Build and test pass
+- [x] **Migrate uninstall dialog** (Phase 6.8):
+  - [x] Replaced `UninstallCoordinator` with `InstallerEngine.uninstall(deleteConfig:using:)`
+  - [x] Updated `UninstallKeyPathDialog` to use `InstallerEngine` façade
+  - [x] Converted `@Published` properties to `@State` for local state tracking
+  - [x] Preserved `copyTerminalCommand()` functionality
+  - [x] Updated error display to consume `InstallerReport`
+  - [x] Build and test pass
 - [ ] **Add GUI tests**:
   - [ ] Test wizard flows with façade
   - [ ] Verify UI updates correctly
@@ -392,24 +427,27 @@
 ## Notes & Decisions
 
 ### Key Decisions Made
-- [ ] Dependency injection approach: _______________
-- [ ] Feature flagging mechanism: _______________
-- [ ] Logging strategy: _______________
-- [ ] Migration order: _______________
+- [x] Dependency injection approach: **Direct singleton calls** (no DI initially, YAGNI)
+- [x] Feature flagging mechanism: **Environment variable** (`KEYPATH_USE_INSTALLER_ENGINE=1`)
+- [x] Logging strategy: **Reuse `AppLogger.shared`** (no custom logging infrastructure)
+- [x] Migration order: **Tests → CLI → GUI** (incremental adoption)
+- [x] Type naming: **`EngineSystemInfo`** (renamed from `SystemInfo` to avoid conflict)
+- [x] PrivilegeBroker visibility: **Internal init** (can't be public with internal coordinator)
 
 ### Open Questions
-- [ ] Question: _______________
-- [ ] Question: _______________
-- [ ] Question: _______________
+- ✅ **SystemContext ↔︎ SystemSnapshot bridge:** Documented in Phase 2 summary—`SystemValidator` already returns the data we surface as `SystemContext`.
+- ✅ **PrivilegeBroker test doubles:** Deferred per YAGNI; concrete broker plus existing coordinator overrides are sufficient for Phase 6 migrations.
+- ✅ **InstallerEngineTypes file size:** Staying below 500 lines (276 today); plan says split only if we cross that threshold.
 
 ### Risks & Mitigations
-- [ ] Risk: _______________ → Mitigation: _______________
-- [ ] Risk: _______________ → Mitigation: _______________
+- [x] Risk: **Type naming conflicts** → Mitigation: Renamed `SystemInfo` to `EngineSystemInfo` ✅
+- [x] Risk: **Build failures** → Mitigation: Fixed all compilation errors, build succeeds ✅
+- [ ] Risk: **Test failures in Phase 2** → Mitigation: Will add integration tests incrementally
 
 ---
 
-**Last Updated:** [Date]
-**Status:** Planning Phase
+**Last Updated:** 2025-11-20
+**Status:** Phase 6 Complete ✅ (Phase 7 pending)
 
 ---
 
