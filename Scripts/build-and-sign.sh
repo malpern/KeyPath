@@ -57,7 +57,7 @@ ditto "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
 ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
 
 # Copy Kanata daemon plist for SMAppService
-ditto "Sources/KeyPath/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
+ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
 verify_embedded_artifacts() {
     local missing=0
@@ -86,11 +86,11 @@ echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
 echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
 
 # Copy main app Info.plist
-ditto "Sources/KeyPath/Info.plist" "$CONTENTS/Info.plist"
+ditto "Sources/KeyPathApp/Info.plist" "$CONTENTS/Info.plist"
 
 # Copy bundled app resources (icons, helper scripts, etc.)
-if [ -d "Sources/KeyPath/Resources" ]; then
-    ditto "Sources/KeyPath/Resources/" "$RESOURCES"
+if [ -d "Sources/KeyPathApp/Resources" ]; then
+    ditto "Sources/KeyPathApp/Resources/" "$RESOURCES"
     if [ -f "$RESOURCES/uninstall.sh" ]; then
         chmod 755 "$RESOURCES/uninstall.sh"
     fi

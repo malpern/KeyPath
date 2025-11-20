@@ -3,194 +3,196 @@ import KeyPathCore
 
 /// Service for generating Kanata configuration using Claude API
 public class KanataConfigGenerator {
-    private let kanataManager: KanataManager
+  private let kanataManager: KanataManager
 
-    init(kanataManager: KanataManager) {
-        self.kanataManager = kanataManager
+  init(kanataManager: KanataManager) {
+    self.kanataManager = kanataManager
+  }
+
+  /// Generate Kanata configuration for a key mapping using Claude API
+  public func generateMapping(input: KeySequence, output: KeySequence) async throws -> String {
+    let configGuide = try await loadKanataConfigGuide()
+
+    let prompt = buildPrompt(input: input, output: output, configGuide: configGuide)
+
+    AppLogger.shared.log("🤖 [ConfigGenerator] Generating Kanata config via Claude API")
+    AppLogger.shared.log("🔍 [ConfigGenerator] Input: \(input.technicalDescription)")
+    AppLogger.shared.log("🔍 [ConfigGenerator] Output: \(output.technicalDescription)")
+
+    do {
+      let result = try await callClaudeAPIDirectly(prompt: prompt)
+      AppLogger.shared.log("✅ [ConfigGenerator] Successfully generated config via Claude API")
+      return result
+    } catch {
+      AppLogger.shared.log("❌ [ConfigGenerator] Claude API failed: \(error)")
+      // Fallback to basic generation if Claude API fails
+      return generateBasicMapping(input: input, output: output)
+    }
+  }
+
+  /// Load the Kanata configuration guide from the bundled kanata repository
+  private func loadKanataConfigGuide() async throws -> String {
+    let configPath = "External/kanata/docs/config.adoc"
+
+    // Try to load from the project directory
+    if let projectRoot = getProjectRoot(),
+      let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8)
+    {
+      AppLogger.shared.log("✅ [ConfigGenerator] Loaded Kanata config guide from project")
+      return content
     }
 
-    /// Generate Kanata configuration for a key mapping using Claude API
-    public func generateMapping(input: KeySequence, output: KeySequence) async throws -> String {
-        let configGuide = try await loadKanataConfigGuide()
-
-        let prompt = buildPrompt(input: input, output: output, configGuide: configGuide)
-
-        AppLogger.shared.log("🤖 [ConfigGenerator] Generating Kanata config via Claude API")
-        AppLogger.shared.log("🔍 [ConfigGenerator] Input: \(input.technicalDescription)")
-        AppLogger.shared.log("🔍 [ConfigGenerator] Output: \(output.technicalDescription)")
-
-        do {
-            let result = try await callClaudeAPIDirectly(prompt: prompt)
-            AppLogger.shared.log("✅ [ConfigGenerator] Successfully generated config via Claude API")
-            return result
-        } catch {
-            AppLogger.shared.log("❌ [ConfigGenerator] Claude API failed: \(error)")
-            // Fallback to basic generation if Claude API fails
-            return generateBasicMapping(input: input, output: output)
-        }
+    // If that fails, try relative to the current working directory
+    if let content = try? String(contentsOfFile: configPath, encoding: .utf8) {
+      AppLogger.shared.log("✅ [ConfigGenerator] Loaded Kanata config guide from working directory")
+      return content
     }
 
-    /// Load the Kanata configuration guide from the bundled kanata repository
-    private func loadKanataConfigGuide() async throws -> String {
-        let configPath = "External/kanata/docs/config.adoc"
+    // Final fallback - use a minimal config guide
+    AppLogger.shared.log(
+      "⚠️ [ConfigGenerator] Could not load full config guide, using basic version")
+    return basicConfigGuide
+  }
 
-        // Try to load from the project directory
-        if let projectRoot = getProjectRoot(),
-           let content = try? String(contentsOfFile: "\(projectRoot)/\(configPath)", encoding: .utf8) {
-            AppLogger.shared.log("✅ [ConfigGenerator] Loaded Kanata config guide from project")
-            return content
-        }
+  /// Build the prompt for Claude API including the captured sequences and config guide
+  private func buildPrompt(input: KeySequence, output: KeySequence, configGuide: String) -> String {
+    """
+    I need to generate a Kanata keyboard configuration for macOS that maps captured key sequences to output sequences.
 
-        // If that fails, try relative to the current working directory
-        if let content = try? String(contentsOfFile: configPath, encoding: .utf8) {
-            AppLogger.shared.log("✅ [ConfigGenerator] Loaded Kanata config guide from working directory")
-            return content
-        }
+    INPUT SEQUENCE:
+    \(input.technicalDescription)
+    Display: "\(input.displayString)"
 
-        // Final fallback - use a minimal config guide
-        AppLogger.shared.log("⚠️ [ConfigGenerator] Could not load full config guide, using basic version")
-        return basicConfigGuide
+    OUTPUT SEQUENCE:
+    \(output.technicalDescription)
+    Display: "\(output.displayString)"
+
+    KANATA CONFIGURATION REFERENCE:
+    \(configGuide)
+
+    Please generate ONLY the Kanata configuration code (the .kbd file content) that maps the input sequence to the output sequence. Follow these requirements:
+
+    1. Use proper Kanata syntax as shown in the reference guide
+    2. For single keys, use simple mapping in deflayer
+    3. For key combinations (chords), use appropriate chord notation (C- for Control, S- for Shift, M- for Command/Meta, A- for Alt/Option)
+    4. For sequences, use macro actions with appropriate timing
+    5. Include proper defcfg with process-unmapped-keys no for safety
+    6. Include necessary defsrc and deflayer sections
+    7. Add brief comments explaining the mapping
+
+    Return ONLY the Kanata configuration code, no explanations or extra text.
+    """
+  }
+
+  /// Fallback method to generate basic mapping without Claude API
+  private func generateBasicMapping(input: KeySequence, output: KeySequence) -> String {
+    AppLogger.shared.log("🔧 [ConfigGenerator] Generating basic config mapping")
+
+    let inputKey = convertSequenceToKanataKey(input)
+    let outputKey = convertSequenceToKanataOutput(output)
+
+    return """
+      ;; Generated by KeyPath - Basic mapping
+      ;; Input: \(input.displayString) → Output: \(output.displayString)
+
+      (defcfg
+        process-unmapped-keys yes
+      )
+
+      (defsrc
+        \(inputKey)
+      )
+
+      (deflayer base
+        \(outputKey)
+      )
+      """
+  }
+
+  /// Convert KeySequence to Kanata key forma
+  private func convertSequenceToKanataKey(_ sequence: KeySequence) -> String {
+    guard let firstKey = sequence.keys.first else { return "spc" }
+
+    var result = firstKey.baseKey.lowercased()
+
+    // Handle special key names
+    let keyMap: [String: String] = [
+      "space": "spc",
+      "return": "ret",
+      "enter": "ret",
+      "escape": "esc",
+      "backspace": "bspc",
+      "delete": "del",
+      "caps": "caps",
+      "capslock": "caps",
+    ]
+
+    if let mapped = keyMap[result] {
+      result = mapped
     }
 
-    /// Build the prompt for Claude API including the captured sequences and config guide
-    private func buildPrompt(input: KeySequence, output: KeySequence, configGuide: String) -> String {
-        """
-        I need to generate a Kanata keyboard configuration for macOS that maps captured key sequences to output sequences.
+    return result
+  }
 
-        INPUT SEQUENCE:
-        \(input.technicalDescription)
-        Display: "\(input.displayString)"
+  /// Convert KeySequence to Kanata output format (may include chords or macros)
+  private func convertSequenceToKanataOutput(_ sequence: KeySequence) -> String {
+    if sequence.keys.count == 1 {
+      let keyPress = sequence.keys[0]
+      if keyPress.modifiers.isEmpty {
+        return convertSequenceToKanataKey(sequence)
+      } else {
+        // Single key with modifiers - use chord notation
+        var modifierStr = ""
+        if keyPress.modifiers.contains(.control) { modifierStr += "C-" }
+        if keyPress.modifiers.contains(.option) { modifierStr += "A-" }
+        if keyPress.modifiers.contains(.shift) { modifierStr += "S-" }
+        if keyPress.modifiers.contains(.command) { modifierStr += "M-" }
 
-        OUTPUT SEQUENCE:
-        \(output.technicalDescription)
-        Display: "\(output.displayString)"
-
-        KANATA CONFIGURATION REFERENCE:
-        \(configGuide)
-
-        Please generate ONLY the Kanata configuration code (the .kbd file content) that maps the input sequence to the output sequence. Follow these requirements:
-
-        1. Use proper Kanata syntax as shown in the reference guide
-        2. For single keys, use simple mapping in deflayer
-        3. For key combinations (chords), use appropriate chord notation (C- for Control, S- for Shift, M- for Command/Meta, A- for Alt/Option)
-        4. For sequences, use macro actions with appropriate timing
-        5. Include proper defcfg with process-unmapped-keys no for safety
-        6. Include necessary defsrc and deflayer sections
-        7. Add brief comments explaining the mapping
-
-        Return ONLY the Kanata configuration code, no explanations or extra text.
-        """
-    }
-
-    /// Fallback method to generate basic mapping without Claude API
-    private func generateBasicMapping(input: KeySequence, output: KeySequence) -> String {
-        AppLogger.shared.log("🔧 [ConfigGenerator] Generating basic config mapping")
-
-        let inputKey = convertSequenceToKanataKey(input)
-        let outputKey = convertSequenceToKanataOutput(output)
-
-        return """
-        ;; Generated by KeyPath - Basic mapping
-        ;; Input: \(input.displayString) → Output: \(output.displayString)
-
-        (defcfg
-          process-unmapped-keys yes
-        )
-
-        (defsrc
-          \(inputKey)
-        )
-
-        (deflayer base
-          \(outputKey)
-        )
-        """
-    }
-
-    /// Convert KeySequence to Kanata key forma
-    private func convertSequenceToKanataKey(_ sequence: KeySequence) -> String {
-        guard let firstKey = sequence.keys.first else { return "spc" }
-
-        var result = firstKey.baseKey.lowercased()
-
-        // Handle special key names
-        let keyMap: [String: String] = [
-            "space": "spc",
-            "return": "ret",
-            "enter": "ret",
-            "escape": "esc",
-            "backspace": "bspc",
-            "delete": "del",
-            "caps": "caps",
-            "capslock": "caps"
-        ]
-
-        if let mapped = keyMap[result] {
-            result = mapped
-        }
-
+        return modifierStr + keyPress.baseKey.lowercased()
+      }
+    } else {
+      // Multiple keys - use macro
+      let keyStrings = sequence.keys.map { keyPress in
+        var result = keyPress.baseKey.lowercased()
+        if keyPress.modifiers.contains(.control) { result = "C-" + result }
+        if keyPress.modifiers.contains(.option) { result = "A-" + result }
+        if keyPress.modifiers.contains(.shift) { result = "S-" + result }
+        if keyPress.modifiers.contains(.command) { result = "M-" + result }
         return result
+      }
+      return "(macro \(keyStrings.joined(separator: " ")))"
     }
+  }
 
-    /// Convert KeySequence to Kanata output format (may include chords or macros)
-    private func convertSequenceToKanataOutput(_ sequence: KeySequence) -> String {
-        if sequence.keys.count == 1 {
-            let keyPress = sequence.keys[0]
-            if keyPress.modifiers.isEmpty {
-                return convertSequenceToKanataKey(sequence)
-            } else {
-                // Single key with modifiers - use chord notation
-                var modifierStr = ""
-                if keyPress.modifiers.contains(.control) { modifierStr += "C-" }
-                if keyPress.modifiers.contains(.option) { modifierStr += "A-" }
-                if keyPress.modifiers.contains(.shift) { modifierStr += "S-" }
-                if keyPress.modifiers.contains(.command) { modifierStr += "M-" }
+  /// Get the project root directory
+  private func getProjectRoot() -> String? {
+    let fileManager = FileManager.default
+    var currentPath = fileManager.currentDirectoryPath
 
-                return modifierStr + keyPress.baseKey.lowercased()
-            }
-        } else {
-            // Multiple keys - use macro
-            let keyStrings = sequence.keys.map { keyPress in
-                var result = keyPress.baseKey.lowercased()
-                if keyPress.modifiers.contains(.control) { result = "C-" + result }
-                if keyPress.modifiers.contains(.option) { result = "A-" + result }
-                if keyPress.modifiers.contains(.shift) { result = "S-" + result }
-                if keyPress.modifiers.contains(.command) { result = "M-" + result }
-                return result
-            }
-            return "(macro \(keyStrings.joined(separator: " ")))"
+    // Look for characteristic files that indicate project roo
+    let markers = ["Package.swift", "CLAUDE.md", "External/kanata"]
+
+    for _ in 0..<10 {  // Limit search depth
+      for marker in markers {
+        let markerPath = "\(currentPath)/\(marker)"
+        if fileManager.fileExists(atPath: markerPath) {
+          return currentPath
         }
+      }
+
+      // Go up one directory
+      let parentPath = (currentPath as NSString).deletingLastPathComponent
+      if parentPath == currentPath {
+        break  // Reached roo
+      }
+      currentPath = parentPath
     }
 
-    /// Get the project root directory
-    private func getProjectRoot() -> String? {
-        let fileManager = FileManager.default
-        var currentPath = fileManager.currentDirectoryPath
+    return nil
+  }
 
-        // Look for characteristic files that indicate project roo
-        let markers = ["Package.swift", "CLAUDE.md", "External/kanata"]
-
-        for _ in 0 ..< 10 { // Limit search depth
-            for marker in markers {
-                let markerPath = "\(currentPath)/\(marker)"
-                if fileManager.fileExists(atPath: markerPath) {
-                    return currentPath
-                }
-            }
-
-            // Go up one directory
-            let parentPath = (currentPath as NSString).deletingLastPathComponent
-            if parentPath == currentPath {
-                break // Reached roo
-            }
-            currentPath = parentPath
-        }
-
-        return nil
-    }
-
-    /// Basic configuration guide as fallback
-    private let basicConfigGuide = """
+  /// Basic configuration guide as fallback
+  private let basicConfigGuide = """
     KANATA CONFIGURATION BASICS:
 
     1. Configuration Structure:
@@ -227,80 +229,93 @@ public class KanataConfigGenerator {
     (multi key1 key2)       ; Press keys simultaneously
     """
 
-    /// Direct Claude API call (copied from KanataManager for independence)
-    private func callClaudeAPIDirectly(prompt: String) async throws -> String {
-        guard let apiKey = getClaudeAPIKey() else {
-            throw NSError(domain: "ClaudeAPI", code: 1, userInfo: [NSLocalizedDescriptionKey: "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or store in Keychain."])
-        }
-
-        let url = URL(string: "https://api.anthropic.com/v1/messages")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-
-        let requestBody: [String: Any] = [
-            "model": "claude-3-5-sonnet-20241022",
-            "max_tokens": 4096,
-            "messages": [
-                [
-                    "role": "user",
-                    "content": prompt
-                ]
-            ]
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NSError(domain: "ClaudeAPI", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
-        }
-
-        guard 200 ... 299 ~= httpResponse.statusCode else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw NSError(domain: "ClaudeAPI", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "API request failed (\(httpResponse.statusCode)): \(errorMessage)"])
-        }
-
-        guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let content = jsonResponse["content"] as? [[String: Any]],
-              let firstContent = content.first,
-              let text = firstContent["text"] as? String
-        else {
-            throw NSError(domain: "ClaudeAPI", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to parse Claude API response"])
-        }
-
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+  /// Direct Claude API call (copied from KanataManager for independence)
+  private func callClaudeAPIDirectly(prompt: String) async throws -> String {
+    guard let apiKey = getClaudeAPIKey() else {
+      throw NSError(
+        domain: "ClaudeAPI", code: 1,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Claude API key not found. Set ANTHROPIC_API_KEY environment variable or store in Keychain."
+        ])
     }
 
-    /// Get Claude API key from environment variable or keychain
-    private func getClaudeAPIKey() -> String? {
-        // First try environment variable
-        if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
-            return envKey
-        }
+    let url = URL(string: "https://api.anthropic.com/v1/messages")!
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
+    request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
-        // Try keychain (using the same pattern as KanataManager)
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "KeyPath",
-            kSecAttrAccount as String: "claude-api-key",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+    let requestBody: [String: Any] = [
+      "model": "claude-3-5-sonnet-20241022",
+      "max_tokens": 4096,
+      "messages": [
+        [
+          "role": "user",
+          "content": prompt,
         ]
+      ],
+    ]
 
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+    request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-        guard status == errSecSuccess,
-              let data = dataTypeRef as? Data,
-              let key = String(data: data, encoding: .utf8)
-        else {
-            return nil
-        }
+    let (data, response) = try await URLSession.shared.data(for: request)
 
-        return key
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw NSError(
+        domain: "ClaudeAPI", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
     }
+
+    guard 200...299 ~= httpResponse.statusCode else {
+      let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+      throw NSError(
+        domain: "ClaudeAPI", code: httpResponse.statusCode,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "API request failed (\(httpResponse.statusCode)): \(errorMessage)"
+        ])
+    }
+
+    guard let jsonResponse = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let content = jsonResponse["content"] as? [[String: Any]],
+      let firstContent = content.first,
+      let text = firstContent["text"] as? String
+    else {
+      throw NSError(
+        domain: "ClaudeAPI", code: 3,
+        userInfo: [NSLocalizedDescriptionKey: "Failed to parse Claude API response"])
+    }
+
+    return text.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  /// Get Claude API key from environment variable or keychain
+  private func getClaudeAPIKey() -> String? {
+    // First try environment variable
+    if let envKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !envKey.isEmpty {
+      return envKey
+    }
+
+    // Try keychain (using the same pattern as KanataManager)
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: "KeyPath",
+      kSecAttrAccount as String: "claude-api-key",
+      kSecReturnData as String: true,
+      kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+
+    var dataTypeRef: AnyObject?
+    let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+
+    guard status == errSecSuccess,
+      let data = dataTypeRef as? Data,
+      let key = String(data: data, encoding: .utf8)
+    else {
+      return nil
+    }
+
+    return key
+  }
 }

@@ -3,175 +3,179 @@ import KeyPathCore
 import SwiftUI
 
 struct CustomRulesView: View {
-    @EnvironmentObject var kanataManager: KanataViewModel
-    @State private var isPresentingNewRule = false
-    @State private var editingRule: CustomRule?
-    @State private var pendingDeleteRule: CustomRule?
+  @EnvironmentObject var kanataManager: KanataViewModel
+  @State private var isPresentingNewRule = false
+  @State private var editingRule: CustomRule?
+  @State private var pendingDeleteRule: CustomRule?
 
-    private var sortedRules: [CustomRule] {
-        kanataManager.customRules.sorted { lhs, rhs in
-            if lhs.isEnabled == rhs.isEnabled {
-                return lhs.displayTitle.localizedCaseInsensitiveCompare(rhs.displayTitle) == .orderedAscending
-            }
-            return lhs.isEnabled && !rhs.isEnabled
-        }
+  private var sortedRules: [CustomRule] {
+    kanataManager.customRules.sorted { lhs, rhs in
+      if lhs.isEnabled == rhs.isEnabled {
+        return lhs.displayTitle.localizedCaseInsensitiveCompare(rhs.displayTitle)
+          == .orderedAscending
+      }
+      return lhs.isEnabled && !rhs.isEnabled
     }
+  }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Custom Rules")
-                        .font(.headline)
-                    Text("These rules stay separate from presets so you can manage them independently.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                Button {
-                    isPresentingNewRule = true
-                } label: {
-                    Label("Add Rule", systemImage: "plus.circle.fill")
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-
-            Divider()
-
-            if sortedRules.isEmpty {
-                VStack(spacing: 20) {
-                    VStack(spacing: 12) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 48, weight: .ultraLight))
-                            .foregroundColor(.secondary.opacity(0.3))
-
-                        VStack(spacing: 4) {
-                            Text("No Custom Rules Yet")
-                                .font(.title3)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-
-                            Text("Create personalized key mappings")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    Button {
-                        isPresentingNewRule = true
-                    } label: {
-                        Label("Create Your First Rule", systemImage: "plus.circle.fill")
-                            .font(.body.weight(.medium))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(40)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(sortedRules) { rule in
-                            CustomRuleRow(
-                                rule: rule,
-                                onToggle: { isOn in
-                                    _ = Task { await kanataManager.toggleCustomRule(rule.id, enabled: isOn) }
-                                },
-                                onEdit: {
-                                    editingRule = rule
-                                },
-                                onDelete: {
-                                    pendingDeleteRule = rule
-                                }
-                            )
-                            .padding(.horizontal, 16)
-                        }
-                    }
-                    .padding(.vertical, 12)
-                }
-            }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      HStack(alignment: .top) {
+        VStack(alignment: .leading, spacing: 6) {
+          Text("Custom Rules")
+            .font(.headline)
+          Text("These rules stay separate from presets so you can manage them independently.")
+            .font(.caption)
+            .foregroundColor(.secondary)
         }
-        .sheet(isPresented: $isPresentingNewRule) {
-            CustomRuleEditorView(rule: nil) { newRule in
-                _ = Task { await kanataManager.saveCustomRule(newRule) }
-            }
+        Spacer()
+        Button {
+          isPresentingNewRule = true
+        } label: {
+          Label("Add Rule", systemImage: "plus.circle.fill")
+            .labelStyle(.titleAndIcon)
         }
-        .sheet(item: $editingRule) { rule in
-            CustomRuleEditorView(rule: rule) { updatedRule in
-                _ = Task { await kanataManager.saveCustomRule(updatedRule) }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+      }
+      .padding(.horizontal, 18)
+      .padding(.vertical, 16)
+
+      Divider()
+
+      if sortedRules.isEmpty {
+        VStack(spacing: 20) {
+          VStack(spacing: 12) {
+            Image(systemName: "square.and.pencil")
+              .font(.system(size: 48, weight: .ultraLight))
+              .foregroundColor(.secondary.opacity(0.3))
+
+            VStack(spacing: 4) {
+              Text("No Custom Rules Yet")
+                .font(.title3)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+
+              Text("Create personalized key mappings")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
             }
+          }
+
+          Button {
+            isPresentingNewRule = true
+          } label: {
+            Label("Create Your First Rule", systemImage: "plus.circle.fill")
+              .font(.body.weight(.medium))
+          }
+          .buttonStyle(.borderedProminent)
+          .controlSize(.large)
         }
-        .alert(
-            "Delete \"\(pendingDeleteRule?.displayTitle ?? "")\"?",
-            isPresented: Binding(
-                get: { pendingDeleteRule != nil },
-                set: { if !$0 { pendingDeleteRule = nil } }
-            )
-        ) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                if let rule = pendingDeleteRule {
-                    Task { await kanataManager.removeCustomRule(rule.id) }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(40)
+      } else {
+        ScrollView {
+          LazyVStack(spacing: 12) {
+            ForEach(sortedRules) { rule in
+              CustomRuleRow(
+                rule: rule,
+                onToggle: { isOn in
+                  _ = Task { await kanataManager.toggleCustomRule(rule.id, enabled: isOn) }
+                },
+                onEdit: {
+                  editingRule = rule
+                },
+                onDelete: {
+                  pendingDeleteRule = rule
                 }
-                pendingDeleteRule = nil
+              )
+              .padding(.horizontal, 16)
             }
-        } message: {
-            Text("This removes the rule from Custom Rules but leaves preset collections untouched.")
+          }
+          .padding(.vertical, 12)
         }
-        .settingsBackground()
+      }
     }
+    .sheet(isPresented: $isPresentingNewRule) {
+      CustomRuleEditorView(rule: nil) { newRule in
+        _ = Task { await kanataManager.saveCustomRule(newRule) }
+      }
+    }
+    .sheet(item: $editingRule) { rule in
+      CustomRuleEditorView(rule: rule) { updatedRule in
+        _ = Task { await kanataManager.saveCustomRule(updatedRule) }
+      }
+    }
+    .alert(
+      "Delete \"\(pendingDeleteRule?.displayTitle ?? "")\"?",
+      isPresented: Binding(
+        get: { pendingDeleteRule != nil },
+        set: { if !$0 { pendingDeleteRule = nil } }
+      )
+    ) {
+      Button("Cancel", role: .cancel) {}
+      Button("Delete", role: .destructive) {
+        if let rule = pendingDeleteRule {
+          Task { await kanataManager.removeCustomRule(rule.id) }
+        }
+        pendingDeleteRule = nil
+      }
+    } message: {
+      Text("This removes the rule from Custom Rules but leaves preset collections untouched.")
+    }
+    .settingsBackground()
+  }
 }
 
 private struct CustomRuleRow: View {
-    let rule: CustomRule
-    let onToggle: (Bool) -> Void
-    let onEdit: () -> Void
-    let onDelete: () -> Void
+  let rule: CustomRule
+  let onToggle: (Bool) -> Void
+  let onEdit: () -> Void
+  let onDelete: () -> Void
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(rule.displayTitle)
-                        .font(.headline)
-                    Text("\(rule.input) → \(rule.output)")
-                        .font(.caption.monospaced())
-                        .foregroundColor(.secondary)
-                    if let notes = rule.notes, !notes.isEmpty {
-                        Text(notes)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Toggle("", isOn: Binding(
-                    get: { rule.isEnabled },
-                    set: { onToggle($0) }
-                ))
-                .labelsHidden()
-                .toggleStyle(.switch)
-
-                Menu {
-                    Button("Edit") { onEdit() }
-                    Button("Delete", role: .destructive) { onDelete() }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .imageScale(.large)
-                        .padding(.leading, 4)
-                }
-                .menuStyle(.borderlessButton)
-            }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(rule.displayTitle)
+            .font(.headline)
+          Text("\(rule.input) → \(rule.output)")
+            .font(.caption.monospaced())
+            .foregroundColor(.secondary)
+          if let notes = rule.notes, !notes.isEmpty {
+            Text(notes)
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.windowBackgroundColor))
+
+        Spacer()
+
+        Toggle(
+          "",
+          isOn: Binding(
+            get: { rule.isEnabled },
+            set: { onToggle($0) }
+          )
         )
+        .labelsHidden()
+        .toggleStyle(.switch)
+
+        Menu {
+          Button("Edit") { onEdit() }
+          Button("Delete", role: .destructive) { onDelete() }
+        } label: {
+          Image(systemName: "ellipsis.circle")
+            .imageScale(.large)
+            .padding(.leading, 4)
+        }
+        .menuStyle(.borderlessButton)
+      }
     }
+    .padding(14)
+    .background(
+      RoundedRectangle(cornerRadius: 12)
+        .fill(Color(NSColor.windowBackgroundColor))
+    )
+  }
 }

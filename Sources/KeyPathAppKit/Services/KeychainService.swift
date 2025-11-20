@@ -5,191 +5,191 @@ import Security
 /// Secure storage service for sensitive data using Keychain Services
 @MainActor
 final class KeychainService {
-    static let shared = KeychainService()
+  static let shared = KeychainService()
 
-    private let serviceName = "com.keypath.app"
+  private let serviceName = "com.keypath.app"
 
-    private init() {}
+  private init() {}
 
-    // MARK: - UDP Token Storage
+  // MARK: - UDP Token Storage
 
-    private let udpTokenAccount = "udp-auth-token"
+  private let udpTokenAccount = "udp-auth-token"
 
-    /// Store UDP authentication token securely in Keychain
-    nonisolated func storeUDPToken(_ token: String) throws {
-        let tokenData = token.data(using: .utf8) ?? Data()
+  /// Store UDP authentication token securely in Keychain
+  nonisolated func storeUDPToken(_ token: String) throws {
+    let tokenData = token.data(using: .utf8) ?? Data()
 
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: udpTokenAccount,
-            kSecValueData as String: tokenData,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: serviceName,
+      kSecAttrAccount as String: udpTokenAccount,
+      kSecValueData as String: tokenData,
+      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+    ]
 
-        // Delete existing item firs
-        SecItemDelete(query as CFDictionary)
+    // Delete existing item firs
+    SecItemDelete(query as CFDictionary)
 
-        // Add new item
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeyPathError.permission(.keychainSaveFailed(status: Int(status)))
-        }
-
-        AppLogger.shared.log("🔐 [Keychain] UDP token stored securely")
+    // Add new item
+    let status = SecItemAdd(query as CFDictionary, nil)
+    guard status == errSecSuccess else {
+      throw KeyPathError.permission(.keychainSaveFailed(status: Int(status)))
     }
 
-    /// Retrieve UDP authentication token from Keychain
-    nonisolated func retrieveUDPToken() throws -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: udpTokenAccount,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
+    AppLogger.shared.log("🔐 [Keychain] UDP token stored securely")
+  }
 
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+  /// Retrieve UDP authentication token from Keychain
+  nonisolated func retrieveUDPToken() throws -> String? {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: serviceName,
+      kSecAttrAccount as String: udpTokenAccount,
+      kSecReturnData as String: true,
+      kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
 
-        if status == errSecItemNotFound {
-            return nil
-        }
+    var result: AnyObject?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let token = String(data: data, encoding: .utf8)
-        else {
-            throw KeyPathError.permission(.keychainLoadFailed(status: Int(status)))
-        }
-
-        AppLogger.shared.log("🔐 [Keychain] UDP token retrieved")
-        return token
+    if status == errSecItemNotFound {
+      return nil
     }
 
-    /// Delete UDP authentication token from Keychain
-    nonisolated func deleteUDPToken() throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: udpTokenAccount
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeyPathError.permission(.keychainDeleteFailed(status: Int(status)))
-        }
-
-        AppLogger.shared.log("🔐 [Keychain] UDP token deleted")
+    guard status == errSecSuccess,
+      let data = result as? Data,
+      let token = String(data: data, encoding: .utf8)
+    else {
+      throw KeyPathError.permission(.keychainLoadFailed(status: Int(status)))
     }
 
-    /// Check if UDP token exists in Keychain
-    var hasUDPToken: Bool {
-        do {
-            return try retrieveUDPToken() != nil
-        } catch {
-            return false
-        }
+    AppLogger.shared.log("🔐 [Keychain] UDP token retrieved")
+    return token
+  }
+
+  /// Delete UDP authentication token from Keychain
+  nonisolated func deleteUDPToken() throws {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: serviceName,
+      kSecAttrAccount as String: udpTokenAccount,
+    ]
+
+    let status = SecItemDelete(query as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw KeyPathError.permission(.keychainDeleteFailed(status: Int(status)))
     }
 
-    // MARK: - TCP Token Storage
+    AppLogger.shared.log("🔐 [Keychain] UDP token deleted")
+  }
 
-    private let tcpTokenAccount = "tcp-auth-token"
+  /// Check if UDP token exists in Keychain
+  var hasUDPToken: Bool {
+    do {
+      return try retrieveUDPToken() != nil
+    } catch {
+      return false
+    }
+  }
 
-    /// Store TCP authentication token securely in Keychain
-    nonisolated func storeTCPToken(_ token: String) throws {
-        let tokenData = token.data(using: .utf8) ?? Data()
+  // MARK: - TCP Token Storage
 
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: tcpTokenAccount,
-            kSecValueData as String: tokenData,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
+  private let tcpTokenAccount = "tcp-auth-token"
 
-        // Delete existing item firs
-        SecItemDelete(query as CFDictionary)
+  /// Store TCP authentication token securely in Keychain
+  nonisolated func storeTCPToken(_ token: String) throws {
+    let tokenData = token.data(using: .utf8) ?? Data()
 
-        // Add new item
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeyPathError.permission(.keychainSaveFailed(status: Int(status)))
-        }
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: serviceName,
+      kSecAttrAccount as String: tcpTokenAccount,
+      kSecValueData as String: tokenData,
+      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+    ]
 
-        AppLogger.shared.log("🔐 [Keychain] TCP token stored securely")
+    // Delete existing item firs
+    SecItemDelete(query as CFDictionary)
+
+    // Add new item
+    let status = SecItemAdd(query as CFDictionary, nil)
+    guard status == errSecSuccess else {
+      throw KeyPathError.permission(.keychainSaveFailed(status: Int(status)))
     }
 
-    /// Retrieve TCP authentication token from Keychain
-    nonisolated func retrieveTCPToken() throws -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: tcpTokenAccount,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
+    AppLogger.shared.log("🔐 [Keychain] TCP token stored securely")
+  }
 
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+  /// Retrieve TCP authentication token from Keychain
+  nonisolated func retrieveTCPToken() throws -> String? {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: serviceName,
+      kSecAttrAccount as String: tcpTokenAccount,
+      kSecReturnData as String: true,
+      kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
 
-        if status == errSecItemNotFound {
-            return nil
-        }
+    var result: AnyObject?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let token = String(data: data, encoding: .utf8)
-        else {
-            throw KeyPathError.permission(.keychainLoadFailed(status: Int(status)))
-        }
-
-        AppLogger.shared.log("🔐 [Keychain] TCP token retrieved")
-        return token
+    if status == errSecItemNotFound {
+      return nil
     }
 
-    /// Delete TCP authentication token from Keychain
-    nonisolated func deleteTCPToken() throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: tcpTokenAccount
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeyPathError.permission(.keychainDeleteFailed(status: Int(status)))
-        }
-
-        AppLogger.shared.log("🔐 [Keychain] TCP token deleted")
+    guard status == errSecSuccess,
+      let data = result as? Data,
+      let token = String(data: data, encoding: .utf8)
+    else {
+      throw KeyPathError.permission(.keychainLoadFailed(status: Int(status)))
     }
 
-    /// Check if TCP token exists in Keychain
-    var hasTCPToken: Bool {
-        do {
-            return try retrieveTCPToken() != nil
-        } catch {
-            return false
-        }
+    AppLogger.shared.log("🔐 [Keychain] TCP token retrieved")
+    return token
+  }
+
+  /// Delete TCP authentication token from Keychain
+  nonisolated func deleteTCPToken() throws {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: serviceName,
+      kSecAttrAccount as String: tcpTokenAccount,
+    ]
+
+    let status = SecItemDelete(query as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw KeyPathError.permission(.keychainDeleteFailed(status: Int(status)))
     }
 
-    // MARK: - Session Storage (Optional)
+    AppLogger.shared.log("🔐 [Keychain] TCP token deleted")
+  }
 
-    /// Store session information temporarily (expires with app restart)
-    private var sessionCache: [String: Date] = [:]
-
-    func cacheSessionExpiry(sessionId: String, expiryDate: Date) {
-        sessionCache[sessionId] = expiryDate
+  /// Check if TCP token exists in Keychain
+  var hasTCPToken: Bool {
+    do {
+      return try retrieveTCPToken() != nil
+    } catch {
+      return false
     }
+  }
 
-    func getSessionExpiry(sessionId: String) -> Date? {
-        sessionCache[sessionId]
-    }
+  // MARK: - Session Storage (Optional)
 
-    func clearSessionCache() {
-        sessionCache.removeAll()
-        AppLogger.shared.log("🔐 [Keychain] Session cache cleared")
-    }
+  /// Store session information temporarily (expires with app restart)
+  private var sessionCache: [String: Date] = [:]
+
+  func cacheSessionExpiry(sessionId: String, expiryDate: Date) {
+    sessionCache[sessionId] = expiryDate
+  }
+
+  func getSessionExpiry(sessionId: String) -> Date? {
+    sessionCache[sessionId]
+  }
+
+  func clearSessionCache() {
+    sessionCache.removeAll()
+    AppLogger.shared.log("🔐 [Keychain] Session cache cleared")
+  }
 }
 
 // MARK: - Error Types

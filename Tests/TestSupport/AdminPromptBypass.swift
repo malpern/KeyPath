@@ -1,6 +1,7 @@
-@testable import KeyPathAppKit
 import KeyPathCore
 import XCTest
+
+@testable import KeyPathAppKit
 
 /// Global test bootstrap to suppress password dialogs in routine tests.
 ///
@@ -38,36 +39,36 @@ import XCTest
 /// smoke tests should exercise the real authorization code path.
 @MainActor
 class AdminPromptBypass: XCTestCase {
-    /// Runs once for the entire test bundle before any tests execute.
-    /// Installs global overrides to suppress password dialogs.
-    override class func setUp() {
-        super.setUp()
+  /// Runs once for the entire test bundle before any tests execute.
+  /// Installs global overrides to suppress password dialogs.
+  override class func setUp() {
+    super.setUp()
 
-        // Install fake admin executor that succeeds without prompts
-        let fakeExecutor = FakeAdminCommandExecutor { _, _ in
-            // All admin commands succeed silently in tests
-            CommandExecutionResult(exitCode: 0, output: "")
-        }
-        AdminCommandExecutorHolder.shared = fakeExecutor
-
-        // Configure LaunchDaemonInstaller to skip authorization script execution
-        LaunchDaemonInstaller.authorizationScriptRunnerOverride = { _ in
-            // Always succeed without running real osascript
-            true
-        }
-
-        // Disable actual admin operations (file writes to /Library, etc.)
-        TestEnvironment.allowAdminOperationsInTests = false
-
-        // Ensure consistent test mode behavior
-        setenv("KEYPATH_TEST_MODE", "1", 1)
-
-        print("✅ [TestBootstrap] Admin prompt bypass installed globally")
-        print("   - FakeAdminCommandExecutor active")
-        print("   - Authorization scripts bypassed")
-        print("   - Admin operations disabled")
-        print("   - KEYPATH_TEST_MODE=1")
+    // Install fake admin executor that succeeds without prompts
+    let fakeExecutor = FakeAdminCommandExecutor { _, _ in
+      // All admin commands succeed silently in tests
+      CommandExecutionResult(exitCode: 0, output: "")
     }
+    AdminCommandExecutorHolder.shared = fakeExecutor
+
+    // Configure LaunchDaemonInstaller to skip authorization script execution
+    LaunchDaemonInstaller.authorizationScriptRunnerOverride = { _ in
+      // Always succeed without running real osascript
+      true
+    }
+
+    // Disable actual admin operations (file writes to /Library, etc.)
+    TestEnvironment.allowAdminOperationsInTests = false
+
+    // Ensure consistent test mode behavior
+    setenv("KEYPATH_TEST_MODE", "1", 1)
+
+    print("✅ [TestBootstrap] Admin prompt bypass installed globally")
+    print("   - FakeAdminCommandExecutor active")
+    print("   - Authorization scripts bypassed")
+    print("   - Admin operations disabled")
+    print("   - KEYPATH_TEST_MODE=1")
+  }
 }
 
 /// Fake admin command executor for tests that always succeeds without prompts.
@@ -75,19 +76,21 @@ class AdminPromptBypass: XCTestCase {
 /// Used by the global test bootstrap to prevent password dialogs during
 /// routine test execution.
 private class FakeAdminCommandExecutor: AdminCommandExecutor {
-    private let resultProvider: (String, String) -> CommandExecutionResult
+  private let resultProvider: (String, String) -> CommandExecutionResult
 
-    init(resultProvider: @escaping (String, String) -> CommandExecutionResult = { _, _ in
-        CommandExecutionResult(exitCode: 0, output: "")
-    }) {
-        self.resultProvider = resultProvider
+  init(
+    resultProvider: @escaping (String, String) -> CommandExecutionResult = { _, _ in
+      CommandExecutionResult(exitCode: 0, output: "")
     }
+  ) {
+    self.resultProvider = resultProvider
+  }
 
-    func executeWithAdminPrivileges(
-        command: String,
-        description: String
-    ) async -> CommandExecutionResult {
-        // Return fake success without showing password dialog
-        resultProvider(command, description)
-    }
+  func executeWithAdminPrivileges(
+    command: String,
+    description: String
+  ) async -> CommandExecutionResult {
+    // Return fake success without showing password dialog
+    resultProvider(command, description)
+  }
 }

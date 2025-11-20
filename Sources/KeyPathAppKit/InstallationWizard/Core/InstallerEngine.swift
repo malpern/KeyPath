@@ -244,6 +244,12 @@ public final class InstallerEngine {
         type: .installComponent,
         serviceID: nil
       )
+    case .installCorrectVHIDDriver:
+      return ServiceRecipe(
+        id: "install-correct-vhid-driver",
+        type: .installComponent,
+        serviceID: nil
+      )
 
     case .installMissingComponents:
       return ServiceRecipe(
@@ -424,6 +430,9 @@ public final class InstallerEngine {
     case "install-bundled-kanata":
       try await broker.installBundledKanata()
 
+    case "install-correct-vhid-driver":
+      try await broker.downloadAndInstallCorrectVHIDDriver()
+
     case "fix-driver-version-mismatch":
       try await broker.downloadAndInstallCorrectVHIDDriver()
 
@@ -601,6 +610,8 @@ public final class InstallerEngine {
       return "terminate-conflicting-processes"
     case .fixDriverVersionMismatch:
       return "fix-driver-version-mismatch"
+    case .installCorrectVHIDDriver:
+      return "install-correct-vhid-driver"
     case .installMissingComponents:
       return "install-missing-components"
     case .restartVirtualHIDDaemon:

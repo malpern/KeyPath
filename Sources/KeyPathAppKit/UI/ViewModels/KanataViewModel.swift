@@ -17,226 +17,228 @@ import SwiftUI
 /// - Delegates all actions to KanataManager
 @MainActor
 class KanataViewModel: ObservableObject {
-    // MARK: - Published Properties (moved from KanataManager)
+  // MARK: - Published Properties (moved from KanataManager)
 
-    // Core Status Properties
-    @Published var isRunning = false
-    @Published var lastError: String?
-    @Published var keyMappings: [KeyMapping] = []
-    @Published var ruleCollections: [RuleCollection] = []
-    @Published var customRules: [CustomRule] = []
-    @Published var currentLayerName: String = RuleCollectionLayer.base.displayName
-    @Published var diagnostics: [KanataDiagnostic] = []
-    @Published var lastProcessExitCode: Int32?
-    @Published var lastConfigUpdate: Date = .init()
+  // Core Status Properties
+  @Published var isRunning = false
+  @Published var lastError: String?
+  @Published var keyMappings: [KeyMapping] = []
+  @Published var ruleCollections: [RuleCollection] = []
+  @Published var customRules: [CustomRule] = []
+  @Published var currentLayerName: String = RuleCollectionLayer.base.displayName
+  @Published var diagnostics: [KanataDiagnostic] = []
+  @Published var lastProcessExitCode: Int32?
+  @Published var lastConfigUpdate: Date = .init()
 
-    // UI State Properties (from SimpleKanataManager)
-    @Published private(set) var currentState: SimpleKanataState = .starting
-    @Published private(set) var errorReason: String?
-    @Published private(set) var showWizard: Bool = false
-    @Published private(set) var launchFailureStatus: LaunchFailureStatus?
-    @Published private(set) var autoStartAttempts: Int = 0
-    @Published private(set) var lastHealthCheck: Date?
-    @Published private(set) var retryCount: Int = 0
-    @Published private(set) var isRetryingAfterFix: Bool = false
+  // UI State Properties (from SimpleKanataManager)
+  @Published private(set) var currentState: SimpleKanataState = .starting
+  @Published private(set) var errorReason: String?
+  @Published private(set) var showWizard: Bool = false
+  @Published private(set) var launchFailureStatus: LaunchFailureStatus?
+  @Published private(set) var autoStartAttempts: Int = 0
+  @Published private(set) var lastHealthCheck: Date?
+  @Published private(set) var retryCount: Int = 0
+  @Published private(set) var isRetryingAfterFix: Bool = false
 
-    // Lifecycle State Properties (from KanataLifecycleManager)
-    @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
-    @Published var lifecycleErrorMessage: String?
-    @Published var isBusy: Bool = false
-    @Published var canPerformActions: Bool = true
-    @Published var autoStartAttempted: Bool = false
-    @Published var autoStartSucceeded: Bool = false
-    @Published var autoStartFailureReason: String?
-    @Published var shouldShowWizard: Bool = false
+  // Lifecycle State Properties (from KanataLifecycleManager)
+  @Published var lifecycleState: LifecycleStateMachine.KanataState = .uninitialized
+  @Published var lifecycleErrorMessage: String?
+  @Published var isBusy: Bool = false
+  @Published var canPerformActions: Bool = true
+  @Published var autoStartAttempted: Bool = false
+  @Published var autoStartSucceeded: Bool = false
+  @Published var autoStartFailureReason: String?
+  @Published var shouldShowWizard: Bool = false
 
-    // Validation-specific UI state
-    @Published var showingValidationAlert = false
-    @Published var validationAlertTitle = ""
-    @Published var validationAlertMessage = ""
-    @Published var validationAlertActions: [ValidationAlertAction] = []
+  // Validation-specific UI state
+  @Published var showingValidationAlert = false
+  @Published var validationAlertTitle = ""
+  @Published var validationAlertMessage = ""
+  @Published var validationAlertActions: [ValidationAlertAction] = []
 
-    // Save progress feedback
-    @Published var saveStatus: SaveStatus = .idle
+  // Save progress feedback
+  @Published var saveStatus: SaveStatus = .idle
 
-    // Emergency stop state
-    @Published var emergencyStopActivated: Bool = false
+  // Emergency stop state
+  @Published var emergencyStopActivated: Bool = false
 
-    // MARK: - Private Properties
+  // MARK: - Private Properties
 
-    private let manager: KanataManager
-    private var stateObservationTask: Task<Void, Never>?
+  private let manager: KanataManager
+  private var stateObservationTask: Task<Void, Never>?
 
-    // MARK: - Manager Access
+  // MARK: - Manager Access
 
-    /// Provides access to the underlying KanataManager for business logic components
-    /// Use this sparingly - only when business logic components need direct manager access
-    var underlyingManager: KanataManager {
-        manager
+  /// Provides access to the underlying KanataManager for business logic components
+  /// Use this sparingly - only when business logic components need direct manager access
+  var underlyingManager: KanataManager {
+    manager
+  }
+
+  // MARK: - Initialization
+
+  init(manager: KanataManager) {
+    self.manager = manager
+    setupObservation()
+  }
+
+  deinit {
+    stateObservationTask?.cancel()
+  }
+
+  // MARK: - Observation Setup
+
+  /// Observe KanataManager state changes via AsyncStream (event-driven, not polling)
+  /// This dramatically reduces unnecessary UI updates by only reacting to actual state changes
+  private func setupObservation() {
+    stateObservationTask = Task { @MainActor in
+      for await state in manager.stateChanges {
+        guard !Task.isCancelled else { break }
+        updateUI(with: state)
+      }
     }
+  }
 
-    // MARK: - Initialization
+  /// Update UI properties from state snapshot
+  /// Only called when state actually changes (not on a timer)
+  private func updateUI(with state: KanataUIState) {
+    isRunning = state.isRunning
+    lastError = state.lastError
+    keyMappings = state.keyMappings
+    ruleCollections = state.ruleCollections
+    customRules = state.customRules
+    diagnostics = state.diagnostics
+    lastProcessExitCode = state.lastProcessExitCode
+    lastConfigUpdate = state.lastConfigUpdate
+    currentState = state.currentState
+    errorReason = state.errorReason
+    showWizard = state.showWizard
+    launchFailureStatus = state.launchFailureStatus
+    autoStartAttempts = state.autoStartAttempts
+    lastHealthCheck = state.lastHealthCheck
+    retryCount = state.retryCount
+    isRetryingAfterFix = state.isRetryingAfterFix
+    currentLayerName = state.currentLayerName
+    lifecycleState = state.lifecycleState
+    lifecycleErrorMessage = state.lifecycleErrorMessage
+    isBusy = state.isBusy
+    canPerformActions = state.canPerformActions
+    autoStartAttempted = state.autoStartAttempted
+    autoStartSucceeded = state.autoStartSucceeded
+    autoStartFailureReason = state.autoStartFailureReason
+    shouldShowWizard = state.shouldShowWizard
+    showingValidationAlert = state.showingValidationAlert
+    validationAlertTitle = state.validationAlertTitle
+    validationAlertMessage = state.validationAlertMessage
+    validationAlertActions = state.validationAlertActions
+    saveStatus = state.saveStatus
+    // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
+  }
 
-    init(manager: KanataManager) {
-        self.manager = manager
-        setupObservation()
-    }
+  // MARK: - Action Delegation to KanataManager
+  // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 
-    deinit {
-        stateObservationTask?.cancel()
-    }
+  func startKanata() async {
+    await manager.startKanata()
+  }
 
-    // MARK: - Observation Setup
+  func stopKanata() async {
+    await manager.stopKanata()
+  }
 
-    /// Observe KanataManager state changes via AsyncStream (event-driven, not polling)
-    /// This dramatically reduces unnecessary UI updates by only reacting to actual state changes
-    private func setupObservation() {
-        stateObservationTask = Task { @MainActor in
-            for await state in manager.stateChanges {
-                guard !Task.isCancelled else { break }
-                updateUI(with: state)
-            }
-        }
-    }
+  func manualStart() async {
+    await manager.manualStart()
+  }
 
-    /// Update UI properties from state snapshot
-    /// Only called when state actually changes (not on a timer)
-    private func updateUI(with state: KanataUIState) {
-        isRunning = state.isRunning
-        lastError = state.lastError
-        keyMappings = state.keyMappings
-        ruleCollections = state.ruleCollections
-        customRules = state.customRules
-        diagnostics = state.diagnostics
-        lastProcessExitCode = state.lastProcessExitCode
-        lastConfigUpdate = state.lastConfigUpdate
-        currentState = state.currentState
-        errorReason = state.errorReason
-        showWizard = state.showWizard
-        launchFailureStatus = state.launchFailureStatus
-        autoStartAttempts = state.autoStartAttempts
-        lastHealthCheck = state.lastHealthCheck
-        retryCount = state.retryCount
-        isRetryingAfterFix = state.isRetryingAfterFix
-        currentLayerName = state.currentLayerName
-        lifecycleState = state.lifecycleState
-        lifecycleErrorMessage = state.lifecycleErrorMessage
-        isBusy = state.isBusy
-        canPerformActions = state.canPerformActions
-        autoStartAttempted = state.autoStartAttempted
-        autoStartSucceeded = state.autoStartSucceeded
-        autoStartFailureReason = state.autoStartFailureReason
-        shouldShowWizard = state.shouldShowWizard
-        showingValidationAlert = state.showingValidationAlert
-        validationAlertTitle = state.validationAlertTitle
-        validationAlertMessage = state.validationAlertMessage
-        validationAlertActions = state.validationAlertActions
-        saveStatus = state.saveStatus
-        // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
-    }
+  func manualStop() async {
+    await manager.manualStop()
+  }
 
-    // MARK: - Action Delegation to KanataManager
-    // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
+  func updateStatus() async {
+    await manager.updateStatus()
+  }
 
-    func startKanata() async {
-        await manager.startKanata()
-    }
+  func forceRefreshStatus() async {
+    await manager.forceRefreshStatus()
+  }
 
-    func stopKanata() async {
-        await manager.stopKanata()
-    }
+  func startAutoLaunch(presentWizardOnFailure: Bool) async {
+    await manager.startAutoLaunch(presentWizardOnFailure: presentWizardOnFailure)
+  }
 
-    func manualStart() async {
-        await manager.manualStart()
-    }
+  func onWizardClosed() async {
+    await manager.onWizardClosed()
+  }
 
-    func manualStop() async {
-        await manager.manualStop()
-    }
+  func requestWizardPresentation() {
+    manager.requestWizardPresentation()
+  }
 
-    func updateStatus() async {
-        await manager.updateStatus()
-    }
+  func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
+    await manager.toggleRuleCollection(id: id, isEnabled: enabled)
+  }
 
-    func forceRefreshStatus() async {
-        await manager.forceRefreshStatus()
-    }
+  func removeCustomRule(_ id: UUID) async {
+    await manager.removeCustomRule(withID: id)
+  }
 
-    func startAutoLaunch(presentWizardOnFailure: Bool) async {
-        await manager.startAutoLaunch(presentWizardOnFailure: presentWizardOnFailure)
-    }
+  func saveCustomRule(_ rule: CustomRule) async {
+    _ = await manager.saveCustomRule(rule)
+  }
 
-    func onWizardClosed() async {
-        await manager.onWizardClosed()
-    }
+  func toggleCustomRule(_ id: UUID, enabled: Bool) async {
+    await manager.toggleCustomRule(id: id, isEnabled: enabled)
+  }
 
-    func requestWizardPresentation() {
-        manager.requestWizardPresentation()
-    }
+  func addRuleCollection(_ collection: RuleCollection) async {
+    await manager.addRuleCollection(collection)
+  }
 
-    func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
-        await manager.toggleRuleCollection(id: id, isEnabled: enabled)
-    }
+  func isCompletelyInstalled() -> Bool {
+    manager.isCompletelyInstalled()
+  }
 
-    func removeCustomRule(_ id: UUID) async {
-        await manager.removeCustomRule(withID: id)
-    }
+  func createDefaultUserConfigIfMissing() async -> Bool {
+    await manager.createDefaultUserConfigIfMissing()
+  }
 
-    func saveCustomRule(_ rule: CustomRule) async {
-        _ = await manager.saveCustomRule(rule)
-    }
+  func openFileInZed(_ path: String) {
+    manager.openFileInZed(path)
+  }
 
-    func toggleCustomRule(_ id: UUID, enabled: Bool) async {
-        await manager.toggleCustomRule(id: id, isEnabled: enabled)
-    }
+  func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
+    -> String
+  {
+    try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
+  }
 
-    func addRuleCollection(_ collection: RuleCollection) async {
-        await manager.addRuleCollection(collection)
-    }
+  func autoFixDiagnostic(_ diagnostic: KanataDiagnostic) async {
+    _ = await manager.autoFixDiagnostic(diagnostic)
+  }
 
-    func isCompletelyInstalled() -> Bool {
-        manager.isCompletelyInstalled()
-    }
+  func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
+    await manager.validateConfigFile()
+  }
 
-    func createDefaultUserConfigIfMissing() async -> Bool {
-        await manager.createDefaultUserConfigIfMissing()
-    }
+  func resetToDefaultConfig() async throws {
+    try await manager.resetToDefaultConfig()
+  }
 
-    func openFileInZed(_ path: String) {
-        manager.openFileInZed(path)
-    }
+  func createPreEditBackup() -> Bool {
+    manager.createPreEditBackup()
+  }
 
-    func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws -> String {
-        try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
-    }
+  var configPath: String {
+    manager.configPath
+  }
 
-    func autoFixDiagnostic(_ diagnostic: KanataDiagnostic) async {
-        _ = await manager.autoFixDiagnostic(diagnostic)
-    }
+  // MARK: - Service Maintenance Actions
 
-    func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
-        await manager.validateConfigFile()
-    }
+  func regenerateServices() async -> Bool {
+    await manager.regenerateServices()
+  }
 
-    func resetToDefaultConfig() async throws {
-        try await manager.resetToDefaultConfig()
-    }
-
-    func createPreEditBackup() -> Bool {
-        manager.createPreEditBackup()
-    }
-
-    var configPath: String {
-        manager.configPath
-    }
-
-    // MARK: - Service Maintenance Actions
-
-    func regenerateServices() async -> Bool {
-        await manager.regenerateServices()
-    }
-
-    func restartKanata() async {
-        await manager.restartKanata()
-    }
+  func restartKanata() async {
+    await manager.restartKanata()
+  }
 }

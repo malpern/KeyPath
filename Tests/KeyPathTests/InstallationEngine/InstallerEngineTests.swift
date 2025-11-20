@@ -438,4 +438,21 @@ final class InstallerEngineTests: XCTestCase {
       )
     }
   }
+
+  func testRunSingleActionMapsInstallCorrectVHIDDriver() async {
+    // Regression: ensure driver install action always has a recipe (no "No recipe available")
+    let broker = PrivilegeBroker()
+
+    let report = await engine.runSingleAction(.installCorrectVHIDDriver, using: broker)
+
+    XCTAssertNotNil(report, "runSingleAction should return a report")
+
+    if !report.success {
+      XCTAssertNotNil(report.failureReason, "Failed report should have a reason")
+      XCTAssertFalse(
+        report.failureReason?.contains("No recipe available") ?? false,
+        "installCorrectVHIDDriver should always map to a recipe"
+      )
+    }
+  }
 }
