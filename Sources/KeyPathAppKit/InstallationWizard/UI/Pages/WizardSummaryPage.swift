@@ -33,6 +33,7 @@ struct WizardSummaryPage: View {
   @State private var gearRotation: Double = 0  // For continuous spinning animation
   @State private var iconHovering: Bool = false
   @State private var fadeMaskOpacity: Double = 0.0
+  @State private var visibleIssueCount: Int = 0
 
   var body: some View {
     ZStack(alignment: .top) {
@@ -54,7 +55,8 @@ struct WizardSummaryPage: View {
               onNavigateToPage: onNavigateToPage,
               kanataIsRunning: kanataManager.isRunning,
               showAllItems: showAllItems,
-              navSequence: $navSequence
+              navSequence: $navSequence,
+              visibleIssueCount: $visibleIssueCount
             )
           }
           .id(showAllItems ? "list_all" : "list_errors")
@@ -230,17 +232,20 @@ struct WizardSummaryPage: View {
     return issues.isEmpty
   }
 
-  private var headerTitle: String {
-    switch headerMode {
-    case .validating:
-      return "Setting up KeyPath"
-    case .issues:
-      let n = failedIssueCount
-      if n == 0 {
-        return "Finish setup to start KeyPath"
-      }
-      let suffix = n == 1 ? "issue" : "issues"
-      return "\(n) setup \(suffix) to resolve"
+    private var headerTitle: String {
+        switch headerMode {
+        case .validating:
+            return "Setting up KeyPath"
+        case .issues:
+            let n = WizardSummaryPage.computeIssueCount(
+                visibleCount: visibleIssueCount,
+                failedCount: failedIssueCount
+            )
+            if n == 0 {
+                return "Finish setup to start KeyPath"
+            }
+            let suffix = n == 1 ? "issue" : "issues"
+            return "\(n) setup \(suffix) to resolve"
     case .success:
       return "KeyPath Ready"
     }
@@ -350,6 +355,12 @@ struct WizardSummaryPage: View {
     // The service item only shows after: Karabiner Driver + Helper + Permissions are complete.
     // Counting hidden items would inflate the count and confuse users.
 
-    return count
-  }
+        return count
+    }
+
+    // MARK: - Testing helper
+    static func computeIssueCount(visibleCount: Int, failedCount: Int) -> Int {
+        // Prefer what the user can see; fall back to aggregate when the filtered list is empty
+        visibleCount > 0 ? visibleCount : failedCount
+    }
 }

@@ -211,19 +211,19 @@ struct InstallationWizardView: View {
     ZStack {
       switch navigationCoordinator.currentPage {
       case .summary:
-        WizardSummaryPage(
-          systemState: systemState,
-          issues: currentIssues,
-          stateInterpreter: stateInterpreter,
-          onStartService: startKanataService,
-          onDismiss: { dismissAndRefreshMainScreen() },
-          onNavigateToPage: { page in
-            navigationCoordinator.navigateToPage(page)
-          },
-          isValidating: isValidating,
-          showAllItems: $showAllSummaryItems,
-          navSequence: $navSequence
-        )
+            WizardSummaryPage(
+              systemState: systemState,
+              issues: currentIssues,
+              stateInterpreter: stateInterpreter,
+              onStartService: startKanataService,
+              onDismiss: { dismissAndRefreshMainScreen() },
+              onNavigateToPage: { page in
+                navigationCoordinator.navigateToPage(page)
+              },
+              isValidating: isValidating,
+              showAllItems: $showAllSummaryItems,
+              navSequence: $navSequence
+            )
       case .fullDiskAccess:
         WizardFullDiskAccessPage(
           systemState: systemState,

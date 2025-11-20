@@ -941,7 +941,8 @@ struct WizardSystemStatusOverview_Previews: PreviewProvider {
       onNavigateToPage: { _ in },
       kanataIsRunning: true,  // Show running in preview
       showAllItems: false,
-      navSequence: .constant([])
+      navSequence: .constant([]),
+      visibleIssueCount: .constant(1)
     )
     .padding()
   }
