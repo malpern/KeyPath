@@ -129,11 +129,11 @@ public final class InstallerEngine {
     // Note: We don't actually request them here, just check if we can
     // Authorization Services will prompt when needed
 
-    // Check writable directories
+    // Check that system directories exist (not writable - installation uses admin privileges)
     let launchDaemonsDir = "/Library/LaunchDaemons"
-    if !FileManager.default.isWritableFile(atPath: launchDaemonsDir) {
+    if !FileManager.default.fileExists(atPath: launchDaemonsDir) {
       return Requirement(
-        name: "Writable LaunchDaemons directory",
+        name: "LaunchDaemons directory missing",
         status: .blocked
       )
     }
@@ -561,11 +561,17 @@ public final class InstallerEngine {
     }
 
     // Create a filtered plan with just the matching recipes
+    // If we generated a direct recipe (because it wasn't in the base plan), use .ready status
+    // The base plan might be blocked due to requirements, but we can still attempt the action
+    // with admin privileges (which will be requested during execution)
+    let planStatus: PlanStatus = filteredRecipes.isEmpty && !finalRecipes.isEmpty
+      ? .ready  // Direct recipe generated - allow execution
+      : basePlan.status  // Use base plan status for filtered recipes
     let filteredPlan = InstallPlan(
       recipes: finalRecipes,
-      status: basePlan.status,
+      status: planStatus,
       intent: basePlan.intent,
-      blockedBy: basePlan.blockedBy,
+      blockedBy: filteredRecipes.isEmpty && !finalRecipes.isEmpty ? nil : basePlan.blockedBy,
       metadata: basePlan.metadata
     )
 
