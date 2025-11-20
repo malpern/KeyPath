@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Tests for KanataManager state management - focuses on public interface and state management
 /// These tests address the specific issues we solved: timer consolidation and wizard triggering

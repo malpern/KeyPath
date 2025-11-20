@@ -1,6 +1,6 @@
 import AppKit
 import Foundation
-@testable import KeyPath
+@testable import KeyPathAppKit
 import KeyPathCore
 import XCTest
 

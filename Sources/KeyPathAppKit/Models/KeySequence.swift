@@ -78,9 +78,12 @@ public struct KeyPress: Codable, Equatable, Sendable {
 
         if parts.count == 1 {
             return parts[0]
-        } else {
+        } else if let lastPart = parts.last {
             let modifierPart = parts.dropLast().joined(separator: "+")
-            return "\(modifierPart)+\(parts.last!)"
+            return "\(modifierPart)+\(lastPart)"
+        } else {
+            // Should never happen since parts.count > 1, but provide safe fallback
+            return parts.joined(separator: "+")
         }
     }
 }

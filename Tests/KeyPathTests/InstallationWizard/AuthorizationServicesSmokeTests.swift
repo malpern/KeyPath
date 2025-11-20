@@ -2,7 +2,7 @@ import Darwin
 import ServiceManagement
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 import KeyPathCore
 
 @MainActor

@@ -2,7 +2,7 @@ import Foundation
 import Network
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Comprehensive tests for KanataTCPClient with real network communication
 /// Uses NWListener for realistic TCP server mocking to test actual network behavior

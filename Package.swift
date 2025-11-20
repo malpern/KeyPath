@@ -18,6 +18,10 @@ let package = Package(
         .executable(
             name: "smappservice-poc",
             targets: ["SMAppServicePOC"]
+        ),
+        .executable(
+            name: "KeyPathCLI",
+            targets: ["KeyPathCLI"]
         )
     ],
     dependencies: [
@@ -63,19 +67,37 @@ let package = Package(
                 .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         ),
-        // Single executable target with app code
-        .executableTarget(
-            name: "KeyPath",
+        // Shared app code (SwiftUI + installer engine)
+        .target(
+            name: "KeyPathAppKit",
             dependencies: [
                 "KeyPathCore",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
                 "KeyPathWizardCore"
             ],
-            path: "Sources/KeyPath",
+            path: "Sources/KeyPathAppKit",
             exclude: [
-                "Info.plist",
                 "InstallationWizard/README.md"
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
+                // Surface concurrency issues clearly in Debug builds
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ],
+            linkerSettings: [
+                .linkedFramework("IOKit")
+            ]
+        ),
+        // GUI executable target (bridges CLI + SwiftUI app)
+        .executableTarget(
+            name: "KeyPath",
+            dependencies: [
+                "KeyPathAppKit"
+            ],
+            path: "Sources/KeyPathApp",
+            exclude: [
+                "Info.plist"
             ],
             resources: [
                 .process("Resources"),
@@ -83,7 +105,21 @@ let package = Package(
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                // Surface concurrency issues clearly in Debug builds
+                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
+            ],
+            linkerSettings: [
+                .linkedFramework("IOKit")
+            ]
+        ),
+        // Standalone CLI executable
+        .executableTarget(
+            name: "KeyPathCLI",
+            dependencies: [
+                "KeyPathAppKit"
+            ],
+            path: "Sources/KeyPathCLI",
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
                 .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
             ],
             linkerSettings: [
@@ -137,7 +173,7 @@ let package = Package(
         // Tests
         .testTarget(
             name: "KeyPathTests",
-            dependencies: ["KeyPath", "KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
+            dependencies: ["KeyPathAppKit", "KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
             path: "Tests/KeyPathTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6),

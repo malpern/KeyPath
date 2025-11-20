@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 import KeyPathCore
 import KeyPathDaemonLifecycle
 

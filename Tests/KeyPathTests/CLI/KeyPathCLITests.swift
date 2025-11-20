@@ -1,4 +1,4 @@
-@testable import KeyPath
+@testable import KeyPathAppKit
 import KeyPathPermissions
 import KeyPathWizardCore
 import XCTest
@@ -25,6 +25,30 @@ final class KeyPathCLITests: XCTestCase {
         let exitCode = await cli.run(arguments: ["keypath-cli", "status"])
 
         XCTAssertEqual(exitCode, 1)
+    }
+
+    func testUninstallCommandDelegatesToInstallerEngine() async {
+        let stub = InstallerEngineStub(context: makeSystemContext())
+        stub.uninstallReport = InstallerReport(success: true)
+        let cli = KeyPathCLI(installerEngine: stub, privilegeBrokerFactory: { PrivilegeBroker() })
+
+        let exitCode = await cli.run(arguments: ["keypath-cli", "uninstall"])
+
+        XCTAssertEqual(exitCode, 0)
+        XCTAssertEqual(stub.uninstallCallCount, 1)
+        XCTAssertEqual(stub.lastDeleteConfig, false)
+    }
+
+    func testUninstallCommandPropagatesFailureAndDeleteConfigFlag() async {
+        let stub = InstallerEngineStub(context: makeSystemContext())
+        stub.uninstallReport = InstallerReport(success: false, failureReason: "boom")
+        let cli = KeyPathCLI(installerEngine: stub, privilegeBrokerFactory: { PrivilegeBroker() })
+
+        let exitCode = await cli.run(arguments: ["keypath-cli", "uninstall", "--delete-config"])
+
+        XCTAssertEqual(exitCode, 1)
+        XCTAssertEqual(stub.uninstallCallCount, 1)
+        XCTAssertEqual(stub.lastDeleteConfig, true)
     }
 }
 
@@ -85,11 +109,15 @@ private func makeSystemContext(
 private final class InstallerEngineStub: InstallerEngineProtocol {
     var context: SystemContext
     var reportToReturn: InstallerReport
+    var uninstallReport: InstallerReport
     private(set) var inspectCallCount = 0
+    private(set) var uninstallCallCount = 0
+    private(set) var lastDeleteConfig: Bool?
 
     init(context: SystemContext) {
         self.context = context
         self.reportToReturn = InstallerReport(success: true)
+        self.uninstallReport = InstallerReport(success: true)
     }
 
     func inspectSystem() async -> SystemContext {
@@ -103,6 +131,12 @@ private final class InstallerEngineStub: InstallerEngineProtocol {
 
     func run(intent _: InstallIntent, using _: PrivilegeBroker) async -> InstallerReport {
         reportToReturn
+    }
+
+    func uninstall(deleteConfig: Bool, using _: PrivilegeBroker) async -> InstallerReport {
+        uninstallCallCount += 1
+        lastDeleteConfig = deleteConfig
+        return uninstallReport
     }
 }
 

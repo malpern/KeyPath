@@ -3,7 +3,7 @@ import Foundation
 import Network
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Comprehensive integration tests for TCP server implementation
 /// Tests concurrent access, performance, real-world scenarios, and component interaction

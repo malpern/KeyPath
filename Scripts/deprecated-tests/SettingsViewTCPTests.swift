@@ -3,7 +3,7 @@ import Foundation
 import SwiftUI
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Comprehensive tests for SettingsView TCP configuration UI
 /// Tests port validation, status checking, user interactions, and UI state management

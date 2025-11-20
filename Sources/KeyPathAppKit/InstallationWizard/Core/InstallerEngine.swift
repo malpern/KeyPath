@@ -545,12 +545,47 @@ public final class InstallerEngine {
     public func run(intent: InstallIntent, using broker: PrivilegeBroker) async -> InstallerReport {
         AppLogger.shared.log("🚀 [InstallerEngine] Starting run(intent: \(intent), using:)")
 
+        if intent == .uninstall {
+            AppLogger.shared.log("🗑️ [InstallerEngine] Delegating uninstall intent to uninstall(deleteConfig:, using:)")
+            return await uninstall(deleteConfig: false, using: broker)
+        }
+
         // Chain the steps
         let context = await inspectSystem()
         let plan = await makePlan(for: intent, context: context)
         let report = await execute(plan: plan, using: broker)
 
         AppLogger.shared.log("✅ [InstallerEngine] run() complete - success: \(report.success)")
+        return report
+    }
+
+    /// Execute uninstall via the existing coordinator (placeholder until uninstall recipes exist)
+    public func uninstall(deleteConfig: Bool, using broker: PrivilegeBroker) async -> InstallerReport {
+        AppLogger.shared.log("🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig))")
+        _ = broker // Reserved for future privileged uninstall steps
+
+        let start = Date()
+        let coordinator = UninstallCoordinator()
+        let success = await coordinator.uninstall(deleteConfig: deleteConfig)
+        let duration = Date().timeIntervalSince(start)
+        let failure = coordinator.lastError ?? "Uninstall failed"
+
+        let recipeID = deleteConfig ? "uninstall-with-config" : "uninstall"
+        let recipeResult = RecipeResult(
+            recipeID: recipeID,
+            success: success,
+            error: success ? nil : failure,
+            duration: duration
+        )
+
+        let report = InstallerReport(
+            success: success,
+            failureReason: success ? nil : failure,
+            executedRecipes: [recipeResult],
+            logs: coordinator.logLines
+        )
+
+        AppLogger.shared.log("🗑️ [InstallerEngine] uninstall complete - success: \(success)")
         return report
     }
 }

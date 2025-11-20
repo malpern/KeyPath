@@ -1,4 +1,4 @@
-@testable import KeyPath
+@testable import KeyPathAppKit
 import XCTest
 
 /// Tests for LaunchDaemonInstaller to ensure proper service dependency ordering

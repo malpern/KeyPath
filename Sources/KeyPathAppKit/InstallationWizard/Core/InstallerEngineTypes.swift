@@ -256,6 +256,8 @@ public struct InstallerReport: Sendable {
     public let executedRecipes: [RecipeResult]
     /// System state after execution (if available)
     public let finalContext: SystemContext?
+    /// Human-readable log lines (for CLI / UI display)
+    public let logs: [String]
 
     public init(
         timestamp: Date = Date(),
@@ -263,7 +265,8 @@ public struct InstallerReport: Sendable {
         failureReason: String? = nil,
         unmetRequirements: [Requirement] = [],
         executedRecipes: [RecipeResult] = [],
-        finalContext: SystemContext? = nil
+        finalContext: SystemContext? = nil,
+        logs: [String] = []
     ) {
         self.timestamp = timestamp
         self.success = success
@@ -271,5 +274,6 @@ public struct InstallerReport: Sendable {
         self.unmetRequirements = unmetRequirements
         self.executedRecipes = executedRecipes
         self.finalContext = finalContext
+        self.logs = logs
     }
 }

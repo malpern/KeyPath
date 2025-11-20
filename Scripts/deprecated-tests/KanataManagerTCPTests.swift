@@ -3,7 +3,7 @@ import Foundation
 import Network
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Comprehensive tests for KanataManager TCP validation integration
 /// Tests end-to-end TCP validation workflow with fallback to file validation

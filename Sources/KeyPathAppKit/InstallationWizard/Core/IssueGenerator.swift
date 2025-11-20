@@ -197,8 +197,9 @@ class IssueGenerator {
     func createComponentIssues(from result: ComponentCheckResult) -> [WizardIssue] {
         result.missing.map { component in
             let autoFixAction = getAutoFixAction(for: component)
+            let actionDescription = autoFixAction.map { String(describing: $0) } ?? "nil"
             AppLogger.shared.log(
-                "🔧 [IssueGenerator] Creating component issue: '\(componentTitle(for: component))' with autoFixAction: \(autoFixAction != nil ? String(describing: autoFixAction!) : "nil")"
+                "🔧 [IssueGenerator] Creating component issue: '\(componentTitle(for: component))' with autoFixAction: \(actionDescription)"
             )
 
             return WizardIssue(

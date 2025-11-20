@@ -97,7 +97,7 @@ public final class SimpleModsWriter {
         } else {
             // Append new block
             newLines = lines
-            if !newLines.isEmpty, !newLines.last!.isEmpty {
+            if !newLines.isEmpty, let lastLine = newLines.last, !lastLine.isEmpty {
                 newLines.append("")
             }
             newLines.append("")

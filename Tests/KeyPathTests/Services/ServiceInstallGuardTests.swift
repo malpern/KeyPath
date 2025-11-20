@@ -1,5 +1,5 @@
 import XCTest
-@testable @_spi(ServiceInstallTesting) import KeyPath
+@testable @_spi(ServiceInstallTesting) import KeyPathAppKit
 
 @MainActor
 final class ServiceInstallGuardTests: XCTestCase {

@@ -5,10 +5,11 @@ import KeyPathPermissions
 import KeyPathWizardCore
 
 @MainActor
-protocol InstallerEngineProtocol: AnyObject {
+public protocol InstallerEngineProtocol: AnyObject {
     func inspectSystem() async -> SystemContext
     func makePlan(for intent: InstallIntent, context: SystemContext) async -> InstallPlan
     func run(intent: InstallIntent, using broker: PrivilegeBroker) async -> InstallerReport
+    func uninstall(deleteConfig: Bool, using broker: PrivilegeBroker) async -> InstallerReport
 }
 
 extension InstallerEngine: InstallerEngineProtocol {}
@@ -19,7 +20,7 @@ public struct KeyPathCLI {
     private let installerEngine: InstallerEngineProtocol
     private let privilegeBrokerFactory: () -> PrivilegeBroker
 
-    init(
+    public init(
         installerEngine: InstallerEngineProtocol = InstallerEngine(),
         privilegeBrokerFactory: (() -> PrivilegeBroker)? = nil
     ) {
@@ -242,33 +243,37 @@ public struct KeyPathCLI {
 
     /// Run uninstall command
     private func runUninstall(deleteConfig: Bool) async -> Int32 {
-        fputs("Starting uninstall...\n", stderr)
         print("Starting uninstall...")
-        if deleteConfig {
-            print("⚠️  User configuration will be deleted")
-        } else {
-            print("💾 User configuration will be preserved")
-        }
+        print(deleteConfig ? "⚠️  User configuration will be deleted" : "💾 User configuration will be preserved")
         print("")
 
-        let coordinator = UninstallCoordinator()
-        let success = await coordinator.uninstall(deleteConfig: deleteConfig)
+        let broker = privilegeBrokerFactory()
+        let report = await installerEngine.uninstall(deleteConfig: deleteConfig, using: broker)
 
-        // Print log lines from coordinator
-        for line in coordinator.logLines {
-            print(line)
+        if !report.logs.isEmpty {
+            print("--- Uninstall Log ---")
+            report.logs.forEach { print($0) }
+            print("")
         }
 
-        print("")
-        if success {
+        if !report.executedRecipes.isEmpty {
+            print("Executed Steps:")
+            for recipe in report.executedRecipes {
+                let status = recipe.success ? "✅" : "❌"
+                let duration = String(format: "%.2f", recipe.duration)
+                print("  \(status) \(recipe.recipeID) (\(duration)s)")
+                if let error = recipe.error {
+                    print("     Error: \(error)")
+                }
+            }
+            print("")
+        }
+
+        if report.success {
             print("✅ Uninstall completed successfully")
             return 0
         } else {
-            if let error = coordinator.lastError {
-                print("❌ Uninstall failed: \(error)")
-            } else {
-                print("❌ Uninstall failed")
-            }
+            print("❌ Uninstall failed: \(report.failureReason ?? "Unknown error")")
             return 1
         }
     }

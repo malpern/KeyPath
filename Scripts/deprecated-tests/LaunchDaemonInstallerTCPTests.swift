@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Comprehensive tests for LaunchDaemonInstaller TCP port integration
 /// Tests argument building with TCP settings and plist generation with TCP configuration

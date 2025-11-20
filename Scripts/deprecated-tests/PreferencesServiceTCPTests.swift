@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Comprehensive tests for PreferencesService TCP functionality
 /// Tests real UserDefaults persistence, port validation, thread safety, and configuration management

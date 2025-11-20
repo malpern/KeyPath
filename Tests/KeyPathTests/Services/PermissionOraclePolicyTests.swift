@@ -1,5 +1,5 @@
 import Foundation
-@testable import KeyPath
+@testable import KeyPathAppKit
 import KeyPathPermissions
 import Testing
 

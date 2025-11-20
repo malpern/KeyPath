@@ -1,4 +1,4 @@
-@testable import KeyPath
+@testable import KeyPathAppKit
 import XCTest
 
 /// UI Automation tests for key remapping functionality

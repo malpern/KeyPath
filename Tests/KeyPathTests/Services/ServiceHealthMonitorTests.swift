@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 import KeyPathDaemonLifecycle
 
 /// Mock UDP client for testing health checks

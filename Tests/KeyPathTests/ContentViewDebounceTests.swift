@@ -1,7 +1,7 @@
 import SwiftUI
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 import KeyPathCore
 
 /// Phase 1 Unit Tests: ContentView Debouncing

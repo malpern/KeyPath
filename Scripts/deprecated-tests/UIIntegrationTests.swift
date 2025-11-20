@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Tests for UI component integration - validates timer consolidation and state management
 /// These tests verify the ContentView + SettingsView timer conflicts have been resolved

@@ -1,6 +1,6 @@
 import Foundation
 
-enum KeyPathCLIEntrypoint {
+public enum KeyPathCLIEntrypoint {
     private static let supportedCommands: Set<String> = [
         "install",
         "repair",
@@ -14,7 +14,7 @@ enum KeyPathCLIEntrypoint {
 
     /// Returns an exit code if CLI mode handled, otherwise nil to bootstrap the UI app.
     @MainActor
-    static func runIfNeeded(arguments: [String]) async -> Int32? {
+    public static func runIfNeeded(arguments: [String]) async -> Int32? {
         guard arguments.count > 1 else {
             return nil
         }

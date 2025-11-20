@@ -1,4 +1,4 @@
-@testable import KeyPath
+@testable import KeyPathAppKit
 import XCTest
 
 /// Tests for LaunchDaemonPIDCache race condition fix

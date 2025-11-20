@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Autonomous installation and launch testing
 /// Tests the complete user journey without manual intervention

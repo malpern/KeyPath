@@ -37,9 +37,11 @@ public extension CustomRule {
     }
 
     var summaryText: String {
-        notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-            ? notes!
-            : "Maps \(input) to \(output)"
+        if let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !trimmedNotes.isEmpty {
+            return trimmedNotes
+        }
+        return "Maps \(input) to \(output)"
     }
 
     func asKeyMapping() -> KeyMapping {

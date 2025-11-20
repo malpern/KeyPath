@@ -1,4 +1,4 @@
-@testable import KeyPath
+@testable import KeyPathAppKit
 import XCTest
 
 /// Real UI Automation Test that goes through the complete KeyPath save pipeline

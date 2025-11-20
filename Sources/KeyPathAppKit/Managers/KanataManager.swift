@@ -269,6 +269,28 @@ class KanataManager {
 
     // MARK: - UI State Snapshot (Phase 4: MVVM)
 
+    /// AsyncStream for UI state changes (replaces polling)
+    /// Only emits when state actually changes, dramatically reducing unnecessary UI updates
+    private var stateChangeContinuation: AsyncStream<KanataUIState>.Continuation?
+
+    /// Stream of UI state changes for reactive ViewModel updates
+    nonisolated var stateChanges: AsyncStream<KanataUIState> {
+        AsyncStream { continuation in
+            Task { @MainActor in
+                self.stateChangeContinuation = continuation
+                // Emit initial state
+                continuation.yield(self.getCurrentUIState())
+            }
+        }
+    }
+
+    /// Notify observers that state has changed
+    /// Call this after any operation that modifies UI-visible state
+    private func notifyStateChanged() {
+        let state = getCurrentUIState()
+        stateChangeContinuation?.yield(state)
+    }
+
     /// Refresh process running state from system (call after service operations)
     /// This is more efficient than checking on every UI state sync
     func refreshProcessState() {
@@ -277,6 +299,7 @@ class KanataManager {
             AppLogger.shared.log(
                 "🔄 [KanataManager] Refreshing process state: was \(isRunning), now \(actuallyRunning)")
             isRunning = actuallyRunning
+            notifyStateChanged()
         }
     }
 
@@ -1500,6 +1523,7 @@ class KanataManager {
         AppLogger.shared.log("🧭 [KanataManager] Wizard presentation requested")
         showWizard = true
         shouldShowWizard = true
+        notifyStateChanged()
     }
 
     /// Called when wizard is closed (from SimpleKanataManager)
@@ -1534,6 +1558,7 @@ class KanataManager {
         }
 
         AppLogger.shared.log("🧙‍♂️ [KanataManager] Wizard closed handling completed")
+        notifyStateChanged()
     }
 
     // MARK: - LaunchDaemon Service Managemen
@@ -1819,8 +1844,10 @@ class KanataManager {
             if !skipReload {
                 _ = await triggerConfigReload()
             }
+            notifyStateChanged()
         } catch {
             AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
+            notifyStateChanged()
         }
     }
 
@@ -2108,6 +2135,9 @@ class KanataManager {
 
         // Check for any conflicting processes
         await verifyNoProcessConflicts()
+
+        // Notify ViewModel of state change
+        notifyStateChanged()
     }
 
     private func captureRecentKanataErrorMessage() -> String? {

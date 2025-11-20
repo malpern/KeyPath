@@ -9,9 +9,13 @@ public struct PrivilegeBroker {
     private let coordinator: PrivilegedOperationsCoordinator
 
     /// Create a broker using the shared coordinator
-    init(coordinator: PrivilegedOperationsCoordinator? = nil) {
-        // Use provided coordinator or get shared instance
-        self.coordinator = coordinator ?? PrivilegedOperationsCoordinator.shared
+    public init() {
+        coordinator = PrivilegedOperationsCoordinator.shared
+    }
+
+    /// Internal initializer for tests that need custom coordinators
+    init(coordinator: PrivilegedOperationsCoordinator) {
+        self.coordinator = coordinator
     }
 
     // MARK: - LaunchDaemon Operations

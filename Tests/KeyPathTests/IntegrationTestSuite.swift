@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Complete integration test suite for autonomous testing
 /// Tests all components working together in realistic scenarios

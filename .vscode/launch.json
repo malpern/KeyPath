@@ -79,6 +79,26 @@
             "target": "keypath-cli",
             "configuration": "release",
             "preLaunchTask": "swift: Build Release keypath-cli"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:KeyPath}",
+            "name": "Debug KeyPathCLI",
+            "target": "KeyPathCLI",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug KeyPathCLI"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:KeyPath}",
+            "name": "Release KeyPathCLI",
+            "target": "KeyPathCLI",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release KeyPathCLI"
         }
     ]
 }

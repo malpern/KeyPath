@@ -1,4 +1,4 @@
-@testable import KeyPath
+@testable import KeyPathAppKit
 import KeyPathCore
 import SwiftUI
 import XCTest

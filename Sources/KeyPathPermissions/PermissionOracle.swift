@@ -1,5 +1,4 @@
 import ApplicationServices
-@preconcurrency import Combine
 import Foundation
 import IOKit.hid
 import KeyPathCore
@@ -12,11 +11,6 @@ import KeyPathCore
 /// It provides deterministic, hierarchical permission checking with clear source precedence.
 public actor PermissionOracle {
     public static let shared = PermissionOracle()
-
-    // MARK: - Published Properties (for real-time sync)
-
-    /// Notifies observers when permission state changes
-    public nonisolated let statusUpdatePublisher = PassthroughSubject<Date, Never>()
 
     // MARK: - Core Types
 
@@ -212,9 +206,6 @@ public actor PermissionOracle {
         // Cache the result
         lastSnapshot = snapshot
         lastSnapshotTime = snapshot.timestamp
-
-        // Notify observers of status update
-        statusUpdatePublisher.send(snapshot.timestamp)
 
         return snapshot
     }

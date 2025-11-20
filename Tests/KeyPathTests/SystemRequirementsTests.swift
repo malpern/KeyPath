@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 final class SystemRequirementsTests: XCTestCase {
     var systemRequirements: SystemRequirements!

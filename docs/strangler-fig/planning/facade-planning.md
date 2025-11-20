@@ -329,6 +329,12 @@
 - [x] `Scripts/test-installer.sh` auto-detects the Kanata binary (override via `KANATA_BINARY_OVERRIDE`)
 - [x] Full `swift test` run + docs updated; ready to start caller migration work
 
+#### In-Flight Work — 2025-11-20
+- Created checkpoint tag `phase6-pre-cli-refactor` before beginning the CLI modularization.
+- Split the Swift package into `KeyPathAppKit` (library), `KeyPath` (GUI executable), and the new `KeyPathCLI` product. `install-system.sh` now builds and launches the standalone CLI binary instead of the GUI app stub.
+- Updated every CLI/GUI/unit test (plus deprecated automation harnesses) to `@testable import KeyPathAppKit`; `swift test` is green on the new layout, so regression coverage carried over.
+- CLI uninstall is now routed through `InstallerEngine.uninstall(deleteConfig:using:)`, which currently bridges to `UninstallCoordinator` while providing structured `InstallerReport` logs/results for the façade.
+
 ### CLI Migration
 - **Entry Point Inventory (2025-11-19)** ✅ (kept here for reference)
   | Script / Binary | Current Behavior | Notes |
@@ -342,25 +348,28 @@
 - [x] **Identify CLI entry points**:
   - [x] Find all CLI scripts that call installer code (table above)
   - [x] Document current behavior / dependencies
-- [ ] **Migrate CLI to façade**:
+- [x] **Migrate CLI to façade**:
   - [x] Route `status`/`inspect` commands through `InstallerEngine.inspectSystem()` (was using old `SystemValidator`)
-  - [ ] Update error handling / output formatting for remaining commands
-  - [ ] Call standalone CLI binary from shell scripts (replace GUI executable fallback)
-  - [ ] Expand uninstall flow to façade once ready
+  - [x] Route `install`/`repair` commands through `InstallerEngine.run(intent:using:)`
+  - [x] Route `uninstall` command through `InstallerEngine.uninstall(deleteConfig:using:)`
+  - [x] Call standalone CLI binary from shell scripts (replace GUI executable fallback)
+  - [x] Expand uninstall flow to façade (delegates to `UninstallCoordinator` temporarily)
 - [ ] **Add CLI tests**:
   - [x] Add façade-backed CLI unit tests (`Tests/KeyPathTests/CLI/KeyPathCLITests.swift`)
   - [ ] Verify output format / human-readable guidance
   - [ ] Verify error messages for failure scenarios
 
 ### GUI Migration
-- [ ] **Identify GUI entry points**:
-  - [ ] Find wizard auto-fix button
-  - [ ] Find installation wizard flows
-  - [ ] Document current behavior
+- [x] **Identify GUI entry points**:
+  - [x] Find wizard auto-fix button (`InstallationWizardView.performAutoFix()`)
+  - [x] Find installation wizard flows (`WizardStateManager`, `MainAppStateController`)
+  - [x] Find uninstall dialog (`UninstallKeyPathDialog`)
+  - [x] Document current behavior → See `docs/strangler-fig/phase6/GUI_CLI_OVERLAP_AUDIT.md`
 - [ ] **Migrate GUI to façade**:
-  - [ ] Replace `WizardAutoFixer` calls with façade
-  - [ ] Update UI state management
-  - [ ] Update error display
+  - [ ] Replace `WizardAutoFixer` calls with façade (Phase 6.5)
+  - [ ] Update UI state management to use `InstallerEngine.inspectSystem()` (Phase 6.6)
+  - [ ] Migrate uninstall dialog to use façade (Phase 6.7)
+  - [ ] Update error display to consume `InstallerReport`
   - [ ] Test GUI flows still work
 - [ ] **Add GUI tests**:
   - [ ] Test wizard flows with façade

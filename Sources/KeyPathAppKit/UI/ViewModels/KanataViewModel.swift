@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
@@ -66,7 +65,7 @@ class KanataViewModel: ObservableObject {
     // MARK: - Private Properties
 
     private let manager: KanataManager
-    private var cancellables = Set<AnyCancellable>()
+    private var stateObservationTask: Task<Void, Never>?
 
     // MARK: - Manager Access
 
@@ -83,36 +82,26 @@ class KanataViewModel: ObservableObject {
         setupObservation()
     }
 
+    deinit {
+        stateObservationTask?.cancel()
+    }
+
     // MARK: - Observation Setup
 
-    /// Observe KanataManager state changes and update UI properties
+    /// Observe KanataManager state changes via AsyncStream (event-driven, not polling)
+    /// This dramatically reduces unnecessary UI updates by only reacting to actual state changes
     private func setupObservation() {
-        // Set up observation of manager state
-        // This will be implemented to poll or observe manager state changes
-        // For now, we'll use a simple polling mechanism
-
-        Task { @MainActor in
-            // Initial sync
-            await syncFromManager()
-
-            // Start periodic sync (temporary until we implement proper observation)
-            Timer.publish(every: 0.5, on: .main, in: .common)
-                .autoconnect()
-                .sink { [weak self] _ in
-                    Task { @MainActor in
-                        await self?.syncFromManager()
-                    }
-                }
-                .store(in: &cancellables)
+        stateObservationTask = Task { @MainActor in
+            for await state in manager.stateChanges {
+                guard !Task.isCancelled else { break }
+                updateUI(with: state)
+            }
         }
     }
 
-    /// Synchronize UI state from KanataManager
-    private func syncFromManager() async {
-        // Get current state from manager
-        let state = manager.getCurrentUIState()
-
-        // Update all published properties
+    /// Update UI properties from state snapshot
+    /// Only called when state actually changes (not on a timer)
+    private func updateUI(with state: KanataUIState) {
         isRunning = state.isRunning
         lastError = state.lastError
         keyMappings = state.keyMappings
@@ -147,75 +136,62 @@ class KanataViewModel: ObservableObject {
     }
 
     // MARK: - Action Delegation to KanataManager
+    // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 
     func startKanata() async {
         await manager.startKanata()
-        await syncFromManager()
     }
 
     func stopKanata() async {
         await manager.stopKanata()
-        await syncFromManager()
     }
 
     func manualStart() async {
         await manager.manualStart()
-        await syncFromManager()
     }
 
     func manualStop() async {
         await manager.manualStop()
-        await syncFromManager()
     }
 
     func updateStatus() async {
         await manager.updateStatus()
-        await syncFromManager()
     }
 
     func forceRefreshStatus() async {
         await manager.forceRefreshStatus()
-        await syncFromManager()
     }
 
     func startAutoLaunch(presentWizardOnFailure: Bool) async {
         await manager.startAutoLaunch(presentWizardOnFailure: presentWizardOnFailure)
-        await syncFromManager()
     }
 
     func onWizardClosed() async {
         await manager.onWizardClosed()
-        await syncFromManager()
     }
 
     func requestWizardPresentation() {
         manager.requestWizardPresentation()
-        Task { await syncFromManager() }
     }
 
     func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
         await manager.toggleRuleCollection(id: id, isEnabled: enabled)
-        await syncFromManager()
     }
 
     func removeCustomRule(_ id: UUID) async {
         await manager.removeCustomRule(withID: id)
-        await syncFromManager()
     }
 
     func saveCustomRule(_ rule: CustomRule) async {
         _ = await manager.saveCustomRule(rule)
-        await syncFromManager()
     }
 
     func toggleCustomRule(_ id: UUID, enabled: Bool) async {
         await manager.toggleCustomRule(id: id, isEnabled: enabled)
-        await syncFromManager()
     }
 
     func addRuleCollection(_ collection: RuleCollection) async {
         await manager.addRuleCollection(collection)
-        await syncFromManager()
     }
 
     func isCompletelyInstalled() -> Bool {
@@ -223,9 +199,7 @@ class KanataViewModel: ObservableObject {
     }
 
     func createDefaultUserConfigIfMissing() async -> Bool {
-        let result = await manager.createDefaultUserConfigIfMissing()
-        await syncFromManager()
-        return result
+        await manager.createDefaultUserConfigIfMissing()
     }
 
     func openFileInZed(_ path: String) {
@@ -233,14 +207,11 @@ class KanataViewModel: ObservableObject {
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws -> String {
-        let result = try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
-        await syncFromManager()
-        return result
+        try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
     }
 
     func autoFixDiagnostic(_ diagnostic: KanataDiagnostic) async {
         _ = await manager.autoFixDiagnostic(diagnostic)
-        await syncFromManager()
     }
 
     func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
@@ -249,7 +220,6 @@ class KanataViewModel: ObservableObject {
 
     func resetToDefaultConfig() async throws {
         try await manager.resetToDefaultConfig()
-        await syncFromManager()
     }
 
     func createPreEditBackup() -> Bool {
@@ -263,13 +233,10 @@ class KanataViewModel: ObservableObject {
     // MARK: - Service Maintenance Actions
 
     func regenerateServices() async -> Bool {
-        let ok = await manager.regenerateServices()
-        await syncFromManager()
-        return ok
+        await manager.regenerateServices()
     }
 
     func restartKanata() async {
         await manager.restartKanata()
-        await syncFromManager()
     }
 }

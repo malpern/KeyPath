@@ -197,10 +197,11 @@ private func openPreferencesTab(_ notification: Notification.Name) {
     if let appMenu = NSApp.mainMenu?.items.first?.submenu {
         for item in appMenu.items {
             // Look for the "Settings..." menu item (standard name on macOS)
-            if item.title.contains("Settings") || item.title.contains("Preferences") {
+            if item.title.contains("Settings") || item.title.contains("Preferences"),
+               let action = item.action {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
                 NSApp.activate(ignoringOtherApps: true)
-                NSApp.sendAction(item.action!, to: item.target, from: item)
+                NSApp.sendAction(action, to: item.target, from: item)
                 return
             }
         }

@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Tests for wizard triggering scenarios - verifies wizard behavior in the actual system
 /// These tests ensure the wizard is triggered correctly and NOT triggered inappropriately

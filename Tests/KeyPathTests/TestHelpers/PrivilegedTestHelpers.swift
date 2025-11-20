@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 @MainActor
 final class FakeAdminCommandExecutor: AdminCommandExecutor {

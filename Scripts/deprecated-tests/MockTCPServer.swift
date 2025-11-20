@@ -1,7 +1,7 @@
 import Foundation
 import Network
 
-@testable import KeyPath
+@testable import KeyPathAppKit
 
 /// Shared mock Kanata TCP server implementation for testing
 /// Uses NWListener for realistic network testing across all TCP-related tests
