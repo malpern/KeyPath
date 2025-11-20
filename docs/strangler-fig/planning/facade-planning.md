@@ -373,9 +373,12 @@
   - [x] Update toast notifications to show recipe-level success/failure
   - [x] Preserve post-repair health checks for VHID-related issues
   - [x] Build and test pass
-- [ ] **Migrate single-action fixes**:
-  - [ ] Replace `performAutoFix(_ action: AutoFixAction)` with façade
-  - [ ] Update UI state management
+- [x] **Migrate single-action fixes** (Phase 6.6):
+  - [x] Added `InstallerEngine.runSingleAction()` method
+  - [x] Added `recipeIDForAction()` helper to map actions to recipes
+  - [x] Replaced `performAutoFix(_ action: AutoFixAction)` with façade
+  - [x] Preserved post-fix health checks and state refresh
+  - [x] Build and test pass
 - [ ] **Migrate UI state detection** (Phase 6.6):
   - [ ] Update UI state management to use `InstallerEngine.inspectSystem()`
   - [ ] Replace `SystemSnapshotAdapter` calls with façade
