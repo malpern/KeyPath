@@ -329,10 +329,12 @@
 - [x] `Scripts/test-installer.sh` auto-detects the Kanata binary (override via `KANATA_BINARY_OVERRIDE`)
 - [x] Full `swift test` run + docs updated; ready to start caller migration work
 
-#### In-Flight Work — 2025-11-20
-- Created checkpoint tag `phase6-pre-cli-refactor` before beginning the CLI modularization.
-- Split the Swift package into `KeyPathAppKit` (library), `KeyPath` (GUI executable), and the new `KeyPathCLI` product. `install-system.sh` now builds and launches the standalone CLI binary instead of the GUI app stub.
-- Updated every CLI/GUI/unit test (plus deprecated automation harnesses) to `@testable import KeyPathAppKit`; `swift test` is green on the new layout, so regression coverage carried over.
+#### CLI Migration Complete — 2025-11-20
+- ✅ Created checkpoint tag `phase6-pre-cli-refactor` before beginning the CLI modularization.
+- ✅ Split the Swift package into `KeyPathAppKit` (library), `KeyPath` (GUI executable), and the new `KeyPathCLI` product. `install-system.sh` now builds and launches the standalone CLI binary instead of the GUI app stub.
+- ✅ Updated every CLI/GUI/unit test (plus deprecated automation harnesses) to `@testable import KeyPathAppKit`; `swift test` is green on the new layout, so regression coverage carried over.
+- ✅ All CLI commands (`status`, `install`, `repair`, `uninstall`, `inspect`) route through `InstallerEngine` façade.
+- ✅ GUI/CLI overlap audit complete — see `docs/strangler-fig/phase6/GUI_CLI_OVERLAP_AUDIT.md` for detailed findings and migration plan.
 - CLI uninstall is now routed through `InstallerEngine.uninstall(deleteConfig:using:)`, which currently bridges to `UninstallCoordinator` while providing structured `InstallerReport` logs/results for the façade.
 
 ### CLI Migration
