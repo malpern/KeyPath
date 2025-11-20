@@ -367,10 +367,20 @@
   - [x] Find installation wizard flows (`WizardStateManager`, `MainAppStateController`)
   - [x] Find uninstall dialog (`UninstallKeyPathDialog`)
   - [x] Document current behavior → See `docs/strangler-fig/phase6/GUI_CLI_OVERLAP_AUDIT.md`
-- [ ] **Migrate GUI to façade**:
-  - [ ] Replace `WizardAutoFixer` calls with façade (Phase 6.5)
-  - [ ] Update UI state management to use `InstallerEngine.inspectSystem()` (Phase 6.6)
-  - [ ] Migrate uninstall dialog to use façade (Phase 6.7)
+- [x] **Migrate GUI auto-fix to façade** (Phase 6.5):
+  - [x] Replace bulk `WizardAutoFixer` loop with `InstallerEngine.run(intent: .repair, using:)`
+  - [x] Update UI to consume `InstallerReport` instead of individual action results
+  - [x] Update toast notifications to show recipe-level success/failure
+  - [x] Preserve post-repair health checks for VHID-related issues
+  - [x] Build and test pass
+- [ ] **Migrate single-action fixes**:
+  - [ ] Replace `performAutoFix(_ action: AutoFixAction)` with façade
+  - [ ] Update UI state management
+- [ ] **Migrate UI state detection** (Phase 6.6):
+  - [ ] Update UI state management to use `InstallerEngine.inspectSystem()`
+  - [ ] Replace `SystemSnapshotAdapter` calls with façade
+- [ ] **Migrate uninstall dialog** (Phase 6.7):
+  - [ ] Replace `UninstallCoordinator` calls with `InstallerEngine.uninstall(deleteConfig:using:)`
   - [ ] Update error display to consume `InstallerReport`
   - [ ] Test GUI flows still work
 - [ ] **Add GUI tests**:

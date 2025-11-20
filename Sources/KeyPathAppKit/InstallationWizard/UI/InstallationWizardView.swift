@@ -24,6 +24,12 @@ struct InstallationWizardView: View {
     @State private var asyncOperationManager = WizardAsyncOperationManager()
     @State private var toastManager = WizardToastManager()
 
+    // InstallerEngine façade for unified installer operations
+    private let installerEngine = InstallerEngine()
+    private var privilegeBroker: PrivilegeBroker {
+        PrivilegeBroker()
+    }
+
     // UI state
     @State private var isValidating: Bool = true // Track validation state for gear icon
     @State private var preflightStart = Date()
@@ -190,7 +196,8 @@ struct InstallationWizardView: View {
             }
         } message: {
             Text(
-                "macOS blocked the helper because KeyPath isn’t yet approved in System Settings → General → Login Items & Extensions. Open Login Items and enable KeyPath under Background Items to allow the helper to run."
+                "macOS blocked the helper because KeyPath isn't yet approved in System Settings → General → Login Items & Extensions. " +
+                "Open Login Items and enable KeyPath under Background Items to allow the helper to run."
             )
         }
     }
@@ -534,107 +541,86 @@ struct InstallationWizardView: View {
     // MARK: - Actions
 
     private func performAutoFix() {
-        // IMMEDIATE crash-proof logging with multiple output methods
-        Swift.print("*** IMMEDIATE DEBUG *** Fix button clicked at \(Date())")
-        try? "*** IMMEDIATE DEBUG *** Fix button clicked at \(Date())\n".write(
-            to: URL(fileURLWithPath: NSHomeDirectory() + "/fix-button-debug.txt"), atomically: true,
-            encoding: .utf8
-        )
+        AppLogger.shared.log("🔍 [Wizard] *** FIX BUTTON CLICKED *** Auto-fix started via InstallerEngine")
+        AppLogger.shared.log("🔍 [Wizard] Current issues: \(currentIssues.count) total")
 
-        Task {
-            do {
+        // Log each current issue for debugging
+        for (index, issue) in currentIssues.enumerated() {
+            if let autoFixAction = issue.autoFixAction {
                 AppLogger.shared.log(
-                    "🔍 [Wizard] *** FIX BUTTON CLICKED *** Auto-fix started - BUILD VERSION CHECK")
-                Swift.print("*** CRASH-PROOF *** AppLogger.log called successfully")
-                AppLogger.shared.log("🔍 [Wizard] TIMESTAMP: \(Date())")
-                AppLogger.shared.log("🔍 [Wizard] Current issues: \(currentIssues.count) total")
+                    "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
+            } else {
+                AppLogger.shared.log(
+                    "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: nil")
+            }
+        }
 
-                // Log each current issue for debugging
-                for (index, issue) in currentIssues.enumerated() {
-                    if let autoFixAction = issue.autoFixAction {
-                        AppLogger.shared.log(
-                            "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: \(autoFixAction)")
+        // Use InstallerEngine to repair all issues at once
+        Task {
+            let broker = privilegeBroker
+            let report = await installerEngine.run(intent: .repair, using: broker)
+
+            await MainActor.run {
+                if report.success {
+                    let successCount = report.executedRecipes.filter { $0.success }.count
+                    let totalCount = report.executedRecipes.count
+                    if totalCount > 0 {
+                        toastManager.showSuccess(
+                            "Repaired \(successCount) of \(totalCount) issue(s) successfully",
+                            duration: 5.0
+                        )
                     } else {
-                        AppLogger.shared.log(
-                            "🔍 [Wizard] Issue \(index): \(issue.identifier) -> AutoFix: nil")
+                        toastManager.showInfo("No issues found to repair", duration: 3.0)
                     }
+                } else {
+                    let failureReason = report.failureReason ?? "Unknown error"
+                    toastManager.showError("Repair failed: \(failureReason)", duration: 7.0)
                 }
+            }
 
-                // Find issues that can be auto-fixed
-                let autoFixableIssues = currentIssues.compactMap(\.autoFixAction)
-                AppLogger.shared.log("🔍 [Wizard] Auto-fixable actions found: \(autoFixableIssues)")
+            // Log report details
+            AppLogger.shared.log("🔧 [Wizard] InstallerEngine repair completed - success: \(report.success)")
+            AppLogger.shared.log("🔧 [Wizard] Executed recipes: \(report.executedRecipes.count)")
+            for (index, result) in report.executedRecipes.enumerated() {
+                AppLogger.shared.log(
+                    "🔧 [Wizard] Recipe \(index + 1): \(result.recipeID) - \(result.success ? "success" : "failed")"
+                )
+            }
+            if let failureReason = report.failureReason {
+                AppLogger.shared.log("❌ [Wizard] Failure reason: \(failureReason)")
+            }
 
-                for action in autoFixableIssues {
-                    guard let actualAutoFixer = autoFixer.autoFixer else {
-                        AppLogger.shared.log("❌ [Wizard] AutoFixer not configured - skipping auto-fix")
-                        continue
+            // Refresh state after repair
+            refreshState()
+
+            // Post-repair health check for VHID-related issues
+            if currentIssues.contains(where: { issue in
+                if let action = issue.autoFixAction {
+                    return action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon
+                }
+                return false
+            }) {
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    let latestResult = await stateManager.detectCurrentState()
+                    let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
+                    await MainActor.run {
+                        systemState = latestResult.state
+                        currentIssues = filteredIssues
                     }
-                    // Start Fix Session for VHID-related actions to make the path explicit
-                    let fixSession = UUID().uuidString
-                    if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
-                        AppLogger.shared.log("🧭 [FIX-VHID \(fixSession)] START bulk action: \(action)")
-                    }
-
-                    let operation = WizardOperations.autoFix(action: action, autoFixer: actualAutoFixer)
-                    let actionDescription = getAutoFixActionDescription(action)
-
-                    asyncOperationManager.execute(operation: operation) { (success: Bool) in
-                        AppLogger.shared.log(
-                            "🔧 [Wizard] Auto-fix \(action): \(success ? "success" : "failed")")
-
-                        // Show toast notification
-                        if success {
-                            Task { @MainActor in
-                                toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
-                            }
-                            // Follow-up: if this was a daemon action, re-check and emit diagnostic toast if still unhealthy
-                            if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
-                                Task {
-                                    try? await Task.sleep(nanoseconds: 1_000_000_000)
-                                    let latestResult = await stateManager.detectCurrentState()
-                                    let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
-                                    await MainActor.run {
-                                        systemState = latestResult.state
-                                        currentIssues = filteredIssues
-                                    }
-                                    let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-                                        systemState: latestResult.state,
-                                        issues: filteredIssues
-                                    )
-                                    AppLogger.shared.log("🔍 [Wizard] Post-fix (bulk) health check: karabinerStatus=\(karabinerStatus)")
-                                    if karabinerStatus != .completed {
-                                        let detail = kanataManager.getVirtualHIDBreakageSummary()
-                                        AppLogger.shared.log("❌ [Wizard] Post-fix (bulk) failed; showing diagnostic toast")
-                                        await MainActor.run {
-                                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0)
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            Task { @MainActor in
-                                AppLogger.shared.log("❌ [Wizard] Auto-fix FAILED for action: \(action)")
-                                AppLogger.shared.log("❌ [Wizard] Action description: \(actionDescription)")
-                                let errorMessage = getDetailedErrorMessage(
-                                    for: action, actionDescription: actionDescription
-                                )
-                                AppLogger.shared.log("❌ [Wizard] Generated error message: \(errorMessage)")
-                                toastManager.showError(errorMessage, duration: 7.0)
-                            }
-                        }
-
-                        if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon {
-                            let diag = kanataManager.getVirtualHIDBreakageSummary()
-                            AppLogger.shared.log("🧭 [FIX-VHID \(fixSession)] END bulk action: \(action) success=\(success)\n\(diag)")
+                    let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
+                        systemState: latestResult.state,
+                        issues: filteredIssues
+                    )
+                    AppLogger.shared.log("🔍 [Wizard] Post-repair health check: karabinerStatus=\(karabinerStatus)")
+                    if karabinerStatus != .completed {
+                        let detail = kanataManager.getVirtualHIDBreakageSummary()
+                        AppLogger.shared.log("❌ [Wizard] Post-repair health check failed; showing diagnostic toast")
+                        await MainActor.run {
+                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0)
                         }
                     }
                 }
-
-                // Refresh state after auto-fix attempts
-                refreshState()
-
-                AppLogger.shared.log("🔍 [Wizard] *** PERFORMAUTOFIX COMPLETED SUCCESSFULLY ***")
-                Swift.print("*** CRASH-PROOF *** performAutoFix completed successfully")
             }
         }
     }
