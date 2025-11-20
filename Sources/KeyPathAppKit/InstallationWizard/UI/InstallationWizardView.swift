@@ -637,98 +637,65 @@ struct InstallationWizardView: View {
 
         AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
-        // Immediately mark auto-fix as running to prevent monitoring loop interference
-        let operationId = "auto_fix_\(String(describing: action))"
-        _ = await MainActor.run {
-            asyncOperationManager.runningOperations.insert(operationId)
-        }
+        let broker = privilegeBroker
+        let report = await installerEngine.runSingleAction(action, using: broker)
 
-        guard let actualAutoFixer = autoFixer.autoFixer else {
-            AppLogger.shared.log("❌ [Wizard] AutoFixer not configured for single auto-fix")
-            return false
-        }
-        let operation = WizardOperations.autoFix(action: action, autoFixer: actualAutoFixer)
         let actionDescription = getAutoFixActionDescription(action)
 
-        return await withCheckedContinuation { continuation in
-            Task {
-                // Remove our manual operation ID since execute() will handle it properly
-                _ = await MainActor.run {
-                    asyncOperationManager.runningOperations.remove(operationId)
-                }
-
-                asyncOperationManager.execute(
-                    operation: operation,
-                    onSuccess: { success in
-                        AppLogger.shared.log(
-                            "🔧 [Wizard] Auto-fix \(action): \(success ? "success" : "failed")")
-
-                        // Show toast notification
-                        if success {
-                            Task { @MainActor in
-                                toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
-                            }
-                            // Refresh system state after successful auto-fix, then return success
-                            Task {
-                                // Shorter delay - we have warm-up window to handle startup
-                                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
-                                refreshState()
-
-                                // Notify StartupValidator to refresh main screen status
-                                NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
-                                AppLogger.shared.log("🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix")
-
-                                // Schedule a follow-up health check; if still red, show a diagnostic error toast
-                                Task {
-                                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0 seconds to allow state to settle
-                                    let latestResult = await stateManager.detectCurrentState()
-                                    let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
-                                    await MainActor.run {
-                                        systemState = latestResult.state
-                                        currentIssues = filteredIssues
-                                    }
-                                    let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-                                        systemState: latestResult.state,
-                                        issues: filteredIssues
-                                    )
-                                    AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
-                                    if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon, karabinerStatus != .completed {
-                                        let detail = kanataManager.getVirtualHIDBreakageSummary()
-                                        AppLogger.shared.log("❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
-                                        await MainActor.run {
-                                            toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0)
-                                        }
-                                    }
-                                }
-
-                                continuation.resume(returning: success)
-                            }
-                        } else {
-                            // Clear permission cache on failure - might be stale permission status
-                            // Oracle handles caching automatically
-                            Task { @MainActor in
-                                let errorMessage = getDetailedErrorMessage(
-                                    for: action, actionDescription: actionDescription
-                                )
-                                toastManager.showError(errorMessage, duration: 7.0)
-                            }
-                            continuation.resume(returning: success)
-                        }
-                    },
-                    onFailure: { error in
-                        AppLogger.shared.log(
-                            "❌ [Wizard] Auto-fix \(action) error: \(error.localizedDescription)")
-
-                        // Show error toast
-                        Task { @MainActor in
-                            toastManager.showError("Error: \(error.localizedDescription)")
-                        }
-
-                        continuation.resume(returning: false)
-                    }
+        await MainActor.run {
+            if report.success {
+                toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
+            } else {
+                let errorMessage = report.failureReason ?? getDetailedErrorMessage(
+                    for: action, actionDescription: actionDescription
                 )
+                toastManager.showError(errorMessage, duration: 7.0)
             }
         }
+
+        // Log report details
+        AppLogger.shared.log("🔧 [Wizard] Single-action fix completed - success: \(report.success)")
+        for (index, result) in report.executedRecipes.enumerated() {
+            AppLogger.shared.log(
+                "🔧 [Wizard] Recipe \(index + 1): \(result.recipeID) - \(result.success ? "success" : "failed")"
+            )
+        }
+
+        // Refresh system state after auto-fix
+        Task {
+            // Shorter delay - we have warm-up window to handle startup
+            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+            refreshState()
+
+            // Notify StartupValidator to refresh main screen status
+            NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
+            AppLogger.shared.log("🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix")
+
+            // Schedule a follow-up health check; if still red, show a diagnostic error toast
+            Task {
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0 seconds to allow state to settle
+                let latestResult = await stateManager.detectCurrentState()
+                let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
+                await MainActor.run {
+                    systemState = latestResult.state
+                    currentIssues = filteredIssues
+                }
+                let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
+                    systemState: latestResult.state,
+                    issues: filteredIssues
+                )
+                AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
+                if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon, karabinerStatus != .completed {
+                    let detail = kanataManager.getVirtualHIDBreakageSummary()
+                    AppLogger.shared.log("❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
+                    await MainActor.run {
+                        toastManager.showError("Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0)
+                    }
+                }
+            }
+        }
+
+        return report.success
     }
 
     /// Get user-friendly description for auto-fix actions

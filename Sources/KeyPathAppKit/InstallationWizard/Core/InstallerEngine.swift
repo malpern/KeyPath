@@ -588,6 +588,77 @@ public final class InstallerEngine {
         AppLogger.shared.log("🗑️ [InstallerEngine] uninstall complete - success: \(success)")
         return report
     }
+
+    /// Execute a single AutoFixAction by filtering a repair plan to only include recipes for that action
+    /// This is useful for GUI single-action fixes where the user clicks a specific "Fix" button
+    public func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async -> InstallerReport {
+        AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
+        let context = await inspectSystem()
+        let plan = await makePlan(for: .repair, context: context)
+
+        // Filter recipes to only include ones matching the action
+        let actionRecipeID = recipeIDForAction(action)
+        let filteredRecipes = plan.recipes.filter { $0.id == actionRecipeID }
+
+        if filteredRecipes.isEmpty {
+            AppLogger.shared.log("⚠️ [InstallerEngine] No recipes found for action: \(action)")
+            return InstallerReport(
+                success: false,
+                failureReason: "No repair recipes found for action: \(action)",
+                executedRecipes: [],
+                logs: []
+            )
+        }
+
+        // Create a filtered plan with just the matching recipes
+        let filteredPlan = InstallPlan(
+            recipes: filteredRecipes,
+            status: plan.status,
+            intent: plan.intent,
+            blockedBy: plan.blockedBy,
+            metadata: plan.metadata
+        )
+
+        let report = await execute(plan: filteredPlan, using: broker)
+        AppLogger.shared.log("✅ [InstallerEngine] runSingleAction(\(action), using:) complete - success: \(report.success)")
+        return report
+    }
+
+    /// Map AutoFixAction to recipe ID
+    private func recipeIDForAction(_ action: AutoFixAction) -> String {
+        switch action {
+        case .installLaunchDaemonServices:
+            return "install-launch-daemon-services"
+        case .installBundledKanata:
+            return "install-bundled-kanata"
+        case .installPrivilegedHelper:
+            return "install-privileged-helper"
+        case .reinstallPrivilegedHelper:
+            return "reinstall-privileged-helper"
+        case .startKarabinerDaemon:
+            return "start-karabiner-daemon"
+        case .restartUnhealthyServices:
+            return "restart-unhealthy-services"
+        case .terminateConflictingProcesses:
+            return "terminate-conflicting-processes"
+        case .fixDriverVersionMismatch:
+            return "fix-driver-version-mismatch"
+        case .installMissingComponents:
+            return "install-missing-components"
+        case .restartVirtualHIDDaemon:
+            // restartVirtualHIDDaemon maps to restartUnhealthyServices recipe
+            return "restart-unhealthy-services"
+        case .createConfigDirectories:
+            return "install-missing-components"
+        case .activateVHIDDeviceManager:
+            return "install-missing-components"
+        case .repairVHIDDaemonServices:
+            return "install-launch-daemon-services"
+        default:
+            AppLogger.shared.log("⚠️ [InstallerEngine] Unknown action for recipe mapping: \(action)")
+            return "unknown-action"
+        }
+    }
 }
 
 // MARK: - Installer Errors
