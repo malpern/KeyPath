@@ -385,10 +385,13 @@
   - [x] Removed direct `SystemValidator` dependency from `WizardStateManager`
   - [x] Preserved backward compatibility with existing UI code
   - [x] Build and test pass
-- [ ] **Migrate uninstall dialog** (Phase 6.7):
-  - [ ] Replace `UninstallCoordinator` calls with `InstallerEngine.uninstall(deleteConfig:using:)`
-  - [ ] Update error display to consume `InstallerReport`
-  - [ ] Test GUI flows still work
+- [x] **Migrate uninstall dialog** (Phase 6.8):
+  - [x] Replaced `UninstallCoordinator` with `InstallerEngine.uninstall(deleteConfig:using:)`
+  - [x] Updated `UninstallKeyPathDialog` to use `InstallerEngine` façade
+  - [x] Converted `@Published` properties to `@State` for local state tracking
+  - [x] Preserved `copyTerminalCommand()` functionality
+  - [x] Updated error display to consume `InstallerReport`
+  - [x] Build and test pass
 - [ ] **Add GUI tests**:
   - [ ] Test wizard flows with façade
   - [ ] Verify UI updates correctly
