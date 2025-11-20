@@ -42,16 +42,26 @@ public struct PrivilegeBroker {
     try await coordinator.installLogRotation()
   }
 
-  // MARK: - Component Installation
+  /// Install LaunchDaemon services without loading (adopt/replace paths)
+  public func installLaunchDaemonServicesWithoutLoading() async throws {
+    try await coordinator.installLaunchDaemonServicesWithoutLoading()
+  }
 
-  /// Download and install correct VHID driver
-  public func downloadAndInstallCorrectVHIDDriver() async throws {
-    try await coordinator.downloadAndInstallCorrectVHIDDriver()
+  /// Regenerate service configuration (TCP/plist refresh)
+  public func regenerateServiceConfiguration() async throws {
+    try await coordinator.regenerateServiceConfiguration()
   }
 
   /// Repair VHID daemon services
   public func repairVHIDDaemonServices() async throws {
     try await coordinator.repairVHIDDaemonServices()
+  }
+
+  // MARK: - Component Installation
+
+  /// Download and install correct VHID driver
+  public func downloadAndInstallCorrectVHIDDriver() async throws {
+    try await coordinator.downloadAndInstallCorrectVHIDDriver()
   }
 
   /// Install bundled Kanata binary

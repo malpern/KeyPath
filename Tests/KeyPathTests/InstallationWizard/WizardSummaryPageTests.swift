@@ -1,6 +1,7 @@
 import XCTest
 @testable import KeyPathAppKit
 
+@MainActor
 final class WizardSummaryPageTests: XCTestCase {
   func testIssueCountPrefersVisibleCount() {
     // Visible list shows 1 item, aggregate detects 2 (hidden by dependency filter)

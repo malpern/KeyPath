@@ -1,6 +1,7 @@
 import XCTest
 
 @testable import KeyPathAppKit
+@testable import KeyPathWizardCore
 
 @MainActor
 final class InstallerEngineTests: XCTestCase {
@@ -453,6 +454,45 @@ final class InstallerEngineTests: XCTestCase {
         report.failureReason?.contains("No recipe available") ?? false,
         "installCorrectVHIDDriver should always map to a recipe"
       )
+    }
+  }
+
+  func testAllAutoFixActionsHaveRecipes() async {
+    // Table-driven coverage to prevent "No recipe available" regressions
+    let actions: [AutoFixAction] = [
+      .installPrivilegedHelper,
+      .reinstallPrivilegedHelper,
+      .terminateConflictingProcesses,
+      .startKarabinerDaemon,
+      .restartVirtualHIDDaemon,
+      .installMissingComponents,
+      .createConfigDirectories,
+      .activateVHIDDeviceManager,
+      .installLaunchDaemonServices,
+      .installBundledKanata,
+      .repairVHIDDaemonServices,
+      .synchronizeConfigPaths,
+      .restartUnhealthyServices,
+      .adoptOrphanedProcess,
+      .replaceOrphanedProcess,
+      .installLogRotation,
+      .replaceKanataWithBundled,
+      .enableTCPServer,
+      .setupTCPAuthentication,
+      .regenerateCommServiceConfiguration,
+      .restartCommServer,
+      .fixDriverVersionMismatch,
+      .installCorrectVHIDDriver,
+    ]
+
+    let context = await engine.inspectSystem()
+
+    for action in actions {
+      let id = engine.recipeIDForAction(action)
+      XCTAssertNotEqual(id, "unknown-action", "Action \(action) should map to a recipe ID")
+
+      let recipe = engine.recipeForAction(action, context: context)
+      XCTAssertNotNil(recipe, "Action \(action) should produce a ServiceRecipe")
     }
   }
 }

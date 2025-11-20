@@ -178,7 +178,7 @@ public final class InstallerEngine {
   }
 
   /// Convert an AutoFixAction to a ServiceRecipe
-  private func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe?
+  func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe?
   {
     switch action {
     case .installLaunchDaemonServices:
@@ -197,6 +197,20 @@ public final class InstallerEngine {
     case .installBundledKanata:
       return ServiceRecipe(
         id: "install-bundled-kanata",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .installCorrectVHIDDriver:
+      return ServiceRecipe(
+        id: "install-correct-vhid-driver",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .installLogRotation:
+      return ServiceRecipe(
+        id: "install-log-rotation",
         type: .installComponent,
         serviceID: nil
       )
@@ -230,6 +244,13 @@ public final class InstallerEngine {
         type: .restartService,
         serviceID: nil
       )
+    case .restartVirtualHIDDaemon:
+      // Same recipe as restartUnhealthyServices (verified restart path)
+      return ServiceRecipe(
+        id: "restart-unhealthy-services",
+        type: .restartService,
+        serviceID: nil
+      )
 
     case .terminateConflictingProcesses:
       return ServiceRecipe(
@@ -244,17 +265,88 @@ public final class InstallerEngine {
         type: .installComponent,
         serviceID: nil
       )
-    case .installCorrectVHIDDriver:
-      return ServiceRecipe(
-        id: "install-correct-vhid-driver",
-        type: .installComponent,
-        serviceID: nil
-      )
 
     case .installMissingComponents:
       return ServiceRecipe(
         id: "install-missing-components",
         type: .installComponent,
+        serviceID: nil
+      )
+
+    case .createConfigDirectories:
+      return ServiceRecipe(
+        id: "create-config-directories",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .activateVHIDDeviceManager:
+      return ServiceRecipe(
+        id: "activate-vhid-manager",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .repairVHIDDaemonServices:
+      return ServiceRecipe(
+        id: "repair-vhid-daemon-services",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .enableTCPServer:
+      return ServiceRecipe(
+        id: "enable-tcp-server",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .setupTCPAuthentication:
+      return ServiceRecipe(
+        id: "setup-tcp-authentication",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .regenerateCommServiceConfiguration:
+      return ServiceRecipe(
+        id: "regenerate-comm-service-config",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .restartCommServer:
+      return ServiceRecipe(
+        id: "restart-comm-server",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .adoptOrphanedProcess:
+      return ServiceRecipe(
+        id: "adopt-orphaned-process",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .replaceOrphanedProcess:
+      return ServiceRecipe(
+        id: "replace-orphaned-process",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .replaceKanataWithBundled:
+      return ServiceRecipe(
+        id: "replace-kanata-with-bundled",
+        type: .installComponent,
+        serviceID: nil
+      )
+
+    case .synchronizeConfigPaths:
+      return ServiceRecipe(
+        id: "synchronize-config-paths",
+        type: .checkRequirement,
         serviceID: nil
       )
 
@@ -433,6 +525,9 @@ public final class InstallerEngine {
     case "install-correct-vhid-driver":
       try await broker.downloadAndInstallCorrectVHIDDriver()
 
+    case "install-log-rotation":
+      try await broker.installLogRotation()
+
     case "fix-driver-version-mismatch":
       try await broker.downloadAndInstallCorrectVHIDDriver()
 
@@ -440,6 +535,32 @@ public final class InstallerEngine {
       // Install all missing components (Kanata + drivers)
       try await broker.installBundledKanata()
       try await broker.downloadAndInstallCorrectVHIDDriver()
+
+    case "create-config-directories":
+      // No privileged work needed; treated as success (idempotent)
+      return
+
+    case "activate-vhid-manager":
+      try await broker.activateVirtualHIDManager()
+
+    case "repair-vhid-daemon-services":
+      try await broker.repairVHIDDaemonServices()
+
+    case "enable-tcp-server", "setup-tcp-authentication", "regenerate-comm-service-config":
+      try await broker.regenerateServiceConfiguration()
+
+    case "restart-comm-server":
+      try await broker.restartUnhealthyServices()
+
+    case "adopt-orphaned-process":
+      try await broker.installLaunchDaemonServicesWithoutLoading()
+
+    case "replace-orphaned-process":
+      try await broker.killAllKanataProcesses()
+      try await broker.installLaunchDaemonServicesWithoutLoading()
+
+    case "replace-kanata-with-bundled":
+      try await broker.installBundledKanata()
 
     default:
       // Unknown component recipe
@@ -465,6 +586,10 @@ public final class InstallerEngine {
     case "terminate-conflicting-processes":
       // Kill all Kanata processes (conflict resolution)
       try await broker.killAllKanataProcesses()
+
+    case "synchronize-config-paths":
+      // No privileged action required; treat as satisfied
+      return
 
     default:
       AppLogger.shared.log("⚠️ [InstallerEngine] Unknown requirement check recipe: \(recipe.id)")
@@ -592,12 +717,16 @@ public final class InstallerEngine {
   }
 
   /// Map AutoFixAction to recipe ID
-  private func recipeIDForAction(_ action: AutoFixAction) -> String {
+  func recipeIDForAction(_ action: AutoFixAction) -> String {
     switch action {
     case .installLaunchDaemonServices:
       return "install-launch-daemon-services"
     case .installBundledKanata:
       return "install-bundled-kanata"
+    case .installCorrectVHIDDriver:
+      return "install-correct-vhid-driver"
+    case .installLogRotation:
+      return "install-log-rotation"
     case .installPrivilegedHelper:
       return "install-privileged-helper"
     case .reinstallPrivilegedHelper:
@@ -610,19 +739,33 @@ public final class InstallerEngine {
       return "terminate-conflicting-processes"
     case .fixDriverVersionMismatch:
       return "fix-driver-version-mismatch"
-    case .installCorrectVHIDDriver:
-      return "install-correct-vhid-driver"
     case .installMissingComponents:
       return "install-missing-components"
     case .restartVirtualHIDDaemon:
       // restartVirtualHIDDaemon maps to restartUnhealthyServices recipe
       return "restart-unhealthy-services"
     case .createConfigDirectories:
-      return "install-missing-components"
+      return "create-config-directories"
     case .activateVHIDDeviceManager:
-      return "install-missing-components"
+      return "activate-vhid-manager"
     case .repairVHIDDaemonServices:
-      return "install-launch-daemon-services"
+      return "repair-vhid-daemon-services"
+    case .enableTCPServer:
+      return "enable-tcp-server"
+    case .setupTCPAuthentication:
+      return "setup-tcp-authentication"
+    case .regenerateCommServiceConfiguration:
+      return "regenerate-comm-service-config"
+    case .restartCommServer:
+      return "restart-comm-server"
+    case .adoptOrphanedProcess:
+      return "adopt-orphaned-process"
+    case .replaceOrphanedProcess:
+      return "replace-orphaned-process"
+    case .replaceKanataWithBundled:
+      return "replace-kanata-with-bundled"
+    case .synchronizeConfigPaths:
+      return "synchronize-config-paths"
     default:
       AppLogger.shared.log("⚠️ [InstallerEngine] Unknown action for recipe mapping: \(action)")
       return "unknown-action"
