@@ -1,9 +1,21 @@
+import AppKit
 import SwiftUI
 
 struct UninstallKeyPathDialog: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var coordinator = UninstallCoordinator()
     @State private var deleteConfig = false
+    
+    // InstallerEngine façade for uninstall
+    private let installerEngine = InstallerEngine()
+    private var privilegeBroker: PrivilegeBroker {
+        PrivilegeBroker()
+    }
+    
+    // Local state tracking (replaces UninstallCoordinator's @Published properties)
+    @State private var isRunning = false
+    @State private var lastError: String?
+    @State private var didSucceed = false
+    @State private var logLines: [String] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -75,14 +87,14 @@ struct UninstallKeyPathDialog: View {
 
     private var statusFooter: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if coordinator.isRunning {
+            if isRunning {
                 Label("Running uninstall…", systemImage: "arrow.triangle.2.circlepath")
                     .foregroundColor(.secondary)
-            } else if let error = coordinator.lastError, !error.isEmpty {
+            } else if let error = lastError, !error.isEmpty {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .foregroundColor(.orange)
                     .font(.footnote)
-            } else if coordinator.didSucceed {
+            } else if didSucceed {
                 Label("All components removed.", systemImage: "checkmark.circle")
                     .foregroundColor(.green)
                     .font(.footnote)
@@ -98,7 +110,7 @@ struct UninstallKeyPathDialog: View {
         VStack(spacing: 12) {
             HStack {
                 Button {
-                    coordinator.copyTerminalCommand()
+                    copyTerminalCommand()
                 } label: {
                     Label("Copy Terminal Command", systemImage: "doc.on.doc")
                 }
@@ -110,18 +122,62 @@ struct UninstallKeyPathDialog: View {
                 Spacer()
                 Button(role: .destructive) {
                     Task {
-                        let success = await coordinator.uninstall(deleteConfig: deleteConfig)
-                        if success {
-                            NotificationCenter.default.post(name: .keyPathUninstallCompleted, object: nil)
-                            await MainActor.run { dismiss() }
-                        }
+                        await performUninstall()
                     }
                 } label: {
-                    Label(coordinator.isRunning ? "Working…" : "Uninstall KeyPath", systemImage: "trash")
+                    Label(isRunning ? "Working…" : "Uninstall KeyPath", systemImage: "trash")
                 }
-                .disabled(coordinator.isRunning)
+                .disabled(isRunning)
                 .buttonStyle(.borderedProminent)
             }
         }
+    }
+    
+    // MARK: - Actions
+    
+    private func performUninstall() async {
+        guard !isRunning else { return }
+        
+        await MainActor.run {
+            isRunning = true
+            didSucceed = false
+            lastError = nil
+            logLines = ["🗑️ Starting KeyPath uninstall..."]
+        }
+        
+        let broker = privilegeBroker
+        let report = await installerEngine.uninstall(deleteConfig: deleteConfig, using: broker)
+        
+        await MainActor.run {
+            isRunning = false
+            didSucceed = report.success
+            lastError = report.failureReason
+            logLines = report.logs
+            
+            if report.success {
+                NotificationCenter.default.post(name: .keyPathUninstallCompleted, object: nil)
+                dismiss()
+            }
+        }
+    }
+    
+    private func copyTerminalCommand() {
+        // Extract uninstaller script URL (same logic as UninstallCoordinator)
+        let scriptURL: URL?
+        if let bundled = Bundle.main.url(forResource: "uninstall", withExtension: "sh") {
+            scriptURL = bundled
+        } else {
+            let repoPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("Sources/KeyPath/Resources/uninstall.sh")
+            scriptURL = FileManager.default.isExecutableFile(atPath: repoPath.path) ? repoPath : nil
+        }
+        
+        guard let scriptURL else { return }
+        let command = "sudo \"\(scriptURL.path)\""
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(command, forType: .string)
+        
+        logLines.append("📋 Copied command: \(command)")
     }
 }
