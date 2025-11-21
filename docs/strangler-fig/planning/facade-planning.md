@@ -15,7 +15,7 @@
 - ✅ **Phase 6:** Migrate Callers - COMPLETE
 - 🔄 **Phase 7:** Refactor Internals — IN PROGRESS  
   - 7.1 Adapter cleanup ✅  
-  - 7.2 Single health pipeline 🔥 (stability focus)
+  - 7.2 Single health pipeline 🔥 (stability focus) — core code & tests DONE
 - ⏳ **Phase 8:** Documentation & Cleanup - Pending
 
 **Files Created:** 4 files (1,244 lines total)
@@ -427,10 +427,11 @@
   - [x] Migrated `SystemSnapshotAdapter` to use `ActionDeterminer` ✅ (Phase 7.1)
   - [ ] **Phase 7.2: Single health pipeline (stability hotfix)**
     - [x] Build `InstallerEngine` with live `KanataManager` for the wizard so `kanataRunning` reflects real TCP/launchctl state (2025-11-21)
-    - [ ] Make `InstallerEngine` the sole health ingress for the wizard; deprecate legacy `WizardSystemState`/`SystemStateResult` detectors once parity is confirmed
-    - [ ] Enforce snapshot freshness (e.g., refuse routing on snapshots older than 3s; auto-refresh on wizard open and after actions)
-    - [ ] Unify health signals: launchctl PID + lightweight TCP probe; remove pgrep-only fallbacks in wizard paths
-    - [ ] Add regression: open wizard twice with Kanata running — assert it never routes back to “Start Service”
+    - [x] Remove `SystemSnapshotAdapter`; route through `SystemContextAdapter` everywhere (wizard + main app)
+    - [x] Enforce snapshot freshness in wizard (drop stale results, retry once)
+    - [x] Unify health signals: launchctl PID + TCP probe helper (`checkKanataServiceHealth`); remove pgrep fallbacks
+    - [x] Regression: wizard adapt twice with Kanata running stays `.active` (new test)
+    - [ ] UI navigation regression (open wizard twice, never routes to Start Service) — pending
   - [ ] Extract reusable detection functions
   - [ ] Improve testability
 - [ ] **Refactor planning code**:

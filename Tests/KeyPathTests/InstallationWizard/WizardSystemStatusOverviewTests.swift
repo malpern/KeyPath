@@ -46,4 +46,32 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
 
     XCTAssertEqual(overview.getServiceStatus(), .completed)
   }
+
+  func testServiceStatusIgnoresStaleDaemonIssueWhenRunning() {
+    let staleIssue = WizardIssue(
+      identifier: .component(.karabinerDaemon),
+      severity: .error,
+      category: .daemon,
+      title: "Daemon not running",
+      description: "",
+      autoFixAction: nil,
+      userAction: ""
+    )
+
+    var nav: [WizardPage] = []
+    var visible = 0
+    let overview = WizardSystemStatusOverview(
+      systemState: .active,
+      issues: [staleIssue],
+      stateInterpreter: WizardStateInterpreter(),
+      onNavigateToPage: nil,
+      kanataIsRunning: true,
+      showAllItems: true,
+      navSequence: .constant(nav),
+      visibleIssueCount: .constant(visible)
+    )
+
+    // Even with a stale daemon issue, running kanata should keep service status completed
+    XCTAssertEqual(overview.getServiceStatus(), .completed)
+  }
 }
