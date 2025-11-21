@@ -459,7 +459,14 @@ struct InstallationWizardView: View {
         "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })")
 
       Task { @MainActor in
-        if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
+        if shouldNavigateToSummary(
+          currentPage: navigationCoordinator.currentPage,
+          state: result.state,
+          issues: filteredIssues)
+        {
+          AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
+          navigationCoordinator.navigateToPage(.summary)
+        } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
           navigationCoordinator.currentPage != preferred
         {
           AppLogger.shared.log("🔍 [Wizard] Deterministic routing to \(preferred) (single blocker)")
@@ -555,6 +562,18 @@ struct InstallationWizardView: View {
 
         // No auto-navigation - stay on current page
         // navigationCoordinator.autoNavigateIfNeeded(for: result.state, issues: result.issues)
+
+        Task { @MainActor in
+          if shouldNavigateToSummary(
+            currentPage: navigationCoordinator.currentPage,
+            state: result.state,
+            issues: filteredIssues)
+          {
+            AppLogger.shared.log(
+              "🟢 [Wizard] Healthy system detected during monitor; routing to summary")
+            navigationCoordinator.navigateToPage(.summary)
+          }
+        }
 
         if oldState != systemState || oldPage != navigationCoordinator.currentPage {
           AppLogger.shared.log(
@@ -924,7 +943,14 @@ struct InstallationWizardView: View {
       kanataManager.lastWizardSnapshot = WizardSnapshotRecord(
         state: result.state, issues: filteredIssues)
       Task { @MainActor in
-        if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
+        if shouldNavigateToSummary(
+          currentPage: navigationCoordinator.currentPage,
+          state: result.state,
+          issues: filteredIssues)
+        {
+          AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
+          navigationCoordinator.navigateToPage(.summary)
+        } else if let preferred = preferredDetailPage(for: result.state, issues: filteredIssues),
           navigationCoordinator.currentPage != preferred
         {
           AppLogger.shared.log("🔄 [Wizard] Deterministic routing to \(preferred) after refresh")

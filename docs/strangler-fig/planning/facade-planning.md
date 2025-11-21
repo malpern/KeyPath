@@ -425,13 +425,13 @@
   - [x] Remove duplication between `SystemSnapshotAdapter` and related code ✅ (Phase 7.1)
   - [x] Created `ActionDeterminer` enum to centralize action determination logic ✅ (Phase 7.1)
   - [x] Migrated `SystemSnapshotAdapter` to use `ActionDeterminer` ✅ (Phase 7.1)
-- [ ] **Phase 7.2: Single health pipeline (stability hotfix)** — code/tests done; navigation regression outstanding
+- [x] **Phase 7.2: Single health pipeline (stability hotfix)** — code/tests done; navigation regression fixed with summary auto-route
     - [x] Build `InstallerEngine` with live `KanataManager` for the wizard so `kanataRunning` reflects real TCP/launchctl state (2025-11-21)
     - [x] Remove `SystemSnapshotAdapter`; route through `SystemContextAdapter` everywhere (wizard + main app)
     - [x] Enforce snapshot freshness in wizard (drop stale results, retry once)
     - [x] Unify health signals: launchctl PID + TCP probe helper (`checkKanataServiceHealth`); remove pgrep fallbacks
     - [x] Regression: wizard adapt twice with Kanata running stays `.active` (new test)
-    - [ ] UI navigation regression (open wizard twice, never routes to Start Service) — pending
+    - [x] UI navigation regression (open wizard twice, never routes to Start Service) — fixed via summary auto-route
   - [ ] Extract reusable detection functions
   - [ ] Improve testability
 - [ ] **Refactor planning code**:
@@ -509,7 +509,7 @@
 ---
 
 **Last Updated:** 2025-11-21
-**Status:** Phase 6 Complete ✅ (Phase 7 in progress – 7.2 stability hotfix code done; UI nav regression outstanding)
+**Status:** Phase 6 Complete ✅ (Phase 7 in progress – 7.2 stability hotfix complete)
 
 ---
 
