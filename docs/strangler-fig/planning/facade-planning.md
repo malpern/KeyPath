@@ -15,7 +15,7 @@
 - ✅ **Phase 6:** Migrate Callers - COMPLETE
 - 🔄 **Phase 7:** Refactor Internals — IN PROGRESS  
   - 7.1 Adapter cleanup ✅  
-  - 7.2 Single health pipeline 🔥 (stability focus) — core code & tests DONE
+  - 7.2 Single health pipeline 🔥 — core code & tests DONE; UI nav regression still open
 - ⏳ **Phase 8:** Documentation & Cleanup - Pending
 
 **Files Created:** 4 files (1,244 lines total)
@@ -425,7 +425,7 @@
   - [x] Remove duplication between `SystemSnapshotAdapter` and related code ✅ (Phase 7.1)
   - [x] Created `ActionDeterminer` enum to centralize action determination logic ✅ (Phase 7.1)
   - [x] Migrated `SystemSnapshotAdapter` to use `ActionDeterminer` ✅ (Phase 7.1)
-  - [ ] **Phase 7.2: Single health pipeline (stability hotfix)**
+- [ ] **Phase 7.2: Single health pipeline (stability hotfix)** — code/tests done; navigation regression outstanding
     - [x] Build `InstallerEngine` with live `KanataManager` for the wizard so `kanataRunning` reflects real TCP/launchctl state (2025-11-21)
     - [x] Remove `SystemSnapshotAdapter`; route through `SystemContextAdapter` everywhere (wizard + main app)
     - [x] Enforce snapshot freshness in wizard (drop stale results, retry once)
@@ -509,7 +509,7 @@
 ---
 
 **Last Updated:** 2025-11-21
-**Status:** Phase 6 Complete ✅ (Phase 7 in progress – 7.2 stability hotfix underway)
+**Status:** Phase 6 Complete ✅ (Phase 7 in progress – 7.2 stability hotfix code done; UI nav regression outstanding)
 
 ---
 
