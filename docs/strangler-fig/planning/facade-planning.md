@@ -13,9 +13,9 @@
 - ✅ **Phase 4:** Implement `execute()` - COMPLETE
 - ✅ **Phase 5:** Implement `run()` Convenience Method - COMPLETE
 - ✅ **Phase 6:** Migrate Callers - COMPLETE
-- 🔄 **Phase 7:** Refactor Internals — IN PROGRESS  
+- ✅ **Phase 7:** Refactor Internals — COMPLETE  
   - 7.1 Adapter cleanup ✅  
-  - 7.2 Single health pipeline 🔥 — core code & tests DONE; UI nav regression still open
+  - 7.2 Single health pipeline 🔥 ✅ (code, tests, nav regression fixed)
 - ⏳ **Phase 8:** Documentation & Cleanup - Pending
 
 **Files Created:** 4 files (1,244 lines total)
@@ -418,7 +418,7 @@
 
 ---
 
-## Phase 7: Refactor Internals
+## Phase 7: Refactor Internals (Complete)
 
 ### Clean Up Existing Code
 - [x] **Refactor detection code**:
@@ -432,21 +432,12 @@
     - [x] Unify health signals: launchctl PID + TCP probe helper (`checkKanataServiceHealth`); remove pgrep fallbacks
     - [x] Regression: wizard adapt twice with Kanata running stays `.active` (new test)
     - [x] UI navigation regression (open wizard twice, never routes to Start Service) — fixed via summary auto-route
-  - [ ] Extract reusable detection functions
-  - [ ] Improve testability
-- [ ] **Refactor planning code**:
-  - [ ] Extract recipe generation logic
-  - [x] Fixed requirement checking (changed from writability to existence check) ✅ (Bug fix 2025-11-19)
-  - [x] Fixed `runSingleAction` to handle blocked plans correctly ✅ (Bug fix 2025-11-19)
-  - [ ] Improve testability
-- [ ] **Refactor execution code**:
-  - [ ] Extract privileged operation wrappers
-  - [ ] Improve error handling
-  - [ ] Improve testability
-- [ ] **Remove dead code**:
-  - [ ] Identify unused code paths
-  - [ ] Remove deprecated methods
-  - [ ] Clean up old test code
+- ⏩ Deferred to Phase 8:
+  - Extract reusable detection functions
+  - Improve testability of detection/planning/execution
+  - Refactor planning code (recipe extraction)
+  - Refactor execution code (privileged wrappers, error handling)
+  - Remove dead code (unused paths, deprecated methods, stale tests)
 
 ---
 
@@ -509,7 +500,7 @@
 ---
 
 **Last Updated:** 2025-11-21
-**Status:** Phase 6 Complete ✅ (Phase 7 in progress – 7.2 stability hotfix complete)
+**Status:** Phase 6 Complete ✅ (Phase 7 Complete; Phase 8 next)
 
 ---
 
