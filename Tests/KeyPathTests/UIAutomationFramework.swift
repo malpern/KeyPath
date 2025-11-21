@@ -31,7 +31,7 @@ public class UIAutomationFramework {
 
   /// Automate any key mapping with full UI simulation
   public func automateKeyMapping(_ mapping: KeyMapping) async -> AutomationResult {
-    let context = AutomationContext(
+    _ = AutomationContext(
       mapping: mapping,
       timestamp: Date(),
       framework: self
@@ -187,23 +187,18 @@ public class UIAutomationFramework {
   {
     log(.inputCapture, "Capturing input key: \(input)")
 
-    do {
-      // Start input recording
-      keyboardCapture.startCapture { capturedKey in
-        self.log(.inputCaptured, "Input captured: \(capturedKey)")
-      }
-
-      // Simulate key press
-      keyboardCapture.simulateKeyPress(input)
-
-      // Stop recording
-      keyboardCapture.stopCapture()
-
-      return CaptureResult(success: true, capturedKey: input)
-
-    } catch {
-      return CaptureResult(success: false, error: error)
+    // Start input recording
+    keyboardCapture.startCapture { capturedKey in
+      self.log(.inputCaptured, "Input captured: \(capturedKey)")
     }
+
+    // Simulate key press
+    keyboardCapture.simulateKeyPress(input)
+
+    // Stop recording
+    keyboardCapture.stopCapture()
+
+    return CaptureResult(success: true, capturedKey: input)
   }
 
   private func executeOutputCapture(_ output: String, uiState _: UIStateSnapshot) async
@@ -211,26 +206,21 @@ public class UIAutomationFramework {
   {
     log(.outputCapture, "Capturing output key: \(output)")
 
-    do {
-      // Start output recording
-      keyboardCapture.startContinuousCapture { capturedKey in
-        self.log(.outputCaptured, "Output captured: \(capturedKey)")
-      }
-
-      // Simulate key press(es)
-      let outputKeys = output.components(separatedBy: " ")
-      for key in outputKeys {
-        keyboardCapture.simulateKeyPress(key.trimmingCharacters(in: .whitespaces))
-      }
-
-      // Stop recording
-      keyboardCapture.stopCapture()
-
-      return CaptureResult(success: true, capturedKey: output)
-
-    } catch {
-      return CaptureResult(success: false, error: error)
+    // Start output recording
+    keyboardCapture.startContinuousCapture { capturedKey in
+      self.log(.outputCaptured, "Output captured: \(capturedKey)")
     }
+
+    // Simulate key press(es)
+    let outputKeys = output.components(separatedBy: " ")
+    for key in outputKeys {
+      keyboardCapture.simulateKeyPress(key.trimmingCharacters(in: .whitespaces))
+    }
+
+    // Stop recording
+    keyboardCapture.stopCapture()
+
+    return CaptureResult(success: true, capturedKey: output)
   }
 
   private func executeSave(_ mapping: KeyMapping, uiState _: UIStateSnapshot) async -> SaveResult {

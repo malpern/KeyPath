@@ -313,36 +313,31 @@ class SystemValidator {
   private func checkHelper() async -> HelperStatus {
     AppLogger.shared.log("🔍 [SystemValidator] Checking privileged helper")
 
-    // Check if helper is installed (BTM registered AND binary exists)
-    // This catches phantom registrations where BTM says yes but binary is missing
-    let isInstalled = HelperManager.shared.isHelperInstalled()
+    let health = await HelperManager.shared.getHelperHealth()
 
-    // Get version if installed (also tests XPC communication)
-    let version = await HelperManager.shared.getHelperVersion()
+    switch health {
+    case .notInstalled:
+      AppLogger.shared.log("🔍 [SystemValidator] Helper state: notInstalled")
+      return HelperStatus(isInstalled: false, version: nil, isWorking: false)
 
-    // Test actual functionality via XPC
-    // This is the definitive test - returns true ONLY if helper responds
-    let isWorking = await HelperManager.shared.testHelperFunctionality()
-
-    AppLogger.shared.log(
-      "🔍 [SystemValidator] Helper: installed=\(isInstalled), version=\(version ?? "nil"), working=\(isWorking)"
-    )
-
-    // Log warnings for inconsistent states
-    if isInstalled, !isWorking {
+    case .requiresApproval(let reason):
       AppLogger.shared.log(
-        "⚠️ [SystemValidator] Helper installed but not working - may be phantom registration or XPC issue"
+        "🔍 [SystemValidator] Helper state: requiresApproval \(reason ?? "")"
       )
-    } else if !isInstalled, isWorking {
-      AppLogger.shared.log(
-        "🚨 [SystemValidator] Impossible state: Not installed but working - logic error!")
-    }
+      return HelperStatus(isInstalled: false, version: nil, isWorking: false)
 
-    return HelperStatus(
-      isInstalled: isInstalled,
-      version: version,
-      isWorking: isWorking
-    )
+    case .registeredButUnresponsive(let reason):
+      AppLogger.shared.log(
+        "🔍 [SystemValidator] Helper state: registeredButUnresponsive \(reason ?? "")"
+      )
+      return HelperStatus(isInstalled: true, version: nil, isWorking: false)
+
+    case .healthy(let version):
+      AppLogger.shared.log(
+        "🔍 [SystemValidator] Helper state: healthy (v\(version ?? "unknown"))"
+      )
+      return HelperStatus(isInstalled: true, version: version, isWorking: true)
+    }
   }
 
   // MARK: - Permission Checking

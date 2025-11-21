@@ -350,10 +350,6 @@ public final class InstallerEngine {
         serviceID: nil
       )
 
-    default:
-      // For now, skip actions we haven't mapped yet
-      AppLogger.shared.log("⚠️ [InstallerEngine] Action not yet mapped to recipe: \(action)")
-      return nil
     }
   }
 
@@ -766,9 +762,6 @@ public final class InstallerEngine {
       return "replace-kanata-with-bundled"
     case .synchronizeConfigPaths:
       return "synchronize-config-paths"
-    default:
-      AppLogger.shared.log("⚠️ [InstallerEngine] Unknown action for recipe mapping: \(action)")
-      return "unknown-action"
     }
   }
 }

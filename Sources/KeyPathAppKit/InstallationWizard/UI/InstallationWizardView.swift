@@ -38,6 +38,7 @@ struct InstallationWizardView: View {
   @State private var currentIssues: [WizardIssue] = []
   @State private var showAllSummaryItems: Bool = false
   @State private var navSequence: [WizardPage] = []
+  @State private var inFlightFixActions: Set<AutoFixAction> = []
   @State private var showingBackgroundApprovalPrompt = false
 
   // Task management for race condition prevention
@@ -635,6 +636,16 @@ struct InstallationWizardView: View {
   }
 
   private func performAutoFix(_ action: AutoFixAction) async -> Bool {
+    // Single-flight guard for Fix buttons
+    if inFlightFixActions.contains(action) {
+      await MainActor.run {
+        toastManager.showInfo("Fix already running…", duration: 3.0)
+      }
+      return false
+    }
+    inFlightFixActions.insert(action)
+    defer { inFlightFixActions.remove(action) }
+
     // IMMEDIATE crash-proof logging for ACTUAL Fix button
     Swift.print(
       "*** IMMEDIATE DEBUG *** ACTUAL Fix button clicked for action: \(action) at \(Date())")
@@ -647,7 +658,20 @@ struct InstallationWizardView: View {
     AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
     let broker = privilegeBroker
-    let report = await installerEngine.runSingleAction(action, using: broker)
+    let timeoutSeconds: Double = 12.0
+    let report: InstallerReport
+    do {
+      report = try await runWithTimeout(seconds: timeoutSeconds) {
+        await installerEngine.runSingleAction(action, using: broker)
+      }
+    } catch {
+      await MainActor.run {
+        toastManager.showError(
+          "Fix timed out after \(Int(timeoutSeconds))s. Please retry or check logs.", duration: 7.0)
+      }
+      AppLogger.shared.log("⚠️ [Wizard] Auto-fix timed out for action: \(action)")
+      return false
+    }
 
     let actionDescription = getAutoFixActionDescription(action)
 
@@ -1180,6 +1204,26 @@ struct InstallationWizardView: View {
     formatter.dateFormat = "MM/dd HH:mm"
     // Use compile time if available, otherwise current time
     return formatter.string(from: Date())
+  }
+}
+
+// MARK: - Timeout helper for auto-fix actions (file-private)
+
+fileprivate struct AutoFixTimeoutError: Error {}
+
+fileprivate func runWithTimeout<T: Sendable>(
+  seconds: Double,
+  operation: @Sendable @escaping () async -> T
+) async throws -> T {
+  try await withThrowingTaskGroup(of: T.self) { group in
+    group.addTask { await operation() }
+    group.addTask {
+      try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+      throw AutoFixTimeoutError()
+    }
+    let result = try await group.next()!
+    group.cancelAll()
+    return result
   }
 }
 

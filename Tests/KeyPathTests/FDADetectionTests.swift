@@ -41,7 +41,7 @@ final class FDADetectionTests: XCTestCase {
 
     // Simulate first check
     lastCheckTime = Date()
-    cachedStatus = false  // Assume no FDA
+    cachedStatus = true  // Assume FDA granted for cache hit scenario
 
     // Immediate second check should use cache
     let timeSinceLastCheck = Date().timeIntervalSince(lastCheckTime!)

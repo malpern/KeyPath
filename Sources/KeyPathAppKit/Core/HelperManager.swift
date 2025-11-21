@@ -12,6 +12,14 @@ import ServiceManagement
 /// - Actor to serialize connection state without @unchecked Sendable.
 /// - SMJobBless calls hop to MainActor for Authorization UI safety.
 actor HelperManager {
+  // MARK: - Helper Health State
+
+  enum HealthState: Equatable {
+    case notInstalled
+    case requiresApproval(String?)
+    case registeredButUnresponsive(String?)
+    case healthy(version: String?)
+  }
   // MARK: - SMAppService indirection for testability
 
   // Allows unit tests to inject a fake SMAppService and simulate states like `.notFound`.
@@ -522,6 +530,30 @@ actor HelperManager {
       throw HelperManagerError.operationFailed(
         "SMAppService unregister failed: \(error.localizedDescription)")
     }
+  }
+
+  /// Determine helper health state using SMAppService, launchctl, and XPC
+  func getHelperHealth() async -> HealthState {
+    let svc = Self.smServiceFactory(Self.helperPlistName)
+    let smStatus = svc.status
+
+    // Approval explicitly required
+    if smStatus == .requiresApproval {
+      return .requiresApproval("Approval required in System Settings → Login Items.")
+    }
+
+    let installed = isHelperInstalled()
+    if !installed {
+      return .notInstalled
+    }
+
+    // Fast path: if XPC responds, we are healthy
+    if let version = await getHelperVersion(), await testHelperFunctionality() {
+      return .healthy(version: version)
+    }
+
+    // Installed but XPC failing
+    return .registeredButUnresponsive("Helper registered but XPC communication failed")
   }
 
   // MARK: - Error helpers

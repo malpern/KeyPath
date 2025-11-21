@@ -31,7 +31,7 @@ extension XCTestCase {
   func XCTAssertThrowsErrorAsync(
     _ expression: @autoclosure @escaping () async throws -> some Any,
     _ message: @autoclosure () -> String = "",
-    file: StaticString = #file,
+    file: StaticString = #filePath,
     line: UInt = #line,
     _ handler: (_ error: Error) -> Void
   ) async {

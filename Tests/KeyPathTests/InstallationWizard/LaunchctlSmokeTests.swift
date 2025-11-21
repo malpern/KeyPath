@@ -4,27 +4,9 @@ import XCTest
 
 @MainActor
 final class LaunchctlSmokeTests: XCTestCase {
-  private nonisolated(unsafe) var previousEnv: [String: String?] = [:]
-  private nonisolated(unsafe) var originalLaunchctlOverride: String?
-  private nonisolated(unsafe) var originalTestModeOverride: Bool?
-
-  override func setUp() {
-    super.setUp()
-    previousEnv.removeAll()
-    originalLaunchctlOverride = LaunchDaemonInstaller.launchctlPathOverride
-    originalTestModeOverride = LaunchDaemonInstaller.isTestModeOverride
-  }
-
-  override func tearDown() {
-    if let original = originalLaunchctlOverride {
-      LaunchDaemonInstaller.launchctlPathOverride = original
-    } else {
-      LaunchDaemonInstaller.launchctlPathOverride = nil
-    }
-    LaunchDaemonInstaller.isTestModeOverride = originalTestModeOverride
-    restoreEnv()
-    super.tearDown()
-  }
+  private var previousEnv: [String: String?] = [:]
+  private var originalLaunchctlOverride: String?
+  private var originalTestModeOverride: Bool?
 
   func testLoadServicesUsesFakeLaunchctlWhenNotInTestMode() async throws {
     let fakeLaunchctlDir = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -61,11 +43,16 @@ final class LaunchctlSmokeTests: XCTestCase {
     let testPlistPath = launchDaemonsDir.appendingPathComponent("com.keypath.kanata.plist")
     try testPlistContent.write(to: testPlistPath, atomically: true, encoding: .utf8)
 
-    // Set up test environment
-    LaunchDaemonInstaller.launchctlPathOverride = scriptURL.path
-    LaunchDaemonInstaller.isTestModeOverride = false  // Disable test mode to force real launchctl execution
-    setEnv("KEYPATH_TEST_ROOT", fakeLaunchctlDir.path)
-    setEnv("KEYPATH_LAUNCH_DAEMONS_DIR", launchDaemonsDir.path)
+    // Set up test environment (main-actor isolated)
+    await MainActor.run {
+      previousEnv.removeAll()
+      originalLaunchctlOverride = LaunchDaemonInstaller.launchctlPathOverride
+      originalTestModeOverride = LaunchDaemonInstaller.isTestModeOverride
+      LaunchDaemonInstaller.launchctlPathOverride = scriptURL.path
+      LaunchDaemonInstaller.isTestModeOverride = false  // Disable test mode to force real launchctl execution
+      setEnv("KEYPATH_TEST_ROOT", fakeLaunchctlDir.path)
+      setEnv("KEYPATH_LAUNCH_DAEMONS_DIR", launchDaemonsDir.path)
+    }
 
     let installer = LaunchDaemonInstaller()
     let success = await installer.loadServices()
@@ -73,16 +60,25 @@ final class LaunchctlSmokeTests: XCTestCase {
     XCTAssertTrue(success, "Load services should succeed using the fake launchctl")
     let log = try String(contentsOf: logURL, encoding: .utf8)
     XCTAssertTrue(log.contains("load"), "Fake launchctl should have recorded load commands")
+    await MainActor.run {
+      if let original = originalLaunchctlOverride {
+        LaunchDaemonInstaller.launchctlPathOverride = original
+      } else {
+        LaunchDaemonInstaller.launchctlPathOverride = nil
+      }
+      LaunchDaemonInstaller.isTestModeOverride = originalTestModeOverride
+      restoreEnv()
+    }
   }
 
-  private func setEnv(_ key: String, _ value: String) {
+  @MainActor private func setEnv(_ key: String, _ value: String) {
     if previousEnv[key] == nil {
       previousEnv[key] = ProcessInfo.processInfo.environment[key]
     }
     setenv(key, value, 1)
   }
 
-  private nonisolated func restoreEnv() {
+  @MainActor private func restoreEnv() {
     for (key, value) in previousEnv {
       if let value {
         setenv(key, value, 1)
