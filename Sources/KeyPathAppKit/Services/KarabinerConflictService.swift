@@ -166,6 +166,15 @@ final class KarabinerConflictService: KarabinerConflictManaging {
       return true
     }
 
+    // Check if daemon was recently restarted - if so, consider it healthy during warm-up window
+    // This aligns with LaunchDaemonInstaller.isServiceHealthy() warm-up logic
+    if LaunchDaemonInstaller.wasRecentlyRestarted("com.keypath.karabiner-vhiddaemon") {
+      AppLogger.shared.log(
+        "🔍 [Daemon] VirtualHIDDevice-Daemon in warm-up window (recently restarted) - treating as healthy"
+      )
+      return true
+    }
+
     let task = Process()
     task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
     task.arguments = ["-f", "VirtualHIDDevice-Daemon"]

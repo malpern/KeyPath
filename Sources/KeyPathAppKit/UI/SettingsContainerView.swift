@@ -59,6 +59,13 @@ struct SettingsContainerView: View {
     .onReceive(NotificationCenter.default.publisher(for: .openSettingsStatus)) { _ in
       selection = .status
     }
+    .onReceive(NotificationCenter.default.publisher(for: .showDiagnostics)) { _ in
+      selection = .advanced
+      // Post another notification to switch to errors tab within advanced settings
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        NotificationCenter.default.post(name: .showErrorsTab, object: nil)
+      }
+    }
     .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { _ in
       selection = .rules
     }

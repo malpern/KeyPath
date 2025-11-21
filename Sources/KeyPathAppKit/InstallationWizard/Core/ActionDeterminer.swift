@@ -48,10 +48,20 @@ enum ActionDeterminer {
         actions.append(.installBundledKanata)
       }
       actions.append(.installMissingComponents)
+
+      // CRITICAL: Activate manager BEFORE starting daemon
+      // Per Karabiner documentation, manager activation must happen before daemon startup
+      if !context.components.karabinerDriverInstalled {
+        actions.append(.activateVHIDDeviceManager)
+      }
     }
 
     // Check if daemon needs starting
     if !context.services.karabinerDaemonRunning {
+      // Ensure manager is activated before starting daemon
+      if !context.components.karabinerDriverInstalled && !actions.contains(.activateVHIDDeviceManager) {
+        actions.append(.activateVHIDDeviceManager)
+      }
       actions.append(.startKarabinerDaemon)
     }
 
@@ -62,7 +72,7 @@ enum ActionDeterminer {
     }
 
     // Restart unhealthy services
-    if !context.services.isHealthy {
+    if !context.services.backgroundServicesHealthy {
       actions.append(.restartUnhealthyServices)
     }
 
@@ -89,10 +99,20 @@ enum ActionDeterminer {
         actions.append(.installBundledKanata)
       }
       actions.append(.installMissingComponents)
+
+      // CRITICAL: Activate manager BEFORE installing daemon services
+      // Per Karabiner documentation, manager activation must happen before daemon startup
+      if !context.components.karabinerDriverInstalled {
+        actions.append(.activateVHIDDeviceManager)
+      }
     }
 
     // Check if daemon needs starting
     if !context.services.karabinerDaemonRunning {
+      // Ensure manager is activated before starting daemon
+      if !context.components.karabinerDriverInstalled && !actions.contains(.activateVHIDDeviceManager) {
+        actions.append(.activateVHIDDeviceManager)
+      }
       actions.append(.startKarabinerDaemon)
     }
 
@@ -102,6 +122,7 @@ enum ActionDeterminer {
     }
 
     // Always install services for fresh install
+    // NOTE: Manager activation must happen first (added above if needed)
     actions.append(.installLaunchDaemonServices)
 
     return actions
@@ -113,4 +134,3 @@ enum ActionDeterminer {
     []
   }
 }
-

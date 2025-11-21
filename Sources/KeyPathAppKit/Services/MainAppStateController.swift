@@ -304,27 +304,28 @@ class MainAppStateController: ObservableObject {
     AppLogger.shared.debug(
       "📊 [MainAppStateController] Blocking issues: \(snapshot.blockingIssues.count)")
 
-    // Convert to old format for UI compatibility
-    let result = SystemSnapshotAdapter.adapt(snapshot)
-
-    // 📊 LOG ADAPTER OUTPUT
-    AppLogger.shared.debug("📊 [MainAppStateController] === ADAPTER OUTPUT ===")
-    AppLogger.shared.debug("📊 [MainAppStateController] Adapter state: \(result.state)")
-    AppLogger.shared.debug(
-      "📊 [MainAppStateController] Adapter issues count: \(result.issues.count)")
-    for (index, issue) in result.issues.enumerated() {
-      AppLogger.shared.debug(
-        "📊 [MainAppStateController]   Issue \(index + 1): [\(issue.severity)] \(issue.title) - \(issue.description)"
-      )
-    }
+    // Adapt to wizard-style issues/state using existing adapter (keeps UI expectations stable)
+    let context = SystemContext(
+      permissions: snapshot.permissions,
+      services: snapshot.health,
+      conflicts: snapshot.conflicts,
+      components: snapshot.components,
+      helper: snapshot.helper,
+      system: EngineSystemInfo(
+        macOSVersion: SystemRequirements().getSystemInfo().macosVersion.versionString,
+        driverCompatible: true  // compatibility already validated in snapshot path
+      ),
+      timestamp: snapshot.timestamp
+    )
+    let adapted = SystemContextAdapter.adapt(context)
 
     // Update published state
-    issues = result.issues
+    issues = adapted.issues
     lastValidationDate = Date()
     lastValidationTime = Date()  // Track for cooldown optimization
 
     // Determine validation state
-    let blockingIssues = result.issues.filter { issue in
+    let blockingIssues = issues.filter { issue in
       switch issue.category {
       case .conflicts:
         false  // Conflicts are resolvable, not blocking
@@ -344,9 +345,8 @@ class MainAppStateController: ObservableObject {
     let kanataIsRunning = kanataManager?.isRunning ?? false
     AppLogger.shared.debug("📊 [MainAppStateController] kanataManager.isRunning: \(kanataIsRunning)")
 
-    // ⭐ Check blocking issues EVEN when adapter says .active
-    // This ensures main screen status matches wizard component status
-    switch result.state {
+    // ⭐ Check blocking issues EVEN when Kanata is running to keep UI honest
+    switch adapted.state {
     case .active:
       // Kanata is running - but check if there are blocking issues that prevent proper operation
       // Also verify TCP communication is properly configured (matches wizard logic)
@@ -368,7 +368,7 @@ class MainAppStateController: ObservableObject {
 
         validationState = .failed(
           blockingCount: blockingIssues.count + (tcpConfigured ? 0 : 1),
-          totalCount: result.issues.count)
+          totalCount: issues.count)
         AppLogger.shared.error(
           "❌ [MainAppStateController] Validation FAILED - \(reasons.joined(separator: ", "))")
         for (index, issue) in blockingIssues.enumerated() {
@@ -392,7 +392,7 @@ class MainAppStateController: ObservableObject {
         AppLogger.shared.info("✅ [MainAppStateController] Validation SUCCESS - no blocking issues")
       } else {
         validationState = .failed(
-          blockingCount: blockingIssues.count, totalCount: result.issues.count)
+          blockingCount: blockingIssues.count, totalCount: issues.count)
         AppLogger.shared.error(
           "❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues")
       }
@@ -400,9 +400,9 @@ class MainAppStateController: ObservableObject {
     case .conflictsDetected, .missingPermissions, .missingComponents:
       // Definite problems that need fixing
       validationState = .failed(
-        blockingCount: blockingIssues.count, totalCount: result.issues.count)
+        blockingCount: blockingIssues.count, totalCount: issues.count)
       AppLogger.shared.error(
-        "❌ [MainAppStateController] Validation FAILED - adapter state: \(result.state)")
+        "❌ [MainAppStateController] Validation FAILED - adapter state: \(adapted.state)")
       for issue in blockingIssues {
         AppLogger.shared.error(
           "❌ [MainAppStateController]   - \(issue.title): \(issue.description)")

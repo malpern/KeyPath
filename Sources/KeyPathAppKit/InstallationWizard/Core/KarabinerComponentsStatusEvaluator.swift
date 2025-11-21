@@ -31,7 +31,7 @@ enum KarabinerComponentsStatusEvaluator {
 
     // Use WizardStateInterpreter to check for comprehensive Karabiner-related component issues
     let hasKarabinerIssues = issues.contains { issue in
-      // Check for installation issues related to Karabiner components
+      // Check for installation issues related to Karabiner/VHID/background services
       if issue.category == .installation {
         switch issue.identifier {
         case .component(.karabinerDriver),
@@ -39,17 +39,17 @@ enum KarabinerComponentsStatusEvaluator {
           .component(.vhidDeviceManager),
           .component(.vhidDeviceActivation),
           .component(.vhidDeviceRunning),
-          .component(.launchDaemonServices),
-          .component(.launchDaemonServicesUnhealthy),
           .component(.vhidDaemonMisconfigured),
-          .component(.vhidDriverVersionMismatch):
+          .component(.vhidDriverVersionMismatch),
+          .component(.launchDaemonServices),
+          .component(.launchDaemonServicesUnhealthy):
           return true
         default:
           return false
         }
       }
-      // Include daemon and background services issues
-      return issue.category == .daemon || issue.category == .backgroundServices
+      // Background services category maps here; Kanata service (.daemon) is handled separately.
+      return issue.category == .backgroundServices
     }
 
     return hasKarabinerIssues ? .failed : .completed
@@ -71,7 +71,6 @@ enum KarabinerComponentsStatusEvaluator {
         if issue.category == .installation {
           switch issue.identifier {
           case .component(.karabinerDriver),
-            .component(.karabinerDaemon),
             .component(.vhidDeviceManager),
             .component(.vhidDeviceActivation),
             .component(.vhidDeviceRunning),
@@ -82,8 +81,7 @@ enum KarabinerComponentsStatusEvaluator {
             return false
           }
         }
-        // Include daemon category issues as they affect the driver
-        return issue.category == .daemon
+        return false
       }
       return hasDriverIssues ? .failed : .completed
 
@@ -98,6 +96,10 @@ enum KarabinerComponentsStatusEvaluator {
           default:
             return false
           }
+        }
+        // Daemon issues also bubble into this section for user clarity
+        if case .component(.karabinerDaemon) = issue.identifier, issue.category == .daemon {
+          return true
         }
         return issue.category == .backgroundServices
       }
@@ -127,8 +129,8 @@ enum KarabinerComponentsStatusEvaluator {
           return false
         }
       }
-      // Include daemon and background services issues
-      return issue.category == .daemon || issue.category == .backgroundServices
+      // Background services issues only (Kanata service is separate)
+      return issue.category == .backgroundServices
     }
   }
 

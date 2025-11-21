@@ -108,29 +108,29 @@ do {
 
 ---
 
-## SystemSnapshotAdapter Output Format
+## SystemContextAdapter Output Format
 
-**Source:** `Sources/KeyPath/InstallationWizard/Core/SystemSnapshotAdapter.swift`
+**Source:** `Sources/KeyPathAppKit/InstallationWizard/Core/SystemContextAdapter.swift`
 
 **Priority Order for State Determination:**
 1. **Conflicts** (highest priority) → `.conflictsDetected`
-2. **Kanata running** → `.active` (even if sub-components unhealthy)
-3. **Missing permissions** → `.missingPermissions` (only if blocking)
+2. **Kanata running** → `.active`
+3. **Missing permissions** → `.missingPermissions` (blocking only)
 4. **Missing components** → `.missingComponents`
 5. **Daemon not running** → `.daemonNotRunning`
-6. **Service not running** → `.serviceNotRunning` (everything ready but kanata not started)
+6. **Service not running** → `.serviceNotRunning` (ready but not started)
 
 **Key Logic:**
-- Uses `isBlocking` (not `isReady`) for permissions - only marks as missing if DEFINITIVELY BLOCKED
-- If Kanata is running → shows active regardless of sub-component health
-- Only checks permissions if Kanata is NOT running
+- Uses `isBlocking` for permissions (only definitively blocked perms)
+- If Kanata is running → returns `.active`
+- Checks permissions only when Kanata is NOT running
 
 **Output Structure:**
 ```swift
 SystemStateResult(
-    state: WizardSystemState,  // One of the states above
-    issues: [WizardIssue],     // List of detected issues
-    autoFixActions: [AutoFixAction],  // Actions that can fix issues
+    state: WizardSystemState,
+    issues: [WizardIssue],
+    autoFixActions: [AutoFixAction],
     detectionTimestamp: Date
 )
 ```
@@ -237,5 +237,4 @@ SystemStateResult(
 8. ✅ **Service guard:** Throttle auto-installs, handle pending states
 
 **All of these behaviors must be replicated in the façade.**
-
 

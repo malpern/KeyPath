@@ -130,6 +130,9 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
   private var retryAttemptCount = 0
   private var lastHealthCheckResult: ServiceHealthStatus?
 
+  // FIX #2: Shared TCP client for health checks to avoid creating new connections repeatedly
+  private var healthCheckClient: KanataTCPClient?
+
   // MARK: - Initialization
 
   init(processLifecycle: ProcessLifecycleManager) {
@@ -198,14 +201,26 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
   /// Perform TCP health check with retry logic
   private func performTCPHealthCheck(port: Int) async -> Bool {
+    // FIX #2: Use shared client instead of creating new one for each health check
+    // This avoids creating hundreds of TCP connections over app lifetime
+    if healthCheckClient == nil {
+      AppLogger.shared.debug("[HealthMonitor] Creating shared TCP health check client")
+      healthCheckClient = KanataTCPClient(port: port, timeout: 3.0)
+    }
+
+    guard let client = healthCheckClient else {
+      AppLogger.shared.error("[HealthMonitor] Failed to create TCP client")
+      return false
+    }
+
     var isHealthy = false
 
     for attempt in 1...maxTCPHealthCheckRetries {
       AppLogger.shared.debug(
         "[HealthMonitor] TCP health check attempt \(attempt)/\(maxTCPHealthCheckRetries)")
 
-      let client = KanataTCPClient(port: port, timeout: 3.0)
       isHealthy = await client.checkServerStatus()
+
       if isHealthy {
         break
       }
@@ -370,6 +385,14 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     startAttemptCount = 0
     retryAttemptCount = 0
     lastHealthCheckResult = nil
+
+    // FIX #2: Clean up shared health check client
+    if let client = healthCheckClient {
+      await client.cancelInflightAndCloseConnection()
+      healthCheckClient = nil
+      AppLogger.shared.debug("[HealthMonitor] Closed shared TCP health check client")
+    }
+
     AppLogger.shared.info("[HealthMonitor] Reset all monitoring state")
   }
 }

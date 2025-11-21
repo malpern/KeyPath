@@ -187,13 +187,7 @@ struct WizardSystemStatusOverview: View {
 
   /// Items to render given the current toggle state
   private var displayItems: [StatusItemModel] {
-    if showAllItems {
-      return statusItems
-    }
-    // Hidden/filtered view: show only items that are not completed AND have their dependencies met
-    return statusItems.filter { item in
-      item.status != .completed && dependenciesSatisfied(for: item, in: statusItems)
-    }
+    Self.filteredDisplayItems(statusItems, showAllItems: showAllItems)
   }
 
   // MARK: - Geometry Preference
@@ -228,27 +222,7 @@ struct WizardSystemStatusOverview: View {
   private var statusItems: [StatusItemModel] {
     var items: [StatusItemModel] = []
 
-    // 1. Kanata Service (FIRST - primary system status)
-    let serviceStatus = getServiceStatus()
-    let serviceNavigation = getServiceNavigationTarget()
-    let serviceIssues = issues.filter { issue in
-      // Daemon and service issues
-      issue.category == .daemon
-    }
-    items.append(
-      StatusItemModel(
-        id: "kanata-service",
-        icon: "app.badge.checkmark",
-        title: "Kanata Service",
-        subtitle: serviceStatus == .failed
-          ? "Fix permissions to enable service" : (kanataIsRunning ? "Running" : nil),
-        status: serviceStatus,
-        isNavigable: true,
-        targetPage: serviceNavigation.page,
-        relatedIssues: serviceIssues
-      ))
-
-    // 2. Privileged Helper (required for system operations)
+    // 1. Privileged Helper (required for system operations)
     let helperIssues = issues.filter { issue in
       if case .component(let req) = issue.identifier {
         return req == .privilegedHelper || req == .privilegedHelperUnhealthy
@@ -371,7 +345,7 @@ struct WizardSystemStatusOverview: View {
         relatedIssues: accessibilityIssues
       ))
 
-    // 7. Karabiner Driver Setup
+    // 6. Karabiner Driver Setup (led first in list for clear dependency order)
     let karabinerStatus = getKarabinerComponentsStatus()
     let karabinerIssues = issues.filter { issue in
       // Filter for installation issues related to Karabiner driver
@@ -386,6 +360,25 @@ struct WizardSystemStatusOverview: View {
         isNavigable: true,
         targetPage: .karabinerComponents,
         relatedIssues: karabinerIssues
+      ))
+
+    // 7. Kanata Service (depends on helper + driver)
+    let serviceStatus = getServiceStatus()
+    let serviceNavigation = getServiceNavigationTarget()
+    let serviceIssues = issues.filter { issue in
+      issue.category == .daemon
+    }
+    items.append(
+      StatusItemModel(
+        id: "kanata-service",
+        icon: "app.badge.checkmark",
+        title: "Kanata Service",
+        subtitle: serviceStatus == .failed
+          ? "Fix permissions to enable service" : (kanataIsRunning ? "Running" : nil),
+        status: serviceStatus,
+        isNavigable: true,
+        targetPage: serviceNavigation.page,
+        relatedIssues: serviceIssues
       ))
 
     // Check dependency requirements for remaining items
@@ -539,6 +532,16 @@ struct WizardSystemStatusOverview: View {
     return deps.allSatisfy { statusByID[$0] == .completed }
   }
 
+  // MARK: - Filtering helper (shared with tests)
+
+  static func filteredDisplayItems(_ items: [StatusItemModel], showAllItems: Bool)
+    -> [StatusItemModel]
+  {
+    if showAllItems { return items }
+    // Show all incomplete items, even if their prerequisites are still pending; ordering is preserved.
+    return items.filter { $0.status != .completed }
+  }
+
   // MARK: - Status Helpers
 
   private func checkFullDiskAccess() -> Bool {
@@ -641,10 +644,8 @@ struct WizardSystemStatusOverview: View {
       return .notStarted
     }
 
-    // NEW BEHAVIOR: If Kanata isn't running, show as not started (empty circle)
-    guard kanataIsRunning else {
-      return .notStarted
-    }
+    // If Kanata isn't running, show as not started (empty circle)
+    guard kanataIsRunning else { return .notStarted }
 
     // Check for communication server issues in the shared issues array first
     let hasCommServerIssues = issues.contains { issue in
@@ -696,10 +697,16 @@ struct WizardSystemStatusOverview: View {
     return status
   }
 
-  private func getServiceStatus() -> InstallationStatus {
+  func getServiceStatus() -> InstallationStatus {
     // If system is still initializing, show as in progress
     if systemState == .initializing {
       return .inProgress
+    }
+
+    // Live signal: if Kanata is currently running, treat service as healthy even
+    // if a stale issue snapshot still contains daemon issues.
+    if kanataIsRunning {
+      return .completed
     }
 
     // Check for service-related issues (daemon category)
@@ -711,11 +718,6 @@ struct WizardSystemStatusOverview: View {
     // If there are service issues, show as failed (red X)
     if hasServiceIssues {
       return .failed
-    }
-
-    // If Kanata is running, show as completed
-    if kanataIsRunning {
-      return .completed
     }
 
     // Otherwise, show as not started (empty circle)
@@ -871,7 +873,7 @@ private func probeTCPHelloRequiresStatus(port: Int, timeoutMs: Int) -> Bool {
 
 // MARK: - Status Item Model
 
-private struct StatusItemModel {
+struct StatusItemModel {
   let id: String
   let icon: String
   let title: String

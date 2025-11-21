@@ -34,12 +34,29 @@ struct ContentViewHeader: View {
 
         Spacer()
 
-        // System Status Indicator in top-right
-        SystemStatusIndicator(
-          validator: validator,
-          showingWizard: $showingInstallationWizard,
-          onClick: onWizardRequest
-        )
+        // Status indicators grouped together
+        HStack(spacing: 12) {
+          // Kanata Engine Health
+          LabeledKanataHealthIndicator()
+
+          // Divider
+          Rectangle()
+            .fill(Color.secondary.opacity(0.3))
+            .frame(width: 1, height: 20)
+
+          // System Status
+          HStack(spacing: 6) {
+            Text("System")
+              .font(.system(size: 11, weight: .medium))
+              .foregroundColor(.secondary)
+
+            SystemStatusIndicator(
+              validator: validator,
+              showingWizard: $showingInstallationWizard,
+              onClick: onWizardRequest
+            )
+          }
+        }
         .frame(height: 28, alignment: .bottom)  // lock indicator height to keep row baseline stable
       }
       .fixedSize(horizontal: false, vertical: true)

@@ -80,7 +80,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
         FileManager.default.fileExists(atPath: plistPath(for: id)), "Missing plist for \(id)")
     }
 
-    let status = await MainActor.run { installer.getServiceStatus() }
+    let status = await installer.getServiceStatus()
     XCTAssertTrue(status.allServicesLoaded)
     XCTAssertTrue(status.allServicesHealthy)
   }
@@ -226,7 +226,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
     let loadResult = await installer.loadServices()
     XCTAssertFalse(loadResult)
 
-    let status = await MainActor.run { installer.getServiceStatus() }
+    let status = await installer.getServiceStatus()
     XCTAssertFalse(status.kanataServiceLoaded)
     XCTAssertFalse(status.allServicesHealthy)
   }
@@ -243,7 +243,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
       try FileManager.default.removeItem(atPath: plistPath(for: id))
     }
 
-    let degradedStatus = await MainActor.run { installer.getServiceStatus() }
+    let degradedStatus = await installer.getServiceStatus()
     XCTAssertFalse(degradedStatus.vhidDaemonServiceLoaded)
     XCTAssertFalse(degradedStatus.vhidManagerServiceLoaded)
 
@@ -256,7 +256,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
       XCTAssertTrue(FileManager.default.fileExists(atPath: plistPath(for: id)))
     }
 
-    let repairedStatus = await MainActor.run { installer.getServiceStatus() }
+    let repairedStatus = await installer.getServiceStatus()
     XCTAssertTrue(repairedStatus.allServicesLoaded)
     XCTAssertTrue(repairedStatus.allServicesHealthy)
   }
@@ -270,7 +270,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
 
     try FileManager.default.removeItem(atPath: plistPath(for: "com.keypath.karabiner-vhidmanager"))
 
-    let status = await MainActor.run { installer.getServiceStatus() }
+    let status = await installer.getServiceStatus()
     XCTAssertTrue(status.vhidDaemonServiceLoaded)
     XCTAssertFalse(status.vhidManagerServiceLoaded)
     XCTAssertFalse(status.allServicesHealthy)
@@ -288,7 +288,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
       try FileManager.default.removeItem(atPath: plistPath(for: id))
     }
 
-    let degradedStatus = await MainActor.run { installer.getServiceStatus() }
+    let degradedStatus = await installer.getServiceStatus()
     XCTAssertFalse(degradedStatus.vhidDaemonServiceLoaded)
     XCTAssertFalse(degradedStatus.vhidManagerServiceLoaded)
 
@@ -299,7 +299,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
       XCTAssertTrue(FileManager.default.fileExists(atPath: plistPath(for: id)))
     }
 
-    let repairedStatus = await MainActor.run { installer.getServiceStatus() }
+    let repairedStatus = await installer.getServiceStatus()
     XCTAssertTrue(repairedStatus.vhidDaemonServiceLoaded)
     XCTAssertTrue(repairedStatus.vhidManagerServiceLoaded)
     XCTAssertTrue(repairedStatus.vhidDaemonServiceHealthy)
@@ -405,7 +405,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
     XCTAssertFalse(
       result, "Installer should report failure when launch daemon directory is not usable")
 
-    let status = await MainActor.run { installer.getServiceStatus() }
+    let status = await installer.getServiceStatus()
     XCTAssertFalse(status.allServicesLoaded)
   }
 
@@ -443,7 +443,7 @@ final class InstallerEngineFunctionalTests: XCTestCase {
     smService.status = .enabled
     let installer = LaunchDaemonInstaller()
 
-    let status = await MainActor.run { installer.getServiceStatus() }
+    let status = await installer.getServiceStatus()
     XCTAssertTrue(status.kanataServiceLoaded)
   }
 

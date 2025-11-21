@@ -391,7 +391,7 @@ struct InstallationWizardView: View {
     }
   }
 
-  private func performInitialStateCheck() async {
+  private func performInitialStateCheck(retryAllowed: Bool = true) async {
     // Check if user has already closed wizard
     guard !Task.isCancelled else {
       AppLogger.shared.log("🔍 [Wizard] Initial state check cancelled - wizard closing")
@@ -421,6 +421,21 @@ struct InstallationWizardView: View {
       let wizardDuration = Date().timeIntervalSince(preflightStart)
       AppLogger.shared.log(
         "⏱️ [TIMING] Wizard validation COMPLETE: \(String(format: "%.3f", wizardDuration))s")
+
+      // Freshness guard: drop stale results and retry once
+      if !isFresh(result) {
+        AppLogger.shared.log(
+          "⚠️ [Wizard] Discarding stale initial state result (age: \(snapshotAge(result))s)."
+        )
+        if retryAllowed {
+          Task { await performInitialStateCheck(retryAllowed: false) }
+        } else {
+          AppLogger.shared.log(
+            "⚠️ [Wizard] Stale result retry already attempted; keeping existing state.")
+        }
+        return
+      }
+
       let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
       systemState = result.state
       currentIssues = filteredIssues
@@ -498,7 +513,7 @@ struct InstallationWizardView: View {
   }
 
   /// Perform targeted state check based on current page
-  private func performSmartStateCheck() async {
+  private func performSmartStateCheck(retryAllowed: Bool = true) async {
     // Check if force closing is in progress
     guard !isForceClosing else {
       AppLogger.shared.log("🔍 [Wizard] Smart state check blocked - force closing in progress")
@@ -515,6 +530,20 @@ struct InstallationWizardView: View {
       asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
         let oldState = systemState
         let oldPage = navigationCoordinator.currentPage
+
+        // Freshness guard: drop stale results and retry once
+        if !isFresh(result) {
+          AppLogger.shared.log(
+            "⚠️ [Wizard] Ignoring stale smart state result (age: \(snapshotAge(result))s)."
+          )
+          if retryAllowed {
+            Task { await performSmartStateCheck(retryAllowed: false) }
+          } else {
+            AppLogger.shared.log(
+              "⚠️ [Wizard] Stale smart-state retry already attempted; leaving state unchanged.")
+          }
+          return
+        }
 
         let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
         systemState = result.state
@@ -542,6 +571,16 @@ struct InstallationWizardView: View {
       // No background polling for other pages
       break
     }
+  }
+
+  // MARK: - Freshness Guard
+
+  private func isFresh(_ result: SystemStateResult) -> Bool {
+    snapshotAge(result) <= 3.0
+  }
+
+  private func snapshotAge(_ result: SystemStateResult) -> TimeInterval {
+    Date().timeIntervalSince(result.detectionTimestamp)
   }
 
   // MARK: - Actions
@@ -663,6 +702,18 @@ struct InstallationWizardView: View {
     AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
     let broker = privilegeBroker
+
+    // Short-circuit service installs when Login Items approval is pending
+    if (action == .installLaunchDaemonServices || action == .restartUnhealthyServices)
+      && KanataDaemonManager.determineServiceManagementState() == .smappservicePending
+    {
+      await MainActor.run {
+        toastManager.showError(
+          "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ then click Fix again.",
+          duration: 7.0)
+      }
+      return false
+    }
     // Give VHID/launch-service operations more time
     let timeoutSeconds: Double = {
       switch action {
@@ -690,15 +741,32 @@ struct InstallationWizardView: View {
 
     let actionDescription = getAutoFixActionDescription(action)
 
+    let smState = KanataDaemonManager.determineServiceManagementState()
+
+    let deferToastActions: Set<AutoFixAction> = [
+      .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
+      .installLaunchDaemonServices,
+    ]
+    let deferSuccessToast = report.success && deferToastActions.contains(action)
+    var successToastPending = false
+
     await MainActor.run {
       if report.success {
-        toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
+        if deferSuccessToast {
+          successToastPending = true
+          toastManager.showInfo("Verifying…", duration: 3.0)
+        } else {
+          toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
+        }
       } else {
-        let errorMessage =
-          report.failureReason
-          ?? getDetailedErrorMessage(
-            for: action, actionDescription: actionDescription
-          )
+        var errorMessage = report.failureReason
+          ?? getDetailedErrorMessage(for: action, actionDescription: actionDescription)
+
+        if smState == .smappservicePending {
+          errorMessage =
+            "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ and click Fix again."
+        }
+
         toastManager.showError(errorMessage, duration: 7.0)
       }
     }
@@ -736,15 +804,32 @@ struct InstallationWizardView: View {
           issues: filteredIssues
         )
         AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
-        if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon,
-          karabinerStatus != .completed
+        if action == .restartVirtualHIDDaemon || action == .startKarabinerDaemon ||
+          action == .installCorrectVHIDDriver || action == .repairVHIDDaemonServices
         {
-          let detail = kanataManager.getVirtualHIDBreakageSummary()
-          AppLogger.shared.log(
-            "❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
-          await MainActor.run {
-            toastManager.showError(
-              "Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0)
+          let smStatePost = KanataDaemonManager.determineServiceManagementState()
+
+          if karabinerStatus == .completed {
+            if successToastPending {
+              await MainActor.run {
+                toastManager.showSuccess(
+                  "\(actionDescription) completed successfully", duration: 5.0)
+              }
+            }
+          } else {
+            let detail = kanataManager.getVirtualHIDBreakageSummary()
+            AppLogger.shared.log(
+              "❌ [Wizard] Post-fix health check failed; will show diagnostic toast")
+            await MainActor.run {
+              if smStatePost == .smappservicePending {
+                toastManager.showError(
+                  "KeyPath background service needs approval in System Settings → Login Items. Enable ‘KeyPath’ and click Fix again.",
+                  duration: 7.0)
+              } else {
+                toastManager.showError(
+                  "Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0)
+              }
+            }
           }
         }
       }

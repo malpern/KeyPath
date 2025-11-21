@@ -227,8 +227,14 @@ public struct HealthStatus: Sendable {
     self.vhidHealthy = vhidHealthy
   }
 
+  /// Overall health (includes Kanata runtime)
   public var isHealthy: Bool {
     kanataRunning && karabinerDaemonRunning && vhidHealthy
+  }
+
+  /// Health of background services only (Karabiner daemon + VHID driver)
+  public var backgroundServicesHealthy: Bool {
+    karabinerDaemonRunning && vhidHealthy
   }
 
   /// Convenience factory for empty/fallback state

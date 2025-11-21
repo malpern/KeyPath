@@ -43,6 +43,11 @@ class LaunchDaemonInstaller {
     WizardSystemPaths.remapSystemPath("/usr/local/bin/keypath-logrotate.sh")
   }
 
+  struct KanataServiceHealth: Sendable {
+    let isRunning: Bool
+    let isResponding: Bool
+  }
+
   struct InstallerReport: Sendable {
     let timestamp: Date
     let success: Bool
@@ -412,6 +417,7 @@ class LaunchDaemonInstaller {
   /// Creates and installs Kanata LaunchDaemon via SMAppService
   @MainActor
   private func createKanataLaunchDaemonViaSMAppService() async -> Bool {
+    installerFailureReason = nil
     AppLogger.shared.log("📱 [LaunchDaemon] Registering Kanata daemon via SMAppService")
 
     guard #available(macOS 13, *) else {
@@ -456,11 +462,15 @@ class LaunchDaemonInstaller {
       AppLogger.shared.log("🔧 [LaunchDaemon] Calling KanataDaemonManager.shared.register()...")
       try await KanataDaemonManager.shared.register()
       AppLogger.shared.info("✅ [LaunchDaemon] Kanata daemon registered via SMAppService - SUCCESS")
+      installerFailureReason = nil
       return true
     } catch {
       AppLogger.shared.log(
         "❌ [LaunchDaemon] SMAppService registration failed: \(error.localizedDescription)")
       AppLogger.shared.log("💡 [LaunchDaemon] User may need to approve in System Settings")
+      let nsError = error as NSError
+      installerFailureReason =
+        "SMAppService registration failed (\(nsError.domain):\(nsError.code)): \(nsError.localizedDescription)"
       return false
     }
   }
@@ -523,6 +533,7 @@ class LaunchDaemonInstaller {
 
       guard vhidSuccess else {
         AppLogger.shared.log("❌ [LaunchDaemon] VirtualHID installation failed")
+        installerFailureReason = "VirtualHID installation failed"
         return false
       }
 
@@ -533,6 +544,9 @@ class LaunchDaemonInstaller {
       if !kanataSuccess {
         AppLogger.shared.log("⚠️ [LaunchDaemon] SMAppService registration failed")
         AppLogger.shared.log("💡 [LaunchDaemon] User may need to approve in System Settings")
+        if installerFailureReason == nil {
+          installerFailureReason = "SMAppService registration failed (approval likely required)"
+        }
         return false
       }
 
@@ -543,6 +557,7 @@ class LaunchDaemonInstaller {
 
     } catch {
       AppLogger.shared.log("❌ [LaunchDaemon] Failed to create temporary plists: \(error)")
+      installerFailureReason = "Failed to create temporary plists: \(error.localizedDescription)"
       return false
     }
   }
@@ -641,7 +656,7 @@ class LaunchDaemonInstaller {
 
   /// Checks if a LaunchDaemon service is currently loaded
   /// Uses state determination for Kanata service to ensure consistent detection
-  func isServiceLoaded(serviceID: String) -> Bool {
+  func isServiceLoaded(serviceID: String) async -> Bool {
     // Special handling for Kanata service: Use state determination for consistent detection
     if serviceID == Self.kanataServiceID {
       if Self.isTestMode {
@@ -671,7 +686,7 @@ class LaunchDaemonInstaller {
         return true
       case .unknown:
         // Process running but unclear - check process, consider loaded if running
-        if pgrepKanataProcess() {
+        if await checkKanataServiceHealth().isRunning {
           AppLogger.shared.log(
             "🔍 [LaunchDaemon] Unknown state but process running - considering loaded")
           return true
@@ -712,24 +727,9 @@ class LaunchDaemonInstaller {
     }
   }
 
-  /// Check if Kanata process is running (helper for SMAppService detection)
-  nonisolated func pgrepKanataProcess() -> Bool {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-    task.arguments = ["-f", "kanata.*--cfg"]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-      return task.terminationStatus == 0
-    } catch {
-      return false
-    }
-  }
+  /// Legacy pgrep helper (disabled) — use checkKanataServiceHealth instead.
+  @available(*, unavailable, message: "Deprecated: use checkKanataServiceHealth()")
+  nonisolated func pgrepKanataProcess() -> Bool { false }
 
   /// Checks if a LaunchDaemon service is running healthily (not just loaded)
   @MainActor func isServiceHealthy(serviceID: String) -> Bool {
@@ -1704,7 +1704,7 @@ class LaunchDaemonInstaller {
       CONSOLE_GID="$(/usr/bin/id -g $CONSOLE_UID)" && \
       /usr/bin/install -d -m 0755 -o $CONSOLE_UID -g $CONSOLE_GID '\(userConfigDir)' && \
       if [ ! -f '\(userConfigPath)' ]; then \
-        /usr/bin/printf "%s\\n" ";; Default KeyPath config" "(defcfg process-unmapped-keys no)" "(defsrc)" "(deflayer base)" | /usr/bin/tee '\(userConfigPath)' >/dev/null && \
+        /usr/bin/printf "%s\\n" ";; Default KeyPath config" "(defcfg process-unmapped-keys no danger-enable-cmd yes)" "(defsrc)" "(deflayer base)" | /usr/bin/tee '\(userConfigPath)' >/dev/null && \
         /usr/sbin/chown $CONSOLE_UID:$CONSOLE_GID '\(userConfigPath)'; \
       fi && \
       /bin/launchctl bootstrap system '\(vhidDaemonFinal)' 2>/dev/null || /bin/echo VHID daemon already loaded && \
@@ -1824,7 +1824,7 @@ class LaunchDaemonInstaller {
 
   /// Gets comprehensive status of all LaunchDaemon services
   /// OPTIMIZED: For SMAppService-managed Kanata, skips expensive launchctl checks
-  @MainActor func getServiceStatus() -> LaunchDaemonStatus {
+  @MainActor func getServiceStatus() async -> LaunchDaemonStatus {
     // Fast path: Check Kanata state first to avoid expensive checks if SMAppService is managing it
     let kanataState = KanataDaemonManager.determineServiceManagementState()
     let kanataLoaded: Bool
@@ -1834,18 +1834,18 @@ class LaunchDaemonInstaller {
       // SMAppService is managing Kanata - use fast checks
       kanataLoaded = true  // SMAppService managed = loaded
       // For health, just check if process is running (faster than launchctl print)
-      kanataHealthy = pgrepKanataProcess()
+      kanataHealthy = await checkKanataServiceHealth().isRunning
       AppLogger.shared.log(
         "🔍 [LaunchDaemon] Kanata SMAppService-managed: loaded=true, healthy=\(kanataHealthy)")
     } else {
       // Legacy or unknown - use full checks
-      kanataLoaded = isServiceLoaded(serviceID: Self.kanataServiceID)
+      kanataLoaded = await isServiceLoaded(serviceID: Self.kanataServiceID)
       kanataHealthy = isServiceHealthy(serviceID: Self.kanataServiceID)
     }
 
     // VHID services always use launchctl (no SMAppService option)
-    let vhidDaemonLoaded = isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
-    let vhidManagerLoaded = isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+    let vhidDaemonLoaded = await isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
+    let vhidManagerLoaded = await isServiceLoaded(serviceID: Self.vhidManagerServiceID)
     let vhidDaemonHealthy = isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
     let vhidManagerHealthy = isServiceHealthy(serviceID: Self.vhidManagerServiceID)
 
@@ -1878,8 +1878,10 @@ class LaunchDaemonInstaller {
 
     // If SMAppService is managing Kanata, skip Kanata installation to prevent reverting to launchctl
     // Also skip if state is unknown but process is running (likely SMAppService managed)
+    let kanataRunning = await checkKanataServiceHealth().isRunning
     let shouldSkipKanata =
-      state.isSMAppServiceManaged || (state == .unknown && pgrepKanataProcess())
+      state.isSMAppServiceManaged
+        || (state == .unknown && kanataRunning)
 
     AppLogger.shared.log(
       "🔍 [LaunchDaemon] Install-only check: state=\(state.description), shouldSkipKanata=\(shouldSkipKanata)"
@@ -1997,7 +1999,7 @@ class LaunchDaemonInstaller {
     // Auto-migrate legacy plists that referenced '~' before attempting restarts
     _ = await migrateKanataConfigPathIfNeeded()
 
-    let initialStatus = getServiceStatus()
+    let initialStatus = await getServiceStatus()
     var toRestart: [String] = []
     var toInstall: [String] = []
 
@@ -2049,6 +2051,73 @@ class LaunchDaemonInstaller {
       }
     }
 
+    // Check for SMAppService broken state (common after clean uninstall)
+    // This detects:
+    // 1. Registered but launchd can't find it (path resolution failure)
+    // 2. Spawn failed state with exit code 78 (BundleProgram caching bug)
+    let isRegisteredButBroken = KanataDaemonManager.shared.isRegisteredButNotLoaded()
+    if isRegisteredButBroken {
+      AppLogger.shared.log(
+        "🔄 [LaunchDaemon] Detected SMAppService broken state (exit 78 or not loaded)")
+      AppLogger.shared.log(
+        "🐛 [LaunchDaemon] Known macOS bug: BundleProgram path caching after uninstall/reinstall")
+      AppLogger.shared.log(
+        "🔧 [LaunchDaemon] Fix: Unregister → wait → re-register to clear launchd cache")
+
+      var success = false
+      let maxRetries = 2
+
+      for attempt in 1...maxRetries {
+        do {
+          AppLogger.shared.log("🔄 [LaunchDaemon] Attempt \(attempt)/\(maxRetries)")
+
+          // Unregister to clear stale SMAppService/launchd state
+          AppLogger.shared.log("🗑️ [LaunchDaemon] Unregistering stale service...")
+          try await KanataDaemonManager.shared.unregister()
+
+          // Wait for unregistration to propagate through launchd
+          AppLogger.shared.log("⏳ [LaunchDaemon] Waiting 1s for unregistration to complete...")
+          try await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
+
+          // Re-register with fresh state
+          AppLogger.shared.log("📝 [LaunchDaemon] Re-registering service...")
+          try await KanataDaemonManager.shared.register()
+
+          // Wait for launchd to load and attempt spawn
+          AppLogger.shared.log("⏳ [LaunchDaemon] Waiting 2s for launchd to load...")
+          try await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+
+          // Verify the fix worked
+          let stillBroken = KanataDaemonManager.shared.isRegisteredButNotLoaded()
+          if !stillBroken {
+            AppLogger.shared.log("✅ [LaunchDaemon] Successfully fixed SMAppService broken state!")
+            success = true
+            break
+          } else {
+            AppLogger.shared.log("⚠️ [LaunchDaemon] Still broken after attempt \(attempt)")
+            if attempt < maxRetries {
+              AppLogger.shared.log("🔄 [LaunchDaemon] Retrying...")
+              try await Task.sleep(nanoseconds: 500_000_000)  // 500ms before retry
+            }
+          }
+        } catch {
+          AppLogger.shared.log(
+            "❌ [LaunchDaemon] Attempt \(attempt) failed: \(error)")
+          if attempt < maxRetries {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1s before retry
+          }
+        }
+      }
+
+      if !success {
+        AppLogger.shared.log(
+          "⚠️ [LaunchDaemon] Failed to fix SMAppService broken state after \(maxRetries) attempts")
+        AppLogger.shared.log(
+          "💡 [LaunchDaemon] User may need to reboot to clear launchd cache (known macOS issue)")
+        // Continue anyway - user can try manual restart or reboot
+      }
+    }
+
     // CRITICAL FIX: If Kanata is in toInstall but SMAppService is managing it, remove it from toInstall
     if toInstall.contains(Self.kanataServiceID) {
       if state.isSMAppServiceManaged {
@@ -2056,7 +2125,7 @@ class LaunchDaemonInstaller {
           "⚠️ [LaunchDaemon] Kanata is managed by SMAppService (state: \(state.description)) - skipping installation"
         )
         toInstall.removeAll { $0 == Self.kanataServiceID }
-      } else if state == .unknown, pgrepKanataProcess() {
+      } else if state == .unknown, (await checkKanataServiceHealth()).isRunning {
         // Unknown state but process running - likely SMAppService managed, skip installation
         AppLogger.shared.log(
           "⚠️ [LaunchDaemon] Unknown state but process running - skipping installation")
@@ -2099,13 +2168,10 @@ class LaunchDaemonInstaller {
         AppLogger.shared.log(
           "🔧 [LaunchDaemon] Kanata managed by SMAppService – refreshing registration instead of using osascript"
         )
-        do {
-          try await KanataDaemonManager.shared.register()
-          toRestart.removeAll { $0 == Self.kanataServiceID }
-        } catch {
-          AppLogger.shared.log("❌ [LaunchDaemon] SMAppService refresh failed: \(error)")
-          return false
-        }
+        AppLogger.shared.log(
+          "✅ [LaunchDaemon] Kanata already enabled via SMAppService – skipping refresh"
+        )
+        toRestart.removeAll { $0 == Self.kanataServiceID }
       } else {
         AppLogger.shared.log(
           "⚠️ [LaunchDaemon] Kanata marked for restart but state=\(state.description); legacy path will proceed"
@@ -2139,7 +2205,7 @@ class LaunchDaemonInstaller {
     var elapsed: TimeInterval = 0
 
     while elapsed < timeout {
-      let status = getServiceStatus()
+      let status = await getServiceStatus()
       var allRecovered = true
       if toRestart.contains(Self.kanataServiceID), !status.kanataServiceHealthy {
         allRecovered = false
@@ -2161,7 +2227,7 @@ class LaunchDaemonInstaller {
     }
 
     // Step 6: Final verification
-    let finalStatus = getServiceStatus()
+    let finalStatus = await getServiceStatus()
     var stillUnhealthy: [String] = []
 
     if toRestart.contains(Self.kanataServiceID), !finalStatus.kanataServiceHealthy {

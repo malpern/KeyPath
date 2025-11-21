@@ -659,19 +659,35 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
   private func fetchTcpStatusInfo() async -> KanataTCPClient.TcpStatusInfo? {
     let client = KanataTCPClient(port: 37001)
+
     do {
       _ = try await client.hello()
-      return try await client.getStatus()
+      let status = try await client.getStatus()
+
+      // FIX #1: Explicitly close connection to prevent file descriptor leak
+      await client.cancelInflightAndCloseConnection()
+
+      return status
     } catch {
+      // FIX #1: Clean up connection even on error path
+      await client.cancelInflightAndCloseConnection()
       return nil
     }
   }
 
   private func fetchTcpHello() async -> KanataTCPClient.TcpHelloOk? {
     let client = KanataTCPClient(port: 37001)
+
     do {
-      return try await client.hello()
+      let hello = try await client.hello()
+
+      // FIX #1: Explicitly close connection to prevent file descriptor leak
+      await client.cancelInflightAndCloseConnection()
+
+      return hello
     } catch {
+      // FIX #1: Clean up connection even on error path
+      await client.cancelInflightAndCloseConnection()
       return nil
     }
   }

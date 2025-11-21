@@ -12,6 +12,10 @@ final class TCPEngineClient: EngineClient, @unchecked Sendable {
     let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
     let client = KanataTCPClient(port: port, timeout: timeout)
     let tcp = await client.reloadConfig()
+
+    // FIX #1: Explicitly close connection to prevent file descriptor leak
+    await client.cancelInflightAndCloseConnection()
+
     return mapTCP(tcp)
   }
 

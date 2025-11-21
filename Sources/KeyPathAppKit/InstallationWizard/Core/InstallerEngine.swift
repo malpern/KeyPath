@@ -17,19 +17,32 @@ public final class InstallerEngine {
   /// System requirements checker for compatibility info
   private let systemRequirements: SystemRequirements
 
-  /// Create a new installer engine
-  /// No DI initially - calls singletons directly
-  public init() {
-    // Create ProcessLifecycleManager for SystemValidator
-    let processManager = ProcessLifecycleManager()
-
+  /// Internal designated initializer to share construction logic
+  init(
+    processLifecycleManager: ProcessLifecycleManager,
+    kanataManager: KanataManager? = nil
+  ) {
     // Create SystemValidator (stateless, can be reused)
-    systemValidator = SystemValidator(processLifecycleManager: processManager)
+    systemValidator = SystemValidator(
+      processLifecycleManager: processLifecycleManager,
+      kanataManager: kanataManager
+    )
 
     // Create SystemRequirements instance
     systemRequirements = SystemRequirements()
-
     AppLogger.shared.log("🔧 [InstallerEngine] Initialized")
+  }
+
+  /// Create a new installer engine (public API)
+  /// No DI for callers outside the module
+  public convenience init() {
+    self.init(processLifecycleManager: ProcessLifecycleManager(), kanataManager: nil)
+  }
+
+  /// Internal convenience initializer that threads through a live KanataManager
+  /// Used by the wizard to surface real-time service state
+  convenience init(kanataManager: KanataManager) {
+    self.init(processLifecycleManager: ProcessLifecycleManager(), kanataManager: kanataManager)
   }
 
   // MARK: - Public API

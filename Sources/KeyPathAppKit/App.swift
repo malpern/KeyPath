@@ -68,6 +68,10 @@ public struct KeyPathApp: App {
     Task { @MainActor in
       try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1s delay
       UserNotificationService.shared.requestAuthorizationIfNeeded()
+
+      // Start Kanata error monitoring
+      KanataErrorMonitor.shared.startMonitoring()
+      AppLogger.shared.info("🔍 [App] Started Kanata error monitoring")
     }
   }
 
@@ -180,6 +184,33 @@ public struct KeyPathApp: App {
           label: {
             Label("Uninstall KeyPath…", systemImage: "trash")
           })
+
+        // Hidden instant uninstall (no confirmation, just admin prompt)
+        Button(
+          role: .destructive,
+          action: {
+            Task { @MainActor in
+              AppLogger.shared.log("🗑️ [InstantUninstall] ⌥⌘U triggered - performing immediate uninstall")
+              let coordinator = UninstallCoordinator()
+              let success = await coordinator.uninstall(deleteConfig: false)
+              if success {
+                AppLogger.shared.log("✅ [InstantUninstall] Uninstall completed successfully")
+                NSApplication.shared.terminate(nil)
+              } else {
+                AppLogger.shared.log("❌ [InstantUninstall] Uninstall failed")
+                let alert = NSAlert()
+                alert.messageText = "Uninstall Failed"
+                alert.informativeText = coordinator.lastError ?? "An unknown error occurred during uninstall"
+                alert.alertStyle = .critical
+                alert.runModal()
+              }
+            }
+          },
+          label: {
+            Text("")  // Hidden menu item
+          })
+        .keyboardShortcut("u", modifiers: [.option, .command])
+        .hidden()  // Hide from menu but keep keyboard shortcut active
       }
 
       #if DEBUG

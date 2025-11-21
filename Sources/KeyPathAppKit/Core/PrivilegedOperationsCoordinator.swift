@@ -158,6 +158,8 @@ final class PrivilegedOperationsCoordinator {
 
     if state == .smappservicePending {
       Self.notifySMAppServiceApprovalRequired(context: context)
+      AppLogger.shared.log("\(Self.serviceGuardLogPrefix) \(context): approval pending - skipping install/refresh")
+      return false
     }
 
     let requiresInstall = state.needsInstallation || state.needsMigration()
@@ -476,7 +478,7 @@ final class PrivilegedOperationsCoordinator {
     AppLogger.shared.log("🔐 [PrivCoordinator] Helper path: verified restart of Karabiner daemon")
 
     // Snapshot PRE state
-    let preLoaded = LaunchDaemonInstaller().isServiceLoaded(
+    let preLoaded = await LaunchDaemonInstaller().isServiceLoaded(
       serviceID: "com.keypath.karabiner-vhiddaemon")
     let preHealth = LaunchDaemonInstaller().isServiceHealthy(
       serviceID: "com.keypath.karabiner-vhiddaemon")
@@ -522,7 +524,7 @@ final class PrivilegedOperationsCoordinator {
     }
 
     try await Task.sleep(nanoseconds: 300_000_000)
-    let postLoaded = LaunchDaemonInstaller().isServiceLoaded(
+    let postLoaded = await LaunchDaemonInstaller().isServiceLoaded(
       serviceID: "com.keypath.karabiner-vhiddaemon")
     let postHealth = LaunchDaemonInstaller().isServiceHealthy(
       serviceID: "com.keypath.karabiner-vhiddaemon")

@@ -14,11 +14,11 @@ After modularizing the CLI into a standalone binary (`KeyPathCLI`), we've identi
 - **All Commands Routed:** `status`, `install`, `repair`, `uninstall`, `inspect` all use `InstallerEngine`
 - **No Direct Calls:** CLI no longer calls `WizardAutoFixer`, `UninstallCoordinator`, or `SystemSnapshotAdapter` directly
 
-### ⚠️ GUI Still Uses Legacy Paths
-- **Wizard Auto-Fix:** `InstallationWizardView` calls `WizardAutoFixer.performAutoFix()` directly
-- **State Detection:** `WizardStateManager` uses `SystemSnapshotAdapter.adapt()` for state determination
-- **Uninstall Dialog:** `UninstallKeyPathDialog` instantiates `UninstallCoordinator` directly
-- **Settings Repair:** `SettingsContainerView` creates `WizardAutoFixer` for repair operations
+### ⚠️ GUI Status (post-migration updates)
+- **Wizard Auto-Fix:** Routed through `InstallerEngine.run(...)` (legacy path removed)
+- **State Detection:** Wizard and main app now use `InstallerEngine.inspectSystem()` + `SystemContextAdapter` (legacy `SystemSnapshotAdapter` removed 2025-11-21)
+- **Uninstall Dialog:** Routed through `InstallerEngine.uninstall(...)`
+- **Settings Repair:** Uses façade-backed repair
 
 ## Overlap Inventory
 
@@ -43,21 +43,19 @@ After modularizing the CLI into a standalone binary (`KeyPathCLI`), we've identi
 
 ### 2. System State Detection
 
-**GUI Path:**
-- `WizardStateManager.configure()` → `SystemSnapshotAdapter.adapt(snapshot)`
-- `MainAppStateController` → `SystemSnapshotAdapter.adapt(snapshot)`
+**GUI Path (now):**
+- `WizardStateManager` → `InstallerEngine.inspectSystem()` → `SystemContextAdapter.adapt()`
+- `MainAppStateController` → `SystemValidator.checkSystem()` → `SystemContextAdapter.adapt()`
 
 **CLI Path:**
 - `KeyPathCLI.runStatus()` → `InstallerEngine.inspectSystem()` → `SystemContext`
 
 **Shared Logic:**
 - Both use `SystemValidator.checkSystem()` for detection
-- Both convert `SystemSnapshot` to a structured state representation
+- Both convert to the wizard-compatible format via `SystemContextAdapter`
 - Both determine wizard readiness and blocking issues
 
-**Migration Target:**
-- Replace `SystemSnapshotAdapter.adapt()` with `InstallerEngine.inspectSystem()`
-- Update `WizardStateManager` to consume `SystemContext` instead of `WizardSystemState`
+**Migration Target:** COMPLETE for state detection; next stability tasks live in Phase 7.2 (freshness guard, single health signal).
 - Map `SystemContext` fields to existing UI state types (gradual migration)
 
 ### 3. Uninstall Operations
@@ -164,4 +162,3 @@ After modularizing the CLI into a standalone binary (`KeyPathCLI`), we've identi
 3. ⏳ Migrate GUI state detection (Phase 6.6)
 4. ⏳ Migrate GUI uninstall (Phase 6.7)
 5. ⏳ Remove CLI fallback (Phase 6.8)
-

@@ -16,6 +16,8 @@ struct WizardKarabinerComponentsPage: View {
   @State private var showingInstallationGuide = false
   @State private var lastDriverFixNote: String?
   @State private var showAllItems = false
+  @State private var isDriverFixLoading = false
+  @State private var isServicesFixLoading = false
   @EnvironmentObject var navigationCoordinator: WizardNavigationCoordinator
 
   var body: some View {
@@ -129,8 +131,10 @@ struct WizardKarabinerComponentsPage: View {
                   Button("Fix") {
                     handleKarabinerDriverFix()
                   }
-                  .buttonStyle(WizardDesign.Component.SecondaryButton())
+                  .buttonStyle(
+                    WizardDesign.Component.SecondaryButton(isLoading: isDriverFixLoading))
                   .scaleEffect(0.8)
+                  .disabled(isDriverFixLoading)
                 }
               }
               .help(driverIssues.asTooltipText())
@@ -165,8 +169,10 @@ struct WizardKarabinerComponentsPage: View {
                   Button("Fix") {
                     handleBackgroundServicesFix()
                   }
-                  .buttonStyle(WizardDesign.Component.SecondaryButton())
+                  .buttonStyle(
+                    WizardDesign.Component.SecondaryButton(isLoading: isServicesFixLoading))
                   .scaleEffect(0.8)
+                  .disabled(isServicesFixLoading)
                 }
               }
               .help(backgroundServicesIssues.asTooltipText())
@@ -308,30 +314,33 @@ struct WizardKarabinerComponentsPage: View {
   /// Smart handler for Karabiner Driver Fix button
   /// Detects if Karabiner is installed vs needs installation
   private func handleKarabinerDriverFix() {
+    guard !isDriverFixLoading else { return }
+    isDriverFixLoading = true
     let isInstalled = kanataManager.isKarabinerDriverInstalled()
 
-    if isInstalled {
-      // Karabiner is installed but having issues - attempt automatic repair
-      AppLogger.shared.log(
-        "🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
-      performAutomaticDriverRepair()
-    } else {
-      // Karabiner not installed - attempt automatic install via helper (up to 2 attempts) before manual
+    Task { @MainActor in
+      defer { isDriverFixLoading = false }
+
+      if isInstalled {
+        AppLogger.shared.log(
+          "🔧 [Karabiner Fix] Driver installed but having issues - attempting repair")
+        performAutomaticDriverRepair()
+        return
+      }
+
       AppLogger.shared.log(
         "🔧 [Karabiner Fix] Driver not installed - attempting automatic install via helper (up to 2 attempts)"
       )
-      Task { @MainActor in
-        let ok = await attemptAutoInstallDriver(maxAttempts: 2)
-        if ok {
-          AppLogger.shared.log("✅ [Karabiner Fix] Automatic driver install succeeded")
-          lastDriverFixNote = formattedStatus(success: true)
-          onRefresh()
-        } else {
-          AppLogger.shared.log(
-            "❌ [Karabiner Fix] Automatic driver install failed twice - showing manual guide")
-          lastDriverFixNote = formattedStatus(success: false)
-          showingInstallationGuide = true
-        }
+      let ok = await attemptAutoInstallDriver(maxAttempts: 2)
+      if ok {
+        AppLogger.shared.log("✅ [Karabiner Fix] Automatic driver install succeeded")
+        lastDriverFixNote = formattedStatus(success: true)
+        onRefresh()
+      } else {
+        AppLogger.shared.log(
+          "❌ [Karabiner Fix] Automatic driver install failed twice - showing manual guide")
+        lastDriverFixNote = formattedStatus(success: false)
+        showingInstallationGuide = true
       }
     }
   }
@@ -347,6 +356,18 @@ struct WizardKarabinerComponentsPage: View {
       // Small delay before retry to allow systemextensionsctl to settle
       try? await Task.sleep(nanoseconds: 400_000_000)
     }
+
+    // If installation failed but SMAppService is merely awaiting approval, prompt the user
+    // instead of sending them to the manual Karabiner-Elements flow (which is for true install failures).
+    let smState = KanataDaemonManager.determineServiceManagementState()
+    if smState == .smappservicePending {
+      AppLogger.shared.log(
+        "💡 [Karabiner Fix] Auto-install blocked by SMAppService approval; prompting user instead of showing manual guide"
+      )
+      toastApprovalNeeded()
+      return true  // Do not treat as fatal failure
+    }
+
     return false
   }
 
@@ -355,9 +376,36 @@ struct WizardKarabinerComponentsPage: View {
     return success ? "succeeded at \(ts)" : "failed at \(ts) — see Logs"
   }
 
+  private func toastApprovalNeeded() {
+    if let nav = NSApplication.shared.keyWindow {
+      nav.makeKeyAndOrderFront(nil)
+    }
+    Task { @MainActor in
+      AppLogger.shared.log("💡 [Karabiner Fix] Showing approval-needed toast for Login Items")
+      openLoginItemsSettings()
+    }
+  }
+
   /// Smart handler for Background Services Fix button
   /// Attempts repair first, falls back to system settings
   private func handleBackgroundServicesFix() {
+    guard !isServicesFixLoading else { return }
+    let driverHealthy = componentStatus(for: .driver) == .completed
+    if !driverHealthy {
+      AppLogger.shared.log(
+        "💡 [Background Services Fix] Driver not healthy; redirecting to driver fix first")
+      handleKarabinerDriverFix()
+      return
+    }
+    // If Login Items approval is pending, prompt once and skip repeated installs
+    let kanataState = KanataDaemonManager.determineServiceManagementState()
+    if kanataState == .smappservicePending {
+      AppLogger.shared.log(
+        "💡 [Background Services Fix] SMAppService pending approval - prompting user")
+      toastApprovalNeeded()
+      return
+    }
+    isServicesFixLoading = true
     let isInstalled = kanataManager.isKarabinerDriverInstalled()
 
     if isInstalled {
@@ -368,6 +416,7 @@ struct WizardKarabinerComponentsPage: View {
       // No driver installed - open system settings for manual configuration
       AppLogger.shared.log("💡 [Background Services Fix] No driver - opening Login Items settings")
       openLoginItemsSettings()
+      isServicesFixLoading = false
     }
   }
 
@@ -413,10 +462,12 @@ struct WizardKarabinerComponentsPage: View {
       AppLogger.shared.log("🧭 [FIX-VHID \(session)] END (success=\(success)) in \(elapsed)s")
 
       if success {
-        onRefresh()
+        // Run a fresh validation synchronously before leaving the page to avoid stale summary red states.
+        await refreshAndWait()
       } else {
         showingInstallationGuide = true
       }
+      isDriverFixLoading = false
     }
   }
 
@@ -430,16 +481,36 @@ struct WizardKarabinerComponentsPage: View {
 
       if success {
         AppLogger.shared.log("✅ [Service Repair] Service repair succeeded")
-        onRefresh()
+        await refreshAndWait()
       } else {
         AppLogger.shared.log("❌ [Service Repair] Service repair failed - opening system settings")
         openLoginItemsSettings()
       }
+      isServicesFixLoading = false
     }
   }
 
   /// Perform auto-fix using the wizard's auto-fix capability
   private func performAutoFix(_ action: AutoFixAction) async -> Bool {
     await onAutoFix(action)
+  }
+
+  /// Refresh wizard state and wait for completion before returning control to caller UI.
+  @MainActor
+  private func refreshAndWait() async {
+    // Bridge the existing synchronous callback into an async confirmation by invoking and then
+    // yielding to the runloop briefly. The underlying refresh path updates wizard state via
+    // WizardStateManager → InstallerEngine → SystemValidator.
+    onRefresh()
+    // Give the refresh task a short window to complete before the user is bounced to summary.
+    // This avoids showing stale red items when the fix actually succeeded.
+    try? await Task.sleep(nanoseconds: 150_000_000) // 150ms
+
+    // If everything else is healthy but the service isn’t running yet, try to start it now so
+    // the summary doesn’t bounce back with a “Start Kanata Service” error.
+    if !kanataManager.isRunning {
+      AppLogger.shared.log("🔄 [Karabiner Fix] Post-fix: Kanata not running, attempting start")
+      _ = await kanataManager.startKanata()
+    }
   }
 }

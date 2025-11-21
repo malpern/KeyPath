@@ -43,9 +43,9 @@ esac
 
 echo "🔨 Building KeyPath CLI (configuration: $BUILD_CONFIG)..."
 cd "$PROJECT_ROOT"
-swift build --configuration "$BUILD_CONFIG" --product KeyPathCLI > /dev/null
-BIN_DIR="$(swift build --configuration "$BUILD_CONFIG" --product KeyPathCLI --show-bin-path)"
-CLI_BIN="$BIN_DIR/KeyPathCLI"
+swift build --configuration "$BUILD_CONFIG" --product KeyPath > /dev/null
+BIN_DIR="$(swift build --configuration "$BUILD_CONFIG" --product KeyPath --show-bin-path)"
+CLI_BIN="$BIN_DIR/KeyPath"
 
 if [[ ! -x "$CLI_BIN" ]]; then
     echo "Failed to locate KeyPath CLI binary at $CLI_BIN"

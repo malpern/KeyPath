@@ -6,11 +6,12 @@ import KeyPathWizardCore
 @MainActor
 class WizardStateManager: ObservableObject {
   // 🎯 NEW: Use InstallerEngine façade instead of SystemValidator directly
-  private let installerEngine = InstallerEngine()
+  private var installerEngine = InstallerEngine()
 
-  func configure(kanataManager _: KanataManager) {
-    // InstallerEngine doesn't need KanataManager for inspectSystem()
-    // It creates its own SystemValidator internally
+  func configure(kanataManager: KanataManager) {
+    // Recreate InstallerEngine with live KanataManager so state detection can
+    // trust the active TCP connection instead of treating Kanata as stopped.
+    installerEngine = InstallerEngine(kanataManager: kanataManager)
     AppLogger.shared.log(
       "🎯 [WizardStateManager] Configured with InstallerEngine façade (Phase 6.7)")
   }

@@ -347,11 +347,19 @@ enum WizardDesign {
           }
         }
         .font(WizardDesign.Typography.button)
-        .foregroundColor(WizardDesign.Colors.primaryAction)
+        .foregroundColor(
+          configuration.isPressed
+            ? WizardDesign.Colors.wizardBackground  // Invert for clear pressed feedback
+            : WizardDesign.Colors.primaryAction
+        )
         .frame(minWidth: 120, minHeight: 26)  // Match primary button dimensions
         .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
         .padding(.vertical, WizardDesign.Spacing.elementGap)
         .background(
+          RoundedRectangle(cornerRadius: 8)
+            .fill(configuration.isPressed ? WizardDesign.Colors.primaryAction : Color.clear)
+        )
+        .overlay(
           RoundedRectangle(cornerRadius: 8)
             .stroke(WizardDesign.Colors.primaryAction, lineWidth: 1.5)
         )

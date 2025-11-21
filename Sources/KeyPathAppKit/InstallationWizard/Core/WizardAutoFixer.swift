@@ -233,11 +233,10 @@ class WizardAutoFixer: AutoFixCapable {
 
   private func captureVHIDSnapshot() async -> VHIDSnapshot {
     let installerRef = launchDaemonInstaller
-    let (loaded, healthy) = await MainActor.run {
-      (
-        installerRef.isServiceLoaded(serviceID: "com.keypath.karabiner-vhiddaemon"),
-        installerRef.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
-      )
+    let loaded = await installerRef.isServiceLoaded(
+      serviceID: "com.keypath.karabiner-vhiddaemon")
+    let healthy = await MainActor.run {
+      installerRef.isServiceHealthy(serviceID: "com.keypath.karabiner-vhiddaemon")
     }
     let running = vhidDeviceManager.detectRunning()
     let version = vhidDeviceManager.getInstalledVersion()
@@ -512,6 +511,22 @@ class WizardAutoFixer: AutoFixCapable {
 
   private func startKarabinerDaemon() async -> Bool {
     AppLogger.shared.log("🔧 [AutoFixer] Starting Karabiner daemon")
+
+    // CRITICAL: Ensure manager is activated BEFORE starting daemon
+    // Per Karabiner documentation, manager activation must happen before daemon startup
+    if !vhidDeviceManager.detectActivation() {
+      AppLogger.shared.log(
+        "⚠️ [AutoFixer] VirtualHID Manager not activated - activating now before starting daemon")
+      let activationSuccess = await activateVHIDDeviceManager()
+      if !activationSuccess {
+        AppLogger.shared.error(
+          "❌ [AutoFixer] Manager activation failed - cannot start daemon without it")
+        return false
+      }
+      AppLogger.shared.log("✅ [AutoFixer] Manager activated successfully, proceeding to start daemon")
+    } else {
+      AppLogger.shared.log("ℹ️ [AutoFixer] Manager already activated, proceeding to start daemon")
+    }
 
     let success = await kanataManager.startKarabinerDaemon()
 
@@ -849,6 +864,23 @@ class WizardAutoFixer: AutoFixCapable {
   private func installLaunchDaemonServices() async -> Bool {
     AppLogger.shared.log(
       "🔧 [AutoFixer] *** ENTRY POINT *** installLaunchDaemonServices() called")
+
+    // CRITICAL: Ensure manager is activated BEFORE installing daemon services
+    // Per Karabiner documentation, manager activation must happen before daemon startup
+    if !vhidDeviceManager.detectActivation() {
+      AppLogger.shared.log(
+        "⚠️ [AutoFixer] VirtualHID Manager not activated - activating now before daemon install")
+      let activationSuccess = await activateVHIDDeviceManager()
+      if !activationSuccess {
+        AppLogger.shared.error(
+          "❌ [AutoFixer] Manager activation failed - cannot install daemon services without it")
+        return false
+      }
+      AppLogger.shared.log("✅ [AutoFixer] Manager activated successfully, proceeding with daemon install")
+    } else {
+      AppLogger.shared.log("ℹ️ [AutoFixer] Manager already activated, proceeding with daemon install")
+    }
+
     AppLogger.shared.log(
       "🔧 [AutoFixer] Installing LaunchDaemon services using coordinator")
 
@@ -1067,8 +1099,7 @@ class WizardAutoFixer: AutoFixCapable {
 
     // Get current status to determine what needs to be done
     AppLogger.shared.log("🔧 [AutoFixer] Step 1: Getting current service status...")
-    let installer2 = launchDaemonInstaller
-    let status = await MainActor.run { installer2.getServiceStatus() }
+    let status = await launchDaemonInstaller.getServiceStatus()
 
     AppLogger.shared.log("🔧 [AutoFixer] Current status breakdown:")
     AppLogger.shared.log(
@@ -1103,7 +1134,7 @@ class WizardAutoFixer: AutoFixCapable {
       KanataDaemonManager.isUsingSMAppService
     }
     // Also check if process is running (SMAppService might have status .notFound but process is running)
-    let isProcessRunning = launchDaemonInstaller.pgrepKanataProcess()
+    let isProcessRunning = await launchDaemonInstaller.checkKanataServiceHealth().isRunning
 
     // If SMAppService is managing Kanata (enabled OR requiresApproval) OR process is running, don't trigger installation
     let shouldSkipInstallation =
@@ -1126,6 +1157,42 @@ class WizardAutoFixer: AutoFixCapable {
       AppLogger.shared.log(
         "🔄 [AutoFixer] Legacy plist detected - auto-resolving by removing legacy")
       // This will be handled by createConfigureAndLoadAllServices() which auto-resolves conflicts
+    }
+
+    // Check for registered-but-not-loaded state (common after clean uninstall)
+    let isRegisteredButNotLoaded = await MainActor.run {
+      KanataDaemonManager.shared.isRegisteredButNotLoaded()
+    }
+
+    if isRegisteredButNotLoaded {
+      AppLogger.shared.log(
+        "🔄 [AutoFixer] Step 1.5: Detected registered-but-not-loaded state")
+      AppLogger.shared.log(
+        "🔧 [AutoFixer] Fixing by unregistering and re-registering service to force launchd to load"
+      )
+
+      do {
+        // First unregister to clear stale SMAppService metadata
+        AppLogger.shared.log("🗑️ [AutoFixer] Unregistering stale service...")
+        try await KanataDaemonManager.shared.unregister()
+
+        // Wait briefly for unregistration to complete
+        try await Task.sleep(nanoseconds: 500_000_000)  // 500ms
+
+        // Re-register to force launchd to load
+        AppLogger.shared.log("📝 [AutoFixer] Re-registering service...")
+        try await KanataDaemonManager.shared.register()
+
+        // Wait for launchd to load the service
+        try await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+
+        AppLogger.shared.info(
+          "✅ [AutoFixer] Successfully fixed registered-but-not-loaded state")
+      } catch {
+        AppLogger.shared.error(
+          "❌ [AutoFixer] Failed to fix registered-but-not-loaded state: \(error)")
+        // Continue anyway - restart logic below might still help
+      }
     }
 
     if needsInstallation, !shouldSkipInstallation {
@@ -1164,8 +1231,7 @@ class WizardAutoFixer: AutoFixCapable {
     )
     AppLogger.shared.log("🔧 [AutoFixer] Checking final service status after restart...")
 
-    let installer4 = launchDaemonInstaller
-    let finalStatus = await MainActor.run { installer4.getServiceStatus() }
+    let finalStatus = await launchDaemonInstaller.getServiceStatus()
     AppLogger.shared.log("🔧 [AutoFixer] Final status breakdown:")
     AppLogger.shared.log(
       "🔧 [AutoFixer] - Kanata loaded: \(finalStatus.kanataServiceLoaded), healthy: \(finalStatus.kanataServiceHealthy)"
@@ -1318,7 +1384,12 @@ class WizardAutoFixer: AutoFixCapable {
     let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
     let client = KanataTCPClient(port: port, timeout: 5.0)
 
-    if await client.checkServerStatus() {
+    let isHealthy = await client.checkServerStatus()
+
+    // FIX #1: Explicitly close connection to prevent file descriptor leak
+    await client.cancelInflightAndCloseConnection()
+
+    if isHealthy {
       AppLogger.shared.info("✅ [AutoFixer] TCP communication setup successful")
       return true
     } else {

@@ -261,7 +261,8 @@ struct SystemContextAdapter {
           userAction: nil
         ))
     }
-    if !context.services.isHealthy {
+    // Background services should only depend on Karabiner daemon + VHID, not Kanata runtime
+    if !context.services.backgroundServicesHealthy {
       issues.append(
         WizardIssue(
           identifier: .component(.launchDaemonServices),

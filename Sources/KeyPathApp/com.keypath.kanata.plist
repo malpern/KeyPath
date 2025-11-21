@@ -25,7 +25,7 @@
     <true/>
     
     <key>KeepAlive</key>
-    <false/>
+    <true/>
     
     <key>StandardOutPath</key>
     <string>/var/log/com.keypath.kanata.stdout.log</string>

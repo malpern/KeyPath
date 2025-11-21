@@ -182,7 +182,7 @@ private let connectionMaxAge: TimeInterval = 30.0
 
 **Problem:** Hard to understand flow
 - New contributor: "I want to add a wizard page"
-- Must understand: SystemStatusChecker, WizardNavigationEngine, WizardStateManager, SystemSnapshotAdapter
+- Must understand: SystemStatusChecker, WizardNavigationEngine, WizardStateManager
 - That's 4 files to understand for one simple change
 
 **Root cause:** Handles too many edge cases automatically instead of failing gracefully
@@ -437,7 +437,6 @@ The architecture is sound, documentation exists, and the path forward is clear. 
 ---
 
 *This document is a living assessment. Update as complexity is addressed.*
-
 
 
 

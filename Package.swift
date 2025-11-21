@@ -18,10 +18,6 @@ let package = Package(
         .executable(
             name: "smappservice-poc",
             targets: ["SMAppServicePOC"]
-        ),
-        .executable(
-            name: "KeyPathCLI",
-            targets: ["KeyPathCLI"]
         )
     ],
     dependencies: [
@@ -67,7 +63,7 @@ let package = Package(
                 .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
             ]
         ),
-        // Shared app code (SwiftUI + installer engine)
+        // Main app library with UI and business logic
         .target(
             name: "KeyPathAppKit",
             dependencies: [
@@ -82,14 +78,13 @@ let package = Package(
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
-                // Surface concurrency issues clearly in Debug builds
                 .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
             ],
             linkerSettings: [
                 .linkedFramework("IOKit")
             ]
         ),
-        // GUI executable target (bridges CLI + SwiftUI app)
+        // Main executable entry point
         .executableTarget(
             name: "KeyPath",
             dependencies: [
@@ -106,24 +101,6 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
-            ],
-            linkerSettings: [
-                .linkedFramework("IOKit")
-            ]
-        ),
-        // Standalone CLI executable
-        .executableTarget(
-            name: "KeyPathCLI",
-            dependencies: [
-                "KeyPathAppKit"
-            ],
-            path: "Sources/KeyPathCLI",
-            swiftSettings: [
-                .swiftLanguageMode(.v6),
-                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-strict-concurrency=complete"], .when(configuration: .debug))
-            ],
-            linkerSettings: [
-                .linkedFramework("IOKit")
             ]
         ),
         // Privileged helper executable
@@ -173,7 +150,7 @@ let package = Package(
         // Tests
         .testTarget(
             name: "KeyPathTests",
-            dependencies: ["KeyPathAppKit", "KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
+            dependencies: ["KeyPath", "KeyPathAppKit", "KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
             path: "Tests/KeyPathTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6),

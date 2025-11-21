@@ -218,6 +218,10 @@ struct SimpleModsView: View {
             Task {
               let client = KanataTCPClient(port: 37001)
               let status = try? await client.getStatus()
+
+              // FIX #1: Explicitly close connection to prevent file descriptor leak
+              await client.cancelInflightAndCloseConnection()
+
               if let dur = status?.last_reload?.duration_ms {
                 showToast("✅ Mapping added (reload \(dur) ms)", isError: false)
               } else {

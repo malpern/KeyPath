@@ -394,6 +394,12 @@ struct ContentView: View {
     .onChange(of: showingInstallationWizard) { _, showing in
       // When wizard closes, try to start emergency monitoring if we now have permissions
       if !showing {
+        // Trigger fresh validation to sync System indicator with wizard state
+        Task { @MainActor in
+          AppLogger.shared.log("🔄 [ContentView] Wizard closed - triggering revalidation")
+          await stateController.revalidate()
+        }
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
           startEmergencyMonitoringIfPossible()
         }
@@ -550,12 +556,12 @@ struct ContentView: View {
       }
     }
 
-    // Invalidate validation cooldown when wizard closes (system state may have changed)
+    // Revalidate when wizard closes (system state may have changed)
     NotificationCenter.default.addObserver(forName: .wizardClosed, object: nil, queue: .main) {
       [stateController] _ in
-      AppLogger.shared.log("🔄 [ContentView] Wizard closed - invalidating validation cooldown")
+      AppLogger.shared.log("🔄 [ContentView] Wizard closed notification - triggering revalidation")
       Task { @MainActor in
-        stateController.invalidateValidationCooldown()
+        await stateController.revalidate()
       }
     }
   }

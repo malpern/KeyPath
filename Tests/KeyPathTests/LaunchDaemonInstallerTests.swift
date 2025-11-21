@@ -93,7 +93,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     // Read the LaunchDaemonInstaller source file
     let sourcePath =
       FileManager.default.currentDirectoryPath
-      + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
+      + "/Sources/KeyPathAppKit/InstallationWizard/Core/LaunchDaemonInstaller.swift"
     let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
 
     // Find the executeConsolidatedInstallationWithAuthServices method
@@ -141,7 +141,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     // Read the LaunchDaemonInstaller source file
     let sourcePath =
       FileManager.default.currentDirectoryPath
-      + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
+      + "/Sources/KeyPathAppKit/InstallationWizard/Core/LaunchDaemonInstaller.swift"
     let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
 
     // Find the executeConsolidatedInstallationImproved method
@@ -188,7 +188,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     // Read the LaunchDaemonInstaller source file
     let sourcePath =
       FileManager.default.currentDirectoryPath
-      + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
+      + "/Sources/KeyPathAppKit/InstallationWizard/Core/LaunchDaemonInstaller.swift"
     let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
 
     // Look for the inline version that has the three services in a row
@@ -232,7 +232,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     // Read the LaunchDaemonInstaller source file
     let sourcePath =
       FileManager.default.currentDirectoryPath
-      + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
+      + "/Sources/KeyPathAppKit/InstallationWizard/Core/LaunchDaemonInstaller.swift"
     let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
 
     let lines = sourceCode.components(separatedBy: .newlines)
@@ -272,7 +272,7 @@ final class LaunchDaemonInstallerTests: XCTestCase {
     // Read the LaunchDaemonInstaller source file
     let sourcePath =
       FileManager.default.currentDirectoryPath
-      + "/Sources/KeyPath/InstallationWizard/Core/LaunchDaemonInstaller.swift"
+      + "/Sources/KeyPathAppKit/InstallationWizard/Core/LaunchDaemonInstaller.swift"
     let sourceCode = try String(contentsOfFile: sourcePath, encoding: .utf8)
 
     // Look for comments mentioning dependencies

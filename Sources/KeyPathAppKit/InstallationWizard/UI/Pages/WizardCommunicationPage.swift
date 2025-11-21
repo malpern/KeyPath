@@ -322,6 +322,9 @@ struct WizardCommunicationPage: View {
         }
       }
     }
+
+    // FIX #1: Explicitly close connection to prevent file descriptor leak
+    await client.cancelInflightAndCloseConnection()
   }
 
   private struct TimeoutError: Error {}

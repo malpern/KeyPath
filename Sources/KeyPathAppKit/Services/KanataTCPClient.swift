@@ -130,7 +130,15 @@ actor KanataTCPClient {
   private func ensureConnectionCore() async throws -> NWConnection {
     // Return existing connection if ready
     if let connection, connection.state == .ready {
+      AppLogger.shared.log("🔌 [TCP] Reusing existing connection (state=\(connection.state))")
       return connection
+    }
+
+    // Log if we have a connection but it's not ready
+    if let connection {
+      AppLogger.shared.log("🔌 [TCP] Existing connection not ready (state=\(connection.state)), creating new one")
+    } else {
+      AppLogger.shared.log("🔌 [TCP] No existing connection, creating new one")
     }
 
     // Wait if already connecting
@@ -140,6 +148,7 @@ actor KanataTCPClient {
 
     // Check again after waiting
     if let connection, connection.state == .ready {
+      AppLogger.shared.log("🔌 [TCP] Connection became ready while waiting")
       return connection
     }
 
@@ -147,6 +156,7 @@ actor KanataTCPClient {
     isConnecting = true
     defer { isConnecting = false }
 
+    AppLogger.shared.log("🔌 [TCP] Creating new connection to \(host):\(port)")
     let newConnection = NWConnection(
       host: NWEndpoint.Host(host),
       port: NWEndpoint.Port(integerLiteral: UInt16(port)),
@@ -163,6 +173,7 @@ actor KanataTCPClient {
           let completionFlag = CompletionFlag()
 
           newConnection.stateUpdateHandler = { state in
+            AppLogger.shared.log("🔌 [TCP] Connection state changed: \(state)")
             switch state {
             case .ready:
               if completionFlag.markCompleted() {
@@ -203,11 +214,32 @@ actor KanataTCPClient {
       // Return first result and cancel other task
       let result = try await group.next()!
       group.cancelAll()
+      AppLogger.shared.log("🔌 [TCP] Connection established successfully")
       return result
     }
   }
 
+  private func stateString(_ state: NWConnection.State?) -> String {
+    guard let state else { return "nil" }
+    switch state {
+    case .setup: return "setup"
+    case .waiting: return "waiting"
+    case .preparing: return "preparing"
+    case .ready: return "ready"
+    case .failed: return "failed"
+    case .cancelled: return "cancelled"
+    @unknown default: return "unknown"
+    }
+  }
+
   private func closeConnection() {
+    let currentState = stateString(connection?.state)
+    AppLogger.shared.log("🔌 [TCP] closeConnection() called (current state=\(currentState))")
+
+    // Log call stack for debugging (first 5 frames)
+    let stackSymbols = Thread.callStackSymbols.prefix(5).joined(separator: "\n  ")
+    AppLogger.shared.debug("🔌 [TCP] closeConnection() stack trace:\n  \(stackSymbols)")
+
     connection?.cancel()
     connection = nil
   }
@@ -216,6 +248,21 @@ actor KanataTCPClient {
   func cancelInflightAndCloseConnection() {
     AppLogger.shared.debug("🔌 [TCP] Closing connection")
     closeConnection()
+  }
+
+  // FIX #3: Helper to execute operations with automatic error recovery
+  /// Executes an operation and closes connection if it fails with a recoverable error
+  private func withErrorRecovery<T>(_ operation: () async throws -> T) async throws -> T {
+    do {
+      return try await operation()
+    } catch {
+      // Close connection on timeout or connection failure so next call gets a fresh connection
+      if shouldRetry(error) {
+        AppLogger.shared.debug("🌐 [TCP] Operation failed with recoverable error, closing connection: \(error)")
+        closeConnection()
+      }
+      throw error
+    }
   }
 
   // MARK: - Server Operations
@@ -314,45 +361,48 @@ actor KanataTCPClient {
   ///   Line 1: {"status":"Ok"}
   ///   Line 2: {"HelloOk": {...}}
   func hello() async throws -> TcpHelloOk {
-    if let cachedHello { return cachedHello }
+    // FIX #3: Wrap operation with error recovery to clean up bad connections
+    return try await withErrorRecovery {
+      if let cachedHello { return cachedHello }
 
-    let requestId = generateRequestId()
-    let requestData = try JSONEncoder().encode(["Hello": ["request_id": requestId]])
-    let start = CFAbsoluteTimeGetCurrent()
+      let requestId = generateRequestId()
+      let requestData = try JSONEncoder().encode(["Hello": ["request_id": requestId]])
+      let start = CFAbsoluteTimeGetCurrent()
 
-    // Read first line (status response)
-    let firstLine = try await send(requestData)
-    let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
-    AppLogger.shared.log("🌐 [TCP] Hello status: \(firstLineStr)")
+      // Read first line (status response)
+      let firstLine = try await send(requestData)
+      let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
+      AppLogger.shared.log("🌐 [TCP] Hello status: \(firstLineStr)")
 
-    // Check if first line indicates error
-    if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
-      let status = json["status"] as? String,
-      status.lowercased() == "error"
-    {
-      let errorMsg = json["msg"] as? String ?? "Hello request failed"
-      throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
+      // Check if first line indicates error
+      if let json = try? JSONSerialization.jsonObject(with: firstLine) as? [String: Any],
+        let status = json["status"] as? String,
+        status.lowercased() == "error"
+      {
+        let errorMsg = json["msg"] as? String ?? "Hello request failed"
+        throw KeyPathError.communication(.connectionFailed(reason: errorMsg))
+      }
+
+      // Read second line (HelloOk details) with timeout
+      let connection = try await ensureConnectionCore()
+      let secondLine = try await withTimeout(seconds: 5.0) {
+        try await self.readUntilNewline(on: connection)
+      }
+      let dt = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+
+      guard let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: secondLine)
+      else {
+        let raw = String(data: secondLine, encoding: .utf8) ?? ""
+        AppLogger.shared.error("🌐 [TCP] hello parse failed: \(raw)")
+        throw KeyPathError.communication(.invalidResponse)
+      }
+
+      AppLogger.shared.log(
+        "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
+      )
+      cachedHello = hello
+      return hello
     }
-
-    // Read second line (HelloOk details) with timeout
-    let connection = try await ensureConnectionCore()
-    let secondLine = try await withTimeout(seconds: 5.0) {
-      try await self.readUntilNewline(on: connection)
-    }
-    let dt = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
-
-    guard let hello = try extractMessage(named: "HelloOk", into: TcpHelloOk.self, from: secondLine)
-    else {
-      let raw = String(data: secondLine, encoding: .utf8) ?? ""
-      AppLogger.shared.error("🌐 [TCP] hello parse failed: \(raw)")
-      throw KeyPathError.communication(.invalidResponse)
-    }
-
-    AppLogger.shared.log(
-      "✅ [TCP] hello ok (duration=\(dt)ms, protocol=\(hello.protocolVersion), caps=\(hello.capabilities.joined(separator: ",")))"
-    )
-    cachedHello = hello
-    return hello
   }
 
   /// Enforce minimum protocol/capabilities. Callers pass only what they need.
@@ -370,15 +420,18 @@ actor KanataTCPClient {
 
   /// Fetch StatusInfo
   func getStatus() async throws -> TcpStatusInfo {
-    let requestId = generateRequestId()
-    let requestData = try JSONEncoder().encode(["Status": ["request_id": requestId]])
-    let responseData = try await send(requestData)
-    if let status = try extractMessage(
-      named: "StatusInfo", into: TcpStatusInfo.self, from: responseData)
-    {
-      return status
+    // FIX #3: Wrap operation with error recovery to clean up bad connections
+    return try await withErrorRecovery {
+      let requestId = generateRequestId()
+      let requestData = try JSONEncoder().encode(["Status": ["request_id": requestId]])
+      let responseData = try await send(requestData)
+      if let status = try extractMessage(
+        named: "StatusInfo", into: TcpStatusInfo.self, from: responseData)
+      {
+        return status
+      }
+      throw KeyPathError.communication(.invalidResponse)
     }
-    throw KeyPathError.communication(.invalidResponse)
   }
 
   /// Check if TCP server is available
@@ -398,6 +451,11 @@ actor KanataTCPClient {
       return false
     } catch {
       AppLogger.shared.warn("❌ [TCP] Server check failed: \(error)")
+      // FIX #3: Close connection on error so next call gets fresh connection
+      if shouldRetry(error) {
+        AppLogger.shared.debug("🌐 [TCP] Closing connection after server check failure")
+        closeConnection()
+      }
       return false
     }
   }
@@ -471,6 +529,11 @@ actor KanataTCPClient {
       return .failure(errors: ["Unexpected validation result format: \(raw)"])
     } catch {
       AppLogger.shared.error("❌ [TCP] Validate error: \(error)")
+      // FIX #3: Close connection on error so next call gets fresh connection
+      if shouldRetry(error) {
+        AppLogger.shared.debug("🌐 [TCP] Closing connection after validation error")
+        closeConnection()
+      }
       return .networkError(error.localizedDescription)
     }
   }
@@ -478,7 +541,8 @@ actor KanataTCPClient {
   /// Send reload command to Kanata
   /// Prefer Reload(wait/timeout_ms); fall back to basic {"Reload":{}} and Ok/Error if needed.
   func reloadConfig(timeoutMs: UInt32 = 5000) async -> TCPReloadResult {
-    AppLogger.shared.log("🔄 [TCP] Triggering config reload (timeoutMs=\(timeoutMs))")
+    let startTime = Date()
+    AppLogger.shared.log("⏱️ [TCP] t=0ms: Starting reload (timeoutMs=\(timeoutMs))")
 
     do {
       // Preferred: wait contract (v2)
@@ -491,6 +555,8 @@ actor KanataTCPClient {
         ]
       ]
       let requestData = try JSONSerialization.data(withJSONObject: req)
+
+      AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime)*1000))ms: Sending reload request")
 
       // Read first line (status response) with timeout
       let firstLine = try await withThrowingTaskGroup(of: Data.self) { group in
@@ -508,6 +574,8 @@ actor KanataTCPClient {
         return result
       }
       let firstLineStr = String(data: firstLine, encoding: .utf8) ?? ""
+      let connectionStateAfterFirstRead = stateString(connection?.state)
+      AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime)*1000))ms: First line received, connection state=\(connectionStateAfterFirstRead)")
       AppLogger.shared.log("🔄 [TCP] Reload status: \(firstLineStr)")
 
       // Check if first line indicates error
@@ -521,7 +589,10 @@ actor KanataTCPClient {
       }
 
       // Read second line (ReloadResult) with timeout
+      AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime)*1000))ms: About to get connection for second line read")
       let connection = try await ensureConnectionCore()
+      AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime)*1000))ms: Starting second line read, connection state=\(connection.state)")
+
       let secondLine = try await withThrowingTaskGroup(of: Data.self) { group in
         group.addTask {
           try await self.readUntilNewline(on: connection)
@@ -537,27 +608,43 @@ actor KanataTCPClient {
         return result
       }
 
+      AppLogger.shared.log("⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime)*1000))ms: Second line received, connection state=\(connection.state)")
+
       if let reload = try extractMessage(
         named: "ReloadResult", into: ReloadResult.self, from: secondLine)
       {
         if reload.ready {
           let dur = reload.duration_ms ?? 0
           let ep = reload.epoch ?? 0
+          let totalTime = Int(Date().timeIntervalSince(startTime)*1000)
           AppLogger.shared.log("✅ [TCP] Reload(wait) ok duration=\(dur)ms epoch=\(ep)")
+          AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed successfully")
           let secondLineStr = String(data: secondLine, encoding: .utf8) ?? ""
           return .success(response: secondLineStr)
         } else {
+          let totalTime = Int(Date().timeIntervalSince(startTime)*1000)
           AppLogger.shared.log("⚠️ [TCP] Reload(wait) timeout before \(reload.timeout_ms) ms")
+          AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload timed out")
           let secondLineStr = String(data: secondLine, encoding: .utf8) ?? ""
           return .failure(error: "timeout", response: secondLineStr)
         }
       }
 
       // If we couldn't parse ReloadResult, treat status OK as success (backward compat)
+      let totalTime = Int(Date().timeIntervalSince(startTime)*1000)
       AppLogger.shared.log("✅ [TCP] Config reload acknowledged (status OK, no ReloadResult)")
+      AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed (backward compat mode)")
       return .success(response: firstLineStr)
     } catch {
-      AppLogger.shared.log("❌ [TCP] Reload error: \(error)")
+      let totalTime = Int(Date().timeIntervalSince(startTime)*1000)
+      let connectionState = stateString(connection?.state)
+      AppLogger.shared.log("❌ [TCP] Reload error at t=\(totalTime)ms: \(error)")
+      AppLogger.shared.log("❌ [TCP] Connection state at error: \(connectionState)")
+      // FIX #3: Close connection on error so next call gets fresh connection
+      if shouldRetry(error) {
+        AppLogger.shared.debug("🌐 [TCP] Closing connection after reload error")
+        closeConnection()
+      }
       return .networkError(error.localizedDescription)
     }
   }
@@ -627,6 +714,12 @@ actor KanataTCPClient {
   /// Read newline-delimited data from connection
   /// Accumulates data until we have at least one complete line (ending with \n)
   private func readUntilNewline(on connection: NWConnection) async throws -> Data {
+    // Validate connection is ready before attempting read
+    guard connection.state == .ready else {
+      AppLogger.shared.log("❌ [TCP] readUntilNewline called on non-ready connection (state=\(connection.state))")
+      throw KeyPathError.communication(.connectionFailed(reason: "Connection not ready: \(connection.state)"))
+    }
+
     final class Accumulator: @unchecked Sendable {
       var data = Data()
     }

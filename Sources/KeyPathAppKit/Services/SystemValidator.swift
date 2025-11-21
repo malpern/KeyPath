@@ -372,17 +372,23 @@ class SystemValidator {
     let kanataBinaryDetector = KanataBinaryDetector.shared
     let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
 
-    // Check Karabiner driver - use extension enabled check for accurate status
-    let karabinerDriverInstalled = kanataManager?.isKarabinerDriverExtensionEnabled() ?? false
-    let karabinerDaemonRunning = kanataManager?.isKarabinerDaemonRunning() ?? false
-
     // Check VirtualHID Device
     let vhidInstalled = vhidDeviceManager.detectInstallation()
     let vhidHealthy = vhidDeviceManager.detectConnectionHealth()
     let vhidVersionMismatch = vhidDeviceManager.hasVersionMismatch()
 
+    // Check Karabiner driver - use extension enabled check for accurate status
+    // Treat the driver as installed if either the extension is enabled or a VHID device is present.
+    // This avoids false negatives when launchd state is stale but the driver is already active.
+    let karabinerDriverInstalled =
+      (kanataManager?.isKarabinerDriverExtensionEnabled() ?? false)
+      || vhidInstalled || vhidHealthy
+    // Use launchctl-based check instead of unreliable pgrep (same as checkHealth)
+    let karabinerDaemonRunning = launchDaemonInstaller.isServiceHealthy(
+      serviceID: "com.keypath.karabiner-vhiddaemon")
+
     // Check LaunchDaemon services
-    let daemonStatus = launchDaemonInstaller.getServiceStatus()
+    let daemonStatus = await launchDaemonInstaller.getServiceStatus()
     let launchDaemonServicesHealthy = daemonStatus.allServicesHealthy
 
     AppLogger.shared
@@ -473,11 +479,14 @@ class SystemValidator {
     AppLogger.shared.log("🔍 [SystemValidator] Checking system health")
 
     let kanataRunning = kanataManager?.isRunning ?? false
-    let karabinerDaemonRunning = kanataManager?.isKarabinerDaemonRunning() ?? false
+    // Use launchctl-based check instead of unreliable pgrep
+    // This aligns with the health check used in LaunchDaemonInstaller
+    let karabinerDaemonRunning = launchDaemonInstaller.isServiceHealthy(
+      serviceID: "com.keypath.karabiner-vhiddaemon")
     let vhidHealthy = vhidDeviceManager.detectConnectionHealth()
 
     AppLogger.shared.log(
-      "🔍 [SystemValidator] Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy)"
+      "🔍 [SystemValidator] Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy)"
     )
 
     return HealthStatus(

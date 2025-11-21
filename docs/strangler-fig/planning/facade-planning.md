@@ -13,7 +13,9 @@
 - ✅ **Phase 4:** Implement `execute()` - COMPLETE
 - ✅ **Phase 5:** Implement `run()` Convenience Method - COMPLETE
 - ✅ **Phase 6:** Migrate Callers - COMPLETE
-- 🔄 **Phase 7:** Refactor Internals - IN PROGRESS
+- 🔄 **Phase 7:** Refactor Internals — IN PROGRESS  
+  - 7.1 Adapter cleanup ✅  
+  - 7.2 Single health pipeline 🔥 (stability focus)
 - ⏳ **Phase 8:** Documentation & Cleanup - Pending
 
 **Files Created:** 4 files (1,244 lines total)
@@ -423,6 +425,12 @@
   - [x] Remove duplication between `SystemSnapshotAdapter` and related code ✅ (Phase 7.1)
   - [x] Created `ActionDeterminer` enum to centralize action determination logic ✅ (Phase 7.1)
   - [x] Migrated `SystemSnapshotAdapter` to use `ActionDeterminer` ✅ (Phase 7.1)
+  - [ ] **Phase 7.2: Single health pipeline (stability hotfix)**
+    - [x] Build `InstallerEngine` with live `KanataManager` for the wizard so `kanataRunning` reflects real TCP/launchctl state (2025-11-21)
+    - [ ] Make `InstallerEngine` the sole health ingress for the wizard; deprecate legacy `WizardSystemState`/`SystemStateResult` detectors once parity is confirmed
+    - [ ] Enforce snapshot freshness (e.g., refuse routing on snapshots older than 3s; auto-refresh on wizard open and after actions)
+    - [ ] Unify health signals: launchctl PID + lightweight TCP probe; remove pgrep-only fallbacks in wizard paths
+    - [ ] Add regression: open wizard twice with Kanata running — assert it never routes back to “Start Service”
   - [ ] Extract reusable detection functions
   - [ ] Improve testability
 - [ ] **Refactor planning code**:
@@ -499,8 +507,8 @@
 
 ---
 
-**Last Updated:** 2025-11-19
-**Status:** Phase 6 Complete ✅ (Phase 7 in progress - Phase 7.1 done)
+**Last Updated:** 2025-11-21
+**Status:** Phase 6 Complete ✅ (Phase 7 in progress – 7.2 stability hotfix underway)
 
 ---
 
@@ -519,4 +527,3 @@
 10. ❌ **Dependency injection** → ✅ Direct singleton calls initially
 
 **Result:** Plan is ~40% simpler, focuses on getting it working first, adds complexity only when proven necessary.
-

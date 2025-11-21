@@ -44,6 +44,7 @@ public struct KanataConfiguration: Sendable {
 
       (defcfg
         process-unmapped-keys yes
+        danger-enable-cmd yes
       )
       """
 
@@ -628,7 +629,12 @@ public final class ConfigurationService: FileConfigurationProviding {
     // Try TCP validation first
     let tcpPort = PreferencesService.shared.tcpServerPort
     let tcpClient = KanataTCPClient(port: tcpPort)
+
     let tcpResult = await tcpClient.validateConfig(config)
+
+    // FIX #1: Explicitly close connection to prevent file descriptor leak
+    await tcpClient.cancelInflightAndCloseConnection()
+
     switch tcpResult {
     case .success:
       AppLogger.shared.log("🌐 [Validation] TCP validation PASSED")
