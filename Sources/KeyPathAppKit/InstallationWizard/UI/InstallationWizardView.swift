@@ -40,6 +40,7 @@ struct InstallationWizardView: View {
   @State private var navSequence: [WizardPage] = []
   @State private var inFlightFixActions: Set<AutoFixAction> = []
   @State private var showingBackgroundApprovalPrompt = false
+  @State private var currentFixAction: AutoFixAction?
 
   // Task management for race condition prevention
   @State private var refreshTask: Task<Void, Never>?
@@ -644,7 +645,11 @@ struct InstallationWizardView: View {
       return false
     }
     inFlightFixActions.insert(action)
-    defer { inFlightFixActions.remove(action) }
+    currentFixAction = action
+    defer {
+      inFlightFixActions.remove(action)
+      currentFixAction = nil
+    }
 
     // IMMEDIATE crash-proof logging for ACTUAL Fix button
     Swift.print(
@@ -658,16 +663,26 @@ struct InstallationWizardView: View {
     AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
     let broker = privilegeBroker
-    let timeoutSeconds: Double = 12.0
+    // Give VHID/launch-service operations more time
+    let timeoutSeconds: Double = {
+      switch action {
+      case .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
+        .installLaunchDaemonServices:
+        return 30.0
+      default:
+        return 12.0
+      }
+    }()
     let report: InstallerReport
     do {
       report = try await runWithTimeout(seconds: timeoutSeconds) {
         await installerEngine.runSingleAction(action, using: broker)
       }
     } catch {
+      let stateSummary = describeServiceState()
       await MainActor.run {
         toastManager.showError(
-          "Fix timed out after \(Int(timeoutSeconds))s. Please retry or check logs.", duration: 7.0)
+          "Fix timed out after \(Int(timeoutSeconds))s. \(stateSummary)", duration: 7.0)
       }
       AppLogger.shared.log("⚠️ [Wizard] Auto-fix timed out for action: \(action)")
       return false
@@ -1204,6 +1219,13 @@ struct InstallationWizardView: View {
     formatter.dateFormat = "MM/dd HH:mm"
     // Use compile time if available, otherwise current time
     return formatter.string(from: Date())
+  }
+
+  /// Quick summary to surface state when a fix times out
+  private func describeServiceState() -> String {
+    let state = KanataDaemonManager.determineServiceManagementState()
+    let vhidRunning = VHIDDeviceManager().detectRunning()
+    return "VHID running=\(vhidRunning ? "yes" : "no"); services=\(state.description)"
   }
 }
 
