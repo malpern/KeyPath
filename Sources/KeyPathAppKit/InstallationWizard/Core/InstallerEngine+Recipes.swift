@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 
@@ -9,9 +10,8 @@ extension InstallerEngine {
   // MARK: - Action Determination
 
   /// Determine which actions are needed based on intent and context
-  internal func determineActions(for intent: InstallIntent, context: SystemContext)
-    -> [AutoFixAction]
-  {
+  func determineActions(for intent: InstallIntent, context: SystemContext)
+    -> [AutoFixAction] {
     // Use shared ActionDeterminer to avoid duplication
     ActionDeterminer.determineActions(for: intent, context: context)
   }
@@ -19,9 +19,8 @@ extension InstallerEngine {
   // MARK: - Recipe Generation
 
   /// Generate ServiceRecipes from AutoFixActions
-  internal func generateRecipes(from actions: [AutoFixAction], context: SystemContext)
-    -> [ServiceRecipe]
-  {
+  func generateRecipes(from actions: [AutoFixAction], context: SystemContext)
+    -> [ServiceRecipe] {
     var recipes: [ServiceRecipe] = []
 
     for action in actions {
@@ -44,7 +43,7 @@ extension InstallerEngine {
         launchctlActions: [
           .bootstrap(serviceID: "com.keypath.kanata"),
           .bootstrap(serviceID: "com.keypath.vhid-daemon"),
-          .bootstrap(serviceID: "com.keypath.vhid-manager"),
+          .bootstrap(serviceID: "com.keypath.vhid-manager")
         ],
         healthCheck: HealthCheckCriteria(serviceID: "com.keypath.kanata", shouldBeRunning: true)
       )
@@ -208,6 +207,15 @@ extension InstallerEngine {
     }
   }
 
+  // MARK: - Recipe Ordering
+
+  /// Order recipes respecting dependencies
+  func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
+    // Simple topological sort - for now, just return in order
+    // TODO: Implement proper dependency resolution if needed
+    recipes
+  }
+
   /// Map AutoFixAction to recipe ID
   func recipeIDForAction(_ action: AutoFixAction) -> String {
     switch action {
@@ -259,14 +267,5 @@ extension InstallerEngine {
     case .synchronizeConfigPaths:
       return "synchronize-config-paths"
     }
-  }
-
-  // MARK: - Recipe Ordering
-
-  /// Order recipes respecting dependencies
-  internal func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
-    // Simple topological sort - for now, just return in order
-    // TODO: Implement proper dependency resolution if needed
-    recipes
   }
 }
