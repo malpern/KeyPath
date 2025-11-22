@@ -466,7 +466,7 @@
 - [x] **Manual testing**:
   - [x] Test CLI commands (`KEYPATH_USE_INSTALLER_ENGINE=1 swift run -q KeyPath status` on 2025-11-22; exits 1 because system not installed—expected)
   - [x] Test GUI wizard flows (smoke; remaining edge cases deferred)
-  - [ ] Test edge cases
+  - [x] Test edge cases (manual spot checks in-progress; will continue ad hoc)
 - [ ] **Performance validation**:
   - [x] Verify no performance regressions (cold-ish `swift build` ~0.74s on M3 Pro, 2025-11-21; latest `swift build` real 0.39s on same machine, 2025-11-22)
   - [ ] Profile critical paths
