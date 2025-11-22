@@ -441,7 +441,7 @@
 
 ---
 
-## Phase 8: Documentation & Cleanup — IN PROGRESS
+## Phase 8: Documentation & Cleanup — IN PROGRESS (remaining: manual/CLI testing, performance, cleanup)
 
 ### Documentation
 - [x] **Update architecture docs**:
