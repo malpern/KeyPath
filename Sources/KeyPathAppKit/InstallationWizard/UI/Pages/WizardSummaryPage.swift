@@ -36,59 +36,61 @@ struct WizardSummaryPage: View {
   @State private var visibleIssueCount: Int = 0
 
   var body: some View {
-    GeometryReader { proxy in
-      ScrollView {
-        ZStack(alignment: .top) {
-          // Content stack
-          VStack(spacing: 16) {
-            // Spacer to push content below the fixed header area
-            Spacer(minLength: 0)
-              .frame(height: 180)
+    ZStack(alignment: .top) {
+      // Content area (issues list and actions) - positioned below fixed header
+      VStack(spacing: 0) {
+        // Spacer to push content below the fixed header area
+        Spacer()
+          .frame(height: 180)  // Space for header (60pt top + 120pt header)
 
-            // System Status Overview
-            if !isValidating {
-              Group {
-                WizardSystemStatusOverview(
-                  systemState: systemState,
-                  issues: issues,
-                  stateInterpreter: stateInterpreter,
-                  onNavigateToPage: onNavigateToPage,
-                  kanataIsRunning: kanataManager.isRunning,
-                  showAllItems: showAllItems,
-                  navSequence: $navSequence,
-                  visibleIssueCount: $visibleIssueCount
-                )
-              }
-              .id(showAllItems ? "list_all" : "list_errors")
-              .frame(maxWidth: 720)
-              .transition(.opacity)
-            }
-
-            // Action Section inline (keeps layout predictable; scrolls if needed)
-            if !isValidating {
-              WizardActionSection(
-                systemState: systemState,
-                isFullyConfigured: isEverythingComplete,
-                onStartService: onStartService,
-                onDismiss: onDismiss
-              )
-              .frame(maxWidth: 720)
-              .padding(.top, 8)
-              .transition(.opacity)
-            }
-
-            Spacer(minLength: 12)
+        // System Status Overview
+        // Cap list region height so window grows until cap, then scrolls internally
+        if !isValidating {
+          // Cross-fade entire list to avoid row-wise jitter on filter toggle
+          Group {
+            WizardSystemStatusOverview(
+              systemState: systemState,
+              issues: issues,
+              stateInterpreter: stateInterpreter,
+              onNavigateToPage: onNavigateToPage,
+              kanataIsRunning: kanataManager.isRunning,
+              showAllItems: showAllItems,
+              navSequence: $navSequence,
+              visibleIssueCount: $visibleIssueCount
+            )
           }
-          .frame(maxWidth: .infinity)
-          .padding(.horizontal, 24)
-          .padding(.bottom, 24 + proxy.safeAreaInsets.bottom)
+          .id(showAllItems ? "list_all" : "list_errors")
+          .frame(maxHeight: listMaxHeight)
+          .transition(.opacity)
+        } else {
+          // During validation, don't reserve list space; allow compact height
+        }
 
-          // Icon - absolutely positioned, independent of text
-          ZStack {
-            // Hover ring exactly centered with the icon
-            if headerMode == .issues {
-              Circle()
-                .stroke(Color.primary.opacity(iconHovering ? 0.15 : 0.0), lineWidth: 2)
+        // Minimal separation before action section
+        Spacer(minLength: 0)
+
+        // Action Section
+        // Always reserve space to prevent window resizing
+        if !isValidating {
+          WizardActionSection(
+            systemState: systemState,
+            isFullyConfigured: isEverythingComplete,
+            onStartService: onStartService,
+            onDismiss: onDismiss
+          )
+          .padding(.bottom, WizardDesign.Spacing.elementGap)  // Reduce bottom padding
+          .transition(.opacity)
+        } else {
+          // No action section during validation; keep window minimal
+        }
+      }
+
+      // Icon - absolutely positioned, independent of text
+      ZStack {
+        // Hover ring exactly centered with the icon
+        if headerMode == .issues {
+          Circle()
+            .stroke(Color.primary.opacity(iconHovering ? 0.15 : 0.0), lineWidth: 2)
             .frame(
               width: WizardDesign.Layout.statusCircleSize + 8,
               height: WizardDesign.Layout.statusCircleSize + 8
@@ -200,33 +202,17 @@ struct WizardSummaryPage: View {
         .fixedSize(horizontal: false, vertical: true)
         .zIndex(1)
         .animation(nil, value: showAllItems)  // Prevent headline motion on toggle
-        // Eye icon removed - error icon toggles list filtering
-        }
-        .frame(
-          maxWidth: .infinity,
-          minHeight: max(proxy.size.height, 520),
-          alignment: .top
-        )
-        .background(WizardDesign.Colors.wizardBackground)
-        // Full-surface white fade to simplify transitions
-        .overlay {
-          Color.white
-            .opacity(fadeMaskOpacity)
-            .allowsHitTesting(false)
-            .animation(.easeInOut(duration: 0.2), value: fadeMaskOpacity)
-        }
-      }
-      .background(WizardDesign.Colors.wizardBackground.ignoresSafeArea())
+      // Eye icon removed - error icon toggles list filtering
     }
     .modifier(WizardDesign.DisableFocusEffects())
-    .frame(
-      minWidth: 640,
-      idealWidth: 800,
-      maxWidth: 900,
-      minHeight: 520,
-      idealHeight: 640,
-      maxHeight: 820
-    )
+    .background(WizardDesign.Colors.wizardBackground)
+    // Full-surface white fade to simplify transitions
+    .overlay {
+      Color.white
+        .opacity(fadeMaskOpacity)
+        .allowsHitTesting(false)
+        .animation(.easeInOut(duration: 0.2), value: fadeMaskOpacity)
+    }
   }
 
   // MARK: - Helper Properties
