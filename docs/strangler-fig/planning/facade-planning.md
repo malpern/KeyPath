@@ -458,10 +458,10 @@
   - [ ] List breaking changes (if any)
 
 ### Final Validation
-- [ ] **Run full test suite**:
-  - [ ] All existing tests pass
-  - [ ] All new façade tests pass
-  - [ ] No regressions introduced
+- [x] **Run full test suite**:
+  - [x] All existing tests pass
+  - [x] All new façade tests pass
+  - [x] No regressions introduced (local: `swift test --parallel --num-workers 6`, 2025-11-21)
 - [ ] **Manual testing**:
   - [ ] Test CLI commands
   - [ ] Test GUI wizard flows
