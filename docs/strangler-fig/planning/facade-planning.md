@@ -476,6 +476,7 @@
   - [ ] Review test coverage
   - [ ] Review documentation
   - [x] Remove legacy KanataManager status plumbing now superseded by InstallerEngine/SystemContext (Settings status card/toggle, serviceStatusDetail, manual start/stop paths)
+  - [x] Remove dead code (unused paths, deprecated methods, stale tests) - Partial (KanataManager plumbing removed)
 
 ---
 

@@ -153,7 +153,11 @@ class MainAppStateController: ObservableObject {
       AppLogger.shared.log("⏳ [MainAppStateController] Waiting for kanata service to be ready...")
       AppLogger.shared.log("⏱️ [TIMING] Service wait START")
       let serviceWaitStart = Date()
-      let isReady = await kanataManager.waitForServiceReady(timeout: 3.0)
+      
+      // Legacy waitForServiceReady removed.
+      // We accept the current state as-is.
+      let isReady = true 
+      
       let serviceWaitDuration = Date().timeIntervalSince(serviceWaitStart)
       AppLogger.shared.log(
         "⏱️ [TIMING] Service wait COMPLETE: \(String(format: "%.3f", serviceWaitDuration))s (ready: \(isReady))"

@@ -13,7 +13,7 @@ class WizardAutoFixer: AutoFixCapable {
   private let packageManager: PackageManager
   private let bundledKanataManager: BundledKanataManager
   // REMOVED: toastManager was unused and created architecture violation (Core → UI dependency)
-  private let autoFixSync = ProcessSynchronizationActor()
+  // REMOVED: ProcessSynchronizationActor - no longer needed
 
   @MainActor init(
     kanataManager: KanataManager,
@@ -133,11 +133,7 @@ class WizardAutoFixer: AutoFixCapable {
   }
 
   func performAutoFix(_ action: AutoFixAction) async -> Bool {
-    _ = await autoFixSync.synchronize {
-      // Synchronize using the actor, but call into self outside the Sendable closure
-      true
-    }
-    // Execute the actual work outside the synchronize closure to avoid Sendable capture of self
+    // Execute directly on MainActor
     return await _performAutoFix(action)
   }
 

@@ -13,12 +13,7 @@ struct WizardSnapshotRecord {
   let issues: [WizardIssue]
 }
 
-/// Actor for process synchronization to prevent multiple concurrent Kanata starts
-actor ProcessSynchronizationActor {
-  func synchronize<T: Sendable>(_ operation: @Sendable () async throws -> T) async rethrows -> T {
-    try await operation()
-  }
-}
+// ProcessSynchronizationActor removed (unused)
 
 /// Represents a simple key mapping from input to output
 /// Used throughout the codebase for representing user-configured key remappings
@@ -308,7 +303,6 @@ class KanataManager {
 
   // MARK: - Process Synchronization (Phase 1)
 
-  private static let startupActor = ProcessSynchronizationActor()
   private var lastStartAttempt: Date?  // Still used for backward compatibility
   private var lastServiceKickstart: Date?  // Still used for grace period tracking
 
@@ -779,10 +773,8 @@ class KanataManager {
     // Check if VirtualHID daemon is running firs
     if !isKarabinerDaemonRunning() {
       AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
-      updateInternalState(
-        lastProcessExitCode: lastProcessExitCode,
-        lastError: "Recovery failed: Karabiner daemon not available"
-      )
+      self.lastError = "Recovery failed: Karabiner daemon not available"
+      notifyStateChanged()
       return
     }
 
@@ -930,16 +922,7 @@ class KanataManager {
     return false
   }
 
-  // MARK: - LaunchDaemon Service Managemen
-
-  /// Check the status of the LaunchDaemon service
-  private func checkLaunchDaemonStatus() async -> (isRunning: Bool, pid: Int?) {
-    await processManager.status()
-  }
-
-  /// Kill a specific process by PID
-  private func killProcess(pid: Int) async { await ProcessKiller.kill(pid: pid) }
-
+  // Removed: checkLaunchDaemonStatus, killProcess
   // Removed monitorKanataProcess() - no longer needed with LaunchDaemon service managemen
 
   /// Save a complete generated configuration (for Claude API generated configs)
@@ -1280,128 +1263,11 @@ class KanataManager {
   }
 
   func updateStatus() async {
-    // Synchronize status updates to prevent concurrent access to internal state
-    await KanataManager.startupActor.synchronize { [self] in
-      await performUpdateStatus()
-    }
-  }
-
-  /// Fast process check using pgrep (instant, no async overhead)
-  /// Returns true if kanata process is running, false otherwise
-  private nonisolated static func isProcessRunningFast() -> Bool {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-    process.arguments = ["-x", "kanata"]
-
-    let pipe = Pipe()
-    process.standardOutput = pipe
-    process.standardError = Pipe()
-
-    do {
-      try process.run()
-      process.waitUntilExit()
-
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let output =
-        String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-      return process.terminationStatus == 0 && !output.isEmpty
-    } catch {
-      return false
-    }
-  }
-
-  /// Wait for the kanata service to be ready and fully started
-  /// Returns true if service becomes ready within timeout, false otherwise
-  /// Optimized with fast process check and reduced timeout/poll interval
-  func waitForServiceReady(timeout: TimeInterval = 3.0) async -> Bool {
-    let startTime = Date()
-    let pollInterval: UInt64 = 250_000_000
-
-    while Date().timeIntervalSince(startTime) < timeout {
-      if Self.isProcessRunningFast() {
-        return true
-      }
-      try? await Task.sleep(nanoseconds: pollInterval)
-    }
-    return false
-  }
-
-  /// Main actor function to safely update internal state properties
-  @MainActor
-  private func updateInternalState(
-    lastProcessExitCode: Int32?,
-    lastError: String?,
-    shouldClearDiagnostics: Bool = false
-  ) {
-    // Removed: isRunning
-    self.lastProcessExitCode = lastProcessExitCode
-    self.lastError = lastError
-
-    if shouldClearDiagnostics {
-      let initialCount = diagnostics.count
-
-      // Remove diagnostics related to process failures and permission issues
-      // Keep configuration-related diagnostics as they may still be relevan
-      diagnostics.removeAll { diagnostic in
-        diagnostic.category == .process || diagnostic.category == .permissions
-          || (diagnostic.category == .conflict && diagnostic.title.contains("Exit"))
-      }
-
-      let removedCount = initialCount - diagnostics.count
-      if removedCount > 0 {
-        AppLogger.shared.log(
-          "🔄 [Diagnostics] Cleared \(removedCount) stale process/permission diagnostics")
-      }
-    }
-  }
-
-  private func performUpdateStatus() async {
-    // Check LaunchDaemon service status instead of direct process
-    let serviceStatus = await checkLaunchDaemonStatus()
-    let serviceRunning = serviceStatus.isRunning
-
-    if serviceRunning {
-      // Service is running - clear any stale errors
-      updateInternalState(
-        lastProcessExitCode: nil,
-        lastError: nil,
-        shouldClearDiagnostics: true
-      )
-      AppLogger.shared.info("🔄 [Status] LaunchDaemon service running - cleared stale diagnostics")
-
-      if let pid = serviceStatus.pid {
-        // Update lifecycle manager with current service PID
-        let command = buildKanataArguments(configPath: configPath).joined(separator: " ")
-        await processLifecycleManager.registerStartedProcess(
-          pid: Int32(pid), command: "launchd: (command)")
-
-        // Track service restart for crash loop detection (in case PID changed)
-        await reloadSafetyMonitor.recordServiceRestart(pid: pid)
-      }
-    } else {
-      // Service is not running
-      let failureMessage = captureRecentKanataErrorMessage() ?? lastError
-      if let failureMessage {
-        AppLogger.shared.error("❌ [Status] Kanata service exited: (failureMessage)")
-      }
-
-      updateInternalState(
-        lastProcessExitCode: lastProcessExitCode,
-        lastError: failureMessage
-      )
-      AppLogger.shared.warn("⚠️ [Status] LaunchDaemon service is not running")
-
-      // Clean up lifecycle manager
-      await processLifecycleManager.unregisterProcess()
-    }
-
-    // Check for any conflicting processes
-    // await verifyNoProcessConflicts() // Removed in favor of InstallerEngine checks
-
-    // Notify ViewModel of state change
+    // Legacy status update removed - state is now managed by InstallerEngine/SystemContext
     notifyStateChanged()
   }
+
+  // Removed: isProcessRunningFast, waitForServiceReady, updateInternalState, performUpdateStatus
 
   private func captureRecentKanataErrorMessage() -> String? {
     let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
