@@ -34,6 +34,9 @@ swift build
 
 # Build the app bundle for testing
 ./Scripts/build.sh
+
+# Optional: exercise the new InstallerEngine façade (recommended)
+KEYPATH_USE_INSTALLER_ENGINE=1 swift test --filter InstallerEngine
 ```
 
 ### 3. Explore Key Components (10 minutes)

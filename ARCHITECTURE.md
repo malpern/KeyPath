@@ -15,6 +15,14 @@
 
 KeyPath is a macOS keyboard remapping application with a sophisticated multi-tier architecture designed for reliability, security, and maintainability. The system integrates deeply with macOS security frameworks and provides automated installation and recovery capabilities.
 
+### InstallerEngine Façade (Strangler Fig)
+
+- **Purpose:** Single entry point for install/repair flows (`inspectSystem`, `makePlan`, `execute`, `run`) that wraps legacy wizard logic. Keeps callers stable while internals evolve.
+- **Backwards compatibility:** Outputs the same system context/issues as the old adapters; callers can switch via env flag `KEYPATH_USE_INSTALLER_ENGINE=1`.
+- **Health pipeline:** Launchctl PID + TCP probe + freshness guard; wizard and main app both consume the same `SystemContextAdapter`.
+- **Callers:** Wizard, CLI, and KanataManager can route through the façade without touching lower-level installers directly.
+- **Status:** Fully implemented; internal refactors completed (Phase 7). Phase 8 will document and clean up remaining legacy helpers.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           KeyPath.app (SwiftUI)                          │

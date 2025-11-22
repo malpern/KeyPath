@@ -16,7 +16,7 @@
 - ✅ **Phase 7:** Refactor Internals — COMPLETE  
   - 7.1 Adapter cleanup ✅  
   - 7.2 Single health pipeline 🔥 ✅ (code, tests, nav regression fixed)
-- ⏳ **Phase 8:** Documentation & Cleanup - Pending
+- ⏳ **Phase 8:** Documentation & Cleanup - IN PROGRESS
 
 **Files Created:** 4 files (1,244 lines total)
 - `InstallerEngineTypes.swift` (276 lines) - All core types
@@ -441,12 +441,12 @@
 
 ---
 
-## Phase 8: Documentation & Cleanup
+## Phase 8: Documentation & Cleanup — IN PROGRESS
 
 ### Documentation
-- [ ] **Update architecture docs**:
-  - [ ] Document façade design in `ARCHITECTURE.md`
-  - [ ] Update `NEW_DEVELOPER_GUIDE.md` with façade usage
+- [x] **Update architecture docs**:
+  - [x] Document façade design in `ARCHITECTURE.md`
+  - [x] Update `NEW_DEVELOPER_GUIDE.md` with façade usage
   - [ ] Add code examples
 - [ ] **Add inline documentation**:
   - [ ] Document public API methods
@@ -500,7 +500,7 @@
 ---
 
 **Last Updated:** 2025-11-21
-**Status:** Phase 6 Complete ✅ (Phase 7 Complete; Phase 8 next)
+**Status:** Phase 6 Complete ✅ (Phase 7 Complete; Phase 8 in progress)
 
 ---
 
