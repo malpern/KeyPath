@@ -7,7 +7,7 @@ import SwiftUI
 // MARK: - KanataManager Event Taps Extension
 
 extension KanataManager {
-  // MARK: - CGEvent tap handling methods will be moved here
+    // MARK: - CGEvent tap handling methods will be moved here
 
-  // This extension will contain event tap installation, callbacks, and event processing
+    // This extension will contain event tap installation, callbacks, and event processing
 }

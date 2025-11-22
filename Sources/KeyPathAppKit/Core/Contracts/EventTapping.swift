@@ -3,8 +3,8 @@ import Foundation
 
 /// A handle representing an installed event tap that can be used for cleanup.
 public struct TapHandle {
-  let machPort: CFMachPort
-  let runLoopSource: CFRunLoopSource?
+    let machPort: CFMachPort
+    let runLoopSource: CFRunLoopSource?
 }
 
 /// Protocol defining event tap installation and management capabilities.
@@ -52,55 +52,55 @@ public struct TapHandle {
 /// when permissions are insufficient.
 @MainActor
 protocol EventTapping {
-  /// Indicates whether an event tap is currently installed and active.
-  ///
-  /// This property should accurately reflect the tap's operational state.
-  var isInstalled: Bool { get }
+    /// Indicates whether an event tap is currently installed and active.
+    ///
+    /// This property should accurately reflect the tap's operational state.
+    var isInstalled: Bool { get }
 
-  /// Installs and activates an event tap.
-  ///
-  /// Creates the necessary CGEvent tap, configures run loop integration,
-  /// and returns a handle for later cleanup.
-  ///
-  /// - Returns: A `TapHandle` representing the installed tap.
-  /// - Throws: `TapError` if installation fails or tap already exists.
-  func install() throws -> TapHandle
+    /// Installs and activates an event tap.
+    ///
+    /// Creates the necessary CGEvent tap, configures run loop integration,
+    /// and returns a handle for later cleanup.
+    ///
+    /// - Returns: A `TapHandle` representing the installed tap.
+    /// - Throws: `TapError` if installation fails or tap already exists.
+    func install() throws -> TapHandle
 
-  /// Removes and deactivates the currently installed event tap.
-  ///
-  /// Cleans up CGEvent tap resources, removes run loop sources, and
-  /// ensures proper resource deallocation.
-  ///
-  /// This method should be idempotent - calling it when no tap is installed
-  /// should not cause errors.
-  func uninstall()
+    /// Removes and deactivates the currently installed event tap.
+    ///
+    /// Cleans up CGEvent tap resources, removes run loop sources, and
+    /// ensures proper resource deallocation.
+    ///
+    /// This method should be idempotent - calling it when no tap is installed
+    /// should not cause errors.
+    func uninstall()
 }
 
 /// Extension providing convenience methods for tap management.
 extension EventTapping {
-  /// Reinstalls the event tap by removing the old one and installing a new one.
-  ///
-  /// This is useful for recovering from tap failures or updating tap configuration.
-  ///
-  /// - Returns: A new `TapHandle` representing the reinstalled tap.
-  /// - Throws: `TapError` if reinstallation fails.
-  func reinstall() throws -> TapHandle {
-    uninstall()
-    return try install()
-  }
-
-  /// Ensures the event tap is in the desired installation state.
-  ///
-  /// - Parameter shouldBeInstalled: The desired installation state.
-  /// - Returns: A `TapHandle` if a tap was installed, nil otherwise.
-  /// - Throws: `TapError` if state change fails.
-  func ensureState(installed shouldBeInstalled: Bool) throws -> TapHandle? {
-    if shouldBeInstalled, !isInstalled {
-      return try install()
-    } else if !shouldBeInstalled, isInstalled {
-      uninstall()
-      return nil
+    /// Reinstalls the event tap by removing the old one and installing a new one.
+    ///
+    /// This is useful for recovering from tap failures or updating tap configuration.
+    ///
+    /// - Returns: A new `TapHandle` representing the reinstalled tap.
+    /// - Throws: `TapError` if reinstallation fails.
+    func reinstall() throws -> TapHandle {
+        uninstall()
+        return try install()
     }
-    return nil
-  }
+
+    /// Ensures the event tap is in the desired installation state.
+    ///
+    /// - Parameter shouldBeInstalled: The desired installation state.
+    /// - Returns: A `TapHandle` if a tap was installed, nil otherwise.
+    /// - Throws: `TapError` if state change fails.
+    func ensureState(installed shouldBeInstalled: Bool) throws -> TapHandle? {
+        if shouldBeInstalled, !isInstalled {
+            return try install()
+        } else if !shouldBeInstalled, isInstalled {
+            uninstall()
+            return nil
+        }
+        return nil
+    }
 }

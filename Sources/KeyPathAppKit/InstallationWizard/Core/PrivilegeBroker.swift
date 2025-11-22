@@ -5,94 +5,94 @@ import Foundation
 /// Start with concrete type; add a protocol only if we need test doubles later.
 @MainActor
 public struct PrivilegeBroker {
-  /// Coordinator instance (singleton)
-  private let coordinator: PrivilegedOperationsCoordinator
+    /// Coordinator instance (singleton)
+    private let coordinator: PrivilegedOperationsCoordinator
 
-  /// Create a broker using the shared coordinator
-  public init() {
-    coordinator = PrivilegedOperationsCoordinator.shared
-  }
+    /// Create a broker using the shared coordinator
+    public init() {
+        coordinator = PrivilegedOperationsCoordinator.shared
+    }
 
-  /// Internal initializer for tests that need custom coordinators
-  init(coordinator: PrivilegedOperationsCoordinator) {
-    self.coordinator = coordinator
-  }
+    /// Internal initializer for tests that need custom coordinators
+    init(coordinator: PrivilegedOperationsCoordinator) {
+        self.coordinator = coordinator
+    }
 
-  // MARK: - LaunchDaemon Operations
+    // MARK: - LaunchDaemon Operations
 
-  /// Install a LaunchDaemon plist file to /Library/LaunchDaemons/
-  public func installLaunchDaemon(plistPath: String, serviceID: String) async throws {
-    try await coordinator.installLaunchDaemon(plistPath: plistPath, serviceID: serviceID)
-  }
+    /// Install a LaunchDaemon plist file to /Library/LaunchDaemons/
+    public func installLaunchDaemon(plistPath: String, serviceID: String) async throws {
+        try await coordinator.installLaunchDaemon(plistPath: plistPath, serviceID: serviceID)
+    }
 
-  // MARK: - Service Management
+    // MARK: - Service Management
 
-  /// Install all LaunchDaemon services
-  public func installAllLaunchDaemonServices() async throws {
-    try await coordinator.installAllLaunchDaemonServices()
-  }
+    /// Install all LaunchDaemon services
+    public func installAllLaunchDaemonServices() async throws {
+        try await coordinator.installAllLaunchDaemonServices()
+    }
 
-  /// Restart unhealthy services
-  public func restartUnhealthyServices() async throws {
-    try await coordinator.restartUnhealthyServices()
-  }
+    /// Restart unhealthy services
+    public func restartUnhealthyServices() async throws {
+        try await coordinator.restartUnhealthyServices()
+    }
 
-  /// Install log rotation service
-  public func installLogRotation() async throws {
-    try await coordinator.installLogRotation()
-  }
+    /// Install log rotation service
+    public func installLogRotation() async throws {
+        try await coordinator.installLogRotation()
+    }
 
-  /// Install LaunchDaemon services without loading (adopt/replace paths)
-  public func installLaunchDaemonServicesWithoutLoading() async throws {
-    try await coordinator.installLaunchDaemonServicesWithoutLoading()
-  }
+    /// Install LaunchDaemon services without loading (adopt/replace paths)
+    public func installLaunchDaemonServicesWithoutLoading() async throws {
+        try await coordinator.installLaunchDaemonServicesWithoutLoading()
+    }
 
-  /// Regenerate service configuration (TCP/plist refresh)
-  public func regenerateServiceConfiguration() async throws {
-    try await coordinator.regenerateServiceConfiguration()
-  }
+    /// Regenerate service configuration (TCP/plist refresh)
+    public func regenerateServiceConfiguration() async throws {
+        try await coordinator.regenerateServiceConfiguration()
+    }
 
-  /// Repair VHID daemon services
-  public func repairVHIDDaemonServices() async throws {
-    try await coordinator.repairVHIDDaemonServices()
-  }
+    /// Repair VHID daemon services
+    public func repairVHIDDaemonServices() async throws {
+        try await coordinator.repairVHIDDaemonServices()
+    }
 
-  // MARK: - Component Installation
+    // MARK: - Component Installation
 
-  /// Download and install correct VHID driver
-  public func downloadAndInstallCorrectVHIDDriver() async throws {
-    try await coordinator.downloadAndInstallCorrectVHIDDriver()
-  }
+    /// Download and install correct VHID driver
+    public func downloadAndInstallCorrectVHIDDriver() async throws {
+        try await coordinator.downloadAndInstallCorrectVHIDDriver()
+    }
 
-  /// Install bundled Kanata binary
-  public func installBundledKanata() async throws {
-    try await coordinator.installBundledKanata()
-  }
+    /// Install bundled Kanata binary
+    public func installBundledKanata() async throws {
+        try await coordinator.installBundledKanata()
+    }
 
-  /// Activate VirtualHID Manager
-  public func activateVirtualHIDManager() async throws {
-    try await coordinator.activateVirtualHIDManager()
-  }
+    /// Activate VirtualHID Manager
+    public func activateVirtualHIDManager() async throws {
+        try await coordinator.activateVirtualHIDManager()
+    }
 
-  /// Terminate a process by PID
-  public func terminateProcess(pid: Int32) async throws {
-    try await coordinator.terminateProcess(pid: pid)
-  }
+    /// Terminate a process by PID
+    public func terminateProcess(pid: Int32) async throws {
+        try await coordinator.terminateProcess(pid: pid)
+    }
 
-  /// Kill all Kanata processes
-  public func killAllKanataProcesses() async throws {
-    try await coordinator.killAllKanataProcesses()
-  }
+    /// Kill all Kanata processes
+    public func killAllKanataProcesses() async throws {
+        try await coordinator.killAllKanataProcesses()
+    }
 
-  /// Stop Kanata LaunchDaemon and kill any remaining processes
-  public func stopKanataService() async throws {
-    let cmd = "/bin/launchctl bootout system/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true"
-    try await coordinator.sudoExecuteCommand(cmd, description: "Stop Kanata service")
-    try await coordinator.killAllKanataProcesses()
-  }
+    /// Stop Kanata LaunchDaemon and kill any remaining processes
+    public func stopKanataService() async throws {
+        let cmd = "/bin/launchctl bootout system/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true"
+        try await coordinator.sudoExecuteCommand(cmd, description: "Stop Kanata service")
+        try await coordinator.killAllKanataProcesses()
+    }
 
-  /// Restart Karabiner daemon with verification
-  public func restartKarabinerDaemonVerified() async throws -> Bool {
-    try await coordinator.restartKarabinerDaemonVerified()
-  }
+    /// Restart Karabiner daemon with verification
+    public func restartKarabinerDaemonVerified() async throws -> Bool {
+        try await coordinator.restartKarabinerDaemonVerified()
+    }
 }

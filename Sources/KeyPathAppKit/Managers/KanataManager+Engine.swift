@@ -7,7 +7,7 @@ import SwiftUI
 // MARK: - KanataManager Mapping Engine Extension
 
 extension KanataManager {
-  // MARK: - Key mapping engine methods will be moved here
+    // MARK: - Key mapping engine methods will be moved here
 
-  // This extension will contain mapping logic, layer management, and key transformation
+    // This extension will contain mapping logic, layer management, and key transformation
 }

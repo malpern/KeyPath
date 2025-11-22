@@ -7,7 +7,7 @@ import SwiftUI
 // MARK: - KanataManager Output Extension
 
 extension KanataManager {
-  // MARK: - Event synthesis and output methods will be moved here
+    // MARK: - Event synthesis and output methods will be moved here
 
-  // This extension will contain CGEvent posting, output synthesis, and VirtualHID interaction
+    // This extension will contain CGEvent posting, output synthesis, and VirtualHID interaction
 }

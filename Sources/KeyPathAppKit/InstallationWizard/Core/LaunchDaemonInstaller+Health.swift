@@ -1,100 +1,100 @@
-import Foundation
-import Network
-import KeyPathCore
 import Darwin
+import Foundation
+import KeyPathCore
+import Network
 
 extension LaunchDaemonInstaller {
-  /// Unified kanata service health: launchctl PID check + TCP probe.
-  @MainActor
-  func checkKanataServiceHealth(
-    tcpPort: Int = 37001,
-    timeoutMs: Int = 300
-  ) async -> KanataServiceHealth {
-    // 1) launchctl check for PID
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-    task.arguments = ["print", "system/\(Self.kanataServiceID)"]
+    /// Unified kanata service health: launchctl PID check + TCP probe.
+    @MainActor
+    func checkKanataServiceHealth(
+        tcpPort: Int = 37001,
+        timeoutMs: Int = 300
+    ) async -> KanataServiceHealth {
+        // 1) launchctl check for PID
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = ["print", "system/\(Self.kanataServiceID)"]
 
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
 
-    var pid: Int?
-    do {
-      try task.run()
-      task.waitUntilExit()
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      let output = String(data: data, encoding: .utf8) ?? ""
-      if task.terminationStatus == 0 {
-        for line in output.components(separatedBy: "\n") where line.contains("pid =") {
-          let comps = line.components(separatedBy: "=")
-          if comps.count == 2, let p = Int(comps[1].trimmingCharacters(in: .whitespaces)) {
-            pid = p
-            break
-          }
+        var pid: Int?
+        do {
+            try task.run()
+            task.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+            if task.terminationStatus == 0 {
+                for line in output.components(separatedBy: "\n") where line.contains("pid =") {
+                    let comps = line.components(separatedBy: "=")
+                    if comps.count == 2, let p = Int(comps[1].trimmingCharacters(in: .whitespaces)) {
+                        pid = p
+                        break
+                    }
+                }
+            }
+        } catch {
+            AppLogger.shared.warn("⚠️ [Health] launchctl check failed: \(error)")
         }
-      }
-    } catch {
-      AppLogger.shared.warn("⚠️ [Health] launchctl check failed: \(error)")
+
+        // 2) TCP probe (Hello/Status)
+        let tcpOK: Bool = {
+            if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
+               let overridePort = Int(portEnv) {
+                return probeTCP(port: overridePort, timeoutMs: timeoutMs)
+            }
+            return probeTCP(port: tcpPort, timeoutMs: timeoutMs)
+        }()
+
+        return KanataServiceHealth(
+            isRunning: pid != nil,
+            isResponding: tcpOK
+        )
     }
 
-    // 2) TCP probe (Hello/Status)
-    let tcpOK: Bool = {
-      if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
-        let overridePort = Int(portEnv) {
-        return probeTCP(port: overridePort, timeoutMs: timeoutMs)
-      }
-      return probeTCP(port: tcpPort, timeoutMs: timeoutMs)
-    }()
+    private func probeTCP(port: Int, timeoutMs: Int) -> Bool {
+        // Simple POSIX connect with timeout to avoid Sendable/atomic issues
+        let sock = socket(AF_INET, SOCK_STREAM, 0)
+        if sock < 0 { return false }
 
-    return KanataServiceHealth(
-      isRunning: pid != nil,
-      isResponding: tcpOK
-    )
-  }
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = in_port_t(UInt16(port).bigEndian)
+        addr.sin_addr = in_addr(s_addr: inet_addr("127.0.0.1"))
 
-  private func probeTCP(port: Int, timeoutMs: Int) -> Bool {
-    // Simple POSIX connect with timeout to avoid Sendable/atomic issues
-    let sock = socket(AF_INET, SOCK_STREAM, 0)
-    if sock < 0 { return false }
+        // Set non-blocking
+        _ = fcntl(sock, F_SETFL, O_NONBLOCK)
 
-    var addr = sockaddr_in()
-    addr.sin_family = sa_family_t(AF_INET)
-    addr.sin_port = in_port_t(UInt16(port).bigEndian)
-    addr.sin_addr = in_addr(s_addr: inet_addr("127.0.0.1"))
+        var a = addr
+        let connectResult = withUnsafePointer(to: &a) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
 
-    // Set non-blocking
-    _ = fcntl(sock, F_SETFL, O_NONBLOCK)
+        if connectResult == 0 {
+            close(sock)
+            return true
+        }
 
-    var a = addr
-    let connectResult = withUnsafePointer(to: &a) {
-      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-        connect(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
-      }
+        // EINPROGRESS is expected for non-blocking connect
+        if errno != EINPROGRESS {
+            close(sock)
+            return false
+        }
+
+        var pfd = pollfd(fd: sock, events: Int16(POLLOUT), revents: 0)
+        let ret = Darwin.poll(&pfd, 1, Int32(timeoutMs))
+        if ret > 0, (pfd.revents & Int16(POLLOUT)) != 0 {
+            var so_error: Int32 = 0
+            var len = socklen_t(MemoryLayout<Int32>.size)
+            getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &len)
+            close(sock)
+            return so_error == 0
+        }
+
+        close(sock)
+        return false
     }
-
-    if connectResult == 0 {
-      close(sock)
-      return true
-    }
-
-    // EINPROGRESS is expected for non-blocking connect
-    if errno != EINPROGRESS {
-      close(sock)
-      return false
-    }
-
-    var pfd = pollfd(fd: sock, events: Int16(POLLOUT), revents: 0)
-    let ret = Darwin.poll(&pfd, 1, Int32(timeoutMs))
-    if ret > 0, (pfd.revents & Int16(POLLOUT)) != 0 {
-      var so_error: Int32 = 0
-      var len = socklen_t(MemoryLayout<Int32>.size)
-      getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &len)
-      close(sock)
-      return so_error == 0
-    }
-
-    close(sock)
-    return false
-  }
 }

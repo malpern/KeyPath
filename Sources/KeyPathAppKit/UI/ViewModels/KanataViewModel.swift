@@ -17,156 +17,156 @@ import SwiftUI
 /// - Delegates all actions to KanataManager
 @MainActor
 class KanataViewModel: ObservableObject {
-  // MARK: - Published Properties (moved from KanataManager)
+    // MARK: - Published Properties (moved from KanataManager)
 
-  // Core Status Properties
-  @Published var lastError: String?
-  @Published var keyMappings: [KeyMapping] = []
-  @Published var ruleCollections: [RuleCollection] = []
-  @Published var customRules: [CustomRule] = []
-  @Published var currentLayerName: String = RuleCollectionLayer.base.displayName
-  @Published var diagnostics: [KanataDiagnostic] = []
-  @Published var lastProcessExitCode: Int32?
-  @Published var lastConfigUpdate: Date = .init()
+    // Core Status Properties
+    @Published var lastError: String?
+    @Published var keyMappings: [KeyMapping] = []
+    @Published var ruleCollections: [RuleCollection] = []
+    @Published var customRules: [CustomRule] = []
+    @Published var currentLayerName: String = RuleCollectionLayer.base.displayName
+    @Published var diagnostics: [KanataDiagnostic] = []
+    @Published var lastProcessExitCode: Int32?
+    @Published var lastConfigUpdate: Date = .init()
 
-  // UI State Properties (Legacy state removed - use InstallerEngine/SystemContext)
-  // Removed: errorReason, showWizard, launchFailureStatus
+    // UI State Properties (Legacy state removed - use InstallerEngine/SystemContext)
+    // Removed: errorReason, showWizard, launchFailureStatus
 
-  // Validation-specific UI state
-  @Published var showingValidationAlert = false
-  @Published var validationAlertTitle = ""
-  @Published var validationAlertMessage = ""
-  @Published var validationAlertActions: [ValidationAlertAction] = []
+    // Validation-specific UI state
+    @Published var showingValidationAlert = false
+    @Published var validationAlertTitle = ""
+    @Published var validationAlertMessage = ""
+    @Published var validationAlertActions: [ValidationAlertAction] = []
 
-  // Save progress feedback
-  @Published var saveStatus: SaveStatus = .idle
+    // Save progress feedback
+    @Published var saveStatus: SaveStatus = .idle
 
-  // Emergency stop state
-  @Published var emergencyStopActivated: Bool = false
+    // Emergency stop state
+    @Published var emergencyStopActivated: Bool = false
 
-  // MARK: - Private Properties
+    // MARK: - Private Properties
 
-  private let manager: KanataManager
-  private var stateObservationTask: Task<Void, Never>?
+    private let manager: KanataManager
+    private var stateObservationTask: Task<Void, Never>?
 
-  // MARK: - Manager Access
+    // MARK: - Manager Access
 
-  /// Provides access to the underlying KanataManager for business logic components
-  /// Use this sparingly - only when business logic components need direct manager access
-  var underlyingManager: KanataManager {
-    manager
-  }
-
-  // MARK: - Initialization
-
-  init(manager: KanataManager) {
-    self.manager = manager
-    setupObservation()
-  }
-
-  deinit {
-    stateObservationTask?.cancel()
-  }
-
-  // MARK: - Observation Setup
-
-  /// Observe KanataManager state changes via AsyncStream (event-driven, not polling)
-  /// This dramatically reduces unnecessary UI updates by only reacting to actual state changes
-  private func setupObservation() {
-    stateObservationTask = Task { @MainActor in
-      for await state in manager.stateChanges {
-        guard !Task.isCancelled else { break }
-        updateUI(with: state)
-      }
+    /// Provides access to the underlying KanataManager for business logic components
+    /// Use this sparingly - only when business logic components need direct manager access
+    var underlyingManager: KanataManager {
+        manager
     }
-  }
 
-  /// Update UI properties from state snapshot
-  /// Only called when state actually changes (not on a timer)
-  private func updateUI(with state: KanataUIState) {
-    lastError = state.lastError
-    keyMappings = state.keyMappings
-    ruleCollections = state.ruleCollections
-    customRules = state.customRules
-    diagnostics = state.diagnostics
-    lastProcessExitCode = state.lastProcessExitCode
-    lastConfigUpdate = state.lastConfigUpdate
-    showingValidationAlert = state.showingValidationAlert
-    validationAlertTitle = state.validationAlertTitle
-    validationAlertMessage = state.validationAlertMessage
-    validationAlertActions = state.validationAlertActions
-    saveStatus = state.saveStatus
-    // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
-  }
+    // MARK: - Initialization
 
-  // MARK: - Action Delegation to KanataManager
-  // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
+    init(manager: KanataManager) {
+        self.manager = manager
+        setupObservation()
+    }
 
-  func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
-    await manager.toggleRuleCollection(id: id, isEnabled: enabled)
-  }
+    deinit {
+        stateObservationTask?.cancel()
+    }
 
-  func removeCustomRule(_ id: UUID) async {
-    await manager.removeCustomRule(withID: id)
-  }
+    // MARK: - Observation Setup
 
-  func saveCustomRule(_ rule: CustomRule) async {
-    _ = await manager.saveCustomRule(rule)
-  }
+    /// Observe KanataManager state changes via AsyncStream (event-driven, not polling)
+    /// This dramatically reduces unnecessary UI updates by only reacting to actual state changes
+    private func setupObservation() {
+        stateObservationTask = Task { @MainActor in
+            for await state in manager.stateChanges {
+                guard !Task.isCancelled else { break }
+                updateUI(with: state)
+            }
+        }
+    }
 
-  func toggleCustomRule(_ id: UUID, enabled: Bool) async {
-    await manager.toggleCustomRule(id: id, isEnabled: enabled)
-  }
+    /// Update UI properties from state snapshot
+    /// Only called when state actually changes (not on a timer)
+    private func updateUI(with state: KanataUIState) {
+        lastError = state.lastError
+        keyMappings = state.keyMappings
+        ruleCollections = state.ruleCollections
+        customRules = state.customRules
+        diagnostics = state.diagnostics
+        lastProcessExitCode = state.lastProcessExitCode
+        lastConfigUpdate = state.lastConfigUpdate
+        showingValidationAlert = state.showingValidationAlert
+        validationAlertTitle = state.validationAlertTitle
+        validationAlertMessage = state.validationAlertMessage
+        validationAlertActions = state.validationAlertActions
+        saveStatus = state.saveStatus
+        // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
+    }
 
-  func addRuleCollection(_ collection: RuleCollection) async {
-    await manager.addRuleCollection(collection)
-  }
+    // MARK: - Action Delegation to KanataManager
 
-  func isCompletelyInstalled() -> Bool {
-    manager.isCompletelyInstalled()
-  }
+    // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 
-  func createDefaultUserConfigIfMissing() async -> Bool {
-    await manager.createDefaultUserConfigIfMissing()
-  }
+    func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
+        await manager.toggleRuleCollection(id: id, isEnabled: enabled)
+    }
 
-  func openFileInZed(_ path: String) {
-    manager.openFileInZed(path)
-  }
+    func removeCustomRule(_ id: UUID) async {
+        await manager.removeCustomRule(withID: id)
+    }
 
-  func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
-    -> String {
-    try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
-  }
+    func saveCustomRule(_ rule: CustomRule) async {
+        _ = await manager.saveCustomRule(rule)
+    }
 
-  func autoFixDiagnostic(_ diagnostic: KanataDiagnostic) async {
-    _ = await manager.autoFixDiagnostic(diagnostic)
-  }
+    func toggleCustomRule(_ id: UUID, enabled: Bool) async {
+        await manager.toggleCustomRule(id: id, isEnabled: enabled)
+    }
 
-  func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
-    await manager.validateConfigFile()
-  }
+    func addRuleCollection(_ collection: RuleCollection) async {
+        await manager.addRuleCollection(collection)
+    }
 
-  func resetToDefaultConfig() async throws {
-    try await manager.resetToDefaultConfig()
-  }
+    func isCompletelyInstalled() -> Bool {
+        manager.isCompletelyInstalled()
+    }
 
-  func createPreEditBackup() -> Bool {
-    manager.createPreEditBackup()
-  }
+    func createDefaultUserConfigIfMissing() async -> Bool {
+        await manager.createDefaultUserConfigIfMissing()
+    }
 
-  var configPath: String {
-    manager.configPath
-  }
+    func openFileInZed(_ path: String) {
+        manager.openFileInZed(path)
+    }
 
-  // MARK: - Service Maintenance Actions
+    func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws
+        -> String {
+        try await manager.backupFailedConfigAndApplySafe(failedConfig: failedConfig, mappings: mappings)
+    }
 
-  func regenerateServices() async -> Bool {
-    await manager.regenerateServices()
-  }
+    func autoFixDiagnostic(_ diagnostic: KanataDiagnostic) async {
+        _ = await manager.autoFixDiagnostic(diagnostic)
+    }
 
-  func updateStatus() async {
-    await manager.updateStatus()
-  }
+    func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
+        await manager.validateConfigFile()
+    }
 
+    func resetToDefaultConfig() async throws {
+        try await manager.resetToDefaultConfig()
+    }
+
+    func createPreEditBackup() -> Bool {
+        manager.createPreEditBackup()
+    }
+
+    var configPath: String {
+        manager.configPath
+    }
+
+    // MARK: - Service Maintenance Actions
+
+    func regenerateServices() async -> Bool {
+        await manager.regenerateServices()
+    }
+
+    func updateStatus() async {
+        await manager.updateStatus()
+    }
 }

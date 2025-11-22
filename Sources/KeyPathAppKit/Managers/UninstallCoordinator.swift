@@ -3,174 +3,174 @@ import Foundation
 
 @MainActor
 final class UninstallCoordinator: ObservableObject {
-  @Published private(set) var logLines: [String] = []
-  @Published private(set) var isRunning = false
-  @Published private(set) var didSucceed = false
-  @Published private(set) var lastError: String?
+    @Published private(set) var logLines: [String] = []
+    @Published private(set) var isRunning = false
+    @Published private(set) var didSucceed = false
+    @Published private(set) var lastError: String?
 
-  private let resolveUninstallerURLClosure: () -> URL?
-  private let runWithAdminPrivilegesClosure: (URL, Bool) async -> AppleScriptResult
+    private let resolveUninstallerURLClosure: () -> URL?
+    private let runWithAdminPrivilegesClosure: (URL, Bool) async -> AppleScriptResult
 
-  init(
-    resolveUninstallerURL: @escaping () -> URL?,
-    runWithAdminPrivileges: @escaping (URL, Bool) async -> AppleScriptResult
-  ) {
-    resolveUninstallerURLClosure = resolveUninstallerURL
-    runWithAdminPrivilegesClosure = runWithAdminPrivileges
-  }
-
-  convenience init() {
-    self.init(
-      resolveUninstallerURL: Self.defaultResolveUninstallerURL,
-      runWithAdminPrivileges: Self.defaultRunWithAdminPrivileges
-    )
-  }
-
-  @discardableResult
-  func uninstall(deleteConfig: Bool = false) async -> Bool {
-    guard !isRunning else { return false }
-
-    isRunning = true
-    didSucceed = false
-    lastError = nil
-    logLines = ["🗑️ Starting KeyPath uninstall..."]
-
-    defer { isRunning = false }
-
-    guard let scriptURL = resolveUninstallerURLClosure() else {
-      let message = "Uninstaller script wasn't found in this build."
-      logLines.append("❌ \(message)")
-      lastError = message
-      return false
+    init(
+        resolveUninstallerURL: @escaping () -> URL?,
+        runWithAdminPrivileges: @escaping (URL, Bool) async -> AppleScriptResult
+    ) {
+        resolveUninstallerURLClosure = resolveUninstallerURL
+        runWithAdminPrivilegesClosure = runWithAdminPrivileges
     }
 
-    logLines.append("📄 Using uninstaller at: \(scriptURL.path)")
-    if deleteConfig {
-      logLines.append("🗑️ User configuration will be deleted")
-    } else {
-      logLines.append("💾 User configuration will be preserved")
+    convenience init() {
+        self.init(
+            resolveUninstallerURL: Self.defaultResolveUninstallerURL,
+            runWithAdminPrivileges: Self.defaultRunWithAdminPrivileges
+        )
     }
 
-    let result = await runWithAdminPrivilegesClosure(scriptURL, deleteConfig)
+    @discardableResult
+    func uninstall(deleteConfig: Bool = false) async -> Bool {
+        guard !isRunning else { return false }
 
-    if result.success {
-      didSucceed = true
-      let output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
-      if !output.isEmpty {
-        logLines.append(contentsOf: output.components(separatedBy: "\n"))
-      }
-      logLines.append("✅ Uninstall completed")
-    } else {
-      let trimmed = result.error.trimmingCharacters(in: .whitespacesAndNewlines)
-      if !trimmed.isEmpty {
-        logLines.append("❌ \(trimmed)")
-        lastError = trimmed
-      } else {
-        logLines.append("❌ Uninstall failed (error code \(result.exitStatus))")
-        lastError = "Uninstall failed with exit code \(result.exitStatus)"
-      }
+        isRunning = true
+        didSucceed = false
+        lastError = nil
+        logLines = ["🗑️ Starting KeyPath uninstall..."]
+
+        defer { isRunning = false }
+
+        guard let scriptURL = resolveUninstallerURLClosure() else {
+            let message = "Uninstaller script wasn't found in this build."
+            logLines.append("❌ \(message)")
+            lastError = message
+            return false
+        }
+
+        logLines.append("📄 Using uninstaller at: \(scriptURL.path)")
+        if deleteConfig {
+            logLines.append("🗑️ User configuration will be deleted")
+        } else {
+            logLines.append("💾 User configuration will be preserved")
+        }
+
+        let result = await runWithAdminPrivilegesClosure(scriptURL, deleteConfig)
+
+        if result.success {
+            didSucceed = true
+            let output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !output.isEmpty {
+                logLines.append(contentsOf: output.components(separatedBy: "\n"))
+            }
+            logLines.append("✅ Uninstall completed")
+        } else {
+            let trimmed = result.error.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                logLines.append("❌ \(trimmed)")
+                lastError = trimmed
+            } else {
+                logLines.append("❌ Uninstall failed (error code \(result.exitStatus))")
+                lastError = "Uninstall failed with exit code \(result.exitStatus)"
+            }
+        }
+
+        return result.success
     }
 
-    return result.success
-  }
-
-  func copyTerminalCommand() {
-    guard let scriptURL = resolveUninstallerURLClosure() else { return }
-    let command = "sudo \"\(scriptURL.path)\""
-    let pasteboard = NSPasteboard.general
-    pasteboard.clearContents()
-    pasteboard.setString(command, forType: .string)
-    logLines.append("📋 Copied command: \(command)")
-  }
-
-  func revealUninstallerInFinder() {
-    guard let scriptURL = resolveUninstallerURLClosure() else { return }
-    NSWorkspace.shared.activateFileViewerSelecting([scriptURL])
-  }
-
-  // MARK: - Helpers
-
-  private static func defaultResolveUninstallerURL() -> URL? {
-    if let bundled = Bundle.main.url(forResource: "uninstall", withExtension: "sh") {
-      return bundled
+    func copyTerminalCommand() {
+        guard let scriptURL = resolveUninstallerURLClosure() else { return }
+        let command = "sudo \"\(scriptURL.path)\""
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(command, forType: .string)
+        logLines.append("📋 Copied command: \(command)")
     }
 
-    let repoPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-      .appendingPathComponent("Sources/KeyPath/Resources/uninstall.sh")
-    if FileManager.default.isExecutableFile(atPath: repoPath.path) {
-      return repoPath
+    func revealUninstallerInFinder() {
+        guard let scriptURL = resolveUninstallerURLClosure() else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([scriptURL])
     }
 
-    return nil
-  }
+    // MARK: - Helpers
 
-  private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
-    -> AppleScriptResult {
-    let escapedPath = escapeForAppleScript(scriptURL.path)
-    let configFlag = deleteConfig ? " --delete-config" : ""
-    let script = """
-      do shell script \"KEYPATH_UNINSTALL_ASSUME_YES=1 \" & quoted form of \"\(escapedPath)\" & \" --assume-yes\(configFlag)\" with administrator privileges
-      """
-    return await AppleScriptRunner.run(script: script)
-  }
+    private static func defaultResolveUninstallerURL() -> URL? {
+        if let bundled = Bundle.main.url(forResource: "uninstall", withExtension: "sh") {
+            return bundled
+        }
 
-  private static func escapeForAppleScript(_ path: String) -> String {
-    path
-      .replacingOccurrences(of: "\\", with: "\\\\")
-      .replacingOccurrences(of: "\"", with: "\\\"")
-  }
+        let repoPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/KeyPath/Resources/uninstall.sh")
+        if FileManager.default.isExecutableFile(atPath: repoPath.path) {
+            return repoPath
+        }
+
+        return nil
+    }
+
+    private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
+        -> AppleScriptResult {
+        let escapedPath = escapeForAppleScript(scriptURL.path)
+        let configFlag = deleteConfig ? " --delete-config" : ""
+        let script = """
+        do shell script \"KEYPATH_UNINSTALL_ASSUME_YES=1 \" & quoted form of \"\(escapedPath)\" & \" --assume-yes\(configFlag)\" with administrator privileges
+        """
+        return await AppleScriptRunner.run(script: script)
+    }
+
+    private static func escapeForAppleScript(_ path: String) -> String {
+        path
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
 }
 
 struct AppleScriptResult {
-  let success: Bool
-  let output: String
-  let error: String
-  let exitStatus: Int32
+    let success: Bool
+    let output: String
+    let error: String
+    let exitStatus: Int32
 }
 
 enum AppleScriptRunner {
-  static func run(script: String) async -> AppleScriptResult {
-    await withCheckedContinuation { continuation in
-      Task.detached {
-        let process = Process()
-        process.launchPath = "/usr/bin/osascript"
-        process.arguments = ["-e", script]
+    static func run(script: String) async -> AppleScriptResult {
+        await withCheckedContinuation { continuation in
+            Task.detached {
+                let process = Process()
+                process.launchPath = "/usr/bin/osascript"
+                process.arguments = ["-e", script]
 
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
+                let outPipe = Pipe()
+                let errPipe = Pipe()
+                process.standardOutput = outPipe
+                process.standardError = errPipe
 
-        do {
-          try process.run()
-        } catch {
-          continuation.resume(
-            returning: AppleScriptResult(
-              success: false,
-              output: "",
-              error: error.localizedDescription,
-              exitStatus: -1
-            ))
-          return
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(
+                        returning: AppleScriptResult(
+                            success: false,
+                            output: "",
+                            error: error.localizedDescription,
+                            exitStatus: -1
+                        ))
+                    return
+                }
+
+                process.waitUntilExit()
+
+                let outputData = outPipe.fileHandleForReading.readDataToEndOfFile()
+                let errorData = errPipe.fileHandleForReading.readDataToEndOfFile()
+
+                let output = String(data: outputData, encoding: .utf8) ?? ""
+                let errorString = String(data: errorData, encoding: .utf8) ?? ""
+                let exitStatus = process.terminationStatus
+
+                continuation.resume(
+                    returning: AppleScriptResult(
+                        success: exitStatus == 0,
+                        output: output,
+                        error: errorString,
+                        exitStatus: exitStatus
+                    ))
+            }
         }
-
-        process.waitUntilExit()
-
-        let outputData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errorData = errPipe.fileHandleForReading.readDataToEndOfFile()
-
-        let output = String(data: outputData, encoding: .utf8) ?? ""
-        let errorString = String(data: errorData, encoding: .utf8) ?? ""
-        let exitStatus = process.terminationStatus
-
-        continuation.resume(
-          returning: AppleScriptResult(
-            success: exitStatus == 0,
-            output: output,
-            error: errorString,
-            exitStatus: exitStatus
-          ))
-      }
     }
-  }
 }

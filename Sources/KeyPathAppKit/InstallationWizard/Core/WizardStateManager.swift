@@ -5,24 +5,24 @@ import KeyPathWizardCore
 
 @MainActor
 class WizardStateManager: ObservableObject {
-  // 🎯 NEW: Use InstallerEngine façade instead of SystemValidator directly
-  private var installerEngine = InstallerEngine()
+    // 🎯 NEW: Use InstallerEngine façade instead of SystemValidator directly
+    private var installerEngine = InstallerEngine()
 
-  func configure(kanataManager: KanataManager) {
-    // Recreate InstallerEngine with live KanataManager so state detection can
-    // trust the active TCP connection instead of treating Kanata as stopped.
-    installerEngine = InstallerEngine(kanataManager: kanataManager)
-    AppLogger.shared.log(
-      "🎯 [WizardStateManager] Configured with InstallerEngine façade (Phase 6.7)")
-  }
+    func configure(kanataManager: KanataManager) {
+        // Recreate InstallerEngine with live KanataManager so state detection can
+        // trust the active TCP connection instead of treating Kanata as stopped.
+        installerEngine = InstallerEngine(kanataManager: kanataManager)
+        AppLogger.shared.log(
+            "🎯 [WizardStateManager] Configured with InstallerEngine façade (Phase 6.7)")
+    }
 
-  func detectCurrentState(progressCallback: @escaping @Sendable (Double) -> Void = { _ in }) async
-    -> SystemStateResult {
-    // 🎯 NEW: Use InstallerEngine.inspectSystem() and adapt to old format
-    AppLogger.shared.log("🎯 [WizardStateManager] Using InstallerEngine.inspectSystem() (Phase 6.7)")
-    let context = await installerEngine.inspectSystem()
-    // Note: progressCallback is not supported by InstallerEngine yet
-    // This is acceptable as inspectSystem() is fast enough
-    return SystemContextAdapter.adapt(context)
-  }
+    func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
+        -> SystemStateResult {
+        // 🎯 NEW: Use InstallerEngine.inspectSystem() and adapt to old format
+        AppLogger.shared.log("🎯 [WizardStateManager] Using InstallerEngine.inspectSystem() (Phase 6.7)")
+        let context = await installerEngine.inspectSystem()
+        // Note: progressCallback is not supported by InstallerEngine yet
+        // This is acceptable as inspectSystem() is fast enough
+        return SystemContextAdapter.adapt(context)
+    }
 }
