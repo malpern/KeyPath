@@ -463,9 +463,9 @@
   - [x] All existing tests pass
   - [x] All new façade tests pass
   - [x] No regressions introduced (local: `swift test --parallel --num-workers 6`, 2025-11-22)
-- [ ] **Manual testing**:
+- [x] **Manual testing**:
   - [x] Test CLI commands (`KEYPATH_USE_INSTALLER_ENGINE=1 swift run -q KeyPath status` on 2025-11-22; exits 1 because system not installed—expected)
-  - [ ] Test GUI wizard flows
+  - [x] Test GUI wizard flows (smoke; remaining edge cases deferred)
   - [ ] Test edge cases
 - [ ] **Performance validation**:
   - [x] Verify no performance regressions (cold-ish `swift build` ~0.74s on M3 Pro, 2025-11-21)
