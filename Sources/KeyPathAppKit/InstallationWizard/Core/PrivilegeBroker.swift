@@ -1,8 +1,8 @@
 import Foundation
 
-/// Strategy object for executing privileged commands
-/// Wraps PrivilegedOperationsCoordinator to provide a simple interface for the façade
-/// Start with concrete type - add protocol if we need test doubles later
+/// Strategy object for executing privileged commands.
+/// Wraps `PrivilegedOperationsCoordinator` to give the InstallerEngine a stable surface.
+/// Start with concrete type; add a protocol only if we need test doubles later.
 @MainActor
 public struct PrivilegeBroker {
   /// Coordinator instance (singleton)

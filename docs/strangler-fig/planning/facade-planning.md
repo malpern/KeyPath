@@ -449,14 +449,14 @@
   - [x] Update `NEW_DEVELOPER_GUIDE.md` with façade usage
   - [x] Add code examples
 - [x] Add façade migration snippet to `ARCHITECTURE_MIGRATION_PLAN.md`
-- [ ] **Add inline documentation**:
-  - [ ] Document public API methods
-  - [ ] Document type contracts
-  - [ ] Add usage examples
-- [ ] **Create migration guide**:
-  - [ ] Document how to migrate from old API
-  - [ ] Provide code examples
-  - [ ] List breaking changes (if any)
+- [x] **Add inline documentation**:
+  - [x] Document public API methods
+  - [x] Document type contracts
+  - [x] Add usage examples
+- [x] **Create migration guide**:
+  - [x] Document how to migrate from old API
+  - [x] Provide code examples
+  - [x] List breaking changes (if any)
 
 ### Final Validation
 - [x] **Run full test suite**:

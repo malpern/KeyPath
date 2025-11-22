@@ -11,6 +11,17 @@ This document outlines the migration from the current conflict-prone, multi-inst
 - Backward compatibility: output issues and plans remain compatible with legacy config behavior
 - Next (Phase 8): finalize docs and retire remaining legacy adapters once stable
 
+#### Migration steps for callers
+1) Set env `KEYPATH_USE_INSTALLER_ENGINE=1` in your target (tests, CLI, or app scheme).
+2) Replace direct calls to `SystemValidator`/`LaunchDaemonInstaller` with the façade:
+   ```swift
+   let engine = InstallerEngine()
+   let broker = PrivilegeBroker()
+   let report = await engine.run(intent: .repair, using: broker)
+   ```
+3) Remove legacy adapter dependencies (`SystemSnapshotAdapter`, pgrep-based health checks) — already done in wizard/main app.
+4) Keep Kanata config backwards compatible (generator/repair emit vanilla Kanata config with documented options only).
+
 **Problem**: Multiple Kanata processes are started due to uncoordinated initialization paths, auto-conflict resolution, and race conditions between UI components.
 
 **Solution**: Centralized state management with explicit user actions, comprehensive logging, and full test coverage.
