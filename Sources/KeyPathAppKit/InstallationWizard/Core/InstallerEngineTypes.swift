@@ -5,7 +5,7 @@ import KeyPathWizardCore
 
 // MARK: - Install Intent
 
-/// Declarative enum describing the desired installation action
+/// Declarative enum describing the desired installation action.
 public enum InstallIntent: Sendable, Equatable {
   /// Fresh installation (new system, first time setup)
   case install
@@ -19,7 +19,7 @@ public enum InstallIntent: Sendable, Equatable {
 
 // MARK: - Requirement
 
-/// Status of a requirement check
+/// Status of a requirement check.
 public enum RequirementStatus: Sendable, Equatable {
   /// Requirement is satisfied
   case met
@@ -29,7 +29,7 @@ public enum RequirementStatus: Sendable, Equatable {
   case blocked
 }
 
-/// Named precondition that must be satisfied
+/// Named precondition that must be satisfied.
 public struct Requirement: Sendable, Equatable {
   /// Human-readable name (e.g., "Admin privileges available")
   public let name: String
@@ -44,8 +44,8 @@ public struct Requirement: Sendable, Equatable {
 
 // MARK: - System Context
 
-/// Snapshot of detected system state
-/// Consolidates data from SystemSnapshotAdapter, SystemRequirements, ServiceStatusEvaluator
+/// Snapshot of detected system state.
+/// Consolidates data from SystemValidator/SystemRequirements into a façade-friendly type.
 public struct SystemContext: Sendable {
   /// Current permission status (Input Monitoring, Accessibility, Full Disk Access)
   public let permissions: PermissionOracle.Snapshot
@@ -81,7 +81,7 @@ public struct SystemContext: Sendable {
   }
 }
 
-/// System information (macOS version, driver compatibility, etc.)
+/// System information (macOS version, driver compatibility, etc.).
 public struct EngineSystemInfo: Sendable, Equatable {
   /// macOS version string
   public let macOSVersion: String
@@ -96,7 +96,7 @@ public struct EngineSystemInfo: Sendable, Equatable {
 
 // MARK: - Service Recipe
 
-/// Type of operation a recipe performs
+/// Type of operation a recipe performs.
 public enum RecipeType: Sendable, Equatable {
   /// Install a LaunchDaemon service
   case installService
@@ -110,7 +110,7 @@ public enum RecipeType: Sendable, Equatable {
   case checkRequirement
 }
 
-/// Launchctl action to perform
+/// Launchctl action to perform.
 public enum LaunchctlAction: Sendable, Equatable {
   /// Bootstrap a service
   case bootstrap(serviceID: String)
@@ -120,7 +120,7 @@ public enum LaunchctlAction: Sendable, Equatable {
   case bootout(serviceID: String)
 }
 
-/// Criteria for verifying recipe success
+/// Criteria for verifying recipe success.
 public struct HealthCheckCriteria: Sendable, Equatable {
   /// Service ID to check
   public let serviceID: String
@@ -133,7 +133,7 @@ public struct HealthCheckCriteria: Sendable, Equatable {
   }
 }
 
-/// Minimal executable unit - specification for a single service operation
+/// Minimal executable unit — specification for a single service operation.
 public struct ServiceRecipe: Sendable, Equatable {
   /// Unique identifier for this recipe
   public let id: String
@@ -171,7 +171,7 @@ public struct ServiceRecipe: Sendable, Equatable {
 
 // MARK: - Install Plan
 
-/// Current plan state
+/// Current plan state.
 public enum PlanStatus: Sendable, Equatable {
   /// Plan is ready to execute
   case ready
@@ -192,7 +192,7 @@ public struct PlanMetadata: Sendable, Equatable {
   }
 }
 
-/// Ordered collection of operations to execute
+/// Ordered collection of operations to execute.
 public struct InstallPlan: Sendable, Equatable {
   /// Ordered list of operations (respects dependencies)
   public let recipes: [ServiceRecipe]
