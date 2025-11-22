@@ -66,7 +66,7 @@ extension KanataManager {
         "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")")
       // Fall back to service restart
       AppLogger.shared.warn("⚠️ [Reload] Falling back to service restart")
-      await restartKanata()
+      _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
       // After a successful restart, clear stale diagnostics
       clearDiagnostics()
       return ReloadResult(
@@ -124,7 +124,7 @@ extension KanataManager {
       AppLogger.shared.info(
         "🔄 [Reload] Falling back to service restart due to error: \(result.errorMessage ?? "Unknown")"
       )
-      await restartKanata()
+      _ = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
     }
   }
 }

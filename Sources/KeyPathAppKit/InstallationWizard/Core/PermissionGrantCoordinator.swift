@@ -229,16 +229,15 @@ class PermissionGrantCoordinator: ObservableObject {
     }
   }
 
-  private func attemptKanataRestart(kanataManager: KanataManager) async -> Bool {
-    // Use the retryAfterFix method which handles complete restarts
-    await kanataManager.retryAfterFix("Restarting after permission grant")
+  private func attemptKanataRestart(kanataManager _: KanataManager) async -> Bool {
+    // Use InstallerEngine for service repair/restart
+    let engine = InstallerEngine()
+    let result = await engine.run(intent: .repair, using: PrivilegeBroker())
 
     // Give it a moment to complete the restart
     try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
 
-    // The retryAfterFix method doesn't return a success value, so we assume success
-    // The coordinator will check permission status later anyway
-    return true
+    return result.success
   }
 
   private func logPermissionSnapshot() {

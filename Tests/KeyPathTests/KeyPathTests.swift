@@ -489,13 +489,17 @@ final class KeyPathTests: XCTestCase {
 
     if manager.isCompletelyInstalled() {
       // If installed, we can test the start process
-      await manager.startKanata()
+      let engine = InstallerEngine()
+      _ = await engine.run(intent: .repair, using: PrivilegeBroker())
 
       // Should complete without crashing
       XCTAssertTrue(true, "Start process should complete")
 
       // Check that status is updated
-      // XCTAssertNotNil(manager.isRunning)
+      let context = await engine.inspectSystem()
+      // We can't strictly assert true here in CI/sandbox without privileges, 
+      // but we verified the call completed.
+      _ = context.services.kanataRunning 
     } else {
       // If not installed, should have appropriate error
       if let error = manager.lastError {

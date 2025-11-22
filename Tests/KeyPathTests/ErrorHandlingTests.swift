@@ -392,8 +392,8 @@ final class ErrorHandlingTests: XCTestCase {
   func testKanataProcessErrorHandling() async throws {
     // Test error handling when Kanata process operations fail
     await manager.updateStatus()
-    await manager.startKanata()
-    await manager.stopKanata()
+    // Process operations via manager are deprecated/removed.
+    // We check that cleanup (which delegates to privilege broker) works.
     await manager.cleanup()
 
     // These operations might fail in test environment, but shouldn't crash

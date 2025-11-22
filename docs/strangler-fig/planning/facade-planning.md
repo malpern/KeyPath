@@ -475,7 +475,7 @@
   - [ ] Review façade implementation
   - [ ] Review test coverage
   - [ ] Review documentation
-  - [ ] Remove legacy KanataManager status plumbing now superseded by InstallerEngine/SystemContext (Settings status card/toggle, serviceStatusDetail, manual start/stop paths)
+  - [x] Remove legacy KanataManager status plumbing now superseded by InstallerEngine/SystemContext (Settings status card/toggle, serviceStatusDetail, manual start/stop paths)
 
 ---
 
