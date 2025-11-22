@@ -471,10 +471,10 @@
   - [x] Verify no performance regressions (cold-ish `swift build` ~0.74s on M3 Pro, 2025-11-21; latest `swift build` real 0.39s on same machine, 2025-11-22)
   - [x] Profile critical paths (InstallerEnginePerformanceTests added)
   - [ ] Optimize if needed (SystemValidator assertion relaxed for tests)
-- [ ] **Code review**:
+- [x] **Code review**:
   - [x] Review façade implementation (Refactored InstallerEngine.swift)
-  - [ ] Review test coverage
-  - [ ] Review documentation
+  - [x] Review test coverage (InstallerEngineTests covers all methods/recipes)
+  - [x] Review documentation (ARCHITECTURE.md updated, NEW_DEVELOPER_GUIDE.md verified)
   - [x] Remove legacy KanataManager status plumbing now superseded by InstallerEngine/SystemContext (Settings status card/toggle, serviceStatusDetail, manual start/stop paths)
   - [x] Remove dead code (unused paths, deprecated methods, stale tests)
 
