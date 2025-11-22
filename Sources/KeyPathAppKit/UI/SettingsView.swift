@@ -527,20 +527,35 @@ struct StatusSettingsTabView: View {
   }
 
   private func startViaInstallerEngine() async {
-    // If already running per latest context, avoid extra work
-    if systemContext?.services.kanataRunning == true {
+    // Fresh context
+    let context = await installerEngine.inspectSystem()
+
+    // If already running, exit early
+    if context.services.kanataRunning {
+      await refreshStatus()
+      await MainActor.run { settingsToastManager.showSuccess("KeyPath is already running") }
+      return
+    }
+
+    // Minimal start path when components are healthy but service is stopped
+    if context.services.isHealthy && context.components.launchDaemonServicesHealthy {
+      await kanataManager.startKanata()
+      await refreshStatus()
+      let ctx = await installerEngine.inspectSystem()
+      let started = ctx.services.kanataRunning
       await MainActor.run {
-        settingsToastManager.showSuccess("KeyPath is already running")
+        started
+          ? settingsToastManager.showSuccess("KeyPath activated")
+          : settingsToastManager.showError("Start failed: service did not launch")
       }
       return
     }
 
-    // Build and execute a repair plan to bring services up
-    let context = await installerEngine.inspectSystem()
+    // Otherwise run a repair plan to bring services up
     let plan = await installerEngine.makePlan(for: .repair, context: context)
     let report = await installerEngine.execute(plan: plan, using: privilegeBroker)
 
-    // Poll a few times to catch the daemon transition to running
+    // Poll briefly for service to come up
     var running = false
     for _ in 0..<6 {
       let ctx = await installerEngine.inspectSystem()
@@ -553,14 +568,16 @@ struct StatusSettingsTabView: View {
         running = true
         break
       }
-      try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5s
+      try? await Task.sleep(nanoseconds: 300_000_000)  // 0.3s
     }
 
     await MainActor.run {
       if report.success && running {
         settingsToastManager.showSuccess("KeyPath activated")
       } else {
-        let reason = report.failureReason ?? "Service not running yet"
+        let reason = report.failureReason
+          ?? report.unmetRequirements.first?.name
+          ?? "Service not running yet"
         settingsToastManager.showError("Start failed: \(reason)")
       }
     }
@@ -590,6 +607,7 @@ struct StatusSettingsTabView: View {
 
   private func stopViaInstallerEngine() async {
     do {
+      // Stop Kanata only; leave VHID/Karabiner services running to avoid extra prompts.
       try await privilegeBroker.stopKanataService()
       await refreshStatus()
       await MainActor.run {
