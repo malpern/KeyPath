@@ -84,6 +84,13 @@ public struct PrivilegeBroker {
     try await coordinator.killAllKanataProcesses()
   }
 
+  /// Stop Kanata LaunchDaemon and kill any remaining processes
+  public func stopKanataService() async throws {
+    let cmd = "/bin/launchctl bootout system/\(KanataDaemonManager.kanataServiceID) 2>/dev/null || true"
+    try await coordinator.sudoExecuteCommand(cmd, description: "Stop Kanata service")
+    try await coordinator.killAllKanataProcesses()
+  }
+
   /// Restart Karabiner daemon with verification
   public func restartKarabinerDaemonVerified() async throws -> Bool {
     try await coordinator.restartKarabinerDaemonVerified()

@@ -153,43 +153,41 @@ struct StatusSettingsTabView: View {
   @State private var showingInstallationWizard = false
   @State private var showSetupBanner = false
   @State private var permissionSnapshot: PermissionOracle.Snapshot?
+  @State private var systemContext: SystemContext?
   @State private var duplicateAppCopies: [String] = []
   @State private var settingsToastManager = WizardToastManager()
   @State private var showingPermissionAlert = false
-
-  private var shouldShowStartup: Bool {
-    LaunchAgentManager.isInstalled() || LaunchAgentManager.isLoaded()
-  }
+  private let installerEngine = InstallerEngine()
+  private let privilegeBroker = PrivilegeBroker()
 
   private var isServiceRunning: Bool {
-    kanataManager.currentState == .running
+    systemContext?.services.kanataRunning ?? false
   }
 
   private var isSystemHealthy: Bool {
-    kanataManager.currentState == .running && (permissionSnapshot?.isSystemReady ?? false)
+    (systemContext?.services.isHealthy ?? false) && (permissionSnapshot?.isSystemReady ?? false)
   }
 
   private var systemHealthMessage: String {
-    if kanataManager.currentState != .running {
-      kanataServiceStatus
-    } else if !(permissionSnapshot?.isSystemReady ?? false) {
-      "Permissions Required"
-    } else {
-      "Everything's Working"
+    guard let context = systemContext else { return "Checking status…" }
+    if !context.services.kanataRunning {
+      return kanataServiceStatus
     }
+    if !(permissionSnapshot?.isSystemReady ?? false) {
+      return "Permissions Required"
+    }
+    return "Everything's Working"
   }
 
   private var kanataServiceStatus: String {
-    switch kanataManager.currentState {
-    case .running:
-      "Service Running"
-    case .starting:
-      "Service Starting"
-    case .needsHelp:
-      "Attention Needed"
-    case .stopped:
-      "Service Stopped"
+    guard let context = systemContext else { return "Checking…" }
+    if context.services.kanataRunning {
+      return "Service Running"
     }
+    if context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning {
+      return "Service Starting"
+    }
+    return "Service Stopped"
   }
 
   private var primaryIssueDetail: StatusDetail? {
@@ -213,39 +211,42 @@ struct StatusSettingsTabView: View {
   }
 
   private var serviceStatusDetail: StatusDetail {
-    switch kanataManager.currentState {
-    case .running:
+    guard let context = systemContext else {
+      return StatusDetail(
+        title: "Kanata Service",
+        message: "Checking current status…",
+        icon: "ellipsis.circle",
+        level: .info
+      )
+    }
+
+    if context.services.kanataRunning {
       return StatusDetail(
         title: "Kanata Service",
         message: "Running normally.",
         icon: "bolt.fill",
         level: .success
       )
-    case .starting:
+    }
+
+    if context.components.launchDaemonServicesHealthy || context.services.karabinerDaemonRunning {
       return StatusDetail(
         title: "Kanata Service",
         message: "Starting…",
         icon: "hourglass.circle",
         level: .info
       )
-    case .needsHelp:
-      return StatusDetail(
-        title: "Kanata Service",
-        message: kanataManager.errorReason ?? "KeyPath needs attention.",
-        icon: "exclamationmark.circle",
-        level: .critical,
-        action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-          showingInstallationWizard = true
-        }
-      )
-    case .stopped:
-      return StatusDetail(
-        title: "Kanata Service",
-        message: "Service is stopped. Use the switch above to turn it on.",
-        icon: "pause.circle",
-        level: .warning
-      )
     }
+
+    return StatusDetail(
+      title: "Kanata Service",
+      message: "Service is stopped. Use the switch above to turn it on.",
+      icon: "pause.circle",
+      level: .warning,
+      action: StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+        showingInstallationWizard = true
+      }
+    )
   }
 
   private var permissionDetail: StatusDetail? {
@@ -386,16 +387,11 @@ struct StatusSettingsTabView: View {
                 set: { newValue in
                   Task {
                     if newValue {
-                      await kanataManager.manualStart()
-                      await MainActor.run {
-                        settingsToastManager.showSuccess("KeyPath activated")
-                      }
+                      await startViaInstallerEngine()
                     } else {
-                      await kanataManager.manualStop()
-                      await MainActor.run {
-                        settingsToastManager.showInfo("KeyPath deactivated")
-                      }
+                      await stopViaInstallerEngine()
                     }
+                    await refreshStatus()
                   }
                 }
               )
@@ -465,12 +461,6 @@ struct StatusSettingsTabView: View {
       .padding(.horizontal, 20)
       .padding(.top, 24)
 
-      if shouldShowStartup {
-        FormSection(header: "Legacy Startup Agent") {
-          LaunchAgentSettingsView()
-        }
-      }
-
       Spacer()
     }
     .frame(maxHeight: 350)
@@ -506,13 +496,41 @@ struct StatusSettingsTabView: View {
 
   private func refreshStatus() async {
     await kanataManager.forceRefreshStatus()
-    let snapshot = await PermissionOracle.shared.currentSnapshot()
+    let context = await installerEngine.inspectSystem()
+    let snapshot = context.permissions
     let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
 
     await MainActor.run {
       permissionSnapshot = snapshot
-      showSetupBanner = !snapshot.isSystemReady
+      systemContext = context
+      showSetupBanner = !(snapshot.isSystemReady && context.services.isHealthy)
       duplicateAppCopies = duplicates
+    }
+  }
+
+  private func startViaInstallerEngine() async {
+    // If already running per latest context, avoid extra work
+    if systemContext?.services.kanataRunning == true {
+      await MainActor.run {
+        settingsToastManager.showSuccess("KeyPath is already running")
+      }
+      return
+    }
+
+    // Build and execute a repair plan to bring services up
+    let context = await installerEngine.inspectSystem()
+    let plan = await installerEngine.makePlan(for: .repair, context: context)
+    let report = await installerEngine.execute(plan: plan, using: privilegeBroker)
+
+    await refreshStatus()
+
+    await MainActor.run {
+      if report.success {
+        settingsToastManager.showSuccess("KeyPath activated")
+      } else {
+        let reason = report.failureReason ?? "Unknown error"
+        settingsToastManager.showError("Start failed: \(reason)")
+      }
     }
   }
 
@@ -534,6 +552,20 @@ struct StatusSettingsTabView: View {
         settingsToastManager.showSuccess("Configuration reset to default")
       } catch {
         settingsToastManager.showError("Reset failed: \(error.localizedDescription)")
+      }
+    }
+  }
+
+  private func stopViaInstallerEngine() async {
+    do {
+      try await privilegeBroker.stopKanataService()
+      await refreshStatus()
+      await MainActor.run {
+        settingsToastManager.showInfo("KeyPath deactivated")
+      }
+    } catch {
+      await MainActor.run {
+        settingsToastManager.showError("Stop failed: \(error.localizedDescription)")
       }
     }
   }
