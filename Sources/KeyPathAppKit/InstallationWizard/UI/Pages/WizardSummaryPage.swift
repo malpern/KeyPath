@@ -35,35 +35,48 @@ struct WizardSummaryPage: View {
   @State private var fadeMaskOpacity: Double = 0.0
   @State private var visibleIssueCount: Int = 0
 
-var body: some View {
-    ZStack(alignment: .top) {
-      ScrollView {
-        VStack(spacing: 16) {
-          // Spacer to push content below the fixed header area
-          Spacer()
-            .frame(height: 180)  // Space for header (60pt top + 120pt header)
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack(alignment: .top) {
+        ScrollView {
+          VStack(spacing: 16) {
+            // Spacer to push content below the fixed header area
+            Spacer(minLength: 0)
+              .frame(height: 180)  // Space for header (60pt top + 120pt header)
 
-          // System Status Overview
-          if !isValidating {
-            Group {
-              WizardSystemStatusOverview(
-                systemState: systemState,
-                issues: issues,
-                stateInterpreter: stateInterpreter,
-                onNavigateToPage: onNavigateToPage,
-                kanataIsRunning: kanataManager.isRunning,
-                showAllItems: showAllItems,
-                navSequence: $navSequence,
-                visibleIssueCount: $visibleIssueCount
-              )
+            // System Status Overview
+            if !isValidating {
+              Group {
+                WizardSystemStatusOverview(
+                  systemState: systemState,
+                  issues: issues,
+                  stateInterpreter: stateInterpreter,
+                  onNavigateToPage: onNavigateToPage,
+                  kanataIsRunning: kanataManager.isRunning,
+                  showAllItems: showAllItems,
+                  navSequence: $navSequence,
+                  visibleIssueCount: $visibleIssueCount
+                )
+              }
+              .id(showAllItems ? "list_all" : "list_errors")
+              .frame(maxWidth: 720)
+              .transition(.opacity)
             }
-            .id(showAllItems ? "list_all" : "list_errors")
-            .frame(maxWidth: 720)
-            .transition(.opacity)
-          }
 
-          // Action Section
-          if !isValidating {
+            Spacer(minLength: 0)
+              .frame(height: 12)
+          }
+          .frame(maxWidth: .infinity)
+          .padding(.horizontal, 24)
+          .padding(.bottom, 24 + proxy.safeAreaInsets.bottom)
+        }
+        .background(WizardDesign.Colors.wizardBackground.ignoresSafeArea())
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        // Action Section anchored to bottom safe area
+        if !isValidating {
+          VStack {
+            Spacer()
             WizardActionSection(
               systemState: systemState,
               isFullyConfigured: isEverythingComplete,
@@ -71,18 +84,19 @@ var body: some View {
               onDismiss: onDismiss
             )
             .frame(maxWidth: 720)
-            .padding(.bottom, WizardDesign.Spacing.elementGap)
-            .transition(.opacity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 14)
+            .background(.ultraThinMaterial)
+            .cornerRadius(14)
+            .padding(.bottom, 12 + proxy.safeAreaInsets.bottom)
           }
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+          .allowsHitTesting(true)
+          .transition(.opacity)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
-      }
-      .background(WizardDesign.Colors.wizardBackground.ignoresSafeArea())
 
-      // Icon - absolutely positioned, independent of text
-      ZStack {
+        // Icon - absolutely positioned, independent of text
+        ZStack {
         // Hover ring exactly centered with the icon
         if headerMode == .issues {
           Circle()
@@ -201,6 +215,14 @@ var body: some View {
       // Eye icon removed - error icon toggles list filtering
     }
     .modifier(WizardDesign.DisableFocusEffects())
+    .frame(
+      minWidth: 640,
+      idealWidth: 800,
+      maxWidth: 900,
+      minHeight: 480,
+      idealHeight: 620,
+      maxHeight: 720
+    )
     .background(WizardDesign.Colors.wizardBackground)
     // Full-surface white fade to simplify transitions
     .overlay {
@@ -208,6 +230,7 @@ var body: some View {
         .opacity(fadeMaskOpacity)
         .allowsHitTesting(false)
         .animation(.easeInOut(duration: 0.2), value: fadeMaskOpacity)
+    }
     }
   }
 
